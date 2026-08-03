@@ -130,6 +130,20 @@ class StandaloneJarTest {
         assertThat(yaml)
                 .as("depend: is plugin.yml syntax and is silently ignored here")
                 .doesNotContain("depend:");
+
+        // This file is hand-written rather than produced by StandaloneDescriptor, so it can drift from it —
+        // and it did. 2.0.0 shipped declaring RainsCore for the server phase only, which left the bootstrapper
+        // without RainsCore's classes at the moment it discovers modules, and the plugin came up announcing
+        // that it contained none. DescriptorTest covers the generator; this covers what is actually in the jar.
+        int bootstrap = yaml.indexOf("bootstrap:\n");
+        int server = yaml.indexOf("server:\n");
+        assertThat(bootstrap)
+                .as("Paper runs bootstrap with its own classpath, and bootstrap is where modules are found")
+                .isNotNegative();
+        assertThat(server).isGreaterThan(bootstrap);
+        assertThat(yaml.substring(bootstrap, server))
+                .contains("RainsCore:")
+                .contains("join-classpath: true");
     }
 
     @Test

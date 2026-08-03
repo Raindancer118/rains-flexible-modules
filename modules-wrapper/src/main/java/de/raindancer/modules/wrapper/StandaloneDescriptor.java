@@ -93,16 +93,27 @@ public final class StandaloneDescriptor {
 
         yaml.append('\n');
         yaml.append("dependencies:\n");
+
+        // Both phases, and the bootstrap one is not belt-and-braces. Paper runs bootstrap with its own
+        // dependency tree and its own classpath, and the bootstrapper is where modules are first discovered —
+        // it has to look, because commands are registered during bootstrap or they never exist at all. A
+        // dependency declared only under `server:` is not on the classpath yet at that point, so every module
+        // fails to link with a ClassNotFoundException naming a class the author never wrote, and the plugin
+        // reports that it contains no modules. That is exactly what happened the first time this shipped.
+        yaml.append("  bootstrap:\n");
+        dependencies.forEach((plugin, required) -> declare(yaml, plugin, required));
         yaml.append("  server:\n");
-        dependencies.forEach((plugin, required) -> {
-            yaml.append("    ").append(plugin).append(":\n");
-            yaml.append("      load: BEFORE\n");
-            yaml.append("      required: ").append(required).append('\n');
-            // The line that actually puts the classes on the classpath. Without it everything above is right
-            // and the plugin still dies the moment it touches one of them.
-            yaml.append("      join-classpath: true\n");
-        });
+        dependencies.forEach((plugin, required) -> declare(yaml, plugin, required));
         return yaml.toString();
+    }
+
+    private static void declare(StringBuilder yaml, String plugin, boolean required) {
+        yaml.append("    ").append(plugin).append(":\n");
+        yaml.append("      load: BEFORE\n");
+        yaml.append("      required: ").append(required).append('\n');
+        // The line that actually puts the classes on the classpath. Without it everything above is right
+        // and the plugin still dies the moment it touches one of them.
+        yaml.append("      join-classpath: true\n");
     }
 
     private static String required(String value, String what) {

@@ -48,6 +48,29 @@ class ModulesTest {
     }
 
     @Test
+    void aDiscoveryThatFoundNothingIsTriedAgain() {
+        // On a real server this cost a whole plugin. The bootstrapper discovers first, because commands
+        // have to be registered during bootstrap — and a plugin whose dependency is declared only for the
+        // server phase has none of that dependency's classes yet at bootstrap. Every module failed to
+        // link, discovery latched anyway, and the call in onEnable — where the classes *are* there —
+        // returned the cached nothing. The log said "this jar contains no modules" about a jar that
+        // contained one.
+        //
+        // Nothing found is not an answer worth keeping. Nothing found twice is the same work repeated,
+        // which costs a few milliseconds once.
+        Modules.discover(new ClassLoader(null) {
+        });
+        assertThat(Modules.registry().declared()).isEmpty();
+
+        Modules.discover(getClass().getClassLoader());
+        assertThat(Modules.registry().declared())
+                .as("the second look happens in a phase where the dependency is on the classpath, and "
+                        + "that is the look that has to count")
+                .extracting(module -> module.info().id())
+                .contains("good");
+    }
+
+    @Test
     void discoveryProblemsAreKeptRatherThanSwallowed() {
         Modules.discover(getClass().getClassLoader());
         assertThat(Modules.registry().problems()).anySatisfy(problem ->

@@ -32,15 +32,25 @@ public final class Modules {
      * <p>Idempotent on purpose: the bootstrapper calls it to find the commands and {@code onEnable} calls
      * it in case there was no bootstrapper. A second discovery that added the modules again would give
      * every id a duplicate and every command a collision.
+     *
+     * <p>Idempotent only once something was <em>found</em>, though. The two calls happen in different
+     * phases with different classpaths: Paper runs bootstrap with its own dependency tree, so a host whose
+     * dependency is declared for the server phase alone has none of that dependency's classes yet when the
+     * bootstrapper looks. Every module then fails to link, and latching on that would hand the call in
+     * {@code onEnable} — where the classes are there — the cached nothing. That shipped once, and the log
+     * said the jar contained no modules about a jar that contained one.
+     *
+     * <p>So nothing found is not an answer worth keeping. Looking twice when there is genuinely nothing to
+     * find costs a service-file scan of an empty classpath, once per start.
      */
     public static synchronized void discover(ClassLoader loader) {
         if (discovered) {
             return;
         }
-        discovered = true;
         ModuleDiscovery.Discovered found = ModuleDiscovery.onClasspath(loader);
         found.problems().forEach(registry::problem);
         registry.addAll(found.modules());
+        discovered = !found.modules().isEmpty();
     }
 
     /** Throws the registry away. For tests, and for the second half of {@link #shutdown()}. */

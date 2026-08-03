@@ -65,6 +65,32 @@ class DescriptorTest {
         }
 
         @Test
+        void declaresRainsCoreForTheBootstrapPhaseAsWell() {
+            // Paper runs bootstrap with its own dependency tree and its own classpath. A dependency
+            // declared only under `server:` is not there yet when the bootstrapper runs — and the
+            // bootstrapper is where modules are first discovered, because commands must be registered
+            // during bootstrap or they never exist.
+            //
+            // What that cost on a real server: every module failed to link at bootstrap with a
+            // ClassNotFoundException for a RainsCore class, and the plugin reported "this jar contains
+            // no modules" about a jar that contained one. Both halves are real and neither is optional.
+            String yaml = descriptor.render();
+
+            int bootstrap = yaml.indexOf("bootstrap:");
+            int server = yaml.indexOf("server:");
+            assertThat(bootstrap)
+                    .as("without a bootstrap-phase declaration the bootstrapper has none of RainsCore's "
+                            + "classes, which is where the modules are first looked for")
+                    .isNotNegative();
+            assertThat(server).isNotNegative();
+
+            assertThat(yaml.substring(bootstrap, server))
+                    .as("declared for bootstrap, and joined to its classpath there too")
+                    .contains("RainsCore:")
+                    .contains("join-classpath: true");
+        }
+
+        @Test
         void neverUsesTheLegacySpelling() {
             // depend: is plugin.yml syntax. In a paper-plugin.yml it declares nothing at all, and the failure
             // names a class the author never wrote.
@@ -143,12 +169,20 @@ class DescriptorTest {
         }
 
         @Test
-        void aDependencyIsNotDeclaredTwice() {
+        void aDependencyIsNotDeclaredTwiceWithinAPhase() {
             String yaml = descriptor.dependingOn("RainsCore", true).render();
 
+            // Once under bootstrap: and once under server:, which is two phases rather than a duplicate.
+            // A repeated key *inside* one of them is a file SnakeYAML rejects outright.
             assertThat(yaml.split("RainsCore:", -1))
-                    .as("RainsCore is always declared; asking for it again must not duplicate it")
+                    .as("RainsCore is always declared, in both phases; asking for it again must not add more")
+                    .hasSize(3);
+
+            int server = yaml.indexOf("  server:\n");
+            assertThat(yaml.substring(0, server).split("RainsCore:", -1))
+                    .as("a key repeated inside one section makes the whole file unparseable")
                     .hasSize(2);
+            assertThat(yaml.substring(server).split("RainsCore:", -1)).hasSize(2);
         }
     }
 
@@ -157,13 +191,18 @@ class DescriptorTest {
     void theShapeIsRight() {
         List<String> lines = List.of(descriptor.render().split("\n"));
 
-        // The nesting Paper wants is dependencies > server > <name> > keys, and getting the depth wrong is a
+        // The nesting Paper wants is dependencies > <phase> > <name> > keys, and getting the depth wrong is a
         // file that parses into something else entirely rather than failing.
         int dependencies = lines.indexOf("dependencies:");
         assertThat(dependencies).isNotNegative();
-        assertThat(lines.get(dependencies + 1)).isEqualTo("  server:");
-        assertThat(lines.get(dependencies + 2)).isEqualTo("    RainsCore:");
-        assertThat(lines.get(dependencies + 3)).startsWith("      ");
+
+        for (String phase : List.of("  bootstrap:", "  server:")) {
+            int at = lines.indexOf(phase);
+            assertThat(at).as(phase + " is missing").isNotNegative();
+            assertThat(lines.get(at + 1)).isEqualTo("    RainsCore:");
+            assertThat(lines.get(at + 2)).startsWith("      ");
+        }
+        assertThat(lines.indexOf("  bootstrap:")).isLessThan(lines.indexOf("  server:"));
     }
 
     @Test

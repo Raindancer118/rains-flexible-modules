@@ -10,6 +10,16 @@ author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
 dependencies:
+  # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and
+  # its own classpath, and the bootstrapper is where the modules are first discovered — it has to look, since
+  # commands are registered during bootstrap or they never exist. Declared for the server phase alone, the
+  # module fails to link at bootstrap with a ClassNotFoundException for a RainsCore class and the plugin
+  # reports that it contains no modules. That is what 2.0.0 did on the test server the first time.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
   server:
     RainsCore:
       load: BEFORE
