@@ -1,0 +1,19 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see that class for why every line
+# here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${project.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Land claims: who owns what, who may do what there, and the screens for it.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+dependencies:
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      # The line that actually puts RainsCore's classes on this plugin's classpath. Paper plugins get isolated
+      # classloaders, so without it everything above is right and the plugin dies the moment it touches one.
+      join-classpath: true

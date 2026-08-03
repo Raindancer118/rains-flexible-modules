@@ -33,7 +33,9 @@
 
     <modules>
         <module>modules-api</module>
+        <module>modules-wrapper</module>
         <module>claims-module</module>
+        <module>claims-standalone</module>
     </modules>
 
     <repositories>
