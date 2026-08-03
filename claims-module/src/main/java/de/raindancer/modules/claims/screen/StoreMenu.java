@@ -1,12 +1,15 @@
 package de.raindancer.modules.claims.screen;
 
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimPantry;
+import de.raindancer.modules.claims.model.PotionStore;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
-import de.raindancer.modules.claims.Claim;
-import de.raindancer.modules.claims.ClaimPantry;
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimPantry;
 import de.raindancer.modules.claims.ClaimServices;
-import de.raindancer.modules.claims.PotionStore;
+import de.raindancer.modules.claims.model.PotionStore;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -162,6 +165,6 @@ public final class StoreMenu extends PaginatedMenu<ItemStack> {
 
     private boolean mayManage() {
         return services.rights().canManage(claim, viewer,
-                de.raindancer.modules.claims.ClaimAdminPermission.MANAGE_BANK);
+                de.raindancer.modules.claims.model.ClaimAdminPermission.MANAGE_BANK);
     }
 }

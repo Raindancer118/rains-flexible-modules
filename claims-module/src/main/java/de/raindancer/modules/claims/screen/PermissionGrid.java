@@ -1,9 +1,10 @@
 package de.raindancer.modules.claims.screen;
 
+import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.world.protection.LandAction;
-import de.raindancer.modules.claims.Claim;
+import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.ClaimServices;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;

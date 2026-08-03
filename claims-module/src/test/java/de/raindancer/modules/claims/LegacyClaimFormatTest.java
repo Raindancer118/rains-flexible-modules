@@ -1,5 +1,9 @@
 package de.raindancer.modules.claims;
 
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimFeature;
+import de.raindancer.modules.claims.model.CostType;
+import de.raindancer.modules.claims.store.ClaimStorage;
 import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.core.world.protection.LandAudience;
 import de.raindancer.core.world.protection.LandFlag;

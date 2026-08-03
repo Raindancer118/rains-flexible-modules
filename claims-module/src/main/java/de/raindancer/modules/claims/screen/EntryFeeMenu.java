@@ -1,12 +1,15 @@
 package de.raindancer.modules.claims.screen;
 
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimAdminPermission;
+import de.raindancer.modules.claims.model.CostType;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
-import de.raindancer.modules.claims.Claim;
-import de.raindancer.modules.claims.ClaimAdminPermission;
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.ClaimServices;
-import de.raindancer.modules.claims.CostType;
+import de.raindancer.modules.claims.model.CostType;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;

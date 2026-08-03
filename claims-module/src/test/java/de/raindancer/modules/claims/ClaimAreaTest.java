@@ -1,5 +1,11 @@
 package de.raindancer.modules.claims;
 
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimAdminPermission;
+import de.raindancer.modules.claims.model.ClaimBan;
+import de.raindancer.modules.claims.model.ClaimPoint;
+import de.raindancer.modules.claims.model.ClaimShape;
+import de.raindancer.modules.claims.rules.ClaimArea;
 import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.core.world.protection.LandAudience;
 import de.raindancer.core.world.protection.LandFlag;

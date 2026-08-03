@@ -1,11 +1,15 @@
 package de.raindancer.modules.claims.screen;
 
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimAdminPermission;
+import de.raindancer.modules.claims.model.ClaimFeature;
+import de.raindancer.modules.claims.util.Items;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
-import de.raindancer.modules.claims.Claim;
-import de.raindancer.modules.claims.ClaimAdminPermission;
-import de.raindancer.modules.claims.ClaimFeature;
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimAdminPermission;
+import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.ClaimServices;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -115,8 +119,8 @@ public final class ClaimMenu extends ClaimScreen {
                 click -> {
                     viewer.closeInventory();
                     services().selectionFlow().begin(viewer,
-                            de.raindancer.modules.claims.Selection.Mode.RECTANGLE,
-                            de.raindancer.modules.claims.Selection.Purpose.RESIZE_CLAIM,
+                            de.raindancer.modules.claims.selection.Selection.Mode.RECTANGLE,
+                            de.raindancer.modules.claims.selection.Selection.Purpose.RESIZE_CLAIM,
                             null, claim, null);
                 });
 

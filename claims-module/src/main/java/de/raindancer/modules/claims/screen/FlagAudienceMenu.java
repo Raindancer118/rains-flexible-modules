@@ -1,11 +1,12 @@
 package de.raindancer.modules.claims.screen;
 
+import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.core.world.protection.LandAudience;
 import de.raindancer.core.world.protection.LandFlag;
-import de.raindancer.modules.claims.Claim;
+import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.ClaimServices;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;

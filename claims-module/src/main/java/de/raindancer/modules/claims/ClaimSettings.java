@@ -1,5 +1,7 @@
 package de.raindancer.modules.claims;
 
+import de.raindancer.modules.claims.model.BroadcastScope;
+import de.raindancer.modules.claims.model.CostType;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.data.settings.Describe;
 import de.raindancer.core.data.settings.Icon;

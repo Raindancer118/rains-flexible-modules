@@ -1,5 +1,12 @@
 package de.raindancer.modules.claims;
 
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimFeature;
+import de.raindancer.modules.claims.model.ClaimPoint;
+import de.raindancer.modules.claims.model.ClaimShape;
+import de.raindancer.modules.claims.model.FeaturePolicy;
+import de.raindancer.modules.claims.rules.FeaturePolicies;
+import de.raindancer.modules.claims.rules.Features;
 import de.raindancer.core.world.protection.LandAudience;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

@@ -1,9 +1,11 @@
 package de.raindancer.modules.claims.screen;
 
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.world.protection.LandAction;
-import de.raindancer.modules.claims.Claim;
-import de.raindancer.modules.claims.ClaimAdminPermission;
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.ClaimServices;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;

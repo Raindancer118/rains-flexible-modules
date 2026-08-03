@@ -1,10 +1,11 @@
 package de.raindancer.modules.claims.screen;
 
+import de.raindancer.modules.claims.selection.Selection;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.claims.ClaimServices;
-import de.raindancer.modules.claims.Selection;
+import de.raindancer.modules.claims.selection.Selection;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;

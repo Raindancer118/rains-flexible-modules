@@ -1,5 +1,6 @@
 package de.raindancer.modules.claims;
 
+import de.raindancer.modules.claims.model.Claim;
 import org.bukkit.entity.Player;
 
 /**

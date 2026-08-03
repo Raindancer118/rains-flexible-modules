@@ -1,5 +1,8 @@
 package de.raindancer.modules.claims;
 
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimShape;
+import de.raindancer.modules.claims.store.ClaimRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

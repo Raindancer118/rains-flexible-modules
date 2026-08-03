@@ -1,10 +1,12 @@
 package de.raindancer.modules.claims.screen;
 
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
-import de.raindancer.modules.claims.Claim;
-import de.raindancer.modules.claims.ClaimFeature;
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.ClaimServices;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -67,9 +69,9 @@ public final class PerksMenu extends ClaimScreen {
     }
 
     /** The next time preset round the list. TimePreset has no next() of its own, and the order is the list's. */
-    private static de.raindancer.modules.claims.ClaimAtmosphere.TimePreset nextTime(
-            de.raindancer.modules.claims.ClaimAtmosphere.TimePreset current) {
-        var all = de.raindancer.modules.claims.ClaimAtmosphere.TimePreset.values();
+    private static de.raindancer.modules.claims.model.ClaimAtmosphere.TimePreset nextTime(
+            de.raindancer.modules.claims.model.ClaimAtmosphere.TimePreset current) {
+        var all = de.raindancer.modules.claims.model.ClaimAtmosphere.TimePreset.values();
         return all[(current.ordinal() + 1) % all.length];
     }
 

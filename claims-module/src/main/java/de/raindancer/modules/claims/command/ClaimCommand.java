@@ -1,10 +1,13 @@
 package de.raindancer.modules.claims.command;
 
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimAdminPermission;
+import de.raindancer.modules.claims.model.ClaimBan;
 import de.raindancer.core.world.protection.LandAction;
-import de.raindancer.modules.claims.Claim;
-import de.raindancer.modules.claims.ClaimAdminPermission;
-import de.raindancer.modules.claims.ClaimBan;
-import de.raindancer.modules.claims.ClaimNames;
+import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimAdminPermission;
+import de.raindancer.modules.claims.model.ClaimBan;
+import de.raindancer.modules.claims.rules.ClaimNames;
 import de.raindancer.modules.claims.ClaimServices;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -101,8 +104,8 @@ public final class ClaimCommand implements BasicCommand {
             return;
         }
         claims.selectionFlow().begin(player,
-                de.raindancer.modules.claims.Selection.Mode.RECTANGLE,
-                de.raindancer.modules.claims.Selection.Purpose.NEW_CLAIM,
+                de.raindancer.modules.claims.selection.Selection.Mode.RECTANGLE,
+                de.raindancer.modules.claims.selection.Selection.Purpose.NEW_CLAIM,
                 null, null, null);
     }
 
