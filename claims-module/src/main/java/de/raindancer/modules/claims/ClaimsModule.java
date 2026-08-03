@@ -39,6 +39,24 @@ public final class ClaimsModule implements FlexModule {
     private ClaimNames names;
     private LogChannel log;
     private Land land;
+    private ClaimRights rights;
+    private de.raindancer.core.data.settings.SettingsStore<ClaimSettings> settings;
+    private ZoneRegistry zones;
+    private ZoneStorage zoneStorage;
+    private CostService costs;
+    private ClaimService claimService;
+    private BorderVisualizer visualizer;
+    private SelectionService selections;
+    private SelectionStick stick;
+    private SelectionFlow selectionFlow;
+    private FenceService fences;
+    private BroadcastService broadcasts;
+    private EvictionService eviction;
+    private EntryFeeService entryFees;
+    private EquipService equipment;
+    private AmbienceService ambience;
+    private MovementListener movement;
+    private ClaimServices services;
 
     @Override
     public ModuleInfo info() {
@@ -82,10 +100,155 @@ public final class ClaimsModule implements FlexModule {
                             + land.provider().map(p -> p.name()).orElse("unknown") + ")");
         }
         context.closeWith(() -> land.withdraw(provider));
+
+        // ── the product layer ─────────────────────────────────────────────────────────────────────────
+        rights = new ClaimRights(land);
+        settings = context.settings(ClaimSettings.class, ClaimSettings.DEFAULTS);
+        zones = new ZoneRegistry();
+        zoneStorage = new ZoneStorage(context.dataFolder());
+        zoneStorage.loadAll().forEach(zones::add);
+
+        costs = new CostService();
+        claimService = new ClaimService(context.plugin(), claims, zones, storage, settings.current(),
+                costs, rights);
+        claimService.features(features);
+        visualizer = new BorderVisualizer(context.plugin(), settings.current());
+        selections = new SelectionService(settings.current());
+        stick = new SelectionStick(context.plugin(), settings.current(), context.core().messages());
+        fences = new FenceService(context.plugin(), settings.current(), claimService, features);
+        claimService.fences(fences);
+        broadcasts = new BroadcastService(context.plugin(), settings.current(), features,
+                context.core().messages(), names);
+        eviction = new EvictionService(context.plugin(), context.core().messages());
+        entryFees = new EntryFeeService(context.plugin(), settings.current(),
+                context.core().messages(), costs, claimService, land, features);
+        equipment = new EquipService(settings.current(), features, land, claimService,
+                context.core().messages(), names);
+        ambience = new AmbienceService(context.plugin(), features, claims, land, claimService,
+                settings.current(), context.core().messages(), names);
+        ambience.equipService(equipment);
+
+        selectionFlow = new SelectionFlow(context.plugin().getServer(), log, context.core().messages(),
+                context.core().prompts(), selections, stick, claims, claimService, zones,
+                this::saveZones, visualizer, rights, settings::current);
+
+        services = new ClaimServices(context.plugin(), context.plugin().getServer(), log,
+                context.core().messages(), context.chat().brand(), context.core().prompts(), land,
+                land.flags(), features, claims, storage, zones, claimService, names, rights, provider,
+                costs, selections, stick, selectionFlow, visualizer, fences, ambience, entryFees,
+                eviction, equipment, broadcasts, settings::current, new LiveScreens(), () -> movement);
+        movement = new MovementListener(services);
+        ambience.movement(movement);
+
+        // Every setting is a snapshot, so a reload hands each service a fresh one. Missing one of these is a
+        // subsystem that keeps yesterday's numbers until the next restart, which is the sort of bug that gets
+        // reported as "the config does not work".
+        settings.onChange(fresh -> {
+            claimService.settings(fresh);
+            visualizer.settings(fresh);
+            selections.settings(fresh);
+            stick.settings(fresh);
+            fences.settings(fresh);
+            broadcasts.settings(fresh);
+            entryFees.settings(fresh);
+            equipment.settings(fresh);
+            ambience.settings(fresh);
+        });
+
+        context.listener(movement);
+        context.listener(new PlayerSessionListener(services));
+        context.listener(new SelectionListener(services));
+        context.listener(new FenceListener(services));
+
+        // The commands were registered during bootstrap, long before any of this existed, and have been
+        // answering "not started yet" until now. See ClaimCommands.
+        ClaimCommands.ready(services);
+
+        log.info("Claims are up: {} claim(s), {} no-claim zone(s).", claims.size(), zones.all().size());
+    }
+
+    /**
+     * Opening the screens, which is the only thing in the module that knows the menu classes exist.
+     *
+     * <p>An inner class rather than eight lambdas at the construction site: it reads as a list of the screens
+     * this module has, and a new screen is one method rather than one more constructor argument.
+     */
+    private final class LiveScreens implements ClaimScreensOpener {
+
+        @Override
+        public void claim(org.bukkit.entity.Player viewer, Claim claim) {
+            new de.raindancer.modules.claims.screen.ClaimMenu(services, viewer, claim, null).open();
+        }
+
+        @Override
+        public void list(org.bukkit.entity.Player viewer) {
+            new de.raindancer.modules.claims.screen.ClaimListMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void selection(org.bukkit.entity.Player viewer) {
+            new de.raindancer.modules.claims.screen.SelectionMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void fenceMaterial(org.bukkit.entity.Player viewer, Claim claim) {
+            // Core's item chooser rather than a picker of our own: it already knows how to page through
+            // every material, search them and show them as real items.
+            new de.raindancer.core.ui.choose.ItemChooser(viewer, services.brand(), null,
+                    "Fence material",
+                    chosen -> {
+                        fences.changeMaterial(claim, chosen, viewer);
+                        claimService.saveAsync(claim);
+                        claim(viewer, claim);
+                    }).open();
+        }
+
+        @Override
+        public void pantry(org.bukkit.entity.Player viewer, Claim claim) {
+            new de.raindancer.modules.claims.screen.StoreMenu(services, viewer, claim, null,
+                    de.raindancer.modules.claims.screen.StoreMenu.Kind.PANTRY).open();
+        }
+
+        @Override
+        public void potionStore(org.bukkit.entity.Player viewer, Claim claim) {
+            new de.raindancer.modules.claims.screen.StoreMenu(services, viewer, claim, null,
+                    de.raindancer.modules.claims.screen.StoreMenu.Kind.POTIONS).open();
+        }
+
+        @Override
+        public void titles(org.bukkit.entity.Player viewer, Claim claim) {
+            new de.raindancer.modules.claims.screen.TitlesMenu(services, viewer, claim, null).open();
+        }
+
+        @Override
+        public void admin(org.bukkit.entity.Player viewer) {
+            new de.raindancer.modules.claims.screen.AdminMenu(services, viewer, null).open();
+        }
+    }
+
+    /** Writes the no-claim zones. Small and rare, so it is written whole rather than incrementally. */
+    private void saveZones() {
+        try {
+            zoneStorage.saveAll(zones.all());
+        } catch (IOException cannot) {
+            log.error(cannot, "Could not write the no-claim zones");
+        }
+    }
+
+    /**
+     * The commands, declared at bootstrap.
+     *
+     * <p>Paper wants them before anything is enabled, so they are built pointing at a supplier that is filled in
+     * when this module starts. Until then the host's guard answers a player with one line saying so.
+     */
+    @Override
+    public java.util.List<de.raindancer.modules.api.ModuleCommand> commands() {
+        return ClaimCommands.declared();
     }
 
     @Override
     public void disable() {
+        ClaimCommands.stopped();
         if (storage != null && claims != null) {
             int failed = 0;
             for (Claim claim : claims.all()) {

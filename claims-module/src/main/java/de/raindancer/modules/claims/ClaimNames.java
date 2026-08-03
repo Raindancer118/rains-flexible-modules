@@ -80,6 +80,16 @@ public final class ClaimNames {
         return name == null || name.isBlank() ? "somebody" : name;
     }
 
+    /**
+     * What to call this person.
+     *
+     * <p>Public because the screens list people as often as they list claims, and every one of them would
+     * otherwise reach for the name lookup itself and answer a raw uuid when the server has never seen them.
+     */
+    public String nameOfOwner(UUID who) {
+        return nameFor(who);
+    }
+
     public String primaryOwner(Claim claim) {
         for (UUID owner : claim.owners()) {
             return nameFor(owner);

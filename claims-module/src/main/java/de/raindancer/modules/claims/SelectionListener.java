@@ -42,7 +42,7 @@ public final class SelectionListener implements Listener {
                 if (player.isSneaking()) {
                     services.selectionFlow().finish(player);
                 } else {
-                    services.openSelectionMenu().accept(player);
+                    services.screens().selection(player);
                 }
             }
             case LEFT_CLICK_AIR -> {

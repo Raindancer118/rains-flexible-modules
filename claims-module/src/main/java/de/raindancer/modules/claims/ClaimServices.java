@@ -9,7 +9,6 @@ import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -27,15 +26,15 @@ import java.util.function.Supplier;
  *
  * @param settings          read through a supplier, not captured: a reload has to change what happens next,
  *                          not what happens after the next restart
- * @param openClaimMenu     opening a screen, as a callback. Keeps the listeners from depending on the menus,
- *                          which is what let the screens be rebuilt without touching any of this
- * @param openSelectionMenu the same for the marking screen
+ * @param screens  opening a screen, as an interface. Keeps the listeners and services from depending on the
+ *                 menus, which is what let the screens be rebuilt without touching any of this
  */
 public record ClaimServices(
         Plugin plugin,
         Server server,
         LogChannel log,
         Messages messages,
+        de.raindancer.core.ui.chat.Brand brand,
         ChatPrompts prompts,
         Land land,
         FlagRules flags,
@@ -59,8 +58,7 @@ public record ClaimServices(
         EquipService equipment,
         BroadcastService broadcasts,
         Supplier<ClaimSettings> settings,
-        Consumer<Player> openClaimMenu,
-        Consumer<Player> openSelectionMenu,
+        ClaimScreensOpener screens,
         Supplier<MovementListener> movementTracker) {
 
     /**
