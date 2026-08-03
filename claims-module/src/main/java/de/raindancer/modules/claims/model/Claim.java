@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A claimed region. Mutable and only ever touched from region/global scheduler threads or during
@@ -30,9 +31,16 @@ public final class Claim {
     private ClaimShape shape;
 
     /** Equal co-owners. Never empty for a live claim. */
-    private final Set<UUID> owners = new LinkedHashSet<>();
-    private final Map<UUID, ClaimMember> members = new HashMap<>();
-    private final Map<UUID, ClaimBan> bans = new HashMap<>();
+    // Concurrent throughout: the async saver walks these while a region thread is changing them,
+    // and a ConcurrentModificationException there is a save that is lost *after* the dirty flag
+    // was cleared — so the claim is never written again until somebody happens to touch it.
+    // CopyOnWriteArraySet rather than newSetFromMap: owners are *ordered* — primaryOwner() is the
+    // first one — and a hash-backed set would quietly reorder them, changing whose name a claim
+    // reads as. There are never more than a handful, and they change almost never, which is
+    // exactly the shape copy-on-write is for.
+    private final Set<UUID> owners = new java.util.concurrent.CopyOnWriteArraySet<>();
+    private final Map<UUID, ClaimMember> members = new ConcurrentHashMap<>();
+    private final Map<UUID, ClaimBan> bans = new ConcurrentHashMap<>();
 
     /**
      * Only flags the owner deliberately set; everything else falls back to the server default.
@@ -61,7 +69,8 @@ public final class Claim {
     private final ClaimEquipment equipment = new ClaimEquipment();
     private final ClaimAtmosphere atmosphere = new ClaimAtmosphere();
     /** Potion effects granted to everybody inside, keyed by type so one effect cannot be added twice. */
-    private final Map<org.bukkit.potion.PotionEffectType, ClaimEffect> effects = new HashMap<>();
+    private final Map<org.bukkit.potion.PotionEffectType, ClaimEffect> effects =
+            new ConcurrentHashMap<>();
     /** The owner's master switch for those effects; the list survives switching them off. */
     private boolean effectsEnabled = true;
 

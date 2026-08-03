@@ -45,6 +45,8 @@ public final class MovementListener implements Listener {
         currentClaim.remove(uuid);
         lastNotification.remove(uuid);
         lastAnnouncement.remove(uuid);
+        // The provider's map too, or it grows by one entry per player who has ever been on the server.
+        services.provider().forget(uuid);
     }
 
     /**
@@ -60,13 +62,25 @@ public final class MovementListener implements Listener {
     }
 
     /** Keeps the tracker in sync when a player joins or is teleported by another plugin. */
-    public void syncPosition(Player player) {
-        Optional<Claim> claim = services.claims().at(player.getLocation());
-        if (claim.isPresent()) {
-            currentClaim.put(player.getUniqueId(), claim.get().id());
-        } else {
+    /**
+     * Records where a player is, in both places that need to know.
+     *
+     * <p>The tracker's own map answers "did they just cross a border", and the provider's answers Core's
+     * {@code around(player)} — which is what gives the remembered claim the benefit of the doubt when a
+     * position is ambiguous. Writing only one of them was a real bug: the provider's stayed empty, so every
+     * lookup fell back to the raw one and flickered on borders and rooftops.
+     */
+    private void record(Player player, Claim claim) {
+        if (claim == null) {
             currentClaim.remove(player.getUniqueId());
+        } else {
+            currentClaim.put(player.getUniqueId(), claim.id());
         }
+        services.provider().moved(player.getUniqueId(), claim);
+    }
+
+    public void syncPosition(Player player) {
+        record(player, services.claims().at(player.getLocation()).orElse(null));
     }
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
@@ -100,10 +114,8 @@ public final class MovementListener implements Listener {
         if (previous != null) {
             onLeave(player, previous);
         }
-        if (targetId == null) {
-            currentClaim.remove(player.getUniqueId());
-        } else {
-            currentClaim.put(player.getUniqueId(), targetId);
+        record(player, to.orElse(null));
+        if (targetId != null) {
             to.ifPresent(claim -> onEnter(player, claim));
         }
     }
@@ -142,10 +154,8 @@ public final class MovementListener implements Listener {
         if (previousId != null) {
             services.claims().byId(previousId).ifPresent(previous -> onLeave(player, previous));
         }
-        if (targetId == null) {
-            currentClaim.remove(player.getUniqueId());
-        } else {
-            currentClaim.put(player.getUniqueId(), targetId);
+        record(player, to.orElse(null));
+        if (targetId != null) {
             to.ifPresent(claim -> onEnter(player, claim));
         }
     }
@@ -178,7 +188,10 @@ public final class MovementListener implements Listener {
             return;
         }
         event.setCancelled(true);
-        services.messages().send(player, "protection.elytra-denied", "claim", claim.get().name());
+        // map, not get: with the flag enforced server-wide this fires in the wilderness too, where
+        // there is no claim to name — and get() there is a NoSuchElementException on every glide.
+        services.messages().send(player, "protection.elytra-denied",
+                "claim", claim.map(Claim::name).orElse("the wilderness"));
     }
 
     // ------------------------------------------------------------ gate

@@ -442,13 +442,25 @@ public final class ClaimService {
 
     /** Serialises on the calling thread, writes off-thread. */
     public void saveAsync(Claim claim) {
+        // Described here, on the thread that owns the claim, and written on another. Doing both over there
+        // walks the claim's members and bans while a region thread is adding to them — and because the dirty
+        // flag is cleared first, the lost save is silent.
+        org.bukkit.configuration.file.YamlConfiguration described;
+        try {
+            described = storage.describe(claim);
+        } catch (RuntimeException cannot) {
+            logger.log(Level.SEVERE, "Could not describe claim " + claim.name(), cannot);
+            return;
+        }
         claim.clearDirty();
+        java.util.UUID id = claim.id();
+        String name = claim.name();
         Scheduling.async(plugin, () -> {
             try {
-                storage.save(claim);
+                storage.write(described, id);
             } catch (IOException exception) {
                 claim.markDirty();
-                logger.log(Level.SEVERE, "Could not save claim " + claim.name(), exception);
+                logger.log(Level.SEVERE, "Could not save claim " + name, exception);
             }
         });
     }

@@ -83,7 +83,16 @@ public final class ClaimRegistry {
         Map<Long, Set<Claim>> worldIndex =
                 spatialIndex.computeIfAbsent(claim.worldId(), key -> new ConcurrentHashMap<>());
         for (long chunkKey : claim.shape().coveredChunkKeys()) {
-            worldIndex.computeIfAbsent(chunkKey, key -> ConcurrentHashMap.newKeySet()).add(claim);
+            // compute, not computeIfAbsent-then-add. computeIfAbsent hands back the existing set and the
+            // add happens outside the map's lock for that key — so a prune running between the two sees an
+            // empty bucket, drops it, and the claim ends up in a set nothing points at. Its land is then
+            // unprotected with no error anywhere. Doing the add inside compute keeps it under the same lock
+            // the prune uses. Reproduced by ConcurrencyTest within a handful of rounds.
+            worldIndex.compute(chunkKey, (key, claims) -> {
+                Set<Claim> bucket = claims == null ? ConcurrentHashMap.newKeySet() : claims;
+                bucket.add(claim);
+                return bucket;
+            });
         }
     }
 
@@ -94,8 +103,15 @@ public final class ClaimRegistry {
         }
         // Iterate the whole world index rather than the current shape: after a resize the old buckets
         // are no longer derivable from the claim.
-        worldIndex.values().forEach(set -> set.remove(claim));
-        worldIndex.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+        // Removed under the same per-key lock, so a bucket cannot be emptied between the removal and
+        // the prune below by anything that is concurrently filling it.
+        for (Long chunkKey : List.copyOf(worldIndex.keySet())) {
+            worldIndex.computeIfPresent(chunkKey, (key, claims) -> {
+                claims.remove(claim);
+                return claims.isEmpty() ? null : claims;
+            });
+        }
+
     }
 
     public Collection<Claim> all() {

@@ -375,7 +375,29 @@ public final class ClaimStorage {
         fee.passDurationSeconds(section.getInt("pass-seconds", 300));
     }
 
+    /**
+     * Writes a claim out.
+     *
+     * <p>Prefer {@link #describe} plus {@link #write} when the caller is about to hand the write to another
+     * thread — see the note on {@code describe}.
+     */
     public void save(Claim claim) throws IOException {
+        write(describe(claim), claim.id());
+    }
+
+    /**
+     * A claim as the YAML that will be written for it.
+     *
+     * <p>Split out from the writing because of what the two halves need. Reading a claim's members, bans, fence
+     * and effects has to happen on the thread that owns the claim; the write is disk work and must not. Doing
+     * both on the async thread — which is what this used to do — walks live collections while a region thread
+     * is changing them.
+     *
+     * <p>The consequence was worse than the exception: {@code saveAsync} clears the dirty flag before handing
+     * over, so a save that died halfway was a claim that would not be written again until somebody happened to
+     * change it. Silent, and the sort of thing noticed after a restart.
+     */
+    public YamlConfiguration describe(Claim claim) {
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("data-version", DATA_VERSION);
         yaml.set("id", claim.id().toString());
@@ -486,7 +508,12 @@ public final class ClaimStorage {
         yaml.set("paid.settled", claim.settledAmount());
         yaml.set("paid.item", ItemText.encode(claim.paidItem()));
 
-        writeAtomically(yaml, claim.id());
+        return yaml;
+    }
+
+    /** Writes a description made earlier. Disk work, and safe to do off the server's threads. */
+    public void write(YamlConfiguration yaml, UUID id) throws IOException {
+        writeAtomically(yaml, id);
     }
 
     // ------------------------------------------------------------ flags

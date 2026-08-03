@@ -154,7 +154,7 @@ public final class ClaimsModule implements FlexModule {
                 settings.current(), context.core().messages(), names);
         ambience.equipService(equipment);
 
-        selectionFlow = new SelectionFlow(context.plugin().getServer(), log, context.core().messages(),
+        selectionFlow = new SelectionFlow(context.plugin(), context.plugin().getServer(), log, context.core().messages(),
                 context.core().prompts(), selections, stick, claims, claimService, zones,
                 this::saveZones, visualizer, rights, settings::current);
 

@@ -1,0 +1,144 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  What the claims module says.
+#
+#  Edit anything here and it wins: this file sits above the wording built into
+#  the jar, and above anything the module set in code. See RainsCore's Messages
+#  for the four layers.
+#
+#  <angle-brackets> are values filled in at the moment the line is sent. Colours
+#  are MiniMessage, so <red>, <gradient:...> and the rest all work.
+# ─────────────────────────────────────────────────────────────────────────────
+
+prefix: "<dark_gray>[<gradient:#4ade80:#22d3ee>Claims</gradient><dark_gray>] "
+
+claim:
+  # ── the everyday ones ────────────────────────────────────────────────────
+  created: "<green>Claimed <white><claim></white> — <gray><area> blocks, y <min-y> to <max-y>."
+  resized: "<green><claim></white> redrawn: <gray><area> blocks, y <min-y> to <max-y>."
+  renamed: "<green>Renamed <gray><old></gray> to <white><claim></white>."
+  none-here: "<gray>You are not standing in a claim."
+  gone: "<red>That claim no longer exists."
+  belongs-to: "<gray>This is <white><claim></white>."
+  border-elsewhere: "<gray><claim> is in <white><world></white> — the border can only be shown there."
+
+  # ── people ───────────────────────────────────────────────────────────────
+  trusted: "<green>Trusted <white><player></white> in <white><claim></white>."
+  untrusted: "<yellow>Took <white><player></white>'s trust in <white><claim></white>."
+  not-trusted: "<gray><player> is not trusted here."
+  already-an-owner: "<gray><player> owns this claim, so they already may do everything."
+  owner-holds-everything: "<gray>An owner may do everything — there is nothing to set."
+  banned: "<red>Barred <white><player></white> from <white><claim></white>."
+  ban-lifted: "<green><player></white> may come back to <white><claim></white>."
+  not-banned: "<gray><player> is not barred from here."
+  cannot-ban-an-owner: "<red>You cannot bar <white><player></white> from a claim they own."
+
+  # ── the land ─────────────────────────────────────────────────────────────
+  height-changed: "<green><claim></white> now reaches y <white><min-y></white> to <white><max-y></white>."
+  icon-changed: "<green><claim></white> will show as what you were holding."
+  resize-refunded: "<green>Refunded <white><amount></white> <type> into <white><claim></white>'s bank."
+  resize-charged: "<yellow>Took <white><amount></white> <type> for the extra ground in <white><claim></white>."
+
+  # ── asking for something ─────────────────────────────────────────────────
+  ask-new-name: "<gray>Type a new name for <white><claim></white>, or <white>cancel</white>."
+  rename-aborted: "<gray>Left the name alone."
+  ask-title: "<gray>Type the <white><what></white>, or <white>cancel</white>."
+  title-set: "<green>Set the <what>."
+  title-aborted: "<gray>Left it alone."
+  titles-empty: "<gray>Nothing is set to show on arrival."
+  hold-an-item: "<gray>Hold the item you mean and click again."
+
+  # ── refusals that are somebody else's decision ───────────────────────────
+  flag-not-yours: "<gray><flag> is decided by the server, not by you."
+  feature-is-the-servers: "<gray>Whether claims may use <white><feature></white> is the server's decision."
+  store-full: "<gray>That store is full — <white><cap></white> stacks is the limit."
+  bank-inventory-full: "<yellow>Your inventory was full, so the rest went back into the claim."
+  pantry-food-only: "<gray>The pantry takes food."
+  potions-only: "<gray>That store takes potions."
+
+  # ── commands ─────────────────────────────────────────────────────────────
+  who: "<gray>Who do you mean? <white><usage>"
+  unknown-subcommand: "<gray>No idea what <white><word></white> means. Try <white>/claim</white> on its own."
+
+notify:
+  entered: "<gray>You are in <white><claim></white>."
+  left: "<gray>You have left <white><claim></white>."
+
+protection:
+  entry-denied: "<red>You may not go into <white><claim></white>."
+  teleport-denied: "<red>You may not teleport into <white><claim></white>."
+  elytra-denied: "<red>No flying inside <white><claim></white>."
+  banned: "<red>You are barred from <white><claim></white>. <gray><reason>"
+  timed-out: "<red>You are barred from <white><claim></white> for <white><remaining></white>. <gray><reason>"
+  evicted-banned: "<red>You were shown out of <white><claim></white>."
+  pvp-refused: "<red>Fighting is not allowed in <white><claim></white>."
+
+selection:
+  started: "<green>Marking out a <white><mode></white>. <gray>Right click the corners; sneak + right click the air to finish."
+  point-added: "<gray>Corner <white><count></white> marked."
+  point-removed: "<gray>Took the last corner back."
+  nothing-to-undo: "<gray>Nothing marked yet."
+  incomplete: "<gray>Mark <white><needed></white> corners — you have <white><have></white>."
+  none: "<gray>You are not marking anything out."
+  cancelled: "<gray>Forgotten."
+  ask-name: "<gray>What should it be called? <dark_gray>(<suggestion>)"
+  name-aborted: "<gray>Never mind, then."
+  already-being-asked: "<gray>Something else is already waiting for you to type. Answer that first."
+  world-gone: "<red>That world is not loaded any more."
+  world-mismatch: "<gray>All the corners have to be in one world."
+  wrong-world: "<gray><claim> is in another world."
+  stick-dropped: "<gray>The marking tool goes back when you are done with it."
+
+zone:
+  ask-name: "<gray>What should this no-claim area be called?"
+  name-aborted: "<gray>Never mind."
+  created: "<green>Nobody may claim in <white><zone></white> — <gray><area> blocks, y <min-y> to <max-y>."
+  replaced: "<yellow>Replaced the old <white><zone></white>."
+
+entry-fee:
+  offer: "<gray><claim> charges <white><price></white> to come in. <white>/claim pay</white> to hand it over."
+  paid: "<green>Paid <white><price></white> to enter <white><claim></white>."
+  declined: "<gray>Left it, then."
+  cannot-afford: "<red>You are <white><missing></white> short of the toll for <white><claim></white>."
+  nothing-pending: "<gray>Nobody is asking you for anything."
+  claim-gone: "<gray>That claim is gone."
+  owner-notified: "<gray><player> paid to come into <white><claim></white>."
+
+pantry:
+  fed: "<gray><claim>'s pantry fed you."
+
+equip:
+  given: "<gray><claim> handed you <white><item></white>."
+
+fence:
+  gate-adopted: "<gray>That gap will stay open."
+
+error:
+  no-permission: "<red>Not yours to do."
+  no-claim-permission: "<red>That is not yours to change here."
+  players-only: "<gray>Somebody standing in the world has to run that."
+  world-disabled: "<gray>Claims are switched off in this world."
+  name-invalid: "<gray>Letters, digits, dashes and underscores — up to 32 of them."
+  name-taken: "<gray>You already have a claim called that."
+  too-many-claims: "<gray>You are at your limit of <white><detail></white> claims."
+  claim-too-small: "<gray>Too small — the least is <white><detail></white> blocks."
+  claim-too-large: "<gray>Too big — the most is <white><detail></white> blocks."
+  claim-too-short: "<gray>A claim has to be at least <white><minimum></white> blocks tall."
+  too-many-vertices: "<gray>Too many corners — <white><detail></white> at most."
+  overlaps-claim: "<gray>That overlaps <white><detail></white>."
+  in-no-claim-zone: "<gray>Nobody may claim in <white><detail></white>."
+  cannot-afford: "<gray>You cannot afford that: <white><detail></white>."
+  underground-disallowed: "<gray>This server does not allow claims that are wholly underground."
+  generic: "<gray>That did not work. <dark_gray><detail>"
+  no-such-player: "<gray>Never heard of <white><player></white>."
+  no-such-claim: "<gray>No claim called <white><claim></white>."
+  ambiguous-claim: "<gray>Several claims are called that: <white><candidates></white>."
+
+admin:
+  overview: "<gray><claims> claim(s), <zones> zone(s), <tracked> player(s) tracked. <dark_gray>land answered by <answering>"
+  bypass-on: "<green>Bypass on — you can ignore every claim."
+  bypass-off: "<gray>Bypass off."
+  reloaded: "<green>Reloaded."
+  claim-deleted: "<yellow>Deleted <white><claim></white>."
+  feature-changed: "<green><feature></white> is now <white><policy></white>."
+  zone-removed: "<yellow>Removed the no-claim area <white><zone></white>."
+  zone-shift-to-remove: "<gray>Shift + click to remove <white><zone></white>."

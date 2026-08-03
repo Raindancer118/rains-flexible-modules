@@ -35,6 +35,7 @@ import java.util.function.Supplier;
  */
 public final class SelectionFlow {
 
+    private final org.bukkit.plugin.Plugin plugin;
     private final Server server;
     private final LogChannel log;
     private final Messages messages;
@@ -54,11 +55,13 @@ public final class SelectionFlow {
     /** How long somebody has to type a name before the prompt gives up. */
     private static final Duration NAME_PROMPT_TIMEOUT = Duration.ofSeconds(24);
 
-    public SelectionFlow(Server server, LogChannel log, Messages messages, ChatPrompts prompts,
+    public SelectionFlow(org.bukkit.plugin.Plugin plugin, Server server, LogChannel log,
+                         Messages messages, ChatPrompts prompts,
                          SelectionService selections, SelectionStick stick, ClaimRegistry claims,
                          ClaimService claimService, ZoneRegistry zones, Runnable saveZones,
                          BorderVisualizer visualizer, ClaimRights rights,
                          Supplier<ClaimSettings> settings) {
+        this.plugin = plugin;
         this.server = server;
         this.log = log;
         this.messages = messages;
@@ -114,10 +117,10 @@ public final class SelectionFlow {
             String suggestion = claimService.suggestName(player);
             messages.send(player, "selection.ask-name", "suggestion", suggestion);
             boolean asked = prompts.ask(player.getUniqueId(), "Claims", NAME_PROMPT_TIMEOUT,
-                    typed -> {
+                    typed -> onTheirOwnThread(player, () -> {
                         selection.pendingName(typed);
                         finish(player);
-                    },
+                    }),
                     () -> messages.send(player, "selection.name-aborted"));
             if (!asked) {
                 // Somebody else already has the next line they type. Saying so beats waiting for an answer
@@ -188,10 +191,10 @@ public final class SelectionFlow {
         if (name == null || name.isBlank()) {
             messages.send(player, "zone.ask-name");
             if (!prompts.ask(player.getUniqueId(), "Claims", NAME_PROMPT_TIMEOUT,
-                    typed -> {
+                    typed -> onTheirOwnThread(player, () -> {
                         selection.targetZoneName(typed);
                         finish(player);
-                    },
+                    }),
                     () -> messages.send(player, "zone.name-aborted"))) {
                 messages.send(player, "selection.already-being-asked");
             }
@@ -244,6 +247,22 @@ public final class SelectionFlow {
         if (settings.get().debug()) {
             log.debug("Resize settlement for {}: {}", claim.name(), detail);
         }
+    }
+
+    /**
+     * Runs something on the thread that owns this player.
+     *
+     * <p>A chat prompt's answer arrives on Paper's async chat thread — {@code AsyncChatEvent} is asynchronous,
+     * which is the whole point of its name. Everything finishing a claim does from there is main-thread work:
+     * taking the price out of an inventory, setting experience levels, taking the marking tool back, starting
+     * the border task. Doing it on the chat thread is an inventory corrupted on Paper and a hard thread-check
+     * failure on Folia.
+     *
+     * <p>Found by review rather than by a crash, which is the ordinary way with these: it works perfectly until
+     * two people name a claim at the same moment.
+     */
+    private void onTheirOwnThread(Player player, Runnable work) {
+        de.raindancer.core.platform.util.Scheduling.entity(plugin, player, work);
     }
 
     /** Takes the tool back and forgets the selection — the "it vanishes when you are done" behaviour. */
