@@ -1,5 +1,6 @@
 package de.raindancer.modules.claims.service;
 
+import de.raindancer.modules.claims.ClaimSettings;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimShape;
 import de.raindancer.core.platform.util.Scheduling;
@@ -24,7 +25,26 @@ import java.util.concurrent.ConcurrentHashMap;
  * banned player tries to walk back in. Nobody is ever dropped into lava or the void — if no safe spot
  * exists just outside the border the fallback chain ends at the world spawn.
  */
-public final class EvictionService {
+public final class EvictionService implements IClaimService {
+
+    /**
+     * Taken and ignored, deliberately.
+     *
+     * <p>Every service takes this whether or not it reads anything from the file, because the one
+     * that is forgotten when it starts reading something is the one that keeps yesterday's numbers
+     * until the next restart.
+     */
+    @Override
+    public void settings(ClaimSettings settings) {
+        // Nothing to swap: where somebody is put down is worked out from the ground around them,
+        // not from a setting.
+    }
+
+    @Override
+    public String describe() {
+        return "walking somebody out to the nearest safe spot";
+    }
+
 
     /** Blocks of clearance kept between the border and the drop-off point. */
     private static final int BORDER_MARGIN = 2;

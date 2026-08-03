@@ -26,7 +26,7 @@ import java.util.List;
  * <p>Each row shows where it is and how big, so "which of my four homes is the one in the desert" is answerable
  * without opening all four.
  */
-public final class ClaimListMenu extends PaginatedMenu<Claim> {
+public final class ClaimListMenu extends PaginatedMenu<Claim> implements IClaimScreen {
 
     private final ClaimServices services;
 

@@ -13,7 +13,13 @@ import org.bukkit.event.world.WorldLoadEvent;
 import java.util.UUID;
 
 /** Session bookkeeping: name cache, per-player state cleanup and world name refreshes. */
-public final class PlayerSessionListener implements Listener {
+public final class PlayerSessionListener implements IClaimListener {
+
+    @Override
+    public String describe() {
+        return "joining, leaving, respawning and worlds being loaded";
+    }
+
 
     private final ClaimServices services;
 

@@ -101,7 +101,7 @@ public final class ClaimMenu extends ClaimScreen {
                         "<gray>what the world does inside your border.",
                         "<dark_gray>" + changedFlags() + " changed from the server default"),
                 "The owner's to change",
-                click -> new FlagsMenu(services(), viewer, claim, this).open());
+                click -> openTheRules(claim));
 
         band(MenuLayout.RULES, 2, true,
                 Icons.of(Material.COMPARATOR, "<gold>What this claim can do",
@@ -185,6 +185,23 @@ public final class ClaimMenu extends ClaimScreen {
                                 viewer.closeInventory();
                             }).open());
         }
+    }
+
+    /**
+     * The rules, drawn by Core.
+     *
+     * <p>Core's chooser rather than three screens of our own: the flags are Core's, and a page per plugin is the
+     * same page three times with three different arrangements — which is how a server comes to look like a pile
+     * of plugins rather than one thing.
+     */
+    private void openTheRules(Claim claim) {
+        new de.raindancer.core.ui.choose.FlagChooser(viewer, services().brand(), this,
+                claim.area(), services().flags(),
+                may(ClaimAdminPermission.MANAGE_FLAGS), "The owner's to change",
+                (flag, audience, value) -> {
+                    claim.setFlagOverride(flag, audience, value);
+                    services().claimService().saveAsync(claim);
+                }).open();
     }
 
     /** How many flags the owner has actually decided, so the button can say whether it is worth opening. */

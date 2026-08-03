@@ -23,7 +23,13 @@ import java.util.Optional;
  * <p>
  * Runs at {@code MONITOR} so it only reacts to changes the protection listeners already allowed.
  */
-public final class FenceListener implements Listener {
+public final class FenceListener implements IClaimListener {
+
+    @Override
+    public String describe() {
+        return "breaking and placing fence blocks";
+    }
+
 
     private final ClaimServices services;
 

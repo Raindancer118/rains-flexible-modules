@@ -1,5 +1,6 @@
 package de.raindancer.modules.claims.service;
 
+import de.raindancer.modules.claims.ClaimSettings;
 import de.raindancer.modules.claims.model.CostType;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
@@ -15,7 +16,26 @@ import java.util.Map;
  * Item matching uses {@link ItemStack#isSimilar(ItemStack)}, so a cost defined as "an enchanted book with
  * Mending" really does require that exact book and not just any enchanted book.
  */
-public final class CostService {
+public final class CostService implements IClaimService {
+
+    /**
+     * Taken and ignored, deliberately.
+     *
+     * <p>Every service takes this whether or not it reads anything from the file, because the one
+     * that is forgotten when it starts reading something is the one that keeps yesterday's numbers
+     * until the next restart.
+     */
+    @Override
+    public void settings(ClaimSettings settings) {
+        // Nothing to swap: what a claim costs is handed in per call, because the price depends on the
+        // shape being paid for and not only on the file.
+    }
+
+    @Override
+    public String describe() {
+        return "taking what a claim costs and giving it back";
+    }
+
 
     /** Result of a charge attempt. */
     public record Charge(boolean success, String shortfallDescription) {

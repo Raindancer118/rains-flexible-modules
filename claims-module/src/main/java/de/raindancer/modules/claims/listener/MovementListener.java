@@ -28,7 +28,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * The move handler only does work when the player actually changed block, and the claim lookup is a
  * chunk-bucket hit, so the hot path stays cheap.
  */
-public final class MovementListener implements Listener {
+public final class MovementListener implements IClaimListener {
+
+    @Override
+    public String describe() {
+        return "who is standing in which claim, and the messages about it";
+    }
+
 
     private final ClaimServices services;
     /** Which claim each player is currently standing in; absent means wilderness. */

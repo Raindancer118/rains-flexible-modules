@@ -38,8 +38,9 @@ class ScreenGrammarTest {
     private static final Path SCREENS =
             Path.of("src/main/java/de/raindancer/modules/claims/screen");
 
-    /** Abstract screens: they are extended rather than opened, and they refuse on a subclass's behalf. */
-    private static final List<String> BASE_CLASSES = List.of("ClaimScreen", "PermissionGrid");
+    /** The interface and the abstract screens: extended rather than opened, so nothing constructs them. */
+    private static final List<String> BASE_CLASSES =
+            List.of("IClaimScreen", "ClaimScreen", "PermissionGrid");
 
     private record Screen(String name, String body) {
     }
@@ -61,8 +62,10 @@ class ScreenGrammarTest {
     @DisplayName("the scan found the screens, so a rename cannot quietly empty it")
     void theScanIsNotVacuous() {
         assertThat(screens()).extracting(Screen::name)
-                .contains("ClaimMenu", "FlagsMenu", "MembersMenu", "AdminMenu", "ConfirmScreen");
-        assertThat(screens()).hasSizeGreaterThanOrEqualTo(14);
+                // FlagsMenu is deliberately absent: the rules are drawn by Core's FlagChooser now,
+                // so this module has no flag screens of its own to keep in grammar.
+                .contains("ClaimMenu", "MembersMenu", "AdminMenu", "ConfirmScreen");
+        assertThat(screens()).hasSizeGreaterThanOrEqualTo(11);
     }
 
     @Test

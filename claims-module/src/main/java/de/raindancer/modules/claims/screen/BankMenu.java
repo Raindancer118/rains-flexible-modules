@@ -26,7 +26,7 @@ import java.util.List;
  * <p>Click to take one stack. Not "take everything" — somebody clearing a bank of forty stacks into a full
  * inventory would drop most of it, and a button that loses items is worse than four clicks.
  */
-public final class BankMenu extends PaginatedMenu<ItemStack> {
+public final class BankMenu extends PaginatedMenu<ItemStack> implements IClaimScreen {
 
     private final ClaimServices services;
     private final Claim claim;

@@ -33,7 +33,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
  * <p>A screen that wants a fourth category does not get one. That constraint is the feature: five bands of two
  * buttons is the cluttered menu again with extra steps.
  */
-public abstract class ClaimScreen extends Menu {
+public abstract class ClaimScreen extends Menu implements IClaimScreen {
 
     private final ClaimServices services;
     private final Claim claim;

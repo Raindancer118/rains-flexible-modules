@@ -34,7 +34,13 @@ import java.util.logging.Logger;
  * All disk writes are pushed onto the async scheduler; the YAML tree is built on the calling thread so
  * the async task never touches live Bukkit objects.
  */
-public final class ClaimService {
+public final class ClaimService implements IClaimService {
+
+    @Override
+    public String describe() {
+        return "making, redrawing and deleting claims";
+    }
+
 
 
     /** Why a claim could not be created. */

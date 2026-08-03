@@ -40,7 +40,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * player rather than by scanning every claim keeps the cost proportional to who is actually online, and
  * an entity-scheduled task is automatically cancelled when the player disconnects.
  */
-public final class AmbienceService {
+public final class AmbienceService implements IClaimService {
+
+    @Override
+    public String describe() {
+        return "the weather, the time and the effects a claim grants";
+    }
+
 
     /** How often each online player is checked. Well under the effect duration so it never lapses. */
     private static final long INTERVAL_TICKS = 40L;

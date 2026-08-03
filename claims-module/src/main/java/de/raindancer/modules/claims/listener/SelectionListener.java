@@ -14,7 +14,13 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
 /** Turns Claimborder Selection Stick clicks into selection changes. */
-public final class SelectionListener implements Listener {
+public final class SelectionListener implements IClaimListener {
+
+    @Override
+    public String describe() {
+        return "the marking tool";
+    }
+
 
     private final ClaimServices services;
 

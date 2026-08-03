@@ -32,7 +32,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * in and teleporting in, so third party TPA plugins are covered for free — they all go through
  * {@code PlayerTeleportEvent}.
  */
-public final class EntryFeeService {
+public final class EntryFeeService implements IClaimService {
+
+    @Override
+    public String describe() {
+        return "the toll at a border";
+    }
+
 
     /** A paid entry that is still valid. */
     private record Pass(UUID claimId, long expiresAt) {

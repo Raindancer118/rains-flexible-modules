@@ -46,7 +46,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Folia safety: nothing touches the world on the calling thread. Columns are grouped by chunk and each
  * group hops to the region that owns it.
  */
-public final class FenceService {
+public final class FenceService implements IClaimService {
+
+    @Override
+    public String describe() {
+        return "building and taking down the fence along a border";
+    }
+
 
     /**
      * What a build or sync run set in motion.

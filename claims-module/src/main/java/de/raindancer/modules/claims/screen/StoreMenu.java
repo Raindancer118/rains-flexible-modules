@@ -27,7 +27,7 @@ import java.util.List;
  * different acceptance rule and a different cap. Written twice, one of them ends up with the deposit-from-hand
  * behaviour and the other does not, which is exactly what had happened.
  */
-public final class StoreMenu extends PaginatedMenu<ItemStack> {
+public final class StoreMenu extends PaginatedMenu<ItemStack> implements IClaimScreen {
 
     /** Which of the two stores this is. */
     public enum Kind {

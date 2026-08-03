@@ -24,7 +24,13 @@ import java.util.Optional;
  * already carrying, and never hands out anything the stock does not hold. A player who already has the
  * item — anywhere in their inventory — is left alone, so this tops up rather than duplicating.
  */
-public final class EquipService {
+public final class EquipService implements IClaimService {
+
+    @Override
+    public String describe() {
+        return "keeping people supplied from a claim's own stock";
+    }
+
 
     /** A snapshot, replaced on reload — see settings(ClaimSettings). */
     private volatile ClaimSettings settings;

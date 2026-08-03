@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** The areas nobody may claim — spawn, a market, an event arena. */
-public final class ZonesMenu extends PaginatedMenu<NoClaimZone> {
+public final class ZonesMenu extends PaginatedMenu<NoClaimZone> implements IClaimScreen {
 
     private final ClaimServices services;
 

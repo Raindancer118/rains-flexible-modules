@@ -30,7 +30,13 @@ import java.util.UUID;
  * Every announcement is a random pick from the wordings in messages.yml, so the same thing happening
  * twice does not read identically.
  */
-public final class BroadcastService {
+public final class BroadcastService implements IClaimService {
+
+    @Override
+    public String describe() {
+        return "telling the server when somebody is thrown out";
+    }
+
 
     private final Plugin plugin;
     /** A snapshot, replaced on reload — see settings(ClaimSettings). */

@@ -28,7 +28,7 @@ import java.util.UUID;
  * <p>Owners are listed first and marked, because "why can I not remove this person" has an answer on screen when
  * their button says they are an owner.
  */
-public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> {
+public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implements IClaimScreen {
 
     /** One row of the list: somebody, and what they are here. */
     record Entry(UUID who, boolean owner, boolean claimAdmin) {

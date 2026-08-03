@@ -39,7 +39,13 @@ import java.util.function.Supplier;
  * Paper registers commands before anything is enabled, so this holds a supplier rather than the services. See
  * {@code ModuleCommands.guarded}, which is what answers politely if the module never started.
  */
-public final class ClaimCommand implements BasicCommand {
+public final class ClaimCommand implements IClaimCommand {
+
+    @Override
+    public String describe() {
+        return "your land: mark it out, trust people, keep others out";
+    }
+
 
     private static final String USE = "rec.use";
 

@@ -28,7 +28,7 @@ import java.util.List;
  * two screens — and why the remaining time is on the button instead of in a separate "timeouts" page nobody would
  * think to open.
  */
-public final class BansMenu extends PaginatedMenu<ClaimBan> {
+public final class BansMenu extends PaginatedMenu<ClaimBan> implements IClaimScreen {
 
     private final ClaimServices services;
     private final Claim claim;

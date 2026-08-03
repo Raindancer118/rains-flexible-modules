@@ -25,7 +25,13 @@ import java.util.function.Supplier;
  * usually refuse. Two commands means the admin ones are not in anybody else's way and the tab completion of each
  * is short enough to read.
  */
-public final class ClaimAdminCommand implements BasicCommand {
+public final class ClaimAdminCommand implements IClaimCommand {
+
+    @Override
+    public String describe() {
+        return "land administration for the server owner";
+    }
+
 
     private static final String ADMIN = "rec.admin";
 

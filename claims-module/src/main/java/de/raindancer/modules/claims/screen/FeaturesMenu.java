@@ -26,7 +26,7 @@ import java.util.List;
  * pantry button", and the honest answer is "the server switched it off" rather than a menu that is simply missing
  * something with no explanation. An admin sees the same screen and can change it.
  */
-public final class FeaturesMenu extends PaginatedMenu<ClaimFeature> {
+public final class FeaturesMenu extends PaginatedMenu<ClaimFeature> implements IClaimScreen {
 
     private final ClaimServices services;
     private final Claim claim;
