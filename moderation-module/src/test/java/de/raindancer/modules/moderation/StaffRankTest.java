@@ -14,37 +14,44 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The four tiers ops can promote somebody to.
+ * The four ranks: trial mod, mod, admin, owner.
  *
  * <h2>Why presets at all, when every node is toggleable anyway</h2>
- * Because "which of these thirteen nodes does a helper get?" is a question nobody should have to answer
- * twice, and the server that answers it differently each time is the server where one helper can ban
- * and another cannot, for no reason either of them knows. The preset is the answer written down once;
- * the per-person toggles are for the exception.
+ * Because "which of these nodes does a trial mod get?" is a question nobody should have to answer twice,
+ * and the server that answers it afresh each time is the server where one trial can ban and another
+ * cannot for no reason either of them knows. The preset is the answer written down once; the per-person
+ * toggles are for the exception.
  *
- * <h2>The one property that matters most</h2>
- * Each tier contains the one below it. Not tidiness — it is what makes a promotion a promotion: if
- * Moderator lacked something Helper had, promoting somebody would silently take a power away, and the
- * person who lost it would report it as a bug in whatever they were trying to do at the time.
+ * <h2>The property the scheme rests on</h2>
+ * Each rank contains the one below it. Not tidiness — it is what makes a promotion a promotion: a rank
+ * missing something the rank under it had would silently take a power away, and the person who lost it
+ * would report it as a bug in whatever they happened to be doing.
+ *
+ * <p>The owner is the exception, and deliberately: it adds no <em>nodes</em>, because an operator already
+ * holds every permission of every plugin. Granting nodes on top would be a list in a file that changes
+ * nothing, and the first person to read it would reasonably conclude that op does not include them.
  */
 class StaffRankTest {
+
+    /** The three that are staff-by-permission. The owner is staff-by-being-the-server. */
+    private static final List<StaffRank> WORKING_RANKS =
+            List.of(StaffRank.TRIAL_MOD, StaffRank.MOD, StaffRank.ADMIN);
 
     @Nested
     @DisplayName("the ladder")
     class TheLadder {
 
         @Test
-        @DisplayName("there are four, in the order ops climb them")
+        @DisplayName("there are four, in the order they are climbed")
         void fourOfThem() {
             assertThat(StaffRank.values())
-                    .containsExactly(StaffRank.TRIAL, StaffRank.HELPER, StaffRank.MODERATOR,
-                            StaffRank.ADMIN);
+                    .containsExactly(StaffRank.TRIAL_MOD, StaffRank.MOD, StaffRank.ADMIN,
+                            StaffRank.OWNER);
         }
 
         @Test
-        @DisplayName("each tier contains everything the one below it has")
+        @DisplayName("each rank contains everything the one below it has")
         void eachContainsTheLast() {
-            // The property the whole scheme rests on: a promotion never takes a power away.
             StaffRank[] ladder = StaffRank.values();
             for (int rung = 1; rung < ladder.length; rung++) {
                 assertThat(ladder[rung].nodes())
@@ -54,31 +61,45 @@ class StaffRankTest {
         }
 
         @Test
-        @DisplayName("each tier is strictly bigger than the one below")
+        @DisplayName("each working rank is strictly bigger than the one below")
         void eachIsBigger() {
-            // Two tiers with the same nodes are two names for one thing, and the difference between
-            // them is then whatever somebody imagines it to be.
-            StaffRank[] ladder = StaffRank.values();
-            for (int rung = 1; rung < ladder.length; rung++) {
-                assertThat(ladder[rung].nodes().size())
-                        .as("%s adds nothing to %s", ladder[rung], ladder[rung - 1])
-                        .isGreaterThan(ladder[rung - 1].nodes().size());
+            // Two ranks with the same nodes are two names for one thing, and the difference between them
+            // is then whatever somebody imagines it to be. The owner is exempt: it is bigger in power
+            // without being bigger in nodes, which is what op *is*.
+            for (int rung = 1; rung < WORKING_RANKS.size(); rung++) {
+                assertThat(WORKING_RANKS.get(rung).nodes().size())
+                        .as("%s adds nothing to %s", WORKING_RANKS.get(rung),
+                                WORKING_RANKS.get(rung - 1))
+                        .isGreaterThan(WORKING_RANKS.get(rung - 1).nodes().size());
             }
         }
 
         @Test
         @DisplayName("they are ordered, so two can be compared")
         void ordered() {
-            assertThat(StaffRank.TRIAL.weight()).isLessThan(StaffRank.HELPER.weight());
-            assertThat(StaffRank.HELPER.weight()).isLessThan(StaffRank.MODERATOR.weight());
-            assertThat(StaffRank.MODERATOR.weight()).isLessThan(StaffRank.ADMIN.weight());
-            assertThat(StaffRank.ADMIN.isAtLeast(StaffRank.HELPER)).isTrue();
-            assertThat(StaffRank.HELPER.isAtLeast(StaffRank.ADMIN)).isFalse();
-            assertThat(StaffRank.HELPER.isAtLeast(StaffRank.HELPER)).isTrue();
+            assertThat(StaffRank.TRIAL_MOD.weight()).isLessThan(StaffRank.MOD.weight());
+            assertThat(StaffRank.MOD.weight()).isLessThan(StaffRank.ADMIN.weight());
+            assertThat(StaffRank.ADMIN.weight()).isLessThan(StaffRank.OWNER.weight());
+
+            assertThat(StaffRank.ADMIN.isAtLeast(StaffRank.MOD)).isTrue();
+            assertThat(StaffRank.MOD.isAtLeast(StaffRank.ADMIN)).isFalse();
+            assertThat(StaffRank.MOD.isAtLeast(StaffRank.MOD)).isTrue();
         }
 
         @Test
-        @DisplayName("every tier says what it is and what it is for")
+        @DisplayName("each one knows the rung above and below it")
+        void neighbours() {
+            // What a promotion and a demotion by one step are built on, and what decides which rank
+            // somebody may hand out.
+            assertThat(StaffRank.TRIAL_MOD.below()).isEmpty();
+            assertThat(StaffRank.TRIAL_MOD.above()).contains(StaffRank.MOD);
+            assertThat(StaffRank.MOD.below()).contains(StaffRank.TRIAL_MOD);
+            assertThat(StaffRank.OWNER.above()).isEmpty();
+            assertThat(StaffRank.OWNER.below()).contains(StaffRank.ADMIN);
+        }
+
+        @Test
+        @DisplayName("every rank says what it is and what it is for")
         void described() {
             for (StaffRank rank : StaffRank.values()) {
                 assertThat(rank.title()).isNotBlank();
@@ -90,62 +111,81 @@ class StaffRankTest {
     }
 
     @Nested
-    @DisplayName("what each tier may do")
+    @DisplayName("what each rank may do")
     class WhatTheyGet {
 
         @Test
-        @DisplayName("a trial can be useful and watched, and stops nobody doing anything")
-        void trialIsTiny() {
-            Set<String> theirs = StaffRank.TRIAL.nodes();
+        @DisplayName("a trial mod can see everything and change almost nothing")
+        void aTrialCanRead() {
+            // Deliberately generous about reading: a trial who cannot see a record or a report cannot
+            // learn the job, and being useful while watched is the whole point of the rank.
+            Set<String> theirs = StaffRank.TRIAL_MOD.nodes();
 
             assertThat(theirs).contains(ModerationPermission.WARN.node(),
-                    ModerationPermission.HISTORY.node(), ModerationPermission.STAFF_CHAT.node());
-            // Nothing that takes anything away from a player. A trial who can ban is not a trial.
+                    ModerationPermission.HISTORY.node(), ModerationPermission.STAFF_CHAT.node(),
+                    ModerationPermission.REPORTS.node(), ModerationPermission.INVSEE.node());
+
+            // Nothing that takes anything away from a player, and nothing that changes an inventory.
             assertThat(theirs).doesNotContain(ModerationPermission.BAN.node(),
-                    ModerationPermission.MUTE.node(), ModerationPermission.KICK.node());
+                    ModerationPermission.MUTE.node(), ModerationPermission.KICK.node(),
+                    ModerationPermission.INVSEE_EDIT.node());
         }
 
         @Test
-        @DisplayName("a helper can quiet somebody but not remove them")
-        void helperStopsShortOfBanning() {
-            Set<String> theirs = StaffRank.HELPER.nodes();
+        @DisplayName("a mod has the full working set")
+        void aModCanAct() {
+            Set<String> theirs = StaffRank.MOD.nodes();
 
-            assertThat(theirs).contains(ModerationPermission.MUTE.node(),
-                    ModerationPermission.KICK.node(), ModerationPermission.REPORTS.node(),
-                    ModerationPermission.INVSEE.node());
-            assertThat(theirs)
-                    .as("the whole reason mute and ban are separate nodes")
-                    .doesNotContain(ModerationPermission.BAN.node());
-            assertThat(theirs)
-                    .as("looking in an inventory is not the same power as emptying it")
-                    .doesNotContain(ModerationPermission.INVSEE_EDIT.node());
-        }
-
-        @Test
-        @DisplayName("a moderator can ban, freeze, vanish and read the notes")
-        void moderatorIsTheFullSet() {
-            Set<String> theirs = StaffRank.MODERATOR.nodes();
-
-            assertThat(theirs).contains(ModerationPermission.BAN.node(),
+            assertThat(theirs).contains(ModerationPermission.TEMPBAN.node(),
+                    ModerationPermission.MUTE.node(), ModerationPermission.KICK.node(),
                     ModerationPermission.FREEZE.node(), ModerationPermission.VANISH.node(),
                     ModerationPermission.NOTES.node(), ModerationPermission.INVSEE_EDIT.node());
+
+            // A mod stops somebody *now*; ending their time on the server for good is an admin's.
+            assertThat(theirs)
+                    .as("a permanent ban is not a mod's decision — see BanLimitRule")
+                    .doesNotContain(ModerationPermission.BAN.node());
         }
 
         @Test
         @DisplayName("only an admin may change how moderation itself behaves")
-        void configIsAdminOnly() {
+        void configIsAdminUpward() {
             // Somebody who can set warns-before-ban to zero can undo the server's own policy, which is
             // a different kind of power from handing out a punishment under it.
             assertThat(StaffRank.ADMIN.nodes()).contains(ModerationPermission.CONFIG.node());
-            assertThat(StaffRank.MODERATOR.nodes())
-                    .doesNotContain(ModerationPermission.CONFIG.node());
+            assertThat(StaffRank.MOD.nodes()).doesNotContain(ModerationPermission.CONFIG.node());
         }
 
         @Test
-        @DisplayName("only an admin is immune")
-        void immunityIsAdminOnly() {
+        @DisplayName("immunity arrives with admin")
+        void immunityIsAdminUpward() {
             assertThat(StaffRank.ADMIN.nodes()).contains(StaffRule.IMMUNE);
-            assertThat(StaffRank.MODERATOR.nodes()).doesNotContain(StaffRule.IMMUNE);
+            assertThat(StaffRank.MOD.nodes()).doesNotContain(StaffRule.IMMUNE);
+        }
+    }
+
+    @Nested
+    @DisplayName("the owner")
+    class Owner {
+
+        @Test
+        @DisplayName("the owner is the only rank that is an operator")
+        void onlyTheOwnerIsOp() {
+            assertThat(StaffRank.OWNER.isOperator()).isTrue();
+            for (StaffRank rank : WORKING_RANKS) {
+                assertThat(rank.isOperator())
+                        .as("%s must not be an operator — op is every permission of every plugin", rank)
+                        .isFalse();
+            }
+        }
+
+        @Test
+        @DisplayName("the owner adds no nodes, because an operator already holds everything")
+        void theOwnerAddsNoNodes() {
+            assertThat(StaffRank.OWNER.nodes())
+                    .as("a node list on top of op is a list that changes nothing, and reads as though "
+                            + "op did not include it")
+                    .isEqualTo(StaffRank.ADMIN.nodes());
         }
     }
 
@@ -154,22 +194,23 @@ class StaffRankTest {
     class Claims {
 
         @Test
-        @DisplayName("a moderator can act on claims while moderating")
-        void moderatorsGetClaimAdmin() {
-            assertThat(StaffRank.MODERATOR.nodes()).contains(StaffRank.CLAIM_ADMIN);
+        @DisplayName("a mod can act on claims while moderating")
+        void modsGetClaimAdmin() {
+            assertThat(StaffRank.MOD.nodes()).contains(StaffRank.CLAIM_ADMIN);
+            assertThat(StaffRank.TRIAL_MOD.nodes()).doesNotContain(StaffRank.CLAIM_ADMIN);
         }
 
         @Test
         @DisplayName("the bypasses arrive with admin, not before")
-        void bypassesAreAdminOnly() {
-            // A moderator with free unlimited claims is a moderator whose own building is invisible to
-            // the rules everybody else plays under.
+        void bypassesAreAdminUpward() {
+            // A mod with free unlimited claims is a mod whose own building is invisible to the rules
+            // everybody else plays under — and the first thing a player notices when they find out.
             for (String bypass : StaffRank.CLAIM_BYPASSES) {
                 assertThat(StaffRank.ADMIN.nodes())
                         .as("an admin should have %s", bypass)
                         .contains(bypass);
-                assertThat(StaffRank.MODERATOR.nodes())
-                        .as("a moderator should not have %s", bypass)
+                assertThat(StaffRank.MOD.nodes())
+                        .as("a mod should not have %s", bypass)
                         .doesNotContain(bypass);
             }
         }
@@ -177,8 +218,6 @@ class StaffRankTest {
         @Test
         @DisplayName("nobody is granted the ability to use claims, because everybody already can")
         void noPointlessGrants() {
-            // rec.use is on by default for every player. Granting it would be a node in the file that
-            // changes nothing, and the first person to read the file would wonder what it was for.
             for (StaffRank rank : StaffRank.values()) {
                 assertThat(rank.nodes()).doesNotContain("rec.use");
             }
@@ -192,25 +231,39 @@ class StaffRankTest {
         @Test
         @DisplayName("a rank can be named however it is typed")
         void byName() {
-            assertThat(StaffRank.byName("moderator")).contains(StaffRank.MODERATOR);
-            assertThat(StaffRank.byName("MODERATOR")).contains(StaffRank.MODERATOR);
-            assertThat(StaffRank.byName("  Helper ")).contains(StaffRank.HELPER);
+            assertThat(StaffRank.byName("mod")).contains(StaffRank.MOD);
+            assertThat(StaffRank.byName("MOD")).contains(StaffRank.MOD);
+            assertThat(StaffRank.byName("  Admin ")).contains(StaffRank.ADMIN);
+            assertThat(StaffRank.byName("trial_mod")).contains(StaffRank.TRIAL_MOD);
             assertThat(StaffRank.byName("nonsense")).isEmpty();
             assertThat(StaffRank.byName(null)).isEmpty();
             assertThat(StaffRank.byName("")).isEmpty();
         }
 
         @Test
-        @DisplayName("the names are what a moderator would type, for tab completion")
-        void names() {
-            List<String> names = new ArrayList<>(StaffRank.names());
+        @DisplayName("the words people actually type are understood too")
+        void theWordsPeopleUse() {
+            // Nobody types an underscore, and "op" is what the top rank is called in practice even
+            // though it is the owner.
+            assertThat(StaffRank.byName("trial")).contains(StaffRank.TRIAL_MOD);
+            assertThat(StaffRank.byName("trialmod")).contains(StaffRank.TRIAL_MOD);
+            assertThat(StaffRank.byName("trial mod")).contains(StaffRank.TRIAL_MOD);
+            assertThat(StaffRank.byName("trial-mod")).contains(StaffRank.TRIAL_MOD);
+            assertThat(StaffRank.byName("moderator")).contains(StaffRank.MOD);
+            assertThat(StaffRank.byName("op")).contains(StaffRank.OWNER);
+            assertThat(StaffRank.byName("owner")).contains(StaffRank.OWNER);
+        }
 
-            assertThat(names).containsExactly("trial", "helper", "moderator", "admin");
+        @Test
+        @DisplayName("the names are what somebody would type, for tab completion")
+        void names() {
+            assertThat(new ArrayList<>(StaffRank.names()))
+                    .containsExactly("trial_mod", "mod", "admin", "owner");
         }
     }
 
     @Test
-    @DisplayName("no node is granted twice within one tier")
+    @DisplayName("no node is granted twice within one rank")
     void noDuplicates() {
         for (StaffRank rank : StaffRank.values()) {
             assertThat(rank.nodes()).doesNotHaveDuplicates();
@@ -220,10 +273,6 @@ class StaffRankTest {
     @Test
     @DisplayName("the set handed out cannot be changed by whoever reads it")
     void nodesAreImmutable() {
-        // A preset that a caller can add to is a preset that means something different after the first
-        // menu has rendered.
-        Set<String> theirs = StaffRank.HELPER.nodes();
-
-        assertThat(theirs).isUnmodifiable();
+        assertThat(StaffRank.MOD.nodes()).isUnmodifiable();
     }
 }

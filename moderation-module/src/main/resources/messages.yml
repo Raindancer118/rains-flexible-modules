@@ -21,6 +21,12 @@ moderation:
   only-a-player: "<gray>This one is for somebody standing in the world."
   console-use-commands: "<gray>The console has no screens. Try <white>/history</white>, <white>/reports list</white> or <white>/ban</white>."
 
+  # ── how long a ban you may give ──────────────────────────────────────────
+  ban:
+    too-long-for-you: "<red>That is longer than you may ban for. <gray>Your limit is <white><detail></white> — an admin can go further."
+    not-for-ever-for-you: "<red>A permanent ban is an admin's decision. <gray>You can ban for up to <white><detail></white>."
+    not-yours-to-lift: "<red>That is a permanent ban, so lifting it is an admin's decision."
+
   # ── staff ranks ──────────────────────────────────────────────────────────
   rank:
     changed: "<green><white><player></white> is now <<colour>><rank></<colour>><gray>."
@@ -30,7 +36,11 @@ moderation:
     not-staff: "<gray><player> is not staff."
     unknown: "<red>There is no rank called '<word>'. <gray>Try one of: <ranks>."
     already-at-the-top: "<gray><player> is already <white><rank></white>, which is the highest rank."
-    not-yours: "<red>Only the server owner may hand out ranks."
+    not-yours: "<red>You may not hand out that rank."
+    only-below-you: "<gray>You can only promote somebody to <white><rank></white> or below — the rank under your own."
+    not-above-you: "<gray><player> is <white><rank></white>, which is not below your own rank."
+    yourself: "<gray>You cannot change your own rank."
+    handing-out-is-off: "<gray>Only the server owner may hand out ranks on this server."
     granted: "<green>Gave <white><player></white> <white><what></white>."
     revoked: "<yellow>Took <white><what></white> from <white><player></white>."
     preset-restored: "<green><white><player></white> is back to exactly what their rank grants."

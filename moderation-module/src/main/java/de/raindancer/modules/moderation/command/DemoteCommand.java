@@ -46,7 +46,9 @@ public final class DemoteCommand implements IModerationCommand {
 
     @Override
     public boolean canUse(CommandSender sender) {
-        return sender.isOp() || sender.hasPermission(PromoteCommand.USE);
+        return sender.isOp() || sender.hasPermission(PromoteCommand.USE)
+                || sender.hasPermission(
+                de.raindancer.modules.moderation.model.ModerationPermission.APPOINT.node());
     }
 
     @Override
@@ -70,6 +72,16 @@ public final class DemoteCommand implements IModerationCommand {
         Optional<StaffRank> current = moderation.roster().rankOf(them.getUniqueId());
         if (current.isEmpty()) {
             moderation.messages().send(sender, "moderation.rank.not-staff", "player", name);
+            return;
+        }
+        // The same rule as promoting, in reverse: only somebody strictly below you, and only if the
+        // server has left demoting-below switched on.
+        var allowed = moderation.promotionRule().mayDemote(
+                sender instanceof org.bukkit.entity.Player player ? player.getUniqueId() : null,
+                them.getUniqueId());
+        if (allowed.isRefused()) {
+            allowed.refusal().ifPresent(key -> moderation.messages().send(sender, key,
+                    "rank", allowed.detail() == null ? "" : allowed.detail(), "player", name));
             return;
         }
         boolean offEntirely = args.length > 1

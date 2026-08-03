@@ -20,8 +20,8 @@ import java.util.Set;
  * answer written down once; the per-person toggles are for the exception, not the rule.
  *
  * <h2>Each tier contains the one below it</h2>
- * Not tidiness — it is what makes a promotion a promotion. If {@link #MODERATOR} lacked something
- * {@link #HELPER} had, promoting somebody would quietly take a power away, and they would report it as
+ * Not tidiness — it is what makes a promotion a promotion. If {@link #MOD} lacked something
+ * {@link #TRIAL_MOD} had, promoting somebody would quietly take a power away, and they would report it as
  * a bug in whatever they happened to be doing at the time. {@code StaffRankTest} checks it.
  *
  * <h2>Where the lines fall, and why</h2>
@@ -39,21 +39,33 @@ import java.util.Set;
  */
 public enum StaffRank {
 
-    /** Useful and watched. Stops nobody doing anything. */
-    TRIAL("Trial", 1, "gray", Material.STRING,
-            "Can warn and read a record. Nothing that stops a player doing anything."),
-
-    /** Can quiet somebody, and look. */
-    HELPER("Helper", 2, "green", Material.LEATHER_HELMET,
-            "Can mute, kick and handle reports. Cannot ban, and cannot edit an inventory."),
+    /** Learning the job. Can see everything and change almost nothing. */
+    TRIAL_MOD("Trial Mod", 1, "gray", Material.STRING,
+            "Can warn, read a record and handle reports. Nothing that stops a player doing anything."),
 
     /** The full working set. */
-    MODERATOR("Moderator", 3, "aqua", Material.IRON_HELMET,
-            "The full set: ban, freeze, notes, vanish, and claim administration."),
+    MOD("Mod", 2, "aqua", Material.IRON_HELMET,
+            "The full set: ban, mute, kick, freeze, notes, vanish, and claim administration."),
 
     /** Can change the rules, not only apply them. */
-    ADMIN("Admin", 4, "gold", Material.DIAMOND_HELMET,
-            "Everything a moderator has, plus the settings, immunity and the claim bypasses.");
+    ADMIN("Admin", 3, "gold", Material.DIAMOND_HELMET,
+            "Everything a mod has, plus the settings, immunity and the claim bypasses."),
+
+    /**
+     * The person whose server it is.
+     *
+     * <h2>Why the owner is a rank rather than something outside the ladder</h2>
+     * Because it is what people already mean by the top of it, and pretending otherwise led to the
+     * arrangement where the highest rank this module knew about was weaker than a line somebody adds to
+     * {@code ops.json} by hand. As a rank it is visible, it is granted and removed the same way as the
+     * others, and it is on the record — which the hand-edited file never is.
+     *
+     * <p>It grants no nodes because it does not need to: an operator holds every permission of every
+     * plugin on the server, present and future. That is exactly why the three ranks below it are not
+     * op, and why this one is the only one that is.
+     */
+    OWNER("Owner", 4, "red", Material.NETHERITE_HELMET,
+            "The server operator: every permission of every plugin, and the vanilla commands.");
 
     /**
      * Claim administration — what a moderator dealing with a grief needs.
@@ -105,13 +117,16 @@ public enum StaffRank {
         // The claims half. Not derived, because these nodes belong to another module and cannot carry a
         // tier of their own — so they are the one place a tier is named, and the one place to look when
         // claims grows a permission worth granting.
-        if (weight >= MODERATOR.weight) {
+        if (weight >= MOD.weight) {
             everything.add(CLAIM_ADMIN);
         }
         if (weight >= ADMIN.weight) {
             everything.add(StaffRule.IMMUNE);
             everything.addAll(CLAIM_BYPASSES);
         }
+        // OP deliberately adds nothing. An operator already holds everything, so granting nodes on top
+        // would be a list in a file that changes nothing — and the first person to read it would
+        // reasonably conclude that op does *not* include them.
         return Set.copyOf(everything);
     }
 
@@ -128,6 +143,26 @@ public enum StaffRank {
     /** Lowest first, so two ranks can be compared and a promotion can be told from a demotion. */
     public int weight() {
         return weight;
+    }
+
+    /**
+     * Whether holding this rank means being a server operator.
+     *
+     * <p>Only the owner. The three ranks below hold nodes and nothing else — see the class note, and
+     * {@code NobodyIsOppedTest}, which fails the build if that stops being true.
+     */
+    public boolean isOperator() {
+        return this == OWNER;
+    }
+
+    /** The rung below this one, or empty at the bottom. */
+    public Optional<StaffRank> below() {
+        return ordinal() == 0 ? Optional.empty() : Optional.of(values()[ordinal() - 1]);
+    }
+
+    /** The rung above this one, or empty at the top. */
+    public Optional<StaffRank> above() {
+        return ordinal() + 1 >= values().length ? Optional.empty() : Optional.of(values()[ordinal() + 1]);
     }
 
     /** Whether this rank is the given one or above it. */
@@ -154,13 +189,20 @@ public enum StaffRank {
         if (name == null || name.isBlank()) {
             return Optional.empty();
         }
-        String wanted = name.trim().toLowerCase(Locale.ROOT);
+        String wanted = name.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replace('-', '_');
         for (StaffRank rank : values()) {
             if (rank.key().equals(wanted)) {
                 return Optional.of(rank);
             }
         }
-        return Optional.empty();
+        // The words people actually type. "op" for the owner because that is what it is called in
+        // practice, and "trial"/"mod" because nobody types an underscore.
+        return switch (wanted) {
+            case "op", "operator" -> Optional.of(OWNER);
+            case "trial", "trialmod" -> Optional.of(TRIAL_MOD);
+            case "moderator" -> Optional.of(MOD);
+            default -> Optional.empty();
+        };
     }
 
     /** The words somebody types, in ladder order — for tab completion. */

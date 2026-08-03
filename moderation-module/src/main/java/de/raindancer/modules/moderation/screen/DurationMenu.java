@@ -74,17 +74,22 @@ public final class DurationMenu extends ModerationScreen {
                                 .priorOffences(reason, subject) + 1) + " of this."),
                 click -> confirm(suggested));
 
+        // Greyed rather than absent, with the ceiling as the reason — so a mod can see that longer
+        // bans exist, that they are an admin's to give, and exactly where their own line is.
         int column = 1;
         for (Duration length : COMMON) {
             Sentence sentence = Sentence.of(length);
-            band(MenuLayout.LAND, column++, Icons.of(Material.CLOCK,
-                            "<yellow>" + sentence.describe(),
+            var allowed = allowedFor(sentence);
+            band(MenuLayout.LAND, column++, allowed.isAllowed(),
+                    Icons.of(Material.CLOCK, "<yellow>" + sentence.describe(),
                             "<gray>Instead of the suggestion."),
-                    click -> confirm(sentence));
+                    ceilingReason(), click -> confirm(sentence));
         }
-        band(MenuLayout.LAND, column, Icons.of(Material.BEDROCK, "<red>For ever",
+        var forEver = allowedFor(Sentence.forEver());
+        band(MenuLayout.LAND, column, forEver.isAllowed(),
+                Icons.of(Material.BEDROCK, "<red>For ever",
                         "<gray>Until somebody lifts it."),
-                click -> confirm(Sentence.forEver()));
+                ceilingReason(), click -> confirm(Sentence.forEver()));
 
         toolbar(4, Icons.of(Material.WRITABLE_BOOK, "<yellow>Type a length",
                         "<gray>Anything Rain's Core understands: <white>90m</white>, "
@@ -93,13 +98,44 @@ public final class DurationMenu extends ModerationScreen {
                 click -> askForOne());
     }
 
+    /**
+     * Whether this viewer may hand out a ban of this length.
+     *
+     * <p>Only bans are capped; a mute or a freeze is nobody's business but the permission's, so those
+     * come back allowed and the buttons are drawn live.
+     */
+    private de.raindancer.core.platform.rule.Verdict allowedFor(Sentence sentence) {
+        if (!de.raindancer.modules.moderation.rules.BanLimitRule.appliesTo(reason.kind())) {
+            return de.raindancer.core.platform.rule.Verdict.allowed();
+        }
+        return services().banLimitRule().mayBanFor(viewer.getUniqueId(), sentence);
+    }
+
+    /** What a greyed length says: the ceiling, in the words somebody would use. */
+    private String ceilingReason() {
+        return services().banLimitRule().longestFor(viewer.getUniqueId())
+                .map(most -> most.isZero()
+                        ? "You may not ban"
+                        : "You may ban for up to " + services().banLimitRule().capDescribed())
+                .orElse("Not allowed");
+    }
+
     /** The chat prompt, which is Core's — one question, one answer, and a timeout. */
     private void askForOne() {
         viewer.closeInventory();
         tell("moderation.type-a-length");
         services().prompts().ask(viewer.getUniqueId(), "moderation", Duration.ofSeconds(60),
                 typed -> Sentence.parse(typed).ifPresentOrElse(
-                        this::punish,
+                        // Checked again, because a typed length bypasses every greyed button above.
+                        wanted -> {
+                            var allowed = allowedFor(wanted);
+                            if (allowed.isRefused()) {
+                                allowed.refusal().ifPresent(key -> tell(key, "detail",
+                                        allowed.detail() == null ? "" : allowed.detail()));
+                                return;
+                            }
+                            punish(wanted);
+                        },
                         // Empty is a typo, never "for ever" — see Sentence. Saying so beats handing
                         // out a permanent ban because somebody wrote "2 hours" with a space.
                         () -> tell("moderation.unreadable-length", "text", typed)),
@@ -123,6 +159,14 @@ public final class DurationMenu extends ModerationScreen {
             tellRefusal(verdict);
             return;
         }
+        // The last gate. Every path here has already asked, which is the point: a limit checked in one
+        // place is a limit that holds only on that path.
+        var withinTheirLimit = allowedFor(sentence);
+        if (withinTheirLimit.isRefused()) {
+            withinTheirLimit.refusal().ifPresent(key -> tell(key, "detail",
+                    withinTheirLimit.detail() == null ? "" : withinTheirLimit.detail()));
+            return;
+        }
         services().punishmentService().punish(viewer.getUniqueId(), viewer.getName(), subject,
                 subjectName, reason.kind(), sentence, reason.label());
         tell("moderation.punished", "player", subjectName, "what", reason.kind().past(),
@@ -132,7 +176,7 @@ public final class DurationMenu extends ModerationScreen {
 
     private ModerationPermission permissionFor() {
         return switch (reason.kind()) {
-            case BAN -> ModerationPermission.BAN;
+            case BAN -> ModerationPermission.TEMPBAN;   // see CategoryMenu#permission
             case MUTE -> ModerationPermission.MUTE;
             case KICK -> ModerationPermission.KICK;
             case WARNING -> ModerationPermission.WARN;

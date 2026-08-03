@@ -57,8 +57,15 @@ public final class ReportCommand implements IModerationCommand {
         ModerationServices moderation = services.get();
 
         if (args.length == 0) {
-            moderation.messages().send(sender, "moderation.usage",
-                    "usage", "/report <player> [what happened]");
+            // A screen, not a usage line. A player who has just been griefed should not have to know
+            // the exact spelling of somebody's name to tell anybody about it — which is the same reason
+            // the staff side has a player chooser.
+            if (sender instanceof Player viewer) {
+                moderation.screens().pickSomebodyToReport(viewer);
+            } else {
+                moderation.messages().send(sender, "moderation.usage",
+                        "usage", "/report <player> <what happened>");
+            }
             return;
         }
         Optional<OfflinePlayer> found = Players.find(moderation.server(), args[0]);

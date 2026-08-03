@@ -19,26 +19,36 @@ import org.bukkit.Material;
  */
 public enum ModerationPermission {
 
-    // ── from a trial upward: useful, watched, and stops nobody doing anything ──────────────
+    // ── from a trial mod upward: can see everything, and change almost nothing ─────────────
+    // Deliberately generous about *reading*. A trial who cannot see a record or a report cannot learn
+    // the job, and the whole point of the rank is that they are useful while being watched.
     WARN("warn", "Put a warning on somebody's record", Material.YELLOW_BANNER, 1),
     HISTORY("history", "Read what has happened to somebody", Material.BOOK, 1),
     STAFF_CHAT("staffchat", "Talk in the staff channel", Material.OAK_SIGN, 1),
+    REPORTS("reports", "Read the report queue and deal with what is in it", Material.BELL, 1),
+    INVSEE("invsee", "Look inside somebody's inventory", Material.CHEST, 1),
 
-    // ── from a helper upward: can quiet somebody, and look ─────────────────────────────────
+    // ── from a mod upward: the full working set ────────────────────────────────────────────
     MUTE("mute", "Stop somebody talking, and let them talk again", Material.PAPER, 2),
     KICK("kick", "Throw somebody off, once", Material.LEATHER_BOOTS, 2),
-    REPORTS("reports", "Read the report queue and deal with what is in it", Material.BELL, 2),
-    INVSEE("invsee", "Look inside somebody's inventory", Material.CHEST, 2),
+    TEMPBAN("tempban", "Ban somebody for a limited time, up to the configured maximum",
+            Material.IRON_DOOR, 2),
+    FREEZE("freeze", "Stop somebody building while you talk to them", Material.PACKED_ICE, 2),
+    NOTES("notes", "Read and write the staff notes about somebody", Material.WRITABLE_BOOK, 2),
+    VANISH("vanish", "Go invisible, and see who else is", Material.GLASS, 2),
+    INVSEE_EDIT("invsee.edit", "Change what is in it", Material.HOPPER, 2),
+    // Reaching /promote and /demote at all. *What* somebody may hand out is PromotionRule's answer —
+    // never their own rank or above — so this is the door and the rule is the lock. Distinct from
+    // PromoteCommand.USE, which is the owner's and is in no preset.
+    APPOINT("appoint", "Appoint and remove staff below your own rank", Material.NAME_TAG, 2),
 
-    // ── from a moderator upward: the full working set ──────────────────────────────────────
-    BAN("ban", "Ban somebody and lift a ban", Material.BARRIER, 3),
-    FREEZE("freeze", "Stop somebody building while you talk to them", Material.PACKED_ICE, 3),
-    NOTES("notes", "Read and write the staff notes about somebody", Material.WRITABLE_BOOK, 3),
-    VANISH("vanish", "Go invisible, and see who else is", Material.GLASS, 3),
-    INVSEE_EDIT("invsee.edit", "Change what is in it", Material.HOPPER, 3),
-
-    // ── admin only: changes the rules rather than applying them ────────────────────────────
-    CONFIG("config", "Change how moderation itself behaves", Material.COMPARATOR, 4);
+    // ── admin upward: changes the rules rather than applying them ──────────────────────────
+    // A permanent ban is here rather than with the mods deliberately. Stopping somebody *now* is a
+    // mod's job — TEMPBAN, above — but ending their time on the server for good, with nobody else
+    // having looked, is not.
+    BAN("ban", "Ban somebody for any length, permanently included, and lift any ban",
+            Material.BARRIER, 3),
+    CONFIG("config", "Change how moderation itself behaves", Material.COMPARATOR, 3);
 
     /**
      * The one prefix everything is under.
@@ -61,7 +71,7 @@ public enum ModerationPermission {
     }
 
     /**
-     * The lowest staff tier that gets this, by weight — 1 trial, 2 helper, 3 moderator, 4 admin.
+     * The lowest staff tier that gets this, by weight — 1 trial mod, 2 mod, 3 admin, 4 owner.
      *
      * <h2>Why the tier lives here rather than in a list inside {@code StaffRank}</h2>
      * Because a list is a second place to remember. The version that listed each tier's nodes by hand

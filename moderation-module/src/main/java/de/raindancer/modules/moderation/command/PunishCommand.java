@@ -93,6 +93,17 @@ public final class PunishCommand extends StaffCommand {
             reason = reasonFrom(args, 1);
         }
 
+        // The ban cap, and the reason it is checked here rather than only in the menu: a mod who
+        // types /ban somebody perm must be refused too. A limit the command does not know about is a
+        // limit that only applies to people who click.
+        if (de.raindancer.modules.moderation.rules.BanLimitRule.appliesTo(kind)) {
+            var allowed = moderation.banLimitRule().mayBanFor(actorOf(sender), sentence);
+            if (allowed.isRefused()) {
+                allowed.refusal().ifPresent(reasonKey -> moderation.messages().send(sender, reasonKey,
+                        "detail", allowed.detail() == null ? "" : allowed.detail()));
+                return;
+            }
+        }
         moderation.punishmentService().punish(actorOf(sender), actorNameOf(sender),
                 them.getUniqueId(), Players.nameOf(them), kind, sentence, reason);
         moderation.messages().send(sender, "moderation.punished",

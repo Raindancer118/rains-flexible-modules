@@ -74,6 +74,12 @@ public final class PunishMenu extends ModerationList<Reason> {
     @Override
     protected ItemStack icon(Reason reason) {
         Sentence suggested = services().punishmentService().suggest(reason, subject);
+        // Brought within what *this* viewer may hand out. A mod picking Griefing, whose ladder starts
+        // at three days, is shown the day they can actually give rather than a number that will be
+        // refused after two more clicks.
+        if (reason.kind() == PunishmentKind.BAN) {
+            suggested = services().banLimitRule().clamp(viewer.getUniqueId(), suggested);
+        }
         int priors = services().punishmentService().priorOffences(reason, subject);
 
         List<String> lore = new ArrayList<>();
@@ -129,7 +135,7 @@ public final class PunishMenu extends ModerationList<Reason> {
 
     private ModerationPermission permissionFor() {
         return switch (kind) {
-            case BAN -> ModerationPermission.BAN;
+            case BAN -> ModerationPermission.TEMPBAN;   // see CategoryMenu#permission
             case MUTE -> ModerationPermission.MUTE;
             case KICK -> ModerationPermission.KICK;
             case WARNING -> ModerationPermission.WARN;

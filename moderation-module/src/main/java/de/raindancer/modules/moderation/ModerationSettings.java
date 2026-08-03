@@ -118,6 +118,13 @@ public record ModerationSettings(
         @Key("punishments.warn-ban-length")
         String warnBanLength,
 
+        @In("moderation/punishments") @Title("Longest ban a mod may give")
+        @Describe("Mods hold 'tempban' and admins hold 'ban'. This is the ceiling on the first: long "
+                + "enough to stop a griefer at two in the morning, short enough that ending somebody's "
+                + "time here for good stays an admin's decision. 'perm' would remove the distinction.")
+        @Key("punishments.mod-tempban-max")
+        String modTempBanMax,
+
         @In("moderation/punishments") @Title("Kick when banning")
         @Describe("Off means a ban applies at the next login, which is how somebody stays on the "
                 + "server for another hour after being banned.")
@@ -193,6 +200,19 @@ public record ModerationSettings(
         @Key("staff.vanish-on-join")
         boolean vanishOnJoinForStaff,
 
+        @In("moderation/staff") @Title("Staff may promote below themselves")
+        @Describe("On lets a mod appoint a trial mod and an admin appoint a mod — each rank may hand "
+                + "out the one below its own, and never its own or above. Off keeps every appointment "
+                + "with the server owner.")
+        @Key("staff.may-promote-below")
+        boolean mayPromoteBelow,
+
+        @In("moderation/staff") @Title("Staff may demote below themselves")
+        @Describe("The same in reverse. Kept separate because the two are not the same trust: a server "
+                + "may be happy for an admin to appoint mods while reserving the removing.")
+        @Key("staff.may-demote-below")
+        boolean mayDemoteBelow,
+
         @In("moderation/staff") @Title("Admins are operators")
         @Describe("Off, and deliberately. Op is not a permission — it is every permission of every "
                 + "plugin on the server, plus /stop and /op itself, so an opped admin can promote "
@@ -241,10 +261,10 @@ public record ModerationSettings(
     public static final ModerationSettings DEFAULTS = new ModerationSettings(
             true, true, false, false, false,
             "If you think this was a mistake, you can appeal on the website.",
-            "perm", "1h", "15m", true, 3, 30, "perm", true,
+            "perm", "1h", "15m", true, 3, 30, "perm", "1d", true,
             true, true,
             true, 120, 3, 8, true, true,
-            true, true, "<dark_aqua>[Staff]</dark_aqua>", false, false, true,
+            true, true, "<dark_aqua>[Staff]</dark_aqua>", false, true, true, false, true,
             true, 0, 300, false);
 
     /** The report cooldown as the rule wants it. */
@@ -287,22 +307,24 @@ public record ModerationSettings(
     public ModerationSettings withAnnounceToEveryone(boolean announce) {
         return new ModerationSettings(announce, announceLifts, announceKicks, announceWarnings, showModeratorName,
                 appealMessage, defaultBanLength, defaultMuteLength, defaultFreezeLength,
-                useEscalation, warnsBeforeBan, warnWindowDays, warnBanLength, kickOnBan,
-                mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
+                useEscalation, warnsBeforeBan, warnWindowDays, warnBanLength, modTempBanMax,
+                kickOnBan, mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
-                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
+                mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
+                keepRecordsDays, autoSaveSeconds, debug);
     }
 
     public ModerationSettings withAnnounceLifts(boolean announce) {
         return new ModerationSettings(announceToEveryone, announce, announceKicks, announceWarnings,
                 showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
                 defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
-                warnBanLength, kickOnBan, mirrorToVanillaBanList, importVanillaBans,
-                reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
-                tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
 
@@ -310,54 +332,95 @@ public record ModerationSettings(
         return new ModerationSettings(announceToEveryone, announceLifts, announce, announceWarnings,
                 showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
                 defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
-                warnBanLength, kickOnBan, mirrorToVanillaBanList, importVanillaBans,
-                reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
-                tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
 
     public ModerationSettings withAnnounceWarnings(boolean announce) {
         return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announce, showModeratorName,
                 appealMessage, defaultBanLength, defaultMuteLength, defaultFreezeLength,
-                useEscalation, warnsBeforeBan, warnWindowDays, warnBanLength, kickOnBan,
-                mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
+                useEscalation, warnsBeforeBan, warnWindowDays, warnBanLength, modTempBanMax,
+                kickOnBan, mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
-                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
+                mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
+                keepRecordsDays, autoSaveSeconds, debug);
     }
 
     public ModerationSettings withShowModeratorName(boolean named) {
         return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings, named,
                 appealMessage, defaultBanLength, defaultMuteLength, defaultFreezeLength,
-                useEscalation, warnsBeforeBan, warnWindowDays, warnBanLength, kickOnBan,
-                mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
+                useEscalation, warnsBeforeBan, warnWindowDays, warnBanLength, modTempBanMax,
+                kickOnBan, mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
-                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
+                mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
+                keepRecordsDays, autoSaveSeconds, debug);
     }
 
     public ModerationSettings withWarnsBeforeBan(int howMany) {
         return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
                 showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
                 defaultFreezeLength, useEscalation, howMany, warnWindowDays, warnBanLength,
-                kickOnBan, mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
-                reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
+                modTempBanMax, kickOnBan, mirrorToVanillaBanList, importVanillaBans,
+                reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
-                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
+                mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
+                keepRecordsDays, autoSaveSeconds, debug);
     }
 
     public ModerationSettings withAdminsAreOp(boolean opped) {
         return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
                 showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
                 defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
-                warnBanLength, kickOnBan, mirrorToVanillaBanList, importVanillaBans,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, opped,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withModTempBanMax(String longest) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, longest, kickOnBan, mirrorToVanillaBanList, importVanillaBans,
                 reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, opped,
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
+                mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
+                keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withMayPromoteBelow(boolean allowed) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, allowed, mayDemoteBelow, adminsAreOp, flightWhileVanished,
+                auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withMayDemoteBelow(boolean allowed) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, allowed, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
 }

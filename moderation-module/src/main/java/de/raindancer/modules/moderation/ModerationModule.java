@@ -192,7 +192,7 @@ public final class ModerationModule implements FlexModule {
                 context.core().vanish(), context.core().players(), context.core().inventories(),
                 context.core().audit(), context.core().grants(), () -> directoryOf(server),
                 reasons, reports, notes, staffRule, escalation, announcements, this::standingRule,
-                this::filingRule,
+                this::banLimitRule, this::promotionRule, this::filingRule,
                 punishmentService, reportService, noteService, staffChat, roster, staffService,
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
@@ -244,6 +244,38 @@ public final class ModerationModule implements FlexModule {
      */
     private de.raindancer.modules.moderation.rules.StandingRule standingRule() {
         return new de.raindancer.modules.moderation.rules.StandingRule(settings.current().warnWindow());
+    }
+
+    /**
+     * Who may hand out which rank, with the settings as they are now.
+     *
+     * <p>The owner is whoever holds the promote node — which is op by default and is deliberately in no
+     * preset, so nothing this module grants can ever confer it.
+     */
+    private de.raindancer.modules.moderation.rules.PromotionRule promotionRule() {
+        return new de.raindancer.modules.moderation.rules.PromotionRule(
+                who -> {
+                    if (who == null) {
+                        return true;    // the console
+                    }
+                    org.bukkit.entity.Player here = services.server().getPlayer(who);
+                    return here != null && (here.isOp() || here.hasPermission(
+                            de.raindancer.modules.moderation.command.PromoteCommand.USE));
+                },
+                roster::rankOf,
+                settings.current().mayPromoteBelow(),
+                settings.current().mayDemoteBelow());
+    }
+
+    /** Rebuilt per ask, because the cap is a setting. See {@code BanLimitRule}. */
+    private de.raindancer.modules.moderation.rules.BanLimitRule banLimitRule() {
+        java.time.Duration cap = de.raindancer.modules.moderation.model.Sentence
+                .parse(settings.current().modTempBanMax())
+                .flatMap(de.raindancer.modules.moderation.model.Sentence::length)
+                // Unreadable, or "perm": both mean the setting says no ceiling, and a ceiling nobody
+                // can read must not silently become "no bans at all".
+                .orElse(java.time.Duration.ofDays(365));
+        return new de.raindancer.modules.moderation.rules.BanLimitRule(staffRule, cap);
     }
 
     /** Rebuilt per ask, because the limits are settings and a reload has to change what happens next. */
@@ -303,6 +335,11 @@ public final class ModerationModule implements FlexModule {
         public void reportCategories(Player viewer, UUID subject, String subjectName) {
             new de.raindancer.modules.moderation.screen.ReportCategoryMenu(services, viewer, null,
                     subject, subjectName).open();
+        }
+
+        @Override
+        public void pickSomebodyToReport(Player viewer) {
+            new de.raindancer.modules.moderation.screen.WhoToReportMenu(services, viewer, null).open();
         }
 
         @Override

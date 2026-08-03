@@ -3,7 +3,6 @@ package de.raindancer.modules.moderation.screen;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.modules.moderation.ModerationServices;
-import de.raindancer.modules.moderation.command.PromoteCommand;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.model.StaffRank;
 import net.kyori.adventure.text.Component;
@@ -34,7 +33,7 @@ import java.util.UUID;
  * along".
  *
  * <p>Green means held, grey means not, and the lore says which of those the rank asked for. That last
- * part is what makes drift visible: a node shown green and marked "not part of Helper" is one somebody
+ * part is what makes drift visible: a node shown green and marked "not part of Mod" is one somebody
  * granted by hand three months ago.
  */
 public final class PermissionsMenu extends ModerationList<String> {
@@ -61,9 +60,14 @@ public final class PermissionsMenu extends ModerationList<String> {
         return "Permissions";
     }
 
-    /** Op, or the node. Never a moderation preset — see {@code PromoteCommand}. */
+    /**
+     * Whether this viewer may change this person's permissions.
+     *
+     * <p>The demote rule, because handing somebody a node and taking one away is the same authority as
+     * re-ranking them: only somebody below you, and only if the server allows it at all.
+     */
     private boolean mayChange() {
-        return viewer.isOp() || viewer.hasPermission(PromoteCommand.USE);
+        return services().promotionRule().mayDemote(viewer.getUniqueId(), subject).isAllowed();
     }
 
     @Override
@@ -99,11 +103,11 @@ public final class PermissionsMenu extends ModerationList<String> {
         lore.add("");
         lore.add(mayChange()
                 ? "<dark_gray>Click to " + (held ? "take it away." : "give it.")
-                : "<dark_gray>Only the server owner may change these.");
+                : "<dark_gray>Not yours to change.");
 
         ItemStack button = Icons.of(held ? Material.LIME_DYE : Material.GRAY_DYE,
                 (held ? "<green>" : "<gray>") + readable(node), lore);
-        return mayChange() ? button : Icons.locked(button, "Only the server owner may change these");
+        return mayChange() ? button : Icons.locked(button, "Not yours to change");
     }
 
     @Override

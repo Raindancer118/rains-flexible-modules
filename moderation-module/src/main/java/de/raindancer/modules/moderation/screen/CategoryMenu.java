@@ -111,6 +111,8 @@ public final class CategoryMenu extends ModerationScreen {
                 click -> new HistoryMenu(services(), viewer, this, subject, subjectName).open());
 
         // ── the one irreversible thing, for the categories that have one ──────────────────────
+        // BAN rather than TEMPBAN: a permanent ban is exactly what a mod may not hand out, so the
+        // button is greyed for them rather than offered and refused.
         if (kind == PunishmentKind.BAN && may(ModerationPermission.BAN)) {
             danger(Icons.of(Material.BEDROCK, "<red>Ban for ever",
                             "<gray>Straight to permanent, without a reason from the list.",
@@ -177,7 +179,9 @@ public final class CategoryMenu extends ModerationScreen {
 
     private ModerationPermission permission() {
         return switch (kind) {
-            case BAN -> ModerationPermission.BAN;
+            // The lower of the two ban nodes: a mod holds it and an admin holds both, so both reach
+            // the page. BanLimitRule is what decides the length each of them may choose.
+            case BAN -> ModerationPermission.TEMPBAN;
             case MUTE -> ModerationPermission.MUTE;
             case KICK -> ModerationPermission.KICK;
             case WARNING -> ModerationPermission.WARN;

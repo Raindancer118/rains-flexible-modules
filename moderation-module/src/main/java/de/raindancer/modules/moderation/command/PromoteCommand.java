@@ -1,6 +1,7 @@
 package de.raindancer.modules.moderation.command;
 
 import de.raindancer.modules.moderation.ModerationServices;
+import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.model.StaffRank;
 import de.raindancer.modules.moderation.util.Players;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -13,6 +14,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -41,6 +43,11 @@ public final class PromoteCommand implements IModerationCommand {
 
     private final Supplier<ModerationServices> services;
 
+    /** Whoever typed it, as an id — null for the console, which every rule reads as the owner. */
+    private static UUID actorOf(CommandSender sender) {
+        return sender instanceof org.bukkit.entity.Player player ? player.getUniqueId() : null;
+    }
+
     public PromoteCommand(Supplier<ModerationServices> services) {
         this.services = services;
     }
@@ -57,8 +64,11 @@ public final class PromoteCommand implements IModerationCommand {
 
     @Override
     public boolean canUse(CommandSender sender) {
-        // Op or the node. Op because the owner has it on a fresh server and needs no setup at all.
-        return sender.isOp() || sender.hasPermission(USE);
+        // The owner always, and any staff member who may appoint below themselves. Brigadier calls this
+        // while *resolving* the command, so it has to be cheap and must not touch the module's state —
+        // hence the permission check here and the full rule at execution.
+        return sender.isOp() || sender.hasPermission(USE)
+                || sender.hasPermission(ModerationPermission.APPOINT.node());
     }
 
     @Override
@@ -92,6 +102,16 @@ public final class PromoteCommand implements IModerationCommand {
                 moderation.messages().send(sender, "moderation.rank.already-at-the-top",
                         "player", name, "rank", StaffRank.ADMIN.title());
             }
+            return;
+        }
+        // The rule, not an op check: a mod may appoint a trial mod, an admin a mod, and nobody their
+        // own equal. See PromotionRule — the ladder having no top is what this prevents.
+        var allowed = moderation.promotionRule()
+                .mayPromote(actorOf(sender), them.getUniqueId(), wanted.get());
+        if (allowed.isRefused()) {
+            allowed.refusal().ifPresent(key -> moderation.messages().send(sender, key,
+                    "rank", allowed.detail() == null ? "" : allowed.detail(),
+                    "player", name));
             return;
         }
         moderation.staff().promote(sender, them.getUniqueId(), name, wanted.get());

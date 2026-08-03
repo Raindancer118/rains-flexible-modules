@@ -13,6 +13,8 @@ import de.raindancer.core.ui.choose.PlayerDirectory;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.ui.prompt.ChatPrompts;
 import de.raindancer.modules.moderation.rules.AnnouncementRule;
+import de.raindancer.modules.moderation.rules.BanLimitRule;
+import de.raindancer.modules.moderation.rules.PromotionRule;
 import de.raindancer.modules.moderation.rules.EscalationRule;
 import de.raindancer.modules.moderation.rules.ReportRule;
 import de.raindancer.modules.moderation.rules.StaffRule;
@@ -83,6 +85,8 @@ public record ModerationServices(
         EscalationRule escalation,
         AnnouncementRule announcements,
         Supplier<StandingRule> standing,
+        Supplier<BanLimitRule> banLimit,
+        Supplier<PromotionRule> promotion,
         Supplier<ReportRule> reportRule,
         PunishmentService punishmentService,
         ReportService reportService,
@@ -103,6 +107,25 @@ public record ModerationServices(
      */
     public StandingRule standingRule() {
         return standing.get();
+    }
+
+    /**
+     * How long a ban somebody may hand out.
+     *
+     * <p>Behind a supplier because the cap is a setting: one built at startup would keep yesterday's
+     * ceiling until the next restart.
+     */
+    public BanLimitRule banLimitRule() {
+        return banLimit.get();
+    }
+
+    /**
+     * Who may hand out which rank.
+     *
+     * <p>Behind a supplier because both directions are settings a server may switch off.
+     */
+    public PromotionRule promotionRule() {
+        return promotion.get();
     }
 
     /** The settings as they are right now. */

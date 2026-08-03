@@ -60,6 +60,17 @@ public final class LiftCommand extends StaffCommand {
         if (!mayAct(sender, them.getUniqueId())) {
             return;
         }
+        // A mod may take back a day; a permanent ban is an admin's decision and undoing one is that
+        // decision reversed. Asked before the lift, so the answer is a sentence rather than silence.
+        if (kind == PunishmentKind.BAN) {
+            boolean permanent = moderation.punishments().active(them.getUniqueId(), kind)
+                    .map(one -> one.isPermanent()).orElse(false);
+            var allowed = moderation.banLimitRule().mayLift(actorOf(sender), permanent);
+            if (allowed.isRefused()) {
+                allowed.refusal().ifPresent(key -> moderation.messages().send(sender, key));
+                return;
+            }
+        }
         String why = reasonFrom(args, 1);
 
         boolean lifted = moderation.punishmentService().lift(actorOf(sender), actorNameOf(sender),

@@ -43,4 +43,14 @@ public interface ModerationScreensOpener {
 
     /** What a player is reporting somebody for — the categories, before the detail. */
     void reportCategories(Player viewer, UUID subject, String subjectName);
+
+    /**
+     * Who a player is reporting.
+     *
+     * <p>The one screen in this module a player without any permission opens, so it shows who is
+     * <em>here</em> rather than everybody the server has ever seen — reporting somebody who logged off
+     * last March is not a thing anybody needs, and the whole directory is a list a player should not be
+     * handed.
+     */
+    void pickSomebodyToReport(Player viewer);
 }

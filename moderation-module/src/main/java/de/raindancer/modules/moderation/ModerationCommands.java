@@ -57,13 +57,17 @@ public final class ModerationCommands {
                 ModuleCommand.of("mod", "Everything about a player, and the pages behind it",
                         new ModerationCommand(ModerationCommands::require)),
 
-                ModuleCommand.of("ban", "Bans somebody, for a while or for good",
+                // Guarded by TEMPBAN, the *lower* of the two ban nodes — deliberately. A mod holds
+                // tempban and an admin holds both, so both reach the command, and BanLimitRule is what
+                // decides how long each of them may ban for. Guarded by BAN instead, a mod would be
+                // refused at the door and could not hand out the day they are trusted with.
+                ModuleCommand.of("ban", "Bans somebody — mods for a limited time, admins for any",
                                 new PunishCommand(ModerationCommands::require, PunishmentKind.BAN,
-                                        ModerationPermission.BAN))
+                                        ModerationPermission.TEMPBAN))
                         .aliased("tempban"),
                 ModuleCommand.of("unban", "Lifts a ban, leaving it on the record",
                                 new LiftCommand(ModerationCommands::require, PunishmentKind.BAN,
-                                        ModerationPermission.BAN))
+                                        ModerationPermission.TEMPBAN))
                         .aliased("pardon"),
 
                 ModuleCommand.of("mute", "Stops somebody talking",

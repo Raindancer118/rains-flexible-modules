@@ -46,9 +46,9 @@ class StaffRosterTest {
             Grants grants = new Grants(folder);
             StaffRoster roster = new StaffRoster(folder, grants);
 
-            roster.promote(ayla, StaffRank.HELPER);
+            roster.promote(ayla, StaffRank.MOD);
 
-            assertThat(roster.rankOf(ayla)).contains(StaffRank.HELPER);
+            assertThat(roster.rankOf(ayla)).contains(StaffRank.MOD);
             assertThat(roster.isStaff(ayla)).isTrue();
             assertThat(grants.has(ayla, ModerationPermission.MUTE.node())).isTrue();
             assertThat(grants.has(ayla, ModerationPermission.BAN.node())).isFalse();
@@ -61,11 +61,11 @@ class StaffRosterTest {
             // made every demotion a no-op — the dangerous direction, since nobody notices.
             Grants grants = new Grants(folder);
             StaffRoster roster = new StaffRoster(folder, grants);
-            roster.promote(ayla, StaffRank.MODERATOR);
+            roster.promote(ayla, StaffRank.MOD);
 
-            roster.promote(ayla, StaffRank.TRIAL);
+            roster.promote(ayla, StaffRank.TRIAL_MOD);
 
-            assertThat(roster.rankOf(ayla)).contains(StaffRank.TRIAL);
+            assertThat(roster.rankOf(ayla)).contains(StaffRank.TRIAL_MOD);
             assertThat(grants.has(ayla, ModerationPermission.BAN.node())).isFalse();
             assertThat(grants.has(ayla, ModerationPermission.WARN.node())).isTrue();
         }
@@ -77,7 +77,7 @@ class StaffRosterTest {
             StaffRoster roster = new StaffRoster(folder, grants);
 
             roster.promote(ayla, StaffRank.ADMIN);
-            roster.promote(bram, StaffRank.MODERATOR);
+            roster.promote(bram, StaffRank.MOD);
 
             assertThat(grants.has(ayla, "rec.admin.nolimit")).isTrue();
             assertThat(grants.has(bram, "rec.admin.nolimit")).isFalse();
@@ -91,7 +91,7 @@ class StaffRosterTest {
         void nulls(@TempDir Path folder) {
             StaffRoster roster = rosterIn(folder);
 
-            assertThat(roster.promote(null, StaffRank.HELPER)).isFalse();
+            assertThat(roster.promote(null, StaffRank.MOD)).isFalse();
             assertThat(roster.promote(ayla, null)).isFalse();
             assertThat(roster.size()).isZero();
         }
@@ -132,8 +132,8 @@ class StaffRosterTest {
         void onlyThem(@TempDir Path folder) {
             Grants grants = new Grants(folder);
             StaffRoster roster = new StaffRoster(folder, grants);
-            roster.promote(ayla, StaffRank.HELPER);
-            roster.promote(bram, StaffRank.HELPER);
+            roster.promote(ayla, StaffRank.MOD);
+            roster.promote(bram, StaffRank.MOD);
 
             roster.demote(ayla);
 
@@ -153,12 +153,12 @@ class StaffRosterTest {
             // to ban, without inventing a fifth tier for her.
             Grants grants = new Grants(folder);
             StaffRoster roster = new StaffRoster(folder, grants);
-            roster.promote(ayla, StaffRank.HELPER);
+            roster.promote(ayla, StaffRank.MOD);
 
             assertThat(roster.toggle(ayla, ModerationPermission.BAN.node())).isTrue();
 
             assertThat(grants.has(ayla, ModerationPermission.BAN.node())).isTrue();
-            assertThat(roster.rankOf(ayla)).contains(StaffRank.HELPER);
+            assertThat(roster.rankOf(ayla)).contains(StaffRank.MOD);
         }
 
         @Test
@@ -166,12 +166,14 @@ class StaffRosterTest {
         void takenOne(@TempDir Path folder) {
             Grants grants = new Grants(folder);
             StaffRoster roster = new StaffRoster(folder, grants);
-            roster.promote(ayla, StaffRank.MODERATOR);
+            roster.promote(ayla, StaffRank.MOD);
 
-            assertThat(roster.toggle(ayla, ModerationPermission.BAN.node())).isFalse();
+            // MUTE, because it *is* part of a mod's preset — toggling something the preset does not
+            // grant would add it rather than take it away, which is the next test along.
+            assertThat(roster.toggle(ayla, ModerationPermission.MUTE.node())).isFalse();
 
-            assertThat(grants.has(ayla, ModerationPermission.BAN.node())).isFalse();
-            assertThat(roster.rankOf(ayla)).contains(StaffRank.MODERATOR);
+            assertThat(grants.has(ayla, ModerationPermission.MUTE.node())).isFalse();
+            assertThat(roster.rankOf(ayla)).contains(StaffRank.MOD);
         }
 
         @Test
@@ -181,7 +183,7 @@ class StaffRosterTest {
             // hand-granted a node three months ago is indistinguishable from a plain moderator.
             Grants grants = new Grants(folder);
             StaffRoster roster = new StaffRoster(folder, grants);
-            roster.promote(ayla, StaffRank.HELPER);
+            roster.promote(ayla, StaffRank.MOD);
 
             assertThat(roster.matchesPreset(ayla)).isTrue();
             assertThat(roster.extraNodes(ayla)).isEmpty();
@@ -199,11 +201,11 @@ class StaffRosterTest {
         void missing(@TempDir Path folder) {
             Grants grants = new Grants(folder);
             StaffRoster roster = new StaffRoster(folder, grants);
-            roster.promote(ayla, StaffRank.MODERATOR);
+            roster.promote(ayla, StaffRank.MOD);
 
-            roster.toggle(ayla, ModerationPermission.BAN.node());
+            roster.toggle(ayla, ModerationPermission.MUTE.node());
 
-            assertThat(roster.missingNodes(ayla)).containsExactly(ModerationPermission.BAN.node());
+            assertThat(roster.missingNodes(ayla)).containsExactly(ModerationPermission.MUTE.node());
             assertThat(roster.extraNodes(ayla)).isEmpty();
         }
 
@@ -212,7 +214,7 @@ class StaffRosterTest {
         void reapplied(@TempDir Path folder) {
             Grants grants = new Grants(folder);
             StaffRoster roster = new StaffRoster(folder, grants);
-            roster.promote(ayla, StaffRank.HELPER);
+            roster.promote(ayla, StaffRank.MOD);
             roster.toggle(ayla, ModerationPermission.BAN.node());
 
             roster.reapplyPreset(ayla);
@@ -237,7 +239,7 @@ class StaffRosterTest {
         void onlyGrantableNodes(@TempDir Path folder) {
             Grants grants = new Grants(folder);
             StaffRoster roster = new StaffRoster(folder, grants);
-            roster.promote(ayla, StaffRank.HELPER);
+            roster.promote(ayla, StaffRank.MOD);
 
             assertThat(roster.toggle(ayla, "minecraft.command.op")).isFalse();
             assertThat(grants.has(ayla, "minecraft.command.op")).isFalse();
@@ -253,7 +255,7 @@ class StaffRosterTest {
         void aRoundTrip(@TempDir Path folder) {
             Grants grants = new Grants(folder);
             StaffRoster first = new StaffRoster(folder, grants);
-            first.promote(ayla, StaffRank.MODERATOR);
+            first.promote(ayla, StaffRank.MOD);
             first.flush();
             grants.flush();
 
@@ -262,8 +264,8 @@ class StaffRosterTest {
             StaffRoster afterRestart = new StaffRoster(folder, freshGrants);
             afterRestart.load();
 
-            assertThat(afterRestart.rankOf(ayla)).contains(StaffRank.MODERATOR);
-            assertThat(freshGrants.has(ayla, ModerationPermission.BAN.node())).isTrue();
+            assertThat(afterRestart.rankOf(ayla)).contains(StaffRank.MOD);
+            assertThat(freshGrants.has(ayla, ModerationPermission.TEMPBAN.node())).isTrue();
         }
 
         @Test
@@ -295,7 +297,7 @@ class StaffRosterTest {
         @DisplayName("an unknown rank name is skipped rather than throwing the whole roster away")
         void anUnknownRank(@TempDir Path folder) throws Exception {
             StaffRoster first = rosterIn(folder);
-            first.promote(ayla, StaffRank.HELPER);
+            first.promote(ayla, StaffRank.MOD);
             first.flush();
 
             String yaml = java.nio.file.Files.readString(first.file());
@@ -315,11 +317,11 @@ class StaffRosterTest {
     void listing(@TempDir Path folder) {
         StaffRoster roster = rosterIn(folder);
         roster.promote(ayla, StaffRank.ADMIN);
-        roster.promote(bram, StaffRank.TRIAL);
+        roster.promote(bram, StaffRank.TRIAL_MOD);
 
         assertThat(roster.everybody()).containsExactlyInAnyOrder(ayla, bram);
         assertThat(roster.ofRank(StaffRank.ADMIN)).containsExactly(ayla);
-        assertThat(roster.ofRank(StaffRank.TRIAL)).containsExactly(bram);
+        assertThat(roster.ofRank(StaffRank.TRIAL_MOD)).containsExactly(bram);
         assertThat(roster.size()).isEqualTo(2);
     }
 }
