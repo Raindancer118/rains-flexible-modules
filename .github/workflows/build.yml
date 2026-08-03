@@ -1,9 +1,11 @@
 name: Build
 
-# Every push, on every branch, so a jar exists for whatever is on GitHub right now.
+# Every push, on every branch, so a jar exists for whatever is on GitHub right now — not only for
+# main. A pull request builds too, so the jar is there before the merge rather than after.
 on:
   push:
   pull_request:
+  # Lets a build be kicked off by hand from the Actions tab.
   workflow_dispatch:
 
 permissions:
@@ -34,6 +36,9 @@ jobs:
           path: .rainscore
           # token: ${{ secrets.RAINSCORE_READ_TOKEN }}
 
+      # Must be 25: paper-api 26.2 ships Java 25 class files, so an older JDK cannot read the dependency
+      # at all — it fails while resolving rather than while compiling, which reads as a broken repository
+      # instead of a wrong JDK.
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
@@ -46,13 +51,27 @@ jobs:
       - name: Install RainsCore into the local repository
         run: mvn --batch-mode --no-transfer-progress -f .rainscore/pom.xml install -DskipTests
 
+      # `install` rather than `verify`, and that is not a preference. The standalone projects shade the
+      # module jars out of the local repository, so a plain `verify` can shade whatever an earlier build
+      # happened to leave in ~/.m2 — a jar newer than its own source, carrying last week's code. That
+      # went out to a live server once. `install` writes this build's artifacts before they are shaded,
+      # and StandaloneJarTest#theJarIsNotStale then checks that what ended up in the jar is what was
+      # just compiled.
       - name: Build and run tests
-        run: mvn --batch-mode --no-transfer-progress verify
+        run: mvn --batch-mode --no-transfer-progress clean install
 
-      # The thing a server operator actually wants: the standalone plugin, shaded and ready to drop into
-      # plugins/. The module jars are libraries and are not uploaded — a jar in a downloads folder that
-      # cannot be installed is worse than no jar.
-      - name: Upload the plugin jar
+      # ── the jars a server operator actually wants ────────────────────────────────────────────────
+      #
+      # One named step per standalone plugin rather than a wildcard. A wildcard means the day somebody
+      # adds a module the jar quietly lands in a catch-all artifact nobody looks in — or, worse, does
+      # not build at all and nothing says so, because there was no step expecting it. `if-no-files-found:
+      # error` is the whole point: a green build with a missing jar is the failure this is guarding.
+      #
+      # The module jars themselves are libraries and are not uploaded: a jar in a downloads folder that
+      # cannot be installed is worse than no jar. Named after the commit so a downloaded jar can always
+      # be traced back to the source it was built from.
+
+      - name: Upload Rain's Extended Claims
         if: success()
         uses: actions/upload-artifact@v4
         with:
@@ -63,23 +82,19 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # Every other standalone plugin the reactor produces, as they arrive. Not an error when there are
-      # none: a branch that has not finished its second module should still build.
-      - name: Upload any other standalone plugins
+      - name: Upload Rain's Moderation
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: other-plugins-${{ github.sha }}
+          name: RainsModeration-${{ github.sha }}
           path: |
-            */target/*.jar
-            !claims-standalone/target/*.jar
-            !*/target/original-*.jar
-            !modules-api/target/*.jar
-            !modules-wrapper/target/*.jar
-            !claims-module/target/*.jar
-          if-no-files-found: ignore
+            moderation-standalone/target/RainsModeration-*.jar
+            !moderation-standalone/target/original-*.jar
+          if-no-files-found: error
           retention-days: 30
 
+      # Uploaded on failure as well, which is the case they are actually needed for: a red build with no
+      # report is a red build somebody has to reproduce locally before they can start reading it.
       - name: Publish the test reports
         if: always()
         uses: actions/upload-artifact@v4
