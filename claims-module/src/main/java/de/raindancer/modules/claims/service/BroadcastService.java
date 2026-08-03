@@ -131,7 +131,10 @@ public final class BroadcastService implements IClaimService {
         if (!features.isOffered(ClaimFeature.BROADCASTS)) {
             return;
         }
-        Component message = messages.variant(key, placeholders);
+        // Flattened, not handed over whole: Messages takes name, value, name, value, and a map
+        // passed straight in is one silent argument that substitutes nothing. See Placeholders.
+        Component message = messages.variant(key,
+                de.raindancer.modules.claims.util.Placeholders.of(placeholders));
         for (Player recipient : audience(claim, target)) {
             recipient.sendMessage(message);
         }

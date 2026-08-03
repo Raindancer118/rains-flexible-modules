@@ -105,8 +105,12 @@ public final class ClaimsModule implements FlexModule {
         // of this module's. A package path cannot collide.
         //
         // It lands as a floor, so the owner's file and the host's own bundled wording both still win.
+        // Signed with this module's own brand, so its sentences say Claims rather than whichever module
+        // plugin happened to start last — which on a live server had the claims plugin's "You were shown
+        // out of …" arriving as "Moderation »".
         context.core().messages().defineFrom(
-                ClaimsModule.class.getResourceAsStream("messages.yml"));
+                ClaimsModule.class.getResourceAsStream("messages.yml"),
+                context.chat().brand()::chatPrefix);
 
         // Before any command is asked whether somebody may run it. A module has no paper-plugin.yml of
         // its own, and an unregistered permission reads as false for every player who is not an

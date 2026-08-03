@@ -108,7 +108,10 @@ public final class EvictionService implements IClaimService {
                 }
                 player.teleportAsync(target).thenAccept(success -> {
                     if (success && messageKey != null) {
-                        player.sendMessage(messages.prefixed(messageKey, placeholders));
+                        // See Placeholders: the map has to be flattened or the player is
+                        // shown the raw wording.
+                        player.sendMessage(messages.prefixed(messageKey,
+                                de.raindancer.modules.claims.util.Placeholders.of(placeholders)));
                     }
                 });
             });

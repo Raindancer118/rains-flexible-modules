@@ -107,8 +107,11 @@ public final class ModerationModule implements FlexModule {
         // The module's own wording, offered as a default below anything the owner has written. Not
         // Messages.load: there is one Messages on the server and it is Core's, so loading would throw
         // away Core's own lines and every other module's with them.
-        Words.define(context.core().messages(),
-                getClass().getClassLoader().getResourceAsStream("messages.yml"));
+        // Core's own loader, and signed with this module's brand so its lines say Moderation and
+        // nobody else's say it. See Messages#prefixFor.
+        context.core().messages().defineFrom(
+                getClass().getClassLoader().getResourceAsStream("messages.yml"),
+                context.chat().brand()::chatPrefix);
 
         // Before anything asks about a permission. Staff are not operators, so every node has to be
         // registered with a default or hasPermission answers false for everybody who is not op — which
