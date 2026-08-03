@@ -40,16 +40,6 @@ public final class MemberAdminMenu extends ClaimScreen {
     }
 
     @Override
-    protected List<String> helpLines() {
-        return List.of(
-                "<gray>Click a right to turn it on or off.",
-                "",
-                "<green>Green</green> <dark_gray>·</dark_gray> <gray>granted",
-                "<red>Red</red> <dark_gray>·</dark_gray> <gray>not granted",
-                "<dark_gray>Owner only — a claim admin cannot promote themselves or anybody else.");
-    }
-
-    @Override
     protected void render() {
         boolean mayChange = services().rights().isOwnerOrServerAdmin(claim(), viewer)
                 && !subject.equals(viewer.getUniqueId());

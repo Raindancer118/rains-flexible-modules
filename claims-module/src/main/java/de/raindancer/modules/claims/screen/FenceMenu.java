@@ -27,15 +27,6 @@ public final class FenceMenu extends ClaimScreen {
     }
 
     @Override
-    protected List<String> helpLines() {
-        return List.of(
-                "<gray>A fence is real blocks, placed along your border.",
-                "",
-                "<gray>Taking it down puts the blocks back into the claim's bank,",
-                "<gray>so switching it off and on again costs nothing.");
-    }
-
-    @Override
     protected void render() {
         Claim claim = claim();
         boolean allowed = may(ClaimAdminPermission.MANAGE_SHAPE);

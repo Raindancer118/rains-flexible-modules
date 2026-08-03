@@ -48,15 +48,6 @@ public final class EffectsMenu extends PaginatedMenu<ClaimEffect> implements ICl
         return Component.text("Effects granted here");
     }
 
-    @Override
-    protected List<String> helpLines() {
-        return List.of(
-                "<gray>Left-click an effect to raise its level,",
-                "<gray>right click to lower it.",
-                "<gray>Middle-click toggles its particles.",
-                "<gray>Shift + right-click removes it.");
-    }
-
     private boolean mayManage() {
         return services.rights().canManage(claim, viewer(), ClaimAdminPermission.MANAGE_FLAGS);
     }
@@ -164,11 +155,6 @@ public final class EffectsMenu extends PaginatedMenu<ClaimEffect> implements ICl
         @Override
         protected Component title() {
             return Component.text("Choose an effect");
-        }
-
-        @Override
-        protected List<String> helpLines() {
-            return List.of("<gray>Effects the server blocks are never shown here at all.");
         }
 
         @Override

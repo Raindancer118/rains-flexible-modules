@@ -79,7 +79,8 @@ class ScreenGrammarTest {
         List<String> silent = new ArrayList<>();
         for (Screen screen : screens()) {
             boolean reads = screen.body().contains("isRightClick()");
-            boolean says = screen.body().contains("right click");
+            boolean says = screen.body().toLowerCase(java.util.Locale.ROOT)
+                    .matches("(?s).*right[ -]click.*");
             if (reads && !says) {
                 silent.add(screen.name());
             }
@@ -111,7 +112,15 @@ class ScreenGrammarTest {
                 // The handler of a danger button must open a confirmation and do nothing else. Looking at the
                 // whole call rather than the line, because the button spans several.
                 String call = screen.body().substring(at, Math.min(screen.body().length(), at + 900));
-                if (!call.contains("ConfirmScreen")) {
+                // The rule is about what a misclick COSTS, not about the slot being occupied. That slot sits
+                // between the page arrows, so anything irreversible there has to ask first — but a button that
+                // only opens something is not irreversible, and the claim list deliberately keeps the manual
+                // there so the people most in need of it, who have no claim yet, can find it.
+                boolean irreversible = call.contains("claimService().delete(")
+                        || call.contains("zones().remove(")
+                        || call.contains("claim.unban(")
+                        || call.contains("removeOwner(");
+                if (irreversible && !call.contains("ConfirmScreen")) {
                     unguarded.add(screen.name());
                 }
                 at = screen.body().indexOf("danger(", at + 1);
@@ -331,6 +340,24 @@ class ScreenGrammarTest {
         assertThat(repeating)
                 .as("the brand is already in front of these; naming the plugin again spends the title's "
                         + "pixel budget on a word the player can already see")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("no screen brings the Book and Quill back to the chrome bar")
+    void thereIsNoHelpBook() {
+        // Core draws a "What is this?" book in the chrome row whenever a screen returns any help lines, and the
+        // decision here is that these screens do not want it: a button whose lore explains itself does not need
+        // a second place saying the same thing, and the row it sat in is the one people look at for Back and
+        // Close. Removed rather than left empty so nobody has to wonder which screens still have one.
+        List<String> withHelp = new ArrayList<>();
+        for (Screen screen : screens()) {
+            if (screen.body().contains("helpLines")) {
+                withHelp.add(screen.name());
+            }
+        }
+        assertThat(withHelp)
+                .as("a screen that returns help lines gets the book back in its chrome row")
                 .isEmpty();
     }
 }

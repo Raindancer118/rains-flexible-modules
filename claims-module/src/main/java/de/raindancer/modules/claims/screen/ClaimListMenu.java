@@ -50,6 +50,25 @@ public final class ClaimListMenu extends PaginatedMenu<Claim> implements IClaimS
     }
 
     @Override
+    protected void decorate() {
+        super.decorate();
+
+        // Bottom centre, and always — this is the first screen anybody sees, and the people most in need of
+        // the manual are exactly the ones with no claim yet, who would otherwise have to own one to find it.
+        //
+        // That slot belongs to the one destructive button when a page has one. This page has none: there is
+        // nothing here to destroy, only claims to open. The framework gives up the page counter for it and
+        // keeps the arrows, so a long list still pages — it just stops saying "2 of 3".
+        danger(Icons.of(Material.WRITTEN_BOOK, "<white>The manual",
+                        "<gray>How claiming works, as a book you keep.",
+                        "<dark_gray>also /claim manual"),
+                click -> {
+                    viewer.closeInventory();
+                    services.screens().manual(viewer);
+                });
+    }
+
+    @Override
     protected ItemStack emptyIcon() {
         return Icons.of(Material.STICK, "<gray>You have no claims yet",
                 "<gray>Start one with <white>/claim new</white>,",

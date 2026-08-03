@@ -44,16 +44,6 @@ abstract class PermissionGrid extends ClaimScreen {
     protected abstract String refusal(LandAction action);
 
     @Override
-    protected List<String> helpLines() {
-        return List.of(
-                "<gray>Click a permission to turn it on or off.",
-                "",
-                "<green>Green</green> <dark_gray>·</dark_gray> <gray>allowed",
-                "<red>Red</red> <dark_gray>·</dark_gray> <gray>not allowed",
-                "<dark_gray>Grey · not yours to change; the lore says whose it is");
-    }
-
-    @Override
     protected void render() {
         LandAction[] actions = LandAction.values();
         for (int at = 0; at < actions.length; at++) {

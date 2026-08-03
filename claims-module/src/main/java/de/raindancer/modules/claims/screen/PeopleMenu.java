@@ -31,17 +31,6 @@ public final class PeopleMenu extends ClaimScreen {
     }
 
     @Override
-    protected List<String> helpLines() {
-        return List.of("<gray>Who may be here, and on what terms.",
-                "",
-                "<white>Trusted</white> <dark_gray>·</dark_gray> <gray>the ones you named, one by one",
-                "<white>Everybody else</white> <dark_gray>·</dark_gray> <gray>what a stranger may do",
-                "<white>Kept out</white> <dark_gray>·</dark_gray> <gray>bans and timeouts",
-                "",
-                "<dark_gray>A greyed button belongs to somebody else — its lore says who.");
-    }
-
-    @Override
     protected void render() {
         Claim claim = claim();
 

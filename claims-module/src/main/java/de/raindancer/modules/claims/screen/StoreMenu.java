@@ -54,24 +54,6 @@ public final class StoreMenu extends PaginatedMenu<ItemStack> implements IClaimS
     }
 
     @Override
-    protected List<String> helpLines() {
-        return switch (kind) {
-            case PANTRY -> List.of("<gray>Food here is fed to hungry people inside the claim.",
-                    "",
-                    "<gray>Hold food and click the tile below to put it in.",
-                    "<gray>Click a stack to take it back out.");
-            case POTIONS -> List.of("<gray>Potions here are drunk by the effects this claim grants,",
-                    "<gray>when the server asks owners to supply them.",
-                    "",
-                    "<gray>Hold potions and click the tile below to put them in.");
-            case EQUIPMENT -> List.of("<gray>What the claim's auto-equip rules hand out to visitors.",
-                    "",
-                    "<gray>Hold anything and click the tile below to put it in.",
-                    "<gray>Click a stack to take it back out.");
-        };
-    }
-
-    @Override
     protected List<ItemStack> entries() {
         return new ArrayList<>(switch (kind) {
             case PANTRY -> claim.pantry().items();

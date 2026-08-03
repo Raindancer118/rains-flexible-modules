@@ -44,14 +44,6 @@ public final class EquipTargetMenu extends ClaimScreen {
     }
 
     @Override
-    protected List<String> helpLines() {
-        return List.of(
-                "<gray>Pick a named slot, or one of the nine hotbar keys.",
-                "<gray>Left-click 'Keep topped up to' for +1, right click for −1.",
-                "<gray>Shift for ten at a time.");
-    }
-
-    @Override
     protected void render() {
         boolean allowed = may(ClaimAdminPermission.MANAGE_BANK);
 

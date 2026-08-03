@@ -40,17 +40,6 @@ public final class ConfigMenu extends ClaimScreen {
     }
 
     @Override
-    protected List<String> helpLines() {
-        return List.of("<gray>How this claim is set up.",
-                "",
-                "<white>Claim flags</white> <dark_gray>·</dark_gray> <gray>what the world may do in here",
-                "<white>Greetings</white> <dark_gray>·</dark_gray> <gray>what people see at the border",
-                "<white>Depth</white> <dark_gray>·</dark_gray> <gray>how far up and down it reaches",
-                "<white>Perks</white> <dark_gray>·</dark_gray> <gray>effects, pantry, auto-equip, weather",
-                "<white>Fence</white> <dark_gray>·</dark_gray> <gray>a real one along the border");
-    }
-
-    @Override
     protected void render() {
         Claim claim = claim();
 

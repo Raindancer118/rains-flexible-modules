@@ -56,19 +56,6 @@ public final class ClaimMenu extends ClaimScreen {
     }
 
     @Override
-    protected List<String> helpLines() {
-        return List.of(
-                "<gray>Everything about this claim, in four rows.",
-                "",
-                "<white>Who</white> <dark_gray>·</dark_gray> <gray>the people who may be here",
-                "<white>Rules</white> <dark_gray>·</dark_gray> <gray>what may happen here",
-                "<white>Land</white> <dark_gray>·</dark_gray> <gray>the ground itself",
-                "<white>Tools</white> <dark_gray>·</dark_gray> <gray>what this claim keeps for you",
-                "",
-                "<dark_gray>A greyed button belongs to somebody else — its lore says who.");
-    }
-
-    @Override
     protected void render() {
         Claim claim = claim();
 

@@ -35,15 +35,6 @@ public final class EntryFeeMenu extends ClaimScreen {
     }
 
     @Override
-    protected List<String> helpLines() {
-        return List.of(
-                "<gray>Somebody who pays gets a pass for a while,",
-                "<gray>so crossing the border twice does not cost twice.",
-                "",
-                "<gray>Trusted players and owners never pay.");
-    }
-
-    @Override
     protected void render() {
         Claim claim = claim();
         boolean allowed = may(ClaimAdminPermission.MANAGE_ENTRY_FEE);

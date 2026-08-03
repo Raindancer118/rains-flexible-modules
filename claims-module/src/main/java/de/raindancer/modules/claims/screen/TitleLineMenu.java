@@ -57,15 +57,6 @@ public final class TitleLineMenu extends ClaimScreen {
     }
 
     @Override
-    protected List<String> helpLines() {
-        return List.of(
-                "<gray>Change the text in chat, or clear it.",
-                "<gray>Colour cycles forward on left-click, back on right click.",
-                "<gray>Bold, italic, underlined, struck through and obfuscated",
-                "<gray>are each a toggle.");
-    }
-
-    @Override
     protected void render() {
         boolean allowed = may(ClaimAdminPermission.MANAGE_TITLES);
 

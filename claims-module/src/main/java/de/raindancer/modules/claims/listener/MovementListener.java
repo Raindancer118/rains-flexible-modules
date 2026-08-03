@@ -138,17 +138,32 @@ public final class MovementListener implements IClaimListener {
             LandFlag flag = pearl ? LandFlag.ENDER_PEARL_IN : LandFlag.TELEPORT_IN;
             // Who may warp in is now part of the flag itself, one value per audience, so there is no
             // separate exemption for owners and trusted players any more.
-            if (isSystemTeleport(event.getCause()) && services.land().landFlags().isEnforced(flag)
-                    && !services.land().landFlags().isAllowedForTracked(claim.area(), destination, flag, player)
-                    && !services.land().isBypassing(player)) {
+            //
+            // Where the teleport came FROM matters, and used to be ignored. See refusesArrival.
+            Claim standingIn = services.claims().at(event.getFrom()).orElse(null);
+            if (isSystemTeleport(event.getCause())
+                    && refusesArrival(
+                            standingIn == null ? null : standingIn.id(),
+                            claim.id(),
+                            services.land().landFlags().isEnforced(flag),
+                            services.land().landFlags()
+                                    .isAllowedForTracked(claim.area(), destination, flag, player),
+                            services.land().isBypassing(player))) {
                 event.setCancelled(true);
                 services.messages().send(player, "protection.teleport-denied", "claim", claim.name());
                 return;
             }
-            Gate gate = checkGate(player, claim, destination, true);
-            if (gate != Gate.OPEN) {
-                event.setCancelled(true);
-                return;
+            // The same rule the flag above now follows, and for the same reason: somebody already in this
+            // claim is not arriving in it. Without this a pearl thrown inside a claim that charges a toll
+            // could ask its own owner's guests to pay again for ground they never left — while walking the
+            // same distance is free, because onMove returns early when the claim has not changed.
+            boolean alreadyHere = standingIn != null && standingIn.id().equals(claim.id());
+            if (!alreadyHere) {
+                Gate gate = checkGate(player, claim, destination, true);
+                if (gate != Gate.OPEN) {
+                    event.setCancelled(true);
+                    return;
+                }
             }
         }
 
@@ -210,6 +225,38 @@ public final class MovementListener implements IClaimListener {
      * Decides whether the player may cross into the claim, and produces the matching feedback.
      * Shared by walking and teleporting so both behave the same.
      */
+    /**
+     * Whether a teleport is an arrival the flag refuses.
+     *
+     * <p>Pure, and separate from the event handling, because the interesting part is a handful of cases and
+     * every one of them was worth writing down after this went wrong on a live server.
+     *
+     * <p><b>The bug it fixes.</b> This used to look only at where the teleport <em>landed</em>. So an owner who
+     * switched ender pearls off to keep strangers out also stopped everybody already inside — their trusted
+     * friends included — from pearling around within their own claim, because landing inside was read as
+     * arriving. An admin with the bypass on did not notice, which is why the report arrived as "the bypass got
+     * broken": the bypass was the only thing making it work, and toggling it looked like the cure.
+     *
+     * <p>Core states the rule out loud for {@code WALK_IN} and this simply did not follow it: moving within an
+     * area is never refused, and neither is leaving. Somebody who was inside when a flag was switched off has to
+     * be able to move, and to get out. A way-in flag is about coming in.
+     *
+     * @param from      the area they were standing in, or {@code null} for open ground
+     * @param to        the area they are landing in; never {@code null}, this is only asked when there is one
+     * @param enforced  whether the server enforces this flag at all
+     * @param allowed   what the flag says for this player in that area
+     * @param bypassing whether the admin bypass is on. Checked last and wins outright — no flag any owner sets
+     *                  may take it away, or an admin cannot reach the thing they were called in to fix
+     */
+    public static boolean refusesArrival(UUID from, UUID to, boolean enforced, boolean allowed,
+                                         boolean bypassing) {
+        if (to == null || !enforced || allowed || bypassing) {
+            return false;
+        }
+        // Already here: moving about inside, or on the way out. Not an arrival.
+        return !to.equals(from);
+    }
+
     private Gate checkGate(Player player, Claim claim, Location destination, boolean teleport) {
         if (services.land().isBypassing(player) || claim.isOwner(player.getUniqueId())) {
             return Gate.OPEN;

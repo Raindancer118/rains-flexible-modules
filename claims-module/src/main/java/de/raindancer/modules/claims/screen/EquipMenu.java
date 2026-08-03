@@ -43,13 +43,6 @@ public final class EquipMenu extends PaginatedMenu<Integer> implements IClaimScr
         return Component.text("Auto-equip rules");
     }
 
-    @Override
-    protected List<String> helpLines() {
-        return List.of(
-                "<gray>Left-click a rule to change where it goes.",
-                "<gray>Shift + right click removes it.");
-    }
-
     private boolean mayManage() {
         return services.rights().canManage(claim, viewer(), ClaimAdminPermission.MANAGE_BANK);
     }
