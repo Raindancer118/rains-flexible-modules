@@ -96,11 +96,17 @@ public final class ClaimsModule implements FlexModule {
 
         // Before anything that can speak. A module has no messages.yml on disk of its own — it ships its
         // wording in its jar and runs on the host's Messages, so without this every line it sends comes back
-        // as the raw key. That shipped once: /claim answered "claim.nonehere".
+        // as the raw key. That shipped once: /claim answered "<claim.none-here>".
+        //
+        // Looked up beside this class rather than at "/messages.yml", and that is not tidiness. RainsCore
+        // ships a messages.yml at the root of its own jar, and `join-classpath: true` — which this plugin
+        // needs — puts Core's resources on this plugin's classpath. A root lookup is then a race between two
+        // files with the same name, and losing it means loading Core's wording again and still having none
+        // of this module's. A package path cannot collide.
         //
         // It lands as a floor, so the owner's file and the host's own bundled wording both still win.
         context.core().messages().defineFrom(
-                ClaimsModule.class.getResourceAsStream("/messages.yml"));
+                ClaimsModule.class.getResourceAsStream("messages.yml"));
 
         featurePolicies = FeaturePolicies.builtIn();
         features = new FeatureRules(featurePolicies);

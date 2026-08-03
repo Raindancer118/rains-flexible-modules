@@ -88,6 +88,25 @@ class StandaloneJarTest {
     }
 
     @Test
+    @DisplayName("the module's wording is beside its class, where nothing else can shadow it")
+    void theWordingCannotCollide() {
+        List<String> entries = entries();
+
+        assertThat(entries)
+                .as("without this the module has no wording at all and every line it sends is shown to the "
+                        + "player as its key — which is what /claim did")
+                .contains("de/raindancer/modules/claims/messages.yml");
+
+        // RainsCore ships a messages.yml at the root of its own jar, and join-classpath — which this plugin
+        // requires — puts Core's resources on this plugin's classpath. A module that looked for
+        // "/messages.yml" would be racing Core's file for the name, and losing means loading Core's wording
+        // again while still having none of the module's.
+        assertThat(entries)
+                .as("a root messages.yml here is one that collides with Core's over the same name")
+                .doesNotContain("messages.yml");
+    }
+
+    @Test
     @DisplayName("it holds no second copy of RainsCore")
     void coreIsNotShadedIn() {
         assertThat(entries())
