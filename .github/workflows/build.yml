@@ -260,3 +260,62 @@ jobs:
             --title "$title $built" \
             --notes-file release-notes.md \
             --generate-notes
+
+  # ── the download site ───────────────────────────────────────────────────────────────────────────
+  #
+  # A self-hosted runner on saphira, which is the server the site is on. So GitHub never needs a key
+  # to anything and nothing has to be opened inbound: the runner reaches out, and the copy is a local
+  # `cp` rather than an rsync over the internet.
+  publish:
+    name: Publish to plugins.raindancer118.de
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: [self-hosted, saphira]
+
+    steps:
+      # Only the jars, from the job that built them. Nothing is rebuilt here: a site serving a
+      # different jar from the one the tests ran against is the whole class of problem this avoids.
+      - name: Fetch the jars this build produced
+        uses: actions/download-artifact@v4
+        with:
+          name: plugins-${{ github.sha }}
+          path: incoming
+
+      - name: Put them on the shelf and re-render the page
+        env:
+          SITE: /home/eragon/plugins
+          BUILD: ${{ github.run_number }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # Flattened: download-artifact keeps the directory structure the upload had.
+          find incoming -name '*.jar' ! -name 'original-*' -exec cp -f {} "$SITE/files/" \;
+
+          cd "$SITE/files"
+          # Written next to each jar so a download can be checked without trusting the page.
+          for jar in *.jar; do
+            sha256sum "$jar" > "$jar.sha256"
+          done
+
+          # Anything left from an older version goes, or the page lists one version and the directory
+          # holds three. Only jars this build produced are kept.
+          keep=$(find . -maxdepth 1 -name '*.jar' -newermt '-5 minutes' -printf '%f\n' | sort)
+          for jar in *.jar; do
+            if ! printf '%s\n' "$keep" | grep -qxF "$jar"; then
+              echo "removing superseded $jar"
+              rm -f "$jar" "$jar.sha256"
+            fi
+          done
+
+          BUILD="$BUILD" COMMIT="$COMMIT" bash "$SITE/bin/render.sh"
+
+      - name: Check the site actually answers
+        run: |
+          set -euo pipefail
+          # From inside the proxy network, which is the only place it is reachable — the container
+          # publishes no port of its own.
+          code=$(docker run --rm --network webproxy curlimages/curl:latest \
+            -s -o /dev/null -w '%{http_code}' http://plugins/)
+          echo "index: HTTP $code"
+          [ "$code" = "200" ] || { echo "::error::the site did not answer 200"; exit 1; }
