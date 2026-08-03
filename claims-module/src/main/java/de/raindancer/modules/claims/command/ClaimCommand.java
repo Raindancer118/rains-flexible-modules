@@ -26,14 +26,18 @@ import java.util.function.Supplier;
 /**
  * {@code /claim} — what a player does with their own land.
  *
- * <h2>Deliberately not the same command as before</h2>
- * The old one had twenty-two subcommands, several of which existed only because the menus could not do the thing
- * yet. This one has nine, and the rule for what earns a place is: <b>a subcommand exists when typing it is faster
- * than clicking, or when it takes an argument a menu cannot ask for.</b>
+ * <h2>Narrower than before, but the same front door</h2>
+ * The old one had thirty-odd subcommands, many of which existed only because the menus could not do the thing
+ * yet. The rule for what earns a place here is: <b>a subcommand exists when typing it is faster than clicking,
+ * when it takes an argument a menu cannot ask for, or when there is no other way to reach it at all.</b>
  *
- * <p>So {@code trust <player>} stays — naming somebody is what a command is for — and the eleven flag toggles do
- * not, because a flag is a click. Bare {@code /claim} opens the claim you are standing in, which is what people
- * were typing {@code /claim menu} for.
+ * <p>So {@code trust <player>} stays — naming somebody is what a command is for — and the flag toggles do not,
+ * because a flag is a click. {@code stick} and {@code accept} stay under the third clause: without the first
+ * there is no way to mark out a claim, and without the second an entry-fee prompt cannot be answered.
+ *
+ * <p><b>Bare {@code /claim} opens the claim list</b>, wherever the player is standing, exactly as it always has.
+ * That is the plugin's front door and everything else hangs off it. It is not conditional on location: a command
+ * that means one thing inside a claim and another outside it is one nobody can describe to somebody else.
  *
  * <h2>Built at bootstrap</h2>
  * Paper registers commands before anything is enabled, so this holds a supplier rather than the services. See
@@ -68,27 +72,101 @@ public final class ClaimCommand implements IClaimCommand {
         }
         ClaimServices claims = services.get();
         if (args.length == 0) {
-            // Bare /claim opens the menu. Standing in a claim it opens that claim, because that is what
-            // somebody typing it there wants; standing anywhere else it opens their own claims, because a
-            // command whose whole answer is "you are not standing in a claim" has told the player nothing
-            // they did not know and given them nowhere to go.
-            claims.claimAround(player).ifPresentOrElse(
-                    found -> here(claims, player),
-                    () -> claims.screens().list(player));
+            // The front door, and it is the same door wherever you are standing. This is what the plugin has
+            // always done on a bare /claim, and it is what everybody's fingers expect — a version that
+            // answered "you are not standing in a claim" gave the player a refusal instead of a way in, and
+            // one that opened the claim underfoot made the command mean two different things depending on
+            // where it was typed.
+            claims.screens().list(player);
             return;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "help", "?" -> help(claims, player);
+            case "menu", "list", "mine" -> claims.screens().list(player);
             case "new", "create" -> begin(claims, player);
-            case "list", "mine" -> claims.screens().list(player);
+            case "stick", "tool" -> stick(claims, player);
+            case "select", "sel" -> claims.screens().selection(player);
             case "here", "info" -> here(claims, player);
-            case "show", "border" -> show(claims, player);
+            case "show", "border", "borders" -> show(claims, player);
+            case "hide" -> hide(claims, player);
+            case "delete", "remove" -> delete(claims, player);
+            case "rename" -> rename(claims, player, args);
             case "trust" -> trust(claims, player, args, true);
             case "untrust" -> trust(claims, player, args, false);
             case "ban" -> ban(claims, player, args);
             case "unban" -> unban(claims, player, args);
             case "cancel" -> claims.selectionFlow().cancel(player);
-            default -> claims.messages().send(player, "claim.unknown-subcommand", "word", args[0]);
+            // The two halves of an entry-fee prompt. Without these the prompt is unanswerable, which makes
+            // the whole feature a dead end rather than a degraded one.
+            case "accept" -> claims.entryFees().accept(player);
+            case "decline", "deny" -> claims.entryFees().decline(player);
+            default -> {
+                claims.messages().send(player, "claim.unknown-subcommand", "word", args[0]);
+                help(claims, player);
+            }
         }
+    }
+
+    /** What the command can do, in the order somebody actually needs it. */
+    private void help(ClaimServices claims, Player player) {
+        claims.messages().send(player, "claim.help");
+    }
+
+    /** The marking-out tool. Without this there is no way to make a claim at all. */
+    private void stick(ClaimServices claims, Player player) {
+        claims.stick().give(player,
+                de.raindancer.modules.claims.selection.Selection.Purpose.NEW_CLAIM,
+                de.raindancer.modules.claims.selection.Selection.Mode.RECTANGLE);
+        claims.messages().send(player, "claim.stick-given");
+    }
+
+    /** Stops the border being drawn. The counterpart to 'show', which otherwise runs until it times out. */
+    private void hide(ClaimServices claims, Player player) {
+        claims.visualizer().stop(player);
+        claims.messages().send(player, "claim.border-hidden");
+    }
+
+    /**
+     * Gives the claim up — through the claim screen, so the confirmation is in front of it.
+     *
+     * <p>Never straight from the command. Deleting a claim refunds it and lets anybody build there, and a
+     * typed command that does that with no second step is one somebody eventually runs on the wrong claim.
+     */
+    private void delete(ClaimServices claims, Player player) {
+        ownedHere(claims, player).ifPresent(claim -> claims.screens().claim(player, claim));
+    }
+
+    /** Renames the claim underfoot. */
+    private void rename(ClaimServices claims, Player player, String[] args) {
+        if (args.length < 2) {
+            claims.messages().send(player, "claim.rename-needs-a-name");
+            return;
+        }
+        ownedHere(claims, player).ifPresent(claim -> {
+            String wanted = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+            String was = claim.name();
+            claims.claimService().rename(claim, wanted);
+            claims.messages().send(player, "claim.renamed", "old", was, "claim", claim.name());
+        });
+    }
+
+    /**
+     * The claim underfoot, if this player owns it.
+     *
+     * <p>Renaming and deleting are the owner's alone — they are not among the permissions an owner can hand
+     * out, because both change what the claim *is* rather than what may be done inside it.
+     */
+    private Optional<Claim> ownedHere(ClaimServices claims, Player player) {
+        Optional<Claim> standing = claims.claimAround(player);
+        if (standing.isEmpty()) {
+            claims.messages().send(player, "claim.none-here");
+            return Optional.empty();
+        }
+        if (!claims.rights().isOwnerOrServerAdmin(standing.get(), player)) {
+            claims.messages().send(player, "claim.owner-holds-everything");
+            return Optional.empty();
+        }
+        return standing;
     }
 
     /** Opens the claim under the player's feet, or says there is none. */

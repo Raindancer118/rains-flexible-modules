@@ -16,6 +16,20 @@ claim:
   created: "<green>Claimed <white><claim></white> — <gray><area> blocks, y <min-y> to <max-y>."
   resized: "<green><claim></white> redrawn: <gray><area> blocks, y <min-y> to <max-y>."
   renamed: "<green>Renamed <gray><old></gray> to <white><claim></white>."
+  help: |
+    <gradient:#4ade80:#22d3ee>Your land</gradient>
+    <gray>/claim<dark_gray> — your claims
+    <gray>/claim stick<dark_gray> — the marking-out tool
+    <gray>/claim new<dark_gray> — mark out a new one
+    <gray>/claim here<dark_gray> — the claim you are standing in
+    <gray>/claim show<dark_gray> · <gray>hide<dark_gray> — draw the borders
+    <gray>/claim trust <white><player><dark_gray> · <gray>untrust<dark_gray>
+    <gray>/claim ban <white><player><dark_gray> · <gray>unban<dark_gray>
+    <gray>/claim rename <white><name><dark_gray> · <gray>delete<dark_gray>
+    <dark_gray>everything else is in the menus
+  stick-given: "<green>There is your marking-out tool. <gray>Left click one corner, right click the other."
+  border-hidden: "<gray>Borders hidden."
+  rename-needs-a-name: "<red>Give it a name: <gray>/claim rename <new name>"
   none-here: "<gray>You are not standing in a claim."
   gone: "<red>That claim no longer exists."
   belongs-to: "<gray>This is <white><claim></white>."

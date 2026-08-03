@@ -30,9 +30,9 @@ public final class ClaimCommands {
     public static List<ModuleCommand> declared() {
         return List.of(
                 ModuleCommand.of("claim", "Your land: mark it out, trust people, keep others out",
-                        new ClaimCommand(ClaimCommands::require)).aliased("claims"),
+                        new ClaimCommand(ClaimCommands::require)).aliased("claims", "rec"),
                 ModuleCommand.of("claimadmin", "Land administration for the server owner",
-                        new ClaimAdminCommand(ClaimCommands::require)).aliased("cadmin"));
+                        new ClaimAdminCommand(ClaimCommands::require)).aliased("reca", "recadmin", "cadmin"));
     }
 
     /** Called when the module enables, after which the commands work. */
