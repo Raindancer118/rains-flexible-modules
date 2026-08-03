@@ -1,0 +1,1 @@
+This Module should contain all commands, GUIs and logic fitting to the [[SE Projects/MC-Plugins/RainsCore/moderation]] thingy 

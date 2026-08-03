@@ -1,0 +1,2 @@
+# How a host finds this module: adding the dependency is the whole installation step.
+de.raindancer.modules.claims.ClaimsModule

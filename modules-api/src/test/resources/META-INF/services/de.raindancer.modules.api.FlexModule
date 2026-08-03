@@ -1,0 +1,6 @@
+# Three deliberate cases, so ModuleDiscoveryTest exercises a real ServiceLoader rather than a stand-in
+# for one. Only the first of these can be built; the other two are the two ways a service entry goes
+# wrong on somebody's server, and discovery has to survive both.
+de.raindancer.modules.api.discovered.GoodModule
+de.raindancer.modules.api.discovered.ExplodingModule
+de.raindancer.modules.api.discovered.ModuleThatWasRenamedAndNobodyUpdatedThisFile

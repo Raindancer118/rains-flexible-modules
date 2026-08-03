@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>de.raindancer.modules</groupId>
+    <artifactId>rains-flexible-modules</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+
+    <name>Rain's Flexible Modules</name>
+    <description>
+        Whole features, each one a Maven artifact rather than a copied folder — so a plugin gets the
+        real thing and the source stays the single place it is written. Each one also ships as a
+        plugin of its own through the standard wrapper, without being written twice.
+    </description>
+
+    <properties>
+        <!--
+          Paper 26.2 ships class files at version 69. A JDK below 25 cannot read paper-api at all, so
+          this is a floor rather than a preference: lowering it produces a build failure, not a more
+          portable jar.
+        -->
+        <java.version>25</java.version>
+        <paper.api.version>26.2.build.68-beta</paper.api.version>
+        <rainscore.version>1.0.0</rainscore.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <junit.version>5.11.4</junit.version>
+        <assertj.version>3.27.3</assertj.version>
+    </properties>
+
+    <modules>
+        <module>modules-api</module>
+        <module>claims-module</module>
+    </modules>
+
+    <repositories>
+        <repository>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+    </repositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>modules-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>modules-wrapper</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>moderation-module</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>farmworld-module</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!--
+          provided in both cases, and that is the whole delivery model. The server has already loaded
+          one Paper and one RainsCore; a module carrying its own copy of either would get a second
+          action bar owner, a second item registry and a second scoreboard arbiter, none of which
+          would know about anybody else's. Shading these in is the exact problem RainsCore exists to
+          remove, so the build refuses to make it possible.
+        -->
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>${paper.api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer</groupId>
+            <artifactId>RainsCore</artifactId>
+            <version>${rainscore.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                    <configuration>
+                        <release>${java.version}</release>
+                        <compilerArgs>
+                            <arg>-Xlint:all,-serial,-processing</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.5.2</version>
+                </plugin>
+                <!--
+                  What turns a module into a plugin. A standalone project declares the module and the
+                  wrapper as its only dependencies and enables this; the result is one jar Paper can
+                  load, with the module's classes, the wrapper's, and nothing else. paper-api and
+                  RainsCore are provided and therefore never in it.
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>3.6.0</version>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>shade</goal>
+                            </goals>
+                            <configuration>
+                                <createDependencyReducedPom>false</createDependencyReducedPom>
+                                <filters>
+                                    <filter>
+                                        <artifact>*:*</artifact>
+                                        <excludes>
+                                            <exclude>META-INF/MANIFEST.MF</exclude>
+                                            <exclude>META-INF/*.SF</exclude>
+                                            <exclude>META-INF/*.DSA</exclude>
+                                            <exclude>META-INF/*.RSA</exclude>
+                                            <exclude>module-info.class</exclude>
+                                        </excludes>
+                                    </filter>
+                                </filters>
+                                <transformers>
+                                    <!--
+                                      Modules are found by ServiceLoader, so two modules in one
+                                      standalone jar have two service files with the same name. Without
+                                      this one of them wins and the other module is simply not there —
+                                      no error, no log line, just a feature missing.
+                                    -->
+                                    <transformer
+                                            implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                </transformers>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
