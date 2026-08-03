@@ -2,12 +2,15 @@ package de.raindancer.modules.claims.screen;
 
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
+import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
+import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.ClaimServices;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import java.util.UUID;
@@ -59,5 +62,38 @@ public final class MemberMenu extends PermissionGrid {
         return may(ClaimAdminPermission.MANAGE_PERMISSIONS)
                 ? "Not one you may hand out"
                 : "The owner's to change";
+    }
+
+    /**
+     * Two doors this page did not have: what this person may change <em>about</em> the claim, and which of
+     * their own permissions they may hand on to somebody else.
+     *
+     * <p>Both are owner only, on purpose. The grid above is delegable through {@code MANAGE_PERMISSIONS}
+     * because handing out "may open doors" is what a claim admin exists for; deciding who else gets to be
+     * a claim admin, or how far somebody's own delegation reaches, is a step up from that — the same reason
+     * {@link MembersMenu} refuses to touch an owner's own entry at all.
+     */
+    @Override
+    protected void render() {
+        super.render();
+        boolean ownerOnly = services().rights().isOwnerOrServerAdmin(claim(), viewer)
+                && !subject.equals(viewer.getUniqueId());
+        int adminCount = claim().member(subject).map(member -> member.adminPermissions().size()).orElse(0);
+        int grantableCount = claim().member(subject)
+                .map(member -> member.grantablePermissions().size()).orElse(0);
+
+        band(MenuLayout.RULES, 2, ownerOnly,
+                Icons.of(Material.BEACON, "<aqua>Claim admin rights",
+                        "<gray>What this person may change about the claim itself.",
+                        "<dark_gray>" + adminCount + " granted"),
+                "The owner's to change",
+                click -> new MemberAdminMenu(services(), viewer, claim(), this, subject).open());
+
+        band(MenuLayout.RULES, 6, ownerOnly,
+                Icons.of(Material.WRITABLE_BOOK, "<aqua>What they may grant",
+                        "<gray>Which of their permissions they may hand on to somebody else.",
+                        "<dark_gray>" + grantableCount + " grantable"),
+                "The owner's to change",
+                click -> new MemberGrantableMenu(services(), viewer, claim(), this, subject).open());
     }
 }

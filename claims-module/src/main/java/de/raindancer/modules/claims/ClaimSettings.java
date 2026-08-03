@@ -211,6 +211,12 @@ public record ClaimSettings(
         @Key("atmosphere.thunder-bolts")
         boolean claimThunderBolts,
 
+        @In("player/perks") @Title("Effects owners may never grant")
+        @Describe("Harmful ones are blocked out of the box: a claim that quietly poisons its visitors "
+                + "would be a trap, not a perk.")
+        @Key("atmosphere.blocked")
+        List<String> blockedEffects,
+
         @In("player/perks") @Title("Auto-equip rules") @Range(min = 1, max = 64)
         @Key("equipment.max-rules")
         int maxEquipRules,
@@ -410,7 +416,11 @@ public record ClaimSettings(
             CostType.NONE, 1, false, 256, false, 1.0D, true,
             64, 10, 30, true, false,
             false, true, Material.OAK_FENCE, 1, 2048, 4, true,
-            3, 1, false, 30, 270, true, 8, 270, 270,
+            3, 1, false, 30, 270, true,
+            List.of("wither", "poison", "instant_damage", "blindness", "nausea", "levitation", "slowness",
+                    "mining_fatigue", "weakness", "hunger", "darkness", "unluck", "bad_omen", "infested",
+                    "oozing", "weaving", "wind_charged", "trial_omen", "raid_omen"),
+            8, 270, 270,
             96, BroadcastScope.CLAIM, true, true, true, true,
             false, 4, 3,
             12, 48, 2, 600, true, VisualMode.PARTICLES,
@@ -466,6 +476,24 @@ public record ClaimSettings(
         return true;
     }
 
+    /**
+     * Whether an owner may never grant this effect.
+     *
+     * <p>Checked against the potion effect's own key (e.g. {@code wither}), case-insensitively — the list
+     * a server writes is meant to be typed by hand, not looked up in the registry first.
+     */
+    public boolean isEffectBlocked(String effectKey) {
+        if (effectKey == null) {
+            return false;
+        }
+        for (String blocked : blockedEffects) {
+            if (blocked.equalsIgnoreCase(effectKey)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The item a claim is paid for with, or null when it is not paid for with one. */
     public ItemStack creationCostItem() {
         return creationCostType == CostType.ITEM
@@ -488,7 +516,7 @@ public record ClaimSettings(
                 entryFeeDeclineCooldownSeconds, entryFeePromptTimeoutSeconds, entryFeeExemptTrusted,
                 entryFeeExemptAdmins, fenceAutoBuild, fenceChargeMaterial, fenceDefaultMaterial, fenceHeight,
                 fenceMaxColumns, fenceMaxStep, fenceRefundToBank, maxClaimEffects, maxEffectAmplifier,
-                effectsRequirePotions, effectPotionMinutes, potionStoreMaxStacks, claimThunderBolts,
+                effectsRequirePotions, effectPotionMinutes, potionStoreMaxStacks, claimThunderBolts, blockedEffects,
                 maxEquipRules, equipmentMaxStacks, pantryMaxStacks, broadcastNearbyRadius, broadcastScope,
                 broadcastKick, broadcastBan, broadcastTimeout, broadcastLift, enterMessageActionBar,
                 borderOnEnterSeconds, notificationCooldownSeconds, visualDurationSeconds, visualRadius,
@@ -507,7 +535,7 @@ public record ClaimSettings(
                 entryFeeDeclineCooldownSeconds, entryFeePromptTimeoutSeconds, entryFeeExemptTrusted,
                 entryFeeExemptAdmins, fenceAutoBuild, fenceChargeMaterial, fenceDefaultMaterial, fenceHeight,
                 fenceMaxColumns, fenceMaxStep, fenceRefundToBank, maxClaimEffects, maxEffectAmplifier,
-                effectsRequirePotions, effectPotionMinutes, potionStoreMaxStacks, claimThunderBolts,
+                effectsRequirePotions, effectPotionMinutes, potionStoreMaxStacks, claimThunderBolts, blockedEffects,
                 maxEquipRules, equipmentMaxStacks, pantryMaxStacks, broadcastNearbyRadius, broadcastScope,
                 broadcastKick, broadcastBan, broadcastTimeout, broadcastLift, enterMessageActionBar,
                 borderOnEnterSeconds, notificationCooldownSeconds, visualDurationSeconds, visualRadius,
@@ -526,7 +554,7 @@ public record ClaimSettings(
                 entryFeeDeclineCooldownSeconds, entryFeePromptTimeoutSeconds, entryFeeExemptTrusted,
                 entryFeeExemptAdmins, fenceAutoBuild, fenceChargeMaterial, fenceDefaultMaterial, fenceHeight,
                 fenceMaxColumns, fenceMaxStep, fenceRefundToBank, maxClaimEffects, maxEffectAmplifier,
-                effectsRequirePotions, effectPotionMinutes, potionStoreMaxStacks, claimThunderBolts,
+                effectsRequirePotions, effectPotionMinutes, potionStoreMaxStacks, claimThunderBolts, blockedEffects,
                 maxEquipRules, equipmentMaxStacks, pantryMaxStacks, broadcastNearbyRadius, broadcastScope,
                 broadcastKick, broadcastBan, broadcastTimeout, broadcastLift, enterMessageActionBar,
                 borderOnEnterSeconds, notificationCooldownSeconds, visualDurationSeconds, visualRadius,

@@ -179,7 +179,7 @@ public final class ClaimsModule implements FlexModule {
                 land.flags(), features, claims, storage, zones, claimService, names, rights, provider,
                 costs, selections, stick, selectionFlow, visualizer, fences, ambience, entryFees,
                 eviction, equipment, broadcasts, settings::current, new LiveScreens(), () -> movement,
-                context.core());
+                this::saveZones, context.core());
         movement = new MovementListener(services);
         ambience.movement(movement);
 
@@ -266,6 +266,13 @@ public final class ClaimsModule implements FlexModule {
         @Override
         public void admin(org.bukkit.entity.Player viewer) {
             new de.raindancer.modules.claims.screen.AdminMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void manual(org.bukkit.entity.Player viewer) {
+            // The command owns the give-it-once logic; a screen button that duplicated it would be a second
+            // place for "does he already have one" to be answered differently.
+            viewer.performCommand("claim manual");
         }
     }
 

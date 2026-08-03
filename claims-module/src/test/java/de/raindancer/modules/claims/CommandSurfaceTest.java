@@ -112,4 +112,56 @@ class CommandSurfaceTest {
                 .as("a typo that produces silence reads as the plugin being broken")
                 .contains("unknown-subcommand");
     }
+
+    private static final Path ADMIN_COMMAND =
+            Path.of("src/main/java/de/raindancer/modules/claims/command/ClaimAdminCommand.java");
+
+    @Test
+    @DisplayName("the capabilities that had no route at all are reachable again")
+    void nothingIsUnreachable() {
+        // Each of these was found by auditing the rewrite against the old plugin: the model method existed,
+        // the storage read and wrote it, and NOTHING called it — so the feature was unreachable by command,
+        // by clicking, and by editing config. That is the worst kind of missing, because the code looks
+        // complete from every angle except using it.
+        String player = source(CLAIM_COMMAND);
+        String admin = source(ADMIN_COMMAND);
+
+        List<String> unreachable = new ArrayList<>();
+        for (String word : List.of("kick", "timeout", "owner")) {
+            if (!player.contains("\"" + word + "\"")) {
+                unreachable.add("/claim " + word);
+            }
+        }
+        // The manual was a 1177-line book in the old plugin and simply absent from the rewrite.
+        if (!player.contains("\"manual\"")) {
+            unreachable.add("/claim manual");
+        }
+        for (String word : List.of("why", "stick", "save", "manual")) {
+            if (!admin.contains("\"" + word + "\"")) {
+                unreachable.add("/claimadmin " + word);
+            }
+        }
+        assertThat(unreachable)
+                .as("these existed in the model with no caller anywhere — a feature nobody can reach")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("the screens that reach the rest of it exist")
+    void theClickOnlyRoutesExist() {
+        // The other half of the audit. These are not commands on purpose — choosing an effect or authoring an
+        // equip rule is clicking work — but each one was a toggle with nothing behind it: switched on, the
+        // feature could never fire, because no screen could set what it needed.
+        Path screens = Path.of("src/main/java/de/raindancer/modules/claims/screen");
+        List<String> missing = new ArrayList<>();
+        for (String screen : List.of("EffectsMenu", "EquipMenu", "MemberAdminMenu", "MemberGrantableMenu",
+                "TitleLineMenu", "AdminClaimBrowserMenu")) {
+            if (!java.nio.file.Files.isRegularFile(screens.resolve(screen + ".java"))) {
+                missing.add(screen);
+            }
+        }
+        assertThat(missing)
+                .as("without these the matching feature has an on switch and nothing to switch on")
+                .isEmpty();
+    }
 }

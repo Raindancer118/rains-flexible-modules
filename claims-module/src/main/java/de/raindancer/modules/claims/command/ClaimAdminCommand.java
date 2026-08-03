@@ -70,6 +70,10 @@ public final class ClaimAdminCommand implements IClaimCommand {
             case "zone" -> zone(claims, sender);
             case "reload" -> reload(claims, sender);
             case "delete" -> delete(claims, sender, args);
+            case "why", "diagnose" -> why(claims, sender);
+            case "stick" -> giveStick(claims, sender, args);
+            case "save" -> save(claims, sender);
+            case "manual", "book", "guide" -> manual(claims, sender);
             default -> claims.messages().send(sender, "claim.unknown-subcommand", "word", args[0]);
         }
     }
@@ -122,6 +126,116 @@ public final class ClaimAdminCommand implements IClaimCommand {
     private void reload(ClaimServices claims, CommandSender sender) {
         claims.claimService().refreshWorldNames();
         claims.messages().send(sender, "admin.reloaded");
+    }
+
+    /** The staff manual — the same book as the player one, written for whoever runs the server. */
+    private void manual(ClaimServices claims, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            claims.messages().send(sender, "error.players-only");
+            return;
+        }
+        de.raindancer.modules.claims.util.ManualBook manual =
+                new de.raindancer.modules.claims.util.ManualBook(claims,
+                        de.raindancer.modules.claims.util.ManualBook.Edition.ADMIN);
+        player.openBook(manual.asBook());
+    }
+
+    /**
+     * Why every flag is or is not applying, for the player standing here.
+     *
+     * <p>The best support tool the old plugin had, and the rewrite lost it. Everything else on this command
+     * changes something; this is the only one that explains, and an admin without it is guessing. Flags moved
+     * into RainsCore, which makes the question harder to answer by reading a config file rather than easier.
+     *
+     * <p>Four parts per flag, because the verdict alone is what the reporter already told you: the server's
+     * policy, the claim's own override, the audience this player falls in, and only then the answer. Those are
+     * the four places a surprise can come from, and naming which one decided it is the whole job.
+     */
+    private void why(ClaimServices claims, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            claims.messages().send(sender, "error.players-only");
+            return;
+        }
+        if (!claims.rights().isServerAdmin(player)) {
+            claims.messages().send(player, "error.not-allowed");
+            return;
+        }
+        Optional<Claim> standing = claims.claimAround(player);
+        if (standing.isEmpty()) {
+            claims.messages().send(player, "claim.none-here");
+            return;
+        }
+
+        Claim claim = standing.get();
+        de.raindancer.core.world.protection.FlagRules flags = claims.flags();
+        de.raindancer.core.world.protection.LandAudience audience =
+                flags.audienceOf(claim.area(), player);
+
+        claims.messages().send(player, "admin.why-header",
+                "claim", claim.name(),
+                "audience", claims.messages().raw(audience.nameKey()));
+
+        for (de.raindancer.core.world.protection.LandFlag flag
+                : de.raindancer.core.world.protection.LandFlag.values()) {
+            if (!flags.isEnforced(flag)) {
+                continue;   // switched off server-wide: it decides nothing, so it explains nothing
+            }
+            de.raindancer.core.world.protection.FlagPolicy policy = flags.policy(flag);
+            Optional<Boolean> override = claim.flagOverride(flag, audience);
+
+            claims.messages().sendPlain(player, "admin.why-line",
+                    "flag", claims.messages().raw(flag.nameKey()),
+                    "policy", policy.displayName(),
+                    "override", override.map(value -> value ? "allowed" : "denied").orElse("—"),
+                    "verdict", flags.isAllowedFor(claim.area(), flag, player) ? "allowed" : "denied");
+        }
+    }
+
+    /**
+     * Hands the marking-out tool to somebody else.
+     *
+     * <p>The one way to help a player who cannot work the selection tool out is to give them one and watch
+     * what they do with it. Told to them explicitly: an item appearing in your inventory with no explanation
+     * is indistinguishable from a bug.
+     */
+    private void giveStick(ClaimServices claims, CommandSender sender, String[] args) {
+        if (!(sender instanceof Player admin)) {
+            claims.messages().send(sender, "error.players-only");
+            return;
+        }
+        if (!claims.rights().isServerAdmin(admin)) {
+            claims.messages().send(admin, "error.not-allowed");
+            return;
+        }
+        if (args.length < 2) {
+            claims.messages().send(admin, "claim.who", "usage", "/claimadmin stick <player>");
+            return;
+        }
+        Player target = admin.getServer().getPlayerExact(args[1]);
+        if (target == null) {
+            claims.messages().send(admin, "error.player-not-found", "player", args[1]);
+            return;
+        }
+        claims.stick().give(target,
+                de.raindancer.modules.claims.selection.Selection.Purpose.NEW_CLAIM,
+                de.raindancer.modules.claims.selection.Selection.Mode.RECTANGLE);
+        claims.messages().send(target, "admin.stick-received", "admin", admin.getName());
+        claims.messages().send(admin, "admin.stick-given", "player", target.getName());
+    }
+
+    /**
+     * Writes every claim out now, rather than at the next autosave.
+     *
+     * <p>Small, and the reason it existed is not: an admin about to try something they might have to undo
+     * wants a known-good file on disk first, and the honest answer without this was "wait two minutes".
+     */
+    private void save(ClaimServices claims, CommandSender sender) {
+        if (sender instanceof Player player && !claims.rights().isServerAdmin(player)) {
+            claims.messages().send(player, "error.not-allowed");
+            return;
+        }
+        int written = claims.claimService().saveAllBlocking();
+        claims.messages().send(sender, "admin.saved", "count", String.valueOf(written));
     }
 
     /**

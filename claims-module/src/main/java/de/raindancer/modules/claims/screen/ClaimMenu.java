@@ -186,6 +186,14 @@ public final class ClaimMenu extends ClaimScreen {
                 click -> new ClaimIdentityMenu(services(), viewer, claim, this).open());
 
         // ── what it keeps for you ────────────────────────────────────────────────────────── row 4
+        toolbar(7, Icons.of(Material.WRITTEN_BOOK, "<white>The manual",
+                        "<gray>How all of this works, as a book.",
+                        "<dark_gray>also /claim manual"),
+                click -> {
+                    viewer.closeInventory();
+                    services().screens().manual(viewer);
+                });
+
         toolbar(1, Icons.of(Material.BOOK, "<white>What this claim is",
                         "<gray>Its size, its owners, what was paid for it."),
                 click -> new ClaimInfoMenu(services(), viewer, claim, this).open());

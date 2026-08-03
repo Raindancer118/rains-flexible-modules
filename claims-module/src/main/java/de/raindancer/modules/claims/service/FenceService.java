@@ -192,9 +192,18 @@ public final class FenceService implements IClaimService {
         // the flag false: the button went on reading "Not built" and the next click built again instead of
         // taking it down. The fence could be put up and never removed.
         //
-        // Set before the world work, not after. Everything below can return early (nothing to do, no
-        // material, the cap reached) and every one of those is still a fence the owner asked for.
-        fence.enabled(true);
+        // The flag is INTENT, not a block count: "this claim is supposed to have a fence". That is what it
+        // has to mean, because sync() refuses to touch a claim whose flag is false — so an owner who asks
+        // for a fence while short of material must still end up enabled, or the fence will never be built
+        // when the material turns up.
+        //
+        // Set and saved before the world work. Everything below can return early — nothing to do, nothing
+        // affordable, the cap reached — and review caught that those paths skipped the save at the end,
+        // leaving a flag that reverted on the next restart.
+        if (!fence.enabled()) {
+            fence.enabled(true);
+            claims.saveAsync(claim);
+        }
 
         Set<ClaimPoint> outline = desiredOutline(claim.shape());
         fence.pruneTo(outline);

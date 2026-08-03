@@ -27,6 +27,7 @@ claim:
     <gray>/claim ban <white><player><dark_gray> · <gray>unban<dark_gray>
     <gray>/claim rename <white><name><dark_gray> · <gray>delete<dark_gray>
     <dark_gray>everything else is in the menus
+  manual-given: "<green>The manual is in your inventory. <gray>Read it any time."
   stick-given: "<green>There is your marking-out tool. <gray>Left click one corner, right click the other."
   border-hidden: "<gray>Borders hidden."
   rename-needs-a-name: "<red>Give it a name: <gray>/claim rename <new name>"
@@ -45,6 +46,12 @@ claim:
   ban-lifted: "<green><player></white> may come back to <white><claim></white>."
   not-banned: "<gray><player> is not barred from here."
   cannot-ban-an-owner: "<red>You cannot bar <white><player></white> from a claim they own."
+  timed-out: "<red>Timed <white><player></white> out of <white><claim></white> for <white><duration></white>."
+  kicked: "<yellow>Escorted <white><player></white> out of <white><claim></white>."
+  cannot-kick-an-owner: "<red>You cannot kick <white><player></white> out of a claim they own."
+  owner-added: "<green>Added <white><player></white> as a co-owner of <white><claim></white>."
+  owner-removed: "<yellow>Removed <white><player></white> as a co-owner of <white><claim></white>."
+  owner-cannot-remove: "<gray>Owners cannot be removed that way — the last one, and whoever first claimed it, always stay."
 
   # ── the land ─────────────────────────────────────────────────────────────
   height-changed: "<green><claim></white> now reaches y <white><min-y></white> to <white><max-y></white>."
@@ -60,6 +67,10 @@ claim:
   title-aborted: "<gray>Left it alone."
   titles-empty: "<gray>Nothing is set to show on arrival."
   hold-an-item: "<gray>Hold the item you mean and click again."
+  ask-kick: "<gray>Type who to kick out, or <white>cancel</white>."
+  ask-ban: "<gray>Type a name, then a reason if you like — <white>name [reason]</white>, or <white>cancel</white>."
+  ask-timeout: "<gray>Type a name and how long — <white>name duration [reason]</white>, or <white>cancel</white>."
+  ask-co-owner: "<gray>Type who should own this claim too, or <white>cancel</white>."
 
   # ── refusals that are somebody else's decision ───────────────────────────
   flag-not-yours: "<gray><flag> is decided by the server, not by you."
@@ -72,6 +83,7 @@ claim:
   # ── commands ─────────────────────────────────────────────────────────────
   who: "<gray>Who do you mean? <white><usage>"
   unknown-subcommand: "<gray>No idea what <white><word></white> means. Try <white>/claim</white> on its own."
+  info-header: "<gold>── <white><claim></white> ──"
 
 notify:
   entered: "<gray>You are in <white><claim></white>."
@@ -84,6 +96,8 @@ protection:
   banned: "<red>You are barred from <white><claim></white>. <gray><reason>"
   timed-out: "<red>You are barred from <white><claim></white> for <white><remaining></white>. <gray><reason>"
   evicted-banned: "<red>You were shown out of <white><claim></white>."
+  evicted-kicked: "<yellow>You were walked out of <white><claim></white>."
+  evicted-timed-out: "<red>You were timed out of <white><claim></white>."
   pvp-refused: "<red>Fighting is not allowed in <white><claim></white>."
 
 selection:
@@ -107,6 +121,11 @@ zone:
   name-aborted: "<gray>Never mind."
   created: "<green>Nobody may claim in <white><zone></white> — <gray><area> blocks, y <min-y> to <max-y>."
   replaced: "<yellow>Replaced the old <white><zone></white>."
+  deleted: "<yellow>Removed the no-claim area <white><zone></white>."
+  unknown: "<gray>No no-claim area called <white><zone></white>."
+  list-header: "<gray><count> no-claim area(s):"
+  here: "<gray>You are standing in <white><zone></white>."
+  none-here: "<gray>Nothing stops a claim here."
 
 entry-fee:
   offer: "<gray><claim> charges <white><price></white> to come in. <white>/claim pay</white> to hand it over."
@@ -122,6 +141,11 @@ pantry:
 
 equip:
   given: "<gray><claim> handed you <white><item></white>."
+  target-set: "<green>The <white><item></white> now goes to <white><where></white>."
+
+effect:
+  added: "<green>Granted <white><effect></white> in <white><claim></white>."
+  removed: "<gray>Removed <white><effect></white> from <white><claim></white>."
 
 fence:
   gate-adopted: "<gray>That gap will stay open."
@@ -129,6 +153,8 @@ fence:
 error:
   no-permission: "<red>Not yours to do."
   no-claim-permission: "<red>That is not yours to change here."
+  not-allowed: "<red>That is not yours to do."
+  player-not-found: "<red>Nobody called <white><player></white> is online."
   players-only: "<gray>Somebody standing in the world has to run that."
   world-disabled: "<gray>Claims are switched off in this world."
   name-invalid: "<gray>Letters, digits, dashes and underscores — up to 32 of them."
@@ -146,6 +172,18 @@ error:
   no-such-player: "<gray>Never heard of <white><player></white>."
   no-such-claim: "<gray>No claim called <white><claim></white>."
   ambiguous-claim: "<gray>Several claims are called that: <white><candidates></white>."
+  player-offline: "<gray><player> has to be online for that."
+  world-missing: "<gray>That claim's world (<white><world></white>) is not loaded."
+  bad-duration: "<gray>Not a length of time I understand: <white><input></white>."
+
+feature:
+  unavailable: "<gray><feature> is switched off on this server."
+
+broadcast:
+  kicked: "<gray><player> was walked out of <claim> by <by>."
+  banned: "<gray><player> was barred from <claim> by <by>. <reason>"
+  timed-out: "<gray><player> was timed out of <claim> for <duration> by <by>."
+  lifted: "<gray><player> may come back to <claim> now — <by> lifted it."
 
 admin:
   # ── the flags, from the server's side ────────────────────────────────────
@@ -153,6 +191,11 @@ admin:
   flag-default-changed: "<green>New claims will start with <white><flag></white> <value>."
   flag-default-not-used: "<gray><flag> is not left to owners, so its starting value is never asked."
   flag-not-saved: "<red>Changed for now, but it could not be written down — check the console. It will be back as it was after a restart."
+  why-header: "<gradient:#4ade80:#22d3ee>Why things happen in <claim></gradient> <dark_gray>· you are <white><audience></white> here"
+  why-line: "<dark_gray>· <white><flag><dark_gray> — server <gray><policy><dark_gray>, claim <gray><override><dark_gray>, so <white><verdict>"
+  stick-given: "<green>Gave <white><player></white> a marking-out tool."
+  stick-received: "<green><admin> gave you a marking-out tool. <gray>Left click one corner, right click the other."
+  saved: "<green>Wrote <white><count></white> claim(s) to disk."
   open-flags: "<gray>Opening the flag settings."
   overview: "<gray><claims> claim(s), <zones> zone(s), <tracked> player(s) tracked. <dark_gray>land answered by <answering>"
   bypass-on: "<green>Bypass on — you can ignore every claim."
@@ -162,3 +205,16 @@ admin:
   feature-changed: "<green><feature></white> is now <white><policy></white>."
   zone-removed: "<yellow>Removed the no-claim area <white><zone></white>."
   zone-shift-to-remove: "<gray>Shift + click to remove <white><zone></white>."
+
+  # ── restored operational surface ─────────────────────────────────────────
+  saved: "<green>Saved <white><count></white> changed claim(s), and the no-claim zones."
+  list-header: "<gray><count> claim(s) on the server:"
+  reshape-started: "<green>There is your stick. <gray>Redraw <white><claim></white> — the ordinary size and overlap limits do not apply."
+  claim-reshaped: "<green><claim></white> forced into a new shape: <gray><area> blocks, y <min-y> to <max-y>."
+  stick-given: "<green>Gave <white><player></white> a marking-out stick."
+  ask-transfer-target: "<gray>Who should <white><claim></white> belong to now? <white>(type a name, or cancel)"
+  ownership-transferred: "<green><claim></white> now belongs to <white><player></white>."
+  teleport-unsafe: "<red>Nowhere safe was found near <white><claim></white> — nobody was moved."
+  inspect-header: "<gold>── <white><claim></white>, staff view ──"
+  diagnose-header: "<gold>── why, here ──"
+  ask-owner-filter: "<gray>Show only whose claims? <white>(type a name, or cancel)"

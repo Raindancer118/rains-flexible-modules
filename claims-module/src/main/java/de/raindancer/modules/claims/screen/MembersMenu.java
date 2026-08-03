@@ -2,6 +2,7 @@ package de.raindancer.modules.claims.screen;
 
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
+import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
@@ -14,8 +15,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -29,6 +32,9 @@ import java.util.UUID;
  * their button says they are an owner.
  */
 public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implements IClaimScreen {
+
+    /** How long somebody has to answer before the question is withdrawn. */
+    private static final Duration PROMPT_TIMEOUT = Duration.ofSeconds(20);
 
     /** One row of the list: somebody, and what they are here. */
     record Entry(UUID who, boolean owner, boolean claimAdmin) {
@@ -71,6 +77,10 @@ public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implemen
         if (entry.owner()) {
             lore.add("<gold>An owner");
             lore.add("<gray>Owners may do everything, always.");
+            if (mayRemoveAsCoOwner(entry.who())) {
+                lore.add("");
+                lore.add("<dark_gray>click to remove as a co-owner");
+            }
         } else {
             int allowed = claim.member(entry.who()).map(member -> member.permissions().size()).orElse(0);
             lore.add("<gray>" + allowed + " permission(s)");
@@ -87,8 +97,22 @@ public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implemen
     @Override
     protected void onClick(Entry entry, InventoryClickEvent event) {
         if (entry.owner()) {
-            // Nothing to change: an owner holds everything by definition, so a permission screen for one
-            // would be seventeen buttons that all say yes and none of which do anything.
+            // A co-owner may be taken off the way they were put on — a click, not a command — but the
+            // permission grid an owner's own entry would otherwise open is still nothing: an owner holds
+            // everything by definition, so there would be seventeen buttons that all say yes.
+            if (mayRemoveAsCoOwner(entry.who())) {
+                if (claim.removeOwner(entry.who())) {
+                    services.claims().reindex(claim);
+                    services.claimService().saveAsync(claim);
+                    services.messages().send(viewer, "claim.owner-removed",
+                            "player", services.names().nameOfOwner(entry.who()), "claim", claim.name());
+                    refresh();
+                } else {
+                    services.messages().send(viewer, "claim.owner-cannot-remove",
+                            "player", services.names().nameOfOwner(entry.who()));
+                }
+                return;
+            }
             services.messages().send(viewer, "claim.owner-holds-everything");
             return;
         }
@@ -97,5 +121,71 @@ public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implemen
             return;
         }
         new MemberMenu(services, viewer, claim, this, entry.who()).open();
+    }
+
+    /**
+     * Whether this owner entry is one the viewer may take off — a co-owner, never the primary one, and
+     * only when the feature and the viewer's own standing both allow it.
+     */
+    private boolean mayRemoveAsCoOwner(UUID who) {
+        return services.features().isOffered(ClaimFeature.CO_OWNERS)
+                && services.rights().isOwnerOrServerAdmin(claim, viewer)
+                && !who.equals(claim.primaryOwner());
+    }
+
+    /**
+     * The one route this list was missing: adding a co-owner had a command and nothing to click. Owner
+     * only, and deliberately not delegable to a claim admin — see {@code /claim owner} for the same rule.
+     */
+    @Override
+    protected void render() {
+        super.render();
+        if (services.features().isOffered(ClaimFeature.CO_OWNERS)
+                && services.rights().isOwnerOrServerAdmin(claim, viewer)) {
+            toolbar(4, Icons.of(Material.GOLDEN_HELMET, "<gold>Add a co-owner",
+                            "<gray>Somebody who owns this claim exactly as you do.",
+                            "<dark_gray>type their name in chat"),
+                    click -> askForCoOwner());
+        }
+    }
+
+    private void askForCoOwner() {
+        viewer.closeInventory();
+        services.messages().send(viewer, "claim.ask-co-owner");
+        boolean asked = services.prompts().ask(viewer.getUniqueId(), "Claims", PROMPT_TIMEOUT,
+                typed -> {
+                    Optional<UUID> subject = resolveName(typed.trim());
+                    if (subject.isEmpty()) {
+                        services.messages().send(viewer, "error.no-such-player", "player", typed);
+                        open();
+                        return;
+                    }
+                    UUID who = subject.get();
+                    if (claim.isOwner(who)) {
+                        services.messages().send(viewer, "claim.already-an-owner", "player", typed);
+                        open();
+                        return;
+                    }
+                    claim.addOwner(who);
+                    services.claims().reindex(claim);
+                    services.claimService().saveAsync(claim);
+                    services.messages().send(viewer, "claim.owner-added",
+                            "player", services.names().nameOfOwner(who), "claim", claim.name());
+                    open();
+                },
+                this::open);
+        if (!asked) {
+            services.messages().send(viewer, "selection.already-being-asked");
+        }
+    }
+
+    /** A name to a uuid, online or not — offline included, or somebody who has logged off cannot be added. */
+    private Optional<UUID> resolveName(String name) {
+        Player online = services.server().getPlayerExact(name);
+        if (online != null) {
+            return Optional.of(online.getUniqueId());
+        }
+        var seen = services.server().getOfflinePlayer(name);
+        return seen.hasPlayedBefore() ? Optional.of(seen.getUniqueId()) : Optional.empty();
     }
 }

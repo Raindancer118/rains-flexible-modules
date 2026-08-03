@@ -99,6 +99,7 @@ public final class SelectionMenu extends ClaimScreen {
             case NEW_CLAIM -> "a new claim";
             case RESIZE_CLAIM -> "redrawing an existing claim";
             case NO_CLAIM_ZONE -> "an area nobody may claim";
+            case ADMIN_RESHAPE -> "an admin reshape";
         };
     }
 }

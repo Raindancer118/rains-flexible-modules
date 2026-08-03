@@ -27,7 +27,16 @@ public final class Selection {
 
     /** What the finished selection will be used for. */
     public enum Purpose {
-        NEW_CLAIM, RESIZE_CLAIM, NO_CLAIM_ZONE
+        NEW_CLAIM, RESIZE_CLAIM, NO_CLAIM_ZONE,
+        /**
+         * An admin forcing a claim they do not own into a new shape.
+         *
+         * <p>Deliberately separate from {@link #RESIZE_CLAIM}: that path runs a claim's ordinary validation —
+         * the size limits, the no-claim zones, the vertex cap — which is right for an owner and wrong for the
+         * admin who is reaching for this precisely because the ordinary rules are in the way. See
+         * {@code ClaimService.adminReshape}, which this purpose is the only caller of.
+         */
+        ADMIN_RESHAPE
     }
 
     private final UUID worldId;

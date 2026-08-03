@@ -38,4 +38,7 @@ public interface ClaimScreensOpener {
 
     /** The server-wide administration screen. */
     void admin(Player viewer);
+
+    /** The manual, opened and left in their inventory. */
+    void manual(Player viewer);
 }

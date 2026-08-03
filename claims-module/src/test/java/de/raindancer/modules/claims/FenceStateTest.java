@@ -92,4 +92,29 @@ class FenceStateTest {
         fence.enabled(false);
         assertThat(fence.enabled()).isFalse();
     }
+
+    @Test
+    @DisplayName("the flag is saved where it is set, not only at the end of a successful build")
+    void settingTheFlagPersistsIt() {
+        // Found by review. build() can return early three ways — nothing to do, nothing affordable, the cap
+        // reached — and all three are BEFORE the saveAsync at the end. So a fence turned on by an owner with
+        // no material set the flag in memory and never wrote it, and the next restart read it back as off.
+        String body = method("public FenceResult build(Claim claim, Player payer)");
+        int flagAt = body.indexOf("enabled(true)");
+        assertThat(flagAt).isNotNegative();
+
+        assertThat(body.substring(flagAt, Math.min(body.length(), flagAt + 200)))
+                .as("an unsaved flag is one that reverts on restart, and every early return below skips "
+                        + "the save at the end")
+                .contains("saveAsync");
+    }
+
+    @Test
+    @DisplayName("the flag means intent, so turning it on twice does not write twice")
+    void anAlreadyEnabledFenceIsNotResaved() {
+        // A fence syncs on reshape, on chunk load and on a timer, and every one of those calls build(). If
+        // the flag were written unconditionally, each would queue a save of an unchanged claim.
+        assertThat(method("public FenceResult build(Claim claim, Player payer)"))
+                .contains("if (!fence.enabled())");
+    }
 }

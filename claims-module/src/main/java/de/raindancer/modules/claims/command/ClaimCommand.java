@@ -3,12 +3,15 @@ package de.raindancer.modules.claims.command;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimBan;
+import de.raindancer.modules.claims.model.ClaimFeature;
+import de.raindancer.core.moderation.punishment.Durations;
 import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimBan;
 import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.ClaimServices;
+import de.raindancer.modules.claims.util.ManualBook;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.OfflinePlayer;
@@ -82,6 +85,7 @@ public final class ClaimCommand implements IClaimCommand {
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "help", "?" -> help(claims, player);
+            case "manual", "book", "guide" -> manual(claims, player);
             case "menu", "list", "mine" -> claims.screens().list(player);
             case "new", "create" -> begin(claims, player);
             case "stick", "tool" -> stick(claims, player);
@@ -93,8 +97,11 @@ public final class ClaimCommand implements IClaimCommand {
             case "rename" -> rename(claims, player, args);
             case "trust" -> trust(claims, player, args, true);
             case "untrust" -> trust(claims, player, args, false);
+            case "kick" -> kick(claims, player, args);
             case "ban" -> ban(claims, player, args);
             case "unban" -> unban(claims, player, args);
+            case "timeout", "mute" -> timeout(claims, player, args);
+            case "owner" -> owner(claims, player, args);
             case "cancel" -> claims.selectionFlow().cancel(player);
             // The two halves of an entry-fee prompt. Without these the prompt is unanswerable, which makes
             // the whole feature a dead end rather than a degraded one.
@@ -110,6 +117,45 @@ public final class ClaimCommand implements IClaimCommand {
     /** What the command can do, in the order somebody actually needs it. */
     private void help(ClaimServices claims, Player player) {
         claims.messages().send(player, "claim.help");
+    }
+
+    /**
+     * The manual, opened on the spot and left in the player's inventory.
+     *
+     * <p>Opened as well as given, because a book that arrives in your bag is a book you read once you notice
+     * it. Only one copy: handed out on every call it becomes the thing that fills a player's inventory, so a
+     * player already carrying one just gets it opened. Recognised by title rather than by contents, since the
+     * contents change with what the server has switched on.
+     */
+    private void manual(ClaimServices claims, Player player) {
+        ManualBook manual = new ManualBook(claims, ManualBook.Edition.PLAYER);
+        if (!isCarryingManual(player, manual)) {
+            for (org.bukkit.inventory.ItemStack leftover
+                    : player.getInventory().addItem(manual.asItem()).values()) {
+                // A full inventory drops it rather than swallowing it — the alternative is a command that
+                // silently does nothing for exactly the players most likely to need the manual.
+                player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+            }
+            claims.messages().send(player, "claim.manual-given");
+        }
+        player.openBook(manual.asBook());
+    }
+
+    /** Whether they already have one, by title — the contents differ per server. */
+    private boolean isCarryingManual(Player player, ManualBook manual) {
+        for (org.bukkit.inventory.ItemStack stack : player.getInventory().getContents()) {
+            if (stack == null || stack.getType() != org.bukkit.Material.WRITTEN_BOOK) {
+                continue;
+            }
+            if (stack.getItemMeta() instanceof org.bukkit.inventory.meta.BookMeta meta
+                    && meta.hasTitle()
+                    && net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                            .serialize(meta.title())
+                            .equals(ManualBook.Edition.PLAYER.title())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The marking-out tool. Without this there is no way to make a claim at all. */
@@ -241,6 +287,50 @@ public final class ClaimCommand implements IClaimCommand {
         claims.claimService().saveAsync(claim);
     }
 
+    /**
+     * Walks somebody out without barring them — the difference between "not now" and "not ever" that a
+     * plain ban cannot express on its own.
+     *
+     * <p>Gated on {@link ClaimFeature#KICK} as well as the permission: a server that took the feature away
+     * should not have it reachable by typing the command directly, which is exactly how it would have stayed
+     * reachable if only the button that used to call this had checked.
+     */
+    private void kick(ClaimServices claims, Player player, String[] args) {
+        if (!claims.features().isOffered(ClaimFeature.KICK)) {
+            claims.messages().send(player, "feature.unavailable", "feature", ClaimFeature.KICK.displayName());
+            return;
+        }
+        Optional<Claim> maybe = manageable(claims, player, ClaimAdminPermission.MANAGE_BANS);
+        if (maybe.isEmpty()) {
+            return;
+        }
+        if (args.length < 2) {
+            claims.messages().send(player, "claim.who", "usage", "/claim kick <player>");
+            return;
+        }
+        Optional<UUID> subject = resolve(claims, args[1]);
+        if (subject.isEmpty()) {
+            claims.messages().send(player, "error.no-such-player", "player", args[1]);
+            return;
+        }
+        Claim claim = maybe.get();
+        UUID who = subject.get();
+        if (claim.isOwner(who)) {
+            claims.messages().send(player, "claim.cannot-kick-an-owner", "player", args[1]);
+            return;
+        }
+        Player online = claims.server().getPlayer(who);
+        if (online == null) {
+            // Kicking is walking somebody who is here out; somebody who has already left needs a ban,
+            // not a kick, so this is refused rather than silently doing nothing.
+            claims.messages().send(player, "error.player-offline", "player", args[1]);
+            return;
+        }
+        claims.eviction().evict(online, claim, "protection.evicted-kicked");
+        claims.messages().send(player, "claim.kicked", "player", online.getName(), "claim", claim.name());
+        claims.broadcasts().kicked(claim, online.getName(), player.getName());
+    }
+
     private void ban(ClaimServices claims, Player player, String[] args) {
         Optional<Claim> maybe = manageable(claims, player, ClaimAdminPermission.MANAGE_BANS);
         if (maybe.isEmpty()) {
@@ -296,6 +386,103 @@ public final class ClaimCommand implements IClaimCommand {
     }
 
     /**
+     * A ban that lifts itself. The wording it accepts is Core's own moderation duration parser —
+     * {@link Durations} — rather than one of this module's own, so {@code /claim timeout} and every other
+     * timed punishment on the server understand the same "2h", "3d", "45m".
+     */
+    private void timeout(ClaimServices claims, Player player, String[] args) {
+        Optional<Claim> maybe = manageable(claims, player, ClaimAdminPermission.MANAGE_BANS);
+        if (maybe.isEmpty()) {
+            return;
+        }
+        if (args.length < 3) {
+            claims.messages().send(player, "claim.who", "usage", "/claim timeout <player> <duration>");
+            return;
+        }
+        Optional<UUID> subject = resolve(claims, args[1]);
+        if (subject.isEmpty()) {
+            claims.messages().send(player, "error.no-such-player", "player", args[1]);
+            return;
+        }
+        Optional<java.time.Duration> duration = Durations.parse(args[2]);
+        if (duration.isEmpty()) {
+            claims.messages().send(player, "error.bad-duration", "input", args[2]);
+            return;
+        }
+        Claim claim = maybe.get();
+        UUID who = subject.get();
+        if (claim.isOwner(who)) {
+            claims.messages().send(player, "claim.cannot-ban-an-owner", "player", args[1]);
+            return;
+        }
+        String reason = args.length > 3 ? String.join(" ", List.of(args).subList(3, args.length)) : "";
+        claim.ban(ClaimBan.timeout(who, player.getUniqueId(), duration.get().toMillis(), reason));
+        claims.claimService().saveAsync(claim);
+        String formatted = Durations.describe(duration.get());
+        // Walked out right away, the same as a permanent ban — waiting for their next step would mean a
+        // timeout that starts counting down before it has actually kept anybody out.
+        Player inside = claims.server().getPlayer(who);
+        if (inside != null && claims.claims().at(inside.getLocation())
+                .filter(found -> found.id().equals(claim.id())).isPresent()) {
+            claims.eviction().evict(inside, claim, "protection.evicted-timed-out");
+        }
+        claims.broadcasts().timedOut(claim, args[1], player.getName(), formatted);
+        claims.messages().send(player, "claim.timed-out",
+                "player", args[1], "claim", claim.name(), "duration", formatted);
+    }
+
+    /**
+     * Adding or removing an equal co-owner — never the trusted-member permissions, which is what
+     * {@code /claim trust} is for.
+     *
+     * <p>Owner only, deliberately: this is not one of the rights an owner can delegate to a claim admin, the
+     * same way deleting the claim is not. {@link #ownedHere} already enforces that, and {@link Claim#removeOwner}
+     * separately refuses to take the primary owner off however this is called, so a mistaken remove cannot
+     * orphan the claim.
+     */
+    private void owner(ClaimServices claims, Player player, String[] args) {
+        if (!claims.features().isOffered(ClaimFeature.CO_OWNERS)) {
+            claims.messages().send(player, "feature.unavailable", "feature", ClaimFeature.CO_OWNERS.displayName());
+            return;
+        }
+        boolean add = args.length > 1 && args[1].equalsIgnoreCase("add");
+        boolean remove = args.length > 1 && args[1].equalsIgnoreCase("remove");
+        if (args.length < 3 || !(add || remove)) {
+            claims.messages().send(player, "claim.who", "usage", "/claim owner <add|remove> <player>");
+            return;
+        }
+        Optional<Claim> maybe = ownedHere(claims, player);
+        if (maybe.isEmpty()) {
+            return;
+        }
+        Claim claim = maybe.get();
+        Optional<UUID> subject = resolve(claims, args[2]);
+        if (subject.isEmpty()) {
+            claims.messages().send(player, "error.no-such-player", "player", args[2]);
+            return;
+        }
+        UUID who = subject.get();
+        if (add) {
+            if (claim.isOwner(who)) {
+                claims.messages().send(player, "claim.already-an-owner", "player", args[2]);
+                return;
+            }
+            claim.addOwner(who);
+            claims.claims().reindex(claim);
+            claims.claimService().saveAsync(claim);
+            claims.messages().send(player, "claim.owner-added", "player", args[2], "claim", claim.name());
+            return;
+        }
+        if (claim.removeOwner(who)) {
+            claims.claims().reindex(claim);
+            claims.claimService().saveAsync(claim);
+            claims.messages().send(player, "claim.owner-removed", "player", args[2], "claim", claim.name());
+        } else {
+            claims.messages().send(player, "claim.owner-cannot-remove", "player", args[2]);
+        }
+    }
+
+    /**
      * The claim the player is standing in, if they may change it in this way.
      *
      * <p>Standing in it rather than naming it, because every one of these is something you do to the land under
@@ -330,14 +517,22 @@ public final class ClaimCommand implements IClaimCommand {
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
             List<String> words = new ArrayList<>(List.of("new", "list", "here", "show", "trust",
-                    "untrust", "ban", "unban", "cancel"));
+                    "untrust", "kick", "ban", "unban", "timeout", "owner", "cancel"));
             if (args.length == 1) {
                 words.removeIf(word -> !word.startsWith(args[0].toLowerCase(Locale.ROOT)));
             }
             return words;
         }
-        if (args.length == 2 && List.of("trust", "untrust", "ban", "unban")
+        if (args.length == 2 && List.of("trust", "untrust", "kick", "ban", "unban", "timeout")
                 .contains(args[0].toLowerCase(Locale.ROOT))) {
+            List<String> names = new ArrayList<>();
+            services.get().server().getOnlinePlayers().forEach(who -> names.add(who.getName()));
+            return names;
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("owner")) {
+            return List.of("add", "remove");
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("owner")) {
             List<String> names = new ArrayList<>();
             services.get().server().getOnlinePlayers().forEach(who -> names.add(who.getName()));
             return names;

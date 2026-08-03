@@ -106,6 +106,7 @@ public final class SelectionFlow {
             case NEW_CLAIM -> finishNewClaim(player, selection, world, shape);
             case RESIZE_CLAIM -> finishResize(player, selection, world, shape);
             case NO_CLAIM_ZONE -> finishZone(player, selection, world, shape);
+            case ADMIN_RESHAPE -> finishAdminReshape(player, selection, world, shape);
         };
     }
 
@@ -177,6 +178,50 @@ public final class SelectionFlow {
                 "min-y", String.valueOf(shape.minY()),
                 "max-y", String.valueOf(shape.maxY()));
         reportSettlement(player, claim, result.detail());
+        cleanUp(player);
+        visualizer.showClaim(player, claim, settings.get().visualDurationSeconds());
+        return true;
+    }
+
+    /**
+     * An admin forcing somebody else's claim into a new shape.
+     *
+     * <p>Goes through {@code ClaimService.adminReshape} rather than {@link #finishResize}: the ordinary path
+     * runs a claim's full validation, and an admin reaching for the stick on a claim they do not own is usually
+     * doing so <em>because</em> the ordinary rules refuse what needs to happen — a claim grown past the current
+     * size limit that has to shrink, one drawn into ground that is now a no-claim zone. Only the overlap check
+     * still applies, and only when the server insists claims never touch.
+     */
+    private boolean finishAdminReshape(Player player, Selection selection, World world, ClaimShape shape) {
+        Optional<Claim> maybeClaim = claims.byId(selection.targetClaimId());
+        if (maybeClaim.isEmpty()) {
+            messages.send(player, "claim.gone");
+            cleanUp(player);
+            return false;
+        }
+        if (!rights.isServerAdmin(player)) {
+            // Not reachable through the normal command surface, which gates this itself — but the stick can
+            // outlive a permission change, so the check belongs here too.
+            messages.send(player, "error.no-permission");
+            cleanUp(player);
+            return false;
+        }
+        Claim claim = maybeClaim.get();
+        if (!claim.worldId().equals(world.getUID())) {
+            messages.send(player, "selection.wrong-world", "claim", claim.name());
+            return false;
+        }
+
+        Optional<ClaimService.Failure> failure = claimService.adminReshape(claim, shape);
+        if (failure.isPresent()) {
+            messages.send(player, "error.overlaps-claim", "detail", "");
+            return false;
+        }
+        messages.send(player, "admin.claim-reshaped",
+                "claim", claim.name(),
+                "area", String.valueOf(shape.areaBlocks()),
+                "min-y", String.valueOf(shape.minY()),
+                "max-y", String.valueOf(shape.maxY()));
         cleanUp(player);
         visualizer.showClaim(player, claim, settings.get().visualDurationSeconds());
         return true;

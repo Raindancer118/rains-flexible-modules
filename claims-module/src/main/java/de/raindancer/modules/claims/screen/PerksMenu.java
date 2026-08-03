@@ -58,6 +58,11 @@ public final class PerksMenu extends ClaimScreen {
                 () -> claim.atmosphere().timePreset(
                         nextTime(claim.atmosphere().timePreset())));
 
+        toolbar(1, Icons.of(Material.BREWING_STAND, "<white>Choose the effects",
+                        "<gray>" + claim.effects().size() + " granted, up to "
+                                + services().config().maxClaimEffects()),
+                click -> new EffectsMenu(services(), viewer, claim, this).open());
+
         toolbar(3, Icons.of(Material.POTION, "<white>Potions the effects drink",
                         "<gray>" + claim.potionStore().totalPotions() + " stocked",
                         "<dark_gray>only used when the server asks for them"),
@@ -66,6 +71,11 @@ public final class PerksMenu extends ClaimScreen {
         toolbar(5, Icons.of(Material.BREAD, "<white>Stock the pantry",
                         "<gray>Food the claim feeds hungry people with."),
                 click -> services().screens().pantry(viewer, claim));
+
+        toolbar(7, Icons.of(Material.ARMOR_STAND, "<white>Auto-equip rules",
+                        "<gray>" + claim.equipment().rules().size() + " rule(s), "
+                                + claim.equipment().totalStock() + " item(s) stocked"),
+                click -> new EquipMenu(services(), viewer, claim, this).open());
     }
 
     /** The next time preset round the list. TimePreset has no next() of its own, and the order is the list's. */

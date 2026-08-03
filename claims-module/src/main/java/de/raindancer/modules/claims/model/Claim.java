@@ -243,9 +243,16 @@ public final class Claim {
         return added;
     }
 
-    /** Refuses to remove the last owner — an ownerless claim would be unmanageable. */
+    /**
+     * Refuses to remove the last owner, and refuses to remove the primary one even when others remain.
+     *
+     * <p>An ownerless claim would be unmanageable, which covers the first case. The second is separate: since
+     * {@link #primaryOwner()} is simply the first entry of an ordered set, a co-owner added later could
+     * otherwise be used to strip the original owner out from under them while leaving the claim technically
+     * owned — the claim would still work, but by whoever added themselves last rather than whoever made it.
+     */
     public boolean removeOwner(UUID uuid) {
-        if (owners.size() <= 1 || !owners.contains(uuid)) {
+        if (owners.size() <= 1 || !owners.contains(uuid) || uuid.equals(primaryOwner())) {
             return false;
         }
         owners.remove(uuid);

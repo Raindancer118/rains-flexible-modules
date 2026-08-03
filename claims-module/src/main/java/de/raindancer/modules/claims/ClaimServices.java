@@ -83,6 +83,14 @@ public record ClaimServices(
         ClaimScreensOpener screens,
         Supplier<MovementListener> movementTracker,
         /**
+         * Writes the no-claim zones out.
+         *
+         * <p>A {@code Runnable} rather than exposing {@code ZoneStorage} itself: the file is small and rare to
+         * change, so nobody outside the module needs more than "write it now" — which is exactly what a manual
+         * {@code /claimadmin save} is asking for.
+         */
+        Runnable saveZones,
+        /**
          * Core itself, for the few things that are the server's rather than this claim's.
          *
          * <p>Deliberately last and deliberately narrow: the flags belong to Core, so the screen that sets

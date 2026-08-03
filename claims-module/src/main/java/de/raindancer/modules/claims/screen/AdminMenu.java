@@ -23,7 +23,11 @@ import java.util.List;
 public final class AdminMenu extends ClaimScreen {
 
     public AdminMenu(ClaimServices services, Player viewer, Menu parent) {
-        super(services, viewer, null, parent, 3);
+        // A full page, not the three-row dialog this used to be: a fourth door — browsing every claim on the
+        // server — needs a band of its own, and the WHO band was already full at four buttons. A dialog has
+        // no row for a second band at all, so the toolbar tile below silently never rendered before this;
+        // fixed as a side effect of giving the page room to hold what it now needs to hold.
+        super(services, viewer, null, parent);
     }
 
     @Override
@@ -48,6 +52,12 @@ public final class AdminMenu extends ClaimScreen {
                         "<gray>" + services().zones().all().size() + " area(s) marked out.",
                         "<dark_gray>mark another with /claimadmin zone"),
                 click -> new ZonesMenu(services(), viewer, this).open());
+
+        band(MenuLayout.RULES, 4, Icons.of(Material.WRITTEN_BOOK, "<gold>Browse every claim",
+                        "<gray>Find, inspect, teleport to or reassign",
+                        "<gray>a claim regardless of who owns it.",
+                        "<dark_gray>" + services().claims().size() + " claim(s) on the server"),
+                click -> new AdminClaimBrowserMenu(services(), viewer, this).open());
 
         band(MenuLayout.WHO, 7, Icons.of(Material.SPYGLASS,
                         services().land().isBypassing(viewer)
