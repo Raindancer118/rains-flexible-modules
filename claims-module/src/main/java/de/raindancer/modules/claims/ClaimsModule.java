@@ -108,6 +108,15 @@ public final class ClaimsModule implements FlexModule {
         context.core().messages().defineFrom(
                 ClaimsModule.class.getResourceAsStream("messages.yml"));
 
+        // Before any command is asked whether somebody may run it. A module has no paper-plugin.yml of
+        // its own, and an unregistered permission reads as false for every player who is not an
+        // operator — which is how /claim silently became an operator command. See ClaimPermissions.
+        int registered = de.raindancer.modules.claims.util.ClaimPermissions
+                .register(context.plugin().getServer());
+        if (registered > 0) {
+            log.info("{} permission(s) registered.", registered);
+        }
+
         featurePolicies = FeaturePolicies.builtIn();
         features = new FeatureRules(featurePolicies);
 

@@ -81,8 +81,12 @@ public enum StaffRank {
      * rules everybody else plays under — and the first thing a player notices when they find out.
      */
     public static final List<String> CLAIM_BYPASSES = List.of(
-            "rec.admin.nocost", "rec.admin.nofee", "rec.admin.nolimit", "rec.admin.zonebypass",
+            "rec.admin.nocost", "rec.admin.nolimit", "rec.admin.zonebypass",
             "rec.maxclaims.unlimited");
+    // rec.admin.nofee is deliberately absent. The claims plugin has always kept it off even for
+    // operators, with the reasoning that an admin walking around the server should pay a claim's toll
+    // like everybody else — and an owner whose own entry fees quietly do nothing stops noticing they
+    // are configured. Grant it by hand, per person, on the permissions screen.
 
     private final String title;
     private final int weight;
