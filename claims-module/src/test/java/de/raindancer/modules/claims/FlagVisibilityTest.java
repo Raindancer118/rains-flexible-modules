@@ -59,7 +59,7 @@ class FlagVisibilityTest {
     @DisplayName("with nothing switched off, everything is offered")
     void everythingIsThereByDefault() {
         assertThat(shownGroups()).containsExactlyElementsOf(LandFlagGroup.occupied());
-        assertThat(shownIn(LandFlagGroup.MOBS)).contains(LandFlag.MONSTER_SPAWNING);
+        assertThat(shownIn(LandFlagGroup.ENTITIES)).contains(LandFlag.MONSTER_SPAWNING);
     }
 
     @Test
@@ -67,7 +67,7 @@ class FlagVisibilityTest {
     void aDisabledFlagDisappears() {
         policies.policy(LandFlag.MONSTER_SPAWNING, FlagPolicy.DISABLED);
 
-        assertThat(shownIn(LandFlagGroup.MOBS))
+        assertThat(shownIn(LandFlagGroup.ENTITIES))
                 .as("a disabled flag is not a choice anybody has; showing it produces a click that does nothing")
                 .doesNotContain(LandFlag.MONSTER_SPAWNING);
     }
@@ -79,7 +79,7 @@ class FlagVisibilityTest {
         // would leave them wondering why mobs still cannot spawn.
         policies.policy(LandFlag.MONSTER_SPAWNING, FlagPolicy.FORCED_OFF);
 
-        assertThat(shownIn(LandFlagGroup.MOBS)).contains(LandFlag.MONSTER_SPAWNING);
+        assertThat(shownIn(LandFlagGroup.ENTITIES)).contains(LandFlag.MONSTER_SPAWNING);
         assertThat(flags.isEditableByOwner(LandFlag.MONSTER_SPAWNING))
                 .as("shown, but not theirs to change — which is what greys the button")
                 .isFalse();
@@ -103,7 +103,8 @@ class FlagVisibilityTest {
         policies.policy(LandFlag.KEEP_INVENTORY, FlagPolicy.DISABLED);
 
         assertThat(shownGroups()).contains(LandFlagGroup.DEATH);
-        assertThat(shownIn(LandFlagGroup.DEATH)).containsExactly(LandFlag.ITEM_DROPS);
+        assertThat(shownIn(LandFlagGroup.DEATH))
+                .containsExactly(LandFlag.ITEM_DROPS, LandFlag.TOTEMS);
     }
 
     @Test
@@ -119,7 +120,10 @@ class FlagVisibilityTest {
     @Test
     @DisplayName("the new flags are grouped where somebody would look for them")
     void theNewFlagsAreFindable() {
-        assertThat(LandFlagGroup.of(LandFlag.POTIONS)).isEqualTo(LandFlagGroup.COMBAT);
+        assertThat(LandFlagGroup.of(LandFlag.POTIONS)).isEqualTo(LandFlagGroup.PLAYER);
+        assertThat(LandFlagGroup.of(LandFlag.TOTEMS)).isEqualTo(LandFlagGroup.DEATH);
+        assertThat(LandFlagGroup.of(LandFlag.WALK_IN)).isEqualTo(LandFlagGroup.TRAVEL);
+        assertThat(LandFlagGroup.of(LandFlag.BOATS)).isEqualTo(LandFlagGroup.ENTITIES);
         assertThat(LandFlagGroup.of(LandFlag.RIPTIDE)).isEqualTo(LandFlagGroup.TRAVEL);
         assertThat(LandFlagGroup.of(LandFlag.KEEP_INVENTORY)).isEqualTo(LandFlagGroup.DEATH);
         assertThat(LandFlagGroup.of(LandFlag.ITEM_DROPS)).isEqualTo(LandFlagGroup.DEATH);

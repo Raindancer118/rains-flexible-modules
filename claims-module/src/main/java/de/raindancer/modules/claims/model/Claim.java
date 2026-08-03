@@ -76,6 +76,23 @@ public final class Claim {
     /** Made on first use; see area(). */
     private ClaimAreaRule area;
 
+    /**
+     * Owners who have excused themselves from this claim's own flags.
+     *
+     * <p>The case an owner actually asks for: they set no PvP, no elytra and no potions because that is how
+     * they want the place, and then have to work on the build. Without this the only way is to turn each rule
+     * off, do the work, and turn them all back on — and the one that stays off afterwards is the one nobody
+     * notices for a month.
+     *
+     * <p>Per claim and per person, and it reaches no further than this claim: it is not the server-wide admin
+     * bypass, which is a permission and covers every kind of protected ground. Only an owner may hold it, and
+     * removing somebody as an owner takes it with them.
+     *
+     * <p>Not persisted deliberately — see {@link #ignoringOwnRules}. It lasts the session.
+     */
+    private final Set<UUID> ignoringOwnRules =
+            java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
+
     private long createdAt = System.currentTimeMillis();
     private boolean dirty = true;
 
@@ -180,6 +197,37 @@ public final class Claim {
 
     public UUID primaryOwner() {
         return owners.isEmpty() ? null : owners.iterator().next();
+    }
+
+    /**
+     * Whether this owner is currently ignoring their own claim's flags.
+     *
+     * <p>Only ever true for an owner: the check is here rather than at the call site so that removing somebody
+     * as an owner takes their exemption with them, whether or not whoever removed them remembered.
+     */
+    public boolean isIgnoringOwnRules(UUID who) {
+        return who != null && owners.contains(who) && ignoringOwnRules.contains(who);
+    }
+
+    /**
+     * Turns it on or off.
+     *
+     * <p>Deliberately not saved to disk. An exemption that survived a restart would be one somebody switched on
+     * to hang a picture in March and is still running in June — and unlike a flag, nothing on the screen would
+     * be showing them the claim behaving differently from how it reads. It lasts the session and then the claim
+     * goes back to what its owner actually configured.
+     *
+     * @return whether it is now on
+     */
+    public boolean toggleIgnoringOwnRules(UUID who) {
+        if (who == null || !owners.contains(who)) {
+            return false;
+        }
+        if (ignoringOwnRules.remove(who)) {
+            return false;
+        }
+        ignoringOwnRules.add(who);
+        return true;
     }
 
     public boolean isOwner(UUID uuid) {

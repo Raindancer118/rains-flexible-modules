@@ -82,6 +82,18 @@ public record ClaimAreaRule(Claim claim) implements ProtectedArea, IClaimRule {
         return claim.member(who).isPresent() ? LandAudience.TRUSTED : LandAudience.VISITOR;
     }
 
+    /**
+     * Whether this owner has excused themselves from their own rules.
+     *
+     * <p>Flags only — see {@link ProtectedArea#isExemptFromFlags}. It does not make them able to do anything
+     * they could not already do, because an owner may do everything anyway; it stops their own claim's PvP,
+     * elytra and potion rules applying to them while they work on it.
+     */
+    @Override
+    public boolean isExemptFromFlags(UUID who) {
+        return claim.isIgnoringOwnRules(who);
+    }
+
     @Override
     public boolean may(UUID who, LandAction action) {
         if (who == null) {

@@ -103,6 +103,23 @@ public final class ClaimMenu extends ClaimScreen {
                 "The owner's to change",
                 click -> openTheRules(claim));
 
+        // Only for an owner, and only on their own claim: this is not the server-wide bypass, and somebody
+        // who is merely trusted has no rules of their own here to be excused from.
+        if (claim.isOwner(viewer.getUniqueId())) {
+            boolean ignoring = claim.isIgnoringOwnRules(viewer.getUniqueId());
+            band(MenuLayout.RULES, 3,
+                    Icons.of(ignoring ? Material.ENDER_EYE : Material.ENDER_PEARL,
+                            ignoring ? "<green>Ignoring your own rules" : "<gray>Following your own rules",
+                            "<gray>Excuses you from this claim's flags while you work on it.",
+                            "<dark_gray>this claim only, and only until the server restarts",
+                            "",
+                            "<dark_gray>click to " + (ignoring ? "follow them again" : "ignore them")),
+                    click -> {
+                        claim.toggleIgnoringOwnRules(viewer.getUniqueId());
+                        refresh();
+                    });
+        }
+
         band(MenuLayout.RULES, 2, true,
                 Icons.of(Material.COMPARATOR, "<gold>What this claim can do",
                         "<gray>Which perks this claim is allowed at all.",
