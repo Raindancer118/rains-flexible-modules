@@ -71,8 +71,29 @@ public final class ClaimListMenu extends PaginatedMenu<Claim> implements IClaimS
     @Override
     protected ItemStack emptyIcon() {
         return Icons.of(Material.STICK, "<gray>You have no claims yet",
-                "<gray>Start one with <white>/claim new</white>,",
-                "<gray>then mark two corners with the tool.");
+                "<gray>Mark two corners with the tool and",
+                "<gray>the land between them is yours.",
+                "",
+                "<yellow>Click to start <dark_gray>· puts the tool in your hand");
+    }
+
+    /**
+     * Hands them the tool and starts a selection.
+     *
+     * <p>The icon used to name the command to type and do nothing when clicked, which reads as a broken button
+     * rather than as instructions — it is the only thing on the page that is not clickable, and the one a player
+     * with no claims tries first. Reported exactly that way.
+     *
+     * <p>The same route as {@code /claim new}, not a copy of it: the flow revokes any tool they are already
+     * holding, gives a fresh one and tells them what to do with it, and none of that is worth having twice.
+     */
+    @Override
+    protected void emptyAction(InventoryClickEvent event) {
+        viewer.closeInventory();
+        services.selectionFlow().begin(viewer,
+                de.raindancer.modules.claims.selection.Selection.Mode.RECTANGLE,
+                de.raindancer.modules.claims.selection.Selection.Purpose.NEW_CLAIM,
+                null, null, null);
     }
 
     @Override

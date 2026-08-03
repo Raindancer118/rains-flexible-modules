@@ -27,7 +27,9 @@ public final class ZonesMenu extends PaginatedMenu<NoClaimZone> implements IClai
 
     @Override
     protected Component title() {
-        return Component.text("Where nobody may claim");
+        // Short enough not to be clipped at all. The button that opens this still reads "Where nobody may
+        // claim" — a title has 146 pixels and a lore line has the width of the screen.
+        return Component.text("No-claim zones");
     }
 
     @Override
