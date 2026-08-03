@@ -40,4 +40,7 @@ public interface ModerationScreensOpener {
 
     /** Who is on, who is vanished, and who is in staff chat. */
     void staff(Player viewer);
+
+    /** What a player is reporting somebody for — the categories, before the detail. */
+    void reportCategories(Player viewer, UUID subject, String subjectName);
 }

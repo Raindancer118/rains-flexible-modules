@@ -23,7 +23,10 @@ import de.raindancer.modules.moderation.service.ReportService;
 import de.raindancer.modules.moderation.service.StaffChatService;
 import de.raindancer.modules.moderation.store.NoteRegistry;
 import de.raindancer.modules.moderation.store.Reasons;
+import de.raindancer.core.platform.permission.Grants;
+import de.raindancer.modules.moderation.service.StaffService;
 import de.raindancer.modules.moderation.store.ReportRegistry;
+import de.raindancer.modules.moderation.store.StaffRoster;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
 
@@ -69,6 +72,7 @@ public record ModerationServices(
         PlayerAdmin players,
         Inventories inventories,
         Audit audit,
+        Grants grants,
         Supplier<PlayerDirectory> directory,
 
         // ── the module's own ──────────────────────────────────────────────────────────────────
@@ -84,6 +88,8 @@ public record ModerationServices(
         ReportService reportService,
         NoteService noteService,
         StaffChatService staffChat,
+        StaffRoster roster,
+        StaffService staff,
         Supplier<de.raindancer.modules.moderation.listener.StaffChatListener> staffChatSpeaker,
 
         Supplier<ModerationSettings> settings,

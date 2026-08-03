@@ -56,9 +56,9 @@ public final class ReportCommand implements IModerationCommand {
         CommandSender sender = source.getSender();
         ModerationServices moderation = services.get();
 
-        if (args.length < 2) {
+        if (args.length == 0) {
             moderation.messages().send(sender, "moderation.usage",
-                    "usage", "/report <player> <what happened>");
+                    "usage", "/report <player> [what happened]");
             return;
         }
         Optional<OfflinePlayer> found = Players.find(moderation.server(), args[0]);
@@ -67,6 +67,19 @@ public final class ReportCommand implements IModerationCommand {
             return;
         }
         OfflinePlayer them = found.get();
+
+        // Named somebody and nothing else: offer the categories rather than a usage line. Typing the
+        // whole thing still works and is the faster path for anybody who knows what to say.
+        if (args.length == 1) {
+            if (sender instanceof Player viewer) {
+                moderation.screens().reportCategories(viewer, them.getUniqueId(),
+                        Players.nameOf(them));
+            } else {
+                moderation.messages().send(sender, "moderation.usage",
+                        "usage", "/report <player> <what happened>");
+            }
+            return;
+        }
         String what = String.join(" ", java.util.List.of(args).subList(1, args.length)).trim();
         UUID reporter = sender instanceof Player player ? player.getUniqueId() : null;
 

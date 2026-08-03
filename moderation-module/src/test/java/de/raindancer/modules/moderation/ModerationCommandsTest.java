@@ -42,7 +42,7 @@ class ModerationCommandsTest {
 
         assertThat(names).contains("ban", "tempban", "unban", "pardon", "mute", "unmute", "kick",
                 "warn", "freeze", "unfreeze", "history", "vanish", "invsee", "report", "reports",
-                "staffchat", "mod");
+                "staffchat", "mod", "promote", "demote");
     }
 
     @Test

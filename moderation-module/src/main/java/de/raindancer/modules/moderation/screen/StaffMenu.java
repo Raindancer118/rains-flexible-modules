@@ -65,6 +65,9 @@ public final class StaffMenu extends ModerationList<Player> {
     @Override
     protected ItemStack icon(Player who) {
         List<String> lore = new ArrayList<>();
+        services().roster().rankOf(who.getUniqueId()).ifPresentOrElse(
+                rank -> lore.add("<" + rank.colour() + ">" + rank.title()),
+                () -> lore.add("<dark_gray>No rank — permissions from somewhere else."));
         lore.add(services().vanish().isVanished(who.getUniqueId())
                 ? "<gray>Vanished." : "<green>Visible.");
         if (services().staffChat().isTalking(who.getUniqueId())) {

@@ -108,6 +108,18 @@ public final class PlayerMenu extends ModerationScreen {
                 "For whoever may read a record",
                 click -> new HistoryMenu(services(), viewer, this, subject, subjectName).open());
 
+        // Staff rank. Drawn for everybody, greyed for anybody who is not the server owner — so a
+        // moderator can see that ranks exist and that handing them out is not theirs.
+        band(MenuLayout.LAND, 7, viewer.isOp()
+                        || viewer.hasPermission(de.raindancer.modules.moderation.command
+                        .PromoteCommand.USE),
+                Icons.of(Material.IRON_HELMET, "<yellow>Staff rank",
+                        "<gray>" + services().roster().rankOf(subject)
+                                .map(rank -> rank.title()).orElse("Not staff") + ".",
+                        "<dark_gray>Promote, demote, or change one permission."),
+                "Only the server owner may hand out ranks",
+                click -> new RankMenu(services(), viewer, this, subject, subjectName).open());
+
         band(MenuLayout.LAND, 6, may(ModerationPermission.WARN),
                 Icons.of(Material.GOLDEN_APPLE, "<yellow>Put them right",
                         "<gray>Heals and feeds them.",

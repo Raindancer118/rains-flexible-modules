@@ -19,6 +19,7 @@ import de.raindancer.modules.moderation.service.NoteService;
 import de.raindancer.modules.moderation.service.PunishmentService;
 import de.raindancer.modules.moderation.service.ReportService;
 import de.raindancer.modules.moderation.service.StaffChatService;
+import de.raindancer.modules.moderation.service.StaffService;
 import de.raindancer.modules.moderation.store.NoteRegistry;
 import de.raindancer.modules.moderation.store.NoteStorage;
 import de.raindancer.modules.moderation.store.Reasons;
@@ -26,6 +27,8 @@ import de.raindancer.modules.moderation.store.ReportRegistry;
 import de.raindancer.modules.moderation.store.ImmuneStaff;
 import de.raindancer.modules.moderation.store.PendingNotices;
 import de.raindancer.modules.moderation.store.ReportStorage;
+import de.raindancer.modules.moderation.store.StaffRoster;
+import de.raindancer.modules.moderation.util.PermissionNodes;
 import de.raindancer.modules.moderation.util.Players;
 import de.raindancer.modules.moderation.util.Words;
 import org.bukkit.OfflinePlayer;
@@ -84,6 +87,8 @@ public final class ModerationModule implements FlexModule {
     private ReportService reportService;
     private NoteService noteService;
     private StaffChatService staffChat;
+    private StaffRoster roster;
+    private StaffService staffService;
 
     private StaffChatListener staffChatListener;
     private ModerationServices services;
@@ -104,6 +109,14 @@ public final class ModerationModule implements FlexModule {
         // away Core's own lines and every other module's with them.
         Words.define(context.core().messages(),
                 getClass().getClassLoader().getResourceAsStream("messages.yml"));
+
+        // Before anything asks about a permission. Staff are not operators, so every node has to be
+        // registered with a default or hasPermission answers false for everybody who is not op — which
+        // is right for the staff nodes and would make /report refuse every player on the server.
+        int registered = PermissionNodes.register(server);
+        if (registered > 0) {
+            log.info("{} permission(s) registered.", registered);
+        }
 
         reasons = Reasons.builtIn();
         reports = new ReportRegistry();
@@ -149,6 +162,14 @@ public final class ModerationModule implements FlexModule {
                 settings.current());
         staffChat = new StaffChatService(settings.current());
 
+        // Who is staff, at what rank. The nodes themselves are Core's Grants — see StaffRoster for why
+        // the label and the power are kept apart.
+        roster = new StaffRoster(context.dataFolder(), context.core().grants());
+        roster.load();
+        staffService = new StaffService(context.plugin(), server, roster, context.core().grants(),
+                context.core().audit(), context.core().messages(), context.chat(),
+                context.core()::reapplyGrants, settings.current());
+
         reportService.load();
         noteService.load();
         log.info("{} report(s) and {} staff note(s) loaded.", reports.size(), notes.size());
@@ -169,10 +190,11 @@ public final class ModerationModule implements FlexModule {
                 context.core().settingsNavigation(),
                 context.core().punishments(), context.core().punishmentGuard(),
                 context.core().vanish(), context.core().players(), context.core().inventories(),
-                context.core().audit(), () -> directoryOf(server),
+                context.core().audit(), context.core().grants(), () -> directoryOf(server),
                 reasons, reports, notes, staffRule, escalation, announcements, this::standingRule,
                 this::filingRule,
-                punishmentService, reportService, noteService, staffChat, () -> staffChatListener,
+                punishmentService, reportService, noteService, staffChat, roster, staffService,
+                () -> staffChatListener,
                 settings::current, new LiveScreens());
 
         staffChatListener = new StaffChatListener(services);
@@ -187,6 +209,7 @@ public final class ModerationModule implements FlexModule {
             reportService.settings(fresh);
             noteService.settings(fresh);
             staffChat.settings(fresh);
+            staffService.settings(fresh);
             context.core().punishmentGuard().appealMessage(fresh.appealMessage());
         });
 
@@ -209,8 +232,8 @@ public final class ModerationModule implements FlexModule {
         // been answering "not started yet" until now. See ModerationCommands.
         ModerationCommands.ready(services);
 
-        log.info("Moderation is up: {} reason(s), {} report(s) waiting.", reasons.size(),
-                reports.waitingCount());
+        log.info("Moderation is up: {} reason(s), {} report(s) waiting, {} staff.", reasons.size(),
+                reports.waitingCount(), roster.size());
     }
 
     /**
@@ -277,6 +300,12 @@ public final class ModerationModule implements FlexModule {
         }
 
         @Override
+        public void reportCategories(Player viewer, UUID subject, String subjectName) {
+            new de.raindancer.modules.moderation.screen.ReportCategoryMenu(services, viewer, null,
+                    subject, subjectName).open();
+        }
+
+        @Override
         public void staff(Player viewer) {
             new de.raindancer.modules.moderation.screen.StaffMenu(services, viewer, null).open();
         }
@@ -311,6 +340,9 @@ public final class ModerationModule implements FlexModule {
         // exists to stop, and a shutdown is when it would happen.
         if (pending != null && !pending.flush()) {
             log.error("Undelivered notices could not be written on shutdown.");
+        }
+        if (roster != null && !roster.flush()) {
+            log.error("The staff roster could not be written on shutdown.");
         }
         // The listeners are unregistered and the save timer cancelled by the context, in the reverse
         // order everything was registered — see ModuleContext.closeWith.

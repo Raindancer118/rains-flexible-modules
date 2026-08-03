@@ -21,6 +21,20 @@ moderation:
   only-a-player: "<gray>This one is for somebody standing in the world."
   console-use-commands: "<gray>The console has no screens. Try <white>/history</white>, <white>/reports list</white> or <white>/ban</white>."
 
+  # ── staff ranks ──────────────────────────────────────────────────────────
+  rank:
+    changed: "<green><player></white> is now <<colour>><rank></<colour>><gray>."
+    removed: "<yellow><player></white> is no longer staff."
+    you-are-now: "<green>You are now <<colour>><rank></<colour>><gray>. <gray><what>"
+    you-are-no-longer: "<yellow>You are no longer part of the staff."
+    not-staff: "<gray><player> is not staff."
+    unknown: "<red>There is no rank called '<word>'. <gray>Try one of: <ranks>."
+    already-at-the-top: "<gray><player> is already <white><rank></white>, which is the highest rank."
+    not-yours: "<red>Only the server owner may hand out ranks."
+    granted: "<green>Gave <white><player></white> <white><what></white>."
+    revoked: "<yellow>Took <white><what></white> from <white><player></white>."
+    preset-restored: "<green><player></white> is back to exactly what their rank grants."
+
   # ── said late, because they were not there at the time ───────────────────
   while-you-were-away: "<gray>While you were away:"
 
@@ -84,6 +98,7 @@ moderation:
     waiting: "<yellow><count></white> report(s) are waiting. <dark_gray>/reports"
     queue-empty: "<gray>Nothing is waiting."
     queue-more: "<gray>…and <white><count></white> more."
+    type-what-happened: "<gray>What happened? <dark_gray>Reporting <white><player></white> for <white><category></white> — say where and when, so somebody can look."
     type-what-you-did: "<gray>Type what you did about <white><id></white>. <dark_gray>Whoever reported it is told."
     type-why-not: "<gray>Type why there was nothing in <white><id></white>. <dark_gray>Whoever reported it is told."
     closed: "<green><id></white> is closed."

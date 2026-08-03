@@ -112,6 +112,26 @@ public final class Reasons {
         return new Reasons(reasons);
     }
 
+    /**
+     * What a player can pick from when reporting somebody.
+     *
+     * <h2>Why a report needs presets too</h2>
+     * Because the one-word report is the commonest useless one — "griefing", and nothing else — and a
+     * list turns that into a category plus whatever they add. It also makes the queue sortable by what
+     * was reported, which free text never is.
+     *
+     * <p>They are <b>categories, not verdicts</b>: a player saying "this looks like cheating" is not the
+     * server deciding that it was, so these deliberately do not map to a punishment. What a moderator
+     * hands out afterwards is their own decision, from the punishment reasons.
+     *
+     * <p>Custom text still works — {@code /report <player> <anything>} — and always will. A player
+     * describing something the list does not cover is the case a report system exists for.
+     */
+    public static List<String> reportCategories() {
+        return List.of("Griefing", "Stealing", "Cheating", "Harassment", "Spam", "Advertising",
+                "Inappropriate build", "Inappropriate name or skin", "Something else");
+    }
+
     /** Everything, worst last — so the reason a misclick lands on is the cheapest one. */
     public List<Reason> all() {
         List<Reason> everything = new ArrayList<>(byId.values());

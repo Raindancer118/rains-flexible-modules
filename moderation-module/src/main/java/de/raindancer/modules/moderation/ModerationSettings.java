@@ -193,6 +193,14 @@ public record ModerationSettings(
         @Key("staff.vanish-on-join")
         boolean vanishOnJoinForStaff,
 
+        @In("moderation/staff") @Title("Admins are operators")
+        @Describe("Off, and deliberately. Op is not a permission — it is every permission of every "
+                + "plugin on the server, plus /stop and /op itself, so an opped admin can promote "
+                + "themselves and switch off whatever limits them. Turn this on only if your admins "
+                + "are co-owners. Moderators are never opped, whatever this says.")
+        @Key("staff.admins-are-op")
+        boolean adminsAreOp,
+
         @In("moderation/staff") @Title("Let a vanished moderator fly")
         @Key("staff.flight-while-vanished")
         boolean flightWhileVanished,
@@ -236,7 +244,7 @@ public record ModerationSettings(
             "perm", "1h", "15m", true, 3, 30, "perm", true,
             true, true,
             true, 120, 3, 8, true, true,
-            true, true, "<dark_aqua>[Staff]</dark_aqua>", false, true,
+            true, true, "<dark_aqua>[Staff]</dark_aqua>", false, false, true,
             true, 0, 300, false);
 
     /** The report cooldown as the rule wants it. */
@@ -283,8 +291,8 @@ public record ModerationSettings(
                 mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, flightWhileVanished,
-                auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
 
     public ModerationSettings withAnnounceLifts(boolean announce) {
@@ -294,8 +302,8 @@ public record ModerationSettings(
                 warnBanLength, kickOnBan, mirrorToVanillaBanList, importVanillaBans,
                 reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, flightWhileVanished,
-                auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
 
     public ModerationSettings withAnnounceKicks(boolean announce) {
@@ -305,8 +313,8 @@ public record ModerationSettings(
                 warnBanLength, kickOnBan, mirrorToVanillaBanList, importVanillaBans,
                 reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, flightWhileVanished,
-                auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
 
     public ModerationSettings withAnnounceWarnings(boolean announce) {
@@ -316,8 +324,8 @@ public record ModerationSettings(
                 mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, flightWhileVanished,
-                auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
 
     public ModerationSettings withShowModeratorName(boolean named) {
@@ -327,8 +335,8 @@ public record ModerationSettings(
                 mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, flightWhileVanished,
-                auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
 
     public ModerationSettings withWarnsBeforeBan(int howMany) {
@@ -338,7 +346,18 @@ public record ModerationSettings(
                 kickOnBan, mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, flightWhileVanished,
-                auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withAdminsAreOp(boolean opped) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, kickOnBan, mirrorToVanillaBanList, importVanillaBans,
+                reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
+                tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
+                notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, opped,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
 }

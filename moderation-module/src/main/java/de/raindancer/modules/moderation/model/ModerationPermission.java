@@ -19,19 +19,26 @@ import org.bukkit.Material;
  */
 public enum ModerationPermission {
 
-    BAN("ban", "Ban somebody and lift a ban", Material.BARRIER),
-    MUTE("mute", "Stop somebody talking, and let them talk again", Material.PAPER),
-    KICK("kick", "Throw somebody off, once", Material.LEATHER_BOOTS),
-    WARN("warn", "Put a warning on somebody's record", Material.YELLOW_BANNER),
-    FREEZE("freeze", "Stop somebody building while you talk to them", Material.PACKED_ICE),
-    HISTORY("history", "Read what has happened to somebody", Material.BOOK),
-    NOTES("notes", "Read and write the staff notes about somebody", Material.WRITABLE_BOOK),
-    REPORTS("reports", "Read the report queue and deal with what is in it", Material.BELL),
-    VANISH("vanish", "Go invisible, and see who else is", Material.GLASS),
-    INVSEE("invsee", "Look inside somebody's inventory", Material.CHEST),
-    INVSEE_EDIT("invsee.edit", "Change what is in it", Material.HOPPER),
-    STAFF_CHAT("staffchat", "Talk in the staff channel", Material.OAK_SIGN),
-    CONFIG("config", "Change how moderation itself behaves", Material.COMPARATOR);
+    // ── from a trial upward: useful, watched, and stops nobody doing anything ──────────────
+    WARN("warn", "Put a warning on somebody's record", Material.YELLOW_BANNER, 1),
+    HISTORY("history", "Read what has happened to somebody", Material.BOOK, 1),
+    STAFF_CHAT("staffchat", "Talk in the staff channel", Material.OAK_SIGN, 1),
+
+    // ── from a helper upward: can quiet somebody, and look ─────────────────────────────────
+    MUTE("mute", "Stop somebody talking, and let them talk again", Material.PAPER, 2),
+    KICK("kick", "Throw somebody off, once", Material.LEATHER_BOOTS, 2),
+    REPORTS("reports", "Read the report queue and deal with what is in it", Material.BELL, 2),
+    INVSEE("invsee", "Look inside somebody's inventory", Material.CHEST, 2),
+
+    // ── from a moderator upward: the full working set ──────────────────────────────────────
+    BAN("ban", "Ban somebody and lift a ban", Material.BARRIER, 3),
+    FREEZE("freeze", "Stop somebody building while you talk to them", Material.PACKED_ICE, 3),
+    NOTES("notes", "Read and write the staff notes about somebody", Material.WRITABLE_BOOK, 3),
+    VANISH("vanish", "Go invisible, and see who else is", Material.GLASS, 3),
+    INVSEE_EDIT("invsee.edit", "Change what is in it", Material.HOPPER, 3),
+
+    // ── admin only: changes the rules rather than applying them ────────────────────────────
+    CONFIG("config", "Change how moderation itself behaves", Material.COMPARATOR, 4);
 
     /**
      * The one prefix everything is under.
@@ -44,11 +51,30 @@ public enum ModerationPermission {
     private final String suffix;
     private final String description;
     private final Material icon;
+    private final int fromTier;
 
-    ModerationPermission(String suffix, String description, Material icon) {
+    ModerationPermission(String suffix, String description, Material icon, int fromTier) {
         this.suffix = suffix;
         this.description = description;
         this.icon = icon;
+        this.fromTier = fromTier;
+    }
+
+    /**
+     * The lowest staff tier that gets this, by weight — 1 trial, 2 helper, 3 moderator, 4 admin.
+     *
+     * <h2>Why the tier lives here rather than in a list inside {@code StaffRank}</h2>
+     * Because a list is a second place to remember. The version that listed each tier's nodes by hand
+     * had exactly one failure mode, and it was certain: somebody adds a permission, every tier keeps
+     * working, and the new power belongs to nobody — silently, until a moderator asks why they cannot
+     * use it. Here the constructor <em>requires</em> a tier, so the question is asked at the moment the
+     * permission is written and cannot be skipped.
+     *
+     * <p>An {@code int} rather than a {@code StaffRank} on purpose: two enums referring to each other
+     * initialise in whichever order the classloader happens to reach them, and the loser sees nulls.
+     */
+    public int fromTier() {
+        return fromTier;
     }
 
     /** The node as Bukkit matches it — literally, and case-sensitively. */

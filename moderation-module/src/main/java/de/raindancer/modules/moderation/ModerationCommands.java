@@ -6,7 +6,9 @@ import de.raindancer.modules.moderation.command.HistoryCommand;
 import de.raindancer.modules.moderation.command.InvseeCommand;
 import de.raindancer.modules.moderation.command.KickCommand;
 import de.raindancer.modules.moderation.command.LiftCommand;
+import de.raindancer.modules.moderation.command.DemoteCommand;
 import de.raindancer.modules.moderation.command.ModerationCommand;
+import de.raindancer.modules.moderation.command.PromoteCommand;
 import de.raindancer.modules.moderation.command.PunishCommand;
 import de.raindancer.modules.moderation.command.ReportCommand;
 import de.raindancer.modules.moderation.command.ReportsCommand;
@@ -96,7 +98,15 @@ public final class ModerationCommands {
                 ModuleCommand.of("reports", "The report queue",
                         new ReportsCommand(ModerationCommands::require)),
                 ModuleCommand.of("staffchat", "Talks to the staff rather than the server",
-                        new StaffChatCommand(ModerationCommands::require)));
+                        new StaffChatCommand(ModerationCommands::require)),
+
+                // Ops only, and deliberately not grantable by any rank: a power that hands out powers
+                // must not be one of the powers it hands out, or the lowest tier is one promotion away
+                // from the highest.
+                ModuleCommand.of("promote", "Makes somebody staff at one of the four ranks",
+                        new PromoteCommand(ModerationCommands::require)),
+                ModuleCommand.of("demote", "Takes somebody down a rank, or off the staff",
+                        new DemoteCommand(ModerationCommands::require)));
     }
 
     /** Called when the module enables, after which the commands work. */
