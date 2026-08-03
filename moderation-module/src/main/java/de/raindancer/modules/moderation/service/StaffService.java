@@ -202,6 +202,13 @@ public final class StaffService implements IModerationService {
      * never removes: see below.
      */
     private void applyOpPolicy(UUID who) {
+        if (!settings.adminsAreOp()) {
+            // With the setting off, this module has no opinion about op at all — it grants nodes and
+            // nothing else. Returning here rather than falling through to the check below is not a
+            // shortcut: the first live run warned about the owner still being op on *every* rank
+            // change, including promotions, which is a warning about something nobody asked for.
+            return;
+        }
         boolean shouldBeOp = settings.adminsAreOp()
                 && roster.rankOf(who).filter(rank -> rank == StaffRank.ADMIN).isPresent();
 
