@@ -238,6 +238,9 @@ public final class Claim {
         boolean added = owners.add(uuid);
         if (added) {
             members.remove(uuid);
+            // The other order this goes wrong in: bar somebody, then hand them the claim. That would leave an
+            // owner who cannot walk in, and the screen that lifts a ban is inside the claim they cannot reach.
+            bans.remove(uuid);
             markDirty();
         }
         return added;
@@ -420,9 +423,28 @@ public final class Claim {
         return Collections.unmodifiableMap(bans);
     }
 
-    public void ban(ClaimBan ban) {
+    /**
+     * Bars somebody, unless they own the place.
+     *
+     * <p>The rule used to live at each call site — the command checked and refused, the screen checked and
+     * refused. When the screen moved to a chooser that never offers an owner, the check went with it, on the
+     * argument that an impossible input needs no guard. True today, and the wrong place to keep an invariant:
+     * an exclusion list is recomputed on every open, is easy to get subtly wrong, and the next screen that
+     * wants to bar somebody starts from nothing. This is the one line every path goes through.
+     *
+     * <p>Worth guarding because of how it fails. A barred owner is refused entry to their own claim, and the
+     * screen that lifts a ban is inside it — so they cannot undo it themselves, and the claim has to go to an
+     * admin to be rescued.
+     *
+     * @return whether they were barred; false means they own it
+     */
+    public boolean ban(ClaimBan ban) {
+        if (ban == null || isOwner(ban.uuid())) {
+            return false;
+        }
         bans.put(ban.uuid(), ban);
         markDirty();
+        return true;
     }
 
     public boolean unban(UUID uuid) {
