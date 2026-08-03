@@ -68,7 +68,13 @@ public final class ClaimCommand implements IClaimCommand {
         }
         ClaimServices claims = services.get();
         if (args.length == 0) {
-            here(claims, player);
+            // Bare /claim opens the menu. Standing in a claim it opens that claim, because that is what
+            // somebody typing it there wants; standing anywhere else it opens their own claims, because a
+            // command whose whole answer is "you are not standing in a claim" has told the player nothing
+            // they did not know and given them nowhere to go.
+            claims.claimAround(player).ifPresentOrElse(
+                    found -> here(claims, player),
+                    () -> claims.screens().list(player));
             return;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {

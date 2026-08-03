@@ -66,6 +66,7 @@ public final class ClaimAdminCommand implements IClaimCommand {
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "bypass" -> bypass(claims, sender);
             case "overview", "status" -> overview(claims, sender);
+            case "flags", "flag" -> flags(claims, sender);
             case "zone" -> zone(claims, sender);
             case "reload" -> reload(claims, sender);
             case "delete" -> delete(claims, sender, args);
@@ -95,6 +96,16 @@ public final class ClaimAdminCommand implements IClaimCommand {
                 "zones", String.valueOf(claims.zones().all().size()),
                 "tracked", String.valueOf(claims.provider().tracked()),
                 "answering", claims.land().provider().map(who -> who.name()).orElse("nobody"));
+    }
+
+    /** The flag settings: which flags owners may change, and what a new claim starts with. */
+    private void flags(ClaimServices claims, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            claims.messages().send(sender, "error.players-only");
+            return;
+        }
+        claims.messages().send(player, "admin.open-flags");
+        new de.raindancer.modules.claims.screen.FlagPolicyMenu(claims, player, null).open();
     }
 
     private void zone(ClaimServices claims, CommandSender sender) {

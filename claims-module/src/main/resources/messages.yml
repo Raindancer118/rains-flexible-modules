@@ -134,6 +134,12 @@ error:
   ambiguous-claim: "<gray>Several claims are called that: <white><candidates></white>."
 
 admin:
+  # ── the flags, from the server's side ────────────────────────────────────
+  flag-policy-changed: "<green><flag> is now <white><policy></white>."
+  flag-default-changed: "<green>New claims will start with <white><flag></white> <value>."
+  flag-default-not-used: "<gray><flag> is not left to owners, so its starting value is never asked."
+  flag-not-saved: "<red>Changed for now, but it could not be written down — check the console. It will be back as it was after a restart."
+  open-flags: "<gray>Opening the flag settings."
   overview: "<gray><claims> claim(s), <zones> zone(s), <tracked> player(s) tracked. <dark_gray>land answered by <answering>"
   bypass-on: "<green>Bypass on — you can ignore every claim."
   bypass-off: "<gray>Bypass off."

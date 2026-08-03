@@ -81,7 +81,16 @@ public record ClaimServices(
         BroadcastService broadcasts,
         Supplier<ClaimSettings> settings,
         ClaimScreensOpener screens,
-        Supplier<MovementListener> movementTracker) {
+        Supplier<MovementListener> movementTracker,
+        /**
+         * Core itself, for the few things that are the server's rather than this claim's.
+         *
+         * <p>Deliberately last and deliberately narrow: the flags belong to Core, so the screen that sets
+         * which of them owners may touch has to reach Core to read and write them. Everything else here is
+         * already a seam onto exactly what it needs, and this should not become the way to get at anything
+         * Core happens to expose.
+         */
+        de.raindancer.core.RainsCore core) {
 
     /**
      * The border tracker.

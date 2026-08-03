@@ -94,6 +94,14 @@ public final class ClaimsModule implements FlexModule {
         log = context.log();
         land = context.core().land();
 
+        // Before anything that can speak. A module has no messages.yml on disk of its own — it ships its
+        // wording in its jar and runs on the host's Messages, so without this every line it sends comes back
+        // as the raw key. That shipped once: /claim answered "claim.nonehere".
+        //
+        // It lands as a floor, so the owner's file and the host's own bundled wording both still win.
+        context.core().messages().defineFrom(
+                ClaimsModule.class.getResourceAsStream("/messages.yml"));
+
         featurePolicies = FeaturePolicies.builtIn();
         features = new FeatureRules(featurePolicies);
 
@@ -164,7 +172,8 @@ public final class ClaimsModule implements FlexModule {
                 context.core().messages(), context.chat().brand(), context.core().prompts(), land,
                 land.flags(), features, claims, storage, zones, claimService, names, rights, provider,
                 costs, selections, stick, selectionFlow, visualizer, fences, ambience, entryFees,
-                eviction, equipment, broadcasts, settings::current, new LiveScreens(), () -> movement);
+                eviction, equipment, broadcasts, settings::current, new LiveScreens(), () -> movement,
+                context.core());
         movement = new MovementListener(services);
         ambience.movement(movement);
 

@@ -38,6 +38,12 @@ public final class AdminMenu extends ClaimScreen {
                         "<dark_gray>server-wide"),
                 click -> new FeaturesMenu(services(), viewer, null, this).open());
 
+        band(MenuLayout.WHO, 3, Icons.of(Material.LEVER, "<gold>Flags",
+                        "<gray>Which flags owners may change,",
+                        "<gray>and what a new claim starts with.",
+                        "<dark_gray>server-wide · saved as you click"),
+                click -> new FlagPolicyMenu(services(), viewer, this).open());
+
         band(MenuLayout.WHO, 4, Icons.of(Material.BARRIER, "<gold>Where nobody may claim",
                         "<gray>" + services().zones().all().size() + " area(s) marked out.",
                         "<dark_gray>mark another with /claimadmin zone"),
