@@ -5,7 +5,7 @@ import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimShape;
 import de.raindancer.modules.claims.model.NoClaimZone;
-import de.raindancer.modules.claims.rules.ClaimRights;
+import de.raindancer.modules.claims.rules.ClaimRightsRule;
 import de.raindancer.modules.claims.service.ClaimService;
 import de.raindancer.modules.claims.store.ClaimRegistry;
 import de.raindancer.modules.claims.store.ZoneRegistry;
@@ -47,7 +47,7 @@ public final class SelectionFlow {
     private final ZoneRegistry zones;
     private final Runnable saveZones;
     private final BorderVisualizer visualizer;
-    private final ClaimRights rights;
+    private final ClaimRightsRule rights;
 
     /** Read fresh each time rather than captured: a reload must change what happens next, not next restart. */
     private final Supplier<ClaimSettings> settings;
@@ -59,7 +59,7 @@ public final class SelectionFlow {
                          Messages messages, ChatPrompts prompts,
                          SelectionService selections, SelectionStick stick, ClaimRegistry claims,
                          ClaimService claimService, ZoneRegistry zones, Runnable saveZones,
-                         BorderVisualizer visualizer, ClaimRights rights,
+                         BorderVisualizer visualizer, ClaimRightsRule rights,
                          Supplier<ClaimSettings> settings) {
         this.plugin = plugin;
         this.server = server;
@@ -295,6 +295,9 @@ public final class SelectionFlow {
             case IN_NO_CLAIM_ZONE -> "error.in-no-claim-zone";
             case CANNOT_AFFORD -> "error.cannot-afford";
             case UNDERGROUND_DISALLOWED -> "error.underground-disallowed";
+            // A rule the module did not write. Its own key is the honest thing to show, and the
+            // detail carries whatever it wanted to say.
+            case OTHER -> "error.generic";
             case null -> "error.generic";
         };
         messages.send(player, key, "detail", result.detail() == null ? "" : result.detail());

@@ -5,8 +5,8 @@ import de.raindancer.modules.claims.model.BroadcastScope;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.model.ClaimPoint;
-import de.raindancer.modules.claims.rules.ClaimNames;
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.model.ClaimNames;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.core.ui.messages.Messages;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
@@ -35,11 +35,11 @@ public final class BroadcastService {
     private final Plugin plugin;
     /** A snapshot, replaced on reload — see settings(ClaimSettings). */
     private volatile ClaimSettings settings;
-    private final Features features;
+    private final FeatureRules features;
     private final Messages messages;
     private final ClaimNames claimNames;
 
-    public BroadcastService(Plugin plugin, ClaimSettings settings, Features features,
+    public BroadcastService(Plugin plugin, ClaimSettings settings, FeatureRules features,
                             Messages messages, ClaimNames claimNames) {
         this.plugin = plugin;
         this.settings = settings;

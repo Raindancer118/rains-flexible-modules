@@ -1,6 +1,6 @@
 package de.raindancer.modules.claims.model;
 
-import de.raindancer.modules.claims.rules.ClaimArea;
+import de.raindancer.modules.claims.rules.ClaimAreaRule;
 import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.core.world.protection.LandAudience;
 import de.raindancer.core.world.protection.LandFlag;
@@ -10,7 +10,6 @@ import org.bukkit.inventory.ItemStack;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -75,7 +74,7 @@ public final class Claim {
     private boolean effectsEnabled = true;
 
     /** Made on first use; see area(). */
-    private ClaimArea area;
+    private ClaimAreaRule area;
 
     private long createdAt = System.currentTimeMillis();
     private boolean dirty = true;
@@ -131,10 +130,10 @@ public final class Claim {
      * <p>Held rather than made each time: it is asked for several times a tick by the protection listeners, and
      * it carries no state of its own beyond a reference back to here.
      */
-    public ClaimArea area() {
-        ClaimArea existing = area;
+    public ClaimAreaRule area() {
+        ClaimAreaRule existing = area;
         if (existing == null) {
-            existing = new ClaimArea(this);
+            existing = new ClaimAreaRule(this);
             area = existing;
         }
         return existing;

@@ -7,7 +7,7 @@ import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimBan;
-import de.raindancer.modules.claims.rules.ClaimNames;
+import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.ClaimServices;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;

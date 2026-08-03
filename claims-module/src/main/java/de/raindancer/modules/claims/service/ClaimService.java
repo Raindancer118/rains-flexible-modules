@@ -1,13 +1,15 @@
 package de.raindancer.modules.claims.service;
 
+import de.raindancer.modules.claims.model.ClaimAttempt;
+import de.raindancer.core.platform.rule.Verdict;
+import de.raindancer.core.platform.rule.Rules;
 import de.raindancer.modules.claims.ClaimSettings;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.model.ClaimShape;
 import de.raindancer.modules.claims.model.CostType;
-import de.raindancer.modules.claims.model.NoClaimZone;
-import de.raindancer.modules.claims.rules.ClaimRights;
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.rules.ClaimRightsRule;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.modules.claims.store.ClaimRegistry;
 import de.raindancer.modules.claims.store.ClaimStorage;
 import de.raindancer.modules.claims.store.ZoneRegistry;
@@ -25,7 +27,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 /**
  * Creation, validation, resizing and deletion of claims plus the persistence orchestration.
@@ -35,7 +36,6 @@ import java.util.regex.Pattern;
  */
 public final class ClaimService {
 
-    private static final Pattern VALID_NAME = Pattern.compile("[A-Za-z0-9_\\-]{3,24}");
 
     /** Why a claim could not be created. */
     public enum Failure {
@@ -50,7 +50,14 @@ public final class ClaimService {
         OVERLAPS_CLAIM,
         IN_NO_CLAIM_ZONE,
         CANNOT_AFFORD,
-        UNDERGROUND_DISALLOWED
+        UNDERGROUND_DISALLOWED,
+        /**
+         * A rule this class does not know the key of said no.
+         *
+         * <p>Exists so a plugin can add a rule of its own without this switch having to learn about it: the
+         * refusal still reaches the player, worded from the rule's own message key.
+         */
+        OTHER
     }
 
     public record Result(boolean success, Failure failure, Claim claim, String detail) {
@@ -71,13 +78,15 @@ public final class ClaimService {
     /** A snapshot, replaced on reload — see settings(ClaimSettings). */
     private volatile ClaimSettings settings;
     private final CostService costs;
-    private final ClaimRights rights;
+    private final ClaimRightsRule rights;
+    /** The reasons a claim might be refused. Set once the settings supplier exists. */
+    private Rules<ClaimAttempt> rules = Rules.of();
     /** Set after construction — the fence service needs this service, so the cycle is broken here. */
     private FenceService fences;
-    private Features features;
+    private FeatureRules features;
 
     public ClaimService(Plugin plugin, ClaimRegistry registry, ZoneRegistry zones, ClaimStorage storage,
-                        ClaimSettings settings, CostService costs, ClaimRights rights) {
+                        ClaimSettings settings, CostService costs, ClaimRightsRule rights) {
         this.rights = rights;
         this.plugin = plugin;
         this.logger = plugin.getLogger();
@@ -100,61 +109,68 @@ public final class ClaimService {
     }
 
     /** Wired up once the features are known, so a claim can be refused a perk the server took away. */
-    public void features(Features features) {
+    public void features(FeatureRules features) {
         this.features = features;
+    }
+
+    /** The chain a claim is judged by. Handed in rather than built here, so a server can lengthen it. */
+    public void rules(Rules<ClaimAttempt> rules) {
+        this.rules = rules;
+    }
+
+    /** What a claim is judged by right now — for the diagnostic that lists the reasons. */
+    public Rules<ClaimAttempt> rules() {
+        return rules;
     }
 
     // ------------------------------------------------------------ validation
 
+    /** Kept as a forwarder: the rule lives with the names now, and the screens already call it there. */
     public boolean isValidName(String name) {
-        return name != null && VALID_NAME.matcher(name).matches();
+        return de.raindancer.modules.claims.model.ClaimNames.isValidName(name);
     }
 
     /**
      * Runs every rule except the cost check, which is separate because the GUI wants to preview the
      * price before charging it.
      */
-    public Optional<Result> validate(Player player, World world, ClaimShape shape, String name, UUID ignoreClaimId) {
-        if (!settings.worldEnabled(world.getName())) {
-            return Optional.of(Result.fail(Failure.WORLD_DISABLED, world.getName()));
-        }
-        if (name != null && !isValidName(name)) {
-            return Optional.of(Result.fail(Failure.NAME_INVALID, name));
-        }
-        if (name != null) {
-            // Per owner, not per server: somebody else's "home" is not in the way of this one.
-            for (Claim existing : registry.allByName(name)) {
-                if (!existing.id().equals(ignoreClaimId) && existing.isOwner(player.getUniqueId())) {
-                    return Optional.of(Result.fail(Failure.NAME_TAKEN, name));
-                }
-            }
-        }
-        if (shape.vertices().size() > settings.maxVertices()) {
-            return Optional.of(Result.fail(Failure.TOO_MANY_VERTICES, String.valueOf(settings.maxVertices())));
-        }
-        long area = shape.areaBlocks();
-        if (area < settings.minClaimArea()) {
-            return Optional.of(Result.fail(Failure.TOO_SMALL, String.valueOf(settings.minClaimArea())));
-        }
-        long maxArea = settings.maxClaimArea();
-        if (maxArea > 0 && area > maxArea) {
-            return Optional.of(Result.fail(Failure.TOO_LARGE, String.valueOf(maxArea)));
-        }
-        if (!settings.allowUndergroundClaims()
-                && (shape.minY() > world.getMinHeight() || shape.maxY() < world.getMaxHeight() - 1)) {
-            return Optional.of(Result.fail(Failure.UNDERGROUND_DISALLOWED, ""));
-        }
-        Optional<NoClaimZone> zone = zones.firstOverlap(world.getUID(), shape);
-        if (zone.isPresent() && !player.hasPermission("rec.admin.zonebypass")) {
-            return Optional.of(Result.fail(Failure.IN_NO_CLAIM_ZONE, zone.get().name()));
-        }
-        if (settings.allowOverlappingWorldsOnly()) {
-            Optional<Claim> overlap = firstOverlap(world.getUID(), shape, ignoreClaimId);
-            if (overlap.isPresent()) {
-                return Optional.of(Result.fail(Failure.OVERLAPS_CLAIM, overlap.get().name()));
-            }
-        }
-        return Optional.empty();
+    /**
+     * Whether this claim may be made or redrawn, and why not.
+     *
+     * <p>The nine reasons live in {@link de.raindancer.modules.claims.rules.ClaimRules} as rules, one class
+     * each. This used to be ninety lines returning early nine times, which meant nothing could add a tenth
+     * reason, nothing could list them, and reaching the sixth in a test meant getting past the first five.
+     */
+    public Optional<Result> validate(Player player, World world, ClaimShape shape, String name,
+                                     UUID ignoreClaimId) {
+        Claim existing = ignoreClaimId == null ? null : registry.byId(ignoreClaimId).orElse(null);
+        ClaimAttempt attempt = new ClaimAttempt(player, world, shape, name, existing);
+        Verdict verdict = rules.judge(attempt);
+        return verdict.isAllowed()
+                ? Optional.empty()
+                : Optional.of(Result.fail(failureFor(verdict.reason()), verdict.detail()));
+    }
+
+    /**
+     * The message key a rule refused with, as the failure the callers already switch on.
+     *
+     * <p>A seam kept deliberately narrow: the rules speak in message keys, because that is what a player is
+     * eventually shown, and the Result type predates them. Anything unrecognised is a generic failure rather
+     * than a crash — a plugin that added its own rule with its own key still gets a sensible refusal.
+     */
+    private static Failure failureFor(String reason) {
+        return switch (reason) {
+            case "error.world-disabled" -> Failure.WORLD_DISABLED;
+            case "error.name-invalid" -> Failure.NAME_INVALID;
+            case "error.name-taken" -> Failure.NAME_TAKEN;
+            case "error.too-many-vertices" -> Failure.TOO_MANY_VERTICES;
+            case "error.claim-too-small" -> Failure.TOO_SMALL;
+            case "error.claim-too-large" -> Failure.TOO_LARGE;
+            case "error.underground-disallowed" -> Failure.UNDERGROUND_DISALLOWED;
+            case "error.in-no-claim-zone" -> Failure.IN_NO_CLAIM_ZONE;
+            case "error.overlaps-claim" -> Failure.OVERLAPS_CLAIM;
+            default -> Failure.OTHER;
+        };
     }
 
     public Optional<Claim> firstOverlap(UUID worldId, ClaimShape shape, UUID ignoreClaimId) {

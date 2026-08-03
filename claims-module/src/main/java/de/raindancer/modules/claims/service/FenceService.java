@@ -7,7 +7,7 @@ import de.raindancer.modules.claims.model.ClaimFence;
 import de.raindancer.modules.claims.model.ClaimPoint;
 import de.raindancer.modules.claims.model.ClaimShape;
 import de.raindancer.modules.claims.model.FenceSegment;
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.modules.claims.util.BlockConnector;
 import de.raindancer.modules.claims.visual.OutlineGeometry;
 import de.raindancer.core.platform.util.Scheduling;
@@ -73,9 +73,9 @@ public final class FenceService {
     /** A snapshot, replaced on reload — see settings(ClaimSettings). */
     private volatile ClaimSettings settings;
     private final ClaimService claims;
-    private final Features features;
+    private final FeatureRules features;
 
-    public FenceService(Plugin plugin, ClaimSettings settings, ClaimService claims, Features features) {
+    public FenceService(Plugin plugin, ClaimSettings settings, ClaimService claims, FeatureRules features) {
         this.features = features;
         this.plugin = plugin;
         this.settings = settings;

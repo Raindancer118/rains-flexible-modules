@@ -3,7 +3,7 @@ package de.raindancer.modules.claims;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimPoint;
 import de.raindancer.modules.claims.model.ClaimShape;
-import de.raindancer.modules.claims.rules.ClaimNames;
+import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.store.ClaimRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

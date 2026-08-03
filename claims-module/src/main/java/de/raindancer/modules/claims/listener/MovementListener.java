@@ -4,7 +4,7 @@ import de.raindancer.modules.claims.ClaimServices;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimBan;
 import de.raindancer.modules.claims.model.ClaimFeature;
-import de.raindancer.modules.claims.rules.ClaimNames;
+import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.core.world.protection.LandFlag;

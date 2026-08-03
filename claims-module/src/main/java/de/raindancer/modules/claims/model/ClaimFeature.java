@@ -1,6 +1,6 @@
 package de.raindancer.modules.claims.model;
 
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.core.world.protection.LandAudience;
 import de.raindancer.core.world.protection.LandFlag;
 import org.bukkit.Material;
@@ -130,7 +130,7 @@ public enum ClaimFeature {
 
     /**
      * Whether the claim has its own on/off switch for this, which is what {@code forced-on} overrides.
-     * Features without one cycle between "available" and "forced off" only.
+     * FeatureRules without one cycle between "available" and "forced off" only.
      */
     public boolean ownerSwitchable() {
         return ownerSwitchable;

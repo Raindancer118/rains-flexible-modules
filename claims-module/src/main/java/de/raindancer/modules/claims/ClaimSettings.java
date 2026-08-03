@@ -518,6 +518,25 @@ public record ClaimSettings(
                 creationCostItemEncoded, debug);
     }
 
+    /** The same, for the disabled-world list — the third thing a caller varies on its own. */
+    public ClaimSettings withDisabledWorlds(List<String> worlds) {
+        return new ClaimSettings(maxClaimsDefault, minClaimArea, maxClaimArea, maxVertices, minClaimHeight,
+                allowOverlappingWorldsOnly, creationCostType, creationCostAmount, creationCostPerBlock,
+                creationCostBlocksPerUnit, refundOnDelete, shrinkRefundRate, chargeOnGrow, entryFeeMaxAmount,
+                entryFeeDeclineCooldownSeconds, entryFeePromptTimeoutSeconds, entryFeeExemptTrusted,
+                entryFeeExemptAdmins, fenceAutoBuild, fenceChargeMaterial, fenceDefaultMaterial, fenceHeight,
+                fenceMaxColumns, fenceMaxStep, fenceRefundToBank, maxClaimEffects, maxEffectAmplifier,
+                effectsRequirePotions, effectPotionMinutes, potionStoreMaxStacks, claimThunderBolts,
+                maxEquipRules, equipmentMaxStacks, pantryMaxStacks, broadcastNearbyRadius, broadcastScope,
+                broadcastKick, broadcastBan, broadcastTimeout, broadcastLift, enterMessageActionBar,
+                borderOnEnterSeconds, notificationCooldownSeconds, visualDurationSeconds, visualRadius,
+                visualSpacing, visualMaxPointsPerTick, visualShowVerticalPillars, visualMode, visualEdgeBlock,
+                visualCornerBlock, visualZoneBlock, selectionStickMaterial, selectionMarkerBlock, verticalMode,
+                selectionStickGlint, verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
+                hiddenUndergroundNotificationsMuted, autoSaveSeconds, worlds,
+                creationCostItemEncoded, debug);
+    }
+
     /** Whether a claim of this many blocks is within the configured limits. */
     public boolean areaIsAllowed(long area) {
         if (area < minClaimArea) {

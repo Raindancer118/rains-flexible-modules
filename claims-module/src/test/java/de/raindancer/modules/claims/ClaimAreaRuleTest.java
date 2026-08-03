@@ -5,7 +5,7 @@ import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimBan;
 import de.raindancer.modules.claims.model.ClaimPoint;
 import de.raindancer.modules.claims.model.ClaimShape;
-import de.raindancer.modules.claims.rules.ClaimArea;
+import de.raindancer.modules.claims.rules.ClaimAreaRule;
 import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.core.world.protection.LandAudience;
 import de.raindancer.core.world.protection.LandFlag;
@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Each test pins one step of the order, and the one people get wrong is the ban: banning somebody who
  * happens to be trusted has to actually stop them, or the ban is decoration.
  */
-class ClaimAreaTest {
+class ClaimAreaRuleTest {
 
     private final UUID owner = UUID.randomUUID();
 
@@ -39,8 +39,8 @@ class ClaimAreaTest {
         return new Claim(UUID.randomUUID(), "home", UUID.randomUUID(), "world", shape, owner);
     }
 
-    private static ClaimArea areaOf(Claim claim) {
-        return new ClaimArea(claim);
+    private static ClaimAreaRule areaOf(Claim claim) {
+        return new ClaimAreaRule(claim);
     }
 
     @Nested
@@ -49,7 +49,7 @@ class ClaimAreaTest {
 
         @Test
         void anOwnerMayDoAnything() {
-            ClaimArea area = areaOf(claim());
+            ClaimAreaRule area = areaOf(claim());
             for (LandAction action : LandAction.values()) {
                 assertThat(area.may(owner, action))
                         .as("an owner should hold %s", action)
@@ -59,7 +59,7 @@ class ClaimAreaTest {
 
         @Test
         void aStrangerGetsOnlyWhatIsPublic() {
-            ClaimArea area = areaOf(claim());
+            ClaimAreaRule area = areaOf(claim());
             UUID stranger = UUID.randomUUID();
 
             assertThat(area.may(stranger, LandAction.ENTER)).isTrue();
@@ -133,7 +133,7 @@ class ClaimAreaTest {
         @Test
         void nobodyInParticularGetsThePublicGrant() {
             // Core asks with a null uuid for the things that happen with no player behind them.
-            ClaimArea area = areaOf(claim());
+            ClaimAreaRule area = areaOf(claim());
             assertThat(area.may(null, LandAction.ENTER)).isTrue();
             assertThat(area.may(null, LandAction.BUILD)).isFalse();
         }
@@ -171,7 +171,7 @@ class ClaimAreaTest {
             UUID friend = UUID.randomUUID();
             claim.memberOrCreate(friend);
 
-            ClaimArea area = areaOf(claim);
+            ClaimAreaRule area = areaOf(claim);
             assertThat(area.audienceOf(owner)).isEqualTo(LandAudience.OWNER);
             assertThat(area.audienceOf(friend)).isEqualTo(LandAudience.TRUSTED);
             assertThat(area.audienceOf(UUID.randomUUID())).isEqualTo(LandAudience.VISITOR);

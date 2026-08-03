@@ -5,8 +5,8 @@ import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.model.ClaimPoint;
 import de.raindancer.modules.claims.model.ClaimShape;
 import de.raindancer.modules.claims.model.FeaturePolicy;
-import de.raindancer.modules.claims.rules.FeaturePolicies;
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.store.FeaturePolicies;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.core.world.protection.LandAudience;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,10 +28,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * owner who switched the perk off, forced-off has to beat an owner who switched it on, and available has to
  * leave them alone. Get the last one wrong and every claim on the server silently changes behaviour.
  */
-class FeaturesTest {
+class FeatureRulesTest {
 
     private final FeaturePolicies policies = FeaturePolicies.builtIn();
-    private final Features features = new Features(policies);
+    private final FeatureRules features = new FeatureRules(policies);
 
     private static Claim claim() {
         ClaimShape shape = new ClaimShape(List.of(

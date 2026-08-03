@@ -1,5 +1,6 @@
-package de.raindancer.modules.claims.rules;
+package de.raindancer.modules.claims.store;
 
+import de.raindancer.modules.claims.rules.ClaimAreaRule;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.store.ClaimRegistry;
 import de.raindancer.core.world.protection.LandProvider;
@@ -48,7 +49,7 @@ public final class ClaimLandProvider implements LandProvider {
 
     @Override
     public Optional<ProtectedArea> at(Location location) {
-        return claims.at(location).map(ClaimArea::new);
+        return claims.at(location).map(ClaimAreaRule::new);
     }
 
     @Override
@@ -57,7 +58,7 @@ public final class ClaimLandProvider implements LandProvider {
             return Optional.empty();
         }
         Claim remembered = lastKnown(player.getUniqueId()).orElse(null);
-        return claims.at(player.getLocation(), remembered).map(ClaimArea::new);
+        return claims.at(player.getLocation(), remembered).map(ClaimAreaRule::new);
     }
 
     @Override

@@ -2,7 +2,7 @@ package de.raindancer.modules.claims;
 
 import de.raindancer.modules.claims.model.BroadcastScope;
 import de.raindancer.modules.claims.model.CostType;
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.core.data.settings.Setting;
 import de.raindancer.core.data.settings.SettingsSchema;
 import org.bukkit.Material;
@@ -91,7 +91,7 @@ class ClaimSettingsTest {
 
     @Nested
     @DisplayName("entry fees, fences and perks")
-    class Features {
+    class FeatureRules {
 
         @Test
         void entryFeesAreWhatTheyWere() {

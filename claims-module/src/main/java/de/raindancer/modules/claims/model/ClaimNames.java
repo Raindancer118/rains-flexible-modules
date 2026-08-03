@@ -1,4 +1,4 @@
-package de.raindancer.modules.claims.rules;
+package de.raindancer.modules.claims.model;
 
 
 import de.raindancer.modules.claims.model.Claim;
@@ -18,6 +18,19 @@ import java.util.UUID;
  * reads the way a path does, which is what it is.
  */
 public final class ClaimNames {
+
+    /**
+     * What a claim may be called: letters, digits, dashes and underscores, three to twenty-four of them.
+     *
+     * <p>Here rather than in the service that used to own it, because both the rule and the rename screen ask —
+     * and two copies of a name rule is one screen accepting what the other refuses.
+     */
+    private static final java.util.regex.Pattern VALID_NAME =
+            java.util.regex.Pattern.compile("[A-Za-z0-9_\\-]{3,24}");
+
+    public static boolean isValidName(String name) {
+        return name != null && VALID_NAME.matcher(name).matches();
+    }
 
     /** Separates the owner from the claim in a qualified name. */
     public static final char SEPARATOR = '/';

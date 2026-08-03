@@ -1,9 +1,9 @@
 package de.raindancer.modules.claims.command;
 
 import de.raindancer.modules.claims.model.Claim;
-import de.raindancer.modules.claims.rules.ClaimNames;
+import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.model.Claim;
-import de.raindancer.modules.claims.rules.ClaimNames;
+import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.ClaimServices;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;

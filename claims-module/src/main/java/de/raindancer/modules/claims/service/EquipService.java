@@ -5,8 +5,8 @@ import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimEquipment;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.model.EquipRule;
-import de.raindancer.modules.claims.rules.ClaimNames;
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.model.ClaimNames;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.protection.Land;
 import de.raindancer.core.world.protection.LandAction;
@@ -28,13 +28,13 @@ public final class EquipService {
 
     /** A snapshot, replaced on reload — see settings(ClaimSettings). */
     private volatile ClaimSettings settings;
-    private final Features features;
+    private final FeatureRules features;
     private final Land protection;
     private final ClaimService claimService;
     private final Messages messages;
     private final ClaimNames claimNames;
 
-    public EquipService(ClaimSettings settings, Features features, Land protection,
+    public EquipService(ClaimSettings settings, FeatureRules features, Land protection,
                         ClaimService claimService, Messages messages, ClaimNames claimNames) {
         this.settings = settings;
         this.features = features;

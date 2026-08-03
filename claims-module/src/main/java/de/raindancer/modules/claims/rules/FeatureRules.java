@@ -1,5 +1,6 @@
 package de.raindancer.modules.claims.rules;
 
+import de.raindancer.modules.claims.store.FeaturePolicies;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.model.FeaturePolicy;
@@ -18,11 +19,17 @@ import java.util.List;
  * the decision with them. Where a feature serves people rather than the claim, the owner's chosen
  * {@link LandAudience} set narrows it further.
  */
-public final class Features {
+public final class FeatureRules implements IClaimRule {
+
+    @Override
+    public String describe() {
+        return "what a claim is allowed to do at all";
+    }
+
 
     private final FeaturePolicies settings;
 
-    public Features(FeaturePolicies settings) {
+    public FeatureRules(FeaturePolicies settings) {
         this.settings = settings;
     }
 
@@ -92,7 +99,7 @@ public final class Features {
     /**
      * The claim's own switch for a feature that has one.
      * <p>
-     * Features without a switch of their own are simply on wherever they are offered — "may this claim
+     * FeatureRules without a switch of their own are simply on wherever they are offered — "may this claim
      * be renamed" has no third state between the server allowing it and the owner doing it.
      */
     private boolean ownerSwitch(Claim claim, ClaimFeature feature) {

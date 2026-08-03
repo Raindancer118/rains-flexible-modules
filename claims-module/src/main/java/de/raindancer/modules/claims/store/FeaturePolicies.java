@@ -1,5 +1,6 @@
-package de.raindancer.modules.claims.rules;
+package de.raindancer.modules.claims.store;
 
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.model.FeaturePolicy;
 import java.util.EnumMap;
@@ -8,7 +9,7 @@ import java.util.Map;
 /**
  * What the server owner has decided about the optional things a claim can do.
  *
- * <p>Features stayed with the claims module while flags went to Core, and the line between them is worth
+ * <p>FeatureRules stayed with the claims module while flags went to Core, and the line between them is worth
  * stating: a <b>flag</b> says how the world behaves on protected ground — fire, decay, PvP — and any region
  * plugin would want the same list. A <b>feature</b> is a pantry, a bank, a fence, an entry fee. Those are
  * things a claim <em>has</em>, and an arena or a plot world would have no idea what to do with them.

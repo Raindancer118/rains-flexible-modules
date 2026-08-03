@@ -37,7 +37,13 @@ import java.util.UUID;
  * <p>The admin bypass is deliberately <em>not</em> here. It is Core's, checked before this is ever consulted,
  * so a region plugin cannot forget to honour it.
  */
-public record ClaimArea(Claim claim) implements ProtectedArea {
+public record ClaimAreaRule(Claim claim) implements ProtectedArea, IClaimRule {
+
+    @Override
+    public String describe() {
+        return "who may do what inside a claim";
+    }
+
 
     @Override
     public String id() {

@@ -8,8 +8,8 @@ import de.raindancer.modules.claims.model.ClaimEffect;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.model.ClaimPantry;
 import de.raindancer.modules.claims.model.PotionStore;
-import de.raindancer.modules.claims.rules.ClaimNames;
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.model.ClaimNames;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.modules.claims.store.ClaimRegistry;
 import de.raindancer.modules.claims.visual.RainPackets;
 import de.raindancer.core.platform.util.Scheduling;
@@ -48,7 +48,7 @@ public final class AmbienceService {
     private static final long FEED_COOLDOWN_MILLIS = 4_000L;
 
     private final Plugin plugin;
-    private final Features features;
+    private final FeatureRules features;
     private final ClaimRegistry claims;
     private final Land protection;
     private final ClaimService claimService;
@@ -71,7 +71,7 @@ public final class AmbienceService {
     private final Map<UUID, java.util.Set<org.bukkit.potion.PotionEffectType>> granted =
             new ConcurrentHashMap<>();
 
-    public AmbienceService(Plugin plugin, Features features, ClaimRegistry claims,
+    public AmbienceService(Plugin plugin, FeatureRules features, ClaimRegistry claims,
                            Land protection,
                            ClaimService claimService, ClaimSettings settings, Messages messages,
                            ClaimNames claimNames) {

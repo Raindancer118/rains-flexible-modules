@@ -5,7 +5,7 @@ import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.model.CostType;
 import de.raindancer.modules.claims.model.EntryFee;
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.protection.Land;
@@ -55,7 +55,7 @@ public final class EntryFeeService {
     private final CostService costs;
     private final ClaimService claims;
     private final Land protection;
-    private final Features features;
+    private final FeatureRules features;
 
     private final Map<UUID, Pass> passes = new ConcurrentHashMap<>();
     private final Map<UUID, Prompt> prompts = new ConcurrentHashMap<>();
@@ -63,7 +63,7 @@ public final class EntryFeeService {
     private final Map<UUID, Map<UUID, Long>> declineCooldowns = new ConcurrentHashMap<>();
 
     public EntryFeeService(Plugin plugin, ClaimSettings settings, Messages messages, CostService costs,
-                           ClaimService claims, Land protection, Features features) {
+                           ClaimService claims, Land protection, FeatureRules features) {
         this.features = features;
         this.plugin = plugin;
         this.settings = settings;

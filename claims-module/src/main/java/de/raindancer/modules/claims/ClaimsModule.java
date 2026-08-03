@@ -5,11 +5,11 @@ import de.raindancer.modules.claims.listener.MovementListener;
 import de.raindancer.modules.claims.listener.PlayerSessionListener;
 import de.raindancer.modules.claims.listener.SelectionListener;
 import de.raindancer.modules.claims.model.Claim;
-import de.raindancer.modules.claims.rules.ClaimLandProvider;
-import de.raindancer.modules.claims.rules.ClaimNames;
-import de.raindancer.modules.claims.rules.ClaimRights;
-import de.raindancer.modules.claims.rules.FeaturePolicies;
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.store.ClaimLandProvider;
+import de.raindancer.modules.claims.model.ClaimNames;
+import de.raindancer.modules.claims.rules.ClaimRightsRule;
+import de.raindancer.modules.claims.store.FeaturePolicies;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.modules.claims.selection.SelectionFlow;
 import de.raindancer.modules.claims.selection.SelectionService;
 import de.raindancer.modules.claims.selection.SelectionStick;
@@ -61,11 +61,11 @@ public final class ClaimsModule implements FlexModule {
     private ClaimStorage storage;
     private ClaimLandProvider provider;
     private FeaturePolicies featurePolicies;
-    private Features features;
+    private FeatureRules features;
     private ClaimNames names;
     private LogChannel log;
     private Land land;
-    private ClaimRights rights;
+    private ClaimRightsRule rights;
     private de.raindancer.core.data.settings.SettingsStore<ClaimSettings> settings;
     private ZoneRegistry zones;
     private ZoneStorage zoneStorage;
@@ -95,7 +95,7 @@ public final class ClaimsModule implements FlexModule {
         land = context.core().land();
 
         featurePolicies = FeaturePolicies.builtIn();
-        features = new Features(featurePolicies);
+        features = new FeatureRules(featurePolicies);
 
         claims = new ClaimRegistry();
         storage = new ClaimStorage(context.dataFolder());
@@ -128,7 +128,7 @@ public final class ClaimsModule implements FlexModule {
         context.closeWith(() -> land.withdraw(provider));
 
         // ── the product layer ─────────────────────────────────────────────────────────────────────────
-        rights = new ClaimRights(land);
+        rights = new ClaimRightsRule(land);
         settings = context.settings(ClaimSettings.class, ClaimSettings.DEFAULTS);
         zones = new ZoneRegistry();
         zoneStorage = new ZoneStorage(context.dataFolder());
@@ -138,6 +138,8 @@ public final class ClaimsModule implements FlexModule {
         claimService = new ClaimService(context.plugin(), claims, zones, storage, settings.current(),
                 costs, rights);
         claimService.features(features);
+        claimService.rules(de.raindancer.modules.claims.rules.ClaimRules.standard(
+                settings::current, claims, zones, names));
         visualizer = new BorderVisualizer(context.plugin(), settings.current());
         selections = new SelectionService(settings.current());
         stick = new SelectionStick(context.plugin(), settings.current(), context.core().messages());
@@ -304,7 +306,7 @@ public final class ClaimsModule implements FlexModule {
         return storage;
     }
 
-    public Features features() {
+    public FeatureRules features() {
         return features;
     }
 

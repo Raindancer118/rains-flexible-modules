@@ -2,11 +2,11 @@ package de.raindancer.modules.claims;
 
 import de.raindancer.modules.claims.listener.MovementListener;
 import de.raindancer.modules.claims.model.Claim;
-import de.raindancer.modules.claims.rules.ClaimArea;
-import de.raindancer.modules.claims.rules.ClaimLandProvider;
-import de.raindancer.modules.claims.rules.ClaimNames;
-import de.raindancer.modules.claims.rules.ClaimRights;
-import de.raindancer.modules.claims.rules.Features;
+import de.raindancer.modules.claims.rules.ClaimAreaRule;
+import de.raindancer.modules.claims.store.ClaimLandProvider;
+import de.raindancer.modules.claims.model.ClaimNames;
+import de.raindancer.modules.claims.rules.ClaimRightsRule;
+import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.modules.claims.selection.SelectionFlow;
 import de.raindancer.modules.claims.selection.SelectionService;
 import de.raindancer.modules.claims.selection.SelectionStick;
@@ -60,13 +60,13 @@ public record ClaimServices(
         ChatPrompts prompts,
         Land land,
         FlagRules flags,
-        Features features,
+        FeatureRules features,
         ClaimRegistry claims,
         ClaimStorage storage,
         ZoneRegistry zones,
         ClaimService claimService,
         ClaimNames names,
-        ClaimRights rights,
+        ClaimRightsRule rights,
         ClaimLandProvider provider,
         CostService costs,
         SelectionService selections,
@@ -101,6 +101,6 @@ public record ClaimServices(
 
     /** Where a player is considered to be standing, which is the provider's business to smooth out. */
     public java.util.Optional<Claim> claimAround(Player player) {
-        return provider.around(player).map(area -> ((ClaimArea) area).claim());
+        return provider.around(player).map(area -> ((ClaimAreaRule) area).claim());
     }
 }

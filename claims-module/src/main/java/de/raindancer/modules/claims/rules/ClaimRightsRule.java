@@ -16,11 +16,17 @@ import org.bukkit.entity.Player;
  * <p>What is still Core's: the {@code rec.admin} node itself, so that one server-wide administrator permission
  * governs every kind of protected ground rather than one per plugin.
  */
-public final class ClaimRights {
+public final class ClaimRightsRule implements IClaimRule {
+
+    @Override
+    public String describe() {
+        return "who may change a claim";
+    }
+
 
     private final Land land;
 
-    public ClaimRights(Land land) {
+    public ClaimRightsRule(Land land) {
         this.land = land;
     }
 
