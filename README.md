@@ -45,6 +45,35 @@ now checks that what ended up in the jar is what was just compiled.
 The plugins land in `claims-standalone/target/` and `moderation-standalone/target/`. CI builds both on
 every push and attaches them to the run.
 
+## Releases and versions
+
+CI publishes on every push to `master`:
+
+| | What |
+|---|---|
+| `latest` | a rolling pre-release — one link that is always the newest build. Point a test server at it once. |
+| `build-<n>` | an immutable pre-release per push, so a jar from three pushes ago is still fetchable. The last 15 are kept. |
+| `claims-vX.Y.Z`<br>`moderation-vX.Y.Z` | permanent releases, cut by pushing that tag. |
+
+Both jars carry a `.sha256` beside them, and both need `RainsCore.jar` next to them — neither ever
+contains a copy of it.
+
+**The tags name the plugin because the two version independently.** The reactor is `1.0.0` while
+Rain's Extended Claims is `2.0.0` and Rain's Moderation is `2.0.0`, so a bare `v2.1.0` could not say
+which of them it meant. The version in the tag is checked against that plugin's `<plugin.version>`
+and the build fails on a mismatch: a release whose tag says 2.1.0 and whose jar says 2.0.0 is one
+nobody can reason about six months later.
+
+### What the numbers mean
+
+| Bump | Means |
+|---|---|
+| `x.y.Z` | Bug fixes and minor additions. |
+| `x.Y.0` | A feature release — the feature is *fully done*, not started. |
+| `X.0.0` | A refactor, or a whole new suite of features. |
+
+So a half-finished feature does not get a minor bump, and a patch release never introduces one.
+
 ## Where the lines are drawn
 
 - **If two plugins could want it, it is not module code.** It goes in RainsCore. World protection and

@@ -1,15 +1,25 @@
 name: Build
 
 # Every push, on every branch, so a jar exists for whatever is on GitHub right now — not only for
-# main. A pull request builds too, so the jar is there before the merge rather than after.
+# master. A pull request builds too, so the jar is there before the merge rather than after.
+#
+# The per-plugin tags cut permanent releases. They name the plugin because the two version
+# independently: the reactor is 1.0.0 while RainsExtendedClaims is 2.0.0 and RainsModeration is 2.0.0,
+# so a bare `v2.1.0` could not say which of them it meant.
 on:
   push:
+    tags:
+      - 'claims-v*'
+      - 'moderation-v*'
+    branches:
+      - '**'
   pull_request:
   # Lets a build be kicked off by hand from the Actions tab.
   workflow_dispatch:
 
+# write, because this workflow creates tags and releases. Everything else it does is read-only.
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -19,6 +29,9 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
+        with:
+          # The whole history, so the release notes can name what changed since the last build.
+          fetch-depth: 0
 
       # RainsCore is a `provided` dependency with no repository behind it: `de.raindancer:RainsCore` is
       # not published anywhere, so it resolves from the local ~/.m2 and nothing else. That is fine on a
@@ -62,34 +75,40 @@ jobs:
 
       # ── the jars a server operator actually wants ────────────────────────────────────────────────
       #
-      # One named step per standalone plugin rather than a wildcard. A wildcard means the day somebody
-      # adds a module the jar quietly lands in a catch-all artifact nobody looks in — or, worse, does
-      # not build at all and nothing says so, because there was no step expecting it. `if-no-files-found:
-      # error` is the whole point: a green build with a missing jar is the failure this is guarding.
-      #
-      # The module jars themselves are libraries and are not uploaded: a jar in a downloads folder that
-      # cannot be installed is worse than no jar. Named after the commit so a downloaded jar can always
-      # be traced back to the source it was built from.
+      # Found by pattern per plugin rather than by a hard-coded filename, because the version lives in
+      # each standalone pom and moving it here would be a second copy that drifts. `original-*` is the
+      # unshaded jar the shade plugin leaves behind: loading it would give a plugin with no module in it.
+      - name: Find the jars
+        id: jars
+        run: |
+          set -euo pipefail
+          for plugin in claims:RainsExtendedClaims moderation:RainsModeration; do
+            dir="${plugin%%:*}-standalone/target"
+            name="${plugin##*:}"
+            jar="$(find "$dir" -maxdepth 1 -name "$name-*.jar" ! -name 'original-*' | head -1)"
+            if [ -z "$jar" ]; then
+              echo "::error::$name did not build — no jar in $dir"
+              exit 1
+            fi
+            sha="$(sha256sum "$jar" | cut -d' ' -f1)"
+            echo "$sha  $(basename "$jar")" > "$jar.sha256"
+            echo "${plugin%%:*}_jar=$jar" >> "$GITHUB_OUTPUT"
+            echo "${plugin%%:*}_name=$(basename "$jar")" >> "$GITHUB_OUTPUT"
+            echo "${plugin%%:*}_sha=$sha" >> "$GITHUB_OUTPUT"
+            echo "$name: $sha"
+          done
 
-      - name: Upload Rain's Extended Claims
+      # Kept as run artifacts as well as releases: a pull request has no release, and a red build's
+      # partial output is still worth looking at.
+      - name: Upload the jars as artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: RainsExtendedClaims-${{ github.sha }}
+          name: plugins-${{ github.sha }}
           path: |
             claims-standalone/target/RainsExtendedClaims-*.jar
-            !claims-standalone/target/original-*.jar
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload Rain's Moderation
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: RainsModeration-${{ github.sha }}
-          path: |
             moderation-standalone/target/RainsModeration-*.jar
-            !moderation-standalone/target/original-*.jar
+            !**/original-*.jar
           if-no-files-found: error
           retention-days: 30
 
@@ -103,3 +122,141 @@ jobs:
           path: '*/target/surefire-reports/'
           if-no-files-found: ignore
           retention-days: 7
+
+      # ── what a push publishes ───────────────────────────────────────────────────────────────────
+
+      - name: Write the notes for an automatic build
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+        run: |
+          {
+            printf '%s\n' \
+              "Automatic build of \`${{ github.ref_name }}\` @ \`${{ github.sha }}\`." \
+              "" \
+              "**Not a release.** It is whatever the branch happened to be at that commit. For a fixed" \
+              "version use a \`claims-vX.Y.Z\` or \`moderation-vX.Y.Z\` release." \
+              "" \
+              "| Plugin | Jar | sha256 |" \
+              "|---|---|---|" \
+              "| Rain's Extended Claims | \`${{ steps.jars.outputs.claims_name }}\` | \`${{ steps.jars.outputs.claims_sha }}\` |" \
+              "| Rain's Moderation | \`${{ steps.jars.outputs.moderation_name }}\` | \`${{ steps.jars.outputs.moderation_sha }}\` |" \
+              "" \
+              "Both need \`RainsCore.jar\` beside them." \
+              "" \
+              "### What changed"
+            git log -15 --no-merges --pretty='- %s' || true
+          } > notes.md
+
+      # One link that is always the newest build, so a test server can be pointed at it once. Deleted
+      # and recreated rather than edited: an edited release keeps its old assets, and two jars with the
+      # same name and different contents is the worst possible outcome here.
+      - name: Publish rolling "latest"
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release delete latest --yes --cleanup-tag --repo "${{ github.repository }}" || true
+          gh release create latest \
+            "${{ steps.jars.outputs.claims_jar }}" \
+            "${{ steps.jars.outputs.claims_jar }}.sha256" \
+            "${{ steps.jars.outputs.moderation_jar }}" \
+            "${{ steps.jars.outputs.moderation_jar }}.sha256" \
+            --repo "${{ github.repository }}" \
+            --title "Latest build" \
+            --notes-file notes.md \
+            --prerelease
+
+      # And an immutable one per push, so a jar from three pushes ago is still fetchable — which
+      # "latest" by its nature cannot promise. The run number rather than a date: it never repeats and
+      # it sorts.
+      - name: Publish this build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "build-${{ github.run_number }}" \
+            "${{ steps.jars.outputs.claims_jar }}" \
+            "${{ steps.jars.outputs.claims_jar }}.sha256" \
+            "${{ steps.jars.outputs.moderation_jar }}" \
+            "${{ steps.jars.outputs.moderation_jar }}.sha256" \
+            --repo "${{ github.repository }}" \
+            --title "Build ${{ github.run_number }}" \
+            --notes-file notes.md \
+            --prerelease \
+            --target "${{ github.sha }}"
+
+      # Otherwise the list grows by one per push and the entries worth finding are buried by March.
+      # Only `build-*` is ever touched: a versioned release and `latest` are left alone, and the deletion
+      # is by exact name rather than by pattern-matching whatever `gh` happened to print.
+      - name: Prune old builds, keeping the last 15
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          KEEP=15
+          # Newest first, so everything past the first $KEEP is what goes.
+          mapfile -t builds < <(gh release list --repo "${{ github.repository }}" --limit 200 \
+            --json tagName --jq '.[] | select(.tagName | startswith("build-")) | .tagName')
+          echo "${#builds[@]} build release(s); keeping $KEEP"
+          if [ "${#builds[@]}" -le "$KEEP" ]; then
+            exit 0
+          fi
+          for tag in "${builds[@]:$KEEP}"; do
+            echo "removing $tag"
+            gh release delete "$tag" --yes --cleanup-tag --repo "${{ github.repository }}" || true
+          done
+
+      # ── what a tag publishes ────────────────────────────────────────────────────────────────────
+
+      # A permanent release for one plugin. The tag names it because the two version independently, and
+      # the version in the tag has to match the one in that plugin's pom — a release whose tag says
+      # 2.1.0 and whose jar says 2.0.0 is one nobody can reason about afterwards.
+      - name: Publish a versioned release
+        if: startsWith(github.ref, 'refs/tags/claims-v') || startsWith(github.ref, 'refs/tags/moderation-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          which="${TAG%%-v*}"
+          wanted="${TAG#*-v}"
+
+          case "$which" in
+            claims)     jar='${{ steps.jars.outputs.claims_jar }}'
+                        sha='${{ steps.jars.outputs.claims_sha }}'
+                        title="Rain's Extended Claims" ;;
+            moderation) jar='${{ steps.jars.outputs.moderation_jar }}'
+                        sha='${{ steps.jars.outputs.moderation_sha }}'
+                        title="Rain's Moderation" ;;
+            *)          echo "::error::$TAG names no plugin I know about"; exit 1 ;;
+          esac
+
+          # Straight out of the pom, so the tag is checked against the thing that actually built.
+          built="$(grep -oPm1 '(?<=<plugin.version>)[^<]+' "$which-standalone/pom.xml")"
+          if [ "$built" != "$wanted" ]; then
+            echo "::error::$TAG says $wanted but $which-standalone/pom.xml says $built. Bump the pom or fix the tag."
+            exit 1
+          fi
+
+          {
+            printf '%s\n' \
+              "$title $built." \
+              "" \
+              "### Installing" \
+              "" \
+              "Drop \`$(basename "$jar")\` into \`plugins/\` alongside \`RainsCore.jar\`, which it needs" \
+              "and never carries a copy of. Restart the server." \
+              "" \
+              "\`sha256: $sha\`" \
+              "" \
+              "---"
+          } > release-notes.md
+
+          gh release create "$TAG" \
+            "$jar" "$jar.sha256" \
+            --repo "${{ github.repository }}" \
+            --title "$title $built" \
+            --notes-file release-notes.md \
+            --generate-notes
