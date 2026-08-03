@@ -49,7 +49,7 @@ public final class StaffChatCommand extends StaffCommand {
         }
         boolean nowTalking = moderation.staffChat().toggle(player.getUniqueId());
         moderation.messages().send(player,
-                nowTalking ? "moderation.staff-chat.on" : "moderation.staff-chat.off");
+                nowTalking ? "moderation.staff-chat.turned-on" : "moderation.staff-chat.turned-off");
     }
 
     @Override

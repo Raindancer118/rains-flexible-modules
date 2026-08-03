@@ -22,22 +22,25 @@ moderation:
   console-use-commands: "<gray>The console has no screens. Try <white>/history</white>, <white>/reports list</white> or <white>/ban</white>."
 
   # ── the tools a moderator points at themselves ───────────────────────────
+  # NB: the keys are "turned-on" and not "on". YAML resolves a bare `on:` key to the boolean true, so
+  # the line would be stored as ...instakill.true and every lookup would print its own key. Seen in
+  # game once as "<moderation.tool.instakill.on>"; MessagesTest now fails the build over it.
   tool:
     fly:
-      on: "<green>You can fly."
-      off: "<gray>You can no longer fly."
-      on-other: "<green><white><player></white> can fly."
-      off-other: "<gray><white><player></white> can no longer fly."
+      turned-on: "<green>You can fly."
+      turned-off: "<gray>You can no longer fly."
+      turned-on-other: "<green><white><player></white> can fly."
+      turned-off-other: "<gray><white><player></white> can no longer fly."
     god:
-      on: "<green>Nothing can hurt you. <dark_gray>It goes off when you log out."
-      off: "<gray>You can be hurt again."
-      on-other: "<green>Nothing can hurt <white><player></white>."
-      off-other: "<gray><white><player></white> can be hurt again."
+      turned-on: "<green>Nothing can hurt you. <dark_gray>It goes off when you log out."
+      turned-off: "<gray>You can be hurt again."
+      turned-on-other: "<green>Nothing can hurt <white><player></white>."
+      turned-off-other: "<gray><white><player></white> can be hurt again."
     instakill:
-      on: "<red>Everything you hit will die. <dark_gray>Mind the livestock."
-      off: "<gray>You hit normally again."
-      on-other: "<red>Everything <white><player></white> hits will die."
-      off-other: "<gray><white><player></white> hits normally again."
+      turned-on: "<red>Everything you hit will die. <dark_gray>Mind the livestock."
+      turned-off: "<gray>You hit normally again."
+      turned-on-other: "<red>Everything <white><player></white> hits will die."
+      turned-off-other: "<gray><white><player></white> hits normally again."
 
   # ── how long a ban you may give ──────────────────────────────────────────
   ban:
@@ -104,8 +107,8 @@ moderation:
 
   # ── staff chat ───────────────────────────────────────────────────────────
   staff-chat:
-    on: "<dark_aqua>You are talking to the staff. <gray>Type <white>/staffchat</white> again to stop."
-    off: "<gray>You are talking to the server again."
+    turned-on: "<dark_aqua>You are talking to the staff. <gray>Type <white>/staffchat</white> again to stop."
+    turned-off: "<gray>You are talking to the server again."
     no-longer-yours: "<red>You may no longer use staff chat, so that went nowhere. <gray>You are back in ordinary chat."
 
   # ── you are vanished ─────────────────────────────────────────────────────

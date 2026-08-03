@@ -143,14 +143,16 @@ public final class SelfToolCommand extends StaffCommand {
 
         boolean themselves = sender instanceof Player self && self.getUniqueId().equals(subject);
         moderation.messages().send(sender,
-                "moderation.tool." + tool.word() + (nowOn ? ".on" : ".off")
+                // "turned-on", not "on": a bare `on:` key in YAML is the boolean true, so the line
+                // would be filed under ...instakill.true and the lookup would print its own name.
+                "moderation.tool." + tool.word() + (nowOn ? ".turned-on" : ".turned-off")
                         + (themselves ? "" : "-other"),
                 "player", name);
         if (!themselves) {
             Player them = moderation.server().getPlayer(subject);
             if (them != null) {
                 moderation.messages().send(them,
-                        "moderation.tool." + tool.word() + (nowOn ? ".on" : ".off"));
+                        "moderation.tool." + tool.word() + (nowOn ? ".turned-on" : ".turned-off"));
             }
         }
     }
