@@ -50,66 +50,134 @@ public final class Reasons {
         return new Reasons(reasons == null ? List.of() : reasons);
     }
 
-    /** What the module ships with. */
+    /**
+     * What the module ships with.
+     *
+     * <h2>How the ladders were chosen</h2>
+     * Short first rungs. The purpose of a first punishment is to make somebody stop, and almost everybody
+     * does; half an hour achieves that and keeps a player who was having a bad evening. The ladder then
+     * climbs steeply, because the second and third are the ones that are no longer a misunderstanding.
+     * Anything {@link Severity#SEVERE} ends permanently, or the ladder never actually bites.
+     *
+     * <h2>Why a kick has no ladder</h2>
+     * It is over the moment it lands, so a length written into the record would mean nothing. A kick is
+     * for "stop and come back when you have" — <em>not</em> for a player who is idle, which is why there
+     * is no away-from-keyboard reason here: kicking somebody for being idle is a server setting, not a
+     * moderator's decision, and putting it on somebody's record makes idling look like an offence.
+     */
     public static Reasons builtIn() {
         List<Reason> reasons = new ArrayList<>();
 
-        // ── chat ───────────────────────────────────────────────────────────────────────────────
-        reasons.add(new Reason("spam", "Spam", PunishmentKind.MUTE, Severity.MINOR,
-                List.of(Sentence.of(Duration.ofMinutes(30)),
-                        Sentence.of(Duration.ofHours(6)),
-                        Sentence.of(Duration.ofDays(3)))));
-        reasons.add(new Reason("swearing", "Swearing", PunishmentKind.MUTE, Severity.MINOR,
-                List.of(Sentence.of(Duration.ofMinutes(30)),
-                        Sentence.of(Duration.ofHours(12)),
-                        Sentence.of(Duration.ofDays(7)))));
-        reasons.add(new Reason("advertising", "Advertising", PunishmentKind.MUTE, Severity.SERIOUS,
-                List.of(Sentence.of(Duration.ofHours(12)),
-                        Sentence.of(Duration.ofDays(7)),
-                        Sentence.forEver())));
-        reasons.add(new Reason("harassment", "Harassment", PunishmentKind.MUTE, Severity.SEVERE,
-                List.of(Sentence.of(Duration.ofDays(1)),
-                        Sentence.of(Duration.ofDays(14)),
-                        Sentence.forEver())));
+        // ── chat: the mutes ────────────────────────────────────────────────────────────────────
+        reasons.add(mute("spam", "Spam", Severity.MINOR, 30, 6 * 60, 3 * 24 * 60));
+        reasons.add(mute("caps", "Shouting in capitals", Severity.MINOR, 15, 60, 12 * 60));
+        reasons.add(mute("swearing", "Swearing", Severity.MINOR, 30, 12 * 60, 7 * 24 * 60));
+        reasons.add(mute("begging", "Begging", Severity.MINOR, 30, 4 * 60, 24 * 60));
+        reasons.add(mute("arguing", "Arguing with staff in public", Severity.MINOR,
+                60, 12 * 60, 3 * 24 * 60));
+        reasons.add(mute("off-topic", "Wrong channel", Severity.MINOR, 15, 60, 6 * 60));
+        reasons.add(mute("toxicity", "Being unpleasant to people", Severity.SERIOUS,
+                2 * 60, 24 * 60, 7 * 24 * 60));
+        reasons.add(mute("advertising", "Advertising another server", Severity.SERIOUS,
+                12 * 60, 7 * 24 * 60, -1));
+        reasons.add(mute("spoilers", "Spoiling somebody's build or surprise", Severity.SERIOUS,
+                60, 12 * 60, 3 * 24 * 60));
+        reasons.add(mute("harassment", "Harassment", Severity.SEVERE,
+                24 * 60, 14 * 24 * 60, -1));
+        reasons.add(mute("hate-speech", "Hate speech", Severity.SEVERE, 7 * 24 * 60, -1));
+        reasons.add(mute("sexual-content", "Sexual content in chat", Severity.SEVERE,
+                24 * 60, 14 * 24 * 60, -1));
 
-        // ── the world ──────────────────────────────────────────────────────────────────────────
-        reasons.add(new Reason("griefing", "Griefing", PunishmentKind.BAN, Severity.SERIOUS,
-                List.of(Sentence.of(Duration.ofDays(3)),
-                        Sentence.of(Duration.ofDays(30)),
-                        Sentence.forEver())));
-        reasons.add(new Reason("stealing", "Stealing", PunishmentKind.BAN, Severity.SERIOUS,
-                List.of(Sentence.of(Duration.ofDays(3)),
-                        Sentence.of(Duration.ofDays(30)),
-                        Sentence.forEver())));
+        // ── the world: the bans ────────────────────────────────────────────────────────────────
+        reasons.add(ban("griefing", "Griefing", Severity.SERIOUS,
+                3 * 24 * 60, 30 * 24 * 60, -1));
+        reasons.add(ban("stealing", "Stealing", Severity.SERIOUS,
+                3 * 24 * 60, 30 * 24 * 60, -1));
+        reasons.add(ban("scamming", "Scamming another player", Severity.SERIOUS,
+                7 * 24 * 60, 30 * 24 * 60, -1));
+        reasons.add(ban("inappropriate-build", "Inappropriate build", Severity.SERIOUS,
+                24 * 60, 7 * 24 * 60, 30 * 24 * 60));
+        reasons.add(ban("kill-trapping", "Trapping or killing players unfairly", Severity.SERIOUS,
+                24 * 60, 7 * 24 * 60, 30 * 24 * 60));
+        reasons.add(ban("lag-machine", "Building something that lags the server", Severity.SERIOUS,
+                24 * 60, 7 * 24 * 60, 30 * 24 * 60));
 
-        // ── the account ────────────────────────────────────────────────────────────────────────
-        reasons.add(new Reason("cheating", "Cheating", PunishmentKind.BAN, Severity.SEVERE,
-                List.of(Sentence.of(Duration.ofDays(30)), Sentence.forEver())));
-        reasons.add(new Reason("exploiting", "Exploiting a bug", PunishmentKind.BAN, Severity.SEVERE,
-                List.of(Sentence.of(Duration.ofDays(7)),
-                        Sentence.of(Duration.ofDays(90)),
-                        Sentence.forEver())));
-        reasons.add(new Reason("ban-evasion", "Evading a ban", PunishmentKind.BAN, Severity.SEVERE,
-                List.of(Sentence.forEver())));
+        // ── the account: the ones that end permanently ─────────────────────────────────────────
+        reasons.add(ban("cheating", "Cheating", Severity.SEVERE, 30 * 24 * 60, -1));
+        reasons.add(ban("x-ray", "X-ray", Severity.SEVERE, 14 * 24 * 60, 90 * 24 * 60, -1));
+        reasons.add(ban("exploiting", "Exploiting a bug", Severity.SEVERE,
+                7 * 24 * 60, 90 * 24 * 60, -1));
+        reasons.add(ban("duping", "Duplicating items", Severity.SEVERE, 30 * 24 * 60, -1));
+        reasons.add(ban("ban-evasion", "Evading a ban", Severity.SEVERE, -1));
+        reasons.add(ban("alt-abuse", "Using a second account to get around a punishment",
+                Severity.SEVERE, -1));
+        reasons.add(ban("threats", "Threatening somebody", Severity.SEVERE, 14 * 24 * 60, -1));
+        reasons.add(ban("doxxing", "Sharing somebody's private information", Severity.SEVERE, -1));
+        reasons.add(ban("impersonation", "Pretending to be staff", Severity.SEVERE,
+                7 * 24 * 60, 30 * 24 * 60, -1));
+        reasons.add(ban("account-sharing", "Letting somebody else use the account",
+                Severity.SERIOUS, 24 * 60, 7 * 24 * 60, 30 * 24 * 60));
 
-        // ── the ones that are over the moment they land ────────────────────────────────────────
-        // A kick and a warning are not states somebody is in, so a ladder of lengths on either would
-        // be a length written into the record that means nothing. One rung each, always.
-        reasons.add(new Reason("afk", "Away from keyboard", PunishmentKind.KICK, Severity.MINOR,
-                List.of(Sentence.forEver())));
-        reasons.add(new Reason("asked-to-stop", "Asked to stop", PunishmentKind.KICK, Severity.MINOR,
-                List.of(Sentence.forEver())));
-        reasons.add(new Reason("first-warning", "A word about the rules", PunishmentKind.WARNING,
-                Severity.MINOR, List.of(Sentence.forEver())));
-        reasons.add(new Reason("last-warning", "Final warning", PunishmentKind.WARNING,
-                Severity.SERIOUS, List.of(Sentence.forEver())));
+        // ── over the moment it lands: the kicks ────────────────────────────────────────────────
+        // One rung each, always: a kick is not a state somebody is in, so a length on it would be a
+        // number in the record that means nothing.
+        reasons.add(once("asked-to-stop", "Asked to stop and did not", PunishmentKind.KICK,
+                Severity.MINOR));
+        reasons.add(once("cool-off", "Take a moment", PunishmentKind.KICK, Severity.MINOR));
+        reasons.add(once("ignoring-staff", "Ignoring staff", PunishmentKind.KICK, Severity.MINOR));
+        reasons.add(once("inappropriate-name", "Inappropriate name or skin", PunishmentKind.KICK,
+                Severity.SERIOUS));
+        reasons.add(once("client-problem", "Something is wrong with their client", PunishmentKind.KICK,
+                Severity.MINOR));
 
-        // ── while somebody is being talked to ──────────────────────────────────────────────────
-        reasons.add(new Reason("under-investigation", "Being looked into", PunishmentKind.FREEZE,
-                Severity.SERIOUS,
-                List.of(Sentence.of(Duration.ofMinutes(15)), Sentence.of(Duration.ofHours(1)))));
+        // ── on the record and nothing else: the warnings ───────────────────────────────────────
+        reasons.add(once("rules-reminder", "A word about the rules", PunishmentKind.WARNING,
+                Severity.MINOR));
+        reasons.add(once("chat-warning", "A word about their chat", PunishmentKind.WARNING,
+                Severity.MINOR));
+        reasons.add(once("build-warning", "A word about what they built", PunishmentKind.WARNING,
+                Severity.MINOR));
+        reasons.add(once("pvp-warning", "A word about how they fight", PunishmentKind.WARNING,
+                Severity.MINOR));
+        reasons.add(once("final-warning", "Final warning", PunishmentKind.WARNING,
+                Severity.SERIOUS));
+
+        // ── while somebody is being talked to: the freezes ─────────────────────────────────────
+        reasons.add(freeze("under-investigation", "Being looked into", Severity.SERIOUS, 15, 60));
+        reasons.add(freeze("wait-for-staff", "Asked to wait for staff", Severity.MINOR, 5, 15));
+        reasons.add(freeze("suspected-cheating", "Suspected of cheating", Severity.SERIOUS, 30, 2 * 60));
 
         return new Reasons(reasons);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────────────────
+    //  Builders, so a catalogue this size reads as a table rather than as forty constructor
+    //  calls. Minutes throughout, and -1 for a rung that never ends.
+    // ────────────────────────────────────────────────────────────────────────────────────────
+
+    private static Reason mute(String id, String label, Severity severity, int... rungsInMinutes) {
+        return new Reason(id, label, PunishmentKind.MUTE, severity, ladder(rungsInMinutes));
+    }
+
+    private static Reason ban(String id, String label, Severity severity, int... rungsInMinutes) {
+        return new Reason(id, label, PunishmentKind.BAN, severity, ladder(rungsInMinutes));
+    }
+
+    private static Reason freeze(String id, String label, Severity severity, int... rungsInMinutes) {
+        return new Reason(id, label, PunishmentKind.FREEZE, severity, ladder(rungsInMinutes));
+    }
+
+    /** A kick or a warning: over as soon as it happens, so exactly one rung and no length. */
+    private static Reason once(String id, String label, PunishmentKind kind, Severity severity) {
+        return new Reason(id, label, kind, severity, List.of(Sentence.forEver()));
+    }
+
+    private static List<Sentence> ladder(int... rungsInMinutes) {
+        List<Sentence> rungs = new ArrayList<>();
+        for (int minutes : rungsInMinutes) {
+            rungs.add(minutes < 0 ? Sentence.forEver() : Sentence.of(Duration.ofMinutes(minutes)));
+        }
+        return rungs;
     }
 
     /**

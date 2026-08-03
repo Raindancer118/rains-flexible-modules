@@ -16,11 +16,14 @@ import java.util.List;
  * Telling the server which permissions exist, and who has them without being granted anything.
  *
  * <h2>Why this is not optional</h2>
- * Because <b>staff are not operators</b> — that is the whole design — and an unregistered permission is
- * one that {@code hasPermission} answers {@code false} to for everybody who is not op. Which is correct
- * for the staff nodes and catastrophic for {@code /report}: a command every player is supposed to be able
- * to run, refusing every player, on a server where the only person who can test it is the one person for
- * whom it works.
+ * An unregistered permission resolves against {@code Permission.DEFAULT_PERMISSION}, which is
+ * {@code OP} — so {@code /report} refused every ordinary player, on a server where the only person who
+ * could test it was the one person for whom it worked.
+ *
+ * <p>And the correction has its own trap, which this walked straight into: registering the staff nodes as
+ * {@link PermissionDefault#FALSE} took ten commands away from the <em>owner</em>, because {@code FALSE}
+ * means nobody rather than "not by default". Both mistakes are silent, and both are why the defaults are
+ * now asserted in a test rather than chosen in passing.
  *
  * <p>So the defaults are declared here rather than in a {@code paper-plugin.yml}. A module does not have
  * one of its own — it may be hosted inside somebody else's plugin — and registering programmatically is
@@ -38,7 +41,49 @@ public final class PermissionNodes {
     }
 
     /**
-     * Registers every node this module understands, with its default.
+     * Every node this module understands, with its default.
+     *
+     * <p>Built rather than registered, so the defaults can be asserted without a server. That split is
+     * not decoration: the first version of this registered every staff node as
+     * {@link PermissionDefault#FALSE}, which does not mean "not by default" — it means <b>nobody, the
+     * server owner included</b>. Ten commands stopped working for the one person who could test them,
+     * and nothing said so. {@code PermissionDefaultsTest} now asserts that no node a command gates on
+     * can ever be {@code FALSE} again.
+     *
+     * <pre>
+     *   TRUE    → everybody
+     *   OP      → operators
+     *   NOT_OP  → everybody except operators
+     *   FALSE   → nobody, operators included
+     * </pre>
+     */
+    public static List<Permission> declared() {
+        List<Permission> wanted = new ArrayList<>();
+
+        // Every staff node: operators, and anybody granted a rank. OP rather than FALSE because the
+        // owner is the top rank — a fresh server with one op should have every command working, not a
+        // server whose owner has to promote themselves before /ban does anything.
+        for (ModerationPermission permission : ModerationPermission.values()) {
+            wanted.add(new Permission(permission.node(), permission.describe(),
+                    PermissionDefault.OP));
+        }
+        // So a mod cannot ban the owner on a fresh server, before anybody has been given a rank.
+        wanted.add(new Permission(StaffRule.IMMUNE,
+                "Cannot be acted on by moderators — only from the console", PermissionDefault.OP));
+        wanted.add(new Permission(PromoteCommand.USE,
+                "Hand out and take away staff ranks. Deliberately not grantable by any rank",
+                PermissionDefault.OP));
+
+        // The one node every player has. TRUE rather than NOT_OP: a moderator is a player too, and
+        // should be able to report somebody rather than being told they may not.
+        wanted.add(new Permission(ReportCommand.USE,
+                "File a report about another player", PermissionDefault.TRUE));
+
+        return wanted;
+    }
+
+    /**
+     * Registers the lot.
      *
      * <p>Idempotent: a node already registered — by a reload, or by a host that shades two copies — is
      * left as it is rather than throwing, because a module that refuses to start over a duplicate
@@ -50,24 +95,7 @@ public final class PermissionNodes {
         if (server == null) {
             return 0;
         }
-        List<Permission> wanted = new ArrayList<>();
-
-        // Every staff node: nobody by default. They arrive through a rank, never through op-ness, and
-        // never through being on the server.
-        for (ModerationPermission permission : ModerationPermission.values()) {
-            wanted.add(new Permission(permission.node(), permission.describe(),
-                    PermissionDefault.FALSE));
-        }
-        wanted.add(new Permission(StaffRule.IMMUNE,
-                "Cannot be acted on by moderators — only from the console", PermissionDefault.FALSE));
-        wanted.add(new Permission(PromoteCommand.USE,
-                "Hand out and take away staff ranks. Deliberately not grantable by any rank",
-                PermissionDefault.OP));
-
-        // The one node every player has. TRUE rather than NOT_OP: a moderator is a player too, and
-        // should be able to report somebody rather than being told they may not.
-        wanted.add(new Permission(ReportCommand.USE,
-                "File a report about another player", PermissionDefault.TRUE));
+        List<Permission> wanted = declared();
 
         int added = 0;
         for (Permission permission : wanted) {
