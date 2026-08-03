@@ -38,7 +38,8 @@ public final class ZonesMenu extends PaginatedMenu<NoClaimZone> implements IClai
     @Override
     protected ItemStack emptyIcon() {
         return Icons.of(Material.LIME_STAINED_GLASS_PANE, "<green>Anywhere goes",
-                "<gray>Mark an area out with <white>/claimadmin zone</white>.");
+                "<gray>Nowhere on this server is off limits yet.",
+                "<dark_gray>use the blaze rod below to mark somewhere out");
     }
 
     @Override
@@ -49,6 +50,29 @@ public final class ZonesMenu extends PaginatedMenu<NoClaimZone> implements IClai
                 "",
                 "<dark_gray>right click to be shown it",
                 "<dark_gray>shift + left click to remove it");
+    }
+
+    @Override
+    protected void decorate() {
+        // The stick itself, rather than an instruction to go and type something. Telling an admin who is
+        // already looking at the list to close it and type /claimadmin zone is asking them to leave the place
+        // that raised the question — and the command does exactly this, so the menu may as well.
+        toolbar(4, Icons.of(Material.BLAZE_ROD, "<red>Mark somewhere out",
+                        "<gray>Puts the no-claim rod in your hand and",
+                        "<gray>starts a selection where you stand.",
+                        "",
+                        "<dark_gray>right click the corners, shift + right click to finish"),
+                click -> {
+                    if (!services.rights().isServerAdmin(viewer)) {
+                        services.messages().send(viewer, "error.no-permission");
+                        return;
+                    }
+                    viewer.closeInventory();
+                    services.selectionFlow().begin(viewer,
+                            de.raindancer.modules.claims.selection.Selection.Mode.RECTANGLE,
+                            de.raindancer.modules.claims.selection.Selection.Purpose.NO_CLAIM_ZONE,
+                            null, null, null);
+                });
     }
 
     @Override

@@ -70,6 +70,8 @@ claim:
   ask-kick: "<gray>Type who to kick out, or <white>cancel</white>."
   ask-ban: "<gray>Type a name, then a reason if you like — <white>name [reason]</white>, or <white>cancel</white>."
   ask-timeout: "<gray>Type a name and how long — <white>name duration [reason]</white>, or <white>cancel</white>."
+  ask-ban-reason: "<gray>Type a reason, or <white>-</white> for none, or <white>cancel</white>."
+  ask-timeout-duration: "<gray>Type how long, then a reason if you like — <white>duration [reason]</white>, or <white>cancel</white>."
   ask-co-owner: "<gray>Type who should own this claim too, or <white>cancel</white>."
 
   # ── refusals that are somebody else's decision ───────────────────────────

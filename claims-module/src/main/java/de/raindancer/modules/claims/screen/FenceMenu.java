@@ -65,7 +65,13 @@ public final class FenceMenu extends ClaimScreen {
                         "",
                         "<dark_gray>click to choose another"),
                 "The owner's to change",
-                click -> services().screens().fenceMaterial(viewer, claim));
+                click -> new de.raindancer.core.ui.choose.ItemChooser(viewer, services().brand(), this,
+                        "Fence material",
+                        chosen -> {
+                            services().fences().changeMaterial(claim, chosen, viewer);
+                            services().claimService().saveAsync(claim);
+                            new FenceMenu(services(), viewer, claim, parent()).open();
+                        }).open());
 
         band(MenuLayout.WHO, 6, Icons.of(Material.OAK_FENCE_GATE, "<white>Gaps you have made",
                 claim.fence().suppressed().size() + " left open",

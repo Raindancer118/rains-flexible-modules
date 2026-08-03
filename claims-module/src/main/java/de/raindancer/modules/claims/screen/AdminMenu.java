@@ -32,7 +32,9 @@ public final class AdminMenu extends ClaimScreen {
 
     @Override
     protected Component title() {
-        return Component.text("Claims — server");
+        // Just "Server". The brand is already in front of every window title, so "Claims — server" rendered
+        // as "Claims » Claims — server" — the plugin's own name twice in a title that gets 154 pixels.
+        return Component.text("Server");
     }
 
     @Override
@@ -50,7 +52,7 @@ public final class AdminMenu extends ClaimScreen {
 
         band(MenuLayout.WHO, 5, Icons.of(Material.BARRIER, "<gold>Where nobody may claim",
                         "<gray>" + services().zones().all().size() + " area(s) marked out.",
-                        "<dark_gray>mark another with /claimadmin zone"),
+                        "<dark_gray>open it to mark another out"),
                 click -> new ZonesMenu(services(), viewer, this).open());
 
         band(MenuLayout.RULES, 4, Icons.of(Material.WRITTEN_BOOK, "<gold>Browse every claim",

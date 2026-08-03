@@ -407,9 +407,15 @@ public record ClaimSettings(
     /**
      * What a server that has said nothing gets.
      *
-     * <p>Every value is the one the old plugin defaulted to. That is not nostalgia: an existing server whose
-     * {@code config.yml} does not mention a setting must behave tomorrow the way it behaved yesterday, and a
-     * changed default here is a silent change to every server that never had an opinion.
+     * <p>Every value is the one the old plugin defaulted to, with one deliberate exception. That rule is not
+     * nostalgia: an existing server whose {@code config.yml} does not mention a setting must behave tomorrow
+     * the way it behaved yesterday, and a changed default here is a silent change to every server that never
+     * had an opinion.
+     *
+     * <p>The exception is {@code notifications.use-action-bar}, which the old plugin defaulted to off. A border
+     * notice matters for the second it is shown and then never again; in chat it pushes real conversation up
+     * the screen, and walking home across three claims leaves a wall of them. A server that has an opinion
+     * keeps it — the key is unchanged — so this only reaches servers that never chose.
      */
     public static final ClaimSettings DEFAULTS = new ClaimSettings(
             3, 9, -1L, 32, 3, true,
@@ -422,7 +428,7 @@ public record ClaimSettings(
                     "oozing", "weaving", "wind_charged", "trial_omen", "raid_omen"),
             8, 270, 270,
             96, BroadcastScope.CLAIM, true, true, true, true,
-            false, 4, 3,
+            true, 4, 3,
             12, 48, 2, 600, true, VisualMode.PARTICLES,
             Material.GOLD_BLOCK, Material.GLOWSTONE, Material.REDSTONE_BLOCK,
             Material.STICK, Material.SEA_LANTERN, VerticalMode.SELECTION_PADDED,

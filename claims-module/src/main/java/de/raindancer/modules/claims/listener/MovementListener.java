@@ -266,11 +266,18 @@ public final class MovementListener implements IClaimListener {
         long now = System.currentTimeMillis();
         long window = services.config().notificationCooldownSeconds() * 1000L;
         Announcement last = lastAnnouncement.get(player.getUniqueId());
-        lastAnnouncement.put(player.getUniqueId(), new Announcement(claim.id(), now));
-        if (last == null || !last.claimId().equals(claim.id())) {
-            return true;
+
+        boolean sayIt = last == null
+                || !last.claimId().equals(claim.id())
+                || now - last.at() >= window;
+        if (sayIt) {
+            // Only on the path that actually says something. Writing it before deciding — which is the
+            // obvious way round — means every suppressed attempt renews the window, so somebody standing on
+            // a border being refused twenty times a second is never told again, not even when they walk in
+            // properly a minute later.
+            lastAnnouncement.put(player.getUniqueId(), new Announcement(claim.id(), now));
         }
-        return now - last.at() >= window;
+        return sayIt;
     }
 
     /** The last claim arrival announced to a player, so the same one is not announced twice over. */

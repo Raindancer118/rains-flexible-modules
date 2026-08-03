@@ -266,40 +266,71 @@ class ScreenGrammarTest {
     }
 
     @Test
-    @DisplayName("the claim menu is one submenu deep, not two")
-    void theFrontPageIsOneClickFromAnything()  {
-        // A page of category buttons, each opening a page of buttons, each opening the actual list, looks
-        // tidier on the front page and costs a click on every single route. The rule is that a button on the
-        // claim menu opens the thing itself.
+    @DisplayName("a category's children are things, not more categories")
+    void theTreeIsTwoDeepAtMost() {
+        // The front page carries two categories on purpose — People and Configuration — because the two
+        // questions people arrive with are "who may be here" and "how is this set up", and mixing them across
+        // one flat page of twelve buttons was unreadable.
         //
-        // Checked by asking whether anything the claim menu opens is itself a hub — a screen whose render
-        // does nothing but open other screens.
-        Screen front = screens().stream()
-                .filter(screen -> screen.name().equals("ClaimMenu"))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("ClaimMenu is gone"));
-
-        List<String> hubs = new ArrayList<>();
-        Matcher opened = Pattern.compile("new (\\w+Menu)\\(").matcher(front.body());
-        while (opened.find()) {
-            String name = opened.group(1);
-            screens().stream()
-                    .filter(screen -> screen.name().equals(name))
-                    .findFirst()
-                    .ifPresent(target -> {
-                        long doors = Pattern.compile("\\.open\\(\\)").matcher(target.body())
-                                .results().count();
-                        boolean showsSomething = target.body().contains("entries()")
-                                || target.body().contains("PaginatedMenu")
-                                || target.body().contains("refresh()");
-                        if (doors >= 3 && !showsSomething) {
-                            hubs.add(name);
-                        }
-                    });
+        // What must not happen is a third level. Claim menu → Configuration → Perks is a page of doors opening
+        // a page of doors, and by then nobody can say where anything lives. So a category may hold things, and
+        // a thing may not be another category.
+        List<String> tooDeep = new ArrayList<>();
+        for (Screen screen : screens()) {
+            if (!isACategory(screen)) {
+                continue;
+            }
+            Matcher opened = Pattern.compile("new (\\w+Menu)\\(").matcher(screen.body());
+            while (opened.find()) {
+                String name = opened.group(1);
+                if (name.equals(screen.name())) {
+                    continue;   // reopening itself after a chooser returns, which is not another level
+                }
+                screens().stream()
+                        .filter(candidate -> candidate.name().equals(name))
+                        .filter(ScreenGrammarTest::isACategory)
+                        .findFirst()
+                        .ifPresent(nested ->
+                                tooDeep.add(screen.name() + " → " + nested.name()));
+            }
         }
-        assertThat(hubs)
-                .as("these are pages of buttons reached from a page of buttons, which puts every real list "
-                        + "two clicks from the front door")
+        assertThat(tooDeep)
+                .as("a category inside a category puts the real page three clicks from the front door")
+                .isEmpty();
+    }
+
+    /** A page whose whole job is opening other pages, rather than showing or changing anything. */
+    private static boolean isACategory(Screen screen) {
+        long doors = Pattern.compile("\\.open\\(\\)").matcher(screen.body()).results().count();
+        boolean showsSomething = screen.body().contains("entries()")
+                || screen.body().contains("PaginatedMenu")
+                || screen.body().contains("refresh()");
+        return doors >= 3 && !showsSomething;
+    }
+
+    @Test
+    @DisplayName("no page title repeats the plugin's own name")
+    void theBrandIsNotSaidTwice() {
+        // Every window title is rendered as "<brand> » <page>", so a page called "Claims — server" came out as
+        // "Claims » Claims — server". A title gets 154 pixels and gets cut off at the end, so a wasted word at
+        // the front is a word missing from the part that says where you are.
+        //
+        // Only the start of the title: "Your claims" and "Where nobody may claim" are sentences about claims,
+        // which is different from a label that names the plugin.
+        List<String> repeating = new ArrayList<>();
+        Pattern titled = Pattern.compile("Component\\.text\\(\"([^\"]+)\"");
+        for (Screen screen : screens()) {
+            Matcher matcher = titled.matcher(screen.body());
+            while (matcher.find()) {
+                String title = matcher.group(1);
+                if (title.startsWith("Claim") && !title.startsWith("Claimed")) {
+                    repeating.add(screen.name() + ": \"" + title + "\"");
+                }
+            }
+        }
+        assertThat(repeating)
+                .as("the brand is already in front of these; naming the plugin again spends the title's "
+                        + "pixel budget on a word the player can already see")
                 .isEmpty();
     }
 }

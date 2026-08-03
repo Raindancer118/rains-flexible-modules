@@ -1,6 +1,8 @@
 package de.raindancer.modules.claims.screen;
 
 import de.raindancer.core.platform.util.Scheduling;
+import de.raindancer.core.ui.choose.PlayerChooser;
+import de.raindancer.core.ui.choose.PlayerEntry;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -13,18 +15,15 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -194,48 +193,23 @@ public final class AdminClaimBrowserMenu extends PaginatedMenu<Claim> implements
                         ? "<yellow>Filter by owner"
                         : "<yellow>Showing only " + services.names().nameOfOwner(ownerFilter),
                 ownerFilter == null
-                        ? "<gray>Type a player's name in chat."
+                        ? "<dark_gray>click to choose"
                         : "<gray>Click to see every claim again."),
                 event -> {
             if (ownerFilter != null) {
                 new AdminClaimBrowserMenu(services, viewer, parent(), null).open();
                 return;
             }
-            viewer.closeInventory();
-            services.messages().send(viewer, "admin.ask-owner-filter");
             askForOwner();
         });
     }
 
-    /** Asks in chat for the player to filter by, since there is no player-picker screen in Core yet. */
+    /** Picks who to filter by with a click — every player the server knows of is a fair pick here. */
     private void askForOwner() {
-        boolean asked = services.core().prompts().ask(viewer.getUniqueId(), "Claims", Duration.ofSeconds(24),
-                typed -> Scheduling.entity(services.plugin(), viewer, () -> {
-                    Optional<UUID> owner = resolvePlayer(typed);
-                    if (owner.isEmpty()) {
-                        services.messages().send(viewer, "error.no-such-player", "player", typed);
-                        new AdminClaimBrowserMenu(services, viewer, parent(), null).open();
-                        return;
-                    }
-                    new AdminClaimBrowserMenu(services, viewer, parent(), owner.get()).open();
-                }),
-                () -> new AdminClaimBrowserMenu(services, viewer, parent(), ownerFilter).open());
-        if (!asked) {
-            services.messages().send(viewer, "selection.already-being-asked");
-        }
-    }
-
-    /** By an online exact match first, then whoever the server has already seen and cached. */
-    static Optional<UUID> resolvePlayer(String name) {
-        if (name == null || name.isBlank()) {
-            return Optional.empty();
-        }
-        Player online = Bukkit.getPlayerExact(name);
-        if (online != null) {
-            return Optional.of(online.getUniqueId());
-        }
-        OfflinePlayer cached = Bukkit.getOfflinePlayerIfCached(name);
-        return cached == null ? Optional.empty() : Optional.of(cached.getUniqueId());
+        new PlayerChooser(viewer, services.brand(), this, "Filter by owner",
+                List.of(), person ->
+                        new AdminClaimBrowserMenu(services, viewer, parent(), person.id()).open())
+                .open();
     }
 
     /** Admin-only actions on one claim, on top of everything the owner menu offers. */
@@ -291,22 +265,17 @@ public final class AdminClaimBrowserMenu extends PaginatedMenu<Claim> implements
 
             band(MenuLayout.RULES, 4, Icons.of(Material.BEACON, "<aqua>Transfer ownership",
                             "<gray>Replaces every current owner.",
-                            "<dark_gray>type a player's name in chat"),
+                            "<dark_gray>click to choose the new owner"),
                     click -> {
                         if (!services().rights().isServerAdmin(viewer)) {
                             services().messages().send(viewer, "error.no-permission");
                             return;
                         }
-                        viewer.closeInventory();
-                        services().messages().send(viewer, "admin.ask-transfer-target", "claim", claim.name());
-                        boolean asked = services().core().prompts().ask(viewer.getUniqueId(), "Claims",
-                                Duration.ofSeconds(24),
-                                typed -> Scheduling.entity(services().plugin(), viewer,
-                                        () -> onTransferTyped(claim, typed)),
-                                () -> services().messages().send(viewer, "selection.name-aborted"));
-                        if (!asked) {
-                            services().messages().send(viewer, "selection.already-being-asked");
-                        }
+                        // Offering a current owner back as "the new owner" would be a no-op, so they are
+                        // excluded rather than picked and then refused.
+                        new PlayerChooser(viewer, services().brand(), this, "Transfer ownership",
+                                new ArrayList<>(claim.owners()),
+                                person -> onTransferChosen(claim, person)).open();
                     });
 
             danger(Icons.of(Material.TNT, "<red><bold>Delete this claim",
@@ -325,25 +294,18 @@ public final class AdminClaimBrowserMenu extends PaginatedMenu<Claim> implements
                             }).open());
         }
 
-        private void onTransferTyped(Claim claim, String typed) {
-            Optional<UUID> target = AdminClaimBrowserMenu.resolvePlayer(typed);
-            if (target.isEmpty()) {
-                services().messages().send(viewer, "error.no-such-player", "player", typed);
-                open();
-                return;
-            }
-            String targetName = typed;
+        private void onTransferChosen(Claim claim, PlayerEntry person) {
             new ConfirmScreen(services(), viewer, claim, this,
-                    "<gold>Hand \"" + claim.name() + "\" to " + targetName + "?",
+                    "<gold>Hand \"" + claim.name() + "\" to " + person.name() + "?",
                     List.of("<gray>All current owners lose the claim."),
                     () -> {
                         List<UUID> previous = new ArrayList<>(claim.owners());
-                        claim.addOwner(target.get());
+                        claim.addOwner(person.id());
                         previous.forEach(claim::removeOwner);
                         services().claims().reindex(claim);
                         services().claimService().saveAsync(claim);
                         services().messages().send(viewer, "admin.ownership-transferred",
-                                "claim", claim.name(), "player", targetName);
+                                "claim", claim.name(), "player", person.name());
                         open();
                     }).open();
         }

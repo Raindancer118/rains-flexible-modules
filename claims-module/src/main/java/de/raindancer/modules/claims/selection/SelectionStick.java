@@ -70,8 +70,16 @@ public final class SelectionStick {
 
     public ItemStack create(Selection.Purpose purpose, Selection.Mode mode) {
         String modeLabel = mode == Selection.Mode.RECTANGLE ? "Rectangle" : "Polygon";
-        return Items.of(settings.selectionStickMaterial())
-                .name("<gradient:#ffd54f:#ff8f00><bold>Claimborder Selection Stick</bold></gradient>")
+        // A no-claim zone is the opposite of a claim, and an admin marking one out while holding the same
+        // item they use for claims has no way to tell from their hotbar which they are doing. A blaze rod is
+        // deliberately not the configured claim material: it reads as "administrative" at a glance, and the
+        // mistake this prevents — marking a no-claim zone over land somebody wanted to claim — is one that
+        // takes a while to notice.
+        boolean forbidding = purpose == Selection.Purpose.NO_CLAIM_ZONE;
+        return Items.of(forbidding ? org.bukkit.Material.BLAZE_ROD : settings.selectionStickMaterial())
+                .name(forbidding
+                        ? "<gradient:#ef4444:#f97316><bold>No-Claim Zone Stick</bold></gradient>"
+                        : "<gradient:#ffd54f:#ff8f00><bold>Claimborder Selection Stick</bold></gradient>")
                 .lore("<white>Mode: <yellow>" + modeLabel,
                         "<white>For: <yellow>" + label(purpose))
                 .blank()

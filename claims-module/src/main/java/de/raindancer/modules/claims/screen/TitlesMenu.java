@@ -28,7 +28,7 @@ public final class TitlesMenu extends ClaimScreen {
 
     @Override
     protected Component title() {
-        return Component.text("Arriving and leaving");
+        return Component.text("Greetings");
     }
 
     @Override

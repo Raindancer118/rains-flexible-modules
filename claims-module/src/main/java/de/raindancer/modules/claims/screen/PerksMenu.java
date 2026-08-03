@@ -66,11 +66,11 @@ public final class PerksMenu extends ClaimScreen {
         toolbar(3, Icons.of(Material.POTION, "<white>Potions the effects drink",
                         "<gray>" + claim.potionStore().totalPotions() + " stocked",
                         "<dark_gray>only used when the server asks for them"),
-                click -> services().screens().potionStore(viewer, claim));
+                click -> new StoreMenu(services(), viewer, claim, this, StoreMenu.Kind.POTIONS).open());
 
         toolbar(5, Icons.of(Material.BREAD, "<white>Stock the pantry",
                         "<gray>Food the claim feeds hungry people with."),
-                click -> services().screens().pantry(viewer, claim));
+                click -> new StoreMenu(services(), viewer, claim, this, StoreMenu.Kind.PANTRY).open());
 
         toolbar(7, Icons.of(Material.ARMOR_STAND, "<white>Auto-equip rules",
                         "<gray>" + claim.equipment().rules().size() + " rule(s), "

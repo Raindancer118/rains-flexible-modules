@@ -241,11 +241,21 @@ public final class ClaimRegistry {
     /**
      * How far outside a claim's vertical range a player may stray before they count as having left it.
      * <p>
-     * A jump lifts you one block, a jump onto a slab or with a boost two. Without this, any claim whose
-     * ceiling sits near standing height fires a leave and an enter on every single hop — it makes no
-     * difference whether what is above the ceiling is another claim or open wilderness.
+     * A jump lifts you one block, a sprint jump or a jump onto a slab two or three, and a jump with any boost
+     * more. Without enough of this, a claim whose ceiling is the ground you are standing on — so you are
+     * already above it — fires a leave and an enter on every hop. That was reported as "jumping shows the
+     * enter message again when you land", and two was not enough for it.
+     *
+     * <p>Six, which covers a boosted jump, and generous on purpose: being told twice that you arrived
+     * somewhere you never left is a bug, while a notice arriving a moment late as somebody climbs genuinely
+     * out of a claim is not something anybody notices.
      */
-    private static final int VERTICAL_GRACE = 2;
+    private static final int VERTICAL_GRACE = 6;
+
+    /** The grace, for the test that pins it — the number is the whole behaviour. */
+    public static int verticalGrace() {
+        return VERTICAL_GRACE;
+    }
 
     /**
      * The claim a player counts as standing in, given the one they were in a moment ago.

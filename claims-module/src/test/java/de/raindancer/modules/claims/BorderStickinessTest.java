@@ -31,16 +31,24 @@ class BorderStickinessTest {
     @Test
     @DisplayName("a jump off the claim's ceiling does not count as leaving")
     void aJumpKeepsYouInside() {
+        // Widened from two blocks to six after a real report: "jumping shows the enter message again when you
+        // land". Two covered a plain jump and nothing else — a sprint jump, a jump onto a slab and a jump with
+        // any boost all reached three or more, and a claim whose ceiling is the ground you stand on has you
+        // above it before you even move.
         Claim house = house();
         assertThat(ClaimRegistry.stillHolds(house, WORLD, 2, 85, 2)).isTrue();  // standing on top
         assertThat(ClaimRegistry.stillHolds(house, WORLD, 2, 86, 2)).isTrue();  // mid jump
-        assertThat(ClaimRegistry.stillHolds(house, WORLD, 2, 87, 2)).isTrue();  // slab or jump boost
+        assertThat(ClaimRegistry.stillHolds(house, WORLD, 2, 87, 2)).isTrue();  // slab
+        assertThat(ClaimRegistry.stillHolds(house, WORLD, 2, 88, 2)).isTrue();  // sprint jump
+        assertThat(ClaimRegistry.stillHolds(house, WORLD, 2, 91, 2)).isTrue();  // jump boost
     }
 
     @Test
-    @DisplayName("climbing well above the claim is a real departure")
+    @DisplayName("climbing well above the claim is still a real departure")
     void climbingOutIsALeave() {
-        assertThat(ClaimRegistry.stillHolds(house(), WORLD, 2, 88, 2)).isFalse();
+        // The grace is generous, not unlimited: somebody who has genuinely climbed out has left, and a claim
+        // that held a player forever would never fire the leave notice at all.
+        assertThat(ClaimRegistry.stillHolds(house(), WORLD, 2, 92, 2)).isFalse();
         assertThat(ClaimRegistry.stillHolds(house(), WORLD, 2, 120, 2)).isFalse();
     }
 
@@ -49,7 +57,8 @@ class BorderStickinessTest {
     void theFloorGetsTheSameGrace() {
         assertThat(ClaimRegistry.stillHolds(house(), WORLD, 2, 55, 2)).isTrue();
         assertThat(ClaimRegistry.stillHolds(house(), WORLD, 2, 54, 2)).isTrue();
-        assertThat(ClaimRegistry.stillHolds(house(), WORLD, 2, 53, 2)).isFalse();
+        assertThat(ClaimRegistry.stillHolds(house(), WORLD, 2, 50, 2)).isTrue();
+        assertThat(ClaimRegistry.stillHolds(house(), WORLD, 2, 49, 2)).isFalse();
     }
 
     @Test

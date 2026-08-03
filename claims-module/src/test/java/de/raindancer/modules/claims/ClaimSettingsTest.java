@@ -143,7 +143,12 @@ class ClaimSettingsTest {
 
         @Test
         void noticesAreWhatTheyWere() {
-            assertThat(defaults.enterMessageActionBar()).isFalse();
+            // The one deliberate departure from the old plugin's defaults, and it is written down here rather
+            // than just changed: a border notice matters for the second it is shown and then never again, so
+            // chat is the wrong place for it — three claims on the way home is a wall of messages pushing real
+            // conversation off the screen. The config key is unchanged, so a server that already chose keeps
+            // its choice and only servers with no opinion see this.
+            assertThat(defaults.enterMessageActionBar()).isTrue();
             assertThat(defaults.borderOnEnterSeconds()).isEqualTo(4);
             assertThat(defaults.notificationCooldownSeconds()).isEqualTo(3);
         }

@@ -3,11 +3,11 @@ package de.raindancer.modules.claims.screen;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimFeature;
+import de.raindancer.core.ui.choose.PlayerChooser;
+import de.raindancer.core.ui.choose.PlayerEntry;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
-import de.raindancer.modules.claims.model.Claim;
-import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.ClaimServices;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -15,10 +15,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -32,9 +30,6 @@ import java.util.UUID;
  * their button says they are an owner.
  */
 public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implements IClaimScreen {
-
-    /** How long somebody has to answer before the question is withdrawn. */
-    private static final Duration PROMPT_TIMEOUT = Duration.ofSeconds(20);
 
     /** One row of the list: somebody, and what they are here. */
     record Entry(UUID who, boolean owner, boolean claimAdmin) {
@@ -144,48 +139,25 @@ public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implemen
                 && services.rights().isOwnerOrServerAdmin(claim, viewer)) {
             toolbar(4, Icons.of(Material.GOLDEN_HELMET, "<gold>Add a co-owner",
                             "<gray>Somebody who owns this claim exactly as you do.",
-                            "<dark_gray>type their name in chat"),
+                            "<dark_gray>click to choose who"),
                     click -> askForCoOwner());
         }
     }
 
     private void askForCoOwner() {
         viewer.closeInventory();
-        services.messages().send(viewer, "claim.ask-co-owner");
-        boolean asked = services.prompts().ask(viewer.getUniqueId(), "Claims", PROMPT_TIMEOUT,
-                typed -> {
-                    Optional<UUID> subject = resolveName(typed.trim());
-                    if (subject.isEmpty()) {
-                        services.messages().send(viewer, "error.no-such-player", "player", typed);
-                        open();
-                        return;
-                    }
-                    UUID who = subject.get();
-                    if (claim.isOwner(who)) {
-                        services.messages().send(viewer, "claim.already-an-owner", "player", typed);
-                        open();
-                        return;
-                    }
-                    claim.addOwner(who);
-                    services.claims().reindex(claim);
-                    services.claimService().saveAsync(claim);
-                    services.messages().send(viewer, "claim.owner-added",
-                            "player", services.names().nameOfOwner(who), "claim", claim.name());
-                    open();
-                },
-                this::open);
-        if (!asked) {
-            services.messages().send(viewer, "selection.already-being-asked");
-        }
+        // Owners already own it, so offering one back as "a co-owner" is a button that would only ever
+        // refuse — the chooser leaves them off the list instead of onClick saying no.
+        new PlayerChooser(viewer, services.brand(), this, "Add a co-owner",
+                new ArrayList<>(claim.owners()), this::onCoOwnerChosen).open();
     }
 
-    /** A name to a uuid, online or not — offline included, or somebody who has logged off cannot be added. */
-    private Optional<UUID> resolveName(String name) {
-        Player online = services.server().getPlayerExact(name);
-        if (online != null) {
-            return Optional.of(online.getUniqueId());
-        }
-        var seen = services.server().getOfflinePlayer(name);
-        return seen.hasPlayedBefore() ? Optional.of(seen.getUniqueId()) : Optional.empty();
+    private void onCoOwnerChosen(PlayerEntry person) {
+        claim.addOwner(person.id());
+        services.claims().reindex(claim);
+        services.claimService().saveAsync(claim);
+        services.messages().send(viewer, "claim.owner-added",
+                "player", person.name(), "claim", claim.name());
+        open();
     }
 }

@@ -5,6 +5,8 @@ import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimBan;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.core.moderation.punishment.Durations;
+import de.raindancer.core.ui.choose.PlayerChooser;
+import de.raindancer.core.ui.choose.PlayerEntry;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
@@ -107,79 +109,60 @@ public final class BansMenu extends PaginatedMenu<ClaimBan> implements IClaimScr
                             "<gray>Escorts them to the nearest safe spot beyond the border.",
                             "<dark_gray>they may walk straight back in",
                             "",
-                            "<dark_gray>type their name in chat"),
+                            "<dark_gray>click to choose who"),
                     click -> askKick());
         }
         toolbar(4, Icons.of(Material.CLOCK, "<gold>Time somebody out",
                         "<gray>Bars them for a while, then lets them back in on its own.",
-                        "<dark_gray>type their name, then how long — <white>name duration</white>"),
+                        "<dark_gray>click to choose who, then type how long"),
                 click -> askTimeout());
         toolbar(7, Icons.of(Material.IRON_AXE, "<red>Bar somebody",
                         "<gray>Kicks them out and keeps them out until you lift it.",
-                        "<dark_gray>type their name, then a reason if you like"),
+                        "<dark_gray>click to choose who, then type a reason if you like"),
                 click -> askBan());
+    }
+
+    /** Who a ban or a timeout may not fall on: an owner, for the same reason the claim already refuses it. */
+    private List<UUID> unbannable() {
+        return new ArrayList<>(claim.owners());
     }
 
     private void askKick() {
         viewer.closeInventory();
-        services.messages().send(viewer, "claim.ask-kick");
-        boolean asked = services.prompts().ask(viewer.getUniqueId(), "Claims", PROMPT_TIMEOUT,
-                typed -> {
-                    Optional<UUID> subject = resolveName(typed.trim());
-                    if (subject.isEmpty()) {
-                        services.messages().send(viewer, "error.no-such-player", "player", typed);
-                        open();
-                        return;
-                    }
-                    UUID who = subject.get();
-                    if (claim.isOwner(who)) {
-                        services.messages().send(viewer, "claim.cannot-kick-an-owner", "player", typed);
-                        open();
-                        return;
-                    }
-                    Player online = services.server().getPlayer(who);
-                    if (online == null) {
-                        services.messages().send(viewer, "error.player-offline", "player", typed);
-                        open();
-                        return;
-                    }
-                    services.eviction().evict(online, claim, "protection.evicted-kicked");
-                    services.messages().send(viewer, "claim.kicked",
-                            "player", online.getName(), "claim", claim.name());
-                    services.broadcasts().kicked(claim, online.getName(), viewer.getName());
-                    open();
-                },
-                this::open);
-        if (!asked) {
-            services.messages().send(viewer, "selection.already-being-asked");
+        new PlayerChooser(viewer, services.brand(), this, "Kick somebody out",
+                unbannable(), this::onKickChosen).open();
+    }
+
+    private void onKickChosen(PlayerEntry person) {
+        Player online = services.server().getPlayer(person.id());
+        if (online == null) {
+            services.messages().send(viewer, "error.player-offline", "player", person.name());
+            open();
+            return;
         }
+        services.eviction().evict(online, claim, "protection.evicted-kicked");
+        services.messages().send(viewer, "claim.kicked",
+                "player", online.getName(), "claim", claim.name());
+        services.broadcasts().kicked(claim, online.getName(), viewer.getName());
+        open();
     }
 
     private void askBan() {
         viewer.closeInventory();
-        services.messages().send(viewer, "claim.ask-ban");
+        new PlayerChooser(viewer, services.brand(), this, "Bar somebody",
+                unbannable(), this::askBanReason).open();
+    }
+
+    private void askBanReason(PlayerEntry person) {
+        services.messages().send(viewer, "claim.ask-ban-reason");
         boolean asked = services.prompts().ask(viewer.getUniqueId(), "Claims", PROMPT_TIMEOUT,
                 typed -> {
-                    String[] parts = typed.trim().split("\\s+", 2);
-                    Optional<UUID> subject = resolveName(parts[0]);
-                    if (subject.isEmpty()) {
-                        services.messages().send(viewer, "error.no-such-player", "player", parts[0]);
-                        open();
-                        return;
-                    }
-                    UUID who = subject.get();
-                    if (claim.isOwner(who)) {
-                        services.messages().send(viewer, "claim.cannot-ban-an-owner", "player", parts[0]);
-                        open();
-                        return;
-                    }
-                    String reason = parts.length > 1 ? parts[1] : "";
-                    claim.ban(ClaimBan.permanent(who, viewer.getUniqueId(), reason));
+                    String reason = typed.trim().equals("-") ? "" : typed.trim();
+                    claim.ban(ClaimBan.permanent(person.id(), viewer.getUniqueId(), reason));
                     services.claimService().saveAsync(claim);
-                    String name = services.names().nameOfOwner(who);
-                    services.broadcasts().banned(claim, name, viewer.getName(), reason);
+                    services.broadcasts().banned(claim, person.name(), viewer.getName(), reason);
                     services.messages().send(viewer, "claim.banned",
-                            "player", name, "claim", claim.name());
+                            "player", person.name(), "claim", claim.name());
                     open();
                 },
                 this::open);
@@ -190,56 +173,34 @@ public final class BansMenu extends PaginatedMenu<ClaimBan> implements IClaimScr
 
     private void askTimeout() {
         viewer.closeInventory();
-        services.messages().send(viewer, "claim.ask-timeout");
+        new PlayerChooser(viewer, services.brand(), this, "Time somebody out",
+                unbannable(), this::askTimeoutDuration).open();
+    }
+
+    private void askTimeoutDuration(PlayerEntry person) {
+        services.messages().send(viewer, "claim.ask-timeout-duration");
         boolean asked = services.prompts().ask(viewer.getUniqueId(), "Claims", PROMPT_TIMEOUT,
                 typed -> {
-                    String[] parts = typed.trim().split("\\s+", 3);
-                    if (parts.length < 2) {
-                        services.messages().send(viewer, "claim.who", "usage", "name duration");
-                        open();
-                        return;
-                    }
-                    Optional<UUID> subject = resolveName(parts[0]);
-                    if (subject.isEmpty()) {
-                        services.messages().send(viewer, "error.no-such-player", "player", parts[0]);
-                        open();
-                        return;
-                    }
-                    UUID who = subject.get();
-                    if (claim.isOwner(who)) {
-                        services.messages().send(viewer, "claim.cannot-ban-an-owner", "player", parts[0]);
-                        open();
-                        return;
-                    }
-                    Optional<Duration> duration = Durations.parse(parts[1]);
+                    String[] parts = typed.trim().split("\\s+", 2);
+                    Optional<Duration> duration = Durations.parse(parts[0]);
                     if (duration.isEmpty()) {
-                        services.messages().send(viewer, "error.bad-duration", "input", parts[1]);
+                        services.messages().send(viewer, "error.bad-duration", "input", parts[0]);
                         open();
                         return;
                     }
-                    String reason = parts.length > 2 ? parts[2] : "";
-                    claim.ban(ClaimBan.timeout(who, viewer.getUniqueId(), duration.get().toMillis(), reason));
+                    String reason = parts.length > 1 && !parts[1].equals("-") ? parts[1] : "";
+                    claim.ban(ClaimBan.timeout(person.id(), viewer.getUniqueId(),
+                            duration.get().toMillis(), reason));
                     services.claimService().saveAsync(claim);
                     String formatted = Durations.describe(duration.get());
-                    String name = services.names().nameOfOwner(who);
-                    services.broadcasts().timedOut(claim, name, viewer.getName(), formatted);
+                    services.broadcasts().timedOut(claim, person.name(), viewer.getName(), formatted);
                     services.messages().send(viewer, "claim.timed-out",
-                            "player", name, "claim", claim.name(), "duration", formatted);
+                            "player", person.name(), "claim", claim.name(), "duration", formatted);
                     open();
                 },
                 this::open);
         if (!asked) {
             services.messages().send(viewer, "selection.already-being-asked");
         }
-    }
-
-    /** A name to a uuid, online or not — offline included, or a ban cannot be laid on somebody who left. */
-    private Optional<UUID> resolveName(String name) {
-        Player online = services.server().getPlayerExact(name);
-        if (online != null) {
-            return Optional.of(online.getUniqueId());
-        }
-        var seen = services.server().getOfflinePlayer(name);
-        return seen.hasPlayedBefore() ? Optional.of(seen.getUniqueId()) : Optional.empty();
     }
 }
