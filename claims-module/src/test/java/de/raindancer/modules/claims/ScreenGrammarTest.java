@@ -247,4 +247,59 @@ class ScreenGrammarTest {
                         + "unreadable — leave a pane between them")
                 .isEmpty();
     }
+
+    @Test
+    @DisplayName("a head that stands for a person wears that person's face")
+    void headsAreSkinned() {
+        // Icons.of(Material.PLAYER_HEAD, ...) is an unskinned head, which renders as Steve for everybody.
+        // Core has Icons.head for this, and the whole reason it exists is that a head is only worth using as
+        // an icon when it is somebody's — otherwise it is a worse-looking generic block.
+        List<String> steve = new ArrayList<>();
+        for (Screen screen : screens()) {
+            if (screen.body().contains("Icons.of(Material.PLAYER_HEAD")) {
+                steve.add(screen.name());
+            }
+        }
+        assertThat(steve)
+                .as("these show an unskinned head, which is Steve on every server — use Icons.head(uuid, ..)")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("the claim menu is one submenu deep, not two")
+    void theFrontPageIsOneClickFromAnything()  {
+        // A page of category buttons, each opening a page of buttons, each opening the actual list, looks
+        // tidier on the front page and costs a click on every single route. The rule is that a button on the
+        // claim menu opens the thing itself.
+        //
+        // Checked by asking whether anything the claim menu opens is itself a hub — a screen whose render
+        // does nothing but open other screens.
+        Screen front = screens().stream()
+                .filter(screen -> screen.name().equals("ClaimMenu"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("ClaimMenu is gone"));
+
+        List<String> hubs = new ArrayList<>();
+        Matcher opened = Pattern.compile("new (\\w+Menu)\\(").matcher(front.body());
+        while (opened.find()) {
+            String name = opened.group(1);
+            screens().stream()
+                    .filter(screen -> screen.name().equals(name))
+                    .findFirst()
+                    .ifPresent(target -> {
+                        long doors = Pattern.compile("\\.open\\(\\)").matcher(target.body())
+                                .results().count();
+                        boolean showsSomething = target.body().contains("entries()")
+                                || target.body().contains("PaginatedMenu")
+                                || target.body().contains("refresh()");
+                        if (doors >= 3 && !showsSomething) {
+                            hubs.add(name);
+                        }
+                    });
+        }
+        assertThat(hubs)
+                .as("these are pages of buttons reached from a page of buttons, which puts every real list "
+                        + "two clicks from the front door")
+                .isEmpty();
+    }
 }

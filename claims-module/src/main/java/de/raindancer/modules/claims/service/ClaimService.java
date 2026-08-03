@@ -248,8 +248,7 @@ public final class ClaimService implements IClaimService {
 
         // An automatic fence is opt-in for the server; the owner can always build one later themselves.
         if (fences != null && features.isOffered(ClaimFeature.FENCE) && settings.fenceAutoBuild()) {
-            claim.fence().enabled(true);
-            fences.build(claim, player);
+            fences.build(claim, player);   // which records that the fence is up
         }
         saveAsync(claim);
         return Result.ok(claim);

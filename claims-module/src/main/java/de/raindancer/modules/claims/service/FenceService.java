@@ -186,6 +186,16 @@ public final class FenceService implements IClaimService {
             return FenceResult.NOTHING;
         }
         ClaimFence fence = claim.fence();
+
+        // The decision, recorded here rather than by each caller. It was set in exactly one place — claim
+        // creation with auto-build on — so an owner who built a fence from the menu got the blocks and left
+        // the flag false: the button went on reading "Not built" and the next click built again instead of
+        // taking it down. The fence could be put up and never removed.
+        //
+        // Set before the world work, not after. Everything below can return early (nothing to do, no
+        // material, the cap reached) and every one of those is still a fence the owner asked for.
+        fence.enabled(true);
+
         Set<ClaimPoint> outline = desiredOutline(claim.shape());
         fence.pruneTo(outline);
 
@@ -234,6 +244,10 @@ public final class FenceService implements IClaimService {
         }
         List<ClaimPoint> all = new ArrayList<>(claim.fence().segmentPoints());
         int removed = removeColumns(claim, world, all, refundToBank);
+
+        // Down, and recorded as down. A flag left true with no blocks behind it is a fence the next sync run
+        // puts straight back up, which reads as the plugin refusing to take it down.
+        claim.fence().enabled(false);
         claim.fence().clearSuppressions();
         claims.saveAsync(claim);
         return new FenceResult(0, removed, 0, 0);

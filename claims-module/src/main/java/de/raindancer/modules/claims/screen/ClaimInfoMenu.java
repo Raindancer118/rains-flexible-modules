@@ -49,7 +49,9 @@ public final class ClaimInfoMenu extends ClaimScreen {
         people.add("<gray>" + services().names().allOwners(claim));
         people.add("<dark_gray>" + claim.members().size() + " trusted, "
                 + claim.bans().size() + " barred");
-        band(MenuLayout.WHO, 4, Icons.of(Material.PLAYER_HEAD, "<white>Whose it is", people));
+        // The owner's own face, not a generic head — on a page about who this belongs to, whose face it
+        // is carries the answer better than the line underneath it does.
+        band(MenuLayout.WHO, 4, Icons.head(claim.primaryOwner(), "<white>Whose it is", people));
 
         band(MenuLayout.WHO, 6, Icons.of(Material.CLOCK, "<white>How long it has stood",
                 "<gray>" + age(claim),
