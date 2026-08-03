@@ -44,6 +44,7 @@ public final class ModulePlugin extends JavaPlugin {
         ModuleHost host = ModuleHosts.standalone(this, Modules.registry());
         Modules.registry().enableAll(module -> new LiveModuleSession(host, module));
 
+        brandTheMessages();
         report();
     }
 
@@ -52,6 +53,30 @@ public final class ModulePlugin extends JavaPlugin {
         // Stops everything that started, newest first, and unwinds each one — then forgets the registry, so a
         // reload starts from nothing rather than from whatever the last run left behind.
         Modules.shutdown();
+    }
+
+    /**
+     * Tells Core what this plugin is called, so its messages say so.
+     *
+     * <p>Without it every line went out as <code>[Core]</code>. {@code prefixed()} reads the {@code prefix}
+     * message key, of which there is one per server: RainsCore's bundled wording defines that value, a module's
+     * wording arrives as a floor, and a floor loses to the bundled file. So a module could ship a perfectly good
+     * gradient prefix and never be able to use it — the tag was on every window title and nowhere in chat.
+     *
+     * <p>The name is the <b>module's</b> when there is exactly one, and the plugin's otherwise. A plugin wrapping
+     * one module <em>is</em> that module as far as anybody using it is concerned, and "Claims" reads better in
+     * front of every line than "RainsExtendedClaims" does.
+     *
+     * <p>Asked rather than copied, so an owner who renames the tag in Core's settings is believed without a
+     * restart, and so {@link de.raindancer.core.ui.chat.Brand} keeps deciding whether the tag is shown at all.
+     */
+    private void brandTheMessages() {
+        var running = Modules.registry().enabled();
+        String name = running.size() == 1
+                ? running.get(0).info().name()
+                : getName();
+        var brand = RainsCore.get().chatFor(name).brand();
+        RainsCore.get().messages().prefixFrom(brand::chatPrefix);
     }
 
     /**

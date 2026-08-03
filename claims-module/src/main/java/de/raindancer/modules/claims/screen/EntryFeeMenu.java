@@ -62,17 +62,21 @@ public final class EntryFeeMenu extends ClaimScreen {
                 });
 
         band(MenuLayout.WHO, 5, allowed,
-                Icons.of(Material.GOLD_INGOT, "<white>How much: <green>" + fee.amount(),
-                        "<gray>Left click +1, right click −1.",
-                        "<gray>Shift for ten at a time.",
-                        "<dark_gray>the server allows up to " + services().config().entryFeeMaxAmount()),
+                Icons.of(fee.type().icon(), "<white>How much: <green>" + fee.amount(),
+                        "<gray>" + fee.type().displayName() + ", per crossing.",
+                        "",
+                        "<dark_gray>click to set it — up to "
+                                + services().config().entryFeeMaxAmount()),
                 "The owner's to change",
-                click -> {
-                    int step = click.isShiftClick() ? 10 : 1;
-                    int wanted = fee.amount() + (click.isRightClick() ? -step : step);
-                    fee.amount(Math.max(1, Math.min(services().config().entryFeeMaxAmount(), wanted)));
-                    save();
-                });
+                // Core's picker rather than ±1 nudges: forty clicks to reach four hundred is why the old
+                // screen had a chat prompt beside it, and nothing is applied until Accept.
+                click -> new de.raindancer.core.ui.choose.AmountChooser(viewer, services().brand(), this,
+                        "How much to charge", fee.amount(), 1,
+                        services().config().entryFeeMaxAmount(),
+                        chosen -> {
+                            fee.amount(chosen);
+                            save();
+                        }).open());
 
         band(MenuLayout.WHO, 6, allowed,
                 Icons.of(Material.CLOCK, "<white>Pass lasts <green>" + fee.passDurationSeconds() + "s",
@@ -88,19 +92,30 @@ public final class EntryFeeMenu extends ClaimScreen {
                 });
 
         if (fee.type() == CostType.ITEM) {
-            toolbar(4, Icons.of(fee.item() == null ? Material.BARRIER : fee.item().getType(),
-                            "<white>The item they hand over",
-                            "<gray>Hold one and click to set it."),
-                    click -> {
-                        var held = viewer.getInventory().getItemInMainHand();
-                        if (held.getType().isAir()) {
-                            tell("claim.hold-an-item");
-                            return;
-                        }
-                        fee.item(held.clone());
-                        save();
-                    });
+            boolean chosen = fee.item() != null;
+            toolbar(4, Icons.of(chosen ? fee.item().getType() : Material.BARRIER,
+                            chosen
+                                    ? "<white>They hand over <green>" + friendly(fee.item().getType())
+                                    : "<red>No item chosen yet",
+                            chosen
+                                    ? "<gray>" + fee.amount() + " of them, per crossing."
+                                    : "<gray>Until one is picked, nobody can pay.",
+                            "",
+                            "<dark_gray>click to choose from every item"),
+                    // Core's item chooser rather than "hold one and click": holding it meant owning it, so an
+                    // owner could not charge for anything they did not already have in their hand.
+                    click -> new de.raindancer.core.ui.choose.ItemChooser(viewer, services().brand(), this,
+                            "What they pay with",
+                            material -> {
+                                fee.item(new org.bukkit.inventory.ItemStack(material));
+                                save();
+                            }).open());
         }
+    }
+
+    /** A material as somebody would say it: "gold ingot", not "GOLD_INGOT". */
+    private static String friendly(Material material) {
+        return material.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
     }
 
     private void save() {
