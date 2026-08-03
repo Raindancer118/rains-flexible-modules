@@ -7,6 +7,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -196,5 +201,50 @@ class ScreenGrammarTest {
         } catch (IOException unreadable) {
             throw new AssertionError("could not read the module", unreadable);
         }
+    }
+
+    @Test
+    @DisplayName("buttons that open a page are spaced, not packed shoulder to shoulder")
+    void nothingIsCrammedTogether() {
+        // The claim menu once put twelve buttons on one page in adjacent columns. It read as a wall: nothing
+        // was grouped, the eye had nowhere to rest, and finding the fence meant reading all twelve. The rule
+        // that came out of it is that buttons which take you somewhere sit at least two columns apart, so a
+        // pane falls between each pair.
+        //
+        // Only those buttons. A control that adjusts a value — Deeper next to Shallower, Lower ceiling next
+        // to Higher — is a pair, and separating a pair is worse than leaving it alone: the two halves of one
+        // decision belong side by side. The difference is whether the click opens something.
+        Pattern placed = Pattern.compile("band\\(MenuLayout\\.([A-Z]+),\\s*(\\d+)");
+        List<String> packed = new ArrayList<>();
+
+        for (Screen screen : screens()) {
+            Map<String, List<Integer>> byBand = new LinkedHashMap<>();
+            Matcher matcher = placed.matcher(screen.body());
+            while (matcher.find()) {
+                String rest = screen.body().substring(matcher.end(),
+                        Math.min(screen.body().length(), matcher.end() + 700));
+                int nextButton = rest.indexOf("band(MenuLayout.");
+                String thisButton = nextButton < 0 ? rest : rest.substring(0, nextButton);
+                if (!thisButton.contains(".open()")) {
+                    continue;   // a control, not a door
+                }
+                byBand.computeIfAbsent(matcher.group(1), band -> new ArrayList<>())
+                        .add(Integer.parseInt(matcher.group(2)));
+            }
+            byBand.forEach((band, columns) -> {
+                List<Integer> sorted = new ArrayList<>(new TreeSet<>(columns));
+                for (int at = 1; at < sorted.size(); at++) {
+                    if (sorted.get(at) - sorted.get(at - 1) < 2) {
+                        packed.add(screen.name() + " " + band + " columns "
+                                + sorted.get(at - 1) + "+" + sorted.get(at));
+                    }
+                }
+            });
+        }
+
+        assertThat(packed)
+                .as("these put two doors in neighbouring columns, which is what made the claim menu "
+                        + "unreadable — leave a pane between them")
+                .isEmpty();
     }
 }

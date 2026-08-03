@@ -33,7 +33,7 @@ public final class AdminMenu extends ClaimScreen {
 
     @Override
     protected void render() {
-        band(MenuLayout.WHO, 2, Icons.of(Material.COMPARATOR, "<gold>What owners may do",
+        band(MenuLayout.WHO, 1, Icons.of(Material.COMPARATOR, "<gold>What owners may do",
                         "<gray>Which perks a claim is offered at all.",
                         "<dark_gray>server-wide"),
                 click -> new FeaturesMenu(services(), viewer, null, this).open());
@@ -44,12 +44,12 @@ public final class AdminMenu extends ClaimScreen {
                         "<dark_gray>server-wide · saved as you click"),
                 click -> new FlagPolicyMenu(services(), viewer, this).open());
 
-        band(MenuLayout.WHO, 4, Icons.of(Material.BARRIER, "<gold>Where nobody may claim",
+        band(MenuLayout.WHO, 5, Icons.of(Material.BARRIER, "<gold>Where nobody may claim",
                         "<gray>" + services().zones().all().size() + " area(s) marked out.",
                         "<dark_gray>mark another with /claimadmin zone"),
                 click -> new ZonesMenu(services(), viewer, this).open());
 
-        band(MenuLayout.WHO, 6, Icons.of(Material.SPYGLASS,
+        band(MenuLayout.WHO, 7, Icons.of(Material.SPYGLASS,
                         services().land().isBypassing(viewer)
                                 ? "<green>Bypass is on" : "<gray>Bypass is off",
                         "<gray>Ignore every claim's protection.",

@@ -72,121 +72,53 @@ public final class ClaimMenu extends ClaimScreen {
     protected void render() {
         Claim claim = claim();
 
-        // ── who ─────────────────────────────────────────────────────────────────────── people
-        band(MenuLayout.WHO, 1, may(ClaimAdminPermission.MANAGE_MEMBERS),
-                Icons.of(Material.PLAYER_HEAD, "<aqua>Trusted people",
-                        "<gray>Who may do what here.",
-                        "<dark_gray>" + claim.members().size() + " trusted"),
-                "The owner's to change",
-                click -> new MembersMenu(services(), viewer, claim, this).open());
+        // Six doors, not twelve buttons. The previous version put everything on this one page in adjacent
+        // columns, which read as a wall: nothing was grouped, the eye had nowhere to rest, and finding the
+        // fence meant reading all twelve. Each of these opens a page about one subject, and they sit two
+        // columns apart so the grid has air in it.
+        band(MenuLayout.WHO, 2,
+                Icons.of(Material.PLAYER_HEAD, "<aqua>People",
+                        "<gray>Who is trusted, what strangers may do,",
+                        "<gray>and who is kept out.",
+                        "<dark_gray>" + claim.members().size() + " trusted · "
+                                + claim.bans().size() + " barred"),
+                click -> new PeopleMenu(services(), viewer, claim, this).open());
 
-        band(MenuLayout.WHO, 2, may(ClaimAdminPermission.MANAGE_PERMISSIONS),
-                Icons.of(Material.OAK_DOOR, "<aqua>Everybody else",
-                        "<gray>What a visitor may do without being trusted.",
-                        "<dark_gray>" + claim.publicPermissions().size() + " allowed"),
-                "The owner's to change",
-                click -> new PublicPermissionsMenu(services(), viewer, claim, this).open());
-
-        band(MenuLayout.WHO, 3, may(ClaimAdminPermission.MANAGE_BANS),
-                Icons.of(Material.IRON_BARS, "<aqua>Kept out",
-                        "<gray>Bans and timeouts.",
-                        "<dark_gray>" + claim.bans().size() + " on the list"),
-                "The owner's to change",
-                click -> new BansMenu(services(), viewer, claim, this).open());
-
-        // ── rules ───────────────────────────────────────────────── what may happen on this ground
-        band(MenuLayout.RULES, 1, may(ClaimAdminPermission.MANAGE_FLAGS),
-                Icons.of(Material.REDSTONE_TORCH, "<gold>Rules",
+        band(MenuLayout.WHO, 4,
+                Icons.of(Material.REDSTONE_TORCH, "<gold>Protection",
                         "<gray>Fire, mobs, explosions, PvP —",
-                        "<gray>what the world does inside your border.",
+                        "<gray>what the world may do in here.",
                         "<dark_gray>" + changedFlags() + " changed from the server default"),
-                "The owner's to change",
-                click -> openTheRules(claim));
+                click -> new ProtectionMenu(services(), viewer, claim, this,
+                        this::openTheRules, changedFlags()).open());
 
-        // Only for an owner, and only on their own claim: this is not the server-wide bypass, and somebody
-        // who is merely trusted has no rules of their own here to be excused from.
-        if (claim.isOwner(viewer.getUniqueId())) {
-            boolean ignoring = claim.isIgnoringOwnRules(viewer.getUniqueId());
-            band(MenuLayout.RULES, 3,
-                    Icons.of(ignoring ? Material.ENDER_EYE : Material.ENDER_PEARL,
-                            ignoring ? "<green>Ignoring your own rules" : "<gray>Following your own rules",
-                            "<gray>Excuses you from this claim's flags while you work on it.",
-                            "<dark_gray>this claim only, and only until the server restarts",
-                            "",
-                            "<dark_gray>click to " + (ignoring ? "follow them again" : "ignore them")),
-                    click -> {
-                        claim.toggleIgnoringOwnRules(viewer.getUniqueId());
-                        refresh();
-                    });
-        }
-
-        band(MenuLayout.RULES, 2, true,
-                Icons.of(Material.COMPARATOR, "<gold>What this claim can do",
-                        "<gray>Which perks this claim is allowed at all.",
-                        "<dark_gray>set by the server, shown here so you know"),
-                "",
-                click -> new FeaturesMenu(services(), viewer, claim, this).open());
-
-        // ── land ──────────────────────────────────────────────────────────────── the ground itself
-        band(MenuLayout.LAND, 1, may(ClaimAdminPermission.MANAGE_SHAPE),
-                Icons.of(Material.STICK, "<green>Redraw the border",
-                        "<gray>Mark a new outline out with the tool.",
+        band(MenuLayout.WHO, 6,
+                Icons.of(Material.GRASS_BLOCK, "<green>The land",
+                        "<gray>Its outline, its depth, its fence,",
+                        "<gray>its name and icon.",
                         "<dark_gray>" + claim.shape().areaBlocks() + " blocks"),
-                "The owner's to change",
-                click -> {
-                    viewer.closeInventory();
-                    services().selectionFlow().begin(viewer,
-                            de.raindancer.modules.claims.selection.Selection.Mode.RECTANGLE,
-                            de.raindancer.modules.claims.selection.Selection.Purpose.RESIZE_CLAIM,
-                            null, claim, null);
-                });
+                click -> new LandMenu(services(), viewer, claim, this).open());
 
-        band(MenuLayout.LAND, 2, may(ClaimAdminPermission.MANAGE_SHAPE),
-                Icons.of(Material.LADDER, "<green>How deep and how high",
-                        "<gray>Change the height without redrawing.",
-                        "<dark_gray>y " + claim.shape().minY() + " to " + claim.shape().maxY()),
-                "The owner's to change",
-                click -> new ClaimHeightMenu(services(), viewer, claim, this).open());
-
-        if (services().features().isOffered(ClaimFeature.FENCE)) {
-            band(MenuLayout.LAND, 3, may(ClaimAdminPermission.MANAGE_SHAPE),
-                    Icons.of(claim.fence().material(), "<green>Fence",
-                            "<gray>A real fence along the border.",
-                            "<dark_gray>" + (claim.fence().enabled() ? "standing" : "not built")),
-                    "The owner's to change",
-                    click -> new FenceMenu(services(), viewer, claim, this).open());
-        }
-
-        band(MenuLayout.LAND, 4, may(ClaimAdminPermission.MANAGE_TITLES),
-                Icons.of(claim.iconMaterial(claim.isOwner(viewer.getUniqueId())),
-                        "<green>Name and icon",
-                        "<gray>What this claim is called, and what it looks like in a list."),
-                "The owner's to change",
-                click -> new ClaimIdentityMenu(services(), viewer, claim, this).open());
-
-        // ── tools ───────────────────────────────────────────────── what the claim keeps for you
-        toolbar(1, Icons.of(Material.BOOK, "<white>What this claim is",
-                        "<gray>Its size, its owners, what was paid for it."),
-                click -> new ClaimInfoMenu(services(), viewer, claim, this).open());
-
-        if (services().features().isOffered(ClaimFeature.BANK)) {
-            toolbar(2, Icons.of(Material.ENDER_CHEST, "<white>Bank",
-                            "<gray>Items and experience the claim holds.",
-                            "<dark_gray>" + claim.bank().items().size() + " item(s)"),
-                    click -> new BankMenu(services(), viewer, claim, this).open());
-        }
-
-        toolbar(3, Icons.of(Material.BREWING_STAND, "<white>Perks",
+        band(MenuLayout.LAND, 2,
+                Icons.of(Material.BREWING_STAND, "<light_purple>Perks",
                         "<gray>Effects, the pantry, auto-equip, the weather.",
                         "<dark_gray>" + livePerks() + " running"),
                 click -> new PerksMenu(services(), viewer, claim, this).open());
 
-        if (services().features().isOffered(ClaimFeature.ENTRY_FEE)) {
-            toolbar(4, Icons.of(Material.GOLD_NUGGET, "<white>Entry fee",
-                            "<gray>What a visitor pays at the border.",
-                            "<dark_gray>" + (claim.entryFee().enabled() ? "charging" : "free")),
-                    click -> new EntryFeeMenu(services(), viewer, claim, this).open());
+        if (services().features().isOffered(ClaimFeature.ENTRY_FEE)
+                || services().features().isOffered(ClaimFeature.BANK)) {
+            band(MenuLayout.LAND, 4,
+                    Icons.of(Material.GOLD_NUGGET, "<yellow>Toll and bank",
+                            "<gray>What a visitor pays, and where it ends up.",
+                            "<dark_gray>" + (claim.entryFee().enabled() ? "charging" : "free")
+                                    + " · " + claim.bank().items().size() + " item(s) banked"),
+                    click -> new MoneyMenu(services(), viewer, claim, this).open());
         }
+
+        band(MenuLayout.LAND, 6,
+                Icons.of(Material.BOOK, "<white>What this claim is",
+                        "<gray>Its size, its owners, what was paid for it."),
+                click -> new ClaimInfoMenu(services(), viewer, claim, this).open());
 
         // ── the one irreversible thing ────────────────────────────────────────────────────────
         if (services().rights().isOwnerOrServerAdmin(claim, viewer)) {
