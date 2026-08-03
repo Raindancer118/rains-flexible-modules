@@ -158,7 +158,15 @@ public final class BansMenu extends PaginatedMenu<ClaimBan> implements IClaimScr
         boolean asked = services.prompts().ask(viewer.getUniqueId(), "Claims", PROMPT_TIMEOUT,
                 typed -> {
                     String reason = typed.trim().equals("-") ? "" : typed.trim();
-                    claim.ban(ClaimBan.permanent(person.id(), viewer.getUniqueId(), reason));
+                    // Asked, not assumed. The chooser does not offer an owner, so this cannot refuse today —
+                    // but announcing a ban that did not happen, and broadcasting it to the server, is a worse
+                    // failure than the one it is guarding against, and it costs one branch to be honest.
+                    if (!claim.ban(ClaimBan.permanent(person.id(), viewer.getUniqueId(), reason))) {
+                        services.messages().send(viewer, "claim.cannot-ban-an-owner",
+                                "player", person.name());
+                        open();
+                        return;
+                    }
                     services.claimService().saveAsync(claim);
                     services.broadcasts().banned(claim, person.name(), viewer.getName(), reason);
                     services.messages().send(viewer, "claim.banned",
@@ -189,8 +197,13 @@ public final class BansMenu extends PaginatedMenu<ClaimBan> implements IClaimScr
                         return;
                     }
                     String reason = parts.length > 1 && !parts[1].equals("-") ? parts[1] : "";
-                    claim.ban(ClaimBan.timeout(person.id(), viewer.getUniqueId(),
-                            duration.get().toMillis(), reason));
+                    if (!claim.ban(ClaimBan.timeout(person.id(), viewer.getUniqueId(),
+                            duration.get().toMillis(), reason))) {
+                        services.messages().send(viewer, "claim.cannot-ban-an-owner",
+                                "player", person.name());
+                        open();
+                        return;
+                    }
                     services.claimService().saveAsync(claim);
                     String formatted = Durations.describe(duration.get());
                     services.broadcasts().timedOut(claim, person.name(), viewer.getName(), formatted);

@@ -353,7 +353,13 @@ public final class ClaimCommand implements IClaimCommand {
             return;
         }
         String reason = args.length > 2 ? String.join(" ", List.of(args).subList(2, args.length)) : "";
-        claim.ban(ClaimBan.permanent(subject.get(), player.getUniqueId(), reason));
+        // The guard above already refused an owner; this asks the model rather than trusting that, because
+        // the message and the server-wide broadcast below would otherwise announce something that did not
+        // happen. The check above stays: it names the reason, where this only knows that it was refused.
+        if (!claim.ban(ClaimBan.permanent(subject.get(), player.getUniqueId(), reason))) {
+            claims.messages().send(player, "claim.cannot-ban-an-owner", "player", args[1]);
+            return;
+        }
         claims.claimService().saveAsync(claim);
         claims.broadcasts().banned(claim, args[1], player.getName(), reason);
         // Somebody standing inside when they are barred is walked out, rather than left standing in a
@@ -416,7 +422,10 @@ public final class ClaimCommand implements IClaimCommand {
             return;
         }
         String reason = args.length > 3 ? String.join(" ", List.of(args).subList(3, args.length)) : "";
-        claim.ban(ClaimBan.timeout(who, player.getUniqueId(), duration.get().toMillis(), reason));
+        if (!claim.ban(ClaimBan.timeout(who, player.getUniqueId(), duration.get().toMillis(), reason))) {
+            claims.messages().send(player, "claim.cannot-ban-an-owner", "player", args[1]);
+            return;
+        }
         claims.claimService().saveAsync(claim);
         String formatted = Durations.describe(duration.get());
         // Walked out right away, the same as a permanent ban — waiting for their next step would mean a

@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -47,6 +48,39 @@ import java.util.concurrent.atomic.AtomicInteger;
  * group hops to the region that owns it.
  */
 public final class FenceService implements IClaimService {
+
+    /**
+     * Claims whose fence is being worked on right now.
+     *
+     * <p>Putting a fence up takes three passes — region to count what is affordable, global to charge for it,
+     * region again to place the blocks — because the money and the world are owned by different threads. Taking
+     * one down is a single pass. Tear one down while a build is between its passes and the removal runs against
+     * blocks that have not been placed yet, the flag ends up false, and then the build's last pass puts the ring
+     * up anyway: a standing fence the claim believes is gone, which reads as the plugin refusing to remove it.
+     *
+     * <p>Keyed on the claim rather than a lock over the service, because two owners fencing two claims at once
+     * is ordinary and one big resize should not stop everybody else's.
+     *
+     * <p>Refused rather than queued. A queue here would mean a click doing something a minute later, when the
+     * claim may have been reshaped or given away; telling the owner to try again in a moment is both honest and
+     * what they would have done anyway.
+     */
+    private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Takes the claim's turn, or reports that somebody else has it.
+     *
+     * <p>Every caller must release it — see the {@code finally} in each — including on the paths that return
+     * early. A leaked turn makes the fence permanently unbuildable with nothing in the log to say why, which is
+     * a worse failure than the race it guards.
+     */
+    private boolean takeTurn(Claim claim) {
+        return busy.add(claim.id());
+    }
+
+    private void releaseTurn(Claim claim) {
+        busy.remove(claim.id());
+    }
 
     @Override
     public String describe() {
@@ -149,6 +183,23 @@ public final class FenceService implements IClaimService {
         if (world == null) {
             return;
         }
+        // The claim's turn, for the same reason build and tearDown take it: this removes columns and then puts
+        // others up, so a teardown running through the middle of it removes blocks that are about to be placed.
+        // Taken here and held across both halves, which is why the build below goes to buildNow rather than
+        // build — going through build would ask for a turn this method is already holding and refuse itself.
+        if (!takeTurn(claim)) {
+            logDebug(claim, reason, FenceResult.NOTHING);
+            return;
+        }
+        try {
+            syncNow(claim, payer, world, reason);
+        } finally {
+            releaseTurn(claim);
+        }
+    }
+
+    /** The reshape itself, with the claim's turn already taken. */
+    private void syncNow(Claim claim, Player payer, World world, String reason) {
         Set<ClaimPoint> outline = desiredOutline(claim.shape());
         ClaimFence fence = claim.fence();
 
@@ -171,7 +222,7 @@ public final class FenceService implements IClaimService {
             logDebug(claim, reason, new FenceResult(0, obsolete.size(), 0, 0));
             return;
         }
-        FenceResult built = build(claim, payer);
+        FenceResult built = buildNow(claim, payer, world);
         logDebug(claim, reason, new FenceResult(built.placed(), obsolete.size(), built.skipped(),
                 built.missingMaterial()));
     }
@@ -185,6 +236,19 @@ public final class FenceService implements IClaimService {
         if (world == null) {
             return FenceResult.NOTHING;
         }
+        if (!takeTurn(claim)) {
+            // Something is already putting this fence up or taking it down. Refused rather than interleaved.
+            return FenceResult.NOTHING;
+        }
+        try {
+            return buildNow(claim, payer, world);
+        } finally {
+            releaseTurn(claim);
+        }
+    }
+
+    /** The build itself, with the claim's turn already taken. */
+    private FenceResult buildNow(Claim claim, Player payer, World world) {
         ClaimFence fence = claim.fence();
 
         // The decision, recorded here rather than by each caller. It was set in exactly one place — claim
@@ -251,6 +315,18 @@ public final class FenceService implements IClaimService {
         if (world == null) {
             return FenceResult.NOTHING;
         }
+        if (!takeTurn(claim)) {
+            return FenceResult.NOTHING;
+        }
+        try {
+            return tearDownNow(claim, world, refundToBank);
+        } finally {
+            releaseTurn(claim);
+        }
+    }
+
+    /** The teardown itself, with the claim's turn already taken. */
+    private FenceResult tearDownNow(Claim claim, World world, boolean refundToBank) {
         List<ClaimPoint> all = new ArrayList<>(claim.fence().segmentPoints());
         int removed = removeColumns(claim, world, all, refundToBank);
 
@@ -526,6 +602,13 @@ public final class FenceService implements IClaimService {
             Scheduling.region(plugin, anchor, () -> {
                 Map<Material, Integer> local = new HashMap<>();
                 List<Block> removed = new ArrayList<>();
+                // Only what was actually cleared. The chunk check below is deliberate — taking a fence down
+                // must not drag half a world into memory — but the callback used to forget every column it was
+                // ASKED about rather than every column it managed to clear. A forgotten column whose blocks are
+                // still standing is orphaned for good: this record is the only thing that knows where a fence
+                // block is, so nothing afterwards can find it. Keeping it means the next teardown or sync
+                // clears it once somebody is standing near enough for the chunk to be loaded.
+                List<ClaimPoint> cleared = new ArrayList<>();
                 for (ClaimPoint point : chunkColumns) {
                     FenceSegment segment = snapshot.get(point);
                     if (segment == null || !world.isChunkLoaded(point.x() >> 4, point.z() >> 4)) {
@@ -540,11 +623,12 @@ public final class FenceService implements IClaimService {
                         removed.add(block);
                         local.merge(segment.material(), 1, Integer::sum);
                     }
+                    cleared.add(point);
                 }
                 // Neighbours that stay must drop the connection towards the removed blocks.
                 BlockConnector.connectAll(removed);
                 Scheduling.global(plugin, () -> {
-                    for (ClaimPoint point : chunkColumns) {
+                    for (ClaimPoint point : cleared) {
                         fence.remove(point);
                     }
                     if (refundToBank) {
