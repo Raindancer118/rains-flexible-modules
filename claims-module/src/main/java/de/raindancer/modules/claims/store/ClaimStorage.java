@@ -397,7 +397,7 @@ public final class ClaimStorage {
      * over, so a save that died halfway was a claim that would not be written again until somebody happened to
      * change it. Silent, and the sort of thing noticed after a restart.
      */
-    public YamlConfiguration describe(Claim claim) {
+    public static YamlConfiguration describe(Claim claim) {
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("data-version", DATA_VERSION);
         yaml.set("id", claim.id().toString());
@@ -643,7 +643,7 @@ public final class ClaimStorage {
         return keys;
     }
 
-    private void saveStyled(YamlConfiguration yaml, String path, StyledText text) {
+    private static void saveStyled(YamlConfiguration yaml, String path, StyledText text) {
         if (text == null || text.isBlank()) {
             yaml.set(path, null);
             return;

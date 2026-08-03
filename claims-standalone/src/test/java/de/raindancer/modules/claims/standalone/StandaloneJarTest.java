@@ -140,6 +140,12 @@ class StandaloneJarTest {
         assertThat(yaml)
                 .as("an unfiltered ${project.version} is a plugin whose version reads as a placeholder")
                 .doesNotContain("${");
-        assertThat(yaml).contains("version: '1.0.0'");
+        assertThat(yaml)
+                .as("Rain's Extended Claims continues its own version line, which is not the reactor's")
+                .contains("version: '2.0.0'");
+        assertThat(yaml)
+                .as("the data folder is named after the plugin, and an upgrading server has claims in "
+                        + "plugins/RainsExtendedClaims/ — a renamed plugin would find an empty one")
+                .contains("name: RainsExtendedClaims");
     }
 }

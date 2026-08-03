@@ -1,7 +1,7 @@
 # Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see that class for why every line
 # here matters, and for the two ways of writing this file that fail silently.
 name: ${plugin.name}
-version: '${project.version}'
+version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
 api-version: '1.21'

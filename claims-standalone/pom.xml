@@ -13,16 +13,35 @@
     <artifactId>claims-standalone</artifactId>
     <packaging>jar</packaging>
 
-    <name>RainsClaims</name>
+    <name>Rain's Extended Claims</name>
     <description>
-        The claims module as a plugin of its own. Nothing here but a build file and a descriptor: the module and
-        the standard wrapper are shaded together, and that is the whole plugin.
+        Rain's Extended Claims, as a plugin of its own. Nothing here but a build file and a descriptor:
+        the claims module and the standard wrapper are shaded together, and that is the whole plugin.
+        The name and the data folder are unchanged from the standalone plugin it replaces, so a server
+        upgrading keeps its claims.
     </description>
 
     <properties>
         <!-- What the server sees. Kept apart from the reactor's version so the plugin can be released on its
              own schedule if it ever needs to be. -->
-        <plugin.name>RainsClaims</plugin.name>
+        <!--
+          The name the server sees, and the name of its data folder. Kept as it was, deliberately:
+          an upgrading server has plugins/RainsExtendedClaims/ full of claims, and a renamed plugin
+          would come up looking at an empty folder and report that it had no claims at all.
+        -->
+        <plugin.name>RainsExtendedClaims</plugin.name>
+
+        <!--
+          Rain's Extended Claims' own version line, continued — not the reactor's.
+
+          2.0.0 rather than 1.7.0 because this is the plugin rebuilt on a new foundation rather than a
+          release of the old one: the protection and the flags moved into RainsCore, the screens were
+          redrawn, and the plugin now ships as a module that RainsSMPCore can also host. Nothing an owner
+          configured is lost — claims, config and messages from 1.2.2 onwards are read and brought
+          forward — but a major number is what says "read the notes before upgrading", and here they
+          should.
+        -->
+        <plugin.version>2.0.0</plugin.version>
     </properties>
 
     <dependencies>
@@ -38,7 +57,7 @@
     </dependencies>
 
     <build>
-        <finalName>${plugin.name}-${project.version}</finalName>
+        <finalName>${plugin.name}-${plugin.version}</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>

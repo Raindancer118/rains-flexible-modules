@@ -147,15 +147,49 @@ public final class ClaimFence {
      * legitimate ways to mark a claim, so owners can pick either.
      */
     public static boolean isFence(Material material) {
-        return material != null && (Tag.FENCES.isTagged(material) || Tag.WALLS.isTagged(material));
+        if (material == null) {
+            return false;
+        }
+        if (noServerToAsk()) {
+            String name = material.name();
+            return name.endsWith("_FENCE") || name.equals("NETHER_BRICK_FENCE") || name.endsWith("_WALL");
+        }
+        return Tag.FENCES.isTagged(material) || Tag.WALLS.isTagged(material);
     }
 
     public static boolean isWall(Material material) {
-        return material != null && Tag.WALLS.isTagged(material);
+        if (material == null) {
+            return false;
+        }
+        return noServerToAsk() ? material.name().endsWith("_WALL") : Tag.WALLS.isTagged(material);
     }
 
     public static boolean isGate(Material material) {
-        return material != null && Tag.FENCE_GATES.isTagged(material);
+        if (material == null) {
+            return false;
+        }
+        return noServerToAsk()
+                ? material.name().endsWith("_FENCE_GATE")
+                : Tag.FENCE_GATES.isTagged(material);
+    }
+
+    /**
+     * Whether there is a server to ask about tags.
+     *
+     * <p>Checked <em>before</em> touching {@link Tag} rather than by catching what it throws, because the
+     * failure is in that class's own static initialiser: naming {@code Tag.FENCES} at all is what throws, so a
+     * try/catch around the call never runs.
+     *
+     * <p>This matters more than it looks. A claim asks whether its stored fence material is still a fence while
+     * it loads, so without this <em>reading a claim file</em> needed a running server — and reading real files
+     * written by old versions is exactly the thing that most needs testing. Found by writing that test.
+     *
+     * <p>The names are not the authority and are never reached on a live server: nothing can rename
+     * {@code SPRUCE_FENCE}, and every fence and wall in the game ends in {@code _FENCE} or {@code _WALL} bar
+     * one, which is spelled out.
+     */
+    private static boolean noServerToAsk() {
+        return org.bukkit.Bukkit.getServer() == null;
     }
 
     /**
