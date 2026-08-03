@@ -36,6 +36,8 @@
         <module>modules-wrapper</module>
         <module>claims-module</module>
         <module>claims-standalone</module>
+        <module>moderation-module</module>
+        <module>moderation-standalone</module>
     </modules>
 
     <repositories>
