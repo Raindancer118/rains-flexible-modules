@@ -155,6 +155,22 @@ public final class StaffService implements IModerationService {
         return true;
     }
 
+    /**
+     * Writes down that somebody switched a tool on or off.
+     *
+     * <p>Audited even when it is somebody using it on themselves, and that is the interesting case: an
+     * invincible moderator standing in the middle of a fight is a fair question afterwards, and "was
+     * anybody in god mode at the time" is exactly the sort of thing nobody can answer from memory.
+     */
+    public void recordSelfTool(CommandSender by, UUID who, String name,
+                               de.raindancer.modules.moderation.command.SelfToolCommand.Tool tool,
+                               boolean nowOn) {
+        audit.record(AuditEntry.of("moderation", (nowOn ? "" : "un") + tool.word())
+                .by(by instanceof Player player ? player.getUniqueId() : null, nameOf(by))
+                .to(who, name)
+                .saying(nowOn ? "on" : "off"));
+    }
+
     /** The roster, for a screen that wants to draw it. */
     public StaffRoster roster() {
         return roster;

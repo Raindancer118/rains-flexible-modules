@@ -120,12 +120,89 @@ public final class PlayerMenu extends ModerationScreen {
                 "Only the server owner may hand out ranks",
                 click -> new RankMenu(services(), viewer, this, subject, subjectName).open());
 
-        band(MenuLayout.LAND, 6, may(ModerationPermission.WARN),
+        band(MenuLayout.LAND, 5, may(ModerationPermission.WARN),
                 Icons.of(Material.GOLDEN_APPLE, "<yellow>Put them right",
                         "<gray>Heals and feeds them.",
                         "<dark_gray>For after a fall nobody meant."),
                 "For whoever may act on a player",
                 click -> putThemRight());
+
+        // Flight, invulnerability, one-hit-kill. Their own page because none of them is a punishment
+        // and none goes on anybody's record as something they did wrong.
+        band(MenuLayout.LAND, 6, may(ModerationPermission.FLY) || may(ModerationPermission.GOD)
+                        || may(ModerationPermission.INSTAKILL),
+                Icons.of(Material.FEATHER, "<yellow>Tools",
+                        "<gray>Flight, invulnerability, one-hit-kill.",
+                        "<dark_gray>Working tools, not punishments."),
+                "For whoever holds one of those",
+                click -> new ToolsMenu(services(), viewer, this, subject, subjectName).open());
+
+        permanentBan();
+    }
+
+    /**
+     * The one irreversible thing on this page: gone for good.
+     *
+     * <p>Here rather than only behind the Bans door because it is the decision somebody reaches for when
+     * they already know what they want — the griefer whose build log they have just read. Two clicks
+     * through a category page to reach it is two clicks of a decision already made.
+     *
+     * <h2>Why the position is safe enough to allow that</h2>
+     * The danger slot is flanked by navigation, so a misclick costs a page rather than a player, and it
+     * only ever opens a confirmation. Bedrock, because it should not look like the buttons above it.
+     *
+     * <h2>Greyed for a mod rather than absent</h2>
+     * A permanent ban needs {@link ModerationPermission#BAN}, which is an admin's — a mod holds
+     * {@code TEMPBAN} and is capped. Drawing it locked keeps the page the same shape for everybody, and
+     * tells a mod both that the power exists and that it is not theirs. Which is the whole grammar: a
+     * button that is simply missing has no explanation on screen.
+     */
+    private void permanentBan() {
+        boolean allowed = may(ModerationPermission.BAN);
+        var button = Icons.of(Material.BEDROCK, "<red>Ban for ever",
+                "<gray>Gone for good, straight away.",
+                "<gray>No reason from the list, no length to pick.",
+                "",
+                allowed
+                        ? "<dark_gray>Asks before it happens."
+                        : "<dark_gray>An admin's decision — you can ban for up to "
+                        + services().banLimitRule().capDescribed() + ".");
+
+        danger(allowed ? button : Icons.locked(button, "A permanent ban is an admin's decision"),
+                click -> {
+                    if (!allowed) {
+                        tell("moderation.ban.not-for-ever-for-you",
+                                "detail", services().banLimitRule().capDescribed());
+                        return;
+                    }
+                    new ConfirmScreen(services(), viewer, this,
+                            "<red>Ban " + subjectName + " for ever?",
+                            List.of("<gray>They are thrown off now and cannot come back.",
+                                    "<gray>It goes on their record, and any admin can lift it.",
+                                    "<dark_gray>For anything less than for ever, use Bans above."),
+                            this::banForEver).open();
+                });
+    }
+
+    /** Hands out the permanent ban, having asked twice. */
+    private void banForEver() {
+        // Asked again at the moment it happens: the page was drawn at least two clicks ago, and this is
+        // the one action on it that cannot be undone by pressing the button a second time.
+        if (refusedFor(ModerationPermission.BAN)) {
+            return;
+        }
+        var withinTheirLimit = services().banLimitRule()
+                .mayBanFor(viewer.getUniqueId(), Sentence.forEver());
+        if (withinTheirLimit.isRefused()) {
+            withinTheirLimit.refusal().ifPresent(key -> tell(key, "detail",
+                    withinTheirLimit.detail() == null ? "" : withinTheirLimit.detail()));
+            return;
+        }
+        services().punishmentService().punish(viewer.getUniqueId(), viewer.getName(), subject,
+                subjectName, PunishmentKind.BAN, Sentence.forEver(), "banned permanently");
+        tell("moderation.punished", "player", subjectName, "what", PunishmentKind.BAN.past(),
+                "length", "for ever");
+        viewer.closeInventory();
     }
 
     /**

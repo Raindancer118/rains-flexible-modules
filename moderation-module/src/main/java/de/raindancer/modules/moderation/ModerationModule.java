@@ -189,7 +189,8 @@ public final class ModerationModule implements FlexModule {
                 context.chat(), context.chat().brand(), context.core().prompts(),
                 context.core().settingsNavigation(),
                 context.core().punishments(), context.core().punishmentGuard(),
-                context.core().vanish(), context.core().players(), context.core().inventories(),
+                context.core().vanish(), context.core().players(), context.core().powers(),
+                context.core().inventories(),
                 context.core().audit(), context.core().grants(), () -> directoryOf(server),
                 reasons, reports, notes, staffRule, escalation, announcements, this::standingRule,
                 this::banLimitRule, this::promotionRule, this::filingRule,
@@ -292,7 +293,12 @@ public final class ModerationModule implements FlexModule {
      * captured at startup does not contain the player who joined this evening.
      */
     private PlayerDirectory directoryOf(Server server) {
-        return new PlayerDirectory(() -> Players.everybody(server), System::currentTimeMillis);
+        // Vanished players are fed in as offline. Hiding an entity does not hide somebody from a list a
+        // plugin builds itself, and a chooser showing a vanished moderator as online is the one place
+        // anybody would look to check whether they are about.
+        return new PlayerDirectory(
+                () -> Players.everybody(server, services.vanish().everybodyVanished()),
+                System::currentTimeMillis);
     }
 
     /**

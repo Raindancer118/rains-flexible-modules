@@ -41,6 +41,8 @@ public enum ModerationPermission {
     // never their own rank or above — so this is the door and the rule is the lock. Distinct from
     // PromoteCommand.USE, which is the owner's and is in no preset.
     APPOINT("appoint", "Appoint and remove staff below your own rank", Material.NAME_TAG, 2),
+    FLY("fly", "Fly, and let somebody else fly", Material.FEATHER, 2),
+    GOD("god", "Be invulnerable, and make somebody else invulnerable", Material.TOTEM_OF_UNDYING, 2),
 
     // ── admin upward: changes the rules rather than applying them ──────────────────────────
     // A permanent ban is here rather than with the mods deliberately. Stopping somebody *now* is a
@@ -48,7 +50,10 @@ public enum ModerationPermission {
     // having looked, is not.
     BAN("ban", "Ban somebody for any length, permanently included, and lift any ban",
             Material.BARRIER, 3),
-    CONFIG("config", "Change how moderation itself behaves", Material.COMPARATOR, 3);
+    CONFIG("config", "Change how moderation itself behaves", Material.COMPARATOR, 3),
+    // Admin, not mod. One hit kills anything — including, in the wrong hands, every animal on a farm
+    // somebody spent a fortnight breeding, in about eleven seconds.
+    INSTAKILL("instakill", "Kill anything in one hit", Material.NETHERITE_SWORD, 3);
 
     /**
      * The one prefix everything is under.

@@ -3,6 +3,7 @@ package de.raindancer.modules.moderation;
 import de.raindancer.core.moderation.audit.Audit;
 import de.raindancer.core.moderation.invsee.Inventories;
 import de.raindancer.core.moderation.players.PlayerAdmin;
+import de.raindancer.core.moderation.players.PlayerPowers;
 import de.raindancer.core.moderation.punishment.PunishmentGuard;
 import de.raindancer.core.moderation.punishment.Punishments;
 import de.raindancer.core.moderation.vanish.Vanish;
@@ -72,6 +73,7 @@ public record ModerationServices(
         PunishmentGuard guard,
         Vanish vanish,
         PlayerAdmin players,
+        PlayerPowers powers,
         Inventories inventories,
         Audit audit,
         Grants grants,

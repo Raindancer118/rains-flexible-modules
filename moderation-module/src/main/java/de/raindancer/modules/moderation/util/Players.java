@@ -74,22 +74,39 @@ public final class Players {
      * directory captured at startup does not contain the player who joined this evening.
      */
     public static List<PlayerEntry> everybody(Server server) {
+        return everybody(server, java.util.Set.of());
+    }
+
+    /**
+     * The same, with somebody counted as offline however present they are.
+     *
+     * <p>What vanish needs. Hiding a player's entity does not hide them from a list a plugin builds
+     * itself, and a chooser that shows a vanished moderator as online is the one place anybody would
+     * look to check. Marked offline rather than left out entirely: they are still pickable — a moderator
+     * still has to be able to open the page of somebody who happens to be hidden — they simply do not
+     * read as being here.
+     *
+     * @param hidden who to show as offline; their last-seen is left as it was, so they sort where they
+     *               would have if they really had logged off
+     */
+    public static List<PlayerEntry> everybody(Server server, java.util.Set<java.util.UUID> hidden) {
         List<PlayerEntry> everyone = new ArrayList<>();
         if (server == null) {
             return everyone;
         }
+        java.util.Set<java.util.UUID> outOfSight = hidden == null ? java.util.Set.of() : hidden;
         for (OfflinePlayer who : server.getOfflinePlayers()) {
             String name = who.getName();
             if (name == null || name.isBlank()) {
                 continue;   // a data file with no name attached is nothing anybody can pick
             }
-            everyone.add(new PlayerEntry(who.getUniqueId(), name, who.isOnline(),
-                    who.getLastSeen()));
+            boolean online = who.isOnline() && !outOfSight.contains(who.getUniqueId());
+            everyone.add(new PlayerEntry(who.getUniqueId(), name, online, who.getLastSeen()));
         }
         for (Player who : server.getOnlinePlayers()) {
             if (everyone.stream().noneMatch(entry -> entry.id().equals(who.getUniqueId()))) {
-                everyone.add(new PlayerEntry(who.getUniqueId(), who.getName(), true,
-                        System.currentTimeMillis()));
+                everyone.add(new PlayerEntry(who.getUniqueId(), who.getName(),
+                        !outOfSight.contains(who.getUniqueId()), System.currentTimeMillis()));
             }
         }
         return everyone;

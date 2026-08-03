@@ -21,6 +21,24 @@ moderation:
   only-a-player: "<gray>This one is for somebody standing in the world."
   console-use-commands: "<gray>The console has no screens. Try <white>/history</white>, <white>/reports list</white> or <white>/ban</white>."
 
+  # ── the tools a moderator points at themselves ───────────────────────────
+  tool:
+    fly:
+      on: "<green>You can fly."
+      off: "<gray>You can no longer fly."
+      on-other: "<green><white><player></white> can fly."
+      off-other: "<gray><white><player></white> can no longer fly."
+    god:
+      on: "<green>Nothing can hurt you. <dark_gray>It goes off when you log out."
+      off: "<gray>You can be hurt again."
+      on-other: "<green>Nothing can hurt <white><player></white>."
+      off-other: "<gray><white><player></white> can be hurt again."
+    instakill:
+      on: "<red>Everything you hit will die. <dark_gray>Mind the livestock."
+      off: "<gray>You hit normally again."
+      on-other: "<red>Everything <white><player></white> hits will die."
+      off-other: "<gray><white><player></white> hits normally again."
+
   # ── how long a ban you may give ──────────────────────────────────────────
   ban:
     too-long-for-you: "<red>That is longer than you may ban for. <gray>Your limit is <white><detail></white> — an admin can go further."

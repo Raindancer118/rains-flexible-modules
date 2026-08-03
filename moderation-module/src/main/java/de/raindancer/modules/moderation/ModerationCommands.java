@@ -10,6 +10,7 @@ import de.raindancer.modules.moderation.command.DemoteCommand;
 import de.raindancer.modules.moderation.command.ModerationCommand;
 import de.raindancer.modules.moderation.command.PromoteCommand;
 import de.raindancer.modules.moderation.command.PunishCommand;
+import de.raindancer.modules.moderation.command.SelfToolCommand;
 import de.raindancer.modules.moderation.command.ReportCommand;
 import de.raindancer.modules.moderation.command.ReportsCommand;
 import de.raindancer.modules.moderation.command.StaffChatCommand;
@@ -110,7 +111,25 @@ public final class ModerationCommands {
                 ModuleCommand.of("promote", "Makes somebody staff at one of the four ranks",
                         new PromoteCommand(ModerationCommands::require)),
                 ModuleCommand.of("demote", "Takes somebody down a rank, or off the staff",
-                        new DemoteCommand(ModerationCommands::require)));
+                        new DemoteCommand(ModerationCommands::require)),
+
+                // The tools a moderator points at themselves, or at somebody else by naming them.
+                // /god toggles and /ungod switches off: "make sure this is off" is a thing somebody
+                // needs to be able to say without checking first, and a toggle answers "it is on now".
+                ModuleCommand.of("fly", "Lets somebody fly",
+                        new SelfToolCommand(ModerationCommands::require,
+                                SelfToolCommand.Tool.FLY, null)),
+                ModuleCommand.of("god", "Makes somebody invulnerable",
+                                new SelfToolCommand(ModerationCommands::require,
+                                        SelfToolCommand.Tool.GOD, null))
+                        .aliased("godmode"),
+                ModuleCommand.of("ungod", "Makes them mortal again",
+                        new SelfToolCommand(ModerationCommands::require,
+                                SelfToolCommand.Tool.GOD, false)),
+                ModuleCommand.of("instakill", "Everything they hit dies in one hit",
+                                new SelfToolCommand(ModerationCommands::require,
+                                        SelfToolCommand.Tool.INSTAKILL, null))
+                        .aliased("oneshot"));
     }
 
     /** Called when the module enables, after which the commands work. */
