@@ -298,10 +298,13 @@ jobs:
             sha256sum "$jar" > "$jar.sha256"
           done
 
-          # Anything left from an older version goes, or the page lists one version and the directory
-          # holds three. Only jars this build produced are kept.
-          keep=$(find . -maxdepth 1 -name '*.jar' -newermt '-5 minutes' -printf '%f\n' | sort)
-          for jar in *.jar; do
+          # An older version of *our* plugins goes, or the page lists one version and the directory
+          # holds three. Scoped by name to the two this repository builds: RainsCore is published from
+          # its own repository onto the same shelf, and a sweep by age would delete it on every push
+          # here — a site missing the one jar the other two cannot start without.
+          keep=$(find . -maxdepth 1 -name '*.jar' -newermt '-10 minutes' -printf '%f\n' | sort)
+          for jar in RainsExtendedClaims-*.jar RainsModeration-*.jar; do
+            [ -e "$jar" ] || continue
             if ! printf '%s\n' "$keep" | grep -qxF "$jar"; then
               echo "removing superseded $jar"
               rm -f "$jar" "$jar.sha256"
