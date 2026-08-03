@@ -23,9 +23,9 @@ claim:
     <gray>/claim new<dark_gray> — mark out a new one
     <gray>/claim here<dark_gray> — the claim you are standing in
     <gray>/claim show<dark_gray> · <gray>hide<dark_gray> — draw the borders
-    <gray>/claim trust <white><player><dark_gray> · <gray>untrust<dark_gray>
-    <gray>/claim ban <white><player><dark_gray> · <gray>unban<dark_gray>
-    <gray>/claim rename <white><name><dark_gray> · <gray>delete<dark_gray>
+    <gray>/claim trust <white>somebody<dark_gray> · <gray>untrust<dark_gray>
+    <gray>/claim ban <white>somebody<dark_gray> · <gray>unban<dark_gray>
+    <gray>/claim rename <white>a new name<dark_gray> · <gray>delete<dark_gray>
     <dark_gray>everything else is in the menus
   manual-given: "<green>The manual is in your inventory. <gray>Read it any time."
   stick-given: "<green>There is your marking-out tool. <gray>Left click one corner, right click the other."
@@ -51,7 +51,7 @@ claim:
   cannot-kick-an-owner: "<red>You cannot kick <white><player></white> out of a claim they own."
   owner-added: "<green>Added <white><player></white> as a co-owner of <white><claim></white>."
   owner-removed: "<yellow>Removed <white><player></white> as a co-owner of <white><claim></white>."
-  owner-cannot-remove: "<gray>Owners cannot be removed that way — the last one, and whoever first claimed it, always stay."
+  owner-cannot-remove: "<gray><player> cannot be removed that way — the last owner, and whoever first claimed it, always stay."
 
   # ── the land ─────────────────────────────────────────────────────────────
   height-changed: "<green><claim></white> now reaches y <white><min-y></white> to <white><max-y></white>."
@@ -88,14 +88,14 @@ claim:
   info-header: "<gold>── <white><claim></white> ──"
 
 notify:
-  entered: "<gray>You are in <white><claim></white>."
-  left: "<gray>You have left <white><claim></white>."
+  entered: "<gray>You are entering <white><claim></gray>, owned by <white><owner></gray>."
+  left: "<dark_gray>You are leaving <gray><claim><dark_gray>."
 
 protection:
   entry-denied: "<red>You may not go into <white><claim></white>."
   teleport-denied: "<red>You may not teleport into <white><claim></white>."
   elytra-denied: "<red>No flying inside <white><claim></white>."
-  banned: "<red>You are barred from <white><claim></white>. <gray><reason>"
+  banned: "<red>You are barred from <white><claim></white>. <gray><reason> <dark_gray><remaining>"
   timed-out: "<red>You are barred from <white><claim></white> for <white><remaining></white>. <gray><reason>"
   evicted-banned: "<red>You were shown out of <white><claim></white>."
   evicted-kicked: "<yellow>You were walked out of <white><claim></white>."
@@ -104,8 +104,8 @@ protection:
 
 selection:
   started: "<green>Marking out a <white><mode></white>. <gray>Right click the corners; sneak + right click the air to finish."
-  point-added: "<gray>Corner <white><count></white> marked."
-  point-removed: "<gray>Took the last corner back."
+  point-added: "<gray>Corner <white><index></white> at <gray><x>, <y>, <z><gray>."
+  point-removed: "<gray>Took the last corner back — <white><count></white> left."
   nothing-to-undo: "<gray>Nothing marked yet."
   incomplete: "<gray>Mark <white><needed></white> corners — you have <white><have></white>."
   none: "<gray>You are not marking anything out."
@@ -130,7 +130,7 @@ zone:
   none-here: "<gray>Nothing stops a claim here."
 
 entry-fee:
-  offer: "<gray><claim> charges <white><price></white> to come in. <white>/claim pay</white> to hand it over."
+  offer: "<gray><claim> charges <white><price></white> to come in. <white>/claim accept</white> to hand it over — <gray><seconds>s to decide."
   paid: "<green>Paid <white><price></white> to enter <white><claim></white>."
   declined: "<gray>Left it, then."
   cannot-afford: "<red>You are <white><missing></white> short of the toll for <white><claim></white>."
@@ -139,10 +139,10 @@ entry-fee:
   owner-notified: "<gray><player> paid to come into <white><claim></white>."
 
 pantry:
-  fed: "<gray><claim>'s pantry fed you."
+  fed: "<gray><claim>'s pantry fed you <white><food></white>."
 
 equip:
-  given: "<gray><claim> handed you <white><item></white>."
+  given: "<gray><claim> handed you <white><amount>x <item></white> for your <white><where></white>."
   target-set: "<green>The <white><item></white> now goes to <white><where></white>."
 
 effect:
@@ -150,7 +150,7 @@ effect:
   removed: "<gray>Removed <white><effect></white> from <white><claim></white>."
 
 fence:
-  gate-adopted: "<gray>That gap will stay open."
+  gate-adopted: "<gray>That gap in <white><claim></white>'s fence will stay open."
 
 error:
   no-permission: "<red>Not yours to do."

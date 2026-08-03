@@ -150,6 +150,9 @@ public final class MovementListener implements IClaimListener {
                                     .isAllowedForTracked(claim.area(), destination, flag, player),
                             services.land().isBypassing(player))) {
                 event.setCancelled(true);
+                if (pearl) {
+                    refundPearl(player);
+                }
                 services.messages().send(player, "protection.teleport-denied", "claim", claim.name());
                 return;
             }
@@ -179,6 +182,27 @@ public final class MovementListener implements IClaimListener {
         if (targetId != null) {
             to.ifPresent(claim -> onEnter(player, claim));
         }
+    }
+
+    /**
+     * Gives back the pearl a refused teleport already ate.
+     *
+     * <p>The pearl is spent at the moment it is thrown; the teleport is a separate event a second later, and
+     * cancelling that does not unthrow anything. So refusing the arrival charged the player for a journey they
+     * were not allowed to make — reported as "it says I may not teleport there, but the pearl is consumed
+     * anyway", which is somebody losing an ender pearl every time they misjudge a border.
+     *
+     * <p>Given on the player's own scheduler because a teleport event can arrive on a region thread that does
+     * not own their inventory, and dropped at their feet if there is no room — the alternative is charging them
+     * anyway for having a full inventory.
+     */
+    private void refundPearl(Player player) {
+        de.raindancer.core.platform.util.Scheduling.entity(services.plugin(), player, () -> {
+            org.bukkit.inventory.ItemStack pearl =
+                    new org.bukkit.inventory.ItemStack(org.bukkit.Material.ENDER_PEARL, 1);
+            player.getInventory().addItem(pearl).values()
+                    .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+        });
     }
 
     private boolean isSystemTeleport(PlayerTeleportEvent.TeleportCause cause) {

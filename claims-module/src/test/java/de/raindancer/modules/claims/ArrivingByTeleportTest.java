@@ -127,4 +127,43 @@ class ArrivingByTeleportTest {
                 .as("the gate must sit behind that question, not in front of it")
                 .isLessThan(gate);
     }
+
+    @Test
+    @DisplayName("a refused pearl is given back")
+    void therefusedPearlIsRefunded() {
+        // The pearl is spent when it is thrown; the teleport is a separate event a second later, and cancelling
+        // that does not unthrow anything. So refusing the arrival charged the player for a journey they were not
+        // allowed to make — an ender pearl gone every time somebody misjudges a border.
+        //
+        // Only the pearl. A refused /warp or chorus fruit costs nothing to begin with, and handing something
+        // back for those would be inventing an item.
+        java.nio.file.Path listener = java.nio.file.Path.of(
+                "src/main/java/de/raindancer/modules/claims/listener/MovementListener.java");
+        String body;
+        try {
+            body = java.nio.file.Files.readString(listener);
+        } catch (java.io.IOException unreadable) {
+            throw new AssertionError("could not read MovementListener", unreadable);
+        }
+
+        assertThat(body)
+                .as("a refusal that still charges the player is worse than either allowing or refusing cleanly")
+                .contains("refundPearl(");
+
+        int refund = body.indexOf("private void refundPearl(");
+        assertThat(refund).isNotNegative();
+        String method = body.substring(refund, body.indexOf("\n    private", refund + 10));
+        assertThat(method)
+                .as("a teleport event can arrive on a region thread that does not own the inventory")
+                .contains("Scheduling.entity(");
+        assertThat(method)
+                .as("a full inventory must not swallow the refund — that is charging them for being full")
+                .contains("dropItemNaturally");
+
+        // Guarded by the cause, so only a pearl is refunded.
+        int cancel = body.indexOf("refundPearl(player)");
+        assertThat(body.substring(Math.max(0, cancel - 200), cancel))
+                .as("refunding every refused teleport would conjure pearls out of warps")
+                .contains("if (pearl)");
+    }
 }

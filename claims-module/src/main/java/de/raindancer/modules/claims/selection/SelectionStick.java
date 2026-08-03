@@ -2,6 +2,7 @@ package de.raindancer.modules.claims.selection;
 
 import de.raindancer.modules.claims.ClaimSettings;
 import de.raindancer.modules.claims.util.Items;
+import de.raindancer.core.content.items.ToolGift;
 import de.raindancer.core.ui.messages.Messages;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -96,12 +97,16 @@ public final class SelectionStick {
                 .build();
     }
 
-    /** Hands the stick over, dropping it at the player's feet when the inventory is full. */
+    /**
+     * Hands the stick over, dropping it at the player's feet when the inventory is full.
+     *
+     * <p>Through Core's {@code ToolGift} rather than straight into the inventory, because the no-claim rod is a
+     * blaze rod and vanilla congratulates anybody who obtains one with <b>Into Fire</b>. An admin marking out a
+     * zone was being handed a nether milestone, and on a server with an achievement feed it was announced to
+     * everybody. The claim stick's material is configurable too, so this is not only about the rod.
+     */
     public void give(Player player, Selection.Purpose purpose, Selection.Mode mode) {
-        ItemStack stick = create(purpose, mode);
-        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(stick);
-        for (ItemStack leftover : leftovers.values()) {
-            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+        if (!ToolGift.give(player, create(purpose, mode))) {
             messages.send(player, "selection.stick-dropped");
         }
     }
