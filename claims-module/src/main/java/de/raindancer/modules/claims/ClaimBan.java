@@ -1,10 +1,11 @@
 package de.raindancer.modules.claims;
 
+import de.raindancer.core.world.protection.Land;
 import java.util.UUID;
 
 /**
  * A ban or a timeout on a claim. A timeout is simply a ban with an expiry timestamp, which keeps the
- * enforcement path in {@code ProtectionService} down to a single check.
+ * enforcement path in {@code Land} down to a single check.
  */
 public final class ClaimBan {
 

@@ -1,0 +1,86 @@
+package de.raindancer.modules.claims;
+
+import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.ui.prompt.ChatPrompts;
+import de.raindancer.core.world.protection.FlagRules;
+import de.raindancer.core.world.protection.Land;
+import org.bukkit.Server;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+/**
+ * Everything the claims module has built, in one place, so a listener can be handed what it needs.
+ *
+ * <h2>Why this is not the god object it replaces</h2>
+ * The thing before it was the {@code JavaPlugin} subclass: every listener held a reference to the plugin and
+ * reached through it for whichever of twenty services it wanted, which meant every listener depended on all of
+ * them and none of them could be built without a server.
+ *
+ * <p>The difference is that this is <em>data</em>. A record of collaborators, constructed once by the module and
+ * handed over; a test builds one with fakes in the fields it cares about. Nothing here reaches back into Bukkit,
+ * nothing here is static, and a listener that only needs two of these still says so in its own constructor —
+ * this is for the handful that genuinely coordinate half the module.
+ *
+ * @param settings          read through a supplier, not captured: a reload has to change what happens next,
+ *                          not what happens after the next restart
+ * @param openClaimMenu     opening a screen, as a callback. Keeps the listeners from depending on the menus,
+ *                          which is what let the screens be rebuilt without touching any of this
+ * @param openSelectionMenu the same for the marking screen
+ */
+public record ClaimServices(
+        Plugin plugin,
+        Server server,
+        LogChannel log,
+        Messages messages,
+        ChatPrompts prompts,
+        Land land,
+        FlagRules flags,
+        Features features,
+        ClaimRegistry claims,
+        ClaimStorage storage,
+        ZoneRegistry zones,
+        ClaimService claimService,
+        ClaimNames names,
+        ClaimRights rights,
+        ClaimLandProvider provider,
+        CostService costs,
+        SelectionService selections,
+        SelectionStick stick,
+        SelectionFlow selectionFlow,
+        BorderVisualizer visualizer,
+        FenceService fences,
+        AmbienceService ambience,
+        EntryFeeService entryFees,
+        EvictionService eviction,
+        EquipService equipment,
+        BroadcastService broadcasts,
+        Supplier<ClaimSettings> settings,
+        Consumer<Player> openClaimMenu,
+        Consumer<Player> openSelectionMenu,
+        Supplier<MovementListener> movementTracker) {
+
+    /**
+     * The border tracker.
+     *
+     * <p>Reached through a supplier because it is built <em>after</em> this record — it takes the record as its
+     * own argument. A field would have to be null for a moment, and a listener firing in that moment would find
+     * it.
+     */
+    public MovementListener movement() {
+        return movementTracker.get();
+    }
+
+    /** The settings as they are right now. */
+    public ClaimSettings config() {
+        return settings.get();
+    }
+
+    /** Where a player is considered to be standing, which is the provider's business to smooth out. */
+    public java.util.Optional<Claim> claimAround(Player player) {
+        return provider.around(player).map(area -> ((ClaimArea) area).claim());
+    }
+}

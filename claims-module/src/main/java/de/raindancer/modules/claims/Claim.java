@@ -64,6 +64,9 @@ public final class Claim {
     /** The owner's master switch for those effects; the list survives switching them off. */
     private boolean effectsEnabled = true;
 
+    /** Made on first use; see area(). */
+    private ClaimArea area;
+
     private long createdAt = System.currentTimeMillis();
     private boolean dirty = true;
 
@@ -110,6 +113,21 @@ public final class Claim {
                 publicPermissions.add(permission);
             }
         }
+    }
+
+    /**
+     * This claim as the piece of protected ground Core enforces.
+     *
+     * <p>Held rather than made each time: it is asked for several times a tick by the protection listeners, and
+     * it carries no state of its own beyond a reference back to here.
+     */
+    public ClaimArea area() {
+        ClaimArea existing = area;
+        if (existing == null) {
+            existing = new ClaimArea(this);
+            area = existing;
+        }
+        return existing;
     }
 
     public UUID id() {

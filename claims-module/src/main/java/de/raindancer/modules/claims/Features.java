@@ -1,5 +1,6 @@
 package de.raindancer.modules.claims;
 
+import de.raindancer.core.world.protection.FlagRules;
 import de.raindancer.core.world.protection.LandAudience;
 import org.bukkit.entity.Player;
 
@@ -7,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The single authority on "may a claim do this at all?", the counterpart to {@link FlagService}.
+ * The single authority on "may a claim do this at all?", the counterpart to {@link FlagRules}.
  * <p>
  * Resolution order matches the flags: {@code FORCED_OFF} means the feature does not exist as far as the
  * plugin is concerned, {@code FORCED_ON} overrides the owner's own switch, and {@code AVAILABLE} leaves
@@ -71,7 +72,7 @@ public final class Features {
         if (!feature.audienceAware() || claim == null) {
             return true;
         }
-        return claim.featureServes(feature, new ClaimArea(claim).audienceOf(player.getUniqueId()));
+        return claim.featureServes(feature, claim.area().audienceOf(player.getUniqueId()));
     }
 
     /** Every feature that has not been taken away by the server. */
