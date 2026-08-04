@@ -125,7 +125,9 @@ public enum StaffRank {
             everything.add(CLAIM_ADMIN);
         }
         if (weight >= ADMIN.weight) {
-            everything.add(StaffRule.IMMUNE);
+            // Protection is deliberately *not* here. It is not a power a rank confers: it is written
+            // by the console with /protect and by nothing else, because a shield handed out by a
+            // promotion is one the people it is aimed at can hand to each other.
             everything.addAll(CLAIM_BYPASSES);
         }
         // OP deliberately adds nothing. An operator already holds everything, so granting nodes on top

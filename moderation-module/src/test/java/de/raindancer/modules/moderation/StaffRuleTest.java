@@ -48,8 +48,17 @@ class StaffRuleTest {
     private final UUID player = UUID.randomUUID();
     private final UUID owner = UUID.randomUUID();
 
+    /** Who is protected. Its own seam now, and no longer anything to do with a permission. */
+    private final Set<UUID> protectedAccounts = new HashSet<>();
+
     private StaffRule ruleWhere(Table table) {
-        return new StaffRule(table);
+        return new StaffRule(table, protectedAccounts::contains);
+    }
+
+    /** Marks an account protected, the way the console's /protect does. */
+    private UUID protect(UUID who) {
+        protectedAccounts.add(who);
+        return who;
     }
 
     @Nested
@@ -124,9 +133,9 @@ class StaffRuleTest {
         @Test
         @DisplayName("somebody immune is not punished by a moderator")
         void immunity() {
+            protect(owner);
             StaffRule rule = ruleWhere(new Table()
-                    .give(moderator, ModerationPermission.BAN.node())
-                    .give(owner, StaffRule.IMMUNE));
+                    .give(moderator, ModerationPermission.BAN.node()));
 
             assertThat(rule.isImmune(owner)).isTrue();
             assertThat(rule.canAct(moderator, owner, ModerationPermission.BAN).refusal())
@@ -138,7 +147,8 @@ class StaffRuleTest {
         void immunityDoesNotBindTheConsole() {
             // Immunity is what stops one moderator banning another in a fit of pique. It must not be
             // what stops the server owner dealing with a compromised staff account.
-            StaffRule rule = ruleWhere(new Table().give(owner, StaffRule.IMMUNE));
+            protect(owner);
+            StaffRule rule = ruleWhere(new Table());
 
             assertThat(rule.canAct(null, owner, ModerationPermission.BAN).isAllowed()).isTrue();
         }
@@ -146,10 +156,10 @@ class StaffRuleTest {
         @Test
         @DisplayName("an immune moderator is still not allowed to punish another immune one")
         void immunityIsAboutTheSubject() {
+            protect(moderator);
+            protect(owner);
             StaffRule rule = ruleWhere(new Table()
-                    .give(moderator, ModerationPermission.BAN.node())
-                    .give(moderator, StaffRule.IMMUNE)
-                    .give(owner, StaffRule.IMMUNE));
+                    .give(moderator, ModerationPermission.BAN.node()));
 
             assertThat(rule.canAct(moderator, owner, ModerationPermission.BAN).isRefused()).isTrue();
         }
@@ -159,7 +169,8 @@ class StaffRuleTest {
         void permissionIsCheckedFirst() {
             // Somebody without the permission must not be able to discover who is immune by watching
             // which refusal they get.
-            StaffRule rule = ruleWhere(new Table().give(owner, StaffRule.IMMUNE));
+            protect(owner);
+            StaffRule rule = ruleWhere(new Table());
 
             assertThat(rule.canAct(player, owner, ModerationPermission.BAN).refusal())
                     .contains(StaffRule.NO_PERMISSION);

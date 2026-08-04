@@ -9,6 +9,7 @@ import de.raindancer.modules.moderation.command.LiftCommand;
 import de.raindancer.modules.moderation.command.DemoteCommand;
 import de.raindancer.modules.moderation.command.ModerationCommand;
 import de.raindancer.modules.moderation.command.PromoteCommand;
+import de.raindancer.modules.moderation.command.ProtectCommand;
 import de.raindancer.modules.moderation.command.PunishCommand;
 import de.raindancer.modules.moderation.command.SelfToolCommand;
 import de.raindancer.modules.moderation.command.VitalsCommand;
@@ -105,6 +106,14 @@ public final class ModerationCommands {
                         new ReportsCommand(ModerationCommands::require)),
                 ModuleCommand.of("staffchat", "Talks to the staff rather than the server",
                         new StaffChatCommand(ModerationCommands::require)),
+
+                // The console's own pair. Not grantable, not in a menu, not a permission: the shield
+                // that stops one moderator acting on another must not be handed out by the people it
+                // is aimed at. See ProtectCommand.
+                ModuleCommand.of("protect", "Protects an account from moderators — console only",
+                        new ProtectCommand(ModerationCommands::require, true)),
+                ModuleCommand.of("unprotect", "Takes that protection off again — console only",
+                        new ProtectCommand(ModerationCommands::require, false)),
 
                 // Ops only, and deliberately not grantable by any rank: a power that hands out powers
                 // must not be one of the powers it hands out, or the lowest tier is one promotion away

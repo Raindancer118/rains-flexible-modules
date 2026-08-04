@@ -58,7 +58,7 @@ class BanLimitRuleTest {
     private final UUID player = UUID.randomUUID();
 
     private BanLimitRule ruleWhere(Table table) {
-        return new BanLimitRule(new StaffRule(table), A_DAY);
+        return new BanLimitRule(new StaffRule(table, subject -> false), A_DAY);
     }
 
     private Table staffed() {

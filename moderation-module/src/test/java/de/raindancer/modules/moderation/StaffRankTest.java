@@ -157,10 +157,16 @@ class StaffRankTest {
         }
 
         @Test
-        @DisplayName("immunity arrives with admin")
-        void immunityIsAdminUpward() {
-            assertThat(StaffRank.ADMIN.nodes()).contains(StaffRule.IMMUNE);
-            assertThat(StaffRank.MOD.nodes()).doesNotContain(StaffRule.IMMUNE);
+        @DisplayName("no rank grants protection, at any tier")
+        void protectionIsNeverGranted() {
+            // A promotion used to confer it. That made the shield that stops one moderator acting on
+            // another something the moderators could hand to each other — so it is now written only by
+            // /protect at the console, and no tier here may put it back.
+            for (StaffRank rank : StaffRank.values()) {
+                assertThat(rank.nodes())
+                        .as("%s grants protection", rank)
+                        .noneMatch(node -> node.endsWith(".immune"));
+            }
         }
     }
 

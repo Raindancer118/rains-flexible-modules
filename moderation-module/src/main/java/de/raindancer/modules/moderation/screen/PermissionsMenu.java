@@ -150,7 +150,6 @@ public final class PermissionsMenu extends ModerationList<String> {
             case "rec.admin.nolimit" -> "No size limit";
             case "rec.admin.zonebypass" -> "Claim anywhere";
             case "rec.maxclaims.unlimited" -> "Unlimited claims";
-            case de.raindancer.modules.moderation.rules.StaffRule.IMMUNE -> "Immune to moderators";
             default -> node;
         };
     }
@@ -169,8 +168,6 @@ public final class PermissionsMenu extends ModerationList<String> {
             case "rec.admin.nolimit" -> "Ignore the largest and smallest claim size";
             case "rec.admin.zonebypass" -> "Claim inside a no-claim zone";
             case "rec.maxclaims.unlimited" -> "Hold as many claims as they like";
-            case de.raindancer.modules.moderation.rules.StaffRule.IMMUNE ->
-                    "Cannot be banned, muted or kicked by a moderator — only from the console";
             default -> "A permission this server grants";
         };
     }

@@ -26,4 +26,20 @@ public interface IModerationCommand extends BasicCommand {
 
     /** What this command is for, shown in help and in the diagnostic that lists them. */
     String describe();
+
+    /**
+     * Whether this command exists for the console alone.
+     *
+     * <p>The second way a command here can be guarded, and the stronger one. Most are guarded by a
+     * permission node, which is a thing a server can grant; a console-only command is guarded by
+     * standing at the console, which is a thing a server cannot grant to somebody in the game.
+     *
+     * <p>That distinction is the whole design of {@code /protect}: the shield that stops one moderator
+     * acting on another must not be handed out by the people it is aimed at. A node — any node, at any
+     * default — would be exactly that, so these commands deliberately have none, and
+     * {@code ModerationCommandsTest} checks that a command with neither guard cannot exist.
+     */
+    default boolean consoleOnly() {
+        return false;
+    }
 }

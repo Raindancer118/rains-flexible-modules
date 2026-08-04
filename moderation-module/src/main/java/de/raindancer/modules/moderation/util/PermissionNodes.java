@@ -67,9 +67,11 @@ public final class PermissionNodes {
             wanted.add(new Permission(permission.node(), permission.describe(),
                     PermissionDefault.OP));
         }
-        // So a mod cannot ban the owner on a fresh server, before anybody has been given a rank.
-        wanted.add(new Permission(StaffRule.IMMUNE,
-                "Cannot be acted on by moderators — only from the console", PermissionDefault.OP));
+        // There is deliberately no node for protection. It used to be one, and a permission is a fact
+        // about somebody who is online — which the subject of a ban usually is not. It is now the
+        // console-written list in ImmuneStaff, plus operators. Registering a node that no longer
+        // confers anything would be worse than not having one: a server would grant it and believe
+        // the account was protected.
         wanted.add(new Permission(PromoteCommand.USE,
                 "Hand out and take away staff ranks. Deliberately not grantable by any rank",
                 PermissionDefault.OP));
@@ -126,7 +128,6 @@ public final class PermissionNodes {
         for (ModerationPermission permission : ModerationPermission.values()) {
             nodes.add(permission.node());
         }
-        nodes.add(StaffRule.IMMUNE);
         nodes.add(PromoteCommand.USE);
         nodes.add(ReportCommand.USE);
         nodes.add(StaffRank.CLAIM_ADMIN);

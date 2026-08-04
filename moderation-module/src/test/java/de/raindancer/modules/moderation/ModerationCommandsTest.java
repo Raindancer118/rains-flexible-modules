@@ -67,20 +67,50 @@ class ModerationCommandsTest {
     }
 
     @Test
-    @DisplayName("every command asks for a permission, or it is a moderation command anybody can run")
+    @DisplayName("every command is guarded — by a permission node, or by being console-only")
     void everyCommandIsGuarded() {
         List<String> unguarded = new ArrayList<>();
         for (ModuleCommand command : declared) {
             String permission = command.handler().permission();
-            if (permission == null || permission.isBlank()) {
+            boolean consoleOnly = command.handler() instanceof IModerationCommand mine
+                    && mine.consoleOnly();
+            if ((permission == null || permission.isBlank()) && !consoleOnly) {
                 unguarded.add(command.name());
             }
         }
 
         assertThat(unguarded)
-                .as("a moderation command without a permission node is one every player on the server "
-                        + "can run")
+                .as("a moderation command with neither guard is one every player on the server can run")
                 .isEmpty();
+    }
+
+    @Test
+    @DisplayName("the console-only commands are the two that hand out protection, and no others")
+    void onlyProtectionIsConsoleOnly() {
+        // Console-only is the strongest guard there is here — a server cannot grant it to anybody —
+        // and it is also the most annoying, so it belongs on exactly the commands that need it. If a
+        // third one ever appears in this list, that is a decision somebody should have to write down.
+        List<String> consoleOnly = declared.stream()
+                .filter(command -> command.handler() instanceof IModerationCommand mine
+                        && mine.consoleOnly())
+                .map(ModuleCommand::name)
+                .toList();
+
+        assertThat(consoleOnly).containsExactlyInAnyOrder("protect", "unprotect");
+    }
+
+    @Test
+    @DisplayName("protection is guarded by the console rather than by a node anybody could be granted")
+    void protectionHasNoNode() {
+        for (ModuleCommand command : declared) {
+            if (command.handler() instanceof IModerationCommand mine && mine.consoleOnly()) {
+                assertThat(command.handler().permission())
+                        .as("%s has a permission node, which is a thing a server can grant — and "
+                                + "granting the shield to the people it is aimed at is the whole "
+                                + "failure it exists to prevent", command.name())
+                        .isNull();
+            }
+        }
     }
 
     @Test

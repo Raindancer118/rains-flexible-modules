@@ -36,7 +36,7 @@ class AimingAtYourselfTest {
 
     /** A rule that grants the actor everything, so only the self-question is under test. */
     private static StaffRule everything() {
-        return new StaffRule((who, node) -> true);
+        return new StaffRule((who, node) -> true, subject -> false);
     }
 
     @Test
@@ -77,8 +77,7 @@ class AimingAtYourselfTest {
     void atSomebodyElse() {
         // The self-exemption must not become a hole: pointing a tool at another player is a change to
         // their game they did not ask for, and immunity still applies.
-        StaffRule immune = new StaffRule((who, node) ->
-                StaffRule.IMMUNE.equals(node) ? SOMEBODY.equals(who) : true);
+        StaffRule immune = new StaffRule((who, node) -> true, SOMEBODY::equals);
 
         assertThat(immune.canAct(ME, SOMEBODY, ModerationPermission.HEAL).isRefused()).isTrue();
         assertThat(immune.canAct(ME, SOMEBODY, ModerationPermission.HEAL).refusal())
@@ -90,7 +89,7 @@ class AimingAtYourselfTest {
     void withoutThePermission() {
         // The self-exemption is about *whom*, never about *whether*. Somebody with no heal permission
         // does not get one by pointing it at themselves.
-        StaffRule nothing = new StaffRule((who, node) -> false);
+        StaffRule nothing = new StaffRule((who, node) -> false, subject -> false);
 
         assertThat(nothing.canAct(ME, ME, ModerationPermission.HEAL).isRefused()).isTrue();
         assertThat(nothing.canAct(ME, ME, ModerationPermission.HEAL).refusal())

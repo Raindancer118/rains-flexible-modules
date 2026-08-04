@@ -14,21 +14,26 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Who may not be acted on, remembered for the times they are not here to ask.
  *
- * <h2>The hole this closes</h2>
- * A permission plugin can only answer for somebody who is <em>online</em>. Ask
- * {@code server.getPlayer(uuid)} about an offline account and the answer is {@code null}, so every
- * permission they hold reads as absent. For most nodes that is harmless — an offline player is not
- * running commands, so what they may <em>do</em> never comes up.
+ * <h2>This list is the whole answer</h2>
+ * Protection used to be a permission node, mirrored in here when its holder logged in. That is gone:
+ * a permission plugin can only answer for somebody who is <em>online</em>, so the fact that decides
+ * whether an <em>offline</em> account can be banned was being read from a source that cannot answer
+ * about offline accounts. It was patched by remembering the last answer, which left the protection as
+ * good as whenever that person last logged in — and a grant made while they were away did nothing at
+ * all.
  *
- * <p>{@code IMMUNE} is the exception, and it is the dangerous one, because immunity is a fact about the
- * <b>subject</b> — and the subject of a ban is very often offline. That is, after all, usually why it is
- * being done through a menu. Without this class, any moderator could ban the owner by waiting until the
- * owner logged off. The code carried a comment claiming it failed in the safe direction; it failed in
- * the other one, and a review caught it.
+ * <p>So the file is now the source rather than a cache of one, and the only way into it is
+ * {@code /protect} and {@code /unprotect} <b>from the console</b>. Nothing in the game can protect an
+ * account: not a rank, not a menu, not a permission somebody was granted in LuckPerms. That is the
+ * point — the thing that stops one moderator acting on another must not be handed out by the same
+ * people it is aimed at.
+ *
+ * <p>Operators are protected on top of this list and are not in it (see {@code StaffRule}), so a fresh
+ * server is never in the window where an admin can ban the owner before anybody has typed anything.
  *
  * <h2>Why it is written down</h2>
- * Because a memory that starts empty is a hole that reopens at every restart, exactly as wide as the
- * time until each immune person next logs in.
+ * Because a memory that starts empty is a hole that reopens at every restart, and this one would
+ * reopen for good: nothing logs in to refill it any more.
  *
  * <h2>Thread safety</h2>
  * Read from the rule, which is asked from render loops and from command threads; written from the join
@@ -46,23 +51,34 @@ public final class ImmuneStaff {
     }
 
     /**
-     * Records what was seen when somebody was last online.
-     *
-     * <p>Both directions matter. Forgetting on {@code false} is what stops a demotion leaving somebody
-     * permanently untouchable — the failure in the other direction, and just as hard to explain.
+     * Protects an account. <b>The only way in, and it is reached from the console alone.</b>
      *
      * @return whether this changed anything, so the caller can avoid a pointless write
      */
-    public boolean remember(UUID who, boolean holdsIt) {
-        if (who == null) {
-            return false;
-        }
-        return holdsIt ? immune.add(who) : immune.remove(who);
+    public boolean protect(UUID who) {
+        return who != null && immune.add(who);
+    }
+
+    /**
+     * Takes the protection off again.
+     *
+     * <p>The half that has to exist. A protection nothing can lift is one that survives the person
+     * leaving the staff, and then the only way to act on that account is a text editor and a restart.
+     *
+     * @return whether this changed anything
+     */
+    public boolean unprotect(UUID who) {
+        return who != null && immune.remove(who);
     }
 
     /** Whether this account is protected from moderators. The console is never asked. */
     public boolean isImmune(UUID who) {
         return who != null && immune.contains(who);
+    }
+
+    /** Everybody on the list, for the console command that shows it. */
+    public Set<UUID> all() {
+        return Set.copyOf(immune);
     }
 
     public int size() {

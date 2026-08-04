@@ -63,7 +63,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.4.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.5.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -132,24 +132,30 @@ public final class ModerationModule implements FlexModule {
         pending.load();
 
         // ── the rules ─────────────────────────────────────────────────────────────────────────
-        // The permission lookup goes through a Player rather than an OfflinePlayer: a permission
-        // plugin cannot answer for somebody who is not here, so an offline account is never immune —
-        // which fails in the safe direction, since the console is what deals with an immune one.
-        // A permission plugin can only answer for somebody who is online. For what a moderator may
-        // *do* that is fine — an offline account is not running commands. For immunity it is not, and
-        // that is the whole reason ImmuneStaff exists: immunity is a fact about the *subject*, and the
-        // subject of a ban is very often offline. Asked live, an offline owner reads as holding
-        // nothing, and any moderator could ban them by waiting until they logged off.
-        staffRule = new StaffRule((who, node) -> {
-            if (who == null) {
-                return true;    // the console
-            }
-            Player here = server.getPlayer(who);
-            if (here != null) {
-                return here.hasPermission(node);
-            }
-            return StaffRule.IMMUNE.equals(node) && immune.isImmune(who);
-        });
+        // The permission lookup goes through a Player rather than an OfflinePlayer, and that is
+        // right for what a moderator may *do*: an offline account is not running commands, so a
+        // permission plugin having no answer for it costs nothing.
+        //
+        // What may be done *to* them is a different question and no longer asks this at all — see
+        // the protection seam below.
+        staffRule = new StaffRule(
+                (who, node) -> {
+                    if (who == null) {
+                        return true;    // the console
+                    }
+                    Player here = server.getPlayer(who);
+                    return here != null && here.hasPermission(node);
+                },
+                // Protection, which is deliberately not a permission. A permission plugin can only
+                // answer for somebody who is online, and the subject of a ban usually is not — so it
+                // is the console-written list, plus operators.
+                //
+                // Operators are covered without being on the list so that a fresh server is never in
+                // the window where an admin can ban the owner before anybody has typed /protect.
+                // OfflinePlayer#isOp reads ops.json rather than asking a permission plugin, so it is
+                // true of somebody who has been offline for a month.
+                subject -> subject != null
+                        && (immune.isImmune(subject) || server.getOfflinePlayer(subject).isOp()));
         escalation = new EscalationRule();
         announcements = new AnnouncementRule();
 
@@ -197,12 +203,13 @@ public final class ModerationModule implements FlexModule {
                 context.core().audit(), context.core().grants(), () -> directoryOf(server),
                 reasons, reports, notes, staffRule, escalation, announcements, this::standingRule,
                 this::banLimitRule, this::promotionRule, this::filingRule,
-                punishmentService, reportService, noteService, staffChat, roster, staffService,
+                punishmentService, reportService, noteService, staffChat, roster, immune,
+                staffService,
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
 
         staffChatListener = new StaffChatListener(services);
-        StaffSessionListener session = new StaffSessionListener(services, immune, pending)
+        StaffSessionListener session = new StaffSessionListener(services, pending)
                 .alsoTelling(staffChatListener);
 
         // Every setting is a snapshot, so a reload hands each service a fresh one. Missing one of

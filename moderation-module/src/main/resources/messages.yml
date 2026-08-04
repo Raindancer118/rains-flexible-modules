@@ -97,6 +97,21 @@ moderation:
   # ── refusals, which are the rules' own keys ──────────────────────────────
   no-permission: "<red>You may not do that."
   not-yourself: "<gray>You cannot do that to yourself."
+  # ── protection: the console's own pair ───────────────────────────────────
+  # Set by /protect and /unprotect from the console and by nothing else. Operators
+  # are protected as well, without being on the list.
+  protect:
+    console-only: "<red>Only the console can protect an account. <gray>That is the point: a shield the staff can hand each other is not one."
+    protected: "<green><white><player></white> is now protected from moderators. <dark_gray>The console can still act on them."
+    already: "<gray><player> is already protected."
+    unprotected: "<yellow><white><player></white> is no longer protected from moderators."
+    not-protected: "<gray><player> was not protected, so nothing has changed."
+    operator: "<gray><player> is an operator, which protects them on its own. <dark_gray>Take their op away to change that."
+    none: "<gray>Nobody has been protected with /protect. <dark_gray>Operators are protected anyway."
+    list: "<gray><white><count></white> account(s) protected from moderators:"
+    row: "<dark_gray> - <white><player>"
+    not-written: "<red>That could not be written to immune.yml, so it would be lost at the next restart. <gray>Nothing has been changed."
+
   they-are-immune: "<red>That account is protected. Only the console can act on it."
   nobody-there: "<gray>There is nobody to do that to."
 

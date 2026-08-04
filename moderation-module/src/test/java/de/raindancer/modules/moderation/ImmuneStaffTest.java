@@ -9,24 +9,25 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Remembering who may not be touched, for the times they are not here to ask.
+ * The list of accounts a moderator may not touch.
  *
- * <h2>The hole this closes</h2>
+ * <h2>Why this is a written list and not a permission</h2>
  * A permission plugin can only answer for somebody who is <em>online</em>: ask
- * {@code server.getPlayer(uuid)} about an offline account and you get {@code null}, so every
- * permission they hold reads as absent. For most nodes that is harmless — an offline player is not
- * running commands. For {@code IMMUNE} it is the opposite of harmless, because immunity is a fact
- * about the <b>subject</b>, and the subject of a ban is very often offline.
+ * {@code server.getPlayer(uuid)} about an offline account and you get {@code null}, so every permission
+ * they hold reads as absent. For most nodes that is harmless — an offline player is not running
+ * commands. For protection it is the opposite of harmless, because it is a fact about the
+ * <b>subject</b>, and the subject of a ban is very often offline.
  *
- * <p>So the version without this let any moderator ban the owner, provided they waited until the owner
- * logged off. Found by review; the comment in the code at the time claimed the opposite.
+ * <p>The first version had no list at all, and any moderator could ban the owner by waiting until the
+ * owner logged off. The second kept the permission and cached it here whenever its holder logged in,
+ * which left the protection as old as their last login and made a grant to somebody away do nothing.
+ * This is the third: the list <em>is</em> the fact, written only by {@code /protect} at the console.
  */
 class ImmuneStaffTest {
 
@@ -34,15 +35,15 @@ class ImmuneStaffTest {
     private final UUID moderator = UUID.randomUUID();
 
     @Nested
-    @DisplayName("remembering")
-    class Remembering {
+    @DisplayName("protecting")
+    class Protecting {
 
         @Test
-        @DisplayName("somebody seen holding it is remembered")
-        void remembered(@TempDir Path folder) {
+        @DisplayName("a protected account is protected, and nobody else is")
+        void protectedAccount(@TempDir Path folder) {
             ImmuneStaff immune = new ImmuneStaff(folder);
 
-            immune.remember(owner, true);
+            assertThat(immune.protect(owner)).isTrue();
 
             assertThat(immune.isImmune(owner)).isTrue();
             assertThat(immune.isImmune(moderator)).isFalse();
@@ -50,27 +51,29 @@ class ImmuneStaffTest {
         }
 
         @Test
-        @DisplayName("somebody who has lost it is forgotten again")
-        void forgotten(@TempDir Path folder) {
-            // Otherwise demoting somebody leaves them permanently untouchable, which is the failure
-            // in the other direction and just as hard to explain.
+        @DisplayName("unprotecting takes it off again")
+        void unprotecting(@TempDir Path folder) {
+            // The half that has to exist. A protection nothing can lift outlives the person leaving the
+            // staff, and then the only way to act on that account is a text editor and a restart.
             ImmuneStaff immune = new ImmuneStaff(folder);
-            immune.remember(owner, true);
+            immune.protect(owner);
 
-            immune.remember(owner, false);
+            assertThat(immune.unprotect(owner)).isTrue();
 
             assertThat(immune.isImmune(owner)).isFalse();
         }
 
         @Test
-        @DisplayName("remembering the same person twice does not double anything")
+        @DisplayName("each answers whether it changed anything, so nothing is written for nothing")
         void idempotent(@TempDir Path folder) {
             ImmuneStaff immune = new ImmuneStaff(folder);
 
-            immune.remember(owner, true);
-            immune.remember(owner, true);
-
+            assertThat(immune.protect(owner)).isTrue();
+            assertThat(immune.protect(owner)).as("already protected").isFalse();
             assertThat(immune.size()).isOne();
+
+            assertThat(immune.unprotect(owner)).isTrue();
+            assertThat(immune.unprotect(owner)).as("was not protected").isFalse();
         }
 
         @Test
@@ -78,9 +81,21 @@ class ImmuneStaffTest {
         void nulls(@TempDir Path folder) {
             ImmuneStaff immune = new ImmuneStaff(folder);
 
-            immune.remember(null, true);
+            assertThat(immune.protect(null)).isFalse();
+            assertThat(immune.unprotect(null)).isFalse();
 
             assertThat(immune.size()).isZero();
+        }
+
+        @Test
+        @DisplayName("the list can be read back, for the console command that shows it")
+        void listing(@TempDir Path folder) {
+            ImmuneStaff immune = new ImmuneStaff(folder);
+            immune.protect(owner);
+            immune.protect(moderator);
+
+            assertThat(immune.all()).containsExactlyInAnyOrder(owner, moderator);
+            assertThat(immune.all()).isUnmodifiable();
         }
     }
 
@@ -89,12 +104,12 @@ class ImmuneStaffTest {
     class Persisting {
 
         @Test
-        @DisplayName("who is immune survives being written and read")
+        @DisplayName("who is protected survives being written and read")
         void aRoundTrip(@TempDir Path folder) {
-            // Without this, the first ban after a restart can land on an offline owner — the window
-            // is exactly as long as it takes them to log in once.
+            // Nothing refills this list any more — no login mirrors a permission into it — so losing it
+            // is losing the protection outright rather than until everybody has logged in once.
             ImmuneStaff first = new ImmuneStaff(folder);
-            first.remember(owner, true);
+            first.protect(owner);
             first.flush();
 
             ImmuneStaff afterRestart = new ImmuneStaff(folder);
@@ -104,7 +119,7 @@ class ImmuneStaffTest {
         }
 
         @Test
-        @DisplayName("nothing on disk is nobody immune rather than a failure")
+        @DisplayName("nothing on disk is nobody protected rather than a failure")
         void nothingYet(@TempDir Path folder) {
             ImmuneStaff immune = new ImmuneStaff(folder);
             immune.load();
@@ -113,12 +128,12 @@ class ImmuneStaffTest {
         }
 
         @Test
-        @DisplayName("somebody who lost it does not come back after a restart")
+        @DisplayName("somebody unprotected does not come back after a restart")
         void removalPersists(@TempDir Path folder) {
             ImmuneStaff first = new ImmuneStaff(folder);
-            first.remember(owner, true);
+            first.protect(owner);
             first.flush();
-            first.remember(owner, false);
+            first.unprotect(owner);
             first.flush();
 
             ImmuneStaff afterRestart = new ImmuneStaff(folder);
@@ -132,28 +147,38 @@ class ImmuneStaffTest {
     @DisplayName("what the rule then does")
     class TheRule {
 
-        /** Permissions as a live server answers them: nothing at all for anybody offline. */
-        private StaffRule ruleWhere(ImmuneStaff immune, Set<UUID> online) {
-            return new StaffRule((who, node) -> {
-                if (who == null) {
-                    return true;                        // the console
-                }
-                if (online.contains(who)) {
-                    return true;                        // online, and holds everything, for this test
-                }
-                // Offline: a permission plugin cannot answer, so only what is remembered is known.
-                return StaffRule.IMMUNE.equals(node) && immune.isImmune(who);
-            });
+        /**
+         * The rule as the module wires it: permissions only for whoever is online, and protection from
+         * the list plus the operators — neither of which needs the subject to be here.
+         */
+        private StaffRule ruleWhere(ImmuneStaff immune, Set<UUID> online, Set<UUID> operators) {
+            return new StaffRule(
+                    (who, node) -> who == null || online.contains(who),
+                    subject -> subject != null
+                            && (immune.isImmune(subject) || operators.contains(subject)));
         }
 
         @Test
-        @DisplayName("an offline immune account is still protected")
+        @DisplayName("an offline protected account is still protected")
         void theHoleIsClosed(@TempDir Path folder) {
             ImmuneStaff immune = new ImmuneStaff(folder);
-            immune.remember(owner, true);
-            StaffRule rule = ruleWhere(immune, new HashSet<>(Set.of(moderator)));
+            immune.protect(owner);
+            StaffRule rule = ruleWhere(immune, Set.of(moderator), Set.of());
 
             assertThat(rule.isImmune(owner)).isTrue();
+            assertThat(rule.canAct(moderator, owner, ModerationPermission.BAN).refusal())
+                    .contains(StaffRule.THEY_ARE_IMMUNE);
+        }
+
+        @Test
+        @DisplayName("an operator is protected without anybody having typed /protect")
+        void operatorsAreCoveredOnTheirOwn(@TempDir Path folder) {
+            // The window this closes: on a fresh server, before anybody has run /protect, an admin
+            // would otherwise be able to ban the owner.
+            ImmuneStaff immune = new ImmuneStaff(folder);
+            StaffRule rule = ruleWhere(immune, Set.of(moderator), Set.of(owner));
+
+            assertThat(immune.isImmune(owner)).as("not on the list, and does not need to be").isFalse();
             assertThat(rule.canAct(moderator, owner, ModerationPermission.BAN).refusal())
                     .contains(StaffRule.THEY_ARE_IMMUNE);
         }
@@ -163,19 +188,30 @@ class ImmuneStaffTest {
         void ordinaryPlayersAreStillReachable(@TempDir Path folder) {
             ImmuneStaff immune = new ImmuneStaff(folder);
             UUID somebody = UUID.randomUUID();
-            StaffRule rule = ruleWhere(immune, new HashSet<>(Set.of(moderator)));
+            StaffRule rule = ruleWhere(immune, Set.of(moderator), Set.of());
 
             assertThat(rule.canAct(moderator, somebody, ModerationPermission.BAN).isAllowed()).isTrue();
         }
 
         @Test
-        @DisplayName("the console still reaches an offline immune account")
+        @DisplayName("the console still reaches an offline protected account")
         void theConsoleIsUnaffected(@TempDir Path folder) {
             ImmuneStaff immune = new ImmuneStaff(folder);
-            immune.remember(owner, true);
-            StaffRule rule = ruleWhere(immune, new HashSet<>());
+            immune.protect(owner);
+            StaffRule rule = ruleWhere(immune, Set.of(), Set.of());
 
             assertThat(rule.canAct(null, owner, ModerationPermission.BAN).isAllowed()).isTrue();
+        }
+
+        @Test
+        @DisplayName("holding every permission in the game does not protect anybody")
+        void permissionsNoLongerProtect(@TempDir Path folder) {
+            // The whole change: protection used to be a node, so anybody who could grant nodes could
+            // grant it. Here the subject is online and holds everything, and is still bannable.
+            ImmuneStaff immune = new ImmuneStaff(folder);
+            StaffRule rule = ruleWhere(immune, Set.of(moderator, owner), Set.of());
+
+            assertThat(rule.canAct(moderator, owner, ModerationPermission.BAN).isAllowed()).isTrue();
         }
     }
 }

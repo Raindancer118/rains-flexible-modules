@@ -17,21 +17,13 @@ import java.util.UUID;
  * runtime and by a map in a test.
  *
  * <h2>The console</h2>
- * A null actor is the console, and the console may do everything — including acting on somebody
- * {@link #IMMUNE}. Immunity is what stops one moderator banning another in a fit of pique; it must not
- * be what stops the owner dealing with a compromised staff account, which is the case it would fail in
- * exactly when it mattered.
+ * A null actor is the console, and the console may do everything — including acting on a protected
+ * account. Protection is what stops one moderator banning another in a fit of pique; it must not be
+ * what stops the owner dealing with a compromised staff account, which is the case it would fail in
+ * exactly when it mattered. It is also why the console is the only place protection can be handed out
+ * at all: see {@code store.ImmuneStaff}.
  */
 public final class StaffRule implements IModerationRule {
-
-    /**
-     * Held by somebody a moderator cannot act on.
-     *
-     * <p>Deliberately not one of {@link ModerationPermission}: those say what somebody may <em>do</em>,
-     * and this says what may not be done <em>to</em> them. Putting it in that enum would have put it on
-     * the page listing what a helper can be granted, where it reads as a power rather than a shield.
-     */
-    public static final String IMMUNE = ModerationPermission.PREFIX + "immune";
 
     /** Refusal keys, which are message keys. Constants so a screen and a command word it the same. */
     public static final String NO_PERMISSION = "moderation.no-permission";
@@ -47,10 +39,28 @@ public final class StaffRule implements IModerationRule {
         boolean has(UUID who, String node);
     }
 
-    private final Rights rights;
+    /**
+     * Whether an account may not be acted on.
+     *
+     * <p>Its own seam rather than another {@link Rights} lookup, and that is the whole correction: a
+     * permission is a fact about somebody who is <em>online</em>, and the subject of a ban usually is
+     * not. What is behind this at runtime is the console-written list plus "is an operator", neither of
+     * which needs the person to be here to answer.
+     */
+    @FunctionalInterface
+    public interface Protection {
 
-    public StaffRule(Rights rights) {
+        boolean covers(UUID subject);
+    }
+
+    private final Rights rights;
+    private final Protection protection;
+
+    public StaffRule(Rights rights, Protection protection) {
         this.rights = rights == null ? (who, node) -> false : rights;
+        // Nobody protected is the safe default for a *test* and the wrong one for a server, which is
+        // why the module wires it explicitly and there is no constructor that leaves it out.
+        this.protection = protection == null ? subject -> false : protection;
     }
 
     /** Whether they may do this at all, ignoring who it would be done to. */
@@ -63,7 +73,7 @@ public final class StaffRule implements IModerationRule {
 
     /** Whether a moderator is barred from acting on this person. */
     public boolean isImmune(UUID subject) {
-        return subject != null && rights.has(subject, IMMUNE);
+        return subject != null && protection.covers(subject);
     }
 
     /**
@@ -85,7 +95,7 @@ public final class StaffRule implements IModerationRule {
         }
         if (actor.equals(subject)) {
             // Yourself. Answered here and returned here, so the immunity check below never sees it:
-            // immunity is what stops one moderator acting on another, and an owner is immune, so
+            // protection is what stops one moderator acting on another, and an owner is protected, so
             // asking it about yourself made every owner unable to heal, feed or unfreeze themselves —
             // refused with "that account is protected", about their own account.
             //

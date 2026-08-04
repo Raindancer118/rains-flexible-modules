@@ -3,7 +3,6 @@ package de.raindancer.modules.moderation.listener;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.ModerationPermission;
-import de.raindancer.modules.moderation.store.ImmuneStaff;
 import de.raindancer.modules.moderation.store.PendingNotices;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -34,14 +33,12 @@ import java.util.UUID;
 public final class StaffSessionListener implements IModerationListener {
 
     private final ModerationServices services;
-    private final ImmuneStaff immune;
     private final PendingNotices pending;
     private final List<IModerationListener> everybodyElse = new ArrayList<>();
 
-    public StaffSessionListener(ModerationServices services, ImmuneStaff immune,
+    public StaffSessionListener(ModerationServices services,
                                 PendingNotices pending) {
         this.services = services;
-        this.immune = immune;
         this.pending = pending;
     }
 
@@ -60,13 +57,6 @@ public final class StaffSessionListener implements IModerationListener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Player joining = event.getPlayer();
-
-        // The one moment a permission plugin can be asked about this account at all. What is learnt
-        // here is what protects them for the whole time they are offline — see ImmuneStaff.
-        if (immune.remember(joining.getUniqueId(),
-                joining.hasPermission(de.raindancer.modules.moderation.rules.StaffRule.IMMUNE))) {
-            de.raindancer.core.platform.util.Scheduling.async(services.plugin(), immune::flush);
-        }
 
         if (services.config().vanishOnJoinForStaff()
                 && joining.hasPermission(ModerationPermission.VANISH.node())) {

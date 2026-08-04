@@ -110,10 +110,14 @@ class PermissionDefaultsTest {
     }
 
     @Test
-    @DisplayName("an operator is immune to moderators, and nobody else is by default")
-    void immunityIsTheOwners() {
-        // So a mod cannot ban the owner on a fresh server, before anybody has been given a rank.
-        assertThat(defaultOf(StaffRule.IMMUNE)).isEqualTo(PermissionDefault.OP);
+    @DisplayName("no permission protects an account any more")
+    void protectionIsNotANode() {
+        // It used to be one, which meant anybody who could grant nodes could grant the shield that
+        // stops moderators acting on each other. It is now the console's list plus the operators, and
+        // a node that no longer confers it must not exist: a server would grant it and believe the
+        // account was protected.
+        assertThat(declared.stream().map(Permission::getName).toList())
+                .noneMatch(node -> node.endsWith(".immune"));
     }
 
     @Test
@@ -127,7 +131,7 @@ class PermissionDefaultsTest {
                             permission)
                     .contains(permission.node());
         }
-        assertThat(names).contains(StaffRule.IMMUNE, PromoteCommand.USE, ReportCommand.USE);
+        assertThat(names).contains(PromoteCommand.USE, ReportCommand.USE);
     }
 
     @Test
