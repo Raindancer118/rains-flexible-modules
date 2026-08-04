@@ -104,26 +104,18 @@ public final class WorldToolsMenu extends ModerationScreen {
                     buryIt();
                 });
 
-        // The two halves of one decision, so they sit together — the one place this grammar allows
-        // adjacent buttons.
+        // Core's AmountChooser rather than a pair of nudge buttons. Nudging is forty clicks to reach
+        // sixty, and the version of this page that had a +4 and a -4 on it was the reason somebody
+        // asked for a better one: ±1, ±10, ±100, jump to either end, and nothing happens until Accept.
         band(MenuLayout.RULES, 3, mayOre,
-                Icons.of(Material.LIME_DYE, "<green>Bigger vein",
-                        "<gray>" + veinSize + " blocks now.",
-                        "<dark_gray>Up to " + de.raindancer.core.world.build.OreVein.MOST_BLOCKS + "."),
+                Icons.of(Material.PAPER, "<yellow>How big",
+                        "<gray>" + veinSize + " blocks.",
+                        "",
+                        "<dark_gray>Click to choose a number."),
                 "For whoever may bury ore",
-                click -> {
-                    veinSize = Math.min(de.raindancer.core.world.build.OreVein.MOST_BLOCKS,
-                            veinSize + 4);
-                    refresh();
-                });
-        band(MenuLayout.RULES, 4, mayOre,
-                Icons.of(Material.RED_DYE, "<red>Smaller vein",
-                        "<gray>" + veinSize + " blocks now."),
-                "For whoever may bury ore",
-                click -> {
-                    veinSize = Math.max(1, veinSize - 4);
-                    refresh();
-                });
+                click -> amount("Blocks in the vein", veinSize, 1,
+                        de.raindancer.core.world.build.OreVein.MOST_BLOCKS,
+                        chosen -> veinSize = chosen));
 
         // ── the creatures ─────────────────────────────────────────────────────────────────────
         boolean mayMobs = may(ModerationPermission.SPAWN_MOBS);
@@ -144,14 +136,8 @@ public final class WorldToolsMenu extends ModerationScreen {
                             // a plain new one and set the creature on the instance that was going
                             // away, so every choice was thrown out and every wave was zombies — the
                             // defaults, faithfully, every time.
-                            WorldToolsMenu again = new WorldToolsMenu(services(), viewer, parent());
-                            again.veinSize = veinSize;
-                            again.ore = ore;
-                            again.packSize = packSize;
-                            again.packs = packs;
-                            again.everySeconds = everySeconds;
-                            again.creature = chosen;
-                            again.open();
+                            creature = chosen;
+                            reopenCarrying();
                         }).open());
 
         band(MenuLayout.LAND, 1, mayMobs && aimed != null,
@@ -160,12 +146,12 @@ public final class WorldToolsMenu extends ModerationScreen {
                         "<gray>They arrive at once, in a ring.",
                         "",
                         "<dark_gray>Left click to send it.",
-                        "<dark_gray>Right click to change how many."),
+                        "<dark_gray>Or right click to choose how many."),
                 aimed == null ? "Point somewhere first" : "Packs and waves are an admin's",
                 click -> {
                     if (click.isRightClick()) {
-                        packSize = packSize >= Wave.MOST_PER_PACK ? 2 : packSize + 2;
-                        refresh();
+                        amount("Creatures in the pack", packSize, 1, Wave.MOST_PER_PACK,
+                                chosen -> packSize = chosen);
                         return;
                     }
                     sendPack();
@@ -201,12 +187,12 @@ public final class WorldToolsMenu extends ModerationScreen {
                                     + (packs * packSize) + " in total.",
                             "",
                             "<dark_gray>Left click to start it.",
-                            "<dark_gray>Right click for more packs."),
+                            "<dark_gray>Or right click to choose how many packs."),
                     aimed == null ? "Point somewhere first" : "Packs and waves are an admin's",
                     click -> {
                         if (click.isRightClick()) {
-                            packs = packs >= Wave.MOST_PACKS ? 1 : packs + 1;
-                            refresh();
+                            amount("Packs in the wave", packs, 1, Wave.MOST_PACKS,
+                                    chosen -> packs = chosen);
                             return;
                         }
                         startWave();
@@ -216,15 +202,39 @@ public final class WorldToolsMenu extends ModerationScreen {
                     Icons.of(Material.CLOCK, "<yellow>How far apart",
                             "<gray>" + everySeconds + " seconds between packs.",
                             "",
-                            "<dark_gray>Left click for longer, right click for shorter."),
+                            "<dark_gray>Click to choose a number."),
                     "Packs and waves are an admin's",
-                    click -> {
-                        everySeconds = click.isRightClick()
-                                ? Math.max(5, everySeconds - 5)
-                                : Math.min(300, everySeconds + 5);
-                        refresh();
-                    });
+                    click -> amount("Seconds between packs", everySeconds, 1, 300,
+                            chosen -> everySeconds = chosen));
         }
+    }
+
+    /**
+     * Core's number screen, over one of this page's values.
+     *
+     * <p>Every amount on this page goes through it. The chooser closes the window when it accepts, so
+     * the page is rebuilt carrying everything that was on it — the same reason the mob chooser has to,
+     * and the same bug if it is forgotten: the value is set on an instance that is going away.
+     */
+    private void amount(String label, int current, int least, int most,
+                        java.util.function.IntConsumer chosen) {
+        new de.raindancer.core.ui.choose.AmountChooser(viewer, services().brand(), this, label,
+                current, least, most, picked -> {
+                    chosen.accept(picked);
+                    reopenCarrying();
+                }).open();
+    }
+
+    /** This page again, with everything that was on it. See the mob chooser for why. */
+    private void reopenCarrying() {
+        WorldToolsMenu again = new WorldToolsMenu(services(), viewer, parent());
+        again.veinSize = veinSize;
+        again.ore = ore;
+        again.creature = creature;
+        again.packSize = packSize;
+        again.packs = packs;
+        again.everySeconds = everySeconds;
+        again.open();
     }
 
     // ────────────────────────────────────────────────────────────────────────── doing it

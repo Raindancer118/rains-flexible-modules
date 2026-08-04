@@ -109,8 +109,16 @@ class WorldToolsTest {
 
         String callback = body.substring(at, Math.min(body.length(), at + 1400));
         assertThat(callback)
-                .as("the page is reopened without carrying what was on it")
-                .contains("again.creature = chosen")
+                .as("the mob chooser does not reopen the page carrying its state")
+                .contains("reopenCarrying()");
+
+        // And the one place that rebuilds it carries every value. A field added to this page and
+        // forgotten here is the same bug again, one value at a time.
+        int carry = body.indexOf("private void reopenCarrying()");
+        assertThat(carry).as("nothing rebuilds the page any more").isNotNegative();
+        String rebuild = body.substring(carry, Math.min(body.length(), carry + 700));
+        assertThat(rebuild)
+                .contains("again.creature = creature")
                 .contains("again.packSize = packSize")
                 .contains("again.packs = packs")
                 .contains("again.everySeconds = everySeconds")
@@ -127,6 +135,21 @@ class WorldToolsTest {
                 .as("something acts without checking what is aimed at")
                 .contains("nothing-aimed-at");
         assertThat(screen()).contains("getTargetBlockExact");
+    }
+
+    @Test
+    @DisplayName("every amount on the page goes through Core's chooser")
+    void amountsUseTheSharedScreen() {
+        // Nudge buttons are forty clicks to reach sixty, which is what was on this page and what got
+        // it complained about. AmountChooser is ±1, ±10, ±100, both ends, and an explicit Accept.
+        String body = screen();
+
+        assertThat(body).contains("AmountChooser");
+        assertThat(body)
+                .as("a hand-rolled stepper is back on this page")
+                .doesNotContain("veinSize + 4")
+                .doesNotContain("packSize + 2")
+                .doesNotContain("everySeconds - 5");
     }
 
     @Test
