@@ -137,10 +137,21 @@ public final class WorldToolsMenu extends ModerationScreen {
                 click -> MobChooser.toFight(viewer, services().brand(), this,
                         "What should turn up?",
                         chosen -> {
-                            creature = chosen;
-                            // Reopened rather than refreshed: the chooser closed the window on its way
-                            // out, so there is nothing left to refresh.
-                            new WorldToolsMenu(services(), viewer, parent()).open();
+                            // Reopened rather than refreshed: the chooser closed the window on its
+                            // way out, so there is nothing left to refresh.
+                            //
+                            // And the page it reopens has to be *this* page. The first version opened
+                            // a plain new one and set the creature on the instance that was going
+                            // away, so every choice was thrown out and every wave was zombies — the
+                            // defaults, faithfully, every time.
+                            WorldToolsMenu again = new WorldToolsMenu(services(), viewer, parent());
+                            again.veinSize = veinSize;
+                            again.ore = ore;
+                            again.packSize = packSize;
+                            again.packs = packs;
+                            again.everySeconds = everySeconds;
+                            again.creature = chosen;
+                            again.open();
                         }).open());
 
         band(MenuLayout.LAND, 1, mayMobs && aimed != null,

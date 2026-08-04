@@ -144,6 +144,40 @@ public final class StaffService implements IModerationService {
     }
 
     /** Puts a drifted person back to exactly what their rank grants. */
+    /**
+     * Puts a rank's grants back on somebody as they join, silently.
+     *
+     * <h2>Why this has to happen at all</h2>
+     * A rank hands out its nodes at the moment somebody is promoted. That is right — a grant is a
+     * thing that happened, and re-deciding it on every join would undo the per-person permissions an
+     * admin turned off by hand.
+     *
+     * <p>But it means a node <em>added to a preset afterwards</em> reaches nobody. Everybody promoted
+     * before it existed keeps the set they were given, for ever, and the only cure is promoting each
+     * of them again — which nobody thinks to do, because nothing is visibly wrong: the rank says Admin
+     * and the command says no.
+     *
+     * <p>This is the half that heals: on join, whatever the preset says now is granted. Only granted —
+     * nothing is taken away, so a permission somebody was given by hand survives, and one an admin
+     * switched off stays off unless the preset itself changed.
+     *
+     * @return whether anything was actually new
+     */
+    public boolean topUpOnJoin(UUID who) {
+        if (who == null || roster.rankOf(who).isEmpty()) {
+            return false;
+        }
+        boolean changed = roster.reapplyPreset(who);
+        // Applied whether or not the roster changed: the roster is what they *should* hold, and the
+        // permission plugin is what they *do*. Those come apart on their own — a LuckPerms edit, a
+        // restore from backup — and this is the one moment both are in the same place.
+        applyNow(who);
+        if (changed) {
+            persist();
+        }
+        return changed;
+    }
+
     public boolean reapplyPreset(CommandSender by, UUID who, String name) {
         if (!roster.reapplyPreset(who)) {
             return false;

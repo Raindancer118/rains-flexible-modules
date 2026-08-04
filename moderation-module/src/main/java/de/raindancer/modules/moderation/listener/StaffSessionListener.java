@@ -58,6 +58,13 @@ public final class StaffSessionListener implements IModerationListener {
     public void onJoin(PlayerJoinEvent event) {
         Player joining = event.getPlayer();
 
+        // Before anything asks what they may do. A node added to a preset after somebody was
+        // promoted otherwise never reaches them — see StaffService#topUpOnJoin.
+        if (services.staff().topUpOnJoin(joining.getUniqueId())) {
+            services.log().info("{} was given permissions their rank has gained since they were "
+                    + "promoted.", joining.getName());
+        }
+
         if (services.config().vanishOnJoinForStaff()
                 && joining.hasPermission(ModerationPermission.VANISH.node())) {
             services.vanish().vanish(joining.getUniqueId(), joining.getAllowFlight());

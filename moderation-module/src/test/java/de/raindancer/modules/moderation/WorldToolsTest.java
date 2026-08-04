@@ -98,6 +98,27 @@ class WorldToolsTest {
     }
 
     @Test
+    @DisplayName("reopening the page after a chooser carries what was already chosen")
+    void theChooserDoesNotResetThePage() {
+        // A chooser closes the window on its way out, so the page has to be opened again — and the
+        // first version opened a *plain* new one, setting the creature on the instance that was going
+        // away. Every choice was thrown out and every wave was zombies: the defaults, faithfully.
+        String body = screen();
+        int at = body.indexOf("MobChooser.toFight");
+        assertThat(at).as("the mob chooser is gone from the page").isNotNegative();
+
+        String callback = body.substring(at, Math.min(body.length(), at + 1400));
+        assertThat(callback)
+                .as("the page is reopened without carrying what was on it")
+                .contains("again.creature = chosen")
+                .contains("again.packSize = packSize")
+                .contains("again.packs = packs")
+                .contains("again.everySeconds = everySeconds")
+                .contains("again.ore = ore")
+                .contains("again.veinSize = veinSize");
+    }
+
+    @Test
     @DisplayName("the page never falls back to acting underfoot")
     void aimingIsRequired() {
         // Falling back to the player's own position buries a vein under somebody who was aiming at the
