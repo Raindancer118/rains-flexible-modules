@@ -2,6 +2,8 @@ package de.raindancer.modules.moderation.command;
 
 import de.raindancer.core.moderation.punishment.Punishment;
 import de.raindancer.core.ui.chat.Chat;
+import de.raindancer.core.ui.messages.Messages;
+import net.kyori.adventure.text.Component;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.ModerationPermission;
@@ -67,19 +69,26 @@ public final class HistoryCommand extends StaffCommand {
             moderation.messages().send(sender, "moderation.record-empty", "player", name);
             return;
         }
-        moderation.chat().tell(sender, "<gray>Record for <white><player></white> — "
-                + "<white><count></white> entr(ies):",
+        // Wording out of messages.yml, like everything else a player reads. The format string is
+        // raw() rather than get() because the line is finished by Chat below — get() would render it
+        // with its placeholders still in it.
+        Messages messages = moderation.messages();
+        moderation.chat().tell(sender, messages.raw("moderation.record-heading"),
                 Chat.arg("player", name), Chat.arg("count", record.size()));
 
         Instant now = Instant.now();
         for (Punishment past : record.subList(0, Math.min(MOST_LINES, record.size()))) {
-            moderation.chat().row(sender,
-                    "<white><what></white> <gray>— <reason> <dark_gray>(<when>, <length>)</dark_gray><state>",
+            moderation.chat().row(sender, messages.raw("moderation.record-line"),
                     Chat.arg("what", past.kind().past()),
                     Chat.arg("reason", past.reason()),
                     Chat.arg("when", Times.describe(Duration.between(past.givenAt(), now)) + " ago"),
                     Chat.arg("length", past.length()),
-                    Chat.arg("state", stateOf(past, now)));
+                    // formatted, not arg. The state is wording *this plugin* wrote and it carries a
+                    // colour; arg() escapes what it is given — always, and rightly, because most of
+                    // what goes through it is text a player typed. Passed through arg() this line
+                    // printed "<green>lifted" at somebody, which is what a leaked tag looks like from
+                    // the other direction: an opening one, shown rather than applied.
+                    Chat.formatted("state", stateOf(messages, past, now)));
         }
         if (record.size() > MOST_LINES) {
             moderation.messages().send(sender, "moderation.record-more",
@@ -90,14 +99,21 @@ public final class HistoryCommand extends StaffCommand {
         }
     }
 
-    /** Lifted, still in force, or over — the three things a line of a record has to distinguish. */
-    private static String stateOf(Punishment past, Instant now) {
+    /**
+     * Lifted, still in force, or over — the three things a line of a record has to distinguish.
+     *
+     * <p>A {@link Component} rather than a string of markup, because that is the only form that can
+     * be put into a message without being escaped on the way in. Its words come from
+     * {@code messages.yml} like every other word here; "over" has none, since a punishment that has
+     * simply expired needs no adjective after its own dates.
+     */
+    private static Component stateOf(Messages messages, Punishment past, Instant now) {
         if (past.liftedAt() != null) {
-            return " <green>lifted";
+            return messages.get("moderation.record-state.lifted");
         }
         if (past.isActiveAt(now)) {
-            return " <red>in force";
+            return messages.get("moderation.record-state.in-force");
         }
-        return "";
+        return Component.empty();
     }
 }

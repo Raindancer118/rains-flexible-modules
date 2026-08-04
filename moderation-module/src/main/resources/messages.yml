@@ -144,7 +144,17 @@ moderation:
   record-entry: "<gray><what> — <white><reason></white> <dark_gray>(<length>, by <by>)"
   record-report: "<aqua>Reported <dark_gray>by <gray><by></gray> — <white><text></white> <dark_gray>(<state>)"
   record-more: "<gray>…and <white><count></white> more. <dark_gray>Open <white>/mod <player></white> for the lot."
-  record-see-screen: "<dark_gray>Open <white>/mod <player></white> to act on any of this."
+  record-heading: "<gray>Record for <white><player></white> — <white><count></white> entr(ies):"
+  record-line: "<white><what></white> <gray>— <reason> <dark_gray>(<when>, <length>)</dark_gray> <state>"
+  # What a line of the record says about itself. Kept apart from the line above because it is the one
+  # part of it that is this plugin's own words rather than a value — and because it carries a colour,
+  # which a value may not: everything filled into a message is escaped, always.
+  record-state:
+    lifted: "<green>lifted"
+    in-force: "<red>in force"
+  # Clickable. <player> is substituted into the click tag before the line is parsed, which is why this
+  # works at all — and it is safe because a name is letters, digits and underscores.
+  record-see-screen: "<dark_gray>Open <click:run_command:'/mod <player>'><hover:show_text:'<gray>Open the moderation page for <white><player>'><white>/mod <player></white></hover></click> <dark_gray>to act on any of this."
   note-written: "<green>Written down about <white><player></white>."
   note-removed: "<yellow>The note has been removed. <dark_gray>The removal is on the record."
 
