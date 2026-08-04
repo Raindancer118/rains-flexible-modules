@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class MessagesTest {
 
-    private static final Path MESSAGES = Path.of("src/main/resources/messages.yml");
+    private static final Path MESSAGES = Path.of("src/main/resources/de/raindancer/modules/moderation/messages.yml");
 
     /** A MiniMessage tag: {@code <white>}, {@code </white>}, {@code <player>}, {@code <colour>}. */
     private static final Pattern TAG = Pattern.compile("</?([a-z_][a-z0-9_:#-]*)>");

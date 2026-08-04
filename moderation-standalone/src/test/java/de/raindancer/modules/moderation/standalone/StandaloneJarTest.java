@@ -144,12 +144,17 @@ class StandaloneJarTest {
     }
 
     @Test
-    @DisplayName("the module's own wording is in the jar")
+    @DisplayName("the module's own wording is in the jar, beside its classes")
     void theMessagesAreThere() {
         assertThat(entries())
                 .as("without messages.yml every line falls back to its key, which reads as a broken "
                         + "plugin rather than a missing file")
-                .contains("messages.yml");
+                .contains("de/raindancer/modules/moderation/messages.yml");
+        assertThat(entries())
+                .as("at the jar root it would race RainsCore's own messages.yml, which "
+                        + "join-classpath puts on the same classpath — and whichever the classloader "
+                        + "hands over first is the one that is read")
+                .doesNotContain("messages.yml");
     }
 
     @Test

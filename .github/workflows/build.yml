@@ -16,6 +16,7 @@ on:
       - 'warps-v*'
       - 'homes-v*'
       - 'tpa-v*'
+      - 'yeuk-v*'
     branches:
       - '**'
   pull_request:
@@ -87,8 +88,22 @@ jobs:
         id: jars
         run: |
           set -euo pipefail
-          for plugin in claims:RainsExtendedClaims moderation:RainsModeration names:RainsColouredNames warp:RainsWarps homes:RainsHomes tpa:RainsTPA farmworld:RainsFarmWorlds pack:RainsServerPack; do
-            dir="${plugin%%:*}-standalone/target"
+          # key:directory:jar-name. The directory is spelled out rather than derived from the key,
+          # because the bundle is not a `<something>-standalone`: it is six modules in one jar and
+          # lives in `yeuksmp/`. Deriving it worked right up until something did not follow the
+          # pattern, which is the point at which a derived path fails by looking for a directory
+          # nobody wrote.
+          for plugin in claims:claims-standalone:RainsExtendedClaims \
+                        moderation:moderation-standalone:RainsModeration \
+                        names:names-standalone:RainsColouredNames \
+                        warp:warp-standalone:RainsWarps \
+                        homes:homes-standalone:RainsHomes \
+                        tpa:tpa-standalone:RainsTPA \
+                        farmworld:farmworld-standalone:RainsFarmWorlds \
+                        pack:pack-standalone:RainsServerPack \
+                        yeuk:yeuksmp:YeukSMP; do
+            rest="${plugin#*:}"
+            dir="${rest%%:*}/target"
             name="${plugin##*:}"
             jar="$(find "$dir" -maxdepth 1 -name "$name-*.jar" ! -name 'original-*' | head -1)"
             if [ -z "$jar" ]; then
@@ -119,6 +134,7 @@ jobs:
             tpa-standalone/target/RainsTPA-*.jar
             farmworld-standalone/target/RainsFarmWorlds-*.jar
             pack-standalone/target/RainsServerPack-*.jar
+            yeuksmp/target/YeukSMP-*.jar
             !**/original-*.jar
           if-no-files-found: error
           retention-days: 30
@@ -154,6 +170,10 @@ jobs:
               "| Rain's Warps | \`${{ steps.jars.outputs.warp_name }}\` | \`${{ steps.jars.outputs.warp_sha }}\` |" \
               "| Rain's Homes | \`${{ steps.jars.outputs.homes_name }}\` | \`${{ steps.jars.outputs.homes_sha }}\` |" \
               "| Rain's TPA | \`${{ steps.jars.outputs.tpa_name }}\` | \`${{ steps.jars.outputs.tpa_sha }}\` |" \
+              "| YeukSMP (claims · tpa · warps · moderation · server pack · names, in one jar) | \`${{ steps.jars.outputs.yeuk_name }}\` | \`${{ steps.jars.outputs.yeuk_sha }}\` |" \
+              "" \
+              "**YeukSMP replaces the six it contains — it does not go beside them.** Two copies of a" \
+              "module on one server is two sets of listeners on the same event." \
               "" \
               "Each of them needs \`RainsCore.jar\` beside it." \
               "" \
@@ -184,6 +204,8 @@ jobs:
             "${{ steps.jars.outputs.homes_jar }}.sha256" \
             "${{ steps.jars.outputs.tpa_jar }}" \
             "${{ steps.jars.outputs.tpa_jar }}.sha256" \
+            "${{ steps.jars.outputs.yeuk_jar }}" \
+            "${{ steps.jars.outputs.yeuk_jar }}.sha256" \
             --repo "${{ github.repository }}" \
             --title "Latest build" \
             --notes-file notes.md \
@@ -211,6 +233,8 @@ jobs:
             "${{ steps.jars.outputs.homes_jar }}.sha256" \
             "${{ steps.jars.outputs.tpa_jar }}" \
             "${{ steps.jars.outputs.tpa_jar }}.sha256" \
+            "${{ steps.jars.outputs.yeuk_jar }}" \
+            "${{ steps.jars.outputs.yeuk_jar }}.sha256" \
             --repo "${{ github.repository }}" \
             --title "Build ${{ github.run_number }}" \
             --notes-file notes.md \
@@ -245,7 +269,7 @@ jobs:
       # the version in the tag has to match the one in that plugin's pom — a release whose tag says
       # 2.1.0 and whose jar says 2.0.0 is one nobody can reason about afterwards.
       - name: Publish a versioned release
-        if: startsWith(github.ref, 'refs/tags/claims-v') || startsWith(github.ref, 'refs/tags/moderation-v') || startsWith(github.ref, 'refs/tags/names-v') || startsWith(github.ref, 'refs/tags/warps-v') || startsWith(github.ref, 'refs/tags/homes-v') || startsWith(github.ref, 'refs/tags/tpa-v')
+        if: startsWith(github.ref, 'refs/tags/claims-v') || startsWith(github.ref, 'refs/tags/moderation-v') || startsWith(github.ref, 'refs/tags/names-v') || startsWith(github.ref, 'refs/tags/warps-v') || startsWith(github.ref, 'refs/tags/homes-v') || startsWith(github.ref, 'refs/tags/tpa-v') || startsWith(github.ref, 'refs/tags/yeuk-v')
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
@@ -276,13 +300,19 @@ jobs:
             tpa)        jar='${{ steps.jars.outputs.tpa_jar }}'
                         sha='${{ steps.jars.outputs.tpa_sha }}'
                         title="Rain's TPA" ;;
+            # The bundle, which is not a `<something>-standalone` — six modules in one jar, in its
+            # own directory. Hence `pom` below rather than a name the path is built from.
+            yeuk)       jar='${{ steps.jars.outputs.yeuk_jar }}'
+                        sha='${{ steps.jars.outputs.yeuk_sha }}'
+                        title="YeukSMP"
+                        pom=yeuksmp/pom.xml ;;
             *)          echo "::error::$TAG names no plugin I know about"; exit 1 ;;
           esac
 
           # Straight out of the pom, so the tag is checked against the thing that actually built.
-          built="$(grep -oPm1 '(?<=<plugin.version>)[^<]+' "$which-standalone/pom.xml")"
+          built="$(grep -oPm1 '(?<=<plugin.version>)[^<]+' "${pom:-$which-standalone/pom.xml}")"
           if [ "$built" != "$wanted" ]; then
-            echo "::error::$TAG says $wanted but $which-standalone/pom.xml says $built. Bump the pom or fix the tag."
+            echo "::error::$TAG says $wanted but ${pom:-$which-standalone/pom.xml} says $built. Bump the pom or fix the tag."
             exit 1
           fi
 
@@ -362,7 +392,7 @@ jobs:
           # onto the same shelf, and an unscoped sweep would delete its jar on every push here.
           for jar in RainsExtendedClaims-*.jar RainsModeration-*.jar RainsColouredNames-*.jar \
                      RainsWarps-*.jar RainsHomes-*.jar RainsTPA-*.jar RainsFarmWorlds-*.jar \
-                     RainsServerPack-*.jar; do
+                     RainsServerPack-*.jar YeukSMP-*.jar; do
             [ -e "$jar" ] || continue
             if ! printf '%s\n' "$keep" | grep -qxF "$jar"; then
               echo "removing superseded $jar"

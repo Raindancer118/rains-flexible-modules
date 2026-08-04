@@ -111,8 +111,12 @@ public final class ModerationModule implements FlexModule {
         // away Core's own lines and every other module's with them.
         // Core's own loader, and signed with this module's brand so its lines say Moderation and
         // nobody else's say it. See Messages#prefixFor.
+        // Beside this class rather than at the jar root. RainsCore ships a messages.yml at its own
+        // root and join-classpath puts it on this module's classpath, so a root lookup is a race
+        // between two files with the same name — and in a jar carrying several modules it is a race
+        // with whatever else lands there too. The loser speaks in keys.
         context.core().messages().defineFrom(
-                getClass().getClassLoader().getResourceAsStream("messages.yml"),
+                getClass().getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
 
         // Before anything asks about a permission. Staff are not operators, so every node has to be

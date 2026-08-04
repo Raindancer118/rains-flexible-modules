@@ -50,6 +50,11 @@
         <module>farmworld-standalone</module>
         <module>pack-module</module>
         <module>pack-standalone</module>
+        <!--
+          Last, because it shades six of the modules above and a reactor builds in the order it is
+          given. Every dependency it has is built by the time it is reached.
+        -->
+        <module>yeuksmp</module>
     </modules>
 
     <repositories>
@@ -69,6 +74,11 @@
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>modules-wrapper</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>claims-module</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

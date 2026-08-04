@@ -20,7 +20,9 @@ and never shaded in.
 | `homes-module` | somewhere of your own to come back to, and how many you may have |
 | `tpa-module` | asking somebody if you may come to them, and being asked |
 | `farmworld-module` | somewhere to strip-mine that is thrown away and made again — scattered arrivals, and the whole server warned before it goes |
+| `pack-module` | the one resource pack the server wears, hosted elsewhere and applied to everybody |
 | `<x>-standalone` | a thin shade shell: module + wrapper = one loadable jar |
+| `yeuksmp` | the bundle: claims, tpa, warps, moderation, the server pack and coloured names in one jar |
 
 Two ways to consume a module, and **the module cannot tell which one it is in**:
 
@@ -28,6 +30,13 @@ Two ways to consume a module, and **the module cannot tell which one it is in**:
 |---|---|---|
 | **Hosted** | the plugin depends on the artifact, shades it, and enables it through `ModuleHosts.embedded` | `plugins/<Host>/modules/<id>/` |
 | **Standalone** | `<x>-standalone` shades module + wrapper; Paper loads it | `plugins/<Name>/` |
+| **Bundled** | one jar shades several modules + the wrapper; Paper loads it | `plugins/<Name>/modules/<id>/` |
+
+The third row is the same wrapper doing the same job: `ModuleHosts.standalone` reads how many modules
+it found and gives each a subfolder when there is more than one, because six modules cannot share one
+`config.yml`. **A bundle replaces the plugins it contains rather than sitting beside them** — two
+copies of a module on one server is two sets of listeners on one event, and whichever loses is a
+silent hole.
 
 ## Building
 
@@ -58,7 +67,7 @@ CI publishes on every push to `master`:
 |---|---|
 | `latest` | a rolling pre-release — one link that is always the newest build. Point a test server at it once. |
 | `build-<n>` | an immutable pre-release per push, so a jar from three pushes ago is still fetchable. The last 15 are kept. |
-| `claims-vX.Y.Z`<br>`moderation-vX.Y.Z`<br>`names-vX.Y.Z` | permanent releases, cut by pushing that tag. |
+| `claims-vX.Y.Z`<br>`moderation-vX.Y.Z`<br>`names-vX.Y.Z`<br>`yeuk-vX.Y.Z` | permanent releases, cut by pushing that tag. |
 
 Every jar carries a `.sha256` beside it, and every one of them needs `RainsCore.jar` next to it — none
 of them ever contains a copy of it.

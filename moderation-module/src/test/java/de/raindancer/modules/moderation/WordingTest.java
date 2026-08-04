@@ -20,7 +20,7 @@ class WordingTest implements WordingContract {
 
     @Override
     public Path messagesFile() {
-        return Path.of("src/main/resources/messages.yml");
+        return Path.of("src/main/resources/de/raindancer/modules/moderation/messages.yml");
     }
 
     @Override
