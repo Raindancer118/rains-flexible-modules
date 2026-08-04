@@ -51,7 +51,7 @@ import java.util.List;
  */
 public final class HomeModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.0.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.1.0")
             .describedAs("Somewhere of your own to come back to: name it, set it, go to it, and pick "
                     + "from a menu of them")
             .by("Raindancer118");

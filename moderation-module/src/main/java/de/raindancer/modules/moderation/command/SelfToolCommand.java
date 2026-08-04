@@ -14,12 +14,12 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * {@code /fly}, {@code /god}, {@code /ungod}, {@code /instakill} — the tools a moderator points at
- * themselves.
+ * {@code /fly}, {@code /god}, {@code /ungod}, {@code /instakill}, {@code /instabreak} — the tools a
+ * moderator points at themselves.
  *
- * <h2>Why one class for four commands</h2>
+ * <h2>Why one class for all of them</h2>
  * Because they differ in a {@link Tool} and nothing else: each toggles one thing, on yourself by default
- * and on somebody else if you name them. Written out four times they would drift, and the drift is
+ * and on somebody else if you name them. Written out one class each they would drift, and the drift is
  * always the same three things — one of them forgets the audit line, one of them forgets that naming
  * somebody needs a second permission, and one of them cannot be turned off again.
  *
@@ -30,7 +30,7 @@ import java.util.function.Supplier;
  */
 public final class SelfToolCommand extends StaffCommand {
 
-    /** What the four commands actually do. */
+    /** What each of the commands actually does. */
     public enum Tool {
 
         /** Flight. Off and on again, and remembered by nothing — the game already stores it. */
@@ -41,7 +41,16 @@ public final class SelfToolCommand extends StaffCommand {
 
         /** Whatever they hit dies. */
         INSTAKILL("instakill", "Makes everything somebody hits die in one hit",
-                ModerationPermission.INSTAKILL);
+                ModerationPermission.INSTAKILL),
+
+        /**
+         * Every block gives way at once — creative breaking, in survival.
+         *
+         * <p>Not a licence: the block-break event still fires, so a claim that refuses them still
+         * refuses them. See {@code PlayerPowerListener#onBlockDamage}.
+         */
+        INSTABREAK("instabreak", "Makes every block break the moment somebody hits it",
+                ModerationPermission.INSTABREAK);
 
         private final String word;
         private final String description;
@@ -138,6 +147,9 @@ public final class SelfToolCommand extends StaffCommand {
             case INSTAKILL -> forceTo == null
                     ? moderation.powers().toggleInstakill(subject)
                     : keep(moderation.powers().instakill(subject, forceTo), forceTo);
+            case INSTABREAK -> forceTo == null
+                    ? moderation.powers().toggleInstaBreak(subject)
+                    : keep(moderation.powers().instaBreak(subject, forceTo), forceTo);
         };
         moderation.staff().recordSelfTool(sender, subject, name, tool, nowOn);
 

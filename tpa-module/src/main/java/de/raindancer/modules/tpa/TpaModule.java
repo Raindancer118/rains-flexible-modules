@@ -48,7 +48,7 @@ import java.util.List;
  */
 public final class TpaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.0.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.1.0")
             .describedAs("Ask somebody whether you may come to them, or whether they will come to "
                     + "you — and go back to where you were")
             .by("Raindancer118");

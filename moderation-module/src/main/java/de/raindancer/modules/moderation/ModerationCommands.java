@@ -73,96 +73,164 @@ public final class ModerationCommands {
                 ModuleCommand.of("unban", "Lifts a ban, leaving it on the record",
                                 new LiftCommand(ModerationCommands::require, PunishmentKind.BAN,
                                         ModerationPermission.TEMPBAN))
-                        .aliased("pardon"),
+                        .aliased("pardon")
+                        .taking("<player> — lift their ban")
+                        .needing(ModerationPermission.TEMPBAN.node()),
 
                 ModuleCommand.of("mute", "Stops somebody talking",
                                 new PunishCommand(ModerationCommands::require, PunishmentKind.MUTE,
                                         ModerationPermission.MUTE))
-                        .aliased("tempmute"),
+                        .aliased("tempmute")
+                        .taking("<player> [length] [reason] — 90m, 3d, perm")
+                        .needing(ModerationPermission.MUTE.node()),
                 ModuleCommand.of("unmute", "Lets them talk again",
-                        new LiftCommand(ModerationCommands::require, PunishmentKind.MUTE,
-                                ModerationPermission.MUTE)),
+                                new LiftCommand(ModerationCommands::require, PunishmentKind.MUTE,
+                                        ModerationPermission.MUTE))
+                        .taking("<player>")
+                        .needing(ModerationPermission.MUTE.node()),
 
                 ModuleCommand.of("freeze", "Stops somebody building while you talk to them",
-                        new PunishCommand(ModerationCommands::require, PunishmentKind.FREEZE,
-                                ModerationPermission.FREEZE)),
+                                new PunishCommand(ModerationCommands::require, PunishmentKind.FREEZE,
+                                        ModerationPermission.FREEZE))
+                        .taking("<player> [length] [reason]")
+                        .needing(ModerationPermission.FREEZE.node()),
                 ModuleCommand.of("unfreeze", "Lets them build again",
-                        new LiftCommand(ModerationCommands::require, PunishmentKind.FREEZE,
-                                ModerationPermission.FREEZE)),
+                                new LiftCommand(ModerationCommands::require, PunishmentKind.FREEZE,
+                                        ModerationPermission.FREEZE))
+                        .taking("<player>")
+                        .needing(ModerationPermission.FREEZE.node()),
 
                 ModuleCommand.of("kick", "Throws somebody off, once",
-                        new KickCommand(ModerationCommands::require)),
+                                new KickCommand(ModerationCommands::require))
+                        .taking("<player> [reason]")
+                        .needing(ModerationPermission.KICK.node()),
                 ModuleCommand.of("warn", "Puts a warning on somebody's record",
-                        new WarnCommand(ModerationCommands::require)),
+                                new WarnCommand(ModerationCommands::require))
+                        .taking("<player> [reason]")
+                        .needing(ModerationPermission.WARN.node()),
                 ModuleCommand.of("history", "What has happened to somebody",
-                        new HistoryCommand(ModerationCommands::require)),
+                                new HistoryCommand(ModerationCommands::require))
+                        .taking("<player>")
+                        .needing(ModerationPermission.HISTORY.node()),
 
                 ModuleCommand.of("vanish", "Makes you invisible to players",
-                        new VanishCommand(ModerationCommands::require)),
+                                new VanishCommand(ModerationCommands::require))
+                        .taking("[player] — somebody else, if you may")
+                        .needing(ModerationPermission.VANISH.node()),
                 ModuleCommand.of("invsee", "Opens somebody's inventory, online or not",
-                        new InvseeCommand(ModerationCommands::require)),
+                                new InvseeCommand(ModerationCommands::require))
+                        .taking("<player>")
+                        .needing(ModerationPermission.INVSEE.node()),
 
                 ModuleCommand.of("report", "Tells the staff about somebody",
-                        new ReportCommand(ModerationCommands::require)),
+                                new ReportCommand(ModerationCommands::require))
+                        .taking("<player> <what happened>"),
                 ModuleCommand.of("reports", "The report queue",
-                        new ReportsCommand(ModerationCommands::require)),
+                                new ReportsCommand(ModerationCommands::require))
+                        .taking("list — everything open", "<id> — one of them")
+                        .needing(ModerationPermission.REPORTS.node()),
                 ModuleCommand.of("staffchat", "Talks to the staff rather than the server",
-                        new StaffChatCommand(ModerationCommands::require)),
+                                new StaffChatCommand(ModerationCommands::require))
+                        .taking("[message] — or nothing, to stay in it")
+                        .needing(ModerationPermission.STAFF_CHAT.node()),
 
                 // Typed, for the times somebody knows what they want: /vein diamond_ore 40 is one
                 // line for four clicks and two screens, and an event is run twenty times over.
                 ModuleCommand.of("vein", "Bury a vein of ore where you are looking",
-                        new WorldToolCommands.Vein(ModerationCommands::require)),
+                                new WorldToolCommands.Vein(ModerationCommands::require))
+                        .taking("[ore] [size] — iron_ore 12 by default")
+                        .needing(ModerationPermission.SPAWN_ORE.node()),
                 ModuleCommand.of("mob", "Call up a pack or a wave where you are looking",
-                        new WorldToolCommands.Mob(ModerationCommands::require)),
+                                new WorldToolCommands.Mob(ModerationCommands::require))
+                        .taking("pack <creature> [how many]",
+                                "wave <creature> [how many] [packs] [seconds]",
+                                "stop — ends your wave")
+                        .needing(ModerationPermission.SPAWN_MOBS.node()),
 
                 ModuleCommand.of("worldtools",
                                 "Bury ore, or call up creatures, where you are looking",
                                 new WorldToolsCommand(ModerationCommands::require))
-                        .aliased("wtools"),
+                        .aliased("wtools")
+                        .needing(ModerationPermission.SPAWN_ORE.node()),
 
                 // The console's own pair. Not grantable, not in a menu, not a permission: the shield
                 // that stops one moderator acting on another must not be handed out by the people it
                 // is aimed at. See ProtectCommand.
+                // Given a node nobody is ever granted, purely so the directory does not advertise a
+                // console command to every player reading the book. See ProtectCommand: the command
+                // itself refuses anybody who is not the console, node or no node.
                 ModuleCommand.of("protect", "Protects an account from moderators — console only",
-                        new ProtectCommand(ModerationCommands::require, true)),
+                                new ProtectCommand(ModerationCommands::require, true))
+                        .taking("<player>")
+                        .needing("rainsmoderation.console-only"),
                 ModuleCommand.of("unprotect", "Takes that protection off again — console only",
-                        new ProtectCommand(ModerationCommands::require, false)),
+                                new ProtectCommand(ModerationCommands::require, false))
+                        .taking("<player>")
+                        .needing("rainsmoderation.console-only"),
 
                 // Ops only, and deliberately not grantable by any rank: a power that hands out powers
                 // must not be one of the powers it hands out, or the lowest tier is one promotion away
                 // from the highest.
                 ModuleCommand.of("promote", "Makes somebody staff at one of the four ranks",
-                        new PromoteCommand(ModerationCommands::require)),
+                                new PromoteCommand(ModerationCommands::require))
+                        .taking("<player> [rank]")
+                        // A node nothing registers and nothing grants, which is exactly the filter
+                        // wanted: hasPermission answers true for an operator and false for everybody
+                        // else, so the book shows these two to the people who can actually run them.
+                        .needing("rainsmoderation.promote"),
                 ModuleCommand.of("demote", "Takes somebody down a rank, or off the staff",
-                        new DemoteCommand(ModerationCommands::require)),
+                                new DemoteCommand(ModerationCommands::require))
+                        .taking("<player>")
+                        .needing("rainsmoderation.promote"),
 
                 // The tools a moderator points at themselves, or at somebody else by naming them.
                 // /god toggles and /ungod switches off: "make sure this is off" is a thing somebody
                 // needs to be able to say without checking first, and a toggle answers "it is on now".
                 // Events rather than states, so not SelfToolCommand — see VitalsCommand.
                 ModuleCommand.of("heal", "Restores somebody to full health",
-                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.HEAL)),
+                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.HEAL))
+                        .taking("[player] — yourself if you name nobody")
+                        .needing(ModerationPermission.HEAL.node()),
                 ModuleCommand.of("feed", "Fills somebody's hunger bar",
-                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.FEED)),
+                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.FEED))
+                        .taking("[player] — yourself if you name nobody")
+                        .needing(ModerationPermission.FEED.node()),
                 ModuleCommand.of("hurt", "Takes half of somebody's health",
-                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.HURT)),
+                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.HURT))
+                        .taking("[player] — yourself if you name nobody")
+                        .needing(ModerationPermission.HURT.node()),
                 ModuleCommand.of("starve", "Empties most of somebody's hunger bar",
-                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.STARVE)),
+                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.STARVE))
+                        .taking("[player] — yourself if you name nobody")
+                        .needing(ModerationPermission.STARVE.node()),
                 ModuleCommand.of("fly", "Lets somebody fly",
                         new SelfToolCommand(ModerationCommands::require,
-                                SelfToolCommand.Tool.FLY, null)),
+                                SelfToolCommand.Tool.FLY, null))
+                        .taking("[player] — yourself if you name nobody")
+                        .needing(ModerationPermission.FLY.node()),
                 ModuleCommand.of("god", "Makes somebody invulnerable",
                                 new SelfToolCommand(ModerationCommands::require,
                                         SelfToolCommand.Tool.GOD, null))
-                        .aliased("godmode"),
+                        .aliased("godmode")
+                        .taking("[player] — yourself if you name nobody")
+                        .needing(ModerationPermission.GOD.node()),
                 ModuleCommand.of("ungod", "Makes them mortal again",
                         new SelfToolCommand(ModerationCommands::require,
-                                SelfToolCommand.Tool.GOD, false)),
+                                SelfToolCommand.Tool.GOD, false))
+                        .taking("[player]")
+                        .needing(ModerationPermission.GOD.node()),
                 ModuleCommand.of("instakill", "Everything they hit dies in one hit",
                                 new SelfToolCommand(ModerationCommands::require,
                                         SelfToolCommand.Tool.INSTAKILL, null))
-                        .aliased("oneshot"));
+                        .aliased("oneshot")
+                        .taking("[player]")
+                        .needing(ModerationPermission.INSTAKILL.node()),
+                ModuleCommand.of("instabreak", "Every block breaks the moment they hit it",
+                                new SelfToolCommand(ModerationCommands::require,
+                                        SelfToolCommand.Tool.INSTABREAK, null))
+                        .aliased("fastbreak")
+                        .taking("[player]")
+                        .needing(ModerationPermission.INSTABREAK.node()));
     }
 
     /** Called when the module enables, after which the commands work. */

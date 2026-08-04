@@ -37,7 +37,7 @@
           every tag already dyed keeps its colour — the persistent-data namespace is unchanged — but
           a major number is what says "read the notes before upgrading".
         -->
-        <plugin.version>2.0.1</plugin.version>
+        <plugin.version>2.1.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -96,7 +96,8 @@ public final class ModuleCommands {
                 }
             }
         };
-        return new ModuleCommand(command.name(), command.description(), command.aliases(), guarded);
+        return new ModuleCommand(command.name(), command.description(), command.aliases(), guarded,
+                command.options(), command.permission());
     }
 
     /**

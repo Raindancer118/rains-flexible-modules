@@ -2,6 +2,7 @@ package de.raindancer.modules.wrapper;
 
 import de.raindancer.core.RainsCore;
 import de.raindancer.modules.api.FlexModule;
+import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.LiveModuleSession;
 import de.raindancer.modules.api.ModuleHost;
 import de.raindancer.modules.api.ModuleHosts;
@@ -45,6 +46,7 @@ public final class ModulePlugin extends JavaPlugin {
         Modules.registry().enableAll(module -> new LiveModuleSession(host, module));
 
         brandTheMessages();
+        reportTheCommands();
         report();
     }
 
@@ -77,6 +79,34 @@ public final class ModulePlugin extends JavaPlugin {
                 : getName();
         var brand = RainsCore.get().chatFor(name).brand();
         RainsCore.get().messages().prefixFrom(brand::chatPrefix);
+    }
+
+    /**
+     * Tells Core's directory what this plugin offers, so {@code /commands} knows about it.
+     *
+     * <p>Derived from what the modules already declared rather than written out again. That is the
+     * whole design: a module says its commands once, in the list Paper registers from, and the book
+     * is generated from the same list. There is no second place to keep in step and therefore no way
+     * for a new command to be missing from the book — which is what a hand-maintained list would
+     * guarantee, on the same schedule as everything else that has to be remembered here.
+     *
+     * <p>What a module does not declare — the sentence and the options — falls back to the
+     * description Paper already shows in its own help, which is a worse entry than a written one and
+     * a far better one than none.
+     */
+    private void reportTheCommands() {
+        var directory = RainsCore.get().commands();
+        String plugin = Modules.registry().enabled().size() == 1
+                ? Modules.registry().enabled().get(0).info().name()
+                : getName();
+
+        for (FlexModule module : Modules.registry().enabled()) {
+            for (ModuleCommand command : module.commands()) {
+                directory.declare(new de.raindancer.core.platform.command.CommandNote(
+                        plugin, command.name(), command.description(), command.options(),
+                        command.permission()));
+            }
+        }
     }
 
     /**

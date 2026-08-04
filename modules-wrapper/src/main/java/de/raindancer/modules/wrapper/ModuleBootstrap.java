@@ -37,6 +37,11 @@ public final class ModuleBootstrap implements PluginBootstrap {
                 event.registrar().register(command.name(), command.description(),
                         command.aliases(), command.handler());
             }
+            // The directory of everything on this server, which no single plugin can build — see
+            // Core's CommandDirectory. Every standalone module plugin asks, because none of them can
+            // know whether another is installed; Core hands it to the first and declines the rest, so
+            // six installed plugins still mean one /commands showing one complete book.
+            de.raindancer.core.platform.command.CoreCommands.commandList(event.registrar());
         });
     }
 }

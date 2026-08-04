@@ -42,24 +42,29 @@ public final class TpaCommands {
                 ModuleCommand.of("tpa",
                                 "Ask to teleport to somebody",
                                 new AskCommand(TpaCommands::require, TpaKind.TO))
-                        .aliased("tpask"),
+                        .aliased("tpask")
+                        .taking("<player>"),
                 ModuleCommand.of("tpahere",
                                 "Ask somebody to teleport to you",
                                 new AskCommand(TpaCommands::require, TpaKind.HERE))
-                        .aliased("tphere"),
+                        .aliased("tphere")
+                        .taking("<player>"),
                 ModuleCommand.of("tpaccept",
                                 "Accept a teleport request",
                                 new AnswerCommand(TpaCommands::require, true))
-                        .aliased("tpyes"),
+                        .aliased("tpyes")
+                        .taking("[player] — whose, if several are waiting"),
                 ModuleCommand.of("tpdeny",
                                 "Turn a teleport request down",
                                 new AnswerCommand(TpaCommands::require, false))
-                        .aliased("tpno", "tpadeny"),
+                        .aliased("tpno", "tpadeny")
+                        .taking("[player]"),
                 ModuleCommand.of("tpcancel",
                                 "Give up on a teleport, or take back your request",
                                 new TpaToolsCommand(TpaCommands::require,
                                         TpaToolsCommand.What.CANCEL))
-                        .aliased("tpacancel"),
+                        .aliased("tpacancel")
+                        .taking("[player] — whose request to withdraw"),
                 ModuleCommand.of("tptoggle",
                                 "Whether people may ask to teleport to you",
                                 new TpaToolsCommand(TpaCommands::require,
@@ -69,15 +74,18 @@ public final class TpaCommands {
                                 "Stop one person asking you",
                                 new TpaToolsCommand(TpaCommands::require,
                                         TpaToolsCommand.What.BLOCK))
-                        .aliased("tpblock"),
+                        .aliased("tpblock")
+                        .taking("<player>"),
                 ModuleCommand.of("tpaunblock",
                                 "Let them ask again",
                                 new TpaToolsCommand(TpaCommands::require,
                                         TpaToolsCommand.What.UNBLOCK))
-                        .aliased("tpunblock"),
+                        .aliased("tpunblock")
+                        .taking("<player>"),
                 ModuleCommand.of("back",
-                        "Go back to where you were, or where you died",
-                        new BackCommand(TpaCommands::require)));
+                                "Go back to where you were, or where you died",
+                                new BackCommand(TpaCommands::require))
+                        .needing("rainstpa.back"));
     }
 
     static void ready(TpaServices live) {

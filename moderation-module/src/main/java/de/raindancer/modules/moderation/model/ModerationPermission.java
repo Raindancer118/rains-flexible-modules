@@ -56,6 +56,12 @@ public enum ModerationPermission {
     // Admin, not mod. One hit kills anything — including, in the wrong hands, every animal on a farm
     // somebody spent a fortnight breeding, in about eleven seconds.
     INSTAKILL("instakill", "Kill anything in one hit", Material.NETHERITE_SWORD, 3, true),
+    // A mod's, not an admin's, and the difference from INSTAKILL above is the point. Breaking a block
+    // instantly is still breaking a block: the claim protection, the world guards and every other
+    // plugin get their say afterwards exactly as before, so the worst case is somebody clearing
+    // unclaimed ground quickly. Instakill has no such backstop.
+    INSTABREAK("instabreak", "Break any block the moment it is hit", Material.NETHERITE_PICKAXE, 2,
+            true),
     // The mirror of HEAL and FEED, one rank higher. Restoring somebody is unremarkable and undoes
     // itself; taking half their health from a menu, silently, kills a player in a fight they were
     // winning. A server that wants a particular mod to have it can toggle it on for that one person.

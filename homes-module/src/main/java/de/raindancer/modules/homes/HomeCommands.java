@@ -37,14 +37,20 @@ public final class HomeCommands {
                 ModuleCommand.of("home",
                                 "Go to one of your homes, or see the list of them",
                                 new HomeCommand(HomeCommands::require))
-                        .aliased("homes"),
+                        .aliased("homes")
+                        .taking("<name> — go to that one", "with no name — the list")
+                        .needing("rainshomes.home"),
                 ModuleCommand.of("sethome",
-                        "Save where you are standing as a home",
-                        new SetHomeCommand(HomeCommands::require)),
+                                "Save where you are standing as a home",
+                                new SetHomeCommand(HomeCommands::require))
+                        .taking("<name> — or nothing, for your first")
+                        .needing("rainshomes.home"),
                 ModuleCommand.of("delhome",
                                 "Forget one of your homes",
                                 new DelHomeCommand(HomeCommands::require))
-                        .aliased("removehome"));
+                        .aliased("removehome")
+                        .taking("<name>")
+                        .needing("rainshomes.home"));
     }
 
     static void ready(HomeServices live) {

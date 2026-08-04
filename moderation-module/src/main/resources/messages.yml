@@ -59,6 +59,11 @@ moderation:
       turned-off: "<gray>You hit normally again."
       turned-on-other: "<red>Everything <white><player></white> hits will die."
       turned-off-other: "<gray><white><player></white> hits normally again."
+    instabreak:
+      turned-on: "<green>Blocks give way at once. <dark_gray>A claim that refuses you still refuses you."
+      turned-off: "<gray>Blocks take their time again."
+      turned-on-other: "<green>Blocks give way at once for <white><player></white>."
+      turned-off-other: "<gray>Blocks take their time again for <white><player></white>."
 
   # ── how long a ban you may give ──────────────────────────────────────────
   ban:

@@ -21,17 +21,19 @@ import java.util.Objects;
  * out not to be there.
  */
 public record ModuleCommand(String name, String description, List<String> aliases,
-                            BasicCommand handler) {
+                            BasicCommand handler, List<String> options, String permission) {
 
     public ModuleCommand {
         name = Ids.checkCommandName(name);
         description = Ids.required(description, "command description");
         Objects.requireNonNull(handler, "a command needs something to run");
         aliases = checkedAliases(name, aliases);
+        options = options == null ? List.of() : List.copyOf(options);
+        permission = permission == null || permission.isBlank() ? null : permission.trim();
     }
 
     public static ModuleCommand of(String name, String description, BasicCommand handler) {
-        return new ModuleCommand(name, description, List.of(), handler);
+        return new ModuleCommand(name, description, List.of(), handler, List.of(), null);
     }
 
     /** Other names for the same command. Accumulates, so it may be called more than once. */
@@ -40,7 +42,34 @@ public record ModuleCommand(String name, String description, List<String> aliase
         if (more != null) {
             all.addAll(List.of(more));
         }
-        return new ModuleCommand(name, description, all, handler);
+        return new ModuleCommand(name, description, all, handler, options, permission);
+    }
+
+    /**
+     * The usage lines this command takes — {@code "pack <creature> [how many]"}.
+     *
+     * <p>Declared here rather than written into a book somewhere, because the book is generated from
+     * exactly this. A command whose options live in two places has options that disagree by March,
+     * and the copy a player reads is always the stale one.
+     *
+     * <p>Accumulates, so it may be called more than once.
+     */
+    public ModuleCommand taking(String... more) {
+        List<String> all = new ArrayList<>(options);
+        if (more != null) {
+            all.addAll(List.of(more));
+        }
+        return new ModuleCommand(name, description, aliases, handler, all, permission);
+    }
+
+    /**
+     * The permission a reader needs before this appears in the directory.
+     *
+     * <p>Absent, not greyed: a book listing every staff command to every player teaches the whole
+     * moderation vocabulary to somebody who can run none of it.
+     */
+    public ModuleCommand needing(String node) {
+        return new ModuleCommand(name, description, aliases, handler, options, node);
     }
 
     /** The name first, then the aliases — every word this command answers to. */

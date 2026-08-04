@@ -97,6 +97,18 @@ public final class ToolsMenu extends ModerationScreen {
                             nowOn);
                 });
 
+        // ── instant breaking ──────────────────────────────────────────────────────────────────
+        boolean breaking = services().powers().breaksInstantly(subject);
+        tool(8, ModerationPermission.INSTABREAK, Material.NETHERITE_PICKAXE, "Instant breaking",
+                breaking, here,
+                "<gray>Blocks give way at once. <dark_gray>Claims still refuse them.",
+                () -> {
+                    boolean nowOn = services().powers().toggleInstaBreak(subject);
+                    services().staff().recordSelfTool(viewer, subject, subjectName,
+                            de.raindancer.modules.moderation.command.SelfToolCommand.Tool.INSTABREAK,
+                            nowOn);
+                });
+
         // ── heal, feed, hurt, starve ──────────────────────────────────────────────────────────
         // On their own row because they are not switches: each one happens when clicked and there is
         // nothing to show as "on". Drawn beside the toggles anyway, because from the moderator's side
