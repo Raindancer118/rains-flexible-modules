@@ -48,6 +48,8 @@
         <module>tpa-standalone</module>
         <module>farmworld-module</module>
         <module>farmworld-standalone</module>
+        <module>pack-module</module>
+        <module>pack-standalone</module>
     </modules>
 
     <repositories>
@@ -97,6 +99,11 @@
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>farmworld-module</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>pack-module</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

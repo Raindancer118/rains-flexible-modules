@@ -87,7 +87,7 @@ jobs:
         id: jars
         run: |
           set -euo pipefail
-          for plugin in claims:RainsExtendedClaims moderation:RainsModeration names:RainsColouredNames warp:RainsWarps homes:RainsHomes tpa:RainsTPA farmworld:RainsFarmWorlds; do
+          for plugin in claims:RainsExtendedClaims moderation:RainsModeration names:RainsColouredNames warp:RainsWarps homes:RainsHomes tpa:RainsTPA farmworld:RainsFarmWorlds pack:RainsServerPack; do
             dir="${plugin%%:*}-standalone/target"
             name="${plugin##*:}"
             jar="$(find "$dir" -maxdepth 1 -name "$name-*.jar" ! -name 'original-*' | head -1)"
@@ -118,6 +118,7 @@ jobs:
             homes-standalone/target/RainsHomes-*.jar
             tpa-standalone/target/RainsTPA-*.jar
             farmworld-standalone/target/RainsFarmWorlds-*.jar
+            pack-standalone/target/RainsServerPack-*.jar
             !**/original-*.jar
           if-no-files-found: error
           retention-days: 30
@@ -360,7 +361,8 @@ jobs:
           # holds three. Scoped by name to what this repository builds: the other repository publishes
           # onto the same shelf, and an unscoped sweep would delete its jar on every push here.
           for jar in RainsExtendedClaims-*.jar RainsModeration-*.jar RainsColouredNames-*.jar \
-                     RainsWarps-*.jar RainsHomes-*.jar RainsTPA-*.jar RainsFarmWorlds-*.jar; do
+                     RainsWarps-*.jar RainsHomes-*.jar RainsTPA-*.jar RainsFarmWorlds-*.jar \
+                     RainsServerPack-*.jar; do
             [ -e "$jar" ] || continue
             if ! printf '%s\n' "$keep" | grep -qxF "$jar"; then
               echo "removing superseded $jar"

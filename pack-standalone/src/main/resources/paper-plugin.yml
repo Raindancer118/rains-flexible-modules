@@ -5,17 +5,13 @@ version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
 api-version: '1.21'
-description: 'Somewhere to strip-mine that is regenerated on a schedule — arrived at somewhere different every time, and announced before it goes.'
+description: 'The one resource pack this server wears, hosted elsewhere and applied to everybody — through RainsCore, which owns the single pack slot.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
-# Two things are scheduled here and neither uses Bukkit.getScheduler(). The warm-up countdown belongs to the
-# player waiting it out and goes through Core's Travel, which uses that player's own scheduler: regionised on
-# Folia and ordinary on Paper. The warning timer is the global region scheduler, which is the one thread that
-# may speak to every player on the server. The teleport itself is teleportAsync, also Core's.
-#
-# What actually regenerates a farm world is RainsCore's, on its own timer, and creating or deleting a world is a
-# main-thread operation there rather than here.
+# The one thing scheduled here is the hash lookup, and it goes through Core's Scheduling.async — a network call
+# must never sit on a server thread, and on Folia a hand-rolled runnable is a crash rather than a stall. Sending
+# the pack, tracking who has it and retrying a failed download are all RainsCore's, on its own listener.
 folia-supported: true
 
 dependencies:
