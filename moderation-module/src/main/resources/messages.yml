@@ -14,7 +14,6 @@ moderation:
   punished: "<green><white><player></white> is now <white><what></white> <gray>(<length>)."
   lifted: "<green><white><player></white> is no longer <white><what></white>."
   nothing-to-lift: "<gray>There is nothing of that kind in force for <white><player></white>."
-  put-right: "<green>Healed and fed <white><player></white>."
   usage: "<gray>Usage: <white><usage>"
   no-such-player: "<red>The server has never seen anybody called <white><player></white>."
   not-here: "<gray><player> is not on the server right now."

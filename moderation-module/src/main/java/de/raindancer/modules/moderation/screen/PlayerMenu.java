@@ -120,16 +120,10 @@ public final class PlayerMenu extends ModerationScreen {
                 "Only the server owner may hand out ranks",
                 click -> new RankMenu(services(), viewer, this, subject, subjectName).open());
 
-        // Guarded by what it does — both of them, because it does both. It used to ask for WARN: a
-        // *punishment* node, and one deliberately not aimable at yourself, so this button refused to
-        // heal the person pressing it. It also handed the power to the wrong people, since a trial mod
-        // holds warn and not heal.
-        band(MenuLayout.LAND, 5, may(ModerationPermission.HEAL) && may(ModerationPermission.FEED),
-                Icons.of(Material.GOLDEN_APPLE, "<yellow>Put them right",
-                        "<gray>Heals and feeds them.",
-                        "<dark_gray>For after a fall nobody meant."),
-                "For whoever may heal a player",
-                click -> putThemRight());
+        // No "put them right" here, deliberately. Healing and feeding live on the tools page below,
+        // one button each, where the rest of the things that are not punishments are. This slot used
+        // to hold a third way of doing the same two things — with its own permission check, which is
+        // how it came to be guarded by the wrong node — and the page is easier to read without it.
 
         // Flight, invulnerability, one-hit-kill. Their own page because none of them is a punishment
         // and none goes on anybody's record as something they did wrong.
@@ -233,20 +227,6 @@ public final class PlayerMenu extends ModerationScreen {
                 Icons.of(CategoryMenu.icon(kind), "<yellow>" + CategoryMenu.title(kind), lore),
                 "You may not " + CategoryMenu.verb(kind).toLowerCase(java.util.Locale.ROOT),
                 click -> new CategoryMenu(services(), viewer, this, subject, subjectName, kind).open());
-    }
-
-    private void putThemRight() {
-        // Both, and short-circuited so only the first refusal is said. One button doing two things
-        // must ask for both, or the half somebody may not do happens anyway.
-        if (refusedFor(ModerationPermission.HEAL) || refusedFor(ModerationPermission.FEED)) {
-            return;
-        }
-        // Core's PlayerAdmin, which answers an Outcome per call rather than throwing when they left
-        // between the render and the click.
-        services().players().heal(subject);
-        services().players().feed(subject);
-        services().players().extinguish(subject);
-        tell("moderation.put-right", "player", subjectName);
     }
 
     /**
