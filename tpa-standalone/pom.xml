@@ -35,7 +35,7 @@
           now, and what is left is what a request is. Nothing an owner configured is lost, but a
           major number is what says "read the notes first".
         -->
-        <plugin.version>2.0.0</plugin.version>
+        <plugin.version>2.0.1</plugin.version>
     </properties>
 
     <dependencies>

@@ -202,10 +202,56 @@ class StandaloneJarTest {
         assertThat(yaml)
                 .as("an unfiltered ${project.version} is a plugin whose version reads as a placeholder")
                 .doesNotContain("${");
-        assertThat(yaml).contains("version: '2.0.0'");
+        assertThat(yaml).contains("version: '" + declaredVersion() + "'");
         assertThat(yaml)
                 .as("the data folder is named after the plugin, and an upgrading server has its "
                         + "own settings — and its requests — in plugins/RainsTPA/")
                 .contains("name: RainsTPA");
+    }
+
+    /** What this module's own pom says its plugin version is. The single place it is written. */
+    private static String declaredVersion() {
+        // Read from the pom rather than written out here. A literal made every version bump a red build
+        // for a reason unrelated to the change that bumped it, which trains people to edit the assertion
+        // without reading it — and this assertion exists to catch an unfilled placeholder.
+        try {
+            String pom = java.nio.file.Files.readString(java.nio.file.Path.of("pom.xml"));
+            java.util.regex.Matcher found = java.util.regex.Pattern
+                    .compile("<plugin\\.version>([^<]+)</plugin\\.version>").matcher(pom);
+            assertThat(found.find()).as("pom.xml has no <plugin.version>").isTrue();
+            return found.group(1);
+        } catch (java.io.IOException unreadable) {
+            throw new AssertionError("could not read pom.xml", unreadable);
+        }
+    }
+
+    @org.junit.jupiter.api.Test
+    @DisplayName("the module reports the same version the plugin does")
+    void theModuleAgreesAboutItsVersion() {
+        // Two places say the version: paper-plugin.yml, which the server prints, and the module's own
+        // ModuleInfo, which its startup banner prints. They drift, and then the banner under the boot
+        // line names a version that is not what is actually deployed.
+        assertThat(moduleVersion())
+                .as("ModuleInfo and pom.xml's <plugin.version> have to say the same thing")
+                .isEqualTo(declaredVersion());
+    }
+
+    /**
+     * The version in the module's own ModuleInfo, read from its source.
+     *
+     * <p>Read rather than called: info() is an instance method, and constructing the module means
+     * constructing a server. The literal is what would be wrong, and the literal is what is checked.
+     */
+    private static String moduleVersion() {
+        java.nio.file.Path source = java.nio.file.Path.of("../tpa-module/src/main/java/de/raindancer/modules/tpa/TpaModule.java");
+        try {
+            java.util.regex.Matcher found = java.util.regex.Pattern
+                    .compile("ModuleInfo\\.of\\([^)]*?\"([\\d.]+)\"\\)")
+                    .matcher(java.nio.file.Files.readString(source));
+            assertThat(found.find()).as("no ModuleInfo.of(..) in %s", source).isTrue();
+            return found.group(1);
+        } catch (java.io.IOException unreadable) {
+            throw new AssertionError("could not read " + source, unreadable);
+        }
     }
 }

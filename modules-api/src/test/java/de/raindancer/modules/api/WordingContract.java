@@ -223,6 +223,49 @@ public interface WordingContract {
                 .isEmpty();
     }
 
+    @Test
+    @DisplayName("the wording is signed, so a line says which plugin said it")
+    default void wordingIsSignedWithThisModulesBrand() {
+        // Messages.defineFrom has a one-argument form that takes the wording and no signature, and a
+        // section nobody has signed falls back to the global prefix — whatever plugin called
+        // prefixFrom last. On a server where moderation starts after warps, "nether is set, here."
+        // went out as "Moderation »", and nothing anywhere is wrong enough to notice: the sentence is
+        // right, the colour is right, and the brand belongs to another plugin.
+        //
+        // Two of six modules passed the signature. The other four were simply written later, which is
+        // the same way eighteen unmatched closing tags reached a live server — so this is checked
+        // rather than remembered.
+        List<String> unsigned = new ArrayList<>();
+        Pattern call = Pattern.compile("defineFrom\\s*\\(([^;]*)\\)\\s*;", Pattern.DOTALL);
+
+        for (Map.Entry<String, String> source : sources()) {
+            Matcher found = call.matcher(source.getValue());
+            while (found.find()) {
+                if (!found.group(1).contains("chatPrefix")) {
+                    unsigned.add(source.getKey());
+                }
+            }
+        }
+        assertThat(unsigned)
+                .as("these call defineFrom without a signature, so every line they send wears "
+                        + "whichever module plugin started last. Pass "
+                        + "context.chat().brand()::chatPrefix as the second argument")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("the module hands its wording over at all")
+    default void wordingIsRegistered() {
+        // The other half of the same failure, and a louder one: a module that ships a messages.yml and
+        // never calls defineFrom answers every key with the key itself. Claims did exactly that, and
+        // /claim replied "claim.nonehere".
+        assertThat(sources())
+                .as("no source in %s calls Messages.defineFrom, so this module's messages.yml is "
+                        + "never read and every key it defines will be printed as its own name",
+                        moduleSource())
+                .anyMatch(source -> source.getValue().contains("defineFrom"));
+    }
+
     // ───────────────────────────────────────────────────────────── the reading
 
     /** What a client would actually draw for one line. */

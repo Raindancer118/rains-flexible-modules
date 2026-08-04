@@ -49,7 +49,7 @@ import java.util.List;
  */
 public final class NamesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("names", "Coloured names", "2.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("names", "Coloured names", "2.0.1")
             .describedAs("Dye a name tag, then craft it with an item to paint that item's name — "
                     + "gradients included")
             .by("Raindancer118");
@@ -83,7 +83,12 @@ public final class NamesModule implements FlexModule {
         // Looked up beside this class rather than at "/messages.yml": RainsCore ships one at the root
         // of its own jar and `join-classpath: true` puts it on this module's classpath, so a root
         // lookup is a race between two files with the same name.
-        context.core().messages().defineFrom(NamesModule.class.getResourceAsStream("messages.yml"));
+        //
+        // Signed with this module's own brand, so its sentences say what they came from rather than
+        // whichever module plugin happened to start last.
+        context.core().messages().defineFrom(
+                NamesModule.class.getResourceAsStream("messages.yml"),
+                context.chat().brand()::chatPrefix);
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse the manual to every ordinary player on the server.

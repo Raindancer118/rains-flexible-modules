@@ -36,7 +36,7 @@
           what is left is what a home means. Nothing an owner configured is lost and every home
           anybody set is still theirs — but a major number is what says "read the notes first".
         -->
-        <plugin.version>2.0.0</plugin.version>
+        <plugin.version>2.0.1</plugin.version>
     </properties>
 
     <dependencies>

@@ -51,7 +51,7 @@ import java.util.List;
  */
 public final class HomeModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.0.1")
             .describedAs("Somewhere of your own to come back to: name it, set it, go to it, and pick "
                     + "from a menu of them")
             .by("Raindancer118");
@@ -84,7 +84,12 @@ public final class HomeModule implements FlexModule {
         // Looked up beside this class rather than at "/messages.yml": RainsCore ships one at the root of
         // its own jar and join-classpath puts it on this module's classpath, so a root lookup is a race
         // between two files with the same name.
-        context.core().messages().defineFrom(HomeModule.class.getResourceAsStream("messages.yml"));
+        //
+        // Signed with this module's own brand, so its sentences say Homes. An unsigned section wears
+        // whichever module plugin started last, which is how a home being set said "Moderation »".
+        context.core().messages().defineFrom(
+                HomeModule.class.getResourceAsStream("messages.yml"),
+                context.chat().brand()::chatPrefix);
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse homes to every ordinary player on the server.

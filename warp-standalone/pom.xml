@@ -29,7 +29,7 @@
           upgrading server to preserve. The warps themselves live in RainsCore's place store, which
           means a server that was already using Core's own /warp keeps every warp it had.
         -->
-        <plugin.version>1.0.0</plugin.version>
+        <plugin.version>1.0.1</plugin.version>
     </properties>
 
     <dependencies>

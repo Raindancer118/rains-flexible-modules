@@ -48,7 +48,7 @@ import java.util.List;
  */
 public final class TpaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.0.1")
             .describedAs("Ask somebody whether you may come to them, or whether they will come to "
                     + "you — and go back to where you were")
             .by("Raindancer118");
@@ -82,7 +82,12 @@ public final class TpaModule implements FlexModule {
         //
         // Looked up beside this class rather than at "/messages.yml": RainsCore ships one at the root
         // of its own jar and join-classpath puts it on this module's classpath.
-        context.core().messages().defineFrom(TpaModule.class.getResourceAsStream("messages.yml"));
+        //
+        // Signed with this module's own brand, so its sentences say what they came from rather than
+        // whichever module plugin happened to start last.
+        context.core().messages().defineFrom(
+                TpaModule.class.getResourceAsStream("messages.yml"),
+                context.chat().brand()::chatPrefix);
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse teleport requests to every ordinary player on the server.

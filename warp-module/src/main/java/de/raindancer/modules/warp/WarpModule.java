@@ -50,7 +50,7 @@ import java.util.List;
  */
 public final class WarpModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.0.1")
             .describedAs("Named places anybody can be sent to, with a menu to pick one from — and "
                     + "warps only the staff, or one permission, can reach")
             .by("Raindancer118");
@@ -83,7 +83,13 @@ public final class WarpModule implements FlexModule {
         // Looked up beside this class rather than at "/messages.yml": RainsCore ships one at the
         // root of its own jar and join-classpath puts it on this module's classpath, so a root
         // lookup is a race between two files with the same name.
-        context.core().messages().defineFrom(WarpModule.class.getResourceAsStream("messages.yml"));
+        //
+        // Signed with this module's own brand, so its sentences say Warps. Without the signature the
+        // section is unowned, and an unowned section wears whichever module plugin started last — on
+        // the live server "<name> is set, here." arrived branded "Moderation »".
+        context.core().messages().defineFrom(
+                WarpModule.class.getResourceAsStream("messages.yml"),
+                context.chat().brand()::chatPrefix);
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse the warp menu to every ordinary player on the server.
