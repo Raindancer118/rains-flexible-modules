@@ -120,6 +120,21 @@ Already learnt the hard way here:
   page three times with three different arrangements.
 - **Menus, chat, messages, prompts, item codecs, logging, scheduling, names** — all Core's. A module that
   writes its own is a module whose windows look different from everything else on the server.
+- **The confirmation dialog** — `core.ui.menu.ConfirmMenu`. It had been written out three times, in claims,
+  in moderation and in warps, with the same two columns and slightly different words. This is the page
+  where being identical everywhere *is* the feature: No on the left and Yes on the right is a habit people
+  build, and a dialog that swaps them is one they learn to click through and then get wrong exactly once —
+  in front of a delete. Each module keeps a two-line `ConfirmScreen` over it so its own `ScreenGrammarTest`
+  can still prove that every `danger(` button confirms.
+- **Going somewhere** — `core.world.teleport`. The warm-up, "you moved so it is cancelled", finding somewhere
+  safe to land, the teleport itself, and what travels with the player. Written twice before this existed —
+  in the teleport requests and in homes, identically down to the helper that decides whether somebody has
+  moved — and warps would have made three. A module supplies a `Trip` and a `TravelWatcher`, which is the
+  wording; Core does the rest. `Departures` and `Entourage` hold the decisions and take no server, so the
+  two rules that matter most — nobody is dragged along without consenting, and nobody's animals are taken —
+  are tested rather than tried once by hand.
+- **Waiting between goes** — `core.platform.util.Cooldowns`. The check-then-record version had been written
+  five times, and every copy could let two clicks in the same millisecond both through.
 
 The counter-example, so the rule is not read too widely: a pantry, a bank, a fence and an entry fee are what a
 claim *is*. They stayed in the module, and an earlier attempt to put them in Core is what this document exists

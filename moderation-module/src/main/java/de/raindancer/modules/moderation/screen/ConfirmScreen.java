@@ -1,70 +1,39 @@
 package de.raindancer.modules.moderation.screen;
 
-import de.raindancer.core.ui.menu.Icons;
+import de.raindancer.core.ui.menu.ConfirmMenu;
 import de.raindancer.core.ui.menu.Menu;
-import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.moderation.ModerationServices;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * "Are you sure?", as a page of its own.
+ * "Are you sure?" — Core's dialog, under this module's name.
  *
- * <p>Three rows rather than six, because a question with two answers on a full page reads as an empty
- * page with two buttons lost in it. And a page rather than a chat prompt because the thing being
- * confirmed is on screen: somebody about to ban the wrong person sees the wrong person's name here.
+ * <p>The page is {@code ConfirmMenu}'s: three rows, No on the left, Yes on the right, the
+ * consequences on the middle button. It used to be written out here, identically in the claims
+ * module, and again in the warps module — three copies of the page that guards every irreversible
+ * button, which is three places to fix the next thing in one of.
  *
- * <p>Yes is on the right and No is on the left, always, on every confirmation in the module — the same
- * arrangement the claims screens use, so a server that has both has one habit rather than two. A dialog
- * that swaps them is a dialog people learn to click through and then get wrong once.
+ * <p>The arrangement has to be the same everywhere or it does not work at all: left and right are a
+ * habit people build, and a dialog that swaps them is one they learn to click through and then get
+ * wrong exactly once — here, on the button that bans somebody.
+ *
+ * <h2>The one thing this page says differently</h2>
+ * The closing line. A punishment is not undone by saying no — it goes on the record either way, and
+ * that is the thing a moderator needs reminding of. "This cannot be undone" would be the wrong
+ * sentence, and a wrong sentence on a confirmation is worse than none, so Core takes the line as an
+ * argument and this is what passes it.
  */
-public final class ConfirmScreen extends ModerationScreen {
+public final class ConfirmScreen extends ConfirmMenu implements IModerationScreen {
 
-    private static final MiniMessage MINI = MiniMessage.miniMessage();
-
-    private final String question;
-    private final List<String> consequences;
-    private final Runnable onYes;
+    private static final String ON_THE_RECORD_EITHER_WAY =
+            "<dark_gray>It goes on their record either way.";
 
     public ConfirmScreen(ModerationServices services, Player viewer, Menu parent, String question,
                          List<String> consequences, Runnable onYes) {
-        super(services, viewer, parent, 3);
-        this.question = question;
-        this.consequences = List.copyOf(consequences);
-        this.onYes = onYes;
-    }
-
-    @Override
-    protected Component title() {
-        return MINI.deserialize(question);
-    }
-
-    @Override
-    protected void render() {
-        List<String> lore = new ArrayList<>(consequences);
-        lore.add("");
-        lore.add("<dark_gray>It goes on their record either way.");
-
-        band(MenuLayout.WHO, 2, Icons.of(Material.RED_CONCRETE, "<red>No, leave it",
-                        "<gray>Nothing happens."),
-                click -> {
-                    if (parent() != null) {
-                        parent().open();
-                    } else {
-                        viewer.closeInventory();
-                    }
-                });
-
-        band(MenuLayout.WHO, 4, Icons.of(Material.BOOK, "<gray>What this does", lore));
-
-        band(MenuLayout.WHO, 6, Icons.of(Material.LIME_CONCRETE, "<green>Yes, do it",
-                        "<gray>Go ahead."),
-                click -> onYes.run());
+        super(viewer, services.brand(), parent, question, consequences, ON_THE_RECORD_EITHER_WAY,
+                onYes);
     }
 
     @Override

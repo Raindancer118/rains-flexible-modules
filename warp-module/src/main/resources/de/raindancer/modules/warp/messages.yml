@@ -1,0 +1,134 @@
+# Rain's Warps — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins, and so
+# does a host's bundled wording. See Messages.defineFrom.
+#
+# Two things MessagesTest holds against this file, both of which have gone wrong before:
+#
+#   - Every placeholder a line asks for is supplied where it is sent, and nothing is supplied in
+#     vain. An unfilled <count> is printed as written, mid-sentence, and reads to a player as a
+#     broken plugin rather than as two files disagreeing.
+#   - Nothing here is YAML's idea of a truth value. A bare on, off, yes or no is a boolean, and a
+#     message that has become one prints its own key to somebody's face.
+warps:
+
+  # ---------------------------------------------------------------- going somewhere
+  unknown: "<red>There is no warp called <white><name></white>."
+  world-missing: "<yellow><name></yellow> is in a world that is not loaded right now."
+  on-cooldown: "<yellow>You can warp again in <white><time></white>."
+  warming-up: "<gray>Off to <white><name></white> in <white><seconds></white>… stand still."
+  arrived: "<green>Here you are: <white><name></white>."
+  already-travelling: "<yellow>You are already on your way somewhere."
+  nowhere-safe: "<red>There is nowhere safe to put you at <white><name></white>."
+  could-not-check: "<red>The ground at <white><name></white> could not be checked."
+  teleport-refused: "<red>Something stopped you arriving at <white><name></white>."
+  cannot-schedule: "<red>The server cannot send you anywhere just now."
+  only-a-player: "<red>Only somebody standing in the world can warp."
+
+  cancelled:
+    moved: "<yellow>You moved, so you are staying put."
+    hurt: "<yellow>Something hit you, so you are staying put."
+
+  # ---------------------------------------------------------------- the list
+  list-empty: "<gray>There are no warps yet."
+  list-heading: "<gray><count> warp(s):"
+  list-row: "<dark_gray>  <white><name></white> <dark_gray>— <gray><world> <where> <dark_gray>(<category>)"
+  none-for-you: "<gray>None of this server's warps is for you yet."
+  how-to-make-one: "<gray>Stand where you want it and type <white>/warp set <somebody's name for it></white>."
+
+  # ---------------------------------------------------------------- making and changing
+  created: "<green><name></white> is set, here."
+  replaced: "<green><name></white> now points here instead."
+  moved: "<green><name></white> has moved here. Everything else about it is unchanged."
+  deleted: "<green><name></white> is gone."
+  access-set: "<green><name></white>: <white><access></white>."
+  access-empty: "<red>That is not a permission a warp can ask for."
+  categorised: "<green><name></white> is filed under <white><category></white>."
+  uncategorised: "<green><name></white> is out of every category."
+  labelled: "<green><name></white> is shown as <white><label></white>. People still type <white><name></white>."
+  unlabelled: "<green><name></white> is called by its name again."
+  icon-set: "<green><name></white> shows as <white><icon></white>."
+  not-yours: "<red>Warps are not yours to change."
+  too-many: "<red>This server already has its <white><limit></white> warps. Delete one first."
+  no-such-item: "<red>There is no item called <white><item></white>."
+  set-needs-a-player: "<red>A warp is set where somebody is standing, so only a player can."
+  busy: "<yellow>Something else is already waiting for an answer from you."
+
+  ask-name: "<gray>Type what to call this warp, or <white>cancel</white>."
+  ask-category: "<gray>Type what to file it under, or <white>cancel</white>."
+  ask-label: "<gray>Type what the menu should show for it, or <white>cancel</white>."
+  ask-permission: "<gray>Type the permission it should need, or <white>cancel</white>."
+
+  # A name is refused for four different reasons and each says which, because "that name will not do"
+  # is the answer people try four more spellings against.
+  name:
+    empty: "<red>A warp needs a name."
+    too-long: "<red>That is too long for a warp: <white><limit></white> characters at most."
+    bad-characters: "<red>A warp's name may have letters, digits, dashes and underscores in it, and nothing else."
+    reserved: "<red><white><name></white> is a word <white>/warp</white> reads as an instruction, so nothing could ever warp there."
+
+  # ---------------------------------------------------------------- the config page
+  config:
+    at-the-limit: "<yellow>That is as far as it goes: between <white><least></white> and <white><most></white>."
+    refused: "<red><white><setting></white> would not take that value."
+
+  # ---------------------------------------------------------------- usage
+  usage:
+    set: "<gray>/warp set <somebody's name for it>"
+    config: "<gray>/warp config <dark_gray>— opens the page; there is nothing to type"
+    move: "<gray>/warp move <which warp>"
+    delete: "<gray>/warp delete <which warp>"
+    category: "<gray>/warp category <which warp> [what to file it under]"
+    label: "<gray>/warp label <which warp> [what the menu shows]"
+    icon: "<gray>/warp icon <which warp> <which item>"
+    access: "<gray>/warp access <which warp> <everybody | staff | own | a permission>"
+
+  # ---------------------------------------------------------------- help
+  #
+  # Deliberately no placeholder-shaped words: MessagesTest cannot tell "<player>" meaning "type a
+  # name here" from "<player>" meaning "something forgot to fill this in", so instruction is written
+  # out in words.
+  help:
+    - "<gray>/warp <dark_gray>— the warps you can go to"
+    - "<gray>/warp somewhere <dark_gray>— straight there"
+    - "<gray>/warp list <dark_gray>— the same list, as text you can paste"
+  help-admin:
+    - "<gray>/warp admin <dark_gray>— every warp there is, and what can be changed"
+    - "<gray>/warp set, move, delete <dark_gray>— by hand, without the menu"
+    - "<gray>/warp access <dark_gray>— everybody, staff only, its own permission, or one you name"
+    - "<gray>/warp config <dark_gray>— what a warp costs, and what travels with somebody"
+
+  manual:
+    using:
+      - "<gray>A warp is somewhere with a name that anybody can be sent to."
+      - "<gray>Click one to go to it."
+      - ""
+      - "<gray>You have to stand still for <white><warmup></white> seconds first,"
+      - "<gray>and there are <white><cooldown></white> seconds between warps."
+      - ""
+      - "<dark_gray>Some warps are only for the staff, or for whoever"
+      - "<dark_gray>has been given one particular permission. Those are"
+      - "<dark_gray>not on this list at all unless you are one of them."
+    config:
+      - "<gray>What this server does about warps."
+      - ""
+      - "<gray>Every click here is written to disk at once, so"
+      - "<gray>there is no Apply button to forget."
+      - ""
+      - "<dark_gray>The same settings as /settings, which has them"
+      - "<dark_gray>filed under warps — this is the one page about"
+      - "<dark_gray>warps rather than the whole server's tree."
+      - ""
+      - "<dark_gray>What travels with somebody never includes another"
+      - "<dark_gray>player, whatever these say. A player moved somewhere"
+      - "<dark_gray>they did not ask to go is a teleport nobody agreed"
+      - "<dark_gray>to, and on a PvP server it is a weapon."
+    editing:
+      - "<gray>Everything about one warp."
+      - ""
+      - "<gray>Moving it keeps who it is for, what it is filed"
+      - "<gray>under and what it looks like. Making a warp again"
+      - "<gray>under the same name does not."
+      - ""
+      - "<dark_gray>What people type never changes when you relabel it:"
+      - "<dark_gray>a permission may have been written against the name."

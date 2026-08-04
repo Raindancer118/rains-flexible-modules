@@ -1,70 +1,44 @@
 package de.raindancer.modules.claims.screen;
 
-import de.raindancer.modules.claims.model.Claim;
-import de.raindancer.core.ui.menu.Icons;
+import de.raindancer.core.ui.menu.ConfirmMenu;
 import de.raindancer.core.ui.menu.Menu;
-import de.raindancer.core.ui.menu.MenuLayout;
-import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.ClaimServices;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.Material;
+import de.raindancer.modules.claims.model.Claim;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * "Are you sure?", as a page of its own.
+ * "Are you sure?" — Core's dialog, under this module's name.
  *
- * <p>Three rows rather than six, because a question with two answers on a full page reads as an empty page with
- * two buttons lost in it. And a page rather than a chat prompt because the thing being confirmed is on screen:
- * somebody who opened the wrong claim's menu sees the wrong claim's name here.
+ * <p>The page itself is {@code ConfirmMenu}'s: three rows, No on the left, Yes on the right, the
+ * consequences on the middle button. It used to be written out here, and identically in the
+ * moderation module, and again in the warps module. Three copies of the page that guards every
+ * irreversible button is three places to fix the next thing in one of, and the copy nobody fixes is
+ * always the one in front of a delete.
  *
- * <p>Yes is on the right and No is on the left, always, on every confirmation in the module. A dialog that swaps
- * them is a dialog people learn to click through and then get wrong once.
+ * <p>It also has to be the same everywhere to work at all: left and right are a habit people build,
+ * and a dialog that swaps them is one they learn to click through and then get wrong exactly once.
+ * Core pins that in {@code ConfirmMenuGrammarTest}.
+ *
+ * <p>What is left here is the constructor this module's call sites already use, and the name, which
+ * is what {@code ScreenGrammarTest} looks for when it checks that every {@code danger(} button on
+ * every page confirms first.
  */
-public final class ConfirmScreen extends ClaimScreen {
+public final class ConfirmScreen extends ConfirmMenu implements IClaimScreen {
 
-    private static final MiniMessage MINI = MiniMessage.miniMessage();
-
-    private final String question;
-    private final List<String> consequences;
-    private final Runnable onYes;
-
+    /**
+     * @param claim what is being confirmed, for symmetry with every other claim screen's
+     *              constructor. Unused here: the question and the consequences already name it, in
+     *              the words the caller chose
+     */
     public ConfirmScreen(ClaimServices services, Player viewer, Claim claim, Menu parent,
                          String question, List<String> consequences, Runnable onYes) {
-        super(services, viewer, claim, parent, 3);
-        this.question = question;
-        this.consequences = List.copyOf(consequences);
-        this.onYes = onYes;
+        super(viewer, services.brand(), parent, question, consequences, onYes);
     }
 
     @Override
-    protected Component title() {
-        return MINI.deserialize(question);
-    }
-
-    @Override
-    protected void render() {
-        List<String> lore = new ArrayList<>(consequences);
-        lore.add("");
-        lore.add("<dark_gray>This cannot be undone.");
-
-        band(MenuLayout.WHO, 2, Icons.of(Material.RED_CONCRETE, "<red>No, leave it alone",
-                        "<gray>Nothing happens."),
-                click -> {
-                    if (parent() != null) {
-                        parent().open();
-                    } else {
-                        viewer.closeInventory();
-                    }
-                });
-
-        band(MenuLayout.WHO, 4, Icons.of(Material.BOOK, "<gray>What this does", lore));
-
-        band(MenuLayout.WHO, 6, Icons.of(Material.LIME_CONCRETE, "<green>Yes, do it",
-                        "<gray>Go ahead."),
-                click -> onYes.run());
+    public String describe() {
+        return "a confirmation, so a misclick costs a page rather than the thing";
     }
 }

@@ -4,14 +4,16 @@ name: Build
 # master. A pull request builds too, so the jar is there before the merge rather than after.
 #
 # The per-plugin tags cut permanent releases. They name the plugin because the plugins version
-# independently: the reactor is 1.0.0 while RainsExtendedClaims is 2.0.0, RainsModeration is 2.1.0 and
-# RainsColouredNames is 2.0.0, so a bare `v2.1.0` could not say which of them it meant.
+# independently: the reactor is 1.0.0 while RainsExtendedClaims is 2.0.0, RainsModeration is 2.1.0,
+# RainsColouredNames is 2.0.0 and RainsWarps is 1.0.0, so a bare `v2.1.0` could not say which of them
+# it meant.
 on:
   push:
     tags:
       - 'claims-v*'
       - 'moderation-v*'
       - 'names-v*'
+      - 'warps-v*'
     branches:
       - '**'
   pull_request:
@@ -83,7 +85,7 @@ jobs:
         id: jars
         run: |
           set -euo pipefail
-          for plugin in claims:RainsExtendedClaims moderation:RainsModeration names:RainsColouredNames; do
+          for plugin in claims:RainsExtendedClaims moderation:RainsModeration names:RainsColouredNames warp:RainsWarps; do
             dir="${plugin%%:*}-standalone/target"
             name="${plugin##*:}"
             jar="$(find "$dir" -maxdepth 1 -name "$name-*.jar" ! -name 'original-*' | head -1)"
@@ -110,6 +112,7 @@ jobs:
             claims-standalone/target/RainsExtendedClaims-*.jar
             moderation-standalone/target/RainsModeration-*.jar
             names-standalone/target/RainsColouredNames-*.jar
+            warp-standalone/target/RainsWarps-*.jar
             !**/original-*.jar
           if-no-files-found: error
           retention-days: 30
@@ -142,6 +145,7 @@ jobs:
               "| Rain's Extended Claims | \`${{ steps.jars.outputs.claims_name }}\` | \`${{ steps.jars.outputs.claims_sha }}\` |" \
               "| Rain's Moderation | \`${{ steps.jars.outputs.moderation_name }}\` | \`${{ steps.jars.outputs.moderation_sha }}\` |" \
               "| Rain's Coloured Names | \`${{ steps.jars.outputs.names_name }}\` | \`${{ steps.jars.outputs.names_sha }}\` |" \
+              "| Rain's Warps | \`${{ steps.jars.outputs.warp_name }}\` | \`${{ steps.jars.outputs.warp_sha }}\` |" \
               "" \
               "Each of them needs \`RainsCore.jar\` beside it." \
               "" \
@@ -166,6 +170,8 @@ jobs:
             "${{ steps.jars.outputs.moderation_jar }}.sha256" \
             "${{ steps.jars.outputs.names_jar }}" \
             "${{ steps.jars.outputs.names_jar }}.sha256" \
+            "${{ steps.jars.outputs.warp_jar }}" \
+            "${{ steps.jars.outputs.warp_jar }}.sha256" \
             --repo "${{ github.repository }}" \
             --title "Latest build" \
             --notes-file notes.md \
@@ -187,6 +193,8 @@ jobs:
             "${{ steps.jars.outputs.moderation_jar }}.sha256" \
             "${{ steps.jars.outputs.names_jar }}" \
             "${{ steps.jars.outputs.names_jar }}.sha256" \
+            "${{ steps.jars.outputs.warp_jar }}" \
+            "${{ steps.jars.outputs.warp_jar }}.sha256" \
             --repo "${{ github.repository }}" \
             --title "Build ${{ github.run_number }}" \
             --notes-file notes.md \
@@ -221,7 +229,7 @@ jobs:
       # the version in the tag has to match the one in that plugin's pom — a release whose tag says
       # 2.1.0 and whose jar says 2.0.0 is one nobody can reason about afterwards.
       - name: Publish a versioned release
-        if: startsWith(github.ref, 'refs/tags/claims-v') || startsWith(github.ref, 'refs/tags/moderation-v') || startsWith(github.ref, 'refs/tags/names-v')
+        if: startsWith(github.ref, 'refs/tags/claims-v') || startsWith(github.ref, 'refs/tags/moderation-v') || startsWith(github.ref, 'refs/tags/names-v') || startsWith(github.ref, 'refs/tags/warps-v')
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
@@ -240,6 +248,12 @@ jobs:
             names)      jar='${{ steps.jars.outputs.names_jar }}'
                         sha='${{ steps.jars.outputs.names_sha }}'
                         title="Rain's Coloured Names" ;;
+            # The tag says "warps" and the directory is "warp-standalone", so the pom lookup below
+            # needs the directory name rather than the tag's.
+            warps)      jar='${{ steps.jars.outputs.warp_jar }}'
+                        sha='${{ steps.jars.outputs.warp_sha }}'
+                        title="Rain's Warps"
+                        which=warp ;;
             *)          echo "::error::$TAG names no plugin I know about"; exit 1 ;;
           esac
 
@@ -324,7 +338,7 @@ jobs:
           # An older version of *our* plugins goes, or the page lists one version and the directory
           # holds three. Scoped by name to what this repository builds: the other repository publishes
           # onto the same shelf, and an unscoped sweep would delete its jar on every push here.
-          for jar in RainsExtendedClaims-*.jar RainsModeration-*.jar RainsColouredNames-*.jar; do
+          for jar in RainsExtendedClaims-*.jar RainsModeration-*.jar RainsColouredNames-*.jar RainsWarps-*.jar; do
             [ -e "$jar" ] || continue
             if ! printf '%s\n' "$keep" | grep -qxF "$jar"; then
               echo "removing superseded $jar"

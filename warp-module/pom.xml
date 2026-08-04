@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>warp-module</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Warps</name>
+    <description>
+        Named places anybody can be sent to, with a menu to pick one from and a warm-up to stand
+        through. The places themselves are RainsCore's — a warp is a POI of kind "warp", so a ghast
+        line can fly to one and deleting a world takes its warps with it. What is here is who may
+        use which, how a server groups them, and the screens.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+    </dependencies>
+</project>
