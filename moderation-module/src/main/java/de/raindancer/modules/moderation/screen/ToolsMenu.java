@@ -4,6 +4,7 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.moderation.ModerationServices;
+import de.raindancer.modules.moderation.command.VitalsCommand;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -95,6 +96,91 @@ public final class ToolsMenu extends ModerationScreen {
                             de.raindancer.modules.moderation.command.SelfToolCommand.Tool.INSTAKILL,
                             nowOn);
                 });
+
+        // ── heal, feed, hurt, starve ──────────────────────────────────────────────────────────
+        // On their own row because they are not switches: each one happens when clicked and there is
+        // nothing to show as "on". Drawn beside the toggles anyway, because from the moderator's side
+        // they are the same kind of thing — something you do to somebody standing in front of you.
+        int column = 2;
+        for (VitalsCommand.Vital vital : VitalsCommand.Vital.values()) {
+            vital(column, vital, here);
+            column += 2;
+        }
+    }
+
+    /**
+     * One thing that happens when clicked.
+     *
+     * <p>The harmful two confirm first. Not ceremony: heal and hurt sit two slots apart on the same row
+     * and look alike at a glance, and the cost of a mis-click is somebody losing half their health in a
+     * fight — which they will report as the server cheating, and nobody will be able to tell them
+     * otherwise.
+     */
+    private void vital(int column, VitalsCommand.Vital vital, boolean here) {
+        boolean allowed = may(vital.permission()) && here
+                && (themselves() || canAct(subject, vital.permission()).isAllowed());
+
+        List<String> lore = new ArrayList<>();
+        lore.add((vital.harmful() ? "<red>" : "<green>") + vital.describe() + ".");
+        if (vital.harmful()) {
+            lore.add("<dark_gray>Asks first.");
+        }
+        lore.add("");
+        lore.add(allowed ? "<dark_gray>Click to do it."
+                : here ? "<dark_gray>Not yours to do."
+                : "<dark_gray>They are not on the server.");
+
+        band(MenuLayout.LAND, column, allowed,
+                Icons.of(vital.icon(), (vital.harmful() ? "<red>" : "<green>") + label(vital), lore),
+                here ? "Not yours to do" : "They are not here",
+                click -> {
+                    // Re-asked at the click: the page may have been open for minutes, and a demotion
+                    // in between has to take effect on the button as well as on the command.
+                    if (!may(vital.permission())
+                            || (!themselves() && canAct(subject, vital.permission()).isRefused())) {
+                        tell("moderation.no-permission");
+                        return;
+                    }
+                    if (services().server().getPlayer(subject) == null) {
+                        tell("moderation.not-here", "player", subjectName);
+                        return;
+                    }
+                    if (vital.harmful()) {
+                        new ConfirmScreen(services(), viewer, this,
+                                "<red>" + label(vital) + " — " + subjectName + "?",
+                                List.of("<gray>" + vital.describe() + ".",
+                                        "<dark_gray>Nothing about this goes on their record."),
+                                () -> doVital(vital)).open();
+                    } else {
+                        doVital(vital);
+                    }
+                });
+    }
+
+    /** "Heal", "Feed" — the enum's own word, with a capital. */
+    private static String label(VitalsCommand.Vital vital) {
+        String word = vital.word();
+        return Character.toUpperCase(word.charAt(0)) + word.substring(1);
+    }
+
+    /** Actually does it, and says so — the same wording the command uses. */
+    private void doVital(VitalsCommand.Vital vital) {
+        switch (vital) {
+            case HEAL -> services().players().heal(subject);
+            case FEED -> services().players().feed(subject);
+            case HURT -> services().players().damage(subject, 10.0);
+            case STARVE -> services().players().food(subject, 6);
+        }
+        services().staff().recordVital(viewer, subject, subjectName, vital);
+        tell(vital.messageKey() + (themselves() ? ".done" : ".done-other"), "player", subjectName);
+        if (!themselves()) {
+            Player them = services().server().getPlayer(subject);
+            if (them != null) {
+                services().messages().send(them, vital.messageKey() + ".received",
+                        "player", viewer.getName());
+            }
+        }
+        changed();
     }
 
     /**

@@ -11,6 +11,7 @@ import de.raindancer.modules.moderation.command.ModerationCommand;
 import de.raindancer.modules.moderation.command.PromoteCommand;
 import de.raindancer.modules.moderation.command.PunishCommand;
 import de.raindancer.modules.moderation.command.SelfToolCommand;
+import de.raindancer.modules.moderation.command.VitalsCommand;
 import de.raindancer.modules.moderation.command.ReportCommand;
 import de.raindancer.modules.moderation.command.ReportsCommand;
 import de.raindancer.modules.moderation.command.StaffChatCommand;
@@ -116,6 +117,15 @@ public final class ModerationCommands {
                 // The tools a moderator points at themselves, or at somebody else by naming them.
                 // /god toggles and /ungod switches off: "make sure this is off" is a thing somebody
                 // needs to be able to say without checking first, and a toggle answers "it is on now".
+                // Events rather than states, so not SelfToolCommand — see VitalsCommand.
+                ModuleCommand.of("heal", "Restores somebody to full health",
+                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.HEAL)),
+                ModuleCommand.of("feed", "Fills somebody's hunger bar",
+                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.FEED)),
+                ModuleCommand.of("hurt", "Takes half of somebody's health",
+                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.HURT)),
+                ModuleCommand.of("starve", "Empties most of somebody's hunger bar",
+                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.STARVE)),
                 ModuleCommand.of("fly", "Lets somebody fly",
                         new SelfToolCommand(ModerationCommands::require,
                                 SelfToolCommand.Tool.FLY, null)),

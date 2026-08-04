@@ -25,6 +25,25 @@ moderation:
   # NB: the keys are "turned-on" and not "on". YAML resolves a bare `on:` key to the boolean true, so
   # the line would be stored as ...instakill.true and every lookup would print its own key. Seen in
   # game once as "<moderation.tool.instakill.on>"; MessagesTest now fails the build over it.
+  # heal / feed / hurt / starve. Events, not toggles — so "done" rather than "turned-on".
+  vitals:
+    heal:
+      done: "<green>You are whole again."
+      done-other: "<green>You healed <white><player></white>."
+      received: "<green><white><player></white> healed you."
+    feed:
+      done: "<green>You are full."
+      done-other: "<green>You fed <white><player></white>."
+      received: "<green><white><player></white> fed you."
+    hurt:
+      done: "<red>That hurt."
+      done-other: "<red>You took half of <white><player></white>'s health."
+      received: "<red><white><player></white> took half your health."
+    starve:
+      done: "<gray>You are suddenly very hungry."
+      done-other: "<gray>You emptied <white><player></white>'s hunger bar."
+      received: "<gray><white><player></white> emptied your hunger bar."
+
   tool:
     fly:
       turned-on: "<green>You can fly."

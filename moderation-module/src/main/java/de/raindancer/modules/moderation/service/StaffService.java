@@ -171,6 +171,21 @@ public final class StaffService implements IModerationService {
                 .saying(nowOn ? "on" : "off"));
     }
 
+    /**
+     * Writes down that somebody healed, fed, hurt or starved a player.
+     *
+     * <p>Audited for the same reason a tool is, and more so for the harmful two: half of somebody's
+     * health disappearing mid-fight is the sort of thing that gets reported as a bug or as cheating,
+     * and neither answer is available from memory afterwards.
+     */
+    public void recordVital(CommandSender by, UUID who, String name,
+                            de.raindancer.modules.moderation.command.VitalsCommand.Vital vital) {
+        audit.record(AuditEntry.of("moderation", vital.word())
+                .by(by instanceof Player player ? player.getUniqueId() : null, nameOf(by))
+                .to(who, name)
+                .saying(vital.harmful() ? "harmful" : "restorative"));
+    }
+
     /** The roster, for a screen that wants to draw it. */
     public StaffRoster roster() {
         return roster;

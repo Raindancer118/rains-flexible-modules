@@ -43,6 +43,8 @@ public enum ModerationPermission {
     APPOINT("appoint", "Appoint and remove staff below your own rank", Material.NAME_TAG, 2),
     FLY("fly", "Fly, and let somebody else fly", Material.FEATHER, 2),
     GOD("god", "Be invulnerable, and make somebody else invulnerable", Material.TOTEM_OF_UNDYING, 2),
+    HEAL("heal", "Restore somebody to full health", Material.GOLDEN_APPLE, 2),
+    FEED("feed", "Fill somebody's hunger bar", Material.COOKED_BEEF, 2),
 
     // ── admin upward: changes the rules rather than applying them ──────────────────────────
     // A permanent ban is here rather than with the mods deliberately. Stopping somebody *now* is a
@@ -53,7 +55,12 @@ public enum ModerationPermission {
     CONFIG("config", "Change how moderation itself behaves", Material.COMPARATOR, 3),
     // Admin, not mod. One hit kills anything — including, in the wrong hands, every animal on a farm
     // somebody spent a fortnight breeding, in about eleven seconds.
-    INSTAKILL("instakill", "Kill anything in one hit", Material.NETHERITE_SWORD, 3);
+    INSTAKILL("instakill", "Kill anything in one hit", Material.NETHERITE_SWORD, 3),
+    // The mirror of HEAL and FEED, one rank higher. Restoring somebody is unremarkable and undoes
+    // itself; taking half their health from a menu, silently, kills a player in a fight they were
+    // winning. A server that wants a particular mod to have it can toggle it on for that one person.
+    HURT("hurt", "Take half of somebody's health", Material.IRON_SWORD, 3),
+    STARVE("starve", "Empty most of somebody's hunger bar", Material.ROTTEN_FLESH, 3);
 
     /**
      * The one prefix everything is under.
