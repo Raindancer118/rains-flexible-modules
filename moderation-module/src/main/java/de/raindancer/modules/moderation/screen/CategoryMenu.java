@@ -102,6 +102,16 @@ public final class CategoryMenu extends ModerationScreen {
         }
 
         // ── the record, filtered to this kind ─────────────────────────────────────────────────
+        // Everybody else serving one of these. The per-player lift above answers "should this one
+        // end"; this answers "who is still serving one", which is the question nothing could ask —
+        // and without it the only route to that list was typing the bare command.
+        band(MenuLayout.RULES, 7, may(permission()),
+                Icons.of(Material.IRON_BARS, "<yellow>Everybody " + kind.past(),
+                        "<gray>The whole list, with what each one was for.",
+                        "<dark_gray>Lift any of them from there."),
+                "For whoever may lift these",
+                click -> new LiftMenu(services(), viewer, this, kind, permission()).open());
+
         band(MenuLayout.LAND, 4, may(ModerationPermission.HISTORY),
                 Icons.of(Material.BOOK, "<yellow>Every " + verb(kind).toLowerCase(Locale.ROOT)
                                 + " they have had",

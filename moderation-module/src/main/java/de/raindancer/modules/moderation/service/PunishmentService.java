@@ -192,6 +192,17 @@ public final class PunishmentService implements IModerationService {
     }
 
     /** Everything on somebody's record, newest first. */
+    /**
+     * Everybody currently serving a punishment of this kind.
+     *
+     * <p>What the lift screen is a list of. Drawn from what is actually in force rather than from the
+     * roster of everybody the server has ever seen: picking a name out of nine hundred to be told
+     * "nothing to lift" is a list that wastes the one thing it was opened to answer.
+     */
+    public List<Punishment> activeOf(PunishmentKind kind) {
+        return kind == null ? List.of() : punishments.allActive(kind);
+    }
+
     public List<Punishment> history(UUID subject) {
         return punishments.history(subject);
     }

@@ -46,6 +46,15 @@ public final class LiftCommand extends StaffCommand {
         ModerationServices moderation = services();
 
         if (args.length == 0) {
+            // A bare /unban opens the list of everybody currently serving one, rather than reciting
+            // grammar. Unlike punishing, this does not go through the player picker: lifting starts
+            // from "who is serving one", which is a handful, not from "who", which is everybody the
+            // server has ever seen. The console still gets the usage line, having no screen to open.
+            if (sender instanceof org.bukkit.entity.Player staff) {
+                new de.raindancer.modules.moderation.screen.LiftMenu(moderation, staff, null, kind,
+                        permissionNeeded()).open();
+                return;
+            }
             moderation.messages().send(sender, "moderation.usage",
                     "usage", "/un" + kind.name().toLowerCase(Locale.ROOT) + " <player> [reason]");
             return;
