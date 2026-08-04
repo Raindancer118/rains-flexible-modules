@@ -92,15 +92,18 @@ public final class EquipTargetMenu extends ClaimScreen {
                 Icons.of(Material.PAPER, "<aqua>Keep topped up to: <white>" + rule.keepAmount(),
                         "<gray>How many the player should be carrying.",
                         "<gray>One for a totem, a stack for fireworks.",
-                        "<gray>Left click +1, right click −1.",
-                        "<gray>Shift for ten at a time."),
+                        "",
+                        "<dark_gray>Click to choose a number."),
                 "The owner's to change",
-                click -> {
-                    int step = click.isShiftClick() ? 10 : 1;
-                    int wanted = rule.keepAmount() + (click.isRightClick() ? -step : step);
-                    rule.keepAmount(Math.max(1, Math.min(rule.template().getMaxStackSize(), wanted)));
-                    save();
-                });
+                // Core's picker rather than ±1 nudges with shift for ten: a stack of sixty-four was
+                // seven shift-clicks and a lot of counting, and overshooting meant going back.
+                click -> new de.raindancer.core.ui.choose.AmountChooser(viewer, services().brand(),
+                        this, "How many to keep", rule.keepAmount(), 1,
+                        rule.template().getMaxStackSize(),
+                        chosen -> {
+                            rule.keepAmount(chosen);
+                            save();
+                        }).open());
     }
 
     private void save() {

@@ -81,15 +81,18 @@ public final class EntryFeeMenu extends ClaimScreen {
         band(MenuLayout.WHO, 6, allowed,
                 Icons.of(Material.CLOCK, "<white>Pass lasts <green>" + fee.passDurationSeconds() + "s",
                         "<gray>How long before they are asked again.",
-                        "<gray>Left click +30s, right click −30s.",
-                        "<dark_gray>0 means every crossing pays"),
+                        "<dark_gray>0 means every crossing pays",
+                        "",
+                        "<dark_gray>Click to choose a number."),
                 "The owner's to change",
-                click -> {
-                    int step = click.isShiftClick() ? 300 : 30;
-                    int wanted = fee.passDurationSeconds() + (click.isRightClick() ? -step : step);
-                    fee.passDurationSeconds(Math.max(0, Math.min(86_400, wanted)));
-                    save();
-                });
+                // The same picker the amount above uses. Two amounts on one page reached two
+                // different ways is how a screen teaches somebody that it is inconsistent.
+                click -> new de.raindancer.core.ui.choose.AmountChooser(viewer, services().brand(),
+                        this, "Seconds a pass lasts", fee.passDurationSeconds(), 0, 86_400,
+                        chosen -> {
+                            fee.passDurationSeconds(chosen);
+                            save();
+                        }).open());
 
         if (fee.type() == CostType.ITEM) {
             boolean chosen = fee.item() != null;

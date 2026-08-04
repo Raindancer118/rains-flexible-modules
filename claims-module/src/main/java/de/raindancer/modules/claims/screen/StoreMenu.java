@@ -179,20 +179,23 @@ public final class StoreMenu extends PaginatedMenu<ItemStack> implements IClaimS
         if (kind == Kind.PANTRY) {
             toolbar(6, Icons.of(Material.COOKED_BEEF, "<white>Feed at hunger: <yellow>"
                             + claim.pantry().threshold() + "/20",
-                            "<gray>Left click +1, right click −1.",
-                            "<gray>Shift for five at a time.",
-                            "<dark_gray>a hungrier threshold means fewer, bigger meals"),
+                            "<dark_gray>a hungrier threshold means fewer, bigger meals",
+                            "",
+                            "<dark_gray>Click to choose a number."),
                     click -> {
                         if (!mayManage()) {
                             services.messages().send(viewer, "error.no-claim-permission");
                             return;
                         }
-                        int step = click.isShiftClick() ? 5 : 1;
-                        int wanted = claim.pantry().threshold() + (click.isRightClick() ? -step : step);
-                        claim.pantry().threshold(wanted);
-                        claim.markDirty();
-                        services.claimService().saveAsync(claim);
-                        refresh();
+                        // Core's picker rather than ±1 nudges. Twenty is not many clicks, but it is
+                        // the same screen as every other amount on the server, which is the point.
+                        new de.raindancer.core.ui.choose.AmountChooser(viewer, services.brand(), this,
+                                "Feed at hunger", claim.pantry().threshold(), 0, 20,
+                                chosen -> {
+                                    claim.pantry().threshold(chosen);
+                                    claim.markDirty();
+                                    services.claimService().saveAsync(claim);
+                                }).open();
                     });
         }
     }
