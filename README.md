@@ -15,6 +15,7 @@ and never shaded in.
 | `modules-wrapper` | the standard wrapper — turns any module into a Paper plugin |
 | `claims-module` | land claims: `/claim`, the screens, selection, fences, entry fees |
 | `moderation-module` | bans, mutes, reports, staff notes, and the screens for them |
+| `names-module` | coloured item and mob names: dye a name tag, craft it onto a thing |
 | `<x>-standalone` | a thin shade shell: module + wrapper = one loadable jar |
 
 Two ways to consume a module, and **the module cannot tell which one it is in**:
@@ -42,8 +43,8 @@ repository, so a plain `verify` can shade whatever an earlier build left in `~/.
 its own source, carrying last week's code. That reached a live server once. `StandaloneJarTest`
 now checks that what ended up in the jar is what was just compiled.
 
-The plugins land in `claims-standalone/target/` and `moderation-standalone/target/`. CI builds both on
-every push and attaches them to the run.
+The plugins land in `claims-standalone/target/`, `moderation-standalone/target/` and
+`names-standalone/target/`. CI builds all of them on every push and attaches them to the run.
 
 ## Releases and versions
 
@@ -53,14 +54,14 @@ CI publishes on every push to `master`:
 |---|---|
 | `latest` | a rolling pre-release — one link that is always the newest build. Point a test server at it once. |
 | `build-<n>` | an immutable pre-release per push, so a jar from three pushes ago is still fetchable. The last 15 are kept. |
-| `claims-vX.Y.Z`<br>`moderation-vX.Y.Z` | permanent releases, cut by pushing that tag. |
+| `claims-vX.Y.Z`<br>`moderation-vX.Y.Z`<br>`names-vX.Y.Z` | permanent releases, cut by pushing that tag. |
 
-Both jars carry a `.sha256` beside them, and both need `RainsCore.jar` next to them — neither ever
-contains a copy of it.
+Every jar carries a `.sha256` beside it, and every one of them needs `RainsCore.jar` next to it — none
+of them ever contains a copy of it.
 
-**The tags name the plugin because the two version independently.** The reactor is `1.0.0` while
-Rain's Extended Claims is `2.0.0` and Rain's Moderation is `2.0.0`, so a bare `v2.1.0` could not say
-which of them it meant. The version in the tag is checked against that plugin's `<plugin.version>`
+**The tags name the plugin because the plugins version independently.** The reactor is `1.0.0` while
+Rain's Extended Claims is `2.0.0`, Rain's Moderation is `2.1.0` and Rain's Coloured Names is `2.0.0`,
+so a bare `v2.1.0` could not say which of them it meant. The version in the tag is checked against that plugin's `<plugin.version>`
 and the build fails on a mismatch: a release whose tag says 2.1.0 and whose jar says 2.0.0 is one
 nobody can reason about six months later.
 
@@ -81,6 +82,13 @@ So a half-finished feature does not get a minor bump, and a patch release never 
 - **A module is commands, screens and its own product decisions.** Nothing else.
 - The counter-example, so the rule is not read too widely: a pantry, a bank, a fence and an entry fee
   are what a claim *is*, and they stayed in the module.
+
+Coloured names is the smallest case, and the clearest about what is left over. The settings, the
+wording, the menu, the buttons, the Folia-safe scheduling and the atomic write of `config.yml` are all
+Core's; what stays in the module is what a name tag *means* — which item dyes, what a grid of tags
+makes, and how a gradient is spread over a name. A styled tag is its own record, held in the item's
+persistent data under a namespace that has not changed since the standalone plugin, so a server that
+removes the module keeps every tag anybody has dyed.
 
 Moderation is the clearest case. The punishments — who is banned, muted or frozen, and until when —
 are RainsCore's, so a server that removes `RainsModeration` **keeps every ban it has handed out and

@@ -1,0 +1,48 @@
+# Rain's Flexible Modules — coloured names.
+#
+# Offered to the host's Messages as a *floor*: anything the owner has written wins, and so does a host
+# that ships its own wording for the same key. Editing this file is not how a server rewords a line —
+# editing the server's own messages.yml is.
+#
+# Every value is quoted. YAML reads bare on, off, yes and no as booleans, and a message that has become
+# a boolean prints its own key to somebody's face. That has happened here once, to fourteen keys at a
+# time.
+names:
+
+  no-permission: "<red>You may not do that."
+
+  reloaded: "<green>Reloaded. <white><count></white> item(s) now do something to a name tag."
+
+  manual:
+
+    # <stops> is the configured ceiling, so the manual describes this server rather than the defaults.
+    intro:
+      - "<gold><bold>Coloured names"
+      - "<gray>Craft a name tag with a dye and the tag remembers that colour."
+      - "<gray>Craft the tag with an item and the item's name is painted in it."
+      - "<gray>Lay several tags out and the name runs from the leftmost colour"
+      - "<gray>to the rightmost one — up to <white><stops></white> stops."
+      - "<dark_gray>A decoration item flips that decoration on and off again."
+      - "<dark_gray>A dyed tag next to a plain one copies the style onto it."
+      - "<dark_gray>Two or more dyed tags with a plain one among them burn the"
+      - "<dark_gray>whole gradient onto that plain tag, so you can keep it."
+
+    # Only shown on a server that has the cauldron switched on — a manual that describes a rule the
+    # server does not have is worse than one that is short.
+    wash:
+      - "<dark_gray>A water cauldron washes a tag back to plain."
+
+    mobs:
+      - "<dark_gray>Naming a mob with a dyed tag paints the mob's name too."
+
+    # Every colour, decoration and shade has been deleted from the config. A real state, and one worth
+    # naming: otherwise the manual is a heading with nothing under it and reads as broken.
+    empty:
+      - "<red>Nothing dyes a name tag on this server."
+      - "<gray>The colours, decorations and shades sections of config.yml are all empty."
+
+  # What clicking an entry in the manual says. <item> is the item, <what> is what it does.
+  reagent:
+    colour: "<gray>Craft a name tag with <white><item></white> to dye it <white><what></white>."
+    decoration: "<gray>Craft a name tag with <white><item></white> to turn <white><what></white> on. Craft it in again to turn it off."
+    shade: "<gray>Craft a tag that already has a colour with <white><item></white> to make every colour on it <white><what></white>."

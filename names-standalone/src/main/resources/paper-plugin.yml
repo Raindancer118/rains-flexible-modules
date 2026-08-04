@@ -1,0 +1,34 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see that class for why every line
+# here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Dye a name tag, then craft it with an item to paint that item''s name — gradients included.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Nothing in the module touches Bukkit.getScheduler(). Its two delayed tasks both belong to an entity — the
+# player whose crafting window needs refreshing, and the mob being named — and both go through Core's
+# Scheduling, which uses that entity's own scheduler: regionised on Folia and ordinary on Paper.
+folia-supported: true
+
+dependencies:
+  # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and
+  # its own classpath, and the bootstrapper is where the modules are first discovered — it has to look, since
+  # commands are registered during bootstrap or they never exist. Declared for the server phase alone, the
+  # module fails to link at bootstrap with a ClassNotFoundException for a RainsCore class and the plugin
+  # reports that it contains no modules. That is what the claims plugin did on the test server the first time.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      # The line that actually puts RainsCore's classes on this plugin's classpath. Paper plugins get isolated
+      # classloaders, so without it everything above is right and the plugin dies the moment it touches one.
+      join-classpath: true
