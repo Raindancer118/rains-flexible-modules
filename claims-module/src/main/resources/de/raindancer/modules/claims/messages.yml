@@ -14,7 +14,7 @@ prefix: "<dark_gray>[<gradient:#4ade80:#22d3ee>Claims</gradient><dark_gray>] "
 claim:
   # ── the everyday ones ────────────────────────────────────────────────────
   created: "<green>Claimed <white><claim></white> — <gray><area> blocks, y <min-y> to <max-y>."
-  resized: "<green><claim></white> redrawn: <gray><area> blocks, y <min-y> to <max-y>."
+  resized: "<green><white><claim></white> redrawn: <gray><area> blocks, y <min-y> to <max-y>."
   renamed: "<green>Renamed <gray><old></gray> to <white><claim></white>."
   help: |
     <gradient:#4ade80:#22d3ee>Your land</gradient>
@@ -43,7 +43,7 @@ claim:
   already-an-owner: "<gray><player> owns this claim, so they already may do everything."
   owner-holds-everything: "<gray>An owner may do everything — there is nothing to set."
   banned: "<red>Barred <white><player></white> from <white><claim></white>."
-  ban-lifted: "<green><player></white> may come back to <white><claim></white>."
+  ban-lifted: "<green><white><player></white> may come back to <white><claim></white>."
   not-banned: "<gray><player> is not barred from here."
   cannot-ban-an-owner: "<red>You cannot bar <white><player></white> from a claim they own."
   timed-out: "<red>Timed <white><player></white> out of <white><claim></white> for <white><duration></white>."
@@ -54,8 +54,8 @@ claim:
   owner-cannot-remove: "<gray><player> cannot be removed that way — the last owner, and whoever first claimed it, always stay."
 
   # ── the land ─────────────────────────────────────────────────────────────
-  height-changed: "<green><claim></white> now reaches y <white><min-y></white> to <white><max-y></white>."
-  icon-changed: "<green><claim></white> will show as what you were holding."
+  height-changed: "<green><white><claim></white> now reaches y <white><min-y></white> to <white><max-y></white>."
+  icon-changed: "<green><white><claim></white> will show as what you were holding."
   resize-refunded: "<green>Refunded <white><amount></white> <type> into <white><claim></white>'s bank."
   resize-charged: "<yellow>Took <white><amount></white> <type> for the extra ground in <white><claim></white>."
 
@@ -88,7 +88,7 @@ claim:
   info-header: "<gold>── <white><claim></white> ──"
 
 notify:
-  entered: "<gray>You are entering <white><claim></gray>, owned by <white><owner></gray>."
+  entered: "<gray>You are entering <white><claim></white>, owned by <white><owner></white>."
   left: "<dark_gray>You are leaving <gray><claim><dark_gray>."
 
 protection:
@@ -204,7 +204,7 @@ admin:
   bypass-off: "<gray>Bypass off."
   reloaded: "<green>Reloaded."
   claim-deleted: "<yellow>Deleted <white><claim></white>."
-  feature-changed: "<green><feature></white> is now <white><policy></white>."
+  feature-changed: "<green><white><feature></white> is now <white><policy></white>."
   zone-removed: "<yellow>Removed the no-claim area <white><zone></white>."
   zone-shift-to-remove: "<gray>Shift + click to remove <white><zone></white>."
 
@@ -212,10 +212,10 @@ admin:
   saved: "<green>Saved <white><count></white> changed claim(s), and the no-claim zones."
   list-header: "<gray><count> claim(s) on the server:"
   reshape-started: "<green>There is your stick. <gray>Redraw <white><claim></white> — the ordinary size and overlap limits do not apply."
-  claim-reshaped: "<green><claim></white> forced into a new shape: <gray><area> blocks, y <min-y> to <max-y>."
+  claim-reshaped: "<green><white><claim></white> forced into a new shape: <gray><area> blocks, y <min-y> to <max-y>."
   stick-given: "<green>Gave <white><player></white> a marking-out stick."
   ask-transfer-target: "<gray>Who should <white><claim></white> belong to now? <white>(type a name, or cancel)"
-  ownership-transferred: "<green><claim></white> now belongs to <white><player></white>."
+  ownership-transferred: "<green><white><claim></white> now belongs to <white><player></white>."
   teleport-unsafe: "<red>Nowhere safe was found near <white><claim></white> — nobody was moved."
   inspect-header: "<gold>── <white><claim></white>, staff view ──"
   diagnose-header: "<gold>── why, here ──"
