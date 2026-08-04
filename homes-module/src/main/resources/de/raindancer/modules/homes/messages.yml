@@ -36,10 +36,10 @@ homes:
   #
   # set and moved share one call site, so both ask for the same three things. A line that asked for
   # fewer would be handed a value with nowhere to put it, which MessagesTest refuses in both directions.
-  set: "<green><name></white> is set, here. <dark_gray>(<count>/<limit>)"
-  moved: "<green><name></white> has moved here. <dark_gray>(<count>/<limit>)"
-  deleted: "<green><name></white> is gone."
-  renamed: "<green><old></white> is now <white><new></white>."
+  set: "<green><white><name></white> is set, here. <dark_gray>(<count>/<limit>)"
+  moved: "<green><white><name></white> has moved here. <dark_gray>(<count>/<limit>)"
+  deleted: "<green><white><name></white> is gone."
+  renamed: "<green><white><old></white> is now <white><new></white>."
   name-taken: "<red>You already have a home called <white><name></white>."
   left-as-it-is: "<gray>Left as it is."
 
@@ -53,7 +53,7 @@ homes:
   none-yet: "<gray>You have no homes yet — stand where you want one and use <white>/sethome</white>."
   how-to-set-one: "<gray>Stand where you want it and type <white>/sethome</white>, or <white>/sethome</white> and a name for it."
 
-  icon-set: "<green><name></white> shows as <white><icon></white> now."
+  icon-set: "<green><white><name></white> shows as <white><icon></white> now."
   ask-name: "<gray>A new name for <white><name></white>? Type it, or <white>cancel</white>."
   busy: "<yellow>Something else is already waiting for an answer from you."
   only-a-player: "<red>A home belongs to a player — this needs to be run in game."

@@ -33,7 +33,7 @@ tpa:
 
   # ---------------------------------------------------------------- answering
   you-accepted: "<green>Accepted <white><player></white>'s request."
-  they-accepted: "<green><player></white> accepted."
+  they-accepted: "<green><white><player></white> accepted."
   you-refused: "<gray>Refused <white><player></white>'s request."
   they-refused: "<yellow><player></yellow> turned your request down."
   took-it-back: "<gray>Took your request to <white><player></white> back."
@@ -64,8 +64,8 @@ tpa:
   # ---------------------------------------------------------------- being left alone
   now-accepting: "<green>Teleport requests are on — people may ask again."
   now-refusing: "<yellow>Teleport requests are off — nobody can ask you."
-  blocked: "<green><player></white> can no longer ask to teleport to you."
-  unblocked: "<green><player></white> may ask again."
+  blocked: "<green><white><player></white> can no longer ask to teleport to you."
+  unblocked: "<green><white><player></white> may ask again."
   already-blocked: "<gray><player></gray> is already blocked."
   not-blocked: "<gray><player></gray> is not on your block list."
 
