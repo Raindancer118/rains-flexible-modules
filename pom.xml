@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.68-beta</paper.api.version>
-        <rainscore.version>1.0.0</rainscore.version>
+        <rainscore.version>1.0.1</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -38,6 +38,8 @@
         <module>claims-standalone</module>
         <module>moderation-module</module>
         <module>moderation-standalone</module>
+        <module>names-module</module>
+        <module>names-standalone</module>
     </modules>
 
     <repositories>
@@ -62,6 +64,11 @@
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>moderation-module</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>names-module</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

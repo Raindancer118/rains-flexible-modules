@@ -175,10 +175,26 @@ class StandaloneJarTest {
                 .doesNotContain("${");
         assertThat(yaml)
                 .as("Rain's Extended Claims continues its own version line, which is not the reactor's")
-                .contains("version: '2.0.0'");
+                // Read from the pom rather than written out here. A literal made every version bump a red
+                // build for a reason unrelated to the change that bumped it, which trains people to edit the
+                // assertion without reading it — and this assertion exists to catch an unfilled placeholder.
+                .contains("version: '" + declaredVersion() + "'");
         assertThat(yaml)
                 .as("the data folder is named after the plugin, and an upgrading server has claims in "
                         + "plugins/RainsExtendedClaims/ — a renamed plugin would find an empty one")
                 .contains("name: RainsExtendedClaims");
+    }
+
+    /** What this module's own pom says its plugin version is. The single place it is written. */
+    private static String declaredVersion() {
+        try {
+            String pom = java.nio.file.Files.readString(java.nio.file.Path.of("pom.xml"));
+            java.util.regex.Matcher found = java.util.regex.Pattern
+                    .compile("<plugin\\.version>([^<]+)</plugin\\.version>").matcher(pom);
+            assertThat(found.find()).as("pom.xml has no <plugin.version>").isTrue();
+            return found.group(1);
+        } catch (java.io.IOException unreadable) {
+            throw new AssertionError("could not read pom.xml", unreadable);
+        }
     }
 }
