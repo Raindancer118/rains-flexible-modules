@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Choosing who to look at.
@@ -35,8 +36,24 @@ public final class PlayerPickerMenu extends ModerationList<PlayerEntry> {
 
     private String searching = "";
 
+    /**
+     * What to do with whoever is chosen. Null opens their page, which is what {@code /mod} wants.
+     *
+     * <p>Here so that a bare {@code /ban} can land on the ban screen for the player picked, rather
+     * than on a usage line. Typing the command is already saying which thing you want to do; making
+     * somebody read back a syntax they clearly do not have to hand is the least useful answer
+     * available.
+     */
+    private final java.util.function.BiConsumer<UUID, String> chosen;
+
     public PlayerPickerMenu(ModerationServices services, Player viewer, Menu parent) {
+        this(services, viewer, parent, null);
+    }
+
+    public PlayerPickerMenu(ModerationServices services, Player viewer, Menu parent,
+                            java.util.function.BiConsumer<UUID, String> chosen) {
         super(services, viewer, parent);
+        this.chosen = chosen;
     }
 
     @Override
@@ -77,6 +94,10 @@ public final class PlayerPickerMenu extends ModerationList<PlayerEntry> {
 
     @Override
     protected void onClick(PlayerEntry who, InventoryClickEvent event) {
+        if (chosen != null) {
+            chosen.accept(who.id(), who.name());
+            return;
+        }
         new PlayerMenu(services(), viewer, this, who.id(), who.name()).open();
     }
 

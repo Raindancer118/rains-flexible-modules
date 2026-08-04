@@ -54,6 +54,43 @@ public record Reason(String id, String label, PunishmentKind kind, Severity seve
         ladder = List.copyOf(ladder);
     }
 
+    /** The id every typed reason carries, so a screen can tell one from a preset. */
+    public static final String TYPED_ID = "typed-by-hand";
+
+    /** As much typed text as is kept. Long enough for a sentence, short enough for a lore line. */
+    public static final int LONGEST_TYPED = 120;
+
+    /**
+     * A reason somebody typed, for the cases the catalogue does not cover.
+     *
+     * <p>Counts towards nothing, deliberately. A typed reason cannot be matched against a previous
+     * one — "griefing", "Griefing " and "grief" are not obviously the same offence — and guessing that
+     * they are would make the ladder climb on a coincidence, in the direction that punishes harder.
+     * The record already says "typed by hand — counts towards nothing" for exactly this.
+     *
+     * @param kind what handing it out does
+     * @param text what they typed; blank is refused, over-long is cut rather than thrown away
+     */
+    public static Reason typedByHand(PunishmentKind kind, String text) {
+        if (text == null || text.isBlank()) {
+            // "no reason given" is a decision somebody makes on purpose. An empty string is a
+            // mistake, and a punishment nobody can explain later is the thing appeals founder on.
+            throw new IllegalArgumentException("a typed reason needs some text");
+        }
+        String trimmed = text.trim();
+        if (trimmed.length() > LONGEST_TYPED) {
+            // Cut rather than refused: refusing throws away what they typed after they typed it, and
+            // the beginning is the part that says what happened.
+            trimmed = trimmed.substring(0, LONGEST_TYPED).trim();
+        }
+        return new Reason(TYPED_ID, trimmed, kind, Severity.MINOR, List.of(Sentence.forEver()));
+    }
+
+    /** Whether this came from somebody's keyboard rather than the catalogue. */
+    public boolean isTypedByHand() {
+        return TYPED_ID.equals(id);
+    }
+
     /**
      * What this offence costs somebody who has done it this many times before.
      *

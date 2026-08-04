@@ -6,6 +6,9 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.model.Reason;
+import org.bukkit.Material;
+
+import java.time.Duration;
 import de.raindancer.modules.moderation.model.Sentence;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -125,6 +128,61 @@ public final class PunishMenu extends ModerationList<Reason> {
         tell("moderation.punished", "player", subjectName, "what", kind.past(),
                 "length", reason.label());
         viewer.closeInventory();
+    }
+
+    @Override
+    protected void render() {
+        super.render();
+        // The way out of the catalogue. Before this the 41 presets were the only thing the screens
+        // offered, so anything they did not cover had to be done from the command line — the half of
+        // the plugin a moderator on a phone, or mid-incident, is least able to reach.
+        toolbar(2, Icons.of(Material.WRITABLE_BOOK, "<yellow>Type your own reason",
+                        "<gray>For anything the list does not cover.",
+                        "<dark_gray>You will be asked in chat.",
+                        "",
+                        "<dark_gray>Counts towards no ladder."),
+                click -> askForOne());
+    }
+
+    /** The chat prompt, which is Core's — one question, one answer, and a timeout. */
+    private void askForOne() {
+        var verdict = services().staffRule().canAct(viewer.getUniqueId(), subject, permissionFor());
+        if (verdict.isRefused()) {
+            verdict.refusal().ifPresent(this::tell);
+            return;
+        }
+        viewer.closeInventory();
+        tell("moderation.type-a-reason", "player", subjectName,
+                "what", kind.name().toLowerCase(Locale.ROOT));
+
+        services().prompts().ask(viewer.getUniqueId(), "moderation", Duration.ofSeconds(120),
+                typed -> {
+                    Reason theirs;
+                    try {
+                        theirs = Reason.typedByHand(kind, typed);
+                    } catch (IllegalArgumentException nothingUsable) {
+                        tell("moderation.nothing-typed");
+                        return;
+                    }
+                    // Asked again: the prompt is answered outside the menu, minutes may have passed,
+                    // and a demotion in between has to take effect here as well as on the button.
+                    var stillAllowed = services().staffRule()
+                            .canAct(viewer.getUniqueId(), subject, permissionFor());
+                    if (stillAllowed.isRefused()) {
+                        stillAllowed.refusal().ifPresent(this::tell);
+                        return;
+                    }
+                    if (kind.isLasting()) {
+                        // Straight to the length: a typed reason has no ladder to suggest one.
+                        // Parented on this page, so Back goes to the reason list rather than leaving
+                        // Close as the only way out — see ScreenGrammarTest, which caught exactly that.
+                        new DurationMenu(services(), viewer, this, subject, subjectName, theirs)
+                                .open();
+                        return;
+                    }
+                    handOut(theirs);
+                },
+                () -> tell("moderation.nothing-typed"));
     }
 
     private String kindDescription() {

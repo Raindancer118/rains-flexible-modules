@@ -114,6 +114,7 @@ moderation:
 
   # ── the record ───────────────────────────────────────────────────────────
   record-empty: "<gray><player> has never been punished here."
+  type-a-reason: "<yellow>Type the reason for the <what> of <white><player></white> in chat. <dark_gray>You have two minutes."
   record-entry: "<gray><what> — <white><reason></white> <dark_gray>(<length>, by <by>)"
   record-report: "<aqua>Reported <dark_gray>by <gray><by></gray> — <white><text></white> <dark_gray>(<state>)"
   record-more: "<gray>…and <white><count></white> more. <dark_gray>Open <white>/mod <player></white> for the lot."

@@ -43,6 +43,17 @@ public final class KickCommand extends StaffCommand {
         ModerationServices moderation = services();
 
         if (args.length == 0) {
+            // A bare command opens the screen for it rather than reciting a syntax. Somebody who
+            // typed "/kick" has already said what they want to do; answering with the grammar they
+            // plainly do not have to hand is the least useful reply available. The console still gets
+            // the usage line, having no screen to open.
+            if (sender instanceof org.bukkit.entity.Player staff) {
+                new de.raindancer.modules.moderation.screen.PlayerPickerMenu(moderation, staff, null,
+                        (who, name) -> new de.raindancer.modules.moderation.screen.PunishMenu(moderation, staff, null, who, name,
+                                de.raindancer.core.moderation.punishment.PunishmentKind.KICK)
+                                .open()).open();
+                return;
+            }
             moderation.messages().send(sender, "moderation.usage", "usage", "/kick <player> [reason]");
             return;
         }
