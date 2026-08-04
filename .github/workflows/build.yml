@@ -289,8 +289,21 @@ jobs:
         run: |
           set -euo pipefail
 
+          # The runner is self-hosted, so the workspace survives between runs and `incoming` still
+          # holds every artifact previous runs downloaded. Copying all of them put last week's jar back
+          # on the shelf with a fresh mtime, which is also why the age-based prune below never caught
+          # it: the superseded jar looked newer than the prune's window.
+          rm -rf incoming.this-build
+          mv incoming incoming.this-build
           # Flattened: download-artifact keeps the directory structure the upload had.
-          find incoming -name '*.jar' ! -name 'original-*' -exec cp -f {} "$SITE/files/" \;
+          find incoming.this-build -name '*.jar' ! -name 'original-*' \
+            -exec cp -f {} "$SITE/files/" \;
+
+          # What this build actually produced, by name. The prune keeps exactly these and nothing else
+          # from the same families — not "whatever is recent", which was a guess about the filesystem
+          # rather than a statement about the build.
+          keep="$(find incoming.this-build -name '*.jar' ! -name 'original-*' -printf '%f\n' | sort)"
+          rm -rf incoming.this-build
 
           cd "$SITE/files"
           # Written next to each jar so a download can be checked without trusting the page.
@@ -299,10 +312,8 @@ jobs:
           done
 
           # An older version of *our* plugins goes, or the page lists one version and the directory
-          # holds three. Scoped by name to the two this repository builds: RainsCore is published from
-          # its own repository onto the same shelf, and a sweep by age would delete it on every push
-          # here — a site missing the one jar the other two cannot start without.
-          keep=$(find . -maxdepth 1 -name '*.jar' -newermt '-10 minutes' -printf '%f\n' | sort)
+          # holds three. Scoped by name to what this repository builds: the other repository publishes
+          # onto the same shelf, and an unscoped sweep would delete its jar on every push here.
           for jar in RainsExtendedClaims-*.jar RainsModeration-*.jar; do
             [ -e "$jar" ] || continue
             if ! printf '%s\n' "$keep" | grep -qxF "$jar"; then

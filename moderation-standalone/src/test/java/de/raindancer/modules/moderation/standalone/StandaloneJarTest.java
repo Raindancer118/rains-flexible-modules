@@ -215,4 +215,36 @@ class StandaloneJarTest {
             throw new AssertionError("could not read pom.xml", unreadable);
         }
     }
+
+    @org.junit.jupiter.api.Test
+    @DisplayName("the module reports the same version the plugin does")
+    void theModuleAgreesAboutItsVersion() {
+        // Two places say the version: paper-plugin.yml, which the server prints, and the module's own
+        // ModuleInfo, which its startup banner prints. They drifted — the server announced v2.1.0 and
+        // the banner underneath it said "Moderation 2.0.0 is running", which is a version that lies to
+        // whoever is reading a log to work out what is actually deployed.
+        assertThat(moduleVersion())
+                .as("ModuleInfo and pom.xml's <plugin.version> have to say the same thing")
+                .isEqualTo(declaredVersion());
+    }
+
+    /**
+     * The version in the module's own ModuleInfo, read from its source.
+     *
+     * <p>Read rather than called: info() is an instance method, and constructing the module means
+     * constructing a server. The literal is what would be wrong, and the literal is what is checked.
+     */
+    private static String moduleVersion() {
+        java.nio.file.Path source = java.nio.file.Path.of(
+                "../moderation-module/src/main/java/de/raindancer/modules/moderation/ModerationModule.java");
+        try {
+            java.util.regex.Matcher found = java.util.regex.Pattern
+                    .compile("ModuleInfo\\.of\\([^)]*?\"([\\d.]+)\"\\)")
+                    .matcher(java.nio.file.Files.readString(source));
+            assertThat(found.find()).as("no ModuleInfo.of(..) in %s", source).isTrue();
+            return found.group(1);
+        } catch (java.io.IOException unreadable) {
+            throw new AssertionError("could not read " + source, unreadable);
+        }
+    }
 }
