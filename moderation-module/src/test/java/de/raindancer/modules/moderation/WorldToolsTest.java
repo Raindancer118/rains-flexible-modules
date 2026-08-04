@@ -104,8 +104,12 @@ class WorldToolsTest {
         // first version opened a *plain* new one, setting the creature on the instance that was going
         // away. Every choice was thrown out and every wave was zombies: the defaults, faithfully.
         String body = screen();
-        int at = body.indexOf("MobChooser.toFight");
+        int at = body.indexOf("MobChooser.anything");
         assertThat(at).as("the mob chooser is gone from the page").isNotNegative();
+        assertThat(body)
+                .as("the page filters the creature list again — every mob should be offered, and "
+                        + "the drawers are what make that readable")
+                .doesNotContain("MobChooser.toFight");
 
         String callback = body.substring(at, Math.min(body.length(), at + 1400));
         assertThat(callback)
@@ -135,6 +139,23 @@ class WorldToolsTest {
                 .as("something acts without checking what is aimed at")
                 .contains("nothing-aimed-at");
         assertThat(screen()).contains("getTargetBlockExact");
+    }
+
+    @Test
+    @DisplayName("the typed commands exist, and are guarded by what they do")
+    void theTypedCommands() {
+        var declared = ModerationCommands.declared();
+        var vein = declared.stream().filter(one -> one.name().equals("vein")).findFirst();
+        var mob = declared.stream().filter(one -> one.name().equals("mob")).findFirst();
+
+        assertThat(vein).as("/vein is not declared").isPresent();
+        assertThat(mob).as("/mob is not declared").isPresent();
+        // The same split as the page: ore is a mod's, creatures are an admin's. A typed form that
+        // skipped the tier would be the whole permission decision undone by a second door.
+        assertThat(vein.orElseThrow().handler().permission())
+                .isEqualTo(ModerationPermission.SPAWN_ORE.node());
+        assertThat(mob.orElseThrow().handler().permission())
+                .isEqualTo(ModerationPermission.SPAWN_MOBS.node());
     }
 
     @Test

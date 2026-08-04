@@ -64,7 +64,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.7.3")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.8.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");

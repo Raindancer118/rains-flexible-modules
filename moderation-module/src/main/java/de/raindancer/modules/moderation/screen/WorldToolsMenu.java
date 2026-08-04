@@ -126,7 +126,11 @@ public final class WorldToolsMenu extends ModerationScreen {
                         "",
                         "<dark_gray>Click to choose something else."),
                 "Packs and waves are an admin's",
-                click -> MobChooser.toFight(viewer, services().brand(), this,
+                // anything(), not toFight(): every creature the server knows, in its drawers.
+                // The flat "what can fight" list was two decisions at once — it left out the golems,
+                // and several hundred names with no headings between them is a wall nobody can read.
+                // The drawers are the part that makes it usable; leaving something out is not.
+                click -> MobChooser.anything(viewer, services().brand(), this,
                         "What should turn up?",
                         chosen -> {
                             // Reopened rather than refreshed: the chooser closed the window on its

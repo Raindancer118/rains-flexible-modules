@@ -18,6 +18,7 @@ import de.raindancer.modules.moderation.command.ReportsCommand;
 import de.raindancer.modules.moderation.command.StaffChatCommand;
 import de.raindancer.modules.moderation.command.VanishCommand;
 import de.raindancer.modules.moderation.command.WarnCommand;
+import de.raindancer.modules.moderation.command.WorldToolCommands;
 import de.raindancer.modules.moderation.command.WorldToolsCommand;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 
@@ -107,6 +108,13 @@ public final class ModerationCommands {
                         new ReportsCommand(ModerationCommands::require)),
                 ModuleCommand.of("staffchat", "Talks to the staff rather than the server",
                         new StaffChatCommand(ModerationCommands::require)),
+
+                // Typed, for the times somebody knows what they want: /vein diamond_ore 40 is one
+                // line for four clicks and two screens, and an event is run twenty times over.
+                ModuleCommand.of("vein", "Bury a vein of ore where you are looking",
+                        new WorldToolCommands.Vein(ModerationCommands::require)),
+                ModuleCommand.of("mob", "Call up a pack or a wave where you are looking",
+                        new WorldToolCommands.Mob(ModerationCommands::require)),
 
                 ModuleCommand.of("worldtools",
                                 "Bury ore, or call up creatures, where you are looking",
