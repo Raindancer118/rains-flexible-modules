@@ -1,0 +1,112 @@
+# Rain's TPA — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins, and so does
+# a host's bundled wording. See Messages.defineFrom.
+#
+# The old plugin had no messages.yml — every line was a MiniMessage literal in the Java. The wording
+# below is that wording, moved out, so a server that upgrades reads the same sentences and an owner who
+# wants to change one now can.
+#
+# Two things MessagesTest holds against this file, both of which have gone wrong before:
+#
+#   - Every placeholder a line asks for is supplied where it is sent, and nothing is supplied in vain.
+#     An unfilled <player> is printed as written, mid-sentence, and reads as a broken plugin.
+#   - Nothing here is YAML's idea of a truth value. A bare on, off, yes or no is a boolean, and a
+#     message that has become one prints its own key to somebody's face.
+tpa:
+
+  # ---------------------------------------------------------------- asking
+  #
+  # The refusals. Every one of them names a different thing to do about it — "that will not work" is the
+  # answer people type four more times.
+  asked: "<green>Asked <white><player></white>. It stands for <white><seconds></white>s."
+  asked-you-to: "<white><player></white> <gray>wants to teleport to you. <white>/tpaccept<gray> or <white>/tpdeny<gray>, within <white><seconds></white>s."
+  asked-you-here: "<white><player></white> <gray>would like you to teleport to them. <white>/tpaccept<gray> or <white>/tpdeny<gray>, within <white><seconds></white>s."
+  yourself: "<red>You are already where you are."
+  another-world: "<red><player></red> is in another world, and teleports across worlds are switched off here."
+  # Deliberately the same line whether they are switched off or have blocked this person. A block is not
+  # something the blocked party can see — telling them would turn a quiet decision into a confrontation.
+  not-accepting: "<yellow><player></yellow> is not accepting teleport requests right now."
+  already-asked: "<yellow>You have already asked <white><player></white> — they have not answered yet."
+  too-soon: "<yellow>Another <white><time></white> before you can ask again."
+  no-such-player: "<red>Nobody called <white><player></white> is here."
+
+  # ---------------------------------------------------------------- answering
+  you-accepted: "<green>Accepted <white><player></white>'s request."
+  they-accepted: "<green><player></white> accepted."
+  you-refused: "<gray>Refused <white><player></white>'s request."
+  they-refused: "<yellow><player></yellow> turned your request down."
+  took-it-back: "<gray>Took your request to <white><player></white> back."
+  withdrawn-by-asker: "<gray><player></gray> took their teleport request back."
+  called-it-off: "<yellow>Called it off."
+  nothing-to-answer: "<gray>Nobody is waiting on you."
+  nothing-to-take-back: "<gray>You have not asked anybody, and you are not going anywhere."
+  not-asked-by: "<red><player></red> has not asked you anything."
+  no-longer-online: "<yellow><player></yellow> is not online any more."
+  other-left: "<yellow><player></yellow> left, so that request is off."
+  yours-ran-out: "<gray>Your request to <white><player></white> ran out."
+  theirs-ran-out: "<gray><player></gray>'s teleport request ran out."
+
+  # ---------------------------------------------------------------- going
+  warming-up: "<gray>Off to <white><player></white> in <white><seconds></white>s… stand still."
+  arrived: "<green>Here you are, with <white><player></white>."
+  nowhere-safe: "<red>There is nowhere safe to put you next to <white><player></white>."
+  could-not-check: "<red>The ground there could not be checked."
+  teleport-refused: "<red>Something stopped you arriving."
+  cannot-schedule: "<red>The server cannot send you anywhere just now."
+  world-gone: "<yellow>That world is not loaded right now."
+  already-travelling: "<yellow>You are already on your way somewhere."
+
+  cancelled:
+    moved: "<yellow>You moved, so you are staying put."
+    hurt: "<yellow>Something hit you, so you are staying put."
+
+  # ---------------------------------------------------------------- being left alone
+  now-accepting: "<green>Teleport requests are on — people may ask again."
+  now-refusing: "<yellow>Teleport requests are off — nobody can ask you."
+  blocked: "<green><player></white> can no longer ask to teleport to you."
+  unblocked: "<green><player></white> may ask again."
+  already-blocked: "<gray><player></gray> is already blocked."
+  not-blocked: "<gray><player></gray> is not on your block list."
+
+  # ---------------------------------------------------------------- going back
+  back-warming-up: "<gray>Back to <white><what></white> in <white><seconds></white>s… stand still."
+  back-arrived: "<green>Back to <white><what></white>."
+  nowhere-to-go-back-to: "<gray>There is nowhere to go back to yet."
+  back-switched-off: "<red>Going back is switched off on this server."
+  back-world-gone: "<yellow>That place is in a world that is not loaded right now."
+  back-cross-world-off: "<red>That place is in another world, and going back across one is switched off here."
+  back-too-soon: "<yellow>Another <white><time></white> before you can go back again."
+  back-nowhere-safe: "<red>There is nowhere safe to put you at <white><what></white>."
+
+  back-cancelled:
+    moved: "<yellow>You moved, so you are staying put."
+    hurt: "<yellow>Something hit you, so you are staying put."
+
+  # ---------------------------------------------------------------- usage
+  only-a-player: "<red>A teleport request belongs to a player — this needs to be run in game."
+  usage:
+    ask-here: "<gray>/tpahere <somebody who is online>"
+    toggle: "<gray>/tptoggle <white>on<gray> or <white>off<gray>, or nothing at all to flip it."
+
+  # ---------------------------------------------------------------- the book on the hub
+  #
+  # Deliberately no placeholder-shaped words in the instructions: MessagesTest cannot tell "<player>"
+  # meaning "type a name here" from "<player>" meaning "something forgot to fill this in".
+  manual:
+    using:
+      - "<gray>Ask somebody whether you may come to them,"
+      - "<gray>or whether they will come to you."
+      - ""
+      - "<gray>A request stands for <white><seconds></white> seconds."
+      - "<gray>Whoever travels stands still for <white><warmup></white> first."
+      - ""
+      - "<dark_gray>You can ask one person at a time. Asking somebody"
+      - "<dark_gray>else takes the first request back, and they are told."
+      - ""
+      - "<dark_gray>Being asked is not something you did, so any number"
+      - "<dark_gray>of people may be waiting on you at once."
+      - ""
+      - "<dark_gray>Blocking somebody is not something they can see:"
+      - "<dark_gray>they are told what everybody hears when you have"
+      - "<dark_gray>simply switched requests off."

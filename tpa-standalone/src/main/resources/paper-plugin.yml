@@ -1,0 +1,35 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see that class for why every line
+# here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Ask somebody whether you may come to them, or whether they will come to you — and go back to where you were.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Nothing in the module touches Bukkit.getScheduler(). Two things here are timed — the warm-up countdown and a
+# request expiring — and both go through Core: the countdown through Travel, on the waiting player's own
+# scheduler, and the expiry through a clock the requests are asked about rather than a task that sweeps them.
+# Regionised on Folia and ordinary on Paper, and the teleport itself is teleportAsync.
+folia-supported: true
+
+dependencies:
+  # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and
+  # its own classpath, and the bootstrapper is where the modules are first discovered — it has to look, since
+  # commands are registered during bootstrap or they never exist. Declared for the server phase alone, the
+  # module fails to link at bootstrap with a ClassNotFoundException for a RainsCore class and the plugin
+  # reports that it contains no modules. That is what the claims plugin did on the test server the first time.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      # The line that actually puts RainsCore's classes on this plugin's classpath. Paper plugins get isolated
+      # classloaders, so without it everything above is right and the plugin dies the moment it touches one.
+      join-classpath: true

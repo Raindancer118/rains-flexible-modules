@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>tpa-standalone</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Rain's TPA</name>
+    <description>
+        Rain's TPA, as a plugin of its own. Nothing here but a build file and a descriptor: the
+        teleport-request module and the standard wrapper are shaded together, and that is the whole
+        plugin. The name and the data folder are unchanged from the standalone plugin it replaces.
+    </description>
+
+    <properties>
+        <!--
+          The name the server sees, and the name of its data folder. Kept as it was: an upgrading
+          server has plugins/RainsTPA/config.yml with its own warm-up and expiry in it.
+        -->
+        <plugin.name>RainsTPA</plugin.name>
+
+        <!--
+          Rain's TPA's own version line, continued — not the reactor's.
+
+          2.0.0 rather than 1.1.0 because this is the plugin rebuilt on a new foundation: the
+          warm-up, the safe arrival, the teleport, the settings and the wording are all RainsCore's
+          now, and what is left is what a request is. Nothing an owner configured is lost, but a
+          major number is what says "read the notes first".
+        -->
+        <plugin.version>2.0.0</plugin.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>tpa-module</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-wrapper</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${plugin.name}-${plugin.version}</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <!-- The descriptor names the version, and a version written twice is one that drifts. -->
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+            </plugin>
+            <!--
+              StandaloneJarTest reads the jar this build produces, so it has to run after it exists.
+              Surefire bound to a later phase rather than failsafe, which is one more plugin to have
+              cached — this build has to work offline.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>after-the-jar-exists</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <skipTests>false</skipTests>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

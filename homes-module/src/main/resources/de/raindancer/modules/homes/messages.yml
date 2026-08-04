@@ -1,0 +1,78 @@
+# Rain's Homes — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins, and so does
+# a host's bundled wording. See Messages.defineFrom.
+#
+# The old plugin had no messages.yml at all — every line was a MiniMessage literal in the Java. The
+# wording below is that wording, moved out, so a server that upgrades reads the same sentences and an
+# owner who wants to change one now can.
+#
+# Two things MessagesTest holds against this file, both of which have gone wrong before:
+#
+#   - Every placeholder a line asks for is supplied where it is sent, and nothing is supplied in vain.
+#     An unfilled <count> is printed as written, mid-sentence, and reads to a player as a broken plugin.
+#   - Nothing here is YAML's idea of a truth value. A bare on, off, yes or no is a boolean, and a
+#     message that has become one prints its own key to somebody's face.
+homes:
+
+  # ---------------------------------------------------------------- going home
+  warming-up: "<gray>Going to <white><name></white> in <white><seconds></white>… stand still."
+  arrived: "<green>Welcome home — <white><name></white>."
+  on-cooldown: "<yellow>Another <white><time></white> before you can go home again."
+  world-not-loaded: "<yellow><name></yellow> is in <white><world></white>, which is not loaded right now."
+  world-gone: "<yellow><name></yellow> is in a world that is not loaded right now."
+  cross-world-off: "<red><name></red> is in another world, and homes across worlds are switched off here."
+  nowhere-safe: "<red>There is nowhere safe to put you at <white><name></white>."
+  could-not-check: "<red>The ground at <white><name></white> could not be checked."
+  teleport-refused: "<red>Something stopped you arriving at <white><name></white>."
+  cannot-schedule: "<red>The server cannot send you anywhere just now."
+  already-travelling: "<yellow>You are already on your way somewhere."
+
+  cancelled:
+    moved: "<yellow>You moved, so you are staying put."
+    hurt: "<yellow>Something hit you, so you are staying put."
+
+  # ---------------------------------------------------------------- keeping them
+  #
+  # set and moved share one call site, so both ask for the same three things. A line that asked for
+  # fewer would be handed a value with nowhere to put it, which MessagesTest refuses in both directions.
+  set: "<green><name></white> is set, here. <dark_gray>(<count>/<limit>)"
+  moved: "<green><name></white> has moved here. <dark_gray>(<count>/<limit>)"
+  deleted: "<green><name></white> is gone."
+  renamed: "<green><old></white> is now <white><new></white>."
+  name-taken: "<red>You already have a home called <white><name></white>."
+  left-as-it-is: "<gray>Left as it is."
+
+  # Two different sentences for two different states. "You already have 0 homes, use /delhome to make
+  # room" reads as a broken plugin, and the answer to it is certainly not /delhome.
+  too-many: "<red>You already have <white><limit></white> home(s). Use <white>/delhome</white> to make room."
+  switched-off: "<red>Homes are switched off on this server."
+
+  bad-name: "<red>A home name is <white><rule></white>."
+  no-such-home: "<red>No home called <white><name></white>. You have: <gray><list>"
+  none-yet: "<gray>You have no homes yet — stand where you want one and use <white>/sethome</white>."
+  how-to-set-one: "<gray>Stand where you want it and type <white>/sethome</white>, or <white>/sethome</white> and a name for it."
+
+  icon-set: "<green><name></white> shows as <white><icon></white> now."
+  ask-name: "<gray>A new name for <white><name></white>? Type it, or <white>cancel</white>."
+  busy: "<yellow>Something else is already waiting for an answer from you."
+  only-a-player: "<red>A home belongs to a player — this needs to be run in game."
+
+  # ---------------------------------------------------------------- the book on the list page
+  #
+  # Deliberately no placeholder-shaped words in the instructions: MessagesTest cannot tell "<name>"
+  # meaning "type a name here" from "<name>" meaning "something forgot to fill this in".
+  manual:
+    using:
+      - "<gray>A home is somewhere of your own to come back to."
+      - "<gray>Click one to go to it."
+      - ""
+      - "<gray>You may have <white><limit></white>."
+      - "<gray>You have to stand still for <white><warmup></white> seconds first,"
+      - "<gray>and there are <white><cooldown></white> seconds between them."
+      - ""
+      - "<dark_gray>Right click a home to rename it, change the"
+      - "<dark_gray>block it shows as, or delete it."
+      - ""
+      - "<dark_gray>Setting a home you already have moves it, and"
+      - "<dark_gray>never counts against how many you may have."

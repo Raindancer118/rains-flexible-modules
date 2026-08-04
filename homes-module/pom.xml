@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>homes-module</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Homes</name>
+    <description>
+        Somewhere of your own to come back to: name it, set it, go to it, and pick from a menu of
+        them. The places are RainsCore's — a home is a POI of kind "home" — and so is the going,
+        which is the same warm-up and safe arrival the warps and the teleport requests use. What is
+        here is what a home means: how many you may have, who else may use one, and the screens.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+    </dependencies>
+</project>
