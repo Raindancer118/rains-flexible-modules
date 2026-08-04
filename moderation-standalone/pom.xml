@@ -36,7 +36,7 @@
           and what is left here is the commands, the screens and the product decisions. Nothing an
           owner configured is lost, but a major number is what says "read the notes before upgrading".
         -->
-        <plugin.version>2.7.2</plugin.version>
+        <plugin.version>2.7.3</plugin.version>
     </properties>
 
     <dependencies>

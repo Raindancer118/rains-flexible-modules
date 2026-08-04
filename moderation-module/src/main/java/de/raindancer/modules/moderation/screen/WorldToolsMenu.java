@@ -121,7 +121,7 @@ public final class WorldToolsMenu extends ModerationScreen {
         boolean mayMobs = may(ModerationPermission.SPAWN_MOBS);
 
         band(MenuLayout.RULES, 6, mayMobs,
-                Icons.of(Material.SPAWNER, "<yellow>What turns up",
+                Icons.of(creatureIcon(), "<yellow>What turns up",
                         "<gray>" + words(creature) + ".",
                         "",
                         "<dark_gray>Click to choose something else."),
@@ -141,7 +141,7 @@ public final class WorldToolsMenu extends ModerationScreen {
                         }).open());
 
         band(MenuLayout.LAND, 1, mayMobs && aimed != null,
-                Icons.of(Material.ZOMBIE_HEAD, "<yellow>Send a pack",
+                Icons.of(creatureIcon(), "<yellow>Send a pack",
                         "<gray>" + packSize + " × " + words(creature) + ", around where you look.",
                         "<gray>They arrive at once, in a ring.",
                         "",
@@ -303,6 +303,19 @@ public final class WorldToolsMenu extends ModerationScreen {
         return Veins.isNatural(material)
                 ? words(material) + " — a vein would take"
                 : words(material) + " — a vein would not touch this";
+    }
+
+    /**
+     * The chosen creature's own spawn egg.
+     *
+     * <p>The buttons showed a zombie head whatever was picked, so the page said "zombie" while meaning
+     * "ghast" — and the icon is the thing anybody actually reads on a button. Core's catalogue answers
+     * it, including for the handful with no egg at all.
+     */
+    private Material creatureIcon() {
+        Material found = Material.matchMaterial(
+                de.raindancer.core.ui.choose.MobCatalogue.iconFor(creature));
+        return found == null ? Material.ZOMBIE_HEAD : found;
     }
 
     private Material oreIcon() {
