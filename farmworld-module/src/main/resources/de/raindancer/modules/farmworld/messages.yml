@@ -1,0 +1,177 @@
+# Rain's Farm Worlds — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins, and so does a
+# host's bundled wording. See Messages.defineFrom.
+#
+# Three things the tests hold against this file, all of which have gone wrong before:
+#
+#   - Every placeholder a line asks for is supplied where it is sent, and nothing is supplied in vain. An
+#     unfilled <count> is printed as written, mid-sentence, and reads to a player as a broken plugin rather
+#     than as two files disagreeing.
+#   - No closing tag closes nothing. MiniMessage keeps an unmatched close exactly as written, and only once
+#     nothing is open — so half a line behaves correctly and the whole thing survives being read.
+#   - Nothing here is YAML's idea of a truth value. A bare on, off, yes or no is a boolean, and a message
+#     that has become one prints its own key to somebody's face.
+farmworlds:
+
+  # ---------------------------------------------------------------- going somewhere
+  unknown: "<red>There is no farm world called <white><name></white>."
+  not-loaded: "<yellow><name></yellow> is in a world that is not loaded right now."
+  on-cooldown: "<yellow>You can go to a farm world again in <white><time></white>."
+  warming-up: "<gray>Off to <white><name></white> in <white><seconds></white>… stand still."
+  arrived: "<green>Here you are, in <white><name></white> at <white><where></white>."
+  arrived-shortly-before: "<yellow>Careful: <white><name></white> is thrown away in <white><time></white>. Nothing you leave here will survive it."
+  already-travelling: "<yellow>You are already on your way somewhere."
+  nowhere-safe: "<red>Nowhere safe could be found in <white><name></white>. Try again — it picks a different place each time."
+  could-not-check: "<red>The ground in <white><name></white> could not be checked."
+  teleport-refused: "<red>Something stopped you arriving in <white><name></white>."
+  cannot-schedule: "<red>The server cannot send you anywhere just now."
+  only-a-player: "<red>Only somebody standing in the world can go to a farm world."
+
+  cancelled:
+    moved: "<yellow>You moved, so you are staying put."
+    hurt: "<yellow>Something hit you, so you are staying put."
+
+  # Two refusals rather than one, because they are two different things to do about it: nothing, and ask
+  # whoever hands out the rank. A single "you may not go there" is the message that produces a ticket.
+  refused:
+    at-all: "<red>Farm worlds are not for you on this server."
+    this-one: "<red><white><name></white> is not one you may enter. Ask whoever hands out the ranks."
+
+  # ---------------------------------------------------------------- the list
+  none-yet: "<gray>This server has no farm worlds."
+  list-heading: "<gray><count> farm world(s):"
+  list-row: "<dark_gray>  <white><name></white> <dark_gray>— <gray><count> world(s), <time>"
+  how-to-make-one: "<gray>Type <white>/farm create <what to call it> <how often></white> — for example <white>/farm create mining 7d</white>."
+
+  info-heading: "<gray><white><name></white>:"
+  info-world: "<dark_gray>  <world> <gray>(<state>)"
+  info-lifespan: "<dark_gray>  <time>"
+  info-border: "<dark_gray>  <blocks> blocks from the middle"
+
+  # ---------------------------------------------------------------- making and changing
+  making: "<gray>Making <white><name></white> — the server will pause for a moment."
+  created: "<green><white><name></white> is ready: <white><count></white> world(s)."
+  could-not-make: "<red><white><name></white> is on the list, but the server would not make its worlds. The log says why."
+  already-exists: "<red><white><name></white> is already a farm world."
+  too-many: "<red>This server already has its <white><limit></white> farm worlds. Forget one first."
+  forgotten: "<green><white><name></white> is no longer a farm world. Its worlds are left exactly where they are — nothing has been deleted."
+  schedule-set: "<green><white><name></white> will be thrown away every <white><time></white>."
+  schedule-off: "<green><white><name></white> will only be thrown away when somebody asks."
+  border-set: "<green><white><name></white> will reach <white><blocks></white> blocks from the middle when it is next made."
+  border-off: "<green><white><name></white> will have no border when it is next made."
+  dimensions-set: "<green><white><name></white> is now <white><count></white> world(s). Any it no longer has are left on disk, not deleted."
+  # NOT called `refused`. There is a `refused:` *section* further up holding the two reasons somebody may not
+  # enter a farm world, and a YAML map cannot have a scalar and a section under one key — the second one silently
+  # wins. Written as `refused` here, this ate both of those lines and MessagesTest is what said so.
+  change-refused: "<red><reason>"
+  not-yours: "<red>Farm worlds are not yours to change."
+  reloaded: "<green>The farm world settings have been read again."
+  bad-period: "<red><white><text></white> is not a length of time. Try <white>7d</white>, <white>2 weeks</white>, or <white>never</white>."
+  bad-border: "<red><white><text></white> is not a number of blocks."
+
+  # A name is refused for five different reasons and each says which, because "that name will not do" is the
+  # answer people try four more spellings against.
+  name:
+    empty: "<red>A farm world needs a name."
+    too-long: "<red>That is too long for a farm world: <white><limit></white> characters at most. It has to fit on its own button."
+    bad-characters: "<red>A farm world's name may have lower-case letters, digits, dashes and underscores in it, and nothing else — it becomes a folder on the disk."
+    reserved: "<red><white><name></white> is a word <white>/farm</white> reads as an instruction, so nothing could ever go there."
+    dangerous: "<red><white><name></white> is one of the server's own worlds, or a name that is a path. Making it a farm world would mean deleting the server."
+
+  # ---------------------------------------------------------------- throwing one away
+  regen-are-you-sure: "<yellow>This deletes <white><count></white> world(s) and makes them again. Everything anybody built in them is gone, and everybody standing there is moved to spawn. Say <white>/farm regen <name> confirm</white> if you mean it."
+  regenerating: "<gray>Making <white><name></white> again — the server will pause."
+  regenerated: "<green><white><name></white> is new."
+  regeneration-failed: "<red><white><name></white> was not fully made again. The server log has it — check which of its worlds are loaded before doing anything else."
+
+  # ---------------------------------------------------------------- what everybody is told
+  #
+  # To the whole server rather than to the people standing in the farm world: somebody planning a trip needs
+  # this more than somebody who is already there.
+  warning: "<yellow><white><name></white> is thrown away in <white><time></white>. Anything you leave there goes with it."
+  made-again: "<gray><white><name></white> is a fresh world. Whatever was there is gone."
+
+  # The bar above the hotbar, shown to whoever is standing in the farm world during its last five minutes. Short,
+  # because it is a bar: <time> is the brief form — 4m30s — and the whole line has to read at a glance.
+  bar: "<red><name></red> <white><time></white>"
+
+  # ---------------------------------------------------------------- the config page
+  config:
+    at-the-limit: "<yellow>That is as far as it goes: between <white><least></white> and <white><most></white>."
+    refused: "<red><white><setting></white> would not take that value."
+
+  # ---------------------------------------------------------------- usage
+  #
+  # Deliberately no placeholder-shaped words: a test cannot tell "<name>" meaning "type a name here" from
+  # "<name>" meaning "something forgot to fill this in", so instruction is written out in words.
+  usage:
+    info: "<gray>/farm info <which one>"
+    config: "<gray>/farm config <dark_gray>— opens the page; there is nothing to type"
+    create: "<gray>/farm create <what to call it> [how often] [how far out] <dark_gray>— e.g. /farm create mining 7d 5000"
+    delete: "<gray>/farm delete <which one> <dark_gray>— takes it off the list; its worlds stay"
+    regen: "<gray>/farm regen <which one> confirm"
+
+  # ---------------------------------------------------------------- help
+  help:
+    - "<gray>/farm <dark_gray>— the farm worlds on this server"
+    - "<gray>/farm mining <dark_gray>— straight into that one"
+    - "<gray>/farm list <dark_gray>— the same list, as text you can paste"
+    - "<gray>/farm info mining <dark_gray>— what it is and how long it has left"
+  help-admin:
+    - "<gray>/farm admin <dark_gray>— one farm world's schedule, border and dimensions"
+    - "<gray>/farm create, delete <dark_gray>— by hand, without the menu"
+    - "<gray>/farm regen <dark_gray>— throw one away now; asks twice"
+    - "<gray>/farm config <dark_gray>— what a trip costs, and where people land"
+
+  manual:
+    using:
+      - "<gray>A farm world is somewhere to dig that gets thrown away"
+      - "<gray>and made again, so the main world is left alone."
+      - ""
+      - "<gray>You have to stand still for <white><warmup></white> seconds first,"
+      - "<gray>and there are <white><cooldown></white> seconds between trips."
+      - ""
+      - "<dark_gray>You arrive somewhere different every time. That is what"
+      - "<dark_gray>makes it work: sent to one spot, the ground around it"
+      - "<dark_gray>would be bare within a day."
+      - ""
+      - "<red>Nothing you build there is safe. When the farm world is"
+      - "<red>made again, everything in it goes."
+    one:
+      - "<gray>Everything about one farm world."
+      - ""
+      - "<gray>How long it has left is the number to read before you go."
+      - "<gray>The whole server is warned beforehand, and again five"
+      - "<gray>minutes and one minute before it happens."
+      - ""
+      - "<gray>Going costs <white><warmup></white> seconds of standing still, then"
+      - "<gray><white><cooldown></white> seconds before you can go again."
+      - ""
+      - "<dark_gray>What you are leading comes with you. Another player never"
+      - "<dark_gray>does, and neither do somebody else's animals."
+    managing:
+      - "<gray>One farm world's own settings."
+      - ""
+      - "<gray>Every click here is written to disk at once, so there is"
+      - "<gray>no Apply button to forget."
+      - ""
+      - "<dark_gray>Forgetting a farm world does not delete anything. It comes"
+      - "<dark_gray>off the list and stops being thrown away — which is how a"
+      - "<dark_gray>farm world becomes an ordinary world you have kept."
+      - ""
+      - "<red>The button in the bottom middle does delete. Three worlds,"
+      - "<red>and everything anybody built in them. It asks first."
+    config:
+      - "<gray>What this server does about farm worlds."
+      - ""
+      - "<gray>Every click here is written to disk at once, so there is"
+      - "<gray>no Apply button to forget."
+      - ""
+      - "<dark_gray>The same settings as /settings, which has them filed under"
+      - "<dark_gray>farmworlds — this is the one page about farm worlds rather"
+      - "<dark_gray>than the whole server's tree."
+      - ""
+      - "<dark_gray>Which farm worlds there are, and how often each is thrown"
+      - "<dark_gray>away, is not here: that is per farm world, and it lives on"
+      - "<dark_gray>each one's own page."

@@ -16,6 +16,10 @@ and never shaded in.
 | `claims-module` | land claims: `/claim`, the screens, selection, fences, entry fees |
 | `moderation-module` | bans, mutes, reports, staff notes, and the screens for them |
 | `names-module` | coloured item and mob names: dye a name tag, craft it onto a thing |
+| `warp-module` | named places anybody can be sent to, and who may reach which |
+| `homes-module` | somewhere of your own to come back to, and how many you may have |
+| `tpa-module` | asking somebody if you may come to them, and being asked |
+| `farmworld-module` | somewhere to strip-mine that is thrown away and made again — scattered arrivals, and the whole server warned before it goes |
 | `<x>-standalone` | a thin shade shell: module + wrapper = one loadable jar |
 
 Two ways to consume a module, and **the module cannot tell which one it is in**:

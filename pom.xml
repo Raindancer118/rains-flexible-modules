@@ -46,6 +46,8 @@
         <module>homes-standalone</module>
         <module>tpa-module</module>
         <module>tpa-standalone</module>
+        <module>farmworld-module</module>
+        <module>farmworld-standalone</module>
     </modules>
 
     <repositories>

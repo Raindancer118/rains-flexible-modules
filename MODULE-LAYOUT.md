@@ -140,6 +140,23 @@ Already learnt the hard way here:
   teleport-request plugin because that is where `/back` was *typed*, with the predictable result: a home
   teleport recorded nothing, so `/back` after `/home` took somebody to wherever their last request had
   been from.
+- **Picking a number** — `core.ui.choose.AmountChooser`. Six places had grown their own: nudge buttons at
+  ±1 and ±10, which is forty clicks to set a fee of four hundred, or a chat prompt, which closes the menu
+  and loses whatever was half-configured. Worth reaching for whenever a range is wider than a couple of
+  dozen — the farm worlds' border runs to sixty thousand blocks and its scatter radius to a hundred
+  thousand, and neither can be nudged by any single step that is not either unusable or unable to express
+  half the values.
+- **Lengths of time** — `core.world.time.Times`. Parses and describes what people actually type
+  (`2min`, `1h30m`, `2 weeks`, `perm`), and `isForEver` knows the eight words somebody means by "never".
+  `moderation.punishment.Durations` is a four-line alias kept for the moderation code that already calls
+  it; **new code should say `Times`**. Every plugin that took a length of time had written a hundred
+  lines of this, each understanding a slightly different three units.
+- **Sounds and particles** — `core.ui.effect.Effects`, asked for **by meaning** (`Cues.TELEPORT`,
+  `Cues.COUNTDOWN`, `Cues.NO`) rather than by sound. A module that named a `Sound` is the one whose noises
+  are the only thing on the server that does not follow when an owner rebinds a cue.
+- **A bar above the hotbar** — `core.ui.bossbar.BossBars`. A player has three slots at most and several
+  plugins want one, so who wins is arbitration nobody can do alone. `showShared` takes the audience on
+  every call, which is the right shape for anything tied to *where somebody is standing*.
 - **"How many may this player have"** — `core.platform.permission.NumberedLimit`, for a node with a
   number on the end. Reading it with `hasPermission("x.limit." + n)` per number is wrong on Bukkit: an
   *undeclared* node defaults to true for an operator, so every admin held `homes.limit.100` and quietly

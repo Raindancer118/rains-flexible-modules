@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>farmworld-standalone</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Rain's Farm Worlds</name>
+    <description>
+        Rain's Farm Worlds, as a plugin of its own. Nothing here but a build file and a descriptor: the
+        farm worlds module and the standard wrapper are shaded together, and that is the whole plugin.
+    </description>
+
+    <properties>
+        <!-- The name the server sees, and the name of its data folder. -->
+        <plugin.name>RainsFarmWorlds</plugin.name>
+
+        <!--
+          1.0.0: the first release of this as a plugin. It is not a rebuild of an older farm world plugin —
+          there was none — so there is no earlier version line to continue and nothing on an upgrading server
+          to preserve. The farm worlds themselves live in RainsCore's own farmworlds.yml and its database,
+          which means a server that was already using Core's plain /farmworld keeps every one it had, with
+          its schedule and the time it was last made.
+        -->
+        <plugin.version>1.0.0</plugin.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>farmworld-module</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-wrapper</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${plugin.name}-${plugin.version}</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <!-- The descriptor names the version, and a version written twice is one that drifts. -->
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+            </plugin>
+            <!--
+              StandaloneJarTest reads the jar this build produces, so it has to run after it exists. Surefire
+              bound to a later phase rather than failsafe, which is one more plugin to have cached — this
+              build has to work offline.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>after-the-jar-exists</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <skipTests>false</skipTests>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
