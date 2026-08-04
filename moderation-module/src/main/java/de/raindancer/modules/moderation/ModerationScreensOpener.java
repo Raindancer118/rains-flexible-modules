@@ -53,4 +53,7 @@ public interface ModerationScreensOpener {
      * handed.
      */
     void pickSomebodyToReport(Player viewer);
+
+    /** The world tools: ore veins, packs and waves. */
+    void worldTools(Player viewer);
 }

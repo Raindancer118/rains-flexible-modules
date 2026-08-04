@@ -1,0 +1,308 @@
+package de.raindancer.modules.moderation.screen;
+
+import de.raindancer.core.ui.choose.MobChooser;
+import de.raindancer.core.ui.menu.Icons;
+import de.raindancer.core.ui.menu.Menu;
+import de.raindancer.core.ui.menu.MenuLayout;
+import de.raindancer.core.world.build.Veins;
+import de.raindancer.core.world.spawn.Wave;
+import de.raindancer.modules.moderation.ModerationServices;
+import de.raindancer.modules.moderation.model.ModerationPermission;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * The world tools: putting ore in the ground, and creatures on top of it.
+ *
+ * <h2>Where it acts</h2>
+ * At the block the moderator is looking at, not at their feet. Everything here is aimed, and aiming is
+ * what a crosshair is for — a tool that acts underfoot cannot be pointed into a cave from the ledge
+ * above it, which is most of what somebody wants from an ore vein.
+ *
+ * <p>Out of range, it says so rather than acting somewhere arbitrary. The version that falls back to
+ * the player's own position is the version that buries a vein under the person who was aiming at the
+ * sky, and they will never find it.
+ *
+ * <h2>Why the two halves are guarded differently</h2>
+ * Ore is a mod's and creatures are an admin's, and it is the right split. Burying ore costs nothing
+ * anybody had and touches only ground the world generated; the worst version of it is a mod being
+ * over-friendly to one player, which is a conversation. A wave arrives around somebody who did not ask
+ * for it, can kill them and everything they were carrying, and is the one tool here whose effect
+ * outlives the click.
+ *
+ * <p>Both are shown to everybody, greyed with the reason — the grammar this whole repository keeps to.
+ * A trial mod who cannot see the wave button cannot learn that it exists, and "why can I not see it"
+ * has no answer on screen.
+ */
+public final class WorldToolsMenu extends ModerationScreen {
+
+    private static final MiniMessage MINI = MiniMessage.miniMessage();
+
+    /** How far a moderator can point. Beyond this a crosshair is a guess. */
+    private static final int REACH = 64;
+
+    /** What a vein and a pack are on first opening. Changed with the + and − pairs. */
+    private int veinSize = 12;
+    private String ore = "IRON_ORE";
+
+    private String creature = "zombie";
+    private int packSize = 6;
+    private int packs = 1;
+    private int everySeconds = 20;
+
+    public WorldToolsMenu(ModerationServices services, Player viewer, Menu parent) {
+        super(services, viewer, parent);
+    }
+
+    @Override
+    protected Component title() {
+        return MINI.deserialize("<dark_gray>World tools");
+    }
+
+    @Override
+    public String breadcrumb() {
+        return "World tools";
+    }
+
+    @Override
+    protected void render() {
+        Location aimed = aimedAt();
+
+        // ── where it would happen ─────────────────────────────────────────────────────────────
+        band(MenuLayout.WHO, 4, Icons.of(Material.COMPASS, "<white>Where you are looking",
+                aimed == null
+                        ? List.of("<red>Nothing within " + REACH + " blocks.",
+                        "<dark_gray>Point at the ground and open this again.")
+                        : List.of("<gray>" + aimed.getBlockX() + ", " + aimed.getBlockY() + ", "
+                                + aimed.getBlockZ(),
+                        "<gray>" + readable(aimed),
+                        "",
+                        "<dark_gray>Everything here happens there.")));
+
+        // ── the ore vein ──────────────────────────────────────────────────────────────────────
+        boolean mayOre = may(ModerationPermission.SPAWN_ORE);
+        band(MenuLayout.RULES, 1, mayOre && aimed != null,
+                Icons.of(oreIcon(), "<yellow>Bury a vein of " + words(ore),
+                        "<gray>" + veinSize + " blocks, in the ground you are looking at.",
+                        "<gray>Only natural stone is replaced — never anything built.",
+                        "",
+                        "<dark_gray>Left click to bury it.",
+                        "<dark_gray>Right click to change the ore."),
+                aimed == null ? "Point at some ground first" : "For whoever may bury ore",
+                click -> {
+                    if (click.isRightClick()) {
+                        nextOre();
+                        refresh();
+                        return;
+                    }
+                    buryIt();
+                });
+
+        // The two halves of one decision, so they sit together — the one place this grammar allows
+        // adjacent buttons.
+        band(MenuLayout.RULES, 3, mayOre,
+                Icons.of(Material.LIME_DYE, "<green>Bigger vein",
+                        "<gray>" + veinSize + " blocks now.",
+                        "<dark_gray>Up to " + de.raindancer.core.world.build.OreVein.MOST_BLOCKS + "."),
+                "For whoever may bury ore",
+                click -> {
+                    veinSize = Math.min(de.raindancer.core.world.build.OreVein.MOST_BLOCKS,
+                            veinSize + 4);
+                    refresh();
+                });
+        band(MenuLayout.RULES, 4, mayOre,
+                Icons.of(Material.RED_DYE, "<red>Smaller vein",
+                        "<gray>" + veinSize + " blocks now."),
+                "For whoever may bury ore",
+                click -> {
+                    veinSize = Math.max(1, veinSize - 4);
+                    refresh();
+                });
+
+        // ── the creatures ─────────────────────────────────────────────────────────────────────
+        boolean mayMobs = may(ModerationPermission.SPAWN_MOBS);
+
+        band(MenuLayout.RULES, 6, mayMobs,
+                Icons.of(Material.SPAWNER, "<yellow>What turns up",
+                        "<gray>" + words(creature) + ".",
+                        "",
+                        "<dark_gray>Click to choose something else."),
+                "Packs and waves are an admin's",
+                click -> MobChooser.toFight(viewer, services().brand(), this,
+                        "What should turn up?",
+                        chosen -> {
+                            creature = chosen;
+                            // Reopened rather than refreshed: the chooser closed the window on its way
+                            // out, so there is nothing left to refresh.
+                            new WorldToolsMenu(services(), viewer, parent()).open();
+                        }).open());
+
+        band(MenuLayout.LAND, 1, mayMobs && aimed != null,
+                Icons.of(Material.ZOMBIE_HEAD, "<yellow>Send a pack",
+                        "<gray>" + packSize + " × " + words(creature) + ", around where you look.",
+                        "<gray>They arrive at once, in a ring.",
+                        "",
+                        "<dark_gray>Left click to send it.",
+                        "<dark_gray>Right click to change how many."),
+                aimed == null ? "Point somewhere first" : "Packs and waves are an admin's",
+                click -> {
+                    if (click.isRightClick()) {
+                        packSize = packSize >= Wave.MOST_PER_PACK ? 2 : packSize + 2;
+                        refresh();
+                        return;
+                    }
+                    sendPack();
+                });
+
+        // ── the wave, which is the one thing here that keeps happening ────────────────────────
+        boolean waveRunning = services().worldTools().hasWaveRunning(viewer.getUniqueId());
+        if (waveRunning) {
+            // The same slot the start button uses, so one place answers "what is this wave doing?"
+            // and the button there is always the thing to press next.
+            //
+            // Deliberately *not* the danger slot and deliberately unconfirmed. That slot is for
+            // something irreversible, and this is the opposite — it is the undo. A stop button behind
+            // a confirmation is a tool that takes two clicks in the one moment somebody is panicking.
+            band(MenuLayout.LAND, 3, true,
+                    Icons.of(Material.BARRIER, "<red>Stop the wave",
+                            "<gray>" + services().worldTools().packsLeft(viewer.getUniqueId())
+                                    + " pack(s) still to come.",
+                            "<gray>What has already arrived stays where it is.",
+                            "",
+                            "<dark_gray>Click to stop it."),
+                    "",
+                    click -> {
+                        int stopped = services().worldTools().stopWave(viewer.getUniqueId());
+                        tell("moderation.world.wave-stopped", "count", stopped);
+                        refresh();
+                    });
+        } else {
+            band(MenuLayout.LAND, 3, mayMobs && aimed != null,
+                    Icons.of(Material.BELL, "<yellow>Start a wave",
+                            "<gray>" + packs + " pack(s) of " + packSize + " × " + words(creature) + ",",
+                            "<gray>" + everySeconds + " seconds apart — "
+                                    + (packs * packSize) + " in total.",
+                            "",
+                            "<dark_gray>Left click to start it.",
+                            "<dark_gray>Right click for more packs."),
+                    aimed == null ? "Point somewhere first" : "Packs and waves are an admin's",
+                    click -> {
+                        if (click.isRightClick()) {
+                            packs = packs >= Wave.MOST_PACKS ? 1 : packs + 1;
+                            refresh();
+                            return;
+                        }
+                        startWave();
+                    });
+
+            band(MenuLayout.LAND, 5, mayMobs,
+                    Icons.of(Material.CLOCK, "<yellow>How far apart",
+                            "<gray>" + everySeconds + " seconds between packs.",
+                            "",
+                            "<dark_gray>Left click for longer, right click for shorter."),
+                    "Packs and waves are an admin's",
+                    click -> {
+                        everySeconds = click.isRightClick()
+                                ? Math.max(5, everySeconds - 5)
+                                : Math.min(300, everySeconds + 5);
+                        refresh();
+                    });
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────── doing it
+
+    private void buryIt() {
+        Location aimed = aimedAt();
+        if (aimed == null) {
+            tell("moderation.world.nothing-aimed-at");
+            return;
+        }
+        var placed = services().worldTools().vein(viewer, aimed, ore, veinSize);
+        if (placed.isEmpty()) {
+            // Says which "nothing happened" this is. "It did not work" about a tool that refuses to
+            // touch built blocks is a bug report; "there was nothing there it would replace" is an
+            // instruction to aim somewhere else.
+            tell("moderation.world.nothing-to-replace");
+            return;
+        }
+        tell("moderation.world.vein-placed", "count", placed.blocks(), "ore", words(ore));
+    }
+
+    private void sendPack() {
+        Location aimed = aimedAt();
+        if (aimed == null) {
+            tell("moderation.world.nothing-aimed-at");
+            return;
+        }
+        var arrived = services().worldTools().pack(viewer, aimed, List.of(creature), packSize, 5);
+        if (arrived.isEmpty()) {
+            tell("moderation.world.nothing-arrived");
+            return;
+        }
+        tell("moderation.world.pack-sent", "count", arrived.spawned(), "what", words(creature));
+    }
+
+    private void startWave() {
+        Location aimed = aimedAt();
+        if (aimed == null) {
+            tell("moderation.world.nothing-aimed-at");
+            return;
+        }
+        Wave wave = Wave.of(List.of(creature), packs, packSize, 8, everySeconds * 20L);
+        if (!services().worldTools().startWave(viewer, aimed, wave)) {
+            tell("moderation.world.wave-already-running");
+            return;
+        }
+        tell("moderation.world.wave-started", "count", wave.total(), "packs", wave.packs().size());
+        refresh();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────── the aiming
+
+    /**
+     * The block being looked at, or null when that is nothing within reach.
+     *
+     * <p>Null rather than the player's own position, deliberately: falling back underfoot buries a
+     * vein under somebody who was aiming at the sky, and they will never find it.
+     */
+    private Location aimedAt() {
+        var block = viewer.getTargetBlockExact(REACH);
+        return block == null ? null : block.getLocation();
+    }
+
+    private String readable(Location at) {
+        String material = at.getBlock().getType().name();
+        return Veins.isNatural(material)
+                ? words(material) + " — a vein would take"
+                : words(material) + " — a vein would not touch this";
+    }
+
+    private Material oreIcon() {
+        Material found = Material.matchMaterial(ore);
+        return found == null ? Material.IRON_ORE : found;
+    }
+
+    /** The next ore in Core's list, so the button cycles rather than opening a page for eleven items. */
+    private void nextOre() {
+        List<String> ores = new ArrayList<>(Veins.ores());
+        int at = ores.indexOf(ore);
+        ore = ores.get((at + 1) % ores.size());
+    }
+
+    /** {@code IRON_ORE} reads as "iron ore". */
+    private static String words(String constant) {
+        return constant == null ? "" : constant.toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
+    }
+
+    @Override
+    public String describe() {
+        return "burying ore, and calling up packs and waves, where the moderator is looking";
+    }
+}

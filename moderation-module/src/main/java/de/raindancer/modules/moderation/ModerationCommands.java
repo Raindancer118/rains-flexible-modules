@@ -18,6 +18,7 @@ import de.raindancer.modules.moderation.command.ReportsCommand;
 import de.raindancer.modules.moderation.command.StaffChatCommand;
 import de.raindancer.modules.moderation.command.VanishCommand;
 import de.raindancer.modules.moderation.command.WarnCommand;
+import de.raindancer.modules.moderation.command.WorldToolsCommand;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 
 import java.util.List;
@@ -106,6 +107,11 @@ public final class ModerationCommands {
                         new ReportsCommand(ModerationCommands::require)),
                 ModuleCommand.of("staffchat", "Talks to the staff rather than the server",
                         new StaffChatCommand(ModerationCommands::require)),
+
+                ModuleCommand.of("worldtools",
+                                "Bury ore, or call up creatures, where you are looking",
+                                new WorldToolsCommand(ModerationCommands::require))
+                        .aliased("wtools"),
 
                 // The console's own pair. Not grantable, not in a menu, not a permission: the shield
                 // that stops one moderator acting on another must not be handed out by the people it

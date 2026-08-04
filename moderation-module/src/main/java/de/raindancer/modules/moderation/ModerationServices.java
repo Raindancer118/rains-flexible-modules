@@ -28,6 +28,7 @@ import de.raindancer.modules.moderation.store.NoteRegistry;
 import de.raindancer.modules.moderation.store.Reasons;
 import de.raindancer.core.platform.permission.Grants;
 import de.raindancer.modules.moderation.service.StaffService;
+import de.raindancer.modules.moderation.service.WorldToolsService;
 import de.raindancer.modules.moderation.store.ImmuneStaff;
 import de.raindancer.modules.moderation.store.ReportRegistry;
 import de.raindancer.modules.moderation.store.StaffRoster;
@@ -98,6 +99,7 @@ public record ModerationServices(
         StaffRoster roster,
         ImmuneStaff protectedAccounts,
         StaffService staff,
+        WorldToolsService worldTools,
         Supplier<de.raindancer.modules.moderation.listener.StaffChatListener> staffChatSpeaker,
 
         Supplier<ModerationSettings> settings,

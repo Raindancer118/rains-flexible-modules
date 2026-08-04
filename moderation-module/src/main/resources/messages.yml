@@ -97,6 +97,18 @@ moderation:
   # ── refusals, which are the rules' own keys ──────────────────────────────
   no-permission: "<red>You may not do that."
   not-yourself: "<gray>You cannot do that to yourself."
+  # ── the world tools ──────────────────────────────────────────────────────
+  world:
+    players-only: "<gray>This is aimed at wherever you are looking, so it needs somebody standing somewhere. <dark_gray>The console is not."
+    nothing-aimed-at: "<gray>You are not looking at anything within reach. <dark_gray>Point at the ground and try again."
+    nothing-to-replace: "<gray>Nothing there would take a vein. <dark_gray>Only natural stone and dirt are replaced — never anything built."
+    vein-placed: "<green>Buried <white><count></white> blocks of <white><ore></white>."
+    nothing-arrived: "<gray>Nothing turned up. <dark_gray>There was no room, or the ground is not loaded."
+    pack-sent: "<green><white><count></white> × <white><what></white> turned up around you."
+    wave-started: "<green>A wave is on its way: <white><count></white> creature(s) in <white><packs></white> pack(s). <dark_gray>Open the page again to stop it."
+    wave-already-running: "<gray>You already have a wave running. <dark_gray>Stop that one first — two at once leaves nothing for 'stop' to mean."
+    wave-stopped: "<yellow>Stopped. <white><count></white> pack(s) will not arrive. <dark_gray>What is already here stays."
+
   # ── protection: the console's own pair ───────────────────────────────────
   # Set by /protect and /unprotect from the console and by nothing else. Operators
   # are protected as well, without being on the list.

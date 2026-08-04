@@ -60,7 +60,23 @@ public enum ModerationPermission {
     // itself; taking half their health from a menu, silently, kills a player in a fight they were
     // winning. A server that wants a particular mod to have it can toggle it on for that one person.
     HURT("hurt", "Take half of somebody's health", Material.IRON_SWORD, 3, true),
-    STARVE("starve", "Empty most of somebody's hunger bar", Material.ROTTEN_FLESH, 3, true);
+    STARVE("starve", "Empty most of somebody's hunger bar", Material.ROTTEN_FLESH, 3, true),
+
+    // ── the world tools ───────────────────────────────────────────────────────────────────
+    // A vein is a mod's, and the two mob ones are an admin's, which is the split the server owner
+    // asked for and it is the right one for a reason worth writing down.
+    //
+    // Burying ore is generous and local: it costs nothing anybody had, it touches only ground the
+    // world generated, and the worst version of it is a mod being over-friendly to one player. That
+    // is a conversation, not an incident.
+    //
+    // A wave is neither. It arrives around somebody who did not ask for it, it can kill them and
+    // everything they were carrying, and forty creatures let loose next to a farm is damage nobody
+    // can put back. It is also the one tool here whose effect outlives the click.
+    SPAWN_ORE("spawn.ore", "Bury a vein of ore in the ground you are looking at",
+            Material.IRON_ORE, 2, true),
+    SPAWN_MOBS("spawn.mobs", "Call up a pack of creatures, or a wave of them over time",
+            Material.ZOMBIE_HEAD, 3, true);
 
     /**
      * The one prefix everything is under.

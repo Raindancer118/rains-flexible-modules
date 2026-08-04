@@ -20,6 +20,7 @@ import de.raindancer.modules.moderation.service.PunishmentService;
 import de.raindancer.modules.moderation.service.ReportService;
 import de.raindancer.modules.moderation.service.StaffChatService;
 import de.raindancer.modules.moderation.service.StaffService;
+import de.raindancer.modules.moderation.service.WorldToolsService;
 import de.raindancer.modules.moderation.store.NoteRegistry;
 import de.raindancer.modules.moderation.store.NoteStorage;
 import de.raindancer.modules.moderation.store.Reasons;
@@ -63,7 +64,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.5.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.6.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -89,6 +90,7 @@ public final class ModerationModule implements FlexModule {
     private StaffChatService staffChat;
     private StaffRoster roster;
     private StaffService staffService;
+    private WorldToolsService worldTools;
 
     private StaffChatListener staffChatListener;
     private ModerationServices services;
@@ -170,6 +172,8 @@ public final class ModerationModule implements FlexModule {
         noteService = new NoteService(context.plugin(), notes, noteStorage, context.core().audit(),
                 settings.current());
         staffChat = new StaffChatService(settings.current());
+        worldTools = new WorldToolsService(context.plugin(), server, context.core().audit(),
+                log, settings.current());
 
         // Who is staff, at what rank. The nodes themselves are Core's Grants — see StaffRoster for why
         // the label and the power are kept apart.
@@ -204,7 +208,7 @@ public final class ModerationModule implements FlexModule {
                 reasons, reports, notes, staffRule, escalation, announcements, this::standingRule,
                 this::banLimitRule, this::promotionRule, this::filingRule,
                 punishmentService, reportService, noteService, staffChat, roster, immune,
-                staffService,
+                staffService, worldTools,
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
 
@@ -221,6 +225,7 @@ public final class ModerationModule implements FlexModule {
             noteService.settings(fresh);
             staffChat.settings(fresh);
             staffService.settings(fresh);
+            worldTools.settings(fresh);
             context.core().punishmentGuard().appealMessage(fresh.appealMessage());
         });
 
@@ -359,6 +364,11 @@ public final class ModerationModule implements FlexModule {
         }
 
         @Override
+        public void worldTools(Player viewer) {
+            new de.raindancer.modules.moderation.screen.WorldToolsMenu(services, viewer, null).open();
+        }
+
+        @Override
         public void staff(Player viewer) {
             new de.raindancer.modules.moderation.screen.StaffMenu(services, viewer, null).open();
         }
@@ -378,6 +388,15 @@ public final class ModerationModule implements FlexModule {
     @Override
     public void disable() {
         ModerationCommands.stopped();
+        // Before anything else. A wave outliving its module is a wave nothing can stop: its tasks
+        // would keep firing against services that have been stood down, and the only way out would be
+        // a restart.
+        if (worldTools != null) {
+            int stopped = worldTools.stopEverything();
+            if (stopped > 0) {
+                log.info("{} wave(s) still running were stopped.", stopped);
+            }
+        }
         // Written whether or not anything is marked dirty: a shutdown has no next pass, and the cost
         // of one unnecessary write is nothing against the cost of losing the queue.
         if (reportService != null && !reportService.flushNow()) {
