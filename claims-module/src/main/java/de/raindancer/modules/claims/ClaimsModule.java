@@ -31,7 +31,13 @@ import de.raindancer.core.world.protection.Land;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
+import de.raindancer.modules.claims.rules.WorldWasResetRule;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.bukkit.World;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
@@ -138,6 +144,7 @@ public final class ClaimsModule implements FlexModule {
             claims.add(claim);
         }
         log.info("{} claim(s) loaded.", claims.size());
+        dropClaimsFromResetWorlds(context);
 
         // Player names come from Core, which already knows everybody it has seen. A second name cache here
         // would be a second set of answers, drifting apart the first time somebody renames.
@@ -333,6 +340,53 @@ public final class ClaimsModule implements FlexModule {
     }
 
     /** The claims themselves, for the commands and the screens. */
+    /**
+     * Forgets the claims whose world was deleted and generated again underneath them.
+     *
+     * <h2>Why at startup, and only at startup</h2>
+     * Because that is when a reset is visible: the folder is removed while the server is down, and the world
+     * comes back with new terrain, the same name and a new id. Asked once, before anything has had a chance to
+     * protect a block on behalf of a claim that should not exist.
+     *
+     * <p>The decision is {@link WorldWasResetRule}'s and it is deliberately timid — an unloaded world is never
+     * read as a reset one, because a server that unloads a world for an hour must not come back to every claim
+     * in it deleted. See that class; the guard matters more than the feature.
+     *
+     * <p>Both the index and the file go. A claim left on disk would come back on the next restart, and the
+     * whole point is that it is gone.
+     */
+    private void dropClaimsFromResetWorlds(ModuleContext context) {
+        Map<String, UUID> loaded = new HashMap<>();
+        for (World world : context.plugin().getServer().getWorlds()) {
+            loaded.put(world.getName(), world.getUID());
+        }
+
+        WorldWasResetRule reset = new WorldWasResetRule();
+        List<Claim> stale = claims.all().stream()
+                .filter(claim -> reset.wasReset(claim.worldName(), claim.worldId(), loaded))
+                .toList();
+        if (stale.isEmpty()) {
+            return;
+        }
+
+        // Named in the log, once each. These are somebody's claims and they are being removed without anybody
+        // asking — so the one thing owed is a record of exactly what went and which world took it.
+        for (Claim claim : stale) {
+            log.warn("'{}' was in '{}', which has been generated again since — the claim is gone with it.",
+                    claim.name(), claim.worldName());
+            claims.remove(claim);
+            try {
+                storage.delete(claim.id());
+            } catch (IOException cannot) {
+                // Left in the file but out of the index. Said out loud: it will come back on the next
+                // restart, and somebody has to know why.
+                log.error(cannot, "Could not delete the file for '{}'; it will return on the next restart.",
+                        claim.name());
+            }
+        }
+        log.warn("{} claim(s) removed because the world under them was generated again.", stale.size());
+    }
+
     public ClaimRegistry claims() {
         return claims;
     }
