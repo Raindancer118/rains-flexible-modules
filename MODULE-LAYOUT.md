@@ -135,6 +135,16 @@ Already learnt the hard way here:
   are tested rather than tried once by hand.
 - **Waiting between goes** — `core.platform.util.Cooldowns`. The check-then-record version had been written
   five times, and every copy could let two clicks in the same millisecond both through.
+- **Going back** — `core.world.teleport.Returns`. "The last place I was" is asked by warps, homes and
+  teleport requests alike, and `Travel` records one on every arrival it performs. It used to live in the
+  teleport-request plugin because that is where `/back` was *typed*, with the predictable result: a home
+  teleport recorded nothing, so `/back` after `/home` took somebody to wherever their last request had
+  been from.
+- **"How many may this player have"** — `core.platform.permission.NumberedLimit`, for a node with a
+  number on the end. Reading it with `hasPermission("x.limit." + n)` per number is wrong on Bukkit: an
+  *undeclared* node defaults to true for an operator, so every admin held `homes.limit.100` and quietly
+  had a hundred homes on a server configured for three. That fix existed in one plugin and had already
+  been copied into a second before it was moved here.
 
 The counter-example, so the rule is not read too widely: a pantry, a bank, a fence and an entry fee are what a
 claim *is*. They stayed in the module, and an earlier attempt to put them in Core is what this document exists
