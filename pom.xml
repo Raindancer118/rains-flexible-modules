@@ -38,8 +38,6 @@
         <module>claims-standalone</module>
         <module>moderation-module</module>
         <module>moderation-standalone</module>
-        <module>names-module</module>
-        <module>names-standalone</module>
     </modules>
 
     <repositories>
@@ -64,11 +62,6 @@
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>moderation-module</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>de.raindancer.modules</groupId>
-                <artifactId>names-module</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
