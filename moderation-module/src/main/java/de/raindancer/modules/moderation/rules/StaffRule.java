@@ -84,9 +84,14 @@ public final class StaffRule implements IModerationRule {
             return Verdict.allowed();   // the console, past every guard below
         }
         if (actor.equals(subject)) {
-            // Not politeness. A moderator who bans themselves cannot come back and lift it, which has
-            // happened on a real server and needed a database edit to undo.
-            return Verdict.refused(NOT_YOURSELF);
+            // Yourself. Answered here and returned here, so the immunity check below never sees it:
+            // immunity is what stops one moderator acting on another, and an owner is immune, so
+            // asking it about yourself made every owner unable to heal, feed or unfreeze themselves —
+            // refused with "that account is protected", about their own account.
+            //
+            // The ban half stays. A moderator who bans themselves cannot come back and lift it, which
+            // has happened on a real server and needed a database edit to undo.
+            return what.aimableAtSelf() ? Verdict.allowed() : Verdict.refused(NOT_YOURSELF);
         }
         if (isImmune(subject)) {
             return Verdict.refused(THEY_ARE_IMMUNE);
