@@ -18,4 +18,26 @@
         What a module is, and what a plugin hosting one has to provide. Everything else in this
         repository is either a module or something that hosts modules.
     </description>
+
+    <build>
+        <plugins>
+            <!--
+              The test classes are published as well, because one of them is not a test: it is the
+              contract every module's wording has to keep, written once and implemented by each. A
+              rule copied into three modules is a rule that is true in two of them by March.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.1</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
