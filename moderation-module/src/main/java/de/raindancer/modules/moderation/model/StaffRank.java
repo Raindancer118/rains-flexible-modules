@@ -83,6 +83,50 @@ public enum StaffRank {
     public static final List<String> CLAIM_BYPASSES = List.of(
             "rec.admin.nocost", "rec.admin.nolimit", "rec.admin.zonebypass",
             "rec.maxclaims.unlimited");
+    /**
+     * The staff warps, from {@link #MOD} upward.
+     *
+     * <p>One node opens every warp marked staff-only, which is how the staff room, the build world and
+     * the event stage are reached. Not a trial's: a trial mod is somebody being watched while they
+     * learn, and the staff warps lead to places where the things they have not been taught yet are
+     * lying about.
+     */
+    public static final String WARP_STAFF = "rainswarps.warp.staff";
+
+    /**
+     * Making and moving warps, from {@link #ADMIN} upward.
+     *
+     * <p>A warp is a permanent, server-wide thing with a name everybody types. Reaching one is a
+     * convenience; creating one is a decision about the shape of the server, and the difference is
+     * the same one that puts a permanent ban an admin's side of the line.
+     */
+    public static final String WARP_MANAGE = "rainswarps.warp.manage";
+
+    /**
+     * The waiting and the cooling off, skipped — from {@link #MOD} upward.
+     *
+     * <p>These exist so a player cannot outrun a fight by teleporting, and a moderator walking to a
+     * grief is the one person the delay is working against: by the time it is over, whoever they were
+     * coming to see has finished and left. Not a trial's, for the same reason nothing else that
+     * exempts somebody is: it is invisible to everybody else, and the first thing a player notices
+     * when they find out.
+     *
+     * <p>{@code tpa.back} is here too — walking back out of somewhere is what makes going there
+     * cheap, and a moderator who cannot get home again teleports twice.
+     */
+    public static final List<String> TELEPORT_BYPASSES = List.of(
+            "tpa.bypass.warmup", "tpa.bypass.cooldown", "tpa.back",
+            "homes.bypass.warmup", "homes.bypass.cooldown");
+
+    /**
+     * Unlimited homes, from {@link #ADMIN} upward.
+     *
+     * <p>With the claim exemptions, and for the same reason: a moderator with unlimited homes is one
+     * whose own building plays by rules nobody else has. An admin is already trusted with that
+     * distinction.
+     */
+    public static final String HOMES_UNLIMITED = "homes.unlimited";
+
     // rec.admin.nofee is deliberately absent. The claims plugin has always kept it off even for
     // operators, with the reasoning that an admin walking around the server should pay a claim's toll
     // like everybody else — and an owner whose own entry fees quietly do nothing stops noticing they
@@ -123,8 +167,15 @@ public enum StaffRank {
         // claims grows a permission worth granting.
         if (weight >= MOD.weight) {
             everything.add(CLAIM_ADMIN);
+            // What a moderator on shift actually needs to get about: the staff warps, and not being
+            // held by a warm-up while they walk to a grief.
+            everything.add(WARP_STAFF);
+            everything.addAll(TELEPORT_BYPASSES);
         }
         if (weight >= ADMIN.weight) {
+            // Making the server's furniture, rather than using it.
+            everything.add(WARP_MANAGE);
+            everything.add(HOMES_UNLIMITED);
             // Protection is deliberately *not* here. It is not a power a rank confers: it is written
             // by the console with /protect and by nothing else, because a shield handed out by a
             // promotion is one the people it is aimed at can hand to each other.

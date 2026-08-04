@@ -145,6 +145,14 @@ public final class PermissionsMenu extends ModerationList<String> {
         }
         return switch (node) {
             case StaffRank.CLAIM_ADMIN -> "Claim administration";
+            case StaffRank.WARP_STAFF -> "Staff warps";
+            case StaffRank.WARP_MANAGE -> "Make and move warps";
+            case StaffRank.HOMES_UNLIMITED -> "Unlimited homes";
+            case "tpa.bypass.warmup" -> "No teleport warm-up";
+            case "tpa.bypass.cooldown" -> "No teleport cooldown";
+            case "tpa.back" -> "/back";
+            case "homes.bypass.warmup" -> "No home warm-up";
+            case "homes.bypass.cooldown" -> "No home cooldown";
             case "rec.admin.nocost" -> "Claims cost nothing";
             case "rec.admin.nofee" -> "No entry fees";
             case "rec.admin.nolimit" -> "No size limit";
@@ -163,6 +171,14 @@ public final class PermissionsMenu extends ModerationList<String> {
         }
         return switch (node) {
             case StaffRank.CLAIM_ADMIN -> "Act on any claim, without being exempt from anything";
+            case StaffRank.WARP_STAFF -> "Reach every warp marked staff-only";
+            case StaffRank.WARP_MANAGE -> "Create, move and delete warps for the whole server";
+            case StaffRank.HOMES_UNLIMITED -> "Set as many homes as they like";
+            case "tpa.bypass.warmup" -> "Teleport at once, without standing still first";
+            case "tpa.bypass.cooldown" -> "Teleport again without waiting";
+            case "tpa.back" -> "Return to where they last teleported from";
+            case "homes.bypass.warmup" -> "Reach a home at once";
+            case "homes.bypass.cooldown" -> "Reach another home without waiting";
             case "rec.admin.nocost" -> "Make a claim without paying for it";
             case "rec.admin.nofee" -> "Walk into a claim without paying its toll";
             case "rec.admin.nolimit" -> "Ignore the largest and smallest claim size";
