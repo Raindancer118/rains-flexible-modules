@@ -11,7 +11,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * When the server is told a farm world is about to be thrown away.
+ * When the server is told a farm world is about to be regenerated.
  *
  * <h2>Why this is tested and not tried</h2>
  * Because trying it means waiting for a real countdown, and the failures worth catching are all at the edges of

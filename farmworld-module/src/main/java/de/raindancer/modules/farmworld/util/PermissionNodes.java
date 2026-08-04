@@ -37,7 +37,7 @@ public final class PermissionNodes {
     /** Entering a farm world at all. On by default: a farm world nobody can enter is not one. */
     public static final String USE = "rainsfarmworlds.farm.use";
 
-    /** Making farm worlds, changing them, and throwing one away by hand. */
+    /** Making farm worlds, changing them, and regenerating one by hand. */
     public static final String MANAGE = "rainsfarmworlds.farm.manage";
 
     /** What a single farm world's own node is prefixed with. */

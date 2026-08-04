@@ -10,6 +10,7 @@ import de.raindancer.core.world.teleport.TravelReason;
 import de.raindancer.core.world.teleport.TravelWatcher;
 import de.raindancer.core.world.teleport.Trip;
 import de.raindancer.modules.farmworld.FarmWorldSettings;
+import de.raindancer.modules.farmworld.model.Arrival;
 import de.raindancer.modules.farmworld.model.FarmWorldView;
 import de.raindancer.modules.farmworld.model.Scatter;
 import de.raindancer.modules.farmworld.rules.FarmAccessRule;
@@ -126,7 +127,7 @@ public final class FarmTravelService implements IFarmWorldService {
      * <p>Every path out of here says something. A command that silently does nothing is one people type
      * four more times, and then report as broken.
      */
-    public void goTo(Player traveller, String name) {
+    public void goTo(Player traveller, String name, Arrival how) {
         if (traveller == null) {
             return;
         }
@@ -135,11 +136,11 @@ public final class FarmTravelService implements IFarmWorldService {
             messages.send(traveller, "farmworlds.unknown", "name", String.valueOf(name));
             return;
         }
-        go(traveller, farm);
+        go(traveller, farm, how);
     }
 
     /** The same, when the farm world is already in hand — what a menu click has. */
-    public void go(Player traveller, FarmWorldView farm) {
+    public void go(Player traveller, FarmWorldView farm, Arrival how) {
         if (traveller == null || farm == null) {
             return;
         }
@@ -161,6 +162,15 @@ public final class FarmTravelService implements IFarmWorldService {
             return;
         }
 
+        Arrival arrival = how == null ? Arrival.SPAWN : how;
+        if (!arrival.isAllowedBy(settings.scatter())) {
+            // Refused out loud rather than quietly turned into an ordinary trip. A command that silently
+            // does something other than what was typed is one people type four more times.
+            messages.send(traveller, "farmworlds.no-rtp");
+            refused(traveller);
+            return;
+        }
+
         // Asked, not spent. See the note on the class for why the wait is charged on arrival.
         if (!between.isReady(traveller.getUniqueId())) {
             messages.send(traveller, "farmworlds.on-cooldown",
@@ -170,12 +180,12 @@ public final class FarmTravelService implements IFarmWorldService {
             play(traveller, Cues.COOLDOWN);
             return;
         }
-        depart(traveller, farm, world);
+        depart(traveller, farm, world, arrival);
     }
 
-    private void depart(Player traveller, FarmWorldView farm, World world) {
+    private void depart(Player traveller, FarmWorldView farm, World world, Arrival how) {
         FarmWorldSettings now = settings;
-        Location target = arrivalIn(world, farm, now);
+        Location target = arrivalIn(world, farm, now, how);
         Trip trip = Trip.to(farm.name())
                 .after(now.warmup())
                 // Never .exactly(): a scattered point is a point nobody has looked at, and dropping
@@ -183,7 +193,7 @@ public final class FarmTravelService implements IFarmWorldService {
                 // grass. There is deliberately no setting for this — see FarmWorldSettings.
                 .searching(now.arrivalRadius())
                 .bringing(now.companions());
-        travel.go(traveller, target, trip, new Wording(farm));
+        travel.go(traveller, target, trip, new Wording(farm, how));
     }
 
     /**
@@ -196,7 +206,12 @@ public final class FarmTravelService implements IFarmWorldService {
      * that is the number an owner set — a world whose border has been widened by another plugin at
      * runtime is not an invitation to send people past the one written down.
      */
-    private Location arrivalIn(World world, FarmWorldView farm, FarmWorldSettings now) {
+    private Location arrivalIn(World world, FarmWorldView farm, FarmWorldSettings now, Arrival how) {
+        // The spawn unless somebody asked to be sent into the wild. The platform is there, so this is a
+        // known good landing and Core's safety search has nothing to do.
+        if (!how.isScattered()) {
+            return world.getSpawnLocation();
+        }
         Scatter scatter = now.scatter().within(farm.border().orElse(null));
         if (!scatter.isOn()) {
             return world.getSpawnLocation();
@@ -238,9 +253,11 @@ public final class FarmTravelService implements IFarmWorldService {
     private final class Wording implements TravelWatcher {
 
         private final FarmWorldView farm;
+        private final Arrival how;
 
-        private Wording(FarmWorldView farm) {
+        private Wording(FarmWorldView farm, Arrival how) {
             this.farm = farm;
+            this.how = how;
         }
 
         @Override
@@ -268,9 +285,15 @@ public final class FarmTravelService implements IFarmWorldService {
         public void arrived(Player traveller, Location where, Trip trip) {
             between.start(traveller.getUniqueId());
             play(traveller, Cues.TELEPORT);
-            messages.send(traveller, "farmworlds.arrived",
-                    "name", farm.name(),
-                    "where", where.getBlockX() + ", " + where.getBlockZ());
+            // Where they came out only matters when it was somewhere unpredictable. On the platform it is
+            // the same three numbers every time, and printing them is noise.
+            if (how.isScattered()) {
+                messages.send(traveller, "farmworlds.arrived-wild",
+                        "name", farm.name(),
+                        "where", where.getBlockX() + ", " + where.getBlockZ());
+            } else {
+                messages.send(traveller, "farmworlds.arrived", "name", farm.name());
+            }
             farm.untilRegenerated().ifPresent(left ->
                     // Said on arrival rather than only in the warnings: somebody who walks in twenty
                     // minutes before it goes has had no warning at all, and this is the moment they can

@@ -39,7 +39,7 @@ import java.util.List;
  * one at 7.
  *
  * <h2>What is deliberately not on this page</h2>
- * Which farm worlds there are and how often each is thrown away. That is per farm world and it lives on
+ * Which farm worlds there are and how often each is regenerated. That is per farm world and it lives on
  * {@code FarmWorldManageMenu}, because a server has one farm world regenerated weekly and another kept for
  * ever — a single button here could not express it, and a button that looked as though it could would be
  * worse than none.
@@ -296,7 +296,7 @@ public final class FarmWorldConfigMenu extends Menu implements IFarmWorldScreen 
     private List<String> warningLore(FarmWorldSettings now) {
         List<String> lore = new ArrayList<>();
         lore.add("<gray>Announced to the whole server before a farm");
-        lore.add("<gray>world is thrown away.");
+        lore.add("<gray>world is regenerated.");
         lore.add("");
         lore.add("<dark_gray>Notices that will go out:");
         for (Duration lead : services.notices().warnings().leads()) {

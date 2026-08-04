@@ -15,7 +15,7 @@ import java.util.List;
  * arrangement being the same everywhere is the whole feature — a dialog that swaps the two answers is one
  * people learn to click through and then get wrong exactly once, on the page that deletes something.
  *
- * <p>Which page that is, here, is the one that regenerates a farm world: three worlds thrown away, and
+ * <p>Which page that is, here, is the one that regenerates a farm world: three worlds regenerated, and
  * everything anybody had built in them with it. There is no undo behind that button and there is no backup —
  * so of every {@code ConfirmMenu} in this repository, this is the one whose two answers being in the
  * habitual places matters most.

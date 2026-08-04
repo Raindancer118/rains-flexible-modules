@@ -34,8 +34,8 @@ public final class FarmWorldCommands {
     /**
      * The one command.
      *
-     * <p>{@code farmwelt} answers too. Not a joke: this repository's server is German-speaking, the word people
-     * type is the word they say, and an alias costs nothing next to a command nobody finds.
+     * <p>Aliases in English only. {@code farmworld} is what RainsCore's own plain command is called, so somebody
+     * who used that reaches this instead; {@code fw} is for typing.
      */
     public static List<ModuleCommand> declared() {
         return List.of(
@@ -43,12 +43,14 @@ public final class FarmWorldCommands {
                                 "Go to a farm world, or manage the ones this server has",
                                 new de.raindancer.modules.farmworld.command.FarmWorldCommand(
                                         FarmWorldCommands::require))
-                        .aliased("farmworld", "farmwelt", "fw")
+                        .aliased("farmworld", "fw")
                         .taking("<name> — go there",
                                 "list — every farm world this server has",
                                 "info <name> — what it is and how long it has left",
                                 "create <name> [how often] [border] — make one",
-                                "regen <name> confirm — throw one away and make it again")
+                                "regen <name> confirm — regenerate it now",
+                                "delete <name> confirm — remove it and its worlds for good",
+                                "forget <name> — take it off the list, keeping its worlds")
                         .needing("rainsfarmworlds.farm.use"));
     }
 

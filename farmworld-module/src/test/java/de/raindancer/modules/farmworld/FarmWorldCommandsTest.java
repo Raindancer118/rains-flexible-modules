@@ -55,12 +55,20 @@ class FarmWorldCommandsTest {
         }
 
         @Test
+        @DisplayName("every alias is English — this server's commands are not bilingual")
+        void theAliasesAreEnglish() {
+            assertThat(FarmWorldCommands.declared().getFirst().names())
+                    .allSatisfy(name -> assertThat(name).matches("[a-z]+"))
+                    .doesNotContain("farmwelt");
+        }
+
+        @Test
         @DisplayName("the names people already type still answer")
         void theOldNamesAnswer() {
             assertThat(FarmWorldCommands.declared().getFirst().names())
-                    .as("farmworld is what Core's own plain command is called, and farmwelt is what the "
-                            + "people on this server actually say")
-                    .contains("farm", "farmworld", "farmwelt");
+                    .as("farmworld is what RainsCore's own plain command is called, so somebody who "
+                            + "used that reaches this instead")
+                    .contains("farm", "farmworld", "fw");
         }
 
         @Test
@@ -142,6 +150,90 @@ class FarmWorldCommandsTest {
                                 + "reached — the rule has to refuse it", word)
                         .contains(word.toLowerCase(Locale.ROOT));
             }
+        }
+    }
+
+    /**
+     * That {@code delete} deletes and {@code forget} forgets.
+     *
+     * <h2>Why this is pinned</h2>
+     * Because it was wrong, and wrong in the way that is hardest to notice from the code: {@code delete} was
+     * wired to the method that only takes a farm world off the list, and it politely announced *"Its worlds
+     * are left exactly where they are — nothing has been deleted."* Everything about it worked; the word was
+     * simply lying. Found by somebody typing it and expecting it to do what it says.
+     *
+     * <p>The two behaviours are both wanted, so the fix was two words rather than one — and the thing worth
+     * holding is that each word reaches its own service method.
+     */
+    @Nested
+    @DisplayName("delete deletes, forget forgets")
+    class DeletingAndForgetting {
+
+        /**
+         * One method's body, cut at the next method rather than at a fixed number of characters.
+         *
+         * <p>A fixed window read straight into whatever was declared underneath — which here meant
+         * {@code forget} appearing to contain {@code delete}'s confirmation, and the rule below passing for
+         * a reason that had nothing to do with {@code forget}. Caught by the assertion failing the other
+         * way round, which is the useful direction for a scan to be wrong in.
+         */
+        private String branch(String name) {
+            String body = source();
+            int at = body.indexOf("private void " + name + "(FarmWorldServices");
+            assertThat(at).as("the %s branch is gone", name).isPositive();
+            int next = body.indexOf("\n    private ", at + 1);
+            int end = body.indexOf("\n    /**", at + 1);
+            if (next < 0 || (end >= 0 && end < next)) {
+                next = end;
+            }
+            return body.substring(at, next < 0 ? body.length() : next);
+        }
+
+        @Test
+        @DisplayName("the two words route to two different service methods")
+        void theyAreNotTheSameThing() {
+            assertThat(branch("delete"))
+                    .as("a command called delete that does not delete is the word lying")
+                    .contains("admin().delete(");
+            assertThat(branch("forget"))
+                    .contains("admin().forget(");
+        }
+
+        @Test
+        @DisplayName("the switch sends each word to its own branch")
+        void theSwitchAgrees() {
+            String body = source();
+            int switchAt = body.indexOf("switch (args[0].toLowerCase(Locale.ROOT))");
+            String cases = body.substring(switchAt, body.indexOf("default ->", switchAt));
+
+            assertThat(cases).contains("\"delete\", \"remove\" -> delete(");
+            assertThat(cases).contains("\"forget\" -> forget(");
+        }
+
+        @Test
+        @DisplayName("deleting asks twice; forgetting does not need to")
+        void onlyTheDestructiveOneConfirms() {
+            // Forgetting keeps every world, so a misclick costs a line of typing. Deleting removes three
+            // worlds with nothing put back — worse than regen, which at least gives a fresh one.
+            assertThat(branch("delete"))
+                    .as("nothing reaches a delete without having asked")
+                    .contains("equalsIgnoreCase(\"confirm\")");
+            assertThat(branch("forget"))
+                    .as("a confirmation on something reversible is one people learn to click through")
+                    .doesNotContain("equalsIgnoreCase(\"confirm\")");
+        }
+
+        @Test
+        @DisplayName("both are behind the managing node")
+        void bothNeedTheNode() {
+            assertThat(branch("delete")).contains("mayManage");
+            assertThat(branch("forget")).contains("mayManage");
+        }
+
+        @Test
+        @DisplayName("both words are refused as farm world names, or one would be unreachable")
+        void bothAreReserved() {
+            assertThat(FarmWorldNameRule.RESERVED).contains("delete", "forget");
         }
     }
 

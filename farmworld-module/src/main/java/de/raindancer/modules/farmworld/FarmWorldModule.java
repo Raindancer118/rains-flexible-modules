@@ -44,7 +44,7 @@ import java.util.Random;
  * the confirmation dialog are Core's too.
  *
  * <p>What is left, and what this module actually is: <b>how somebody gets in, and what they are told before the
- * ground under them is thrown away.</b>
+ * ground under them is regenerated.</b>
  *
  * <h2>The two things that make a farm world work rather than merely exist</h2>
  * <ul>
@@ -66,7 +66,7 @@ import java.util.Random;
 public final class FarmWorldModule implements FlexModule {
 
     private static final ModuleInfo INFO = ModuleInfo.of("farmworlds", "Farm Worlds", "1.0.0")
-            .describedAs("Somewhere to strip-mine that is thrown away and made again — arrived at "
+            .describedAs("Somewhere to strip-mine that is regenerated — arrived at "
                     + "somewhere different every time, and announced before it goes")
             .by("Raindancer118");
 
@@ -136,7 +136,7 @@ public final class FarmWorldModule implements FlexModule {
                 context.core().effects(), settings.current(), new Random());
         admin = new FarmAdminService(context.plugin(), server, catalogue, access,
                 context.core().messages(), log, settings.current());
-        // Everybody, as one audience. The server itself: a warning about a farm world being thrown away is
+        // Everybody, as one audience. The server itself: a warning about a farm world being regenerated is
         // server news rather than a message to the people standing in it — somebody planning a trip needs it
         // more than somebody who is already there and can see the sky.
         // The bar and the ticking are for the people standing in the farm world; the chat notice is for the
@@ -174,7 +174,7 @@ public final class FarmWorldModule implements FlexModule {
             // The plugin is being disabled, most likely. Said rather than left: a farm world that regenerates
             // with no warning at all is the one complaint this module exists to answer.
             log.error("The warning timer could not be started, so nothing will be announced before a "
-                    + "farm world is thrown away.");
+                    + "farm world is regenerated.");
         } else {
             context.closeWith(watching::cancel);
         }

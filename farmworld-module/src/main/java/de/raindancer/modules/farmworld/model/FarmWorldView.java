@@ -12,7 +12,7 @@ import java.util.Optional;
  * <h2>Why a view rather than passing the {@code WorldSet} around</h2>
  * Because a {@code WorldSet} knows what a farm world <em>is</em> — its three names, its portals, its
  * period — and says nothing about the two things every screen and every command needs first: whether
- * its worlds are actually loaded right now, and how long is left before it is thrown away. Those come
+ * its worlds are actually loaded right now, and how long is left before it is regenerated. Those come
  * from the server and from the recorded times, neither of which belongs in Core's value type.
  *
  * <p>So the store reads both and hands this down. A screen that had to ask the server itself would be
@@ -49,7 +49,7 @@ public record FarmWorldView(WorldSet set, boolean loaded, Duration left) {
         return set.worlds();
     }
 
-    /** Whether it is thrown away on a schedule at all. */
+    /** Whether it is regenerated on a schedule at all. */
     public boolean isScheduled() {
         return set.regenerateEvery().isPresent();
     }

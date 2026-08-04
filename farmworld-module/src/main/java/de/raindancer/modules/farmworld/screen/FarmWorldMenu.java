@@ -6,6 +6,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.farmworld.FarmWorldServices;
 import de.raindancer.modules.farmworld.FarmWorldSettings;
+import de.raindancer.modules.farmworld.model.Arrival;
 import de.raindancer.modules.farmworld.model.FarmWorldView;
 import de.raindancer.modules.farmworld.model.Scatter;
 import net.kyori.adventure.text.Component;
@@ -73,12 +74,14 @@ public final class FarmWorldMenu extends Menu implements IFarmWorldScreen {
 
         drawTheWayIn(farm);
 
-        band(MenuLayout.RULES, 5, Icons.of(Material.LEAD, "<white>What comes with you",
+        drawTheWildWay(farm);
+
+        band(MenuLayout.RULES, 7, Icons.of(Material.LEAD, "<white>What comes with you",
                 whatTravels(services.config())));
 
         if (services.access().mayManage(viewer::hasPermission)) {
             band(MenuLayout.LAND, 4, Icons.of(Material.COMPARATOR, "<white>Change this farm world",
-                            "<gray>How often it is thrown away, how far it",
+                            "<gray>How often it is regenerated, how far it",
                             "<gray>reaches, and whether it has its own nether.",
                             "<dark_gray>Only you and the other admins see this."),
                     click -> services.screens().manage(viewer, farm.name()));
@@ -121,23 +124,70 @@ public final class FarmWorldMenu extends Menu implements IFarmWorldScreen {
             // Closed first: the trip can take a few seconds of standing still, and a window open over it is
             // a window the player has to shut before they can be seen to have moved.
             viewer.closeInventory();
-            services.travelling().go(viewer, farm);
+            services.travelling().go(viewer, farm, Arrival.SPAWN);
         });
+    }
+
+    /**
+     * The other way in: somewhere nobody has been.
+     *
+     * <p>Its own button rather than a modifier on the first one, because it is a different decision with a
+     * different cost — the spawn has a way home and this does not. Greyed with the reason when the server
+     * has switched it off, so an admin can see that the setting is what is stopping it.
+     */
+    private void drawTheWildWay(FarmWorldView farm) {
+        Scatter scatter = services.config().scatter().within(farm.border().orElse(null));
+        ItemStack button = Icons.of(Material.ENDER_EYE, "<white>Into the wild", wildLore(scatter));
+
+        if (!scatter.isOn()) {
+            band(MenuLayout.RULES, 5, false, button,
+                    "This server does not scatter people into the farm world", click -> {
+                    });
+            return;
+        }
+        String refusal = services.access().refusalKey(farm.name(), viewer::hasPermission);
+        if (refusal != null || !farm.loaded()) {
+            // Whatever stops the ordinary way in stops this one. Repeating the reason rather than greying it
+            // silently, so the two buttons never disagree about why.
+            band(MenuLayout.RULES, 5, false, button,
+                    refusal != null
+                            ? PlainTextComponentSerializer.plainText()
+                                    .serialize(services.messages().get(refusal, "name", farm.name()))
+                            : "Its world is not loaded right now",
+                    click -> {
+                    });
+            return;
+        }
+        band(MenuLayout.RULES, 5, button, click -> {
+            viewer.closeInventory();
+            services.travelling().go(viewer, farm, Arrival.WILD);
+        });
+    }
+
+    private List<String> wildLore(Scatter scatter) {
+        List<String> lore = new ArrayList<>();
+        if (!scatter.isOn()) {
+            lore.add("<gray>Being sent somewhere nobody has been.");
+            lore.add("<dark_gray>Switched off on this server.");
+            return lore;
+        }
+        lore.add("<gray>Somewhere nobody has been, between");
+        lore.add("<gray><white>" + scatter.nearest() + "</white> and <white>"
+                + scatter.furthest() + "</white> blocks out.");
+        lore.add("");
+        lore.add("<dark_gray>No platform, no way back and nothing around it —");
+        lore.add("<dark_gray>which is the point. Bring what you need.");
+        lore.add("");
+        lore.add("<gray>Click to go. Or type <white>/farm "
+                + (name == null ? "<the farm world>" : name) + " rtp</white>.");
+        return lore;
     }
 
     private ItemStack goButton(FarmWorldView farm) {
         List<String> lore = new ArrayList<>();
         FarmWorldSettings now = services.config();
-        Scatter scatter = now.scatter().within(farm.border().orElse(null));
-        if (scatter.isOn()) {
-            lore.add("<gray>Somewhere nobody has been, between");
-            lore.add("<gray><white>" + scatter.nearest() + "</white> and <white>"
-                    + scatter.furthest() + "</white> blocks from the middle.");
-        } else {
-            lore.add("<gray>To this farm world's own spawn.");
-            lore.add("<dark_gray>Everybody arrives at the same place here,");
-            lore.add("<dark_gray>so the ground around it will be bare.");
-        }
+        lore.add("<gray>To this farm world's spawn platform, where");
+        lore.add("<gray>the way back is.");
         lore.add("");
         if (now.warmup() > 0) {
             lore.add("<gray>Stand still for <white>" + now.warmup() + "s</white> once you click.");
@@ -160,15 +210,15 @@ public final class FarmWorldMenu extends Menu implements IFarmWorldScreen {
                 () -> lore.add("<dark_gray>No border"));
         lore.add("");
         if (!farm.isScheduled()) {
-            lore.add("<gray>Kept until somebody throws it away.");
+            lore.add("<gray>Kept until somebody regenerates it.");
             lore.add("<dark_gray>Which they can, at any time.");
             return lore;
         }
         farm.every().ifPresent(every ->
-                lore.add("<dark_gray>Thrown away every " + Times.describe(every)));
+                lore.add("<dark_gray>Regenerated every " + Times.describe(every)));
         farm.untilRegenerated().ifPresentOrElse(
                 left -> lore.add("<yellow>" + Times.describe(left) + " left"),
-                () -> lore.add("<red>Due to be thrown away"));
+                () -> lore.add("<red>Due to be regenerated"));
         lore.add("<dark_gray>Everything in it goes when it is — what you");
         lore.add("<dark_gray>want to keep does not belong here.");
         return lore;

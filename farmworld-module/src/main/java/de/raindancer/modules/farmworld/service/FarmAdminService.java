@@ -11,6 +11,8 @@ import de.raindancer.modules.farmworld.rules.FarmAccessRule;
 import de.raindancer.modules.farmworld.rules.FarmWorldNameRule;
 import de.raindancer.modules.farmworld.store.FarmWorldCatalogue;
 import de.raindancer.modules.farmworld.util.PermissionNodes;
+import de.raindancer.modules.farmworld.visual.SpawnPlatform;
+import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
@@ -20,7 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Making farm worlds, changing them, and throwing one away.
+ * Making farm worlds, changing them, and regenerating one.
  *
  * <h2>Why every entrance comes through here</h2>
  * Because there are two of them — the commands and the admin menu — and an invariant guarded at one is
@@ -41,6 +43,7 @@ public final class FarmAdminService implements IFarmWorldService {
     private final FarmWorldCatalogue catalogue;
     private final FarmAccessRule access;
     private final FarmWorldNameRule names = new FarmWorldNameRule();
+    private final SpawnPlatform platform;
     private final Messages messages;
     private final Plugin plugin;
     private final Server server;
@@ -58,6 +61,7 @@ public final class FarmAdminService implements IFarmWorldService {
         this.messages = messages;
         this.log = log;
         this.settings = settings;
+        this.platform = new SpawnPlatform(log);
     }
 
     /**
@@ -82,7 +86,7 @@ public final class FarmAdminService implements IFarmWorldService {
     /**
      * Makes a farm world, and its worlds with it.
      *
-     * @param every how often to throw it away, or null for only when somebody asks
+     * @param every how often to regenerate it, or null for only when somebody asks
      * @param border how far from the middle it goes, or null for no border
      * @return the farm world, or empty when something refused it — which has already been said
      */
@@ -128,16 +132,57 @@ public final class FarmAdminService implements IFarmWorldService {
             messages.send(maker, "farmworlds.could-not-make", "name", set.name());
             return Optional.empty();
         }
+        buildPlatform(set.name());
         messages.send(maker, "farmworlds.created", "name", set.name(), "count", made);
         return catalogue.byName(set.name());
     }
 
     /**
+     * Removes a farm world and its worlds for good.
+     *
+     * <p>What {@code delete} means, and the reason it is a separate method from {@link #forget}: a command
+     * called delete that does not delete is the word lying. This one unloads the worlds, removes the
+     * folders through Core's guarded delete, and takes the farm world off the list — all of it, because
+     * that is what somebody typing it expects.
+     *
+     * <p><b>Nothing may call this without having asked.</b> Both entrances do: the menu through
+     * {@code ConfirmScreen}, the command through the word {@code confirm}. It is also written to the log at
+     * a level an owner will see afterwards, because "who deleted the farm world" is a question that gets
+     * asked and there is nothing to read it back from once the folders are gone.
+     */
+    public boolean delete(CommandSender remover, String name) {
+        if (!mayManage(remover)) {
+            return false;
+        }
+        WorldSet set = catalogue.setOf(name).orElse(null);
+        if (set == null) {
+            messages.send(remover, "farmworlds.unknown", "name", String.valueOf(name));
+            return false;
+        }
+        log.warn("{} is deleting the farm world '{}' and its {} world(s) for good.",
+                nameOf(remover), set.name(), set.worlds().size());
+        messages.send(remover, "farmworlds.deleting", "name", set.name());
+
+        boolean gone = catalogue.removeWorlds(set);
+        if (!gone) {
+            // Deliberately still on the list. A farm world whose folders are half removed is one somebody
+            // has to look at, and taking it off the list first would be taking away the only thing that
+            // names it.
+            messages.send(remover, "farmworlds.delete-failed", "name", set.name());
+            return false;
+        }
+        catalogue.undefine(set.name());
+        written();
+        messages.send(remover, "farmworlds.deleted", "name", set.name());
+        return true;
+    }
+
+    /**
      * Takes a farm world off the list, leaving its worlds exactly where they are.
      *
-     * <p>Deliberately not a delete. This is how an owner stops a farm world being thrown away on its
-     * schedule — usually because they have decided to keep it — and the wording says so, because
-     * somebody who expected the worlds to go will otherwise leave three folders behind and never know.
+     * <p>The other half of {@link #delete}, and it has its own word — {@code forget} — because it is a
+     * different decision. This is how an owner stops a farm world being regenerated on a schedule, usually
+     * because they have decided to keep it. Naming it {@code delete} is what made the command lie.
      */
     public boolean forget(CommandSender remover, String name) {
         if (!mayManage(remover)) {
@@ -154,7 +199,7 @@ public final class FarmAdminService implements IFarmWorldService {
 
     // ------------------------------------------------------------------------ changing one
 
-    /** How often it is thrown away; null stops it happening on a schedule at all. */
+    /** How often it is regenerated; null stops it happening on a schedule at all. */
     public boolean setSchedule(CommandSender changer, String name, Duration every) {
         return change(changer, name,
                 set -> WorldSet.builder(set.name())
@@ -254,7 +299,7 @@ public final class FarmAdminService implements IFarmWorldService {
         return true;
     }
 
-    // ------------------------------------------------------------------------ throwing one away
+    // ------------------------------------------------------------------------ regenerating one
 
     /**
      * Throws a farm world away and makes it again, now.
@@ -281,6 +326,8 @@ public final class FarmAdminService implements IFarmWorldService {
         messages.send(asker, "farmworlds.regenerating", "name", set.name());
         boolean ok = catalogue.regenerate(set);
         if (ok) {
+            // The world is fresh terrain, so whatever was built is gone with it — including the platform.
+            buildPlatform(set.name());
             messages.send(asker, "farmworlds.regenerated", "name", set.name());
         } else {
             // Core has already said what went wrong, at the level that names the file. This is the half
@@ -331,12 +378,28 @@ public final class FarmAdminService implements IFarmWorldService {
         }
     }
 
+    /**
+     * Puts the spawn platform in, once the world exists.
+     *
+     * <p>After creation and after every regeneration, because a regenerated world is new terrain and the old
+     * platform went with the old chunks. Never at the cost of the farm world itself: a platform that could
+     * not be built is a cosmetic loss and is logged as one.
+     */
+    private void buildPlatform(String name) {
+        catalogue.overworldOf(name).ifPresent(world -> {
+            if (!platform.buildAt(world)) {
+                log.warn("'{}' has no spawn platform; people arriving will land on whatever the "
+                        + "generator put there.", name);
+            }
+        });
+    }
+
     private static String nameOf(CommandSender who) {
         return who == null ? "somebody" : who.getName();
     }
 
     @Override
     public String describe() {
-        return "making, changing and throwing away farm worlds";
+        return "making, changing and regenerating farm worlds";
     }
 }

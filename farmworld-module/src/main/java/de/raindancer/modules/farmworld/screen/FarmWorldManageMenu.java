@@ -43,7 +43,7 @@ public final class FarmWorldManageMenu extends Menu implements IFarmWorldScreen 
     /**
      * The schedules worth offering, in the order the button cycles them. Null is "only when asked".
      *
-     * <p>Nothing shorter than a day on purpose. A farm world thrown away every few hours is one nobody can
+     * <p>Nothing shorter than a day on purpose. A farm world regenerated every few hours is one nobody can
      * finish a trip in, and the warning that goes out five minutes beforehand would be most of its life.
      */
     private static final List<Duration> SCHEDULES = List.of(
@@ -81,7 +81,7 @@ public final class FarmWorldManageMenu extends Menu implements IFarmWorldScreen 
         }
 
         // ------------------------------------------------------------ how long it lives
-        band(MenuLayout.WHO, 1, Icons.of(Material.CLOCK, "<white>Thrown away every",
+        band(MenuLayout.WHO, 1, Icons.of(Material.CLOCK, "<white>Regenerated every",
                         scheduleLore(farm)),
                 click -> cycleSchedule(farm, click));
 
@@ -117,7 +117,7 @@ public final class FarmWorldManageMenu extends Menu implements IFarmWorldScreen 
         // ------------------------------------------------------------ taking it off the list
         band(MenuLayout.LAND, 4, Icons.of(Material.WRITABLE_BOOK, "<white>Forget this farm world",
                         "<gray>Takes it off the list and stops it being",
-                        "<gray>thrown away on a schedule.",
+                        "<gray>regenerated on a schedule.",
                         "",
                         "<yellow>Its worlds are left exactly where they are.",
                         "<dark_gray>Nothing is deleted — the folders stay, and",
@@ -145,7 +145,7 @@ public final class FarmWorldManageMenu extends Menu implements IFarmWorldScreen 
      *
      * <p>Both, because a page that only goes forwards makes correcting a click that went one too far a
      * journey through five more — and the fifth of those is a month, which on the way past is a farm world
-     * that will not be thrown away for four weeks.
+     * that will not be regenerated for four weeks.
      */
     private void cycleSchedule(FarmWorldView farm, InventoryClickEvent click) {
         List<Duration> offered = new ArrayList<>();
@@ -194,7 +194,7 @@ public final class FarmWorldManageMenu extends Menu implements IFarmWorldScreen 
         new ConfirmScreen(services, viewer, this,
                 "<yellow>Forget " + farm.name() + "?",
                 List.of("<gray>It comes off the list and stops being",
-                        "<gray>thrown away on a schedule.",
+                        "<gray>regenerated on a schedule.",
                         "<green>Its worlds are not deleted."),
                 () -> {
                     services.admin().forget(viewer, farm.name());
@@ -228,7 +228,7 @@ public final class FarmWorldManageMenu extends Menu implements IFarmWorldScreen 
         List<String> lore = new ArrayList<>();
         lore.add("<yellow>" + farm.every().map(Times::describe).orElse("Only when asked"));
         lore.add("");
-        lore.add("<gray>How often it is thrown away and made again.");
+        lore.add("<gray>How often it is regenerated.");
         lore.add("<dark_gray>The whole server is warned beforehand — how long");
         lore.add("<dark_gray>before is on the settings page.");
         lore.add("");
@@ -259,7 +259,7 @@ public final class FarmWorldManageMenu extends Menu implements IFarmWorldScreen 
         lore.add("<gray>Click to " + (on ? "stop managing it." : "make it."));
         if (on) {
             lore.add("<dark_gray>Switching it off does not delete the " + which + " —");
-            lore.add("<dark_gray>the folder stays and stops being thrown away.");
+            lore.add("<dark_gray>the folder stays and stops being regenerated.");
         } else {
             lore.add("<dark_gray>Making it pauses the server for a moment.");
         }
@@ -276,7 +276,7 @@ public final class FarmWorldManageMenu extends Menu implements IFarmWorldScreen 
         }
         lore.add("");
         farm.untilRegenerated().ifPresentOrElse(
-                left -> lore.add("<yellow>" + Times.describe(left) + " until it goes"),
+                left -> lore.add("<yellow>" + Times.describe(left) + " until it is regenerated"),
                 () -> lore.add(farm.isScheduled()
                         ? "<red>Due to be made again"
                         : "<gray>Not on a schedule"));

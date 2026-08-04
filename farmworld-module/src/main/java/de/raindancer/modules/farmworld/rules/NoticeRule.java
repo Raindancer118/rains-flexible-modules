@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * When to tell the server that a farm world is about to be thrown away.
+ * When to tell the server that a farm world is about to be regenerated.
  *
  * <h2>Why the warning is a feature and not a courtesy</h2>
  * RainsCore regenerates a farm world on its schedule, moves whoever is standing in it to spawn and says

@@ -185,6 +185,17 @@ public final class FarmWorldCatalogue {
     }
 
     /**
+     * Removes a farm world's worlds for good, without making them again.
+     *
+     * <p>Straight through to Core, which owns every guard: everybody is moved out first, {@code mayDelete}
+     * has to agree about each folder, and a folder that could not be fully removed stops the rest. The
+     * definition is not touched — see {@code FarmAdminService.delete}, which decides that separately.
+     */
+    public boolean removeWorlds(WorldSet set) {
+        return farms.remove(set);
+    }
+
+    /**
      * Throws a farm world away and makes it again. Main thread only; stops the server for a moment.
      *
      * <p>Straight through to Core, which owns every part of this: moving people out first, unloading

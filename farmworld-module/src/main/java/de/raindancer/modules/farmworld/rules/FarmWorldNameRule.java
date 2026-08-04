@@ -37,8 +37,8 @@ public final class FarmWorldNameRule implements IFarmWorldRule {
      * world name silently unreachable here.
      */
     public static final List<String> RESERVED = List.of(
-            "list", "admin", "config", "settings", "create", "make", "delete", "remove", "regen",
-            "regenerate", "info", "help", "reload");
+            "list", "admin", "config", "settings", "create", "make", "delete", "remove", "forget",
+            "regen", "regenerate", "info", "help", "reload");
 
     /**
      * What a name may be made of.

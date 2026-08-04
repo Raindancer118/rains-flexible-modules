@@ -2,6 +2,7 @@ package de.raindancer.modules.farmworld.command;
 
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.farmworld.FarmWorldServices;
+import de.raindancer.modules.farmworld.model.Arrival;
 import de.raindancer.modules.farmworld.model.FarmWorldView;
 import de.raindancer.modules.farmworld.rules.FarmWorldNameRule;
 import de.raindancer.modules.farmworld.util.PermissionNodes;
@@ -62,11 +63,13 @@ public final class FarmWorldCommand implements IFarmWorldCommand {
             case "config", "settings" -> config(live, sender);
             case "admin" -> admin(live, sender, args);
             case "create", "make" -> create(live, sender, args);
-            case "delete", "remove" -> forget(live, sender, args);
+            case "delete", "remove" -> delete(live, sender, args);
+            case "forget" -> forget(live, sender, args);
             case "regen", "regenerate" -> regenerate(live, sender, args);
             case "reload" -> reload(live, sender);
-            // Anything else is a farm world's name, so /farm mining needs no subcommand.
-            default -> go(live, sender, args[0]);
+            // Anything else is a farm world's name, so /farm mining needs no subcommand — and a word
+            // after it says how to arrive: /farm mining rtp.
+            default -> go(live, sender, args[0], args.length >= 2 ? args[1] : null);
         }
     }
 
@@ -81,12 +84,12 @@ public final class FarmWorldCommand implements IFarmWorldCommand {
         live.screens().farms(player);
     }
 
-    private void go(FarmWorldServices live, CommandSender sender, String name) {
+    private void go(FarmWorldServices live, CommandSender sender, String name, String how) {
         if (!(sender instanceof Player player)) {
             live.messages().send(sender, "farmworlds.only-a-player");
             return;
         }
-        live.travelling().goTo(player, name);
+        live.travelling().goTo(player, name, Arrival.of(how));
     }
 
     // ------------------------------------------------------------------------ listing
@@ -145,7 +148,7 @@ public final class FarmWorldCommand implements IFarmWorldCommand {
      */
     private static String lifespanOf(FarmWorldView farm) {
         if (!farm.isScheduled()) {
-            return "kept until somebody throws it away";
+            return "kept until somebody regenerates it";
         }
         return farm.untilRegenerated()
                 .map(left -> Times.describe(left) + " left")
@@ -248,13 +251,50 @@ public final class FarmWorldCommand implements IFarmWorldCommand {
         live.admin().create(sender, args[1], every, border);
     }
 
-    private void forget(FarmWorldServices live, CommandSender sender, String[] args) {
+    /**
+     * {@code /farm delete <name> confirm} — the farm world and its worlds, gone.
+     *
+     * <p>Asks twice, for the same reason {@code regen} does: the console has no inventory to be shown a
+     * confirmation page in, and what is behind this removes three worlds with no undo. This one is worse than
+     * regen — regen puts something back.
+     */
+    private void delete(FarmWorldServices live, CommandSender sender, String[] args) {
         if (!live.access().mayManage(sender::hasPermission)) {
             live.messages().send(sender, "farmworlds.not-yours");
             return;
         }
         if (args.length < 2) {
             live.messages().send(sender, "farmworlds.usage.delete");
+            return;
+        }
+        FarmWorldView farm = live.catalogue().byName(args[1]).orElse(null);
+        if (farm == null) {
+            live.messages().send(sender, "farmworlds.unknown", "name", args[1]);
+            return;
+        }
+        if (args.length < 3 || !args[2].equalsIgnoreCase("confirm")) {
+            live.messages().send(sender, "farmworlds.delete-are-you-sure",
+                    "name", farm.name(), "count", farm.worlds().size());
+            return;
+        }
+        if (live.admin().delete(sender, farm.name())) {
+            live.notices().forget(farm.name());
+        }
+    }
+
+    /**
+     * {@code /farm forget <name>} — off the list, worlds kept.
+     *
+     * <p>Its own word rather than a flag on delete. The two are different decisions and somebody typing one
+     * must never get the other.
+     */
+    private void forget(FarmWorldServices live, CommandSender sender, String[] args) {
+        if (!live.access().mayManage(sender::hasPermission)) {
+            live.messages().send(sender, "farmworlds.not-yours");
+            return;
+        }
+        if (args.length < 2) {
+            live.messages().send(sender, "farmworlds.usage.forget");
             return;
         }
         if (live.admin().forget(sender, args[1])) {
@@ -324,7 +364,8 @@ public final class FarmWorldCommand implements IFarmWorldCommand {
             options.add("info");
             options.add("help");
             if (admin) {
-                options.addAll(List.of("admin", "config", "create", "delete", "regen", "reload"));
+                options.addAll(List.of("admin", "config", "create", "delete", "forget", "regen",
+                        "reload"));
             }
             return startingWith(options, typed);
         }
@@ -334,6 +375,11 @@ public final class FarmWorldCommand implements IFarmWorldCommand {
                 return List.of();
             }
             return startingWith(names, args[1].toLowerCase(Locale.ROOT));
+        }
+        if (args.length == 3 && names.contains(args[0].toLowerCase(Locale.ROOT))) {
+            // /farm mining <here>. Offered rather than left to be guessed: rtp is the half of this feature
+            // nobody finds by accident.
+            return startingWith(Arrival.words(), args[2].toLowerCase(Locale.ROOT));
         }
         if (args.length == 3 && admin && args[0].equalsIgnoreCase("create")) {
             return startingWith(List.of("never", "1d", "3d", "7d", "14d", "30d"),

@@ -137,7 +137,7 @@ class PackageGrammarTest {
         //
         // Fields only, and worked out per line. The first version of this looked for "Map<" or "Set<" anywhere
         // in the file and reported NoticeRule for the LinkedHashSet it builds inside leads() — a local variable
-        // that is thrown away before the method returns. A scan that is wrong in that direction is the worse
+        // that is regenerated before the method returns. A scan that is wrong in that direction is the worse
         // kind: it sends somebody looking for a bug in working code, and the obvious way to silence it is to
         // make the correct code worse.
         List<String> remembering = new ArrayList<>();

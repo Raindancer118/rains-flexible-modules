@@ -87,7 +87,7 @@ public final class FarmAccessRule implements IFarmWorldRule {
     }
 
     /**
-     * Whether this player may make, change or throw away a farm world.
+     * Whether this player may make, change or regenerate a farm world.
      *
      * <p>Being allowed <em>into</em> a farm world is not being allowed to delete it, which is why this
      * asks for one node and nothing else. Everything behind it deletes worlds.

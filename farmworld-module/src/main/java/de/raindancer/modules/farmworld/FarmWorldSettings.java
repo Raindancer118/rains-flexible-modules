@@ -24,7 +24,7 @@ import java.time.Duration;
  *
  * <h2>The three things deliberately not here</h2>
  * <ul>
- *   <li><b>Which farm worlds there are, and how often each is thrown away.</b> That is per farm world
+ *   <li><b>Which farm worlds there are, and how often each is regenerated.</b> That is per farm world
  *       and it is Core's {@code farmworlds.yml} — a server has one farm world regenerated weekly and
  *       another kept for ever, so a single number in this file could not express it.</li>
  *   <li><b>Whether to look for somewhere safe to land.</b> Arriving unchecked at a random point of
@@ -124,7 +124,7 @@ public record FarmWorldSettings(
         int scatterFurthest,
 
         @In("farmworlds/regenerating") @Title("Warn this long before") @Range(min = 0, max = 1440)
-        @Describe("Minutes of notice before a farm world is thrown away, announced to the whole "
+        @Describe("Minutes of notice before a farm world is regenerated, announced to the whole "
                 + "server. Five minutes and one minute are always announced as well, whatever this "
                 + "says: those two are 'start walking back' and 'put it somewhere it survives', and "
                 + "an hour's notice given once is notice nobody remembers hearing. Zero leaves only "

@@ -22,7 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Telling the server a farm world is about to be thrown away — and that it has been.
+ * Telling the server a farm world is about to be regenerated — and that it has been.
  *
  * <h2>Why this exists beside Core's own timer</h2>
  * Core regenerates a farm world when its time is up and says one line to whoever was standing in it. This
@@ -261,6 +261,6 @@ public final class NoticeService implements IFarmWorldService {
 
     @Override
     public String describe() {
-        return "warning the server before a farm world is thrown away";
+        return "warning the server before a farm world is regenerated";
     }
 }

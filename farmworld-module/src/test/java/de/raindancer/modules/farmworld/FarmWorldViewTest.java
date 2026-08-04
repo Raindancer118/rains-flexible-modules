@@ -47,7 +47,7 @@ class FarmWorldViewTest {
     @DisplayName("a farm world with no schedule is never due, however long it has been there")
     void neverDue() {
         // The distinction the null carries. Without it, a farm world kept deliberately would be drawn as "due to
-        // be thrown away" for ever — which is the one sentence that decides whether somebody builds there.
+        // be regenerated" for ever — which is the one sentence that decides whether somebody builds there.
         FarmWorldView view = new FarmWorldView(FOR_EVER, true, null);
 
         assertThat(view.isScheduled()).isFalse();
