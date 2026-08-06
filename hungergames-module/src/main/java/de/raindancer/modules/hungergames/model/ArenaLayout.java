@@ -183,6 +183,26 @@ public record ArenaLayout(
     }
 
     /**
+     * The block that has to come out so a tribute can rise onto that platform.
+     *
+     * <h2>Why it is one below the standing position, and why that is worth a method</h2>
+     * The tube is pasted at ground level and the platform one block above it, so the two meet exactly here.
+     * A tribute is lifted <em>through</em> this block and lands on the one above it.
+     *
+     * <p>The launch sequence opened the standing block instead — one too high. The tribute then levitates up
+     * the tube and stops against the solid block immediately under their feet, with the hole above them in the
+     * space they were trying to reach, and the platform they are meant to arrive on left with a gap in it. It
+     * was reported as "the central blocks are not being removed", which is what it looks like from inside the
+     * arena.
+     *
+     * <p>Here rather than inlined where the blocks are written, because every other coordinate in this module
+     * is here and tested — and an off-by-one in a Y coordinate is invisible in a diff.
+     */
+    public int wayUpThrough(Stand platform) {
+        return platform.blockY() - 1;
+    }
+
+    /**
      * The middle of the lobby's interior, where a tribute waiting for a round is put.
      *
      * <p>Half a block above the floor rather than on it, which is where a player teleported to an integer Y

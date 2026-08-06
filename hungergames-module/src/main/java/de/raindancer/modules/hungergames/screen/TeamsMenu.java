@@ -75,10 +75,15 @@ public final class TeamsMenu extends PaginatedMenu<Team> implements IHungerGames
 
     @Override
     protected ItemStack emptyIcon() {
+        // Asked exactly the way the button is — see mayStartOne. This used to check only whether players may
+        // create teams at all, so a locked round showed "use the button below" with no button below it, and
+        // the one thing the page had to say was a lie.
         return Icons.of(Material.BARRIER, "<gray>No teams yet",
-                rules.get().playersCanCreateTeams()
-                        ? "<gray>Use the button below to start one."
-                        : "<gray>Wait for one to be created.");
+                mayStartOne()
+                        ? "<gray>Use <white>Create a team</white>, at the bottom left."
+                        : rules.get().playersCanCreateTeams()
+                                ? "<gray>Too late to start one — teams are settled for this round."
+                                : "<gray>A gamemaster makes the teams. Wait for one to appear.");
     }
 
     @Override
@@ -127,7 +132,7 @@ public final class TeamsMenu extends PaginatedMenu<Team> implements IHungerGames
         TeamRules r = rules.get();
         Optional<Team> ownTeam = session.teams().teamOf(viewer.getUniqueId());
 
-        if (r.playersCanCreateTeams() && eligible(r)) {
+        if (mayStartOne()) {
             toolbar(2, Icons.of(Material.NETHER_STAR, "<green>Create a team",
                             "<gray>You will be asked for a name in chat.",
                             session.teams().availableColours().isEmpty()
@@ -150,6 +155,19 @@ public final class TeamsMenu extends PaginatedMenu<Team> implements IHungerGames
 
     private boolean eligible(TeamRules r) {
         return !r.isLocked(session.phase());
+    }
+
+    /**
+     * Whether this viewer can start a team right now.
+     *
+     * <p>One method, asked by both the button and the empty page, because they were two conditions describing
+     * one thing and they disagreed: the empty page checked only whether players may create teams at all, so a
+     * round whose teams had already been settled said "use the button below" with nothing below it. A page
+     * whose only sentence is wrong is worse than a page with no sentence.
+     */
+    private boolean mayStartOne() {
+        TeamRules r = rules.get();
+        return r.playersCanCreateTeams() && eligible(r);
     }
 
     private void askForTeamName() {

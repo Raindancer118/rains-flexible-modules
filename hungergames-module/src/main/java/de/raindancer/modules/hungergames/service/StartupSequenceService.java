@@ -336,7 +336,7 @@ public final class StartupSequenceService implements IHungerGamesService {
     private void launch(Player tribute, ArenaLayout layout, World world, int index, UUID actor) {
         ArenaLayout.Stand platform = layout.platforms().get(index);
         Location platformLocation = new Location(world, platform.blockX(), platform.blockY(), platform.blockZ());
-        Scheduling.region(plugin, platformLocation, () -> openThePlatform(world, platform));
+        Scheduling.region(plugin, platformLocation, () -> openThePlatform(world, layout, platform));
 
         Scheduling.entity(plugin, tribute, () -> {
             tribute.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, LEVITATION_TICKS,
@@ -354,16 +354,19 @@ public final class StartupSequenceService implements IHungerGamesService {
      * with a build of their own, and a sequence that sealed every one of them with stone would leave a stone
      * plug in forty custom platforms.
      */
-    private void openThePlatform(World world, ArenaLayout.Stand platform) {
-        Block middle = world.getBlockAt(platform.blockX(), platform.blockY(), platform.blockZ());
+    private void openThePlatform(World world, ArenaLayout layout, ArenaLayout.Stand platform) {
+        // One below the standing position — see ArenaLayout.wayUpThrough for the off-by-one this replaced,
+        // which stopped every tribute against the block under their own feet.
+        Block middle = world.getBlockAt(platform.blockX(), layout.wayUpThrough(platform), platform.blockZ());
         openedPlatforms.put(key(platform), middle.getType());
         middle.setType(Material.AIR, false);
     }
 
     /** Puts it back exactly as it was. */
-    private void sealThePlatform(World world, ArenaLayout.Stand platform) {
+    private void sealThePlatform(World world, ArenaLayout layout, ArenaLayout.Stand platform) {
         Material was = openedPlatforms.getOrDefault(key(platform), Material.STONE);
-        world.getBlockAt(platform.blockX(), platform.blockY(), platform.blockZ()).setType(was, false);
+        world.getBlockAt(platform.blockX(), layout.wayUpThrough(platform), platform.blockZ())
+                .setType(was, false);
     }
 
     /**
@@ -385,7 +388,7 @@ public final class StartupSequenceService implements IHungerGamesService {
                 // everybody else the round — see the class note.
                 log.warn("{} disconnected during the launch sequence; their platform was sealed.",
                         tribute.getName());
-                sealThePlatform(world, platform);
+                sealThePlatform(world, layout, platform);
                 task.cancel();
                 countArrival(layout, world, actor);
                 return;
@@ -395,7 +398,7 @@ public final class StartupSequenceService implements IHungerGamesService {
             tribute.setVelocity(new Vector(0, velocity.getY(), 0));
 
             if (tribute.getLocation().getY() >= arrivesAt) {
-                sealThePlatform(world, platform);
+                sealThePlatform(world, layout, platform);
                 tribute.removePotionEffect(PotionEffectType.LEVITATION);
                 effects.play(uuid, HungerGamesCues.STARTUP_ARRIVE);
 
@@ -414,7 +417,7 @@ public final class StartupSequenceService implements IHungerGamesService {
                 log.warn("{} never reached their platform within {} seconds — counting them anyway so the "
                         + "sequence can finish.", tribute.getName(), ARRIVAL_TIMEOUT_TICKS / 20);
                 tribute.removePotionEffect(PotionEffectType.LEVITATION);
-                sealThePlatform(world, platform);
+                sealThePlatform(world, layout, platform);
                 task.cancel();
                 countArrival(layout, world, actor);
             }
