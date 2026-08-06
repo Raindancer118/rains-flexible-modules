@@ -3,7 +3,9 @@ package de.raindancer.modules.hungergames;
 import de.raindancer.modules.hungergames.model.GamePhase;
 import de.raindancer.modules.hungergames.model.SessionSnapshot;
 import de.raindancer.core.social.team.TeamColour;
+import de.raindancer.core.social.team.TeamEmblem;
 import de.raindancer.core.social.team.TeamId;
+import org.bukkit.Material;
 import de.raindancer.core.social.team.TeamOutcome;
 import de.raindancer.modules.hungergames.model.Winner;
 import de.raindancer.modules.hungergames.rules.TeamRules;
@@ -11,11 +13,13 @@ import de.raindancer.modules.hungergames.store.GameEvents.MembershipCause;
 import de.raindancer.modules.hungergames.store.GameSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -291,5 +295,78 @@ class GameSessionTest {
         assertEquals(4, session.participants().aliveCount());
         assertEquals(0, session.kills().kills(p1));
         assertTrue(session.isWhitelisted(p2));
+    }
+
+    @Nested
+    @DisplayName("a team's identity")
+    class Identity {
+
+        /**
+         * The gap this was written for: {@code teamSetColour} existed and was reachable only from the HTTP
+         * API. No screen and no command touched it, so on a live server the only way to recolour a team was
+         * a REST request — and a team's colour is how forty tributes tell friend from foe across an arena.
+         * The emblem was worse: Core could set one, and nothing in this module ever asked.
+         */
+        @Test
+        @DisplayName("an emblem can be set, and the team wears it in its display name")
+        void anEmblemIsApplied() {
+            TeamId id = session.teamCreate("District 12", TeamColour.BLUE).team().orElseThrow().id();
+
+            assertThat(session.teamSetEmblem(id, TeamEmblem.DIAMOND)).isEqualTo(TeamOutcome.SUCCESS);
+            assertThat(session.teams().team(id).orElseThrow().display())
+                    .as("the glyph is what a tribute sees in chat and above a head")
+                    .contains(TeamEmblem.DIAMOND.glyph());
+        }
+
+        @Test
+        @DisplayName("two teams may not end up looking identical")
+        void aClashIsRefused() {
+            TeamId first = session.teamCreate("One", TeamColour.RED).team().orElseThrow().id();
+            session.teamSetEmblem(first, TeamEmblem.STAR);
+            TeamId second = session.teamCreate("Two", TeamColour.BLUE).team().orElseThrow().id();
+            session.teamSetEmblem(second, TeamEmblem.STAR);
+
+            // A red star and a blue star are fine. A second red star is not.
+            assertThat(session.teamSetColour(second, TeamColour.RED))
+                    .as("the pair is what has to be unique — see Teams.identityTaken")
+                    .isEqualTo(TeamOutcome.COLOUR_TAKEN);
+        }
+
+        @Test
+        @DisplayName("a badge is never refused for being a duplicate")
+        void badgesMayBeShared() {
+            TeamId first = session.teamCreate("One", TeamColour.RED).team().orElseThrow().id();
+            TeamId second = session.teamCreate("Two", TeamColour.BLUE).team().orElseThrow().id();
+
+            assertThat(session.teamSetBadge(first, Material.CAKE)).isEqualTo(TeamOutcome.SUCCESS);
+            // Deliberately allowed. A badge is decoration a team picked out of the whole item catalogue for
+            // itself; the colour-and-emblem pair is what keeps them distinguishable, and refusing this would
+            // be telling somebody they may not have a cake because another team already has one.
+            assertThat(session.teamSetBadge(second, Material.CAKE)).isEqualTo(TeamOutcome.SUCCESS);
+        }
+
+        @Test
+        @DisplayName("neither can be changed once teams are frozen")
+        void frozenTeamsKeepTheirIdentity() {
+            TeamId id = session.teamCreate("District 12", TeamColour.BLUE).team().orElseThrow().id();
+            session.transitionTo(GamePhase.PREFLIGHT);
+            session.transitionTo(GamePhase.LOBBY);
+            session.transitionTo(GamePhase.STARTUP);
+
+            // STARTUP is where TeamRules freezes them by default: tributes are already being taken to their
+            // platforms, and changing a team then moves somebody who is standing somewhere.
+            assertThat(session.teamSetEmblem(id, TeamEmblem.CROWN)).isEqualTo(TeamOutcome.FROZEN);
+            assertThat(session.teamSetBadge(id, Material.CAKE)).isEqualTo(TeamOutcome.FROZEN);
+        }
+
+        @Test
+        @DisplayName("setting what a team already has is a success, not a refusal")
+        void aNoOpIsNotAFailure() {
+            TeamId id = session.teamCreate("District 12", TeamColour.BLUE).team().orElseThrow().id();
+
+            // So a screen that re-sends the current value does not report a failure for a button that had
+            // nothing to do.
+            assertThat(session.teamSetEmblem(id, TeamEmblem.NONE)).isEqualTo(TeamOutcome.SUCCESS);
+        }
     }
 }

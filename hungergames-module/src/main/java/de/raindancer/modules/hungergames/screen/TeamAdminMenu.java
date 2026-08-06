@@ -40,15 +40,31 @@ public final class TeamAdminMenu extends PaginatedMenu<Team> implements IHungerG
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
     private final GameSession session;
+    private final TeamIdentityMenu.BadgeChooser badges;
     private final ChatPrompts prompts;
     private final RoundLogService roundLog;
 
     public TeamAdminMenu(Player viewer, Brand brand, Menu parent, GameSession session, ChatPrompts prompts,
-                         RoundLogService roundLog) {
+                         RoundLogService roundLog, TeamIdentityMenu.BadgeChooser badges) {
         super(viewer, brand, parent);
         this.session = session;
         this.prompts = prompts;
         this.roundLog = roundLog;
+        this.badges = badges;
+    }
+
+    /**
+     * The same, for a host that has not wired an item chooser.
+     *
+     * <p>Refuses to choose rather than opening a page with a dead button on it, and says so. A badge is the
+     * one part of a team's identity that needs Core's item chooser, and the colour and emblem halves work
+     * without it — so a missing chooser costs one button, not the page.
+     */
+    public TeamAdminMenu(Player viewer, Brand brand, Menu parent, GameSession session, ChatPrompts prompts,
+                         RoundLogService roundLog) {
+        this(viewer, brand, parent, session, prompts, roundLog,
+                (who, returnTo, chosen) -> who.sendMessage(MINI.deserialize(
+                        "<red>This build has no item chooser wired, so a team's item cannot be changed here.")));
     }
 
     @Override
@@ -85,6 +101,7 @@ public final class TeamAdminMenu extends PaginatedMenu<Team> implements IHungerG
             }
         }
         lore.add("");
+        lore.add("<aqua>Left-click: colour, emblem and item");
         lore.add("<aqua>Right-click: delete");
 
         return Icons.of(team.badge(), "<white>" + team.display(), lore);
@@ -93,6 +110,9 @@ public final class TeamAdminMenu extends PaginatedMenu<Team> implements IHungerG
     @Override
     protected void onClick(Team team, InventoryClickEvent event) {
         if (!event.isRightClick()) {
+            // Left-click opens what a team looks like. Until this existed, the only way to recolour one was
+            // an HTTP request, and its emblem could not be set from the game at all — see TeamIdentityMenu.
+            new TeamIdentityMenu(viewer, brand(), this, session, team, roundLog, badges).open();
             return;
         }
         new ConfirmScreen(viewer, brand(), this, "<yellow>Delete " + team.display() + "?",

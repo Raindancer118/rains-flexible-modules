@@ -2,6 +2,7 @@ package de.raindancer.modules.hungergames.store;
 
 import de.raindancer.core.social.team.Team;
 import de.raindancer.core.social.team.TeamColour;
+import de.raindancer.core.social.team.TeamEmblem;
 import de.raindancer.core.social.team.TeamId;
 import de.raindancer.core.social.team.TeamOutcome;
 import de.raindancer.core.social.team.Teams;
@@ -308,6 +309,42 @@ public final class GameSession {
         TeamOutcome result = teams.setColour(id, colour);
         if (result.isSuccess() && before.isPresent() && before.get() != colour) {
             events.teamColourChanged(teams.team(id).orElseThrow(), before.get(), colour);
+            persist();
+        }
+        return result;
+    }
+
+    /**
+     * Changes a team's emblem — the glyph in front of its name.
+     *
+     * <p>Reachable from a screen at last. {@link #teamSetColour} existed and was called only by the HTTP API,
+     * and the emblem could not be set from this module at all, so the two hundred and forty identities Core
+     * offers were unreachable from the game: a server with more than sixteen teams had no way to tell them
+     * apart, and one with fewer had a feature nobody could find.
+     *
+     * <p>No event of its own. {@code GameEvents} carries a colour change because another plugin might care
+     * which colour a team is; an emblem is presentation, and inventing an event for it would mean a second
+     * thing for every listener to handle for no gain. It is persisted, which is what actually has to happen.
+     */
+    public TeamOutcome teamSetEmblem(TeamId id, TeamEmblem emblem) {
+        Optional<TeamEmblem> before = teams.team(id).map(Team::emblem);
+        TeamOutcome result = teams.setEmblem(id, emblem);
+        if (result.isSuccess() && before.isPresent() && before.get() != emblem) {
+            persist();
+        }
+        return result;
+    }
+
+    /**
+     * Changes the item a team is drawn as.
+     *
+     * <p>Never refused for being a duplicate — see {@code Teams.setBadge}. Two teams both choosing a cake is
+     * their business; the colour-and-emblem pair is what keeps them distinguishable.
+     */
+    public TeamOutcome teamSetBadge(TeamId id, org.bukkit.Material badge) {
+        Optional<org.bukkit.Material> before = teams.team(id).map(Team::badge);
+        TeamOutcome result = teams.setBadge(id, badge);
+        if (result.isSuccess() && before.isPresent() && before.get() != badge) {
             persist();
         }
         return result;
