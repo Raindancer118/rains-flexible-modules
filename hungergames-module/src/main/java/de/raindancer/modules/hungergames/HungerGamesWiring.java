@@ -441,7 +441,7 @@ public final class HungerGamesWiring {
         settingsStore.onChange(this::settingsChanged);
 
         return new HungerGamesServices(plugin, server, log, core.messages(), context.chat(), brand,
-                session, control, preflight, deathmatch, settingsStore::current, screens);
+                session, control, preflight, deathmatch, settingsStore::current, screens, core.items(), core.itemFactory());
     }
 
     // ==================== the tick ====================

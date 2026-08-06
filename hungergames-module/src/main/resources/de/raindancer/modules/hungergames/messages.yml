@@ -145,7 +145,17 @@ hungergames:
 
   help-header: "<gold>The Hunger Games</gold>"
   help-teams: "<gray>/hg teams — pick a team</gray>"
-  help-shop: "<gray>/hg shop — spend your sponsor tokens</gray>"
+  # No help-shop line, and no /hg shop: the sponsor shop opens at a beacon and nowhere else, which is what
+  # makes a beacon worth crossing the arena for.
   help-spectate: "<gray>/hg spectate — watch a living tribute</gray>"
   help-status: "<gray>/hg status — where the round is</gray>"
   help-admin: "<yellow>/hg admin — the page a tournament is run from</yellow>"
+  help-give: "<yellow>/hg give <item> [amount] [player] — a custom item, for testing</yellow>"
+
+  # ---------------------------------------------------------------- /hg give
+  give-usage: "<yellow>/hg give <white><item> [amount] [player]</white> <gray>— tab-completes the item names.</gray></yellow>"
+  give-unknown-item: "<red>There is no custom item called <white><item></white>. <gray>Tab-complete to see them.</gray></red>"
+  give-bad-amount: "<red><amount> is not an amount between 1 and 64.</red>"
+  give-nobody: "<red><who> is not online.</red>"
+  give-console-needs-a-player: "<red>From the console, say who it is for: <white>/hg give <item> <amount> <player></white>.</red>"
+  give-done: "<green>✔ <white><amount>× <item></white> <gray>→</gray> <white><who></white>.</green>"

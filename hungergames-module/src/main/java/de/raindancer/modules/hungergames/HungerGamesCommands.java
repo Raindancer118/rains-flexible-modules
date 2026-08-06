@@ -62,8 +62,9 @@ public final class HungerGamesCommands {
                                 new HungerGamesCommand(HungerGamesCommands::require))
                         .aliased("hungergames")
                         .taking("teams — pick a team",
-                                "shop — spend sponsor tokens",
+                                // No "shop": the sponsor shop opens at a beacon and nowhere else.
                                 "spectate — watch a living tribute",
+                                "give <item> [amount] [player] — a custom item, for testing",
                                 "status — where the round is",
                                 "admin — the page a tournament is run from",
                                 "end — score the round now"),

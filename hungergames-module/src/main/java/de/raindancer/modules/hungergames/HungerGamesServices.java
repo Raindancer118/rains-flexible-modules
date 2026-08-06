@@ -1,5 +1,7 @@
 package de.raindancer.modules.hungergames;
 
+import de.raindancer.core.content.items.CustomItems;
+import de.raindancer.core.content.items.ItemFactory;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.chat.Chat;
@@ -51,7 +53,20 @@ public record HungerGamesServices(
         DeathmatchService deathmatch,
 
         Supplier<HungerGamesSettings> settings,
-        IHungerGamesScreensOpener screens) {
+        IHungerGamesScreensOpener screens,
+
+        /**
+         * Core's item registry, so {@code /hg give} can hand one over.
+         *
+         * <p>The registry rather than this module's four item services: the command's whole job is "make me
+         * the thing called <name>", and the registry is what knows the names. Going through the services
+         * would mean the command had to know which of the four owns which item — a fact that changes every
+         * time an item moves and is invisible when it does.
+         */
+        CustomItems items,
+
+        /** What turns one of those definitions into a stack somebody can hold. */
+        ItemFactory itemFactory) {
 
     /** The settings as they are right now. */
     public HungerGamesSettings config() {
