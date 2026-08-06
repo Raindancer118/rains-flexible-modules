@@ -52,6 +52,84 @@ class RoundLogServiceTest {
         return new RoundLogService(dir, this::nameOf, this::teamNameOf, recordingLog(), () -> now);
     }
 
+    // ==================== the main thread ====================
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("staying off the thread the game runs on")
+    class OffTheHotPath {
+
+        /**
+         * A log line is written on every kill, every elimination, every phase change, every drop and every
+         * purchase. This used to be a {@code createDirectories} syscall plus an open-append-close, on the
+         * calling thread, per line — and the calling thread is the one ticking the round.
+         */
+        @Test
+        @DisplayName("the write goes through the appender it was given, not straight to disk")
+        void writingIsHandedOver() {
+            List<Runnable> queued = new ArrayList<>();
+            RoundLogService offloaded = new RoundLogService(logsDir, RoundLogServiceTest.this::nameOf,
+                    RoundLogServiceTest.this::teamNameOf, recordingLog(), () -> now, queued::add);
+            offloaded.settings(HungerGamesSettings.DEFAULTS);
+
+            offloaded.log("KILL", "Alice finished Bob");
+
+            assertThat(queued)
+                    .as("nothing may touch the disk on the thread that called this")
+                    .hasSize(1);
+            assertThat(logsDir.resolve("round-20260101-200000.log"))
+                    .as("and nothing is written until the appender runs it")
+                    .doesNotExist();
+
+            queued.forEach(Runnable::run);
+            assertThat(logsDir.resolve("round-20260101-200000.log")).exists();
+        }
+
+        @Test
+        @DisplayName("lines keep their order, because a log that reorders settles no dispute")
+        void orderIsKept() throws IOException {
+            List<Runnable> queued = new ArrayList<>();
+            RoundLogService offloaded = new RoundLogService(logsDir, RoundLogServiceTest.this::nameOf,
+                    RoundLogServiceTest.this::teamNameOf, recordingLog(), () -> now, queued::add);
+            offloaded.settings(HungerGamesSettings.DEFAULTS);
+
+            offloaded.log("KILL", "first");
+            offloaded.log("KILL", "second");
+            offloaded.log("KILL", "third");
+            queued.forEach(Runnable::run);
+
+            // The whole reason the wiring hands in a single-threaded executor rather than Bukkit's async
+            // pool: two kills a tick apart must not swap places in the file somebody reads the next day.
+            assertThat(Files.readString(offloaded.currentFile()))
+                    .containsSubsequence("first", "second", "third");
+        }
+
+        @Test
+        @DisplayName("nothing is queued at all when the round log is switched off")
+        void switchedOffQueuesNothing() {
+            List<Runnable> queued = new ArrayList<>();
+            RoundLogService offloaded = new RoundLogService(logsDir, RoundLogServiceTest.this::nameOf,
+                    RoundLogServiceTest.this::teamNameOf, recordingLog(), () -> now, queued::add);
+            offloaded.settings(Tweak.of(HungerGamesSettings.DEFAULTS, "roundLogEnabled", false));
+
+            offloaded.log("KILL", "Alice finished Bob");
+
+            assertThat(queued).isEmpty();
+        }
+
+        @Test
+        @DisplayName("the directory is made once, not once per line")
+        void theDirectoryIsNotRemadeEveryTime() throws IOException {
+            // Not observable by counting syscalls, so it is asserted the way it actually matters: the second
+            // line still lands even though the first one is what created the directory.
+            service.log("KILL", "first");
+            service.log("KILL", "second");
+
+            assertThat(Files.readString(service.currentFile()))
+                    .contains("first")
+                    .contains("second");
+        }
+    }
+
     private String nameOf(UUID uuid) {
         if (uuid.equals(ALICE)) {
             return "Alice";

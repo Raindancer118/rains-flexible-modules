@@ -135,6 +135,7 @@ public final class HungerGamesWiring {
     private final AllGameEvents events;
     private final GameSession session;
     private final RoundLogService roundLog;
+    private final java.util.concurrent.ExecutorService roundLogWriter;
     private final VirtualTime virtualTime;
 
     // ---- services
@@ -182,8 +183,31 @@ public final class HungerGamesWiring {
 
         // ---- the round itself, and the fan-out that everything else hangs off
         this.events = new AllGameEvents();
+        // One thread, in order, closed with the module.
+        //
+        // A round log line is written on every kill, every elimination, every phase change, every drop and
+        // every purchase — and it used to be a createDirectories syscall plus an open-append-close on the
+        // thread ticking the round, thousands of times an evening. It goes to a queue now.
+        //
+        // Single-threaded rather than Bukkit's async pool, deliberately: this file is what settles a dispute
+        // the next day, and two kills a tick apart must not swap places in it. An executor with one thread is
+        // the cheapest thing that promises that.
+        this.roundLogWriter = java.util.concurrent.Executors.newSingleThreadExecutor(task -> {
+            Thread thread = new Thread(task, "HungerGames-round-log");
+            thread.setDaemon(true);
+            return thread;
+        });
         this.roundLog = new RoundLogService(data.resolve("rounds"),
-                this::nameOf, TeamId::value, log);
+                this::nameOf, TeamId::value, log, java.time.LocalDateTime::now,
+                write -> {
+                    // Rejected once the module is stopping, which is the ordinary case for the last line or
+                    // two of a shutdown. Written here rather than dropped silently.
+                    try {
+                        roundLogWriter.execute(write);
+                    } catch (java.util.concurrent.RejectedExecutionException stopping) {
+                        write.run();
+                    }
+                });
         this.session = new GameSession(() -> TeamRules.from(settings()), events,
                 new YamlSessionStore(data.resolve("session.yml")), GameClock.system(), new Random());
         this.virtualTime = new VirtualTime();
@@ -275,6 +299,14 @@ public final class HungerGamesWiring {
         core.effects().delayedPlaybackVia((millis, what) ->
                 Scheduling.globalLater(plugin, Math.max(1L, millis / 50L), what));
         log.info("{} sound and particle cue(s) defined.", cues);
+
+        // So the writer thread does not outlive a reload, and so the last queued lines are flushed.
+        context.closeWith(() -> {
+            roundLogWriter.shutdown();
+            if (!roundLogWriter.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                log.warn("The round log still had lines queued when the module stopped.");
+            }
+        });
 
         defineTheLootTables();
 

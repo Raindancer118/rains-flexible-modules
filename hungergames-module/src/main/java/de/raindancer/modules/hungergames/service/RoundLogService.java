@@ -52,6 +52,19 @@ public final class RoundLogService implements GameEvents, IHungerGamesService {
     private static final DateTimeFormatter FILE_STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
     private static final DateTimeFormatter LINE_STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /**
+     * Where a composed line is actually written.
+     *
+     * <p>A seam rather than a thread of this class's own, for two reasons. Core already owns background
+     * writing and this must not become a second copy of it; and the ordering guarantee belongs to whoever
+     * chooses the executor — the wiring hands in a single-threaded one, because two kills a tick apart must
+     * not swap places in the file somebody reads the next day. Bukkit's async pool would not promise that.
+     */
+    @FunctionalInterface
+    public interface Appender {
+        void append(Runnable write);
+    }
+
     /** Where in the world something happened, spelled out just enough for a log line — no Bukkit needed. */
     public record Coordinates(String world, int x, int y, int z) {
 
@@ -66,8 +79,12 @@ public final class RoundLogService implements GameEvents, IHungerGamesService {
     private final Function<TeamId, String> teamName;
     private final LogChannel log;
     private final Supplier<LocalDateTime> clock;
+    private final Appender appender;
 
     private HungerGamesSettings settings = HungerGamesSettings.DEFAULTS;
+
+    /** Set once the log directory has been created, so that is not a syscall per line. */
+    private volatile boolean directoryMade;
     private Path currentFile;
 
     /**
@@ -79,12 +96,24 @@ public final class RoundLogService implements GameEvents, IHungerGamesService {
      *                         so a test can hand in a fixed instant rather than racing the real one
      */
     public RoundLogService(Path logsDir, Function<UUID, String> participantName, Function<TeamId, String> teamName,
-                            LogChannel log, Supplier<LocalDateTime> clock) {
+                            LogChannel log, Supplier<LocalDateTime> clock, Appender appender) {
         this.logsDir = logsDir;
         this.participantName = participantName;
         this.teamName = teamName;
         this.log = log;
         this.clock = clock;
+        this.appender = appender;
+    }
+
+    /**
+     * The same, writing on the calling thread.
+     *
+     * <p>What a test wants, and what a host that has not thought about it gets — a synchronous write is the
+     * old behaviour, so this constructor is honest rather than convenient. Production passes an appender.
+     */
+    public RoundLogService(Path logsDir, Function<UUID, String> participantName, Function<TeamId, String> teamName,
+                            LogChannel log, Supplier<LocalDateTime> clock) {
+        this(logsDir, participantName, teamName, log, clock, Runnable::run);
     }
 
     public RoundLogService(Path logsDir, Function<UUID, String> participantName, Function<TeamId, String> teamName,
@@ -99,16 +128,40 @@ public final class RoundLogService implements GameEvents, IHungerGamesService {
 
     // ==================== writing ====================
 
-    /** Writes one line, if the round log is switched on at all. */
-    public synchronized void log(String category, String message) {
+    /**
+     * Writes one line, if the round log is switched on at all.
+     *
+     * <p>The line is <em>composed</em> here, on the calling thread, and <em>written</em> by the appender —
+     * which in production is a single-threaded executor and in a test is whatever the test wants. Composing
+     * here matters: the timestamp has to be the moment the thing happened rather than the moment the queue
+     * got round to it, and the settings have to be read before a reload can change them underneath.
+     */
+    public void log(String category, String message) {
         if (!settings.roundLogEnabled()) {
             return;
         }
-        Path file = targetFile();
+        Path file;
+        synchronized (this) {
+            file = targetFile();
+        }
         String line = clock.get().format(LINE_STAMP) + " [" + category + "] " + message
                 + System.lineSeparator();
+        appender.append(() -> write(file, line));
+    }
+
+    /**
+     * The disk half, run by the appender.
+     *
+     * <p>{@code createDirectories} is called once rather than per line. It used to be per line, which is a
+     * syscall on the thread ticking the round for every kill, every drop and every purchase — and on an
+     * evening with forty tributes that is thousands of them for a directory that exists after the first.
+     */
+    private void write(Path file, String line) {
         try {
-            Files.createDirectories(logsDir);
+            if (!directoryMade) {
+                Files.createDirectories(logsDir);
+                directoryMade = true;
+            }
             Files.writeString(file, line, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException failure) {
