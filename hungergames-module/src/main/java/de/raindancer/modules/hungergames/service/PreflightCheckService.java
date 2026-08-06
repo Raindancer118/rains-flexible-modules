@@ -233,8 +233,13 @@ public final class PreflightCheckService implements IHungerGamesService {
             return error("Participants", "No tributes registered — add some to the whitelist");
         }
         if (alive < GameControlService.MIN_PLAYERS) {
-            return error("Participants", "Only " + alive + " living tribute(s) — at least "
-                    + GameControlService.MIN_PLAYERS + " are needed");
+            return error("Participants", "Every registered tribute has been eliminated");
+        }
+        if (alive < GameControlService.TOURNAMENT_PLAYERS) {
+            // A remark, not a refusal. This used to be an ERROR, which greyed out Start for an admin standing
+            // alone in the arena they had just built — the one round anybody ever actually runs.
+            return warning("Participants", "Only " + alive + " living tribute — a test round, not a "
+                    + "tournament");
         }
         long onlineNow = session.participants().all().stream()
                 .filter(p -> p.isAlive() && online.isOnline(p.uuid()))

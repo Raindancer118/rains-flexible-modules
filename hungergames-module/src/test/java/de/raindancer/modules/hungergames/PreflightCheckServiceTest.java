@@ -142,14 +142,16 @@ class PreflightCheckServiceTest {
     }
 
     @Test
-    @DisplayName("fewer than two living tributes is a blocking error")
-    void tooFewTributesBlocks() {
+    @DisplayName("a single living tribute is a warning, not a block — a solo round is a test round")
+    void oneTributeWarnsAndRuns() {
         session.whitelistRemove(BOB);
 
         List<CheckResult> results = preflight.runAll(List.of());
 
-        assertThat(byName(results, "Participants").severity()).isEqualTo(Severity.ERROR);
-        assertThat(preflight.canStart(List.of())).isFalse();
+        // Was an ERROR, which greyed out Start for an admin alone in the arena they had just built. See
+        // ASoloRoundIsTestableTest for the whole argument.
+        assertThat(byName(results, "Participants").severity()).isEqualTo(Severity.WARNING);
+        assertThat(preflight.canStart(List.of())).isTrue();
     }
 
     @Test

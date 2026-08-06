@@ -63,7 +63,8 @@ class GameControlServiceTest {
 
     @Test
     void initRefusesAPlayerCountOutsideTheBounds() {
-        assertThat(control.init(UUID.randomUUID(), 1)).isPresent();
+        // One is inside the bounds — see ASoloRoundIsTestableTest. Zero is not.
+        assertThat(control.init(UUID.randomUUID(), 0)).isPresent();
         assertThat(control.init(UUID.randomUUID(), 101)).isPresent();
         assertThat(initCalls).isZero();
 

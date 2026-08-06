@@ -156,8 +156,8 @@ class LegacyLootImportTest {
     }
 
     @Test
-    @DisplayName("a custom entry keeps its written key rather than being resolved as a material")
-    void customEntryKeepsItsKey(@TempDir Path dir) throws IOException {
+    @DisplayName("a custom entry becomes the key the registry actually knows, not the old file's spelling")
+    void customEntryBecomesARegistryKey(@TempDir Path dir) throws IOException {
         Path file = write(dir, """
                 loot:
                   copper-chest:
@@ -173,9 +173,57 @@ class LegacyLootImportTest {
         assertThat(copperChest.entries()).hasSize(1);
         LootEntry custom = copperChest.entries().get(0);
         assertThat(custom.isCustom()).isTrue();
-        assertThat(custom.customKey()).isEqualTo("KRUECKAUWASSER");
+        // This line used to read "KRUECKAUWASSER" — the file's own spelling, asserted as though keeping it
+        // were the point. Core's registry knows the item as hungergames:krueckauwasser, so what the old
+        // assertion actually locked in was an entry naming an item that does not exist. A loot entry for a
+        // missing item yields nothing, so every custom entry in a real server's file was silently dropped and
+        // the chests came out looking full. Reported as "the custom items are still not in the chests".
+        assertThat(custom.customKey()).isEqualTo("hungergames:krueckauwasser");
         assertThat(custom.minimum()).isEqualTo(1);
         assertThat(custom.maximum()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("an id that already names its plugin is left alone")
+    void anAlreadyNamespacedIdIsNotRehomed(@TempDir Path dir) throws IOException {
+        Path file = write(dir, """
+                loot:
+                  copper-chest:
+                  - item: someotherplugin:relic
+                    custom: true
+                    weight: 3
+                """);
+
+        LootEntry custom = LegacyLootImport.from(file).tables().get("copper-chest").entries().get(0);
+
+        // A deliberate cross-plugin reference. Prefixing it would break the one kind of entry that was
+        // written correctly in order to tidy the ones that were not.
+        assertThat(custom.customKey()).isEqualTo("someotherplugin:relic");
+    }
+
+    @Test
+    @DisplayName("every custom item the live server's loot.yml names resolves to a registered key")
+    void theLiveFilesCustomItemsAllResolve(@TempDir Path dir) throws IOException {
+        // The seven ids that are actually in the checked-in live file, in the file's own spelling.
+        for (String written : List.of("KRUECKAUWASSER", "SMOKE_BOMB", "FIENDFINDER",
+                "STUPIDNESS_PROTECTOR", "LEAP", "REPULSE", "MEDIKIT")) {
+            Path file = write(dir, """
+                    loot:
+                      copper-chest:
+                      - item: %s
+                        custom: true
+                        weight: 1
+                    """.formatted(written));
+
+            LootEntry custom = LegacyLootImport.from(file).tables().get("copper-chest").entries().get(0);
+
+            assertThat(custom.customKey())
+                    .as("%s has to become a key the item registry knows, or it is loot that never appears",
+                            written)
+                    .startsWith("hungergames:")
+                    .doesNotContain("_")
+                    .isLowerCase();
+        }
     }
 
     @Test

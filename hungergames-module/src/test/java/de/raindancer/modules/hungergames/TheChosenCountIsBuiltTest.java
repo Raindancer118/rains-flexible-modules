@@ -76,7 +76,9 @@ class TheChosenCountIsBuiltTest {
     @Test
     @DisplayName("a count outside the range never reaches the build")
     void theBoundsStillHold() {
-        assertThat(control.init(UUID.randomUUID(), 1)).isPresent();
+        // Zero rather than one: one is a legitimate arena — see ASoloRoundIsTestableTest for why the floor
+        // moved. Zero is still nothing to build.
+        assertThat(control.init(UUID.randomUUID(), 0)).isPresent();
         assertThat(control.init(UUID.randomUUID(), GameControlService.MAX_PLAYERS + 1)).isPresent();
 
         assertThat(built)

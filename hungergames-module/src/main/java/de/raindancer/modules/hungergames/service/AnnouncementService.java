@@ -45,6 +45,26 @@ public final class AnnouncementService implements IHungerGamesService {
 
     private static final String OWNER = "hungergames-announce";
 
+    /**
+     * The namespace every one of this module's wording keys lives under in {@code messages.yml}.
+     *
+     * <h2>The bug this constant exists because of</h2>
+     * Core's {@code Messages} registry is server-wide and flat, so a key is {@code hungergames.winner} and
+     * not {@code winner}. Five callers passed the bare name — and Core's answer to an unknown key is to
+     * render the key itself, so a player who earned a sponsor token was told
+     * <i>"&lt;sponsor-token-earned&gt;"</i>, with the plugin's raw jar name in front of it because the
+     * fallback carries no brand either.
+     *
+     * <p>Four of the five were on paths nobody exercises in a unit test: a supply drop landing, a beacon
+     * spawning, a shop purchase, a refused purchase. Every one of them is a sentence that only ever appears
+     * in front of forty people at once.
+     *
+     * <p>So the qualification happens <em>here</em> rather than at five call sites. A rule that has to be
+     * remembered at every call site is a rule that is followed at four of them by March — and this module's
+     * wording still arrives in waves, so there will be more callers.
+     */
+    private static final String NAMESPACE = "hungergames.";
+
     private final Messages messages;
     private final ActionBars actionBars;
 
@@ -65,10 +85,11 @@ public final class AnnouncementService implements IHungerGamesService {
         if (!settings.announcementsEnabled()) {
             return;
         }
-        Component rendered = messages.get(key, values);
+        String wording = qualified(key);
+        Component rendered = messages.get(wording, values);
         for (Style style : enabledStylesOf(styles)) {
             switch (style) {
-                case CHAT -> messages.send(recipient, key, values);
+                case CHAT -> messages.send(recipient, wording, values);
                 case TITLE -> recipient.showTitle(Title.title(rendered, Component.empty()));
                 case ACTIONBAR -> {
                     if (actionBars != null && player != null) {
@@ -77,6 +98,24 @@ public final class AnnouncementService implements IHungerGamesService {
                 }
             }
         }
+    }
+
+    /**
+     * A wording key with this module's namespace on it, whether the caller remembered or not.
+     *
+     * <p>Public and static so the rule is one function that can be checked without a server — see
+     * {@link #NAMESPACE} for what it was like when the rule was five call sites instead.
+     *
+     * <p>Idempotent: a key that already carries the namespace is returned untouched, so a caller who does
+     * remember is not punished with {@code hungergames.hungergames.winner}. Anything else with a dot in it is
+     * also left alone — that is another plugin's key, and silently re-homing it into this namespace would turn
+     * a deliberate cross-plugin reference into a missing one.
+     */
+    public static String qualified(String key) {
+        if (key == null || key.isEmpty()) {
+            return key;
+        }
+        return key.indexOf('.') < 0 ? NAMESPACE + key : key;
     }
 
     /**

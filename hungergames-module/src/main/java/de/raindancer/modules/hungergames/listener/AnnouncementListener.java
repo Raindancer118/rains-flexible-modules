@@ -133,13 +133,27 @@ public final class AnnouncementListener implements IHungerGamesListener, GameEve
      * the count. The border taking two people at once is the ordinary case, not the corner.
      */
     public void announceThresholds(int remainingAlive) {
+        if (remainingAlive < 1) {
+            // Nothing. The winner announcement is what says the round is over, and "Only 0 tributes still
+            // alive!" is not information — it was printed four times in a solo round, once per threshold.
+            return;
+        }
+        boolean saidIt = false;
         for (int threshold : configuredThresholds()) {
             if (remainingAlive > threshold || !alreadyAnnounced.add(threshold)) {
+                continue;
+            }
+            // Every crossing is remembered — that is the loop's real job, and forgetting the ones that went
+            // unprinted would announce the same count again on the next elimination. But only one sentence
+            // is printed, because the wording interpolates the count and not the threshold: four crossings
+            // rendered four identical lines. See OneSentencePerEliminationTest.
+            if (saidIt) {
                 continue;
             }
             announcements.everybody("hungergames.remaining-players",
                     "alive", String.valueOf(remainingAlive),
                     "threshold", String.valueOf(threshold));
+            saidIt = true;
         }
     }
 

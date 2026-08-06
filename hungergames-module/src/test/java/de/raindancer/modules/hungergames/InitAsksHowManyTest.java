@@ -58,7 +58,8 @@ class InitAsksHowManyTest {
         void theBoundsAreTheBounds() {
             // Clamping would build an arena for a number the gamemaster did not choose — the same class of
             // mistake as deriving one. GameControlService refuses it and says the range.
-            assertThat(RoundCommand.countIn(new String[] {"1"})).isEmpty();
+            // One is a legitimate arena — an admin testing alone. See ASoloRoundIsTestableTest.
+            assertThat(RoundCommand.countIn(new String[] {"1"})).contains(1);
             assertThat(RoundCommand.countIn(new String[] {"0"})).isEmpty();
             assertThat(RoundCommand.countIn(new String[] {"101"})).isEmpty();
 

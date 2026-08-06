@@ -7,6 +7,7 @@ import de.raindancer.modules.hungergames.HungerGamesSettings;
 import de.raindancer.modules.hungergames.model.ArenaLayout;
 import de.raindancer.modules.hungergames.model.GamePhase;
 import de.raindancer.modules.hungergames.store.GameSession;
+import de.raindancer.modules.hungergames.store.TributeRoster;
 import de.raindancer.modules.hungergames.visual.BarrierRing;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -202,8 +203,8 @@ public final class StartupSequenceService implements IHungerGamesService {
                 reachReady(actor, layout, world);
                 return true;
             }
-            told.refused(actor, "no tribute is online, and fewer than "
-                    + GameControlService.MIN_PLAYERS + " are registered");
+            told.refused(actor, "no tribute is online and none are registered — add at least one with "
+                    + "/allow <name>, or paste a list into " + TributeRoster.FILE_NAME);
             return false;
         }
 

@@ -30,8 +30,32 @@ import java.util.function.Predicate;
  */
 public final class GameControlService implements IHungerGamesService {
 
-    /** The fewest tributes a round can sensibly run with — one tribute has nobody to win against. */
-    public static final int MIN_PLAYERS = 2;
+    /**
+     * The fewest tributes a round can run with: one.
+     *
+     * <h2>Why not two, which is what "a tournament" would say</h2>
+     * Because a solo round is the round that actually gets run. An admin registers themselves, builds an
+     * arena and stands in it alone to find out whether the loot is placed, whether the border moves, whether
+     * the smoke bomb works — forty times an evening. This constant used to be two, with a comment arguing
+     * that "one tribute has nobody to win against", and that argument gated four separate things: {@code
+     * /init 1}, the number chooser's floor, the dry-run branch of {@code /startup}, and a preflight check
+     * that called a solo round a blocking error. So the sentence about sport refused the rehearsal.
+     *
+     * <p>Nothing about the round itself needs two. Victory is resolved when somebody is <em>eliminated</em>
+     * ({@code GameSession#eliminate}), so a round of one simply runs until it is ended or its clock expires,
+     * which is exactly what a rehearsal wants. "This is not a tournament" is still said — as a preflight
+     * <b>warning</b>, which is what that remark always was.
+     */
+    public static final int MIN_PLAYERS = 1;
+
+    /**
+     * The fewest tributes for a round that is a contest rather than a rehearsal.
+     *
+     * <p>Not a gate — nothing refuses because of this. It is the number preflight warns below, kept separate
+     * from {@link #MIN_PLAYERS} so that the difference between "cannot run" and "is not a tournament" is a
+     * difference in the code and not only in a comment.
+     */
+    public static final int TOURNAMENT_PLAYERS = 2;
 
     /** A ceiling rather than a real limit: past this a stage is almost certainly a typo, not a tournament. */
     public static final int MAX_PLAYERS = 100;

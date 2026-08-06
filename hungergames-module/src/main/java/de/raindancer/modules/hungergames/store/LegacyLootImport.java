@@ -170,13 +170,41 @@ public final class LegacyLootImport {
 
             boolean custom = Boolean.TRUE.equals(map.get("custom"));
             LootEntry entry = custom
-                    ? LootEntry.ofCustomItem(name, weight).amount(range[0], range[1])
+                    ? LootEntry.ofCustomItem(registryKeyFor(name), weight).amount(range[0], range[1])
                     : materialEntry(name, weight, range, tableName, problems);
             if (entry != null) {
                 entries.add(entry);
             }
         }
         return List.copyOf(entries);
+    }
+
+    /**
+     * A custom item's id as the registry actually spells it.
+     *
+     * <h2>The bug this exists because of, reported as "the custom items are still not in the chests"</h2>
+     * An old {@code loot.yml} writes {@code item: SMOKE_BOMB} with {@code custom: true}. Core's registry
+     * knows that item as {@code hungergames:smoke-bomb}, so the imported entry named an item that does not
+     * exist — and a loot entry for a missing item simply yields nothing. Every custom entry in a real
+     * server's file was therefore silently dropped at fill time: the chests looked full, and the seven items
+     * that make the round interesting were never in them.
+     *
+     * <p>Exactly the mistake {@code SponsorShopStore.canonicalItemId} was written for, made a second time in
+     * a different file — which is why this one is spelled out here rather than fixed quietly. The two
+     * conversions are deliberately <em>not</em> shared: that one reconciles two spellings of an id inside
+     * one plugin's own shop file, while this one turns a foreign plugin's spelling into a registry key,
+     * namespace and all. Merging them would give one function two jobs and one of them would drift.
+     *
+     * <p>An id that already carries a namespace is left exactly as written — that is either this module's own
+     * key or a deliberate reference to another plugin's item, and re-homing it here would break the second
+     * kind to tidy the first.
+     */
+    static String registryKeyFor(String written) {
+        String id = written.strip();
+        if (id.indexOf(':') >= 0) {
+            return id;
+        }
+        return "hungergames:" + id.toLowerCase(java.util.Locale.ROOT).replace('_', '-');
     }
 
     private static LootEntry materialEntry(String name, int weight, int[] range, String tableName,

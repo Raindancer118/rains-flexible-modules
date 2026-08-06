@@ -127,13 +127,13 @@ class AnnouncementListenerTest {
             listener.participantEliminated(BRAM, null, 3);
             listener.participantEliminated(CLIO, null, 3);
 
-            // Three, not six or nine. At a count of 3 the defaults 10, 5 and 3 are all crossed and 2 is
-            // not, so the first elimination says three lines and the two after it say none — which is the
-            // whole point. (I first wrote 2 here and it was simply wrong arithmetic: 3 <= 3 counts.)
+            // One, not three and not nine. At a count of 3 the defaults 10, 5 and 3 are all crossed at once
+            // — but the wording only shows the count, so three crossings would render the same sentence
+            // three times. All three are remembered; one is printed. See OneSentencePerEliminationTest.
             assertThat(said.stream().filter(line -> line.contains("remaining-players")).count())
                     .as("a threshold announced again on every subsequent elimination is a line the server "
                             + "sees over and over while people are trying to read the killfeed")
-                    .isEqualTo(3L);
+                    .isEqualTo(1L);
         }
 
         @Test
@@ -144,22 +144,26 @@ class AnnouncementListenerTest {
             // is the ordinary case rather than the corner.
             listener.participantEliminated(ALICE, null, 4);
 
+            // Something is said, and it says four. Which threshold triggered it is invisible to a player —
+            // the wording interpolates the count only — so the assertion is about the count, not about the
+            // threshold's number appearing in a recorded placeholder.
             assertThat(said)
-                    .as("5 was crossed even though the count was never 5")
-                    .anyMatch(line -> line.contains("remaining-players") && line.contains("5"));
+                    .as("5 was crossed even though the count was never 5, and the source said nothing here")
+                    .anyMatch(line -> line.contains("remaining-players") && line.contains("alive, 4"));
         }
 
         @Test
-        @DisplayName("several thresholds crossed at once are announced largest first")
+        @DisplayName("several thresholds crossed at once are one sentence, for the largest crossed")
         void inTheOrderTheyWerePassed() {
             listener.participantEliminated(ALICE, null, 2);
 
             List<String> thresholds = said.stream()
                     .filter(line -> line.contains("remaining-players"))
                     .toList();
-            assertThat(thresholds).hasSize(4);   // 10, 5, 3, 2
+            // Was hasSize(4) — reading the recorded placeholder values, where the four look different,
+            // rather than the sentence, where they are identical. See OneSentencePerEliminationTest.
+            assertThat(thresholds).hasSize(1);
             assertThat(thresholds.get(0)).contains("10");
-            assertThat(thresholds.get(thresholds.size() - 1)).contains("2");
         }
 
         @Test
