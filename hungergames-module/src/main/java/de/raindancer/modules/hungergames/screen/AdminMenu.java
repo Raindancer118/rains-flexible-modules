@@ -67,6 +67,8 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
     private final SpectatorService spectator;
     private final GamemasterMenu.Gamemasters gamemasters;
     private final ChatPrompts prompts;
+    private final de.raindancer.core.ui.effect.Effects effects;
+    private final Runnable saveCues;
     private final RoundLogService roundLog;
     private final VirtualTime virtualTime;
     private final SponsorTokenService sponsorTokens;
@@ -79,7 +81,8 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
                      MannequinSimService simulation, SpectatorService spectator,
                      GamemasterMenu.Gamemasters gamemasters, ChatPrompts prompts, RoundLogService roundLog,
                      VirtualTime virtualTime, SponsorTokenService sponsorTokens,
-                     de.raindancer.modules.hungergames.store.TributeRoster roster) {
+                     de.raindancer.modules.hungergames.store.TributeRoster roster,
+                     de.raindancer.core.ui.effect.Effects effects, Runnable saveCues) {
         super(viewer, brand, null);
         this.session = session;
         this.gameControl = gameControl;
@@ -93,6 +96,8 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
         this.spectator = spectator;
         this.gamemasters = gamemasters;
         this.prompts = prompts;
+        this.effects = effects;
+        this.saveCues = saveCues;
         this.roundLog = roundLog;
         this.virtualTime = virtualTime;
         this.sponsorTokens = sponsorTokens;
@@ -150,6 +155,14 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
         tile(37, Material.ARMOR_STAND, "Test simulation", admin,
                 click -> new SimulationMenu(viewer, brand(), this, simulation, session).open(),
                 simulation.mannequinCount() + " mannequin(s) active.", "Rehearse a round alone.");
+
+        // Core's own page, reached from here because this is where a gamemaster is when they decide the
+        // cannon is too quiet. The old plugin had seven menus for this and the port dropped all seven; Core
+        // owns the cues, so Core owns the page, and every plugin on the server gets the same one.
+        tile(41, Material.JUKEBOX, "Sounds & particles", admin,
+                click -> new de.raindancer.core.ui.effect.CuesMenu(viewer, brand(), this, effects,
+                        saveCues).open(),
+                "Everything this server plays,", "and what each cue is bound to.");
 
         tile(39, Material.REDSTONE, "System & debug", admin,
                 click -> new SystemDebugMenu(viewer, brand(), this, session, roundLog, virtualTime,

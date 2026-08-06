@@ -105,6 +105,8 @@ public final class HungerGamesScreens implements IHungerGamesScreensOpener {
             ItemFactory itemFactory,
             ShopMenu.PlainStack plainStack,
             de.raindancer.modules.hungergames.store.TributeRoster roster,
+            de.raindancer.core.ui.effect.Effects effects,
+            Runnable saveCues,
 
             /** Applying a resolved border conflict — owned by whatever holds the phase file, not by a page. */
             Consumer<BorderMath.ApplyResult> applyBorderResolution,
@@ -135,7 +137,7 @@ public final class HungerGamesScreens implements IHungerGamesScreensOpener {
                 wiring.borderPhases(), wiring.deathmatch(), wiring.settings(), wiring.supplyDrops(),
                 wiring.monsterWaves(), wiring.simulation(), wiring.spectator(), wiring.gamemasters(),
                 wiring.prompts(), wiring.roundLog(), wiring.virtualTime(), wiring.sponsorTokens(),
-                wiring.roster())
+                wiring.roster(), wiring.effects(), wiring.saveCues())
                 .open();
     }
 

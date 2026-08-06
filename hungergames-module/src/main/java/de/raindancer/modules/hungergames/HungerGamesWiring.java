@@ -964,7 +964,10 @@ public final class HungerGamesWiring {
                 control, preflight, deathmatch, supplyDrops, monsterWaves, simulation, spectators,
                 sponsorTokens, roundLog, virtualTime,
                 shopStore, announcements, gamemasters, core.prompts(), core.items(),
-                core.itemFactory(), plainStack(), roster,
+                core.itemFactory(), plainStack(), roster, core.effects(),
+                // Cues live in Core's registry and Core persists them; nothing extra to write here. Named
+                // rather than passed as null so the page's own "did that save?" question has an answer.
+                () -> { },
                 applied -> {
                     borderPhaseStore.save(applied.settings().phases());
                     borderPhases = applied.settings().phases();
