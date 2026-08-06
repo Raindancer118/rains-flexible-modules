@@ -4,6 +4,8 @@ import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.choose.PlayerChooser;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
+import de.raindancer.core.ui.prompt.ChatPrompts;
+import de.raindancer.modules.hungergames.store.TributeRoster;
 import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.modules.hungergames.model.Participant;
 import de.raindancer.modules.hungergames.store.GameSession;
@@ -43,10 +45,25 @@ public final class TributesMenu extends PaginatedMenu<Participant> implements IH
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
     private final GameSession session;
+    private final ChatPrompts prompts;
+    private final TributeRoster roster;
 
-    public TributesMenu(Player viewer, Brand brand, Menu parent, GameSession session) {
+    public TributesMenu(Player viewer, Brand brand, Menu parent, GameSession session,
+                        ChatPrompts prompts, TributeRoster roster) {
         super(viewer, brand, parent);
         this.session = session;
+        this.prompts = prompts;
+        this.roster = roster;
+    }
+
+    /**
+     * The same, without the two ways of adding somebody the server has never seen.
+     *
+     * <p>Kept so a host that has wired neither still gets a working page — the picker and every per-tribute
+     * action work without them. Both extra buttons simply are not drawn, rather than being drawn dead.
+     */
+    public TributesMenu(Player viewer, Brand brand, Menu parent, GameSession session) {
+        this(viewer, brand, parent, session, null, null);
     }
 
     @Override
@@ -131,14 +148,110 @@ public final class TributesMenu extends PaginatedMenu<Participant> implements IH
     @Override
     protected void render() {
         super.render();
-        toolbar(2, Icons.of(Material.EMERALD, "<green>Register a tribute",
-                        "<gray>Pick anybody the server has ever seen."),
+
+        // Three ways in, because a tournament's tributes arrive three ways: somebody standing here, a name off
+        // a sheet, or forty names pasted into a file the night before.
+        toolbar(1, Icons.of(Material.PLAYER_HEAD, "<green>Pick somebody",
+                        List.of("<gray>Anybody this server has seen before.",
+                                "<dark_gray>Most of a sign-up sheet has not been here —",
+                                "<dark_gray>use \"By name\" for them.")),
                 click -> new PlayerChooser(viewer, brand(), this, "Register a tribute",
                         session.participants().all().stream().map(Participant::uuid).toList(),
-                        chosen -> {
-                            session.whitelistAdd(chosen.id(), chosen.name());
-                            refresh();
-                        }).open());
+                        chosen -> registerByName(chosen.name()))
+                        .open());
+
+        toolbar(3, Icons.of(Material.NAME_TAG, "<green>By name",
+                        List.of("<gray>Somebody who has never been here.",
+                                "<gray>You will be asked for the name in chat.",
+                                "<dark_gray>They become a real tribute when they first join.")),
+                click -> askForAName());
+
+        if (roster != null) {
+            toolbar(5, Icons.of(Material.WRITABLE_BOOK, "<yellow>Read " + TributeRoster.FILE_NAME,
+                            List.of("<gray>The whole sign-up sheet, in one go.",
+                                    "<gray>Paste the names into the file, then click this.",
+                                    "<dark_gray>Reading it twice is harmless.",
+                                    "<dark_gray>" + roster.file().getFileName())),
+                    click -> readTheRoster());
+        }
+    }
+
+    /**
+     * Registers one name, whoever it belongs to.
+     *
+     * <p>One method for all three routes, so a tribute added by hand, by picker or by file is the same tribute
+     * — the derived id is the same function {@code /allow} uses, and a name registered twice by two routes
+     * would otherwise be two people, one of whom can never be matched to a player.
+     */
+    private void registerByName(String name) {
+        if (!TributeRoster.isPlausibleName(name)) {
+            tell("<red>" + name + " is not a Minecraft name.");
+            return;
+        }
+        boolean added = session.whitelistAdd(TributeRoster.derivedIdFor(name), name.strip());
+        if (added && roster != null) {
+            // Written to the sheet as well, so the file and the register do not drift apart the first time
+            // somebody uses both.
+            roster.remember(name);
+        }
+        tell(added ? "<green>✔ " + name.strip() + " is a tribute."
+                : "<yellow>" + name.strip() + " was already a tribute.");
+        open();
+    }
+
+    /**
+     * Asks for a name in chat.
+     *
+     * <p>Chat rather than a picker, because the whole point is somebody the picker cannot offer: a player list
+     * only knows who has been here, and most of a sign-up sheet has not.
+     */
+    private void askForAName() {
+        if (prompts == null) {
+            tell("<red>This build has no chat prompt wired, so a name cannot be typed here.");
+            return;
+        }
+        viewer.closeInventory();
+        tell("<yellow>Type the tribute's name in chat. <gray>Say <white>cancel</white> to stop.</gray>");
+        prompts.ask(viewer.getUniqueId(), "hungergames-tributes", java.time.Duration.ofSeconds(60),
+                typed -> {
+                    String name = typed == null ? "" : typed.strip();
+                    if (name.isEmpty() || name.equalsIgnoreCase("cancel")) {
+                        open();
+                        return;
+                    }
+                    registerByName(name);
+                },
+                () -> {
+                    tell("<gray>Nothing was typed, so nobody was registered.");
+                    open();
+                });
+    }
+
+    /** Reads the sheet, and says what it found — including what it could not use. */
+    private void readTheRoster() {
+        roster.createIfMissing();
+        TributeRoster.Report report = roster.load();
+
+        int added = 0;
+        for (TributeRoster.Entry entry : report.found()) {
+            if (session.whitelistAdd(entry.derivedId(), entry.name())) {
+                added++;
+            }
+        }
+        if (report.found().isEmpty() && report.problems().isEmpty()) {
+            tell("<yellow>" + TributeRoster.FILE_NAME + " is empty. <gray>Paste your names into "
+                    + roster.file().getFileName() + " and click again.</gray>");
+        } else {
+            tell("<green>✔ " + added + " new tribute(s) from " + TributeRoster.FILE_NAME
+                    + " <gray>(" + report.found().size() + " name(s) on the sheet)</gray>");
+        }
+        // Every problem, individually. A count of skipped names is a count somebody has to go and diff.
+        report.problems().forEach(problem -> tell("<yellow>⚠ " + problem));
+        open();
+    }
+
+    private void tell(String miniMessage) {
+        viewer.sendMessage(MINI.deserialize(miniMessage));
     }
 
     @Override

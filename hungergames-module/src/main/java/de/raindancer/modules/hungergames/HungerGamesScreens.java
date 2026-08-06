@@ -104,6 +104,7 @@ public final class HungerGamesScreens implements IHungerGamesScreensOpener {
             CustomItems customItems,
             ItemFactory itemFactory,
             ShopMenu.PlainStack plainStack,
+            de.raindancer.modules.hungergames.store.TributeRoster roster,
 
             /** Applying a resolved border conflict — owned by whatever holds the phase file, not by a page. */
             Consumer<BorderMath.ApplyResult> applyBorderResolution,
@@ -133,7 +134,8 @@ public final class HungerGamesScreens implements IHungerGamesScreensOpener {
         new AdminMenu(viewer, wiring.brand(), wiring.session(), wiring.control(), wiring.preflight(),
                 wiring.borderPhases(), wiring.deathmatch(), wiring.settings(), wiring.supplyDrops(),
                 wiring.monsterWaves(), wiring.simulation(), wiring.spectator(), wiring.gamemasters(),
-                wiring.prompts(), wiring.roundLog(), wiring.virtualTime(), wiring.sponsorTokens())
+                wiring.prompts(), wiring.roundLog(), wiring.virtualTime(), wiring.sponsorTokens(),
+                wiring.roster())
                 .open();
     }
 

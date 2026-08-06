@@ -55,6 +55,7 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
     private final GameSession session;
+    private final de.raindancer.modules.hungergames.store.TributeRoster roster;
     private final GameControlService gameControl;
     private final PreflightCheckService preflight;
     private final Supplier<List<BorderPhaseConfig>> borderPhases;
@@ -77,7 +78,8 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
                      SupplyDropService supplyDrops, MonsterWaveService monsterWaves,
                      MannequinSimService simulation, SpectatorService spectator,
                      GamemasterMenu.Gamemasters gamemasters, ChatPrompts prompts, RoundLogService roundLog,
-                     VirtualTime virtualTime, SponsorTokenService sponsorTokens) {
+                     VirtualTime virtualTime, SponsorTokenService sponsorTokens,
+                     de.raindancer.modules.hungergames.store.TributeRoster roster) {
         super(viewer, brand, null);
         this.session = session;
         this.gameControl = gameControl;
@@ -94,6 +96,7 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
         this.roundLog = roundLog;
         this.virtualTime = virtualTime;
         this.sponsorTokens = sponsorTokens;
+            this.roster = roster;
     }
 
     @Override
@@ -116,11 +119,11 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
 
         tile(10, Material.CLOCK, "Game control", true,
                 click -> new GameControlMenu(viewer, brand(), this, session, gameControl, preflight,
-                        borderPhases, simulation, monsterWaves).open(),
+                        borderPhases, simulation, monsterWaves, roster, prompts).open(),
                 "Status, init, start-up, start,", "end and reset.");
 
         tile(12, Material.PLAYER_HEAD, "Tributes", admin,
-                click -> new TributesMenu(viewer, brand(), this, session).open(),
+                click -> new TributesMenu(viewer, brand(), this, session, prompts, roster).open(),
                 "Register, revive, eliminate,", "or remove a tribute.");
 
         tile(14, Material.COMPASS, "Gamemasters", gamemaster,

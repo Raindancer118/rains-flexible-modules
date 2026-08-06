@@ -4,6 +4,7 @@ import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.choose.AmountChooser;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
+import de.raindancer.core.ui.prompt.ChatPrompts;
 import de.raindancer.modules.hungergames.model.BorderPhaseConfig;
 import de.raindancer.modules.hungergames.model.GamePhase;
 import de.raindancer.modules.hungergames.service.GameControlService;
@@ -41,6 +42,8 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
     private final GameSession session;
+    private final ChatPrompts prompts;
+    private final de.raindancer.modules.hungergames.store.TributeRoster roster;
     private final GameControlService gameControl;
     private final PreflightCheckService preflight;
     private final Supplier<List<BorderPhaseConfig>> borderPhases;
@@ -50,7 +53,8 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
     public GameControlMenu(Player viewer, Brand brand, Menu parent, GameSession session,
                            GameControlService gameControl, PreflightCheckService preflight,
                            Supplier<List<BorderPhaseConfig>> borderPhases, MannequinSimService simulation,
-                           MonsterWaveService monsterWaves) {
+                           MonsterWaveService monsterWaves,
+                     de.raindancer.modules.hungergames.store.TributeRoster roster, ChatPrompts prompts) {
         super(viewer, brand, parent, 5);
         this.session = session;
         this.gameControl = gameControl;
@@ -58,6 +62,8 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
         this.borderPhases = borderPhases;
         this.simulation = simulation;
         this.monsterWaves = monsterWaves;
+            this.roster = roster;
+            this.prompts = prompts;
     }
 
     @Override
@@ -144,7 +150,7 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
         set(31, Icons.of(Material.PLAYER_HEAD, "<aqua>Tributes",
                         "<gray>" + session.participants().aliveCount() + " alive / "
                                 + session.participants().all().size() + " registered"),
-                click -> new TributesMenu(viewer, brand(), this, session).open());
+                click -> new TributesMenu(viewer, brand(), this, session, prompts, roster).open());
 
         set(32, Icons.of(Material.ARMOR_STAND, "<aqua>Test simulation",
                         "<gray>" + simulation.mannequinCount() + " mannequin(s) active"),

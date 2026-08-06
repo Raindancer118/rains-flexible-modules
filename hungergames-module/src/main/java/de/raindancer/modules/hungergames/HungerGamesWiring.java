@@ -58,6 +58,7 @@ import de.raindancer.modules.hungergames.store.LootCatalogue;
 import de.raindancer.modules.hungergames.store.LootDefaults;
 import de.raindancer.modules.hungergames.store.RuntimeStore;
 import de.raindancer.modules.hungergames.store.SponsorShopStore;
+import de.raindancer.modules.hungergames.store.TributeRoster;
 import de.raindancer.modules.hungergames.store.YamlSessionStore;
 import de.raindancer.modules.hungergames.visual.Schematics;
 import org.bukkit.GameMode;
@@ -129,6 +130,7 @@ public final class HungerGamesWiring {
     private final RuntimeStore runtimeStore;
     private final BorderPhaseStore borderPhaseStore;
     private final SponsorShopStore shopStore;
+    private final TributeRoster roster;
     private final GamemasterStore gamemasterStore;
     private final LootCatalogue lootTables;
 
@@ -180,6 +182,9 @@ public final class HungerGamesWiring {
         this.borderPhaseStore = new BorderPhaseStore(data.resolve("border-phases.yml"),
                 settings().roundDuration());
         this.shopStore = new SponsorShopStore(data.resolve("sponsor-shop.yml"));
+        // The sign-up sheet, written out empty on first boot so somebody looking for it finds it.
+        this.roster = new TributeRoster(data.resolve(TributeRoster.FILE_NAME));
+        roster.createIfMissing();
         this.gamemasterStore = new GamemasterStore(data.resolve("gamemasters.yml"));
         this.lootTables = new LootCatalogue(core.lootTables());
         this.borderPhases = loadBorderPhases();
@@ -959,7 +964,7 @@ public final class HungerGamesWiring {
                 control, preflight, deathmatch, supplyDrops, monsterWaves, simulation, spectators,
                 sponsorTokens, roundLog, virtualTime,
                 shopStore, announcements, gamemasters, core.prompts(), core.items(),
-                core.itemFactory(), plainStack(),
+                core.itemFactory(), plainStack(), roster,
                 applied -> {
                     borderPhaseStore.save(applied.settings().phases());
                     borderPhases = applied.settings().phases();
