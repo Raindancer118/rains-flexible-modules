@@ -189,6 +189,24 @@ class ReuseTest {
                 && countOf(file, key) == 1;
     }
 
+    /**
+     * The second exception, and the only place on this server where {@link System#out} is the right answer.
+     *
+     * <p>{@code FliptableService} does its deleting in a JVM shutdown hook, because a world folder removed
+     * while Paper is still running is written back half-formed as Paper shuts down and the server then does
+     * not start again. By the time that hook runs the plugins are disabled and the log channel's file handle
+     * is closed — so {@code context.log()} would swallow every line of the one report nobody can re-run.
+     *
+     * <p>Narrow in the same way as the operator lookup above: one call, in one file, inside the one method
+     * named for it. A second {@code System.out} anywhere — including elsewhere in that same file — still
+     * fails.
+     */
+    private static boolean isTheOneAllowedShutdownHookReport(String file, String key) {
+        return key.equals("System.out.print")
+                && file.endsWith("FliptableService.java")
+                && countOf(file, key) == 1;
+    }
+
     private static int countOf(String file, String key) {
         String body = module().stream()
                 .filter(source -> source.name().endsWith(file.substring(file.lastIndexOf('/') + 1)))
@@ -209,7 +227,8 @@ class ReuseTest {
         for (Source source : module()) {
             for (Map.Entry<String, String> wheel : wheelsAlreadyRound().entrySet()) {
                 if (source.body().contains(wheel.getKey())
-                        && !isTheOneAllowedOperatorLookup(source.name(), wheel.getKey())) {
+                        && !isTheOneAllowedOperatorLookup(source.name(), wheel.getKey())
+                        && !isTheOneAllowedShutdownHookReport(source.name(), wheel.getKey())) {
                     reinvented.add(source.name() + " uses '" + wheel.getKey()
                             + "' — use " + wheel.getValue());
                 }

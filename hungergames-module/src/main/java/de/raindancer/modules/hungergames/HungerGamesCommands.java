@@ -2,6 +2,7 @@ package de.raindancer.modules.hungergames;
 
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.hungergames.command.AllowCommand;
+import de.raindancer.modules.hungergames.command.FliptableCommand;
 import de.raindancer.modules.hungergames.command.HungerGamesCommand;
 import de.raindancer.modules.hungergames.command.RoundCommand;
 import de.raindancer.modules.hungergames.util.PermissionNodes;
@@ -34,6 +35,9 @@ import java.util.List;
  *       build its arena with nobody logged in.</li>
  *   <li><b>{@code /hg}</b> is the door to the pages, plus the two things that are not pages: what the round is
  *       doing, and ending it from a console that has no inventory to hold a confirmation in.</li>
+ *   <li><b>{@code /fliptable confirm}</b> for the same reason as that last one, and more so: resetting the
+ *       server between evenings is done by whoever is on SSH, and a console cannot click a dialog. The typed
+ *       word <em>is</em> the confirmation, which is why tab completion does not offer it.</li>
  * </ul>
  *
  * <h2>The names, and the one that is deliberately generic</h2>
@@ -87,7 +91,16 @@ public final class HungerGamesCommands {
                         // /st types it under pressure, and the alternative is reading a red "unknown command"
                         // line instead of watching the countdown they meant to start.
                         .aliased("st")
-                        .needing(PermissionNodes.GAMEMASTER));
+                        .needing(PermissionNodes.GAMEMASTER),
+
+                // The third reason a command earns its place: the console has no inventory to hold a
+                // confirmation dialog in, and this is the one thing on the server that has to be confirmable
+                // from a console — a tournament is reset between evenings, often by whoever is on SSH.
+                ModuleCommand.of("fliptable", "Deletes the worlds and the round's state, then stops the "
+                                        + "server — the configuration stays",
+                                new FliptableCommand(HungerGamesCommands::require))
+                        .taking("confirm — required, and deliberately not offered by tab completion")
+                        .needing(PermissionNodes.ADMIN));
     }
 
     /** Called by the module once it has built everything. */

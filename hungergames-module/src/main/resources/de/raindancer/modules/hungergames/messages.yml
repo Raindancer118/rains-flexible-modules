@@ -143,6 +143,19 @@ hungergames:
   allowed: "<green>✔ Now a tribute: <white><players></white></green> <gray>(<total> in total)</gray>"
   allowed-already: "<yellow>Already a tribute: <white><players></white></yellow>"
 
+  # /fliptable. Three lines before it happens and not one, because the three things somebody needs to read
+  # are different — what it does, how to say yes, and that there is no undo — and one sentence carrying all
+  # three is the one people skim. What is *kept* is named on purpose: a reset nobody trusts is a reset
+  # somebody does by hand at eleven at night, which is the thing this command exists to stop.
+  fliptable-warning: "<red><bold>⚠ This deletes every world and everything this round knows.</bold></red>"
+  fliptable-how: "<yellow>Type <gold>/fliptable confirm</gold> to do it. The server stops straight afterwards.</yellow>"
+  fliptable-final: "<gray>The configuration, the loot tables and the schematics are kept. Nothing else is, and there is no undo.</gray>"
+  fliptable-armed: "<red>(╯°□°)╯︵ ┻━┻ The reset is armed. Everybody is being disconnected and the server stops in a moment.</red>"
+  fliptable-already: "<yellow>A reset is already coming — the server is on its way down.</yellow>"
+  # Read by everybody at once, as the last thing they see. It says to come back, because the alternative is
+  # forty people learning the evening is over from a disconnect with no sentence on it.
+  fliptable-kick: "<red><bold>(╯°□°)╯︵ ┻━┻</bold></red><newline><newline><yellow>The Games are being reset.</yellow><newline><gray>Come back in a moment.</gray>"
+
   help-header: "<gold>The Hunger Games</gold>"
   help-teams: "<gray>/hg teams — pick a team</gray>"
   # No help-shop line, and no /hg shop: the sponsor shop opens at a beacon and nowhere else, which is what
