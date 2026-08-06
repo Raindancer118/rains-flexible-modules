@@ -132,14 +132,23 @@ public final class TeamsMenu extends PaginatedMenu<Team> implements IHungerGames
         TeamRules r = rules.get();
         Optional<Team> ownTeam = session.teams().teamOf(viewer.getUniqueId());
 
-        if (mayStartOne()) {
-            toolbar(2, Icons.of(Material.NETHER_STAR, "<green>Create a team",
-                            "<gray>You will be asked for a name in chat.",
-                            session.teams().availableColours().isEmpty()
-                                    ? "<red>No colour is free — this will be refused."
-                                    : "<dark_gray>" + session.teams().availableColours().size() + " colour(s) free."),
-                    click -> askForTeamName());
-        }
+        // Always drawn, greyed with the reason when it cannot be used.
+        //
+        // It used to be drawn only when it worked, which is the worse of the two: a player looking for
+        // "Create a team" and not finding it does not learn that teams are settled for this round — they
+        // learn that the page is different from the one they remember. It also moved everything after it, so
+        // the button somebody was reaching for ended up somewhere else under their cursor.
+        ItemStack createButton = Icons.of(Material.NETHER_STAR, "<green>Create a team",
+                "<gray>You will be asked for a name in chat.",
+                session.teams().availableColours().isEmpty()
+                        ? "<red>No colour is free — this will be refused."
+                        : "<dark_gray>" + session.teams().availableColours().size() + " colour(s) free.");
+
+        toolbar(2, mayStartOne(), createButton,
+                r.playersCanCreateTeams()
+                        ? "Teams are settled for this round."
+                        : "A gamemaster makes the teams here.",
+                click -> askForTeamName());
 
         if (ownTeam.isPresent()) {
             toolbar(6, Icons.of(Material.RED_BED, "<yellow>Leave " + ownTeam.get().display(),

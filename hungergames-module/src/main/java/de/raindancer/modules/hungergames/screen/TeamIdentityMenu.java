@@ -56,18 +56,34 @@ public final class TeamIdentityMenu extends Menu implements IHungerGamesScreen {
         void choose(Player viewer, Menu returnTo, java.util.function.Consumer<Material> chosen);
     }
 
+    /** Choosing the captain out of a given set of people — Core's player chooser, on the same terms. */
+    @FunctionalInterface
+    public interface CaptainChooser {
+        void choose(Player viewer, Menu returnTo, List<java.util.UUID> among,
+                    java.util.function.Consumer<java.util.UUID> chosen);
+    }
+
     private final GameSession session;
     private final Team team;
     private final RoundLogService roundLog;
     private final BadgeChooser badges;
+    private final CaptainChooser captains;
+    private final java.util.function.Supplier<de.raindancer.modules.hungergames.HungerGamesSettings> settings;
+    private final de.raindancer.core.ui.prompt.ChatPrompts prompts;
 
     public TeamIdentityMenu(Player viewer, Brand brand, Menu parent, GameSession session, Team team,
-                            RoundLogService roundLog, BadgeChooser badges) {
+                            RoundLogService roundLog, BadgeChooser badges, CaptainChooser captains,
+                            java.util.function.Supplier<de.raindancer.modules.hungergames.HungerGamesSettings>
+                                    settings,
+                            de.raindancer.core.ui.prompt.ChatPrompts prompts) {
         super(viewer, brand, parent, 4);
         this.session = session;
         this.team = team;
         this.roundLog = roundLog;
         this.badges = badges;
+        this.captains = captains;
+        this.settings = settings;
+        this.prompts = prompts;
     }
 
     @Override
@@ -135,6 +151,27 @@ public final class TeamIdentityMenu extends Menu implements IHungerGamesScreen {
         for (int i = 0; i < offered.size() && EMBLEMS_FROM + i < 27; i++) {
             TeamEmblem emblem = offered.get(i);
             set(EMBLEMS_FROM + i, emblemIcon(current, emblem), click -> pickEmblem(current, emblem));
+        }
+
+        // Renaming and the captain live here too, because this is the page about what a team *is*. Both were
+        // reachable only from the HTTP API — real, tested, and unavailable to anybody running a tournament.
+        toolbar(1, editable(), Icons.of(Material.NAME_TAG, "<yellow>Rename this team",
+                        List.of("<gray>You will be asked for the new name in chat.",
+                                "<dark_gray>Members and colour are kept.")),
+                "Teams are settled for this round.",
+                click -> askForANewName(current));
+
+        if (settings.get().teamCaptainEnabled()) {
+            toolbar(7, editable() && !current.members().isEmpty(),
+                    Icons.of(Material.GOLDEN_HELMET, "<yellow>Choose the captain",
+                            List.of("<gray>Pick one of this team's members.",
+                                    current.captain().isPresent()
+                                            ? "<dark_gray>Now: " + nameOf(current.captain().get())
+                                            : "<dark_gray>Nobody is captain yet.")),
+                    current.members().isEmpty()
+                            ? "Nobody is on this team yet."
+                            : "Teams are settled for this round.",
+                    click -> pickACaptain(current));
         }
 
         toolbar(4, Icons.of(current.badge(), "<yellow>The item this team is drawn as",
@@ -220,6 +257,52 @@ public final class TeamIdentityMenu extends Menu implements IHungerGamesScreen {
      * <p>{@code TeamOutcome} is the reason, and it is shown rather than turned into "that did not work" —
      * "another team already has that" and "teams are frozen" send somebody to two different places.
      */
+    /** Asks for a new name in chat — a name is typed, so it is typed. */
+    private void askForANewName(Team current) {
+        if (prompts == null) {
+            tell("<red>This build has no chat prompt wired, so a team cannot be renamed here.");
+            return;
+        }
+        viewer.closeInventory();
+        tell("<yellow>Type the new name for " + current.display()
+                + " in chat. <gray>Say <white>cancel</white> to keep it.</gray>");
+        prompts.ask(viewer.getUniqueId(), "hungergames-team-rename", java.time.Duration.ofSeconds(60),
+                typed -> {
+                    String name = typed == null ? "" : typed.strip();
+                    if (name.isEmpty() || name.equalsIgnoreCase("cancel")) {
+                        open();
+                        return;
+                    }
+                    report(session.teamRename(current.id(), name), current.name() + " is now called " + name);
+                },
+                () -> {
+                    tell("<gray>Nothing was typed, so the name was kept.");
+                    open();
+                });
+    }
+
+    /**
+     * Picks the captain from this team's own members.
+     *
+     * <p>Its members and not the whole server, because a captain who is not on the team is a refusal waiting
+     * to happen — and a chooser that offers a choice it will then reject is worse than one that does not
+     * offer it.
+     */
+    private void pickACaptain(Team current) {
+        if (captains == null) {
+            tell("<red>This build has no player chooser wired, so a captain cannot be picked here.");
+            return;
+        }
+        captains.choose(viewer, this, List.copyOf(current.members()),
+                who -> report(session.teamSetCaptain(current.id(), who),
+                        nameOf(who) + " is now captain of " + current.name()));
+    }
+
+    /** Somebody's name, or their id when nothing knows it — never null, because it goes on a button. */
+    private String nameOf(java.util.UUID who) {
+        return session.participants().nameOf(who).orElseGet(who::toString);
+    }
+
     private void report(TeamOutcome outcome, String whatHappened) {
         if (outcome.isSuccess()) {
             roundLog.log("ADMIN", viewer.getName() + ": " + whatHappened);

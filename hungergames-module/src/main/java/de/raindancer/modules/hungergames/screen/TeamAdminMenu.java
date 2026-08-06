@@ -41,16 +41,23 @@ public final class TeamAdminMenu extends PaginatedMenu<Team> implements IHungerG
 
     private final GameSession session;
     private final TeamIdentityMenu.BadgeChooser badges;
+    private final TeamIdentityMenu.CaptainChooser captains;
+    private final java.util.function.Supplier<de.raindancer.modules.hungergames.HungerGamesSettings> settings;
     private final ChatPrompts prompts;
     private final RoundLogService roundLog;
 
     public TeamAdminMenu(Player viewer, Brand brand, Menu parent, GameSession session, ChatPrompts prompts,
-                         RoundLogService roundLog, TeamIdentityMenu.BadgeChooser badges) {
+                         RoundLogService roundLog, TeamIdentityMenu.BadgeChooser badges,
+                         TeamIdentityMenu.CaptainChooser captains,
+                         java.util.function.Supplier<de.raindancer.modules.hungergames.HungerGamesSettings>
+                                 settings) {
         super(viewer, brand, parent);
         this.session = session;
         this.prompts = prompts;
         this.roundLog = roundLog;
         this.badges = badges;
+        this.captains = captains;
+        this.settings = settings;
     }
 
     /**
@@ -64,7 +71,8 @@ public final class TeamAdminMenu extends PaginatedMenu<Team> implements IHungerG
                          RoundLogService roundLog) {
         this(viewer, brand, parent, session, prompts, roundLog,
                 (who, returnTo, chosen) -> who.sendMessage(MINI.deserialize(
-                        "<red>This build has no item chooser wired, so a team's item cannot be changed here.")));
+                        "<red>This build has no item chooser wired, so a team's item cannot be changed here.")),
+                null, () -> de.raindancer.modules.hungergames.HungerGamesSettings.DEFAULTS);
     }
 
     @Override
@@ -112,7 +120,8 @@ public final class TeamAdminMenu extends PaginatedMenu<Team> implements IHungerG
         if (!event.isRightClick()) {
             // Left-click opens what a team looks like. Until this existed, the only way to recolour one was
             // an HTTP request, and its emblem could not be set from the game at all — see TeamIdentityMenu.
-            new TeamIdentityMenu(viewer, brand(), this, session, team, roundLog, badges).open();
+            new TeamIdentityMenu(viewer, brand(), this, session, team, roundLog, badges, captains,
+                    settings, prompts).open();
             return;
         }
         new ConfirmScreen(viewer, brand(), this, "<yellow>Delete " + team.display() + "?",

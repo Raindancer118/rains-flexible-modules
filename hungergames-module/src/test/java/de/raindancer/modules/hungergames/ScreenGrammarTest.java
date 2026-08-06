@@ -51,6 +51,17 @@ class ScreenGrammarTest {
         }
     }
 
+    /** The next line with anything on it, stripped — so a blank line between an if and its body is fine. */
+    private static String nextCodeLine(List<String> lines, int from) {
+        for (int i = from; i < lines.size(); i++) {
+            String line = lines.get(i).strip();
+            if (!line.isEmpty()) {
+                return line;
+            }
+        }
+        return "";
+    }
+
     /** Java source with {@code //} and block comments removed, so a scan sees code rather than prose. */
     private static String withoutComments(String source) {
         return source
@@ -257,6 +268,51 @@ class ScreenGrammarTest {
                 .as("the opener is what a command — built during bootstrap, long before a menu could "
                         + "exist — names instead of naming a menu class. A door with nothing behind it "
                         + "is a command that answers with a stack trace in front of everybody")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("something a gamemaster cannot do right now is greyed out with the reason, not hidden")
+    void nothingJustDisappears() {
+        // Core has band(band, column, allowed, item, reason, handler) for exactly this: the button stays
+        // where it was, greyed, carrying why. The module used it nowhere and hid buttons behind an if in
+        // twelve places instead.
+        //
+        // A missing button cannot be explained. A gamemaster looking for "Start the deathmatch" and not
+        // finding it does not learn that the round has not started yet — they learn that the page is
+        // different from the one they remember, and the next thing they do is ask whether the plugin is
+        // broken. It also moves everything after it, so the button somebody was reaching for is now
+        // somewhere else under their cursor.
+        List<String> hiding = new ArrayList<>();
+        for (Screen screen : screens()) {
+            // Line by line rather than one big pattern. The pattern version passed on everything, because
+            // [^)]* cannot span the brackets in "if (mayStartOne())" — it stopped at the first ) and matched
+            // nothing. A source scan that silently matches nothing is the worst kind of green.
+            List<String> lines = screen.body().lines().toList();
+            boolean saysWhyNot = screen.body().contains("Icons.locked(");
+            for (int i = 0; i < lines.size() - 1; i++) {
+                String line = lines.get(i).strip();
+                if (!line.startsWith("if (") || !line.endsWith(") {")) {
+                    continue;
+                }
+                boolean aboutPermissionOrPhase = line.contains("may") || line.contains("can")
+                        || line.contains("allowed") || line.contains("isFrozen")
+                        || line.contains("enabled") || line.contains("isRunning");
+                if (!aboutPermissionOrPhase) {
+                    continue;
+                }
+                String next = nextCodeLine(lines, i + 1);
+                boolean drawsAButton = next.startsWith("toolbar(") || next.startsWith("tile(")
+                        || next.startsWith("set(") || next.startsWith("band(")
+                        || next.startsWith("danger(");
+                if (drawsAButton && !saysWhyNot) {
+                    hiding.add(screen.name() + ": " + line);
+                }
+            }
+        }
+        assertThat(hiding)
+                .as("these decide whether a button exists rather than whether it works. Use Core's "
+                        + "band(..., allowed, reason, ...) or Icons.locked so it stays put and says why")
                 .isEmpty();
     }
 }

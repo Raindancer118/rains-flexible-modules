@@ -84,8 +84,13 @@ public final class SystemDebugMenu extends Menu implements IHungerGamesScreen {
                             refresh();
                         }).open());
 
-        set(12, Icons.of(Material.WRITABLE_BOOK, "<yellow>Round log",
-                        "<gray>" + roundLog.currentFile()));
+        // A label, not a button — so it is drawn as one. It had a name and lore and no click handler, which
+        // is a button that answers a click with nothing: pressed, then pressed again, then reported as broken.
+        // Icons.locked is how this server says "this is information".
+        set(12, Icons.locked(Icons.of(Material.WRITABLE_BOOK, "<yellow>Round log",
+                        "<gray>" + roundLog.currentFile(),
+                        "<dark_gray>Read it on the server; it is not openable from here."),
+                "Nothing to click"));
 
         set(14, Icons.of(Material.NETHER_STAR, "<yellow>Give yourself a sponsor token",
                         "<gray>For testing the shop without waiting for a wave."),
