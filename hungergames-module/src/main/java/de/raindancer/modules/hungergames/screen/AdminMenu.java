@@ -69,6 +69,8 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
     private final ChatPrompts prompts;
     private final de.raindancer.core.ui.effect.Effects effects;
     private final de.raindancer.core.content.items.CustomItems customItems;
+    private final de.raindancer.core.ui.chat.Chat chat;
+    private final de.raindancer.core.data.settings.SettingsNavigation settingsNavigation;
     private final Runnable saveCues;
     private final RoundLogService roundLog;
     private final VirtualTime virtualTime;
@@ -84,7 +86,9 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
                      VirtualTime virtualTime, SponsorTokenService sponsorTokens,
                      de.raindancer.modules.hungergames.store.TributeRoster roster,
                      de.raindancer.core.ui.effect.Effects effects, Runnable saveCues,
-                     de.raindancer.core.content.items.CustomItems customItems) {
+                     de.raindancer.core.content.items.CustomItems customItems,
+                     de.raindancer.core.ui.chat.Chat chat,
+                     de.raindancer.core.data.settings.SettingsNavigation settingsNavigation) {
         super(viewer, brand, null);
         this.session = session;
         this.gameControl = gameControl;
@@ -100,6 +104,8 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
         this.prompts = prompts;
         this.effects = effects;
         this.customItems = customItems;
+        this.chat = chat;
+        this.settingsNavigation = settingsNavigation;
         this.saveCues = saveCues;
         this.roundLog = roundLog;
         this.virtualTime = virtualTime;
@@ -169,6 +175,14 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
 
         // Core's item page, from here for the same reason as the cues: this is where a gamemaster is when
         // they decide the exmatrikulator should cost a diamond block. One page for every plugin's items.
+        // Every one of the module's 193 settings, on Core's generated page. The old plugin had /hg config for
+        // this and it was the one admin menu nothing replaced — so a gamemaster could see values in the
+        // banner and had nowhere to change them.
+        tile(25, Material.COMPARATOR, "Settings", admin,
+                click -> new de.raindancer.core.data.settings.SettingsMenu(viewer, brand(), chat,
+                        settingsNavigation, "hungergames", null).open(),
+                "Round length, border, deathmatch,", "sponsors, items, loot and the rest.");
+
         tile(43, Material.CRAFTING_TABLE, "Custom items", admin,
                 click -> new de.raindancer.core.content.items.ItemsMenu(viewer, brand(), this,
                         customItems, saveCues).open(),

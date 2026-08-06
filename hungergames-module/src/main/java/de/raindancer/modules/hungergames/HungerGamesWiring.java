@@ -351,6 +351,12 @@ public final class HungerGamesWiring {
                 session::phase, settings());
         context.listener(hotbar);
 
+        // The protection period, enforced. It was measured, announced and counted down on the boss bar, and
+        // nothing ever asked isGraceActive() — so the round told forty people they were safe and let the
+        // difficulty it had just set do what it does. See GracePeriodListener.
+        context.listener(new de.raindancer.modules.hungergames.listener.GracePeriodListener(
+                timer::isGraceActive, session::phase, session::isWhitelisted));
+
         // The cornucopia, as a Core protected area. Core owns the four listeners that ask it; this module
         // only says where the area is and what may happen inside it.
         core.land().provider(new de.raindancer.modules.hungergames.service.CornucopiaProvider(
@@ -967,7 +973,7 @@ public final class HungerGamesWiring {
                 core.itemFactory(), plainStack(), roster, core.effects(),
                 // Cues live in Core's registry and Core persists them; nothing extra to write here. Named
                 // rather than passed as null so the page's own "did that save?" question has an answer.
-                () -> { },
+                () -> { }, context.chat(), core.settingsNavigation(),
                 applied -> {
                     borderPhaseStore.save(applied.settings().phases());
                     borderPhases = applied.settings().phases();
