@@ -54,9 +54,17 @@ class PermissionDefaultsTest {
     void administrationIsForOperators() {
         assertThat(defaultOf("rec.admin")).isEqualTo(PermissionDefault.OP);
         assertThat(defaultOf("rec.bypass")).isEqualTo(PermissionDefault.OP);
-        assertThat(defaultOf("rec.admin.nolimit")).isEqualTo(PermissionDefault.OP);
-        assertThat(defaultOf("rec.admin.nocost")).isEqualTo(PermissionDefault.OP);
-        assertThat(defaultOf("rec.admin.zonebypass")).isEqualTo(PermissionDefault.OP);
+    }
+
+    @Test
+    @DisplayName("the claim limit, the costs and no-claim zones are not their own permission any more")
+    void noStandalonePermissionForTheOldEscapeHatches() {
+        // rec.admin.nolimit, rec.admin.nocost and rec.admin.zonebypass used to default to OP, which meant
+        // an operator — or any staff rank that happened to inherit rec.admin — got every one of them for
+        // free forever. The code now reads /claimadmin bypass's own toggle for all three instead, so
+        // there is nothing left here to declare.
+        assertThat(declared.stream().map(Permission::getName))
+                .doesNotContain("rec.admin.nolimit", "rec.admin.nocost", "rec.admin.zonebypass");
     }
 
     @Test
@@ -74,14 +82,13 @@ class PermissionDefaultsTest {
     @DisplayName("rec.admin implies the everyday nodes, as it did before")
     void adminImpliesTheRest() {
         // A child list, because the old descriptor had one: granting rec.admin alone should not leave
-        // somebody unable to run /claim.
+        // somebody unable to run /claim or to toggle the bypass.
         Map<String, Boolean> children = declared.stream()
                 .filter(permission -> permission.getName().equals("rec.admin"))
                 .findFirst().orElseThrow()
                 .getChildren();
 
-        assertThat(children).containsKeys("rec.use", "rec.bypass", "rec.admin.nolimit",
-                "rec.admin.nocost", "rec.admin.zonebypass");
+        assertThat(children).containsKeys("rec.use", "rec.bypass");
         assertThat(children.values()).containsOnly(true);
         assertThat(children)
                 .as("nofee was deliberately not a child of rec.admin, and still is not")
@@ -95,8 +102,8 @@ class PermissionDefaultsTest {
         // that nothing declares, and it reads as false for every player.
         List<String> names = declared.stream().map(Permission::getName).toList();
 
-        assertThat(names).contains("rec.use", "rec.admin", "rec.admin.nolimit", "rec.admin.nocost",
-                "rec.admin.nofee", "rec.admin.zonebypass", "rec.maxclaims.unlimited");
+        assertThat(names).contains("rec.use", "rec.admin", "rec.bypass",
+                "rec.admin.nofee", "rec.maxclaims.unlimited");
     }
 
     @Test

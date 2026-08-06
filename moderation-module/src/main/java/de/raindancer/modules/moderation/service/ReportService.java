@@ -18,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -105,7 +106,9 @@ public final class ReportService implements IModerationService {
 
         record("report-filed", reporter, reporterName, subject, subjectName, filed.id(), text);
         if (settings.notifyStaffOnReport()) {
-            tellTheStaff("<white><reporter></white> reported <white><subject></white> "
+            // Excludes the subject even when they hold the reports permission themselves — a trial mod
+            // reporting a mod must not out itself in the very chat line meant to tell the rest of staff.
+            tellTheStaff(subject, "<white><reporter></white> reported <white><subject></white> "
                             + "<gray>(<id>)</gray><gray>: <text>",
                     Chat.arg("reporter", reporterName),
                     Chat.arg("subject", subjectName),
@@ -125,7 +128,7 @@ public final class ReportService implements IModerationService {
         reports.add(claimed);
         changed();
         record("report-claimed", who, name, claimed.subject(), claimed.subjectName(), id, null);
-        tellTheStaff("<white><handler></white> has picked up <gray><id></gray>",
+        tellTheStaff(claimed.subject(), "<white><handler></white> has picked up <gray><id></gray>",
                 Chat.arg("handler", name == null ? "the console" : name), Chat.arg("id", id));
         return true;
     }
@@ -245,20 +248,37 @@ public final class ReportService implements IModerationService {
      * <p>Scheduled onto the global region: a report can arrive from a chat-triggered path, and reading
      * the online player list and asking each one for a permission is main-thread work. On Folia there
      * is no single main thread, and the global region is where a server-wide list is safe to touch.
+     *
+     * @param exclude never told, even if they hold the reports permission themselves — the whole point
+     *                of a report is that the person it is about does not find out from it, and staff
+     *                reporting staff is exactly the case a plain permission check would miss
      */
-    private void tellTheStaff(String line, net.kyori.adventure.text.minimessage.tag.resolver.TagResolver...
-            arguments) {
+    private void tellTheStaff(UUID exclude, String line,
+                              net.kyori.adventure.text.minimessage.tag.resolver.TagResolver... arguments) {
         Scheduling.global(plugin, () -> {
-            List<Player> staff = new java.util.ArrayList<>();
-            for (Player who : server.getOnlinePlayers()) {
-                if (who.hasPermission(ModerationPermission.REPORTS.node())) {
-                    staff.add(who);
-                }
-            }
+            List<Player> staff = whoToTell(server.getOnlinePlayers(), exclude);
             if (!staff.isEmpty()) {
                 chat.broadcast(staff, line, arguments);
             }
         });
+    }
+
+    /**
+     * Who actually gets told, out of everybody online — separated from {@link #tellTheStaff} so the one
+     * rule that matters here, "never the subject", is a plain list computation a test can call without a
+     * server, rather than something only provable by reading code alongside {@code Scheduling.global}.
+     */
+    static List<Player> whoToTell(Collection<? extends Player> online, UUID exclude) {
+        List<Player> staff = new java.util.ArrayList<>();
+        for (Player who : online) {
+            if (who.getUniqueId().equals(exclude)) {
+                continue;
+            }
+            if (who.hasPermission(ModerationPermission.REPORTS.node())) {
+                staff.add(who);
+            }
+        }
+        return staff;
     }
 
     private void record(String action, UUID actor, String actorName, UUID subject, String subjectName,

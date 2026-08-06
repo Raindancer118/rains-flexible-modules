@@ -163,9 +163,32 @@ Already learnt the hard way here:
   had a hundred homes on a server configured for three. That fix existed in one plugin and had already
   been copied into a second before it was moved here.
 
+- **A named, coloured group of players** — `core.social.team`. `Team`, `TeamId`, `TeamColour`, the roster
+  (`Teams`), the outcome vocabulary (`TeamOutcome`), and the rules that vary as a value (`TeamPolicy`, with
+  `tournament()`, `match()`, `clans()`, `party()`). A tournament's teams, a bedwars match's teams, a clan and
+  a party are the same thing wearing four names: membership, exclusive colours, captains, random assignment,
+  and a refusal that has to become a sentence. Written separately, each copy gets one of the hard parts
+  subtly wrong — the one where a colour clash silently reassigns instead of refusing, the one where two
+  clicks in a tick both pass the size check, the one where a rename loses the members.
+  <br>The setting that makes one registry able to serve all four is `exclusiveColours`: a tournament and a
+  match must have colours exclusive, because telling teams apart is the entire point, and a server with two
+  hundred clans cannot possibly, because the seventeenth clan could never be founded. What is **not** in the
+  policy is whether teams are editable right now — that is a fact about the moment rather than a rule, it
+  changes several times during one round, and it is a `BooleanSupplier` the host answers.
+  <br>What stays in a module is the phase at which *its* teams freeze and who counts as eligible to be in
+  one. Hunger Games keeps `TeamRules` for exactly that, with a `toPolicy()`.
+
 The counter-example, so the rule is not read too widely: a pantry, a bank, a fence and an entry fee are what a
 claim *is*. They stayed in the module, and an earlier attempt to put them in Core is what this document exists
 to stop happening again.
+
+And the honest note on how the team model got here, since every other entry above was extracted only after
+being written two or three times: this one was moved on the strength of **one** consumer plus a stated
+intention to write clans and bedwars. That is the exception, and it was the right call because the thing moved
+is a *model and a policy* rather than a workflow — the sixteen colours mapped onto dye, text and armour are
+the same sixteen for every consumer there will ever be, and the compromises in that table (there is no brown
+in Adventure's palette; Minecraft has two pinks in dye and one in text) are precisely what a second author
+would get differently.
 
 ---
 

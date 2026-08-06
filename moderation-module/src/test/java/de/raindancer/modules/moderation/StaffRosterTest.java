@@ -71,7 +71,7 @@ class StaffRosterTest {
         }
 
         @Test
-        @DisplayName("an admin gets the claim bypasses; a moderator does not")
+        @DisplayName("an admin gets the claim count perk; a moderator does not")
         void theClaimsHalf(@TempDir Path folder) {
             Grants grants = new Grants(folder);
             StaffRoster roster = new StaffRoster(folder, grants);
@@ -79,8 +79,12 @@ class StaffRosterTest {
             roster.promote(ayla, StaffRank.ADMIN);
             roster.promote(bram, StaffRank.MOD);
 
-            assertThat(grants.has(ayla, "rec.admin.nolimit")).isTrue();
-            assertThat(grants.has(bram, "rec.admin.nolimit")).isFalse();
+            // Not rec.admin.nolimit any more, and not the other two protection nodes either: claims reads
+            // /claimadmin bypass's own toggle for the claim limit, the costs and no-claim zones now, so
+            // there is nothing left here for a promotion to hand out for free. rec.maxclaims.unlimited is
+            // the one genuine rank perk that survives — a claim count, not a protection bypass.
+            assertThat(grants.has(ayla, "rec.maxclaims.unlimited")).isTrue();
+            assertThat(grants.has(bram, "rec.maxclaims.unlimited")).isFalse();
             assertThat(grants.has(bram, "rec.admin"))
                     .as("a moderator still needs to act on a claim while moderating")
                     .isTrue();

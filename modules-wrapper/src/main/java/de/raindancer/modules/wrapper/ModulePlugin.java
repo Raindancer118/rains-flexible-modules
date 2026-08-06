@@ -46,6 +46,7 @@ public final class ModulePlugin extends JavaPlugin {
         Modules.registry().enableAll(module -> new LiveModuleSession(host, module));
 
         brandTheMessages();
+        wireUpButtons();
         reportTheCommands();
         report();
     }
@@ -79,6 +80,19 @@ public final class ModulePlugin extends JavaPlugin {
                 : getName();
         var brand = RainsCore.get().chatFor(name).brand();
         RainsCore.get().messages().prefixFrom(brand::chatPrefix);
+    }
+
+    /**
+     * Tells Core's {@code ChatButtons} that its callback command actually exists now.
+     *
+     * <p>{@code ModuleBootstrap} registers the {@code rcclick} command during the bootstrap phase, before
+     * this plugin — or RainsCore — has enabled. Buttons render as readable text with no click until
+     * something tells {@code ChatButtons} the name it was registered under; without this line every
+     * {@code [Accept]}/{@code [Deny]} on the server is dead and says nothing about why, which is exactly
+     * the failure {@code ModuleBootstrap}'s own class comment describes happening for weeks.
+     */
+    private void wireUpButtons() {
+        RainsCore.get().buttons().callbackCommand("rcclick");
     }
 
     /**

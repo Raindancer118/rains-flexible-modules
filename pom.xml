@@ -24,11 +24,12 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.68-beta</paper.api.version>
-        <rainscore.version>1.3.0</rainscore.version>
+        <rainscore.version>1.5.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
+        <mockito.version>5.21.0</mockito.version>
     </properties>
 
     <modules>
@@ -50,6 +51,14 @@
         <module>farmworld-standalone</module>
         <module>pack-module</module>
         <module>pack-standalone</module>
+        <module>hungergames-module</module>
+        <module>hungergames-standalone</module>
+        <!--
+          After both modules it shades, for the same reason yeuksmp is last. Its own project rather than
+          a profile of the standalone, because the two ship different plugins: one jar is the game alone
+          and the other is the game with the moderation a tournament night needs.
+        -->
+        <module>hungergames-bundle</module>
         <!--
           Last, because it shades six of the modules above and a reactor builds in the order it is
           given. Every dependency it has is built by the time it is reached.
@@ -116,6 +125,11 @@
                 <artifactId>pack-module</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>hungergames-module</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -152,6 +166,18 @@
             <version>${assertj.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -163,6 +189,20 @@
                     <version>3.13.0</version>
                     <configuration>
                         <release>${java.version}</release>
+                        <!--
+                          javac in its own process rather than inside Maven's JVM. Not a preference:
+                          compiling claims-module's test sources from clean crashed the in-process
+                          compiler with a bare NullPointerException out of JavaxToolsCompiler and no file,
+                          no line and no message — while the identical javac command line, same release,
+                          same lint flags, same classpath, compiled them without a complaint. A forked
+                          compiler is the same compiler with its own heap and its own shared-state, and it
+                          does not do it.
+
+                          The failure is worth describing because of how it presents: `mvn verify` on an
+                          existing target/ passes, since there is nothing to recompile, and only a clean
+                          build fails. So it looks like a change broke the build when nothing did.
+                        -->
+                        <fork>true</fork>
                         <compilerArgs>
                             <arg>-Xlint:all,-serial,-processing</arg>
                         </compilerArgs>
@@ -172,6 +212,15 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.5.2</version>
+                    <configuration>
+                        <!--
+                          Mockito's inline mock maker instruments classes through Byte Buddy, which as
+                          shipped with the Mockito version above does not yet recognise Java 25 (class
+                          file 69) bytecode — the JDK this project already requires — and refuses to mock
+                          anything without this. See java.version above for why 25 is not optional here.
+                        -->
+                        <argLine>-Dnet.bytebuddy.experimental=true</argLine>
+                    </configuration>
                 </plugin>
                 <!--
                   What turns a module into a plugin. A standalone project declares the module and the

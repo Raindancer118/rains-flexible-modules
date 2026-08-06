@@ -65,6 +65,26 @@ public final class MemberMenu extends PermissionGrid {
     }
 
     /**
+     * Lets them know, if they are online to be told.
+     *
+     * <p>Somebody trusted with a permission finds out by trying it otherwise — walking into a door that
+     * still refuses them because the grant has not reached the client yet is indistinguishable from a
+     * grant that never happened at all.
+     */
+    @Override
+    protected void afterChange(LandAction action, boolean allowed) {
+        Player theirs = services().server().getPlayer(subject);
+        if (theirs == null) {
+            return;
+        }
+        services().messages().send(theirs, allowed
+                        ? "notify.permission-granted" : "notify.permission-revoked",
+                "action", services().messages().raw(action.nameKey()),
+                "claim", claim().name(),
+                "player", viewer.getName());
+    }
+
+    /**
      * Two doors this page did not have: what this person may change <em>about</em> the claim, and which of
      * their own permissions they may hand on to somebody else.
      *

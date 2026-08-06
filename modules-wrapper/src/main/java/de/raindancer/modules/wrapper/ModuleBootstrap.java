@@ -42,6 +42,12 @@ public final class ModuleBootstrap implements PluginBootstrap {
             // know whether another is installed; Core hands it to the first and declines the rest, so
             // six installed plugins still mean one /commands showing one complete book.
             de.raindancer.core.platform.command.CoreCommands.commandList(event.registrar());
+            // A chat button can only run a command, so one has to exist before RainsCore's own
+            // ChatButtons is told to use it — see ModulePlugin.wireUpButtons(), which does the telling
+            // once RainsCore is actually enabled. Registered here rather than left to whichever module
+            // happens to want a button first, because a claim fee's [Accept] and a tpa request's are
+            // the same mechanism and should not depend on load order to be wired up.
+            de.raindancer.core.platform.command.CoreCommands.clickCallback(event.registrar());
         });
     }
 }

@@ -43,6 +43,16 @@ abstract class PermissionGrid extends ClaimScreen {
     /** Shown on a greyed button, saying whose it is instead. */
     protected abstract String refusal(LandAction action);
 
+    /**
+     * Told after a change is recorded and saved. Nothing by default: {@link PublicPermissionsMenu} answers
+     * for everybody, and there is no one person to tell.
+     *
+     * <p>A subclass with a single subject overrides this to let them know — being handed something you may
+     * now do, or having it taken back, is not something a person otherwise finds out except by trying it.
+     */
+    protected void afterChange(LandAction action, boolean allowed) {
+    }
+
     @Override
     protected void render() {
         LandAction[] actions = LandAction.values();
@@ -53,9 +63,11 @@ abstract class PermissionGrid extends ClaimScreen {
             ItemStack icon = iconFor(action);
             if (mayChange(action)) {
                 cell(row, column, icon, click -> {
-                    set(action, !holds(action));
+                    boolean allowed = !holds(action);
+                    set(action, allowed);
                     claim().markDirty();
                     services().claimService().saveAsync(claim());
+                    afterChange(action, allowed);
                     refresh();
                 });
             } else {

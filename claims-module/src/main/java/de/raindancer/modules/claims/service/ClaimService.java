@@ -129,6 +129,11 @@ public final class ClaimService implements IClaimService {
         return rules;
     }
 
+    /** Whether this player has switched the protection bypass on — see {@link ClaimRightsRule#isBypassing}. */
+    public boolean isBypassing(Player player) {
+        return rights.isBypassing(player);
+    }
+
     // ------------------------------------------------------------ validation
 
     /** Kept as a forwarder: the rule lives with the names now, and the screens already call it there. */
@@ -220,7 +225,7 @@ public final class ClaimService implements IClaimService {
         if (validation.isPresent()) {
             return validation.get();
         }
-        if (!player.hasPermission("rec.admin.nolimit")) {
+        if (!rights.isBypassing(player)) {
             int limit = settings.maxClaimsFor(player);
             if (registry.countOwned(player.getUniqueId()) >= limit) {
                 return Result.fail(Failure.TOO_MANY_CLAIMS, String.valueOf(limit));
@@ -230,7 +235,7 @@ public final class ClaimService implements IClaimService {
         CostType type = settings.creationCostType();
         int amount = creationCostAmount(shape);
         ItemStack item = type == CostType.ITEM ? settings.creationCostItem() : null;
-        boolean free = player.hasPermission("rec.admin.nocost") || type == CostType.NONE;
+        boolean free = rights.isBypassing(player) || type == CostType.NONE;
         if (!free) {
             CostService.Charge charge = costs.charge(player, type, amount, item);
             if (!charge.success()) {
@@ -277,7 +282,7 @@ public final class ClaimService implements IClaimService {
      * enlargement is confirmed affordable.
      */
     public Settlement settleResizeCost(Player player, Claim claim, ClaimShape newShape) {
-        if (!claim.hasRecordedPayment() || player.hasPermission("rec.admin.nocost")) {
+        if (!claim.hasRecordedPayment() || rights.isBypassing(player)) {
             return Settlement.NOTHING;
         }
         // Both figures come from the untouched original payment, never from the running total. Deriving
@@ -498,6 +503,46 @@ public final class ClaimService implements IClaimService {
             saveAsync(claim);
         }
         return dirty.size();
+    }
+
+    /**
+     * Makes every claim treat visitors exactly as it treats trusted players, for every flag that tells the
+     * two apart.
+     *
+     * <p>Existing ground can carry a visitor override that differs from its trusted one — set that way on
+     * purpose by an owner, or inherited from data written before this rewrite. Either way, a server that
+     * wants the two tiers equal by default needs a way to say so once rather than opening every claim's
+     * flag screen by hand. Owner is left alone: this is about the two tiers visitors and trusted players
+     * are, not about what an owner allows themselves.
+     *
+     * @return how many claims actually changed
+     */
+    public int alignVisitorsToTrusted() {
+        int changed = 0;
+        for (Claim claim : registry.all()) {
+            boolean touched = false;
+            for (de.raindancer.core.world.protection.LandFlag flag
+                    : de.raindancer.core.world.protection.LandFlag.values()) {
+                if (!flag.audienceAware()) {
+                    continue;
+                }
+                Optional<Boolean> trusted = claim.flagOverride(flag,
+                        de.raindancer.core.world.protection.LandAudience.TRUSTED);
+                Optional<Boolean> visitor = claim.flagOverride(flag,
+                        de.raindancer.core.world.protection.LandAudience.VISITOR);
+                if (trusted.equals(visitor)) {
+                    continue;
+                }
+                claim.setFlagOverride(flag, de.raindancer.core.world.protection.LandAudience.VISITOR,
+                        trusted.orElse(null));
+                touched = true;
+            }
+            if (touched) {
+                saveAsync(claim);
+                changed++;
+            }
+        }
+        return changed;
     }
 
     /** Blocking save of everything — only used on plugin disable. */

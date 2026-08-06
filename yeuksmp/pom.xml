@@ -34,8 +34,120 @@
           nothing about the other five, and a bundle whose number moved every time any module moved
           would be a number nobody could read. What each module is running is in the boot log, one
           line per module, straight out of its own ModuleInfo.
+
+          1.0.1: tpa fix — asking somebody for the first time was reported back as "already asked".
+          requests.put() called right after requests.displacedBy() found the request displacedBy()
+          had just stored and read it as asking the same person twice; the two are one operation now
+          (TpaRequests.ask()).
+
+          1.0.2: claims — added /claimadmin alignvisitors, which makes every claim treat visitors
+          exactly as it treats trusted players for every audience-aware flag. Existing claims could
+          carry a visitor override stricter than their trusted one (set on purpose, or inherited from
+          data older than the two tiers being kept separate), which is what made "visitors may not
+          pick items up" a server-wide surprise rather than one claim's own choice.
+
+          1.0.3: claims — being an operator, or holding any staff rank, no longer waives the claim
+          limit, the creation/fence costs or a no-claim zone by itself. Those were their own permission
+          nodes defaulting to OP, and the Admin staff rank granted them outright — so every operator and
+          every promoted Admin got them for free forever, with nothing in a log to show for it. All
+          three now read /claimadmin bypass's own explicit, revocable toggle instead, which rec.admin
+          already reaches through rec.bypass. rec.maxclaims.unlimited is untouched: a genuine claim-count
+          perk, not a protection bypass.
+
+          1.0.4: claims — the claim list's "mark out a new claim" button is now in the toolbar, dead
+          centre and directly above the manual (which stays in the danger slot, unchanged), so it is
+          reachable whether this is somebody's first claim or their sixth, not only while the list was
+          empty. The empty state is a cobweb saying so now, rather than a second copy of the same button.
+
+          1.0.5: tpa — being asked now comes with clickable [Accept] [Deny] buttons under the message,
+          not only the commands. Two things had to happen for that to work rather than merely compile:
+          TpaRequestService had to build the buttons through Core's ChatButtons, and — the part that
+          would have made every button on the server silently dead — ModuleBootstrap now registers the
+          rcclick command those buttons run, and ModulePlugin tells ChatButtons that command exists.
+          Exactly the failure ModuleBootstrap's own class comment already warned about.
+
+          1.0.6: claims — being trusted, and having a permission granted or taken back through the
+          member screen, now tells the affected player directly (if they are online), rather than only
+          the person doing the trusting or granting. Previously the only way to find out was walking
+          into the claim and noticing what did or did not refuse you.
+
+          1.0.7: claims — a trial-chamber spawner's mobs now read SPAWNER_SPAWNING like an ordinary
+          spawner does, rather than being governed by nothing at all (its own SpawnReason fell through
+          every check). Fixed alongside a bulk audit against the old standalone plugin: /claim's and
+          /claimadmin's declared permissions matched the wrong node names (rainsclaims.* instead of
+          rec.*, which only affected the /commands directory, not real access), /claim claim was
+          dropped as an alias for making a new claim, and tab completion for both commands was missing
+          several real subcommands and never filtered by what was already typed. Added /claimadmin here,
+          which reports everything about the claim underfoot — shape, Y-range, members, bans, entry fee,
+          bank, and every enforced flag's policy/override/verdict per tier — for tracking down exactly
+          this kind of "the flag is off but it's still happening" report. Also: shift-clicking food (or
+          potions, or equipment) from your own inventory straight into a claim's store now works, instead
+          of only the one dedicated "deposit what's in your hand" button.
+
+          1.0.8: claims — the real cause behind two separate "the flag is off but it still happens"
+          reports turned out to be the same thing both times: the protection bypass toggle
+          (/claimadmin bypass) silently staying on long after whoever flipped it had forgotten about
+          it, which for a player-targeted flag like monster targeting overrides their own claim's
+          setting entirely. The bypass itself is correct and stays — plenty of admin work genuinely
+          takes a while — but it is never silent again: after ten minutes it asks in chat, with a
+          button to keep going another ten minutes and a button to stop being asked for that session.
+          Separately: onSpawn's own flagDenied() no longer suspends MONSTER_SPAWNING just because a
+          bypassing admin happens to be standing nearby watching mobs spawn — spawning is the world
+          acting on its own, not the admin doing something that would otherwise be refused, so their
+          presence must not turn monster control off for everyone else near them.
+
+          1.0.9: moderation — a report's staff-chat notification went to whoever held the reports
+          permission, which does not stop being true of the person the report is about. A trial mod
+          reporting a mod, or any staff reporting staff, would see themselves named in the very line
+          meant to tell everyone else. Both notification points (a report filed, a report claimed) now
+          exclude the subject unconditionally.
+
+          1.0.10: claims — added /claimadmin transfer <owner/claim> <new owner>, which hands a claim to
+          somebody else entirely: for an abandoned claim, or one made in the wrong person's name. Not
+          the same door as /claim owner add — that deliberately cannot touch the primary owner, so a
+          co-owner can never push the original owner out from under them. Transfer replaces the whole
+          ownership list outright, and takes the new owner off the member list and any ban on them with
+          it, so the claim they now own does not still list them as merely trusted or bar them from it.
+
+          1.0.11: core — the whole "Looking Inside" (invsee) settings page did nothing. All four
+          settings (whether it works at all, whether editing is allowed, whether armour/off-hand may
+          be touched, whether the ender chest is offered) were declared and shown in the config but
+          Inventories never once read any of them — switching "Looking inside inventories" off changed
+          nothing a player could see. All four are now wired: the master switch actually refuses
+          /invsee, the other three cap what a window offers rather than only what a permission does.
+          Note left for later: EDIT_EVERYTHING (armour/off-hand editing) has no permission node that
+          ever requests it, so the "allow editing worn armour" setting has nothing to turn off yet on
+          its own — that is a second, separate piece of work in the moderation module.
+
+          1.0.12: claims — the member screen had a button to add a co-owner and nothing to trust
+          somebody without going that far, so the only way to do the equivalent of /claim trust was
+          the command itself. Added "Trust somebody" next to it: pick a player, they are added exactly
+          as /claim trust adds them, and they are told about it if online, same as the command already
+          does.
+
+          1.0.13: claims — handing a claim over entirely used to be an admin-only door
+          (/claimadmin transfer), so an owner giving up their own claim had no way to do it themselves —
+          only a co-owner (via /claim owner add), which deliberately cannot touch the primary owner at
+          all. Added /claim transfer <player>, open to any owner or co-owner of the claim underfoot, same
+          as delete already is: it replaces the whole ownership list with the one player named, exactly
+          like the admin version, and tells them if they are online.
+
+          1.0.14: claims — /claim transfer's click equivalent. The member screen's danger slot now offers
+          "Hand this claim over": pick who, confirm (this one asks first, unlike the command), and it goes
+          through exactly as /claim transfer does, telling the new owner if they are online.
+
+          1.0.15: claims — three ways a ban stopped meaning what it says. Riding a boat, horse or Happy
+          Ghast across a border never ran the ban/entry gate at all, because PlayerMoveEvent does not fire
+          for a vehicle's passenger — only VehicleMoveEvent does, and nothing listened for it; a banned
+          rider could sit inside a claim they were refused on foot. A refused crossing while gliding on an
+          elytra cancelled the move but never resynced the client's predicted trajectory, leaving the
+          player hanging in the air at the line, unable to glide on, fall or do anything else. And logging
+          back in while banned, standing in or right on the border of the claim, was never checked at
+          all — fixed by evicting on join the same way /claim ban already evicts someone caught inside,
+          deliberately not by refusing the login itself, which would have turned a claim ban into one
+          nobody could ever lift.
         -->
-        <plugin.version>1.0.0</plugin.version>
+        <plugin.version>1.0.15</plugin.version>
     </properties>
 
     <dependencies>

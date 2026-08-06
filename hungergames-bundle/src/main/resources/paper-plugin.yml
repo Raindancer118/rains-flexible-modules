@@ -1,0 +1,49 @@
+# Generated in shape by StandaloneDescriptor and checked by BundleJarTest — see that class for why every
+# line here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'A Hunger Games tournament — tributes, teams, a shrinking border and the screens a gamemaster runs it from — with the moderation a night of it needs.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Deliberately absent, not forgotten. The hunger games module claims folia-supported on its own and
+# moderation does not — and a jar is as Folia-safe as the least safe thing in it. Claiming it here would
+# be claiming it on moderation's behalf, which is the kind of statement that is only found to be wrong by
+# a region thread touching something it does not own.
+
+dependencies:
+  # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and
+  # its own classpath, and the bootstrapper is where the modules are first discovered — it has to look, since
+  # commands are registered during bootstrap or they never exist. Declared for the server phase alone, every
+  # module fails to link at bootstrap with a ClassNotFoundException for a RainsCore class and the plugin
+  # reports that it contains no modules. That is what the claims plugin did on the test server the first time.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      # The line that actually puts RainsCore's classes on this plugin's classpath. Paper plugins get isolated
+      # classloaders, so without it everything above is right and the plugin dies the moment it touches one.
+      join-classpath: true
+    # The arena is pasted from schematics and WorldEdit is what reads them. Required rather than optional:
+    # without it there is no cornucopia, no platforms and no starting tubes, which is not a Hunger Games
+    # round with a feature missing — it is an empty world. A plugin that comes up and only fails at /init,
+    # with forty people already waiting, is worse than one that refuses to load and says why.
+    #
+    # Required by one of the two modules and therefore by the jar. There is no way to say "required for
+    # hungergames, optional for moderation" in a descriptor, and the honest reading of a jar whose headline
+    # feature cannot work without it is that the jar cannot work without it.
+    #
+    # Not declared for the bootstrap phase: nothing registered there touches a schematic, and every entry
+    # in that list is a plugin Paper has to resolve before it can register a single command.
+    WorldEdit:
+      load: BEFORE
+      required: true
+      join-classpath: true

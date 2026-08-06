@@ -263,6 +263,33 @@ public final class Claim {
         return true;
     }
 
+    /**
+     * Hands the whole claim to somebody else, replacing every owner with exactly this one.
+     *
+     * <p>Deliberately not what {@link #addOwner}/{@link #removeOwner} are for. Those two protect a
+     * co-owner from ever being able to strip the original owner out from under them — see
+     * {@link #removeOwner}'s note — and that protection has to hold for players. An admin reassigning
+     * an abandoned claim, or correcting one made in the wrong person's name, is not that: nobody is
+     * being pushed out of a claim they still want, so the whole ownership list is simply replaced.
+     *
+     * <p>Trusted members and any ban on the new owner go with it, for the same reason {@link #addOwner}
+     * already clears both: an owner who cannot walk into their own claim, or who is still listed as
+     * trusted rather than owning it outright, is a claim that looks handed over and is not. Whatever
+     * the previous owners had set aside for themselves — ignoring their own rules, most of all — goes
+     * too; none of it means anything once they no longer own the ground it applied to.
+     */
+    public void transferTo(UUID newOwner) {
+        if (newOwner == null) {
+            return;
+        }
+        owners.clear();
+        owners.add(newOwner);
+        members.remove(newOwner);
+        bans.remove(newOwner);
+        ignoringOwnRules.clear();
+        markDirty();
+    }
+
     public Map<UUID, ClaimMember> members() {
         return Collections.unmodifiableMap(members);
     }

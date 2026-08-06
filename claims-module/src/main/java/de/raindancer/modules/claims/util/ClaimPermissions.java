@@ -32,6 +32,15 @@ import java.util.Map;
  * {@code rec.admin}, because an admin walking around the server should pay a claim's toll like everybody
  * else — or switch the protection bypass on for as long as they are actually working. An owner whose own
  * entry fees quietly do nothing stops noticing that they are configured at all.
+ *
+ * <h2>What being an operator, or holding any staff rank, no longer buys by itself</h2>
+ * The claim count limit, the creation and fence costs, and drawing inside a no-claim zone all used to be
+ * their own permission nodes defaulting to {@code OP} — so an operator, or anybody whose staff rank happened
+ * to inherit {@code rec.admin}, got every one of them for free forever, with nothing to show for it in the
+ * console. They are gone now: the code checks {@code rec.bypass}'s own toggle, {@code /claimadmin bypass},
+ * for every one of them instead — one explicit, visible, revocable switch rather than three permission nodes
+ * quietly doing the same job. {@code rec.admin} and {@code rec.bypass} still default to {@code OP}, but all
+ * that buys on its own is running {@code /claimadmin} and being able to flip that switch.
  */
 public final class ClaimPermissions {
 
@@ -50,25 +59,21 @@ public final class ClaimPermissions {
         permissions.add(new Permission("rec.use", "Use /claim and create claims",
                 PermissionDefault.TRUE));
 
-        // The children matter: granting rec.admin alone must not leave somebody unable to run /claim.
+        // The children matter: granting rec.admin alone must not leave somebody unable to run /claim or
+        // to toggle the bypass. Nothing else is implied any more — see the class note: the claim limit,
+        // the costs and the no-claim-zone rule are all read off that same toggle now, not off a
+        // permission a rank happened to carry.
         Map<String, Boolean> adminImplies = new LinkedHashMap<>();
         adminImplies.put("rec.use", true);
         adminImplies.put("rec.bypass", true);
-        adminImplies.put("rec.admin.nolimit", true);
-        adminImplies.put("rec.admin.nocost", true);
-        adminImplies.put("rec.admin.zonebypass", true);
         permissions.add(new Permission("rec.admin",
                 "Full administrative access to every claim and setting",
                 PermissionDefault.OP, adminImplies));
 
         permissions.add(new Permission("rec.bypass",
-                "Allows toggling the protection bypass with /claimadmin bypass", PermissionDefault.OP));
-        permissions.add(new Permission("rec.admin.nolimit",
-                "Exempt from the claim count limit", PermissionDefault.OP));
-        permissions.add(new Permission("rec.admin.nocost",
-                "Exempt from claim and fence material costs", PermissionDefault.OP));
-        permissions.add(new Permission("rec.admin.zonebypass",
-                "May create claims inside no-claim zones", PermissionDefault.OP));
+                "Allows toggling the protection bypass with /claimadmin bypass, which is also what "
+                        + "exempts from the claim limit, claim and fence costs, and no-claim zones while on",
+                PermissionDefault.OP));
 
         // Not for operators, and not a child of rec.admin. See the class note: an admin should pay a
         // toll like anybody else unless somebody deliberately says otherwise.

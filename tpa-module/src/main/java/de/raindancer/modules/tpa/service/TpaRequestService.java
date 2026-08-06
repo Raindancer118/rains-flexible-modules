@@ -3,7 +3,9 @@ package de.raindancer.modules.tpa.service;
 import de.raindancer.core.moderation.punishment.Durations;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.platform.util.Scheduling;
+import de.raindancer.core.ui.chat.ChatButtons;
 import de.raindancer.core.ui.messages.Messages;
+import net.kyori.adventure.text.Component;
 import de.raindancer.core.world.teleport.Companions;
 import de.raindancer.core.world.teleport.Travel;
 import de.raindancer.core.world.teleport.TravelReason;
@@ -51,6 +53,7 @@ public final class TpaRequestService implements ITpaService {
     private final TpaAskingRule asking;
     private final Travel travel;
     private final Messages messages;
+    private final ChatButtons buttons;
 
     /** The wait between one player's requests. Core's, so two clicks in a millisecond cannot both pass. */
     private final Cooldowns<UUID> waits = new Cooldowns<>();
@@ -59,13 +62,14 @@ public final class TpaRequestService implements ITpaService {
 
     public TpaRequestService(Plugin plugin, TpaRequests requests, TpaPrefsService prefs,
                              TpaAskingRule asking, Travel travel, Messages messages,
-                             TpaSettings settings) {
+                             ChatButtons buttons, TpaSettings settings) {
         this.plugin = plugin;
         this.requests = requests;
         this.prefs = prefs;
         this.asking = asking;
         this.travel = travel;
         this.messages = messages;
+        this.buttons = buttons;
         settings(settings);
     }
 
@@ -99,13 +103,16 @@ public final class TpaRequestService implements ITpaService {
             return false;
         }
 
+        // One call, not two: put() after displacedBy() would find the request displacedBy() just
+        // stored and report it back as "asking the same person again" — always, even the first time.
+        TpaRequests.Outcome outcome = requests.ask(from.getUniqueId(), to.getUniqueId(), kind);
+
         // Whatever they had asked before is pushed aside — and the person who was waiting on it has to
         // be told, or they go on waiting to answer a request that no longer exists.
-        requests.displacedBy(from.getUniqueId(), to.getUniqueId(), kind)
-                .ifPresent(displaced -> onlineOf(displaced.to()).ifPresent(bumped ->
-                        messages.send(bumped, "tpa.withdrawn-by-asker", "player", from.getName())));
+        outcome.displaced().ifPresent(displaced -> onlineOf(displaced.to()).ifPresent(bumped ->
+                messages.send(bumped, "tpa.withdrawn-by-asker", "player", from.getName())));
 
-        Optional<TpaRequest> made = requests.put(from.getUniqueId(), to.getUniqueId(), kind);
+        Optional<TpaRequest> made = outcome.request();
         if (made.isEmpty()) {
             // Only reachable if something changed between the rule and here — another thread asked
             // first. Saying so beats silence.
@@ -122,9 +129,17 @@ public final class TpaRequestService implements ITpaService {
                 "seconds", now.requestStanding());
         // To chat, never the action bar: this has to still be there when they come back to the
         // keyboard, and an action bar is gone in three seconds.
-        messages.send(to, kind == TpaKind.TO ? "tpa.asked-you-to" : "tpa.asked-you-here",
+        Component asked = messages.prefixed(kind == TpaKind.TO ? "tpa.asked-you-to" : "tpa.asked-you-here",
                 "player", from.getName(),
                 "seconds", now.requestStanding());
+        // [Accept] [Deny] under the words, so answering is one click rather than remembering a command.
+        // Bound to this request alone: a click after somebody has asked again, or after this one has
+        // lapsed, answers whatever request stands at that moment through accept()/deny() themselves —
+        // both already read from the store fresh, exactly as bare /tpaccept does.
+        Component question = buttons.ask(to.getUniqueId(), Duration.ofSeconds(now.requestStanding()),
+                clicker -> onlineOf(clicker).ifPresent(answerer -> accept(answerer, from.getUniqueId())),
+                clicker -> onlineOf(clicker).ifPresent(answerer -> deny(answerer, from.getUniqueId())));
+        to.sendMessage(asked.appendNewline().append(question));
 
         sweepAfter(from, made.get());
         return true;

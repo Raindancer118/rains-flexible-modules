@@ -117,7 +117,7 @@ public final class TpaModule implements FlexModule {
         prefs = new TpaPrefsService(prefsFile, requests, context.core().messages(),
                 settings.current());
         asking = new TpaRequestService(context.plugin(), requests, prefs, new TpaAskingRule(),
-                travel, context.core().messages(), settings.current());
+                travel, context.core().messages(), context.core().buttons(), settings.current());
         back = new BackService(travel, context.core().messages(), settings.current());
 
         services = new TpaServices(context.plugin(), server, context.core(), log,

@@ -77,12 +77,16 @@ public enum StaffRank {
     /**
      * The claim exemptions, which arrive with {@link #ADMIN} and not before.
      *
-     * <p>A moderator with free unlimited claims is a moderator whose own building is invisible to the
-     * rules everybody else plays under — and the first thing a player notices when they find out.
+     * <p>Once three nodes and a count perk. The claim limit, the creation and fence costs, and drawing
+     * inside a no-claim zone are not permission nodes any more — claims reads {@code /claimadmin bypass}'s
+     * own toggle for all three now, which {@link #CLAIM_ADMIN} already reaches through {@code rec.admin}
+     * implying {@code rec.bypass}. Granting them here would have been exactly the thing the toggle exists
+     * to stop: a moderator with free unlimited claims is a moderator whose own building is invisible to
+     * the rules everybody else plays under, handed out by a promotion rather than switched on for as long
+     * as they are actually working. What is left is the one genuine rank perk, not a protection bypass:
+     * holding more claims than anybody else is allowed.
      */
-    public static final List<String> CLAIM_BYPASSES = List.of(
-            "rec.admin.nocost", "rec.admin.nolimit", "rec.admin.zonebypass",
-            "rec.maxclaims.unlimited");
+    public static final List<String> CLAIM_BYPASSES = List.of("rec.maxclaims.unlimited");
     /**
      * The staff warps, from {@link #MOD} upward.
      *
@@ -126,6 +130,34 @@ public enum StaffRank {
      * distinction.
      */
     public static final String HOMES_UNLIMITED = "homes.unlimited";
+
+    /**
+     * Running a round of the Hunger Games, from {@link #MOD} upward.
+     *
+     * <p>The gamemaster node: call the deathmatch, drop supplies, revive somebody the plugin got wrong,
+     * watch from spectator. Not a trial's — releasing forty people from their platforms is not something
+     * to be learning on, and the mistakes cannot be taken back in front of an audience.
+     *
+     * <p>Deliberately not the admin node, which is the arena, the loot tables and the settings. The
+     * hungergames module keeps those apart precisely so that a guest gamemaster brought in for one evening
+     * cannot regenerate the arena mid-round, and a rank that granted both would collapse the distinction
+     * for every moderator on the server.
+     */
+    public static final String HUNGERGAMES_GAMEMASTER = "hungergames.gamemaster";
+
+    /**
+     * The Hunger Games arena, loot and settings, from {@link #ADMIN} upward.
+     *
+     * <p>With the other things that change the rules rather than apply them. An admin here can rebuild the
+     * arena from a schematic and rewrite what comes out of a chest, which is a decision about what the
+     * tournament <em>is</em> — the same side of the line as the settings and the warp management.
+     *
+     * <p>{@code hungergames.protection.bypass} is deliberately absent, and its own class note says why: it
+     * is meant for the ten minutes somebody is fixing something, not for a staff group. An admin who holds
+     * it permanently is one who eventually mines the cornucopia by accident while everybody watches. Grant
+     * it by hand, per person, on the permissions screen — the same treatment {@code /protect} gets.
+     */
+    public static final String HUNGERGAMES_ADMIN = "hungergames.admin";
 
     // rec.admin.nofee is deliberately absent. The claims plugin has always kept it off even for
     // operators, with the reasoning that an admin walking around the server should pay a claim's toll
@@ -171,11 +203,15 @@ public enum StaffRank {
             // held by a warm-up while they walk to a grief.
             everything.add(WARP_STAFF);
             everything.addAll(TELEPORT_BYPASSES);
+            // Running a round, not owning the tournament. See the constant.
+            everything.add(HUNGERGAMES_GAMEMASTER);
         }
         if (weight >= ADMIN.weight) {
             // Making the server's furniture, rather than using it.
             everything.add(WARP_MANAGE);
             everything.add(HOMES_UNLIMITED);
+            // The arena and the loot tables — building the tournament rather than running it.
+            everything.add(HUNGERGAMES_ADMIN);
             // Protection is deliberately *not* here. It is not a power a rank confers: it is written
             // by the console with /protect and by nothing else, because a shield handed out by a
             // promotion is one the people it is aimed at can hand to each other.

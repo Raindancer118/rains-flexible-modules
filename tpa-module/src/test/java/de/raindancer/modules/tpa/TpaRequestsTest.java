@@ -120,6 +120,44 @@ class TpaRequestsTest {
         }
 
         @Test
+        @DisplayName("ask() reports the made request on a first-time asking")
+        void askReportsWhatWasMade() {
+            // The bug this guards: put() called right after displacedBy() finds the request
+            // displacedBy() already stored for that same target, and reports back "asking the same
+            // person again" — coming back empty even though nobody had asked before. ask() is the one
+            // call a caller must use to get both the made request and whatever it displaced without
+            // that trap.
+            TpaRequests.Outcome outcome = requests.ask(ALICE, BOB, TpaKind.TO);
+
+            assertThat(outcome.request())
+                    .as("the very first request to somebody must never be reported as already made")
+                    .isPresent();
+            assertThat(outcome.displaced()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("ask() reports both the made request and the one it displaced")
+        void askReportsBothSides() {
+            TpaRequest first = asking(ALICE, BOB);
+
+            TpaRequests.Outcome outcome = requests.ask(ALICE, CAROL, TpaKind.TO);
+
+            assertThat(outcome.request()).isPresent();
+            assertThat(outcome.displaced()).contains(first);
+        }
+
+        @Test
+        @DisplayName("ask() reports nothing made when the same person is asked again")
+        void askOnRepeatIsRefused() {
+            asking(ALICE, BOB);
+
+            TpaRequests.Outcome outcome = requests.ask(ALICE, BOB, TpaKind.TO);
+
+            assertThat(outcome.request()).isEmpty();
+            assertThat(outcome.displaced()).isEmpty();
+        }
+
+        @Test
         @DisplayName("being asked by several people at once is fine")
         void incomingIsUncapped() {
             // Deliberately not capped. Being asked is not something the person being asked did, and a

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>hungergames-module</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Hunger Games</name>
+    <description>
+        A Hunger Games tournament: the tributes, the teams, the shrinking border, the phases a round
+        goes through, and the screens a gamemaster runs it from. Ported from the plugin of the same
+        name, which carried its own menu framework, its own settings system, its own wording, its own
+        loot and its own sounds — every one of which is RainsCore's here. What is left is the game.
+    </description>
+
+    <repositories>
+        <!--
+          WorldEdit, and only WorldEdit. Declared here rather than in the parent so that no other module
+          in the reactor grows a dependency on it by accident.
+        -->
+        <repository>
+            <id>enginehub</id>
+            <url>https://maven.enginehub.org/repo/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+
+        <!--
+          The arena is pasted from schematics, and reading a Sponge .schem is somebody else's job. The
+          alternative was a schematic parser of our own in RainsCore — Core already has the NBT half — and
+          that is a wheel worth not rolling: the format has two live versions, a palette, block states and
+          block entities, and a parser that is subtly wrong builds an arena that is subtly wrong in front
+          of forty people.
+
+          provided, like paper-api and RainsCore, and for the same reason: the server has already loaded
+          one WorldEdit. It is the one thing this plugin needs that RainsCore does not provide, and the old
+          plugin required it too — so this is not a new demand on a server that was already running it.
+        -->
+        <dependency>
+            <groupId>com.sk89q.worldedit</groupId>
+            <artifactId>worldedit-bukkit</artifactId>
+            <version>7.2.14</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              Two test runs rather than one, because this module has two kinds of test.
+
+              The ordinary ones say whether the code is correct, and a failure is a broken build. The ones
+              tagged "advisory" say whether a *default* is well chosen — arithmetic about the game rather
+              than about the program, like whether the border's speed ceiling leaves a cornered tribute
+              able to dig their way out. Those have no single right answer: it depends on the arena, and a
+              tournament may deliberately want the opposite. Failing the build over one would mean either
+              a red build nobody may act on, or — far likelier — the assertion being edited until it goes
+              green, which throws away the only thing it was for.
+
+              So they run, they report, and they do not fail the build. The number they print is the
+              output; read it when the default changes.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <configuration>
+                            <excludedGroups>advisory</excludedGroups>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>advisory</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <groups>advisory</groups>
+                            <!-- The whole point: reported, never fatal. -->
+                            <testFailureIgnore>true</testFailureIgnore>
+                            <!-- Its own report directory, or the second run overwrites the first's. -->
+                            <reportsDirectory>${project.build.directory}/surefire-reports/advisory</reportsDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -112,6 +112,7 @@ public final class MovementListener implements IClaimListener {
             if (gate != Gate.OPEN) {
                 // Stop the player at the border. Their previous position is still valid ground.
                 event.setCancelled(true);
+                resyncIfAirborne(player, event.getFrom());
                 return;
             }
         }
@@ -303,6 +304,85 @@ public final class MovementListener implements IClaimListener {
             return Gate.FEE_DUE;
         }
         return Gate.OPEN;
+    }
+
+    /**
+     * Forces an authoritative resync after a refused border crossing, for a player who was airborne.
+     *
+     * <p>Cancelling {@link PlayerMoveEvent} snaps the server's position back to {@code from} but does
+     * nothing about the client's own predicted trajectory. Standing still that costs nothing; gliding on an
+     * elytra or flying it does, because the client keeps predicting forward motion every tick the border
+     * keeps refusing, and the two never agree again — the player is left hovering in place at the line,
+     * unable to glide on, fall, or do anything else. An explicit teleport back to the same {@code from}
+     * spot — the position the server already considers valid — is what actually clears it; the cancel alone
+     * is not enough once the client has left the ground.
+     */
+    private void resyncIfAirborne(Player player, Location from) {
+        if (player.isOnGround()) {
+            return;
+        }
+        Location safe = from.clone();
+        de.raindancer.core.platform.util.Scheduling.entity(services.plugin(), player, () -> {
+            player.teleport(safe);
+            player.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+        });
+    }
+
+    // ------------------------------------------------------------ vehicles
+
+    /**
+     * Riding across a border a player's own feet could not cross.
+     *
+     * <p>{@link PlayerMoveEvent} does not fire for a passenger — the boat, horse or Happy Ghast under them
+     * moves and the passenger's position moves with it, but only {@link org.bukkit.event.vehicle.VehicleMoveEvent}
+     * reports it. Without this, a player banned from a claim, or one it merely refuses entry to, only had to
+     * bring a mount along to sit inside it undisturbed — the gate that stops walking and teleporting never
+     * ran at all.
+     *
+     * <p>The event carries no cancel: Bukkit gives no way to refuse a vehicle's move, only to react to it. So
+     * a refused crossing puts the vehicle straight back where it came from and kills its momentum, the same
+     * outcome a cancelled {@link PlayerMoveEvent} gives a player on foot.
+     */
+    @EventHandler(priority = EventPriority.NORMAL)
+    public void onVehicleMove(org.bukkit.event.vehicle.VehicleMoveEvent event) {
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY()
+                && from.getBlockZ() == to.getBlockZ()) {
+            return;
+        }
+        java.util.List<Player> riders = event.getVehicle().getPassengers().stream()
+                .filter(Player.class::isInstance).map(Player.class::cast).toList();
+        if (riders.isEmpty()) {
+            return;
+        }
+
+        Optional<Claim> toClaim = services.claims().at(to);
+        if (toClaim.isPresent()) {
+            Claim claim = toClaim.get();
+            for (Player rider : riders) {
+                if (checkGate(rider, claim, to, false) != Gate.OPEN) {
+                    event.getVehicle().teleport(from);
+                    event.getVehicle().setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+                    return;
+                }
+            }
+        }
+
+        UUID targetId = toClaim.map(Claim::id).orElse(null);
+        for (Player rider : riders) {
+            UUID previousId = currentClaim.get(rider.getUniqueId());
+            if (java.util.Objects.equals(previousId, targetId)) {
+                continue;
+            }
+            if (previousId != null) {
+                services.claims().byId(previousId).ifPresent(previous -> onLeave(rider, previous));
+            }
+            record(rider, toClaim.orElse(null));
+            if (targetId != null) {
+                toClaim.ifPresent(claim -> onEnter(rider, claim));
+            }
+        }
     }
 
     private void announceBan(Player player, Claim claim, ClaimBan ban) {

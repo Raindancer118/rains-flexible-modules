@@ -1,0 +1,6 @@
+# How this module is found. ModuleDiscovery asks ServiceLoader, so adding this module to a build is adding a
+# dependency and nothing else — there is no list anywhere to keep in step.
+#
+# The shade plugin merges these files across modules (ServicesResourceTransformer). Without that merge one
+# module wins and the other is simply absent: no error, no log line, a feature missing.
+de.raindancer.modules.hungergames.HungerGamesModule

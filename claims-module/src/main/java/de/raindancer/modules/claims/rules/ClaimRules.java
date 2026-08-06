@@ -14,7 +14,9 @@ import de.raindancer.modules.claims.store.ZoneRegistry;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import org.bukkit.entity.Player;
 
 /**
  * The reasons a claim might not be allowed, one class each.
@@ -33,20 +35,21 @@ import java.util.function.Supplier;
  */
 public final class ClaimRules {
 
-    /** Somebody who may draw a claim inside a no-claim zone, which is an admin-only thing. */
-    public static final String ZONE_BYPASS = "rec.admin.zonebypass";
-
     private ClaimRules() {
     }
 
     /**
      * The whole chain.
      *
-     * @param settings read through a supplier so a reload changes what the rules say, not what they said when
-     *                 the chain was built
+     * @param settings    read through a supplier so a reload changes what the rules say, not what they said
+     *                    when the chain was built
+     * @param isBypassing whether this player has switched the protection bypass on — a predicate rather than
+     *                    a permission node, so drawing inside a no-claim zone takes the same explicit toggle
+     *                    as every other admin exemption, not a permission a staff role happens to hold
      */
     public static Rules<ClaimAttempt> standard(Supplier<ClaimSettings> settings, ClaimRegistry claims,
-                                                   ZoneRegistry zones, ClaimNames names) {
+                                                   ZoneRegistry zones, ClaimNames names,
+                                                   Predicate<Player> isBypassing) {
         return Rules.of(
                 new WorldIsEnabledRule(settings),
                 new NameIsUsableRule(names),
@@ -54,7 +57,7 @@ public final class ClaimRules {
                 new BigEnoughRule(settings),
                 new SmallEnoughRule(settings),
                 new NotWhollyUndergroundRule(settings),
-                new OutsideNoClaimZonesRule(zones),
+                new OutsideNoClaimZonesRule(zones, isBypassing),
                 new DoesNotOverlapRule(settings, claims));
     }
 
@@ -195,15 +198,17 @@ public final class ClaimRules {
     static final class OutsideNoClaimZonesRule extends AbstractRule<ClaimAttempt> implements IClaimRule {
 
         private final ZoneRegistry zones;
+        private final Predicate<Player> isBypassing;
 
-        OutsideNoClaimZonesRule(ZoneRegistry zones) {
+        OutsideNoClaimZonesRule(ZoneRegistry zones, Predicate<Player> isBypassing) {
             super("the ground is not in a no-claim zone");
             this.zones = zones;
+            this.isBypassing = isBypassing;
         }
 
         @Override
         public Verdict judge(ClaimAttempt attempt) {
-            if (attempt.claimant().hasPermission(ZONE_BYPASS)) {
+            if (isBypassing.test(attempt.claimant())) {
                 return Verdict.allowed();
             }
             Optional<NoClaimZone> zone =

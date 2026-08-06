@@ -36,6 +36,17 @@ public final class ClaimRightsRule implements IClaimRule {
     }
 
     /**
+     * Whether this player has switched the protection bypass on.
+     *
+     * <p>Being an operator is not this by itself — see {@code ClaimPermissions}. An admin who genuinely needs
+     * to skip a limit, a cost or a no-claim zone switches this on with {@code /claimadmin bypass} for as long
+     * as they are actually working, rather than every operator getting it for free forever.
+     */
+    public boolean isBypassing(Player player) {
+        return land.isBypassing(player);
+    }
+
+    /**
      * Whether the player may change the claim in this way.
      *
      * <p>Server admins may. Owners may. Anybody else needs the specific right delegated to them, which is what

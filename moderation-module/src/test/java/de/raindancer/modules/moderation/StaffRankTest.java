@@ -231,6 +231,45 @@ class StaffRankTest {
     }
 
     @Nested
+    @DisplayName("the Hunger Games half")
+    class HungerGames {
+
+        @Test
+        @DisplayName("a mod can run a round, a trial mod cannot")
+        void modsAreGamemasters() {
+            assertThat(StaffRank.MOD.nodes()).contains(StaffRank.HUNGERGAMES_GAMEMASTER);
+            assertThat(StaffRank.TRIAL_MOD.nodes())
+                    .as("releasing forty people from their platforms is not something to be learning on, "
+                            + "and it cannot be taken back in front of an audience")
+                    .doesNotContain(StaffRank.HUNGERGAMES_GAMEMASTER);
+        }
+
+        @Test
+        @DisplayName("the arena and the loot arrive with admin, not before")
+        void adminOwnsTheTournament() {
+            assertThat(StaffRank.ADMIN.nodes()).contains(StaffRank.HUNGERGAMES_ADMIN);
+            assertThat(StaffRank.MOD.nodes())
+                    .as("a guest gamemaster brought in for one evening must not be able to regenerate the "
+                            + "arena mid-round — that separation is the whole reason the module has two "
+                            + "nodes rather than one, and a rank granting both would collapse it")
+                    .doesNotContain(StaffRank.HUNGERGAMES_ADMIN);
+        }
+
+        @Test
+        @DisplayName("no rank grants the protection bypass")
+        void theBypassIsNeverARankPerk() {
+            // Its own class note in the hungergames module: meant for the ten minutes somebody is fixing
+            // something. An admin holding it permanently is one who eventually mines the cornucopia by
+            // accident while everybody watches. Granted by hand on the permissions screen or not at all.
+            for (StaffRank rank : StaffRank.values()) {
+                assertThat(rank.nodes())
+                        .as("%s must not carry the arena protection bypass", rank)
+                        .doesNotContain("hungergames.protection.bypass");
+            }
+        }
+    }
+
+    @Nested
     @DisplayName("reading one back")
     class Parsing {
 

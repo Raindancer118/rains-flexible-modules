@@ -118,10 +118,16 @@ public final class PermissionNodes {
     /**
      * Every node this module knows about, for a diagnostic.
      *
-     * <p>Includes the claims nodes the presets grant, which this module does not own — they are listed
-     * so that a page saying "here is everything a rank can give you" is complete, and deliberately not
-     * <em>registered</em> here, because inventing a default for another module's permission is how two
-     * plugins come to disagree about what it means.
+     * <p>Includes the other modules' nodes the presets grant — claims, warps, homes, teleports and the
+     * Hunger Games gamemaster — which this module does not own. They are listed so that a page saying
+     * "here is everything a rank can give you" is complete, and deliberately not <em>registered</em> here,
+     * because inventing a default for another module's permission is how two plugins come to disagree
+     * about what it means.
+     *
+     * <p>Taken from {@link StaffRank#everyGrantableNode()} rather than named again. The version that
+     * listed the foreign nodes by hand had drifted: it knew about the two claims ones and had never heard
+     * of the staff warps, the teleport bypasses or unlimited homes, all of which a rank had been granting
+     * for months. A list that is written twice is one that is right once.
      */
     public static List<String> all() {
         List<String> nodes = new ArrayList<>();
@@ -130,8 +136,11 @@ public final class PermissionNodes {
         }
         nodes.add(PromoteCommand.USE);
         nodes.add(ReportCommand.USE);
-        nodes.add(StaffRank.CLAIM_ADMIN);
-        nodes.addAll(StaffRank.CLAIM_BYPASSES);
+        for (String granted : StaffRank.everyGrantableNode()) {
+            if (!nodes.contains(granted)) {
+                nodes.add(granted);
+            }
+        }
         return List.copyOf(nodes);
     }
 }

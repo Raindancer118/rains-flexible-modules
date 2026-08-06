@@ -26,6 +26,7 @@ claim:
     <gray>/claim trust <white>somebody<dark_gray> · <gray>untrust<dark_gray>
     <gray>/claim ban <white>somebody<dark_gray> · <gray>unban<dark_gray>
     <gray>/claim rename <white>a new name<dark_gray> · <gray>delete<dark_gray>
+    <gray>/claim transfer <white>somebody<dark_gray> — hand it over entirely
     <dark_gray>everything else is in the menus
   manual-given: "<green>The manual is in your inventory. <gray>Read it any time."
   stick-given: "<green>There is your marking-out tool. <gray>Left click one corner, right click the other."
@@ -52,6 +53,8 @@ claim:
   owner-added: "<green>Added <white><player></white> as a co-owner of <white><claim></white>."
   owner-removed: "<yellow>Removed <white><player></white> as a co-owner of <white><claim></white>."
   owner-cannot-remove: "<gray><player> cannot be removed that way — the last owner, and whoever first claimed it, always stay."
+  transferred: "<green>Handed <white><claim></white> over to <white><player></white> entirely."
+  transferred-to-you: "<green>You have been given <white><claim></white>."
 
   # ── the land ─────────────────────────────────────────────────────────────
   height-changed: "<green><white><claim></white> now reaches y <white><min-y></white> to <white><max-y></white>."
@@ -90,6 +93,9 @@ claim:
 notify:
   entered: "<gray>You are entering <white><claim></white>, owned by <white><owner></white>."
   left: "<dark_gray>You are leaving <gray><claim><dark_gray>."
+  trusted: "<green><white><player></white> trusted you in <white><claim></white>."
+  permission-granted: "<green><white><player></white> let you <white><action></white> in <white><claim></white>."
+  permission-revoked: "<yellow><white><player></white> took away <white><action></white> in <white><claim></white>."
 
 protection:
   entry-denied: "<red>You may not go into <white><claim></white>."
@@ -195,13 +201,29 @@ admin:
   flag-not-saved: "<red>Changed for now, but it could not be written down — check the console. It will be back as it was after a restart."
   why-header: "<gradient:#4ade80:#22d3ee>Why things happen in <claim></gradient> <dark_gray>· you are <white><audience></white> here"
   why-line: "<dark_gray>· <white><flag><dark_gray> — server <gray><policy><dark_gray>, claim <gray><override><dark_gray>, so <white><verdict>"
+
+  # ── /claimadmin here ─────────────────────────────────────────────────────
+  here-header: "<gradient:#4ade80:#22d3ee>── <claim> ──</gradient>"
+  here-owners: "<dark_gray>Owner(s): <gray><owners>"
+  here-shape: "<dark_gray>World <gray><world><dark_gray> · <gray><area></gray> blocks, y <min-y> to <max-y><dark_gray> · <gray><corners></gray> corner(s)"
+  here-not-covered: "<yellow>You are at y <white><y></white>, which this claim's own range does not reach — nothing here is protected."
+  here-members: "<dark_gray>Trusted: <gray><count></gray><dark_gray>, <gray><admins></gray> claim admin(s)"
+  here-bans: "<dark_gray>Active bans: <gray><count>"
+  here-entry-fee: "<dark_gray>Entry fee: <gray><amount>"
+  here-bank: "<dark_gray>Bank: <gray><items></gray> item stack(s), <gray><xp></gray> xp"
+  here-flags-header: "<dark_gray>── flags (enforced ones only) ──"
+  here-flag-line: "<dark_gray>· <white><flag><dark_gray> — claim <gray><override><dark_gray>, so <white><verdict>"
+  here-flag-tiers: "<dark_gray>· <white><flag><dark_gray> — owner <gray><owner><dark_gray>, trusted <gray><trusted><dark_gray>, visitor <gray><visitor>"
   stick-received: "<green><admin> gave you a marking-out tool. <gray>Left click one corner, right click the other."
   open-flags: "<gray>Opening the flag settings."
   overview: "<gray><claims> claim(s), <zones> zone(s), <tracked> player(s) tracked. <dark_gray>land answered by <answering>"
   bypass-on: "<green>Bypass on — you can ignore every claim."
   bypass-off: "<gray>Bypass off."
   reloaded: "<green>Reloaded."
+  visitors-aligned: "<green>Aligned visitors to trusted on <white><count></white> claim(s)."
   claim-deleted: "<yellow>Deleted <white><claim></white>."
+  claim-transferred: "<green>Transferred <white><claim></white> to <white><player></white>."
+  claim-transferred-to-you: "<green>You have been given <white><claim></white>."
   feature-changed: "<green><white><feature></white> is now <white><policy></white>."
   zone-removed: "<yellow>Removed the no-claim area <white><zone></white>."
   zone-shift-to-remove: "<gray>Shift + click to remove <white><zone></white>."

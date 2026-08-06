@@ -123,6 +123,64 @@ public final class StoreMenu extends PaginatedMenu<ItemStack> implements IClaimS
         };
     }
 
+    /**
+     * Shift-click from the player's own inventory, straight into the store — what the toolbar button
+     * next to it does one stack at a time, and what the old standalone plugin let a player do without
+     * opening a second dialog for every stack of food in their bag.
+     *
+     * <p>Only a shift-click is read as "deposit this" — an ordinary click is left alone entirely, so
+     * moving things around in your own inventory while this is open still works exactly as it always
+     * has.
+     */
+    @Override
+    public void handleBottomClick(InventoryClickEvent event) {
+        if (!event.isShiftClick() || event.getCurrentItem() == null) {
+            return;
+        }
+        event.setCancelled(true);
+        if (!mayManage()) {
+            services.messages().send(viewer, "error.no-claim-permission");
+            return;
+        }
+        ItemStack clicked = event.getCurrentItem();
+        boolean acceptable = switch (kind) {
+            case PANTRY -> ClaimPantry.isFood(clicked);
+            case POTIONS -> PotionStore.isPotion(clicked);
+            case EQUIPMENT -> true;
+        };
+        if (!acceptable) {
+            services.messages().send(viewer, kind == Kind.PANTRY
+                    ? "claim.pantry-food-only" : "claim.potions-only");
+            return;
+        }
+        int cap = switch (kind) {
+            case PANTRY -> services.config().pantryMaxStacks();
+            case POTIONS -> services.config().potionStoreMaxStacks();
+            case EQUIPMENT -> services.config().equipmentMaxStacks();
+        };
+        if (entries().size() >= cap) {
+            services.messages().send(viewer, "claim.store-full", "cap", String.valueOf(cap));
+            return;
+        }
+        int accepted = deposit(clicked.clone());
+        if (accepted <= 0) {
+            services.messages().send(viewer, "claim.store-full", "cap", String.valueOf(cap));
+            return;
+        }
+        clicked.setAmount(Math.max(0, clicked.getAmount() - accepted));
+        if (clicked.getAmount() <= 0) {
+            event.setCurrentItem(null);
+        }
+        claim.markDirty();
+        services.claimService().saveAsync(claim);
+        refresh();
+    }
+
+    @Override
+    public boolean allowBottomInventoryInteraction() {
+        return true;
+    }
+
     @Override
     protected void decorate() {
         super.decorate();

@@ -148,15 +148,15 @@ public final class PermissionsMenu extends ModerationList<String> {
             case StaffRank.WARP_STAFF -> "Staff warps";
             case StaffRank.WARP_MANAGE -> "Make and move warps";
             case StaffRank.HOMES_UNLIMITED -> "Unlimited homes";
+            case StaffRank.HUNGERGAMES_GAMEMASTER -> "Gamemaster";
+            case StaffRank.HUNGERGAMES_ADMIN -> "Hunger Games admin";
+            case "hungergames.protection.bypass" -> "Build in the arena";
             case "tpa.bypass.warmup" -> "No teleport warm-up";
             case "tpa.bypass.cooldown" -> "No teleport cooldown";
             case "tpa.back" -> "/back";
             case "homes.bypass.warmup" -> "No home warm-up";
             case "homes.bypass.cooldown" -> "No home cooldown";
-            case "rec.admin.nocost" -> "Claims cost nothing";
             case "rec.admin.nofee" -> "No entry fees";
-            case "rec.admin.nolimit" -> "No size limit";
-            case "rec.admin.zonebypass" -> "Claim anywhere";
             case "rec.maxclaims.unlimited" -> "Unlimited claims";
             default -> node;
         };
@@ -174,15 +174,17 @@ public final class PermissionsMenu extends ModerationList<String> {
             case StaffRank.WARP_STAFF -> "Reach every warp marked staff-only";
             case StaffRank.WARP_MANAGE -> "Create, move and delete warps for the whole server";
             case StaffRank.HOMES_UNLIMITED -> "Set as many homes as they like";
+            case StaffRank.HUNGERGAMES_GAMEMASTER ->
+                    "Run a round: the deathmatch, supply drops, revives and spectating";
+            case StaffRank.HUNGERGAMES_ADMIN -> "Build the arena, edit the loot and the settings";
+            case "hungergames.protection.bypass" ->
+                    "Ignore the arena's protection — meant for minutes, not for a rank";
             case "tpa.bypass.warmup" -> "Teleport at once, without standing still first";
             case "tpa.bypass.cooldown" -> "Teleport again without waiting";
             case "tpa.back" -> "Return to where they last teleported from";
             case "homes.bypass.warmup" -> "Reach a home at once";
             case "homes.bypass.cooldown" -> "Reach another home without waiting";
-            case "rec.admin.nocost" -> "Make a claim without paying for it";
             case "rec.admin.nofee" -> "Walk into a claim without paying its toll";
-            case "rec.admin.nolimit" -> "Ignore the largest and smallest claim size";
-            case "rec.admin.zonebypass" -> "Claim inside a no-claim zone";
             case "rec.maxclaims.unlimited" -> "Hold as many claims as they like";
             default -> "A permission this server grants";
         };

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>hungergames-bundle</artifactId>
+    <packaging>jar</packaging>
+
+    <name>The Hunger Games</name>
+    <description>
+        The tournament plugin as it is actually deployed: the hunger games and moderation in one jar,
+        with RainsCore installed alongside.
+
+        Moderation is not padding here. A tournament is a server full of people who have never met,
+        playing a game whose whole point is being allowed to attack each other — which is exactly the
+        night somebody needs muting, somebody needs looking at, and somebody needs removing. And the two
+        modules are already wired together: a staff rank granted through /promote carries the gamemaster
+        node, so whoever is on shift can run the round without a second list of names being kept
+        anywhere.
+    </description>
+
+    <properties>
+        <!--
+          The name the server sees, and the name of its data folder. The old plugin's, because this is
+          the jar a server running the Hunger Games installs.
+
+          Two modules in the jar, so the wrapper gives each one a subfolder rather than letting them
+          fight over one config.yml: the game's files live in plugins/TheHungerGames/hungergames/ and
+          moderation's in plugins/TheHungerGames/moderation/. A server coming from the v1 plugin has its
+          config.yml, teams.yml, whitelist.yml and session.yml sitting flat in plugins/TheHungerGames/
+          and has to move them down one level into hungergames/ — otherwise the module comes up with
+          nothing and writes fresh files beside the old ones, which looks like data loss and is not.
+        -->
+        <plugin.name>TheHungerGames</plugin.name>
+
+        <!--
+          2.0.0 continues the old plugin's version line rather than starting a new one, and the bundle
+          takes it rather than inventing its own — unlike YeukSMP, which is six unrelated features and
+          could not honestly claim any one of their numbers. Here there is a headline feature and a
+          module that supports it, so the number people are looking for is the game's.
+        -->
+        <plugin.version>2.0.0</plugin.version>
+    </properties>
+
+    <dependencies>
+        <!--
+          The game, and the staff powers a night of it needs. Deliberately not claims or warps: a
+          tournament server's arena is not claimed and its map is not travelled, and a bundle is a
+          statement about what this server runs rather than a shortcut for "everything in the repository".
+        -->
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>hungergames-module</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>moderation-module</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-wrapper</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${plugin.name}-${plugin.version}</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <!-- The descriptor names the version, and a version written twice is one that drifts. -->
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+            </plugin>
+            <!--
+              BundleJarTest reads the jar this build produces, so it has to run after it exists. Surefire
+              bound to a later phase rather than failsafe, which is one more plugin to have cached — this
+              build has to work offline.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>after-the-jar-exists</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <skipTests>false</skipTests>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

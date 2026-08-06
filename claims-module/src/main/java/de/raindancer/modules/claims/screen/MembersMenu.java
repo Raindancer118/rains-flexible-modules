@@ -135,12 +135,28 @@ public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implemen
     @Override
     protected void render() {
         super.render();
+        if (services.rights().canManage(claim, viewer, ClaimAdminPermission.MANAGE_MEMBERS)) {
+            toolbar(3, Icons.of(Material.OAK_DOOR, "<white>Trust somebody",
+                            "<gray>Let them in, without making them an owner.",
+                            "<dark_gray>click to choose who"),
+                    click -> askToTrust());
+        }
         if (services.features().isOffered(ClaimFeature.CO_OWNERS)
                 && services.rights().isOwnerOrServerAdmin(claim, viewer)) {
             toolbar(4, Icons.of(Material.GOLDEN_HELMET, "<gold>Add a co-owner",
                             "<gray>Somebody who owns this claim exactly as you do.",
                             "<dark_gray>click to choose who"),
                     click -> askForCoOwner());
+        }
+
+        // The click equivalent of /claim transfer — the same owner-or-admin gate as the danger slot on the
+        // claim's own front page uses for giving it up entirely, because handing it to somebody else is the
+        // same kind of irreversible.
+        if (services.rights().isOwnerOrServerAdmin(claim, viewer)) {
+            danger(Icons.of(Material.NAME_TAG, "<red>Hand this claim over",
+                            "<gray>Somebody else owns it afterward — not you.",
+                            "<dark_gray>asks first"),
+                    click -> askToTransfer());
         }
     }
 
@@ -159,5 +175,66 @@ public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implemen
         services.messages().send(viewer, "claim.owner-added",
                 "player", person.name(), "claim", claim.name());
         open();
+    }
+
+    /**
+     * The click equivalent of {@code /claim trust <player>} — the door {@link #onClick} could not be,
+     * since that one only ever opens the permission grid for somebody already on the list.
+     */
+    private void askToTrust() {
+        viewer.closeInventory();
+        // Already an owner or already trusted is already on the list this button would otherwise offer
+        // them onto a second time, so the chooser leaves both off rather than onClick saying no.
+        List<UUID> alreadyHere = new ArrayList<>(claim.owners());
+        alreadyHere.addAll(claim.members().keySet());
+        new PlayerChooser(viewer, services.brand(), this, "Trust somebody",
+                alreadyHere, this::onTrustChosen).open();
+    }
+
+    private void onTrustChosen(PlayerEntry person) {
+        claim.memberOrCreate(person.id()).applyDefaultTrust();
+        services.claimService().saveAsync(claim);
+        services.messages().send(viewer, "claim.trusted",
+                "player", person.name(), "claim", claim.name());
+        // Told if they are online to be told — otherwise the only way to find out is walking into the
+        // claim and noticing the border no longer refuses them. Mirrors /claim trust exactly.
+        Player theirs = services.server().getPlayer(person.id());
+        if (theirs != null) {
+            services.messages().send(theirs, "notify.trusted",
+                    "player", viewer.getName(), "claim", claim.name());
+        }
+        open();
+    }
+
+    /**
+     * The click equivalent of {@code /claim transfer <player>}. Two steps rather than one, because who is
+     * a pick and whether-to-go-through-with-it is a confirmation, and folding both into one button would
+     * make the second one a misclick's whole cost rather than a page.
+     */
+    private void askToTransfer() {
+        viewer.closeInventory();
+        // Excludes only the viewer: transferring to yourself is not a thing, but handing it to an existing
+        // co-owner is — it is what makes them the sole owner instead of one of several.
+        new PlayerChooser(viewer, services.brand(), this, "Hand this claim over",
+                List.of(viewer.getUniqueId()), this::onTransferChosen).open();
+    }
+
+    private void onTransferChosen(PlayerEntry person) {
+        new ConfirmScreen(services, viewer, claim, this,
+                "<red>Hand " + claim.name() + " over to " + person.name() + "?",
+                List.of("<gray>They own it entirely afterward — you do not, not even as a co-owner.",
+                        "<gray>This cannot be undone from here."),
+                () -> {
+                    claim.transferTo(person.id());
+                    services.claims().reindex(claim);
+                    services.claimService().saveAsync(claim);
+                    services.messages().send(viewer, "claim.transferred",
+                            "player", person.name(), "claim", claim.name());
+                    Player theirs = services.server().getPlayer(person.id());
+                    if (theirs != null) {
+                        services.messages().send(theirs, "claim.transferred-to-you", "claim", claim.name());
+                    }
+                    viewer.closeInventory();
+                }).open();
     }
 }

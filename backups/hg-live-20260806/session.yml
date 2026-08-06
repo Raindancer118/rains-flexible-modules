@@ -1,0 +1,20 @@
+phase: NOT_INITIALIZED
+participants:
+- uuid: 631e9c2d-25b1-483f-bde3-094b4b2c3722
+  name: DomiIRL
+  state: ALIVE
+teams:
+  team-1:
+    name: Team 1
+    color: YELLOW
+    members: []
+  team-3:
+    name: Team 3
+    color: MAGENTA
+    members: []
+  mein-teamqqweqweqwe:
+    name: Mein Teamqqweqweqwe
+    color: BLACK
+    members:
+    - 631e9c2d-25b1-483f-bde3-094b4b2c3722
+kills: {}

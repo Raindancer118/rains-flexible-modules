@@ -164,4 +164,25 @@ class CommandSurfaceTest {
                 .as("without these the matching feature has an on switch and nothing to switch on")
                 .isEmpty();
     }
+
+    @Test
+    @DisplayName("module commands declare rec.use and rec.admin permission nodes")
+    void commandPermissionsMatchRegisteredNodes() {
+        assertThat(named("claim").permission()).isEqualTo("rec.use");
+        assertThat(named("claimadmin").permission()).isEqualTo("rec.admin");
+    }
+
+    @Test
+    @DisplayName("tab completion covers all primary subcommands")
+    void tabCompletionCoversSubcommands() {
+        String player = source(CLAIM_COMMAND);
+        String admin = source(ADMIN_COMMAND);
+
+        for (String word : List.of("create", "manual", "stick", "select", "delete", "rename", "hide", "accept", "decline")) {
+            assertThat(player).contains("\"" + word + "\"");
+        }
+        for (String word : List.of("flags", "why", "stick", "save", "manual")) {
+            assertThat(admin).contains("\"" + word + "\"");
+        }
+    }
 }

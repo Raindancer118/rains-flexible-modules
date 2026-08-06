@@ -2,6 +2,7 @@ package de.raindancer.modules.claims.listener;
 
 import de.raindancer.modules.claims.ClaimServices;
 import de.raindancer.core.platform.util.Scheduling;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -32,6 +33,31 @@ public final class PlayerSessionListener implements IClaimListener {
         // Names come from Core, which sees every join itself, so there is nothing to remember here.
         services.movement().syncPosition(event.getPlayer());
         services.ambience().track(event.getPlayer());
+        evictIfBanned(event.getPlayer());
+    }
+
+    /**
+     * A player who logged out banned, standing in or right on the border of the claim, does not get to
+     * log back in as if invited.
+     * <p>
+     * Refusing the login itself was the obvious way to write this and the wrong one: their stored position
+     * would not move, so every future login attempt would fail exactly the same way — a claim ban turning
+     * into a permanent server ban with no way back in. Letting them join and then walking them straight
+     * back out — the same eviction {@code /claim ban} already runs on someone caught inside — keeps both
+     * paths consistent and never locks anybody out for good.
+     */
+    private void evictIfBanned(Player player) {
+        services.claims().at(player.getLocation()).ifPresent(claim -> {
+            if (services.land().isBypassing(player) || claim.isOwner(player.getUniqueId())) {
+                return;
+            }
+            claim.activeBan(player.getUniqueId()).ifPresent(ban -> {
+                String key = ban.permanent() ? "protection.evicted-banned" : "protection.evicted-timed-out";
+                // A tick's grace so the player is fully spawned in before being teleported back out.
+                Scheduling.entityLater(services.plugin(), player, 2L,
+                        () -> services.eviction().evict(player, claim, key));
+            });
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

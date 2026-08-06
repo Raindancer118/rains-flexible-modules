@@ -1,0 +1,144 @@
+# The Hunger Games — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins, and so does a
+# host's bundled wording. See Messages.defineFrom.
+#
+# ----------------------------------------------------------------------------------------------------
+# Why these lines are English, and why they still say "the Capitol"
+#
+# The plugin this is ported from announced in German. Every other module on this server announces in
+# English, and a server where one plugin speaks German and six do not is the inconsistency players
+# actually notice — so the language moved.
+#
+# The *theme* did not, and it is not the language. The cannon, the Capitol, the gamemakers, the tributes,
+# the protection period and the cornucopia are all still here, because they are what the round is dressed
+# as. Where the German was quoting the books, the English quotes them back: "may the odds be ever in your
+# favour" is the line "möge das Glück stets mit euch sein" always was.
+#
+# ----------------------------------------------------------------------------------------------------
+# Two mechanical changes from the old config.yml, both forced
+#
+#   - These used to live under announcements.text.* in config.yml, edited as plain strings. Wording is not
+#     a setting: it wants placeholders, colours, translation and a file it shares with every other module's
+#     wording. So it is here, and config.yml keeps only the switches that decide *whether* to announce.
+#   - §-codes became MiniMessage tags and {seconds} became <seconds>, because Messages speaks MiniMessage.
+#     A stray § is printed as a literal §.
+#
+# Three things the tests hold against this file, all of which have gone wrong before:
+#
+#   - Every placeholder a line asks for is supplied where it is sent, and nothing is supplied in vain. An
+#     unfilled <alive> is printed as written, mid-sentence, and reads to a player as a broken plugin rather
+#     than as two files disagreeing.
+#   - No closing tag closes nothing. MiniMessage keeps an unmatched close exactly as written, and only once
+#     nothing is open — so half a line behaves correctly and the whole thing survives being read.
+#   - Nothing here is YAML's idea of a truth value. A bare on, off, yes or no is a boolean, and a message
+#     that has become one prints its own key to somebody's face. It has happened, to fourteen keys at once.
+hungergames:
+
+  # ---------------------------------------------------------------- the round, as the server sees it
+  #
+  # These are the lines the whole server gets. Every one of them is read by people who are dying, spectating
+  # or waiting, so each says the one fact it is about and stops.
+  game-start: "<red>⚔ The Hunger Games have begun — and may the odds be ever in your favour!</red>"
+  countdown: "<yellow>The Games begin in <red><seconds></red> seconds!</yellow>"
+
+  # The boss bar during the countdown, and the line under the big number in the last five seconds. Short,
+  # both of them: the bar is read at a glance by somebody who is looking at a cornucopia, not at the bar.
+  countdown-bar: "<yellow>The Games begin in <red><seconds></red>…</yellow>"
+  countdown-subtitle: "<gray>Get ready…</gray>"
+
+  # ---------------------------------------------------------------- the run-up, for whoever is running it
+  #
+  # /init does not finish while the command is running — the arena is placed on the next tick of the thread
+  # that owns those blocks. So there are two lines rather than one, and the first one says "started".
+  arena-building: "<gray>Building an arena for <white><platforms></white> tributes — the server will be busy for a few seconds.</gray>"
+  arena-built: "<green>✔ The arena is up: <white><where></white></green>"
+  arena-failed: "<red>The arena could not be built: <white><why></white></red> <gray>Nothing is standing; run /init again.</gray>"
+  startup-underground: "<gray><tributes> tribute(s) are at the foot of their tubes. The lights are coming on…</gray>"
+  startup-ready: "<green>✔ All <white><tributes></white> tributes are on their platforms. <gray>Run /start when you are ready.</gray></green>"
+
+  # The protection period. Named for what it is rather than for the mechanic, because "PvP enabled" is a
+  # setting and "the gloves are off" is what people need to hear.
+  grace-end: "<red>⚔ The protection period is over — the Games have truly begun.</red>"
+
+  # The cannon. A kill and an elimination are two lines rather than one with an optional killer: a line
+  # reading "<victim> was killed by " with nothing after it is what a single line with a blank placeholder
+  # produces, and it happens every time somebody drowns.
+  kill: "<red>☠ <white><victim></white></red> <gray>was finished by</gray> <red><killer></red><gray>.</gray> <dark_gray>(<alive> tributes left)</dark_gray>"
+  elimination: "<red>☠ <white><victim></white></red> <gray>is out.</gray> <dark_gray>(<alive> tributes left)</dark_gray>"
+  remaining-players: "<yellow>Only <red><alive></red> tributes still alive!</yellow>"
+  winner: "<gold>👑 VICTOR OF THE HUNGER GAMES: <green><winner></green></gold>"
+
+  # ---------------------------------------------------------------- the Capitol's parcels
+  #
+  # <coords> is deliberately one placeholder rather than three: whether the drop's position is announced at
+  # all is a setting, and a server that has turned it off wants the sentence to read properly without it
+  # rather than to end in an empty bracket.
+  supply-drop-warning: "<gold>✈ A Capitol parcel is on its way — landing in <white><seconds></white>s<coords>.</gold>"
+  supply-drop-landed: "<gold>✈ The Capitol parcel has landed<coords>!</gold>"
+
+  # ---------------------------------------------------------------- sponsors
+  sponsor-token-earned: "<gold>★ A sponsor believes in you: <yellow>+<amount> sponsor tokens</yellow>!</gold>"
+  sponsor-beacon-spawned: "<aqua>◆ A sponsor beacon has appeared<coords>!</aqua>"
+  sponsor-purchase: "<green>✔ Bought: <white><item></white></green> <gray>(-<cost> tokens)</gray>"
+  sponsor-not-enough: "<red>Not enough sponsor tokens — you need <white><cost></white>.</red>"
+  sponsor-shop-disabled: "<red>The sponsor shop is switched off right now.</red>"
+  sponsor-beacon-disabled: "<red>Sponsor beacons are switched off right now.</red>"
+
+  # ---------------------------------------------------------------- the deathmatch
+  #
+  # The warning carries both numbers because they are one decision: how long you have, and how far in the
+  # walls are coming. Told only the first, somebody spends it running the wrong way.
+  deathmatch-warning: "<dark_red>⚔ DEATHMATCH in <white><seconds></white> seconds — the border shrinks to <white><size></white> blocks!</dark_red>"
+  deathmatch-start: "<dark_red>⚔ THE DEATHMATCH HAS BEGUN!</dark_red>"
+
+  # ---------------------------------------------------------------- arriving mid-round
+  #
+  # Said to one person as they join, not to the server. All three exist because the alternative is somebody
+  # walking into a fight to the death with no idea which of the three they are — and the difference matters:
+  # one of them is still winning, one is finished, and one was never in it.
+  joined-as-spectator: "<gray>The Games are already under way — you are watching from the Capitol.</gray>"
+  rejoined-alive: "<green>Welcome back to the arena, tribute. You are still in the Games.</green>"
+  rejoined-eliminated: "<red>The Games are over for you. You may watch the rest.</red>"
+
+  # ---------------------------------------------------------------- the wait, before a round
+  #
+  # The first is a kick screen, so it is the only line in this file written to be read on a black background
+  # with nothing else around it — it says why and it says what to do, because somebody reading it cannot ask.
+  not-open-yet: "<red>The arena is not built yet.</red><newline><newline><gray>The Hunger Games server opens once a gamemaster has run /init.<newline>Try again shortly.</gray>"
+  waiting-in-the-lobby: "<gray>Welcome, tribute. Wait here — pick a team with <yellow>/hg teams</yellow>.</gray>"
+  no-fighting-yet: "<red>Not yet. The Games have not begun.</red>"
+
+  # ---------------------------------------------------------------- staying in the arena
+  #
+  # Both said to one player as a portal refuses them. Two sentences and not one, because the reasons are
+  # different and so is what the player should do: the End is closed for the whole round, and the Nether is
+  # open — just not from where they are standing. A player told the wrong one walks away instead of walking
+  # inward.
+  portal-end-blocked: "<red>The End is sealed while the Games are on.</red>"
+  portal-nether-blocked: "<red>Nether portals only work within <white><radius></white> blocks of the Cornucopia.</red>"
+
+  # ---------------------------------------------------------------- what the commands say
+  #
+  # All to one person. The run-up verbs share two lines rather than having one each, because what a
+  # gamemaster needs to read at speed is which step and why — and three near-identical sentences is three
+  # chances for them to drift apart, which is exactly what happened in the plugin this replaces.
+  not-allowed: "<red>That is not yours to do.</red>"
+  only-a-player: "<red>That opens a screen, and the console has nowhere to put one.</red>"
+  step-refused: "<red>/<step> did not run: <white><why></white></red>"
+  step-done: "<green>✔ /<step> done.</green>"
+  unknown-subcommand: "<red>No such thing as <white><what></white>. Try /hg help.</red>"
+  status: "<gold>Phase <white><phase></white> — <white><alive></white> of <white><registered></white> tributes alive, <white><teams></white> team(s).</gold>"
+
+  # /allow. Both name the players rather than counting them: somebody pasting a sign-up list needs to see
+  # which of them were already there, because the usual reason is that they pasted the same block twice.
+  allow-usage: "<red>/allow <player> [player…] — several at once, online or not.</red>"
+  allowed: "<green>✔ Now a tribute: <white><players></white></green> <gray>(<total> in total)</gray>"
+  allowed-already: "<yellow>Already a tribute: <white><players></white></yellow>"
+
+  help-header: "<gold>The Hunger Games</gold>"
+  help-teams: "<gray>/hg teams — pick a team</gray>"
+  help-shop: "<gray>/hg shop — spend your sponsor tokens</gray>"
+  help-spectate: "<gray>/hg spectate — watch a living tribute</gray>"
+  help-status: "<gray>/hg status — where the round is</gray>"
+  help-admin: "<yellow>/hg admin — the page a tournament is run from</yellow>"

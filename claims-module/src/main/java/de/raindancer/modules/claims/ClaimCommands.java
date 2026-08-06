@@ -35,11 +35,11 @@ public final class ClaimCommands {
                         .taking("with no words — the claims page",
                                 "manual — the book",
                                 "trust <player> — let them build")
-                        .needing("rainsclaims.claim"),
+                        .needing("rec.use"),
                 ModuleCommand.of("claimadmin", "Land administration for the server owner",
                                 new ClaimAdminCommand(ClaimCommands::require))
                         .aliased("reca", "recadmin", "cadmin")
-                        .needing("rainsclaims.admin"));
+                        .needing("rec.admin"));
     }
 
     /** Called when the module enables, after which the commands work. */

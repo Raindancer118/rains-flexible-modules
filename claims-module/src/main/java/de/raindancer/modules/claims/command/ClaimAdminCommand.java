@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -70,7 +71,10 @@ public final class ClaimAdminCommand implements IClaimCommand {
             case "zone" -> zone(claims, sender);
             case "reload" -> reload(claims, sender);
             case "delete" -> delete(claims, sender, args);
+            case "transfer" -> transfer(claims, sender, args);
             case "why", "diagnose" -> why(claims, sender);
+            case "here", "info" -> here(claims, sender);
+            case "alignvisitors" -> alignVisitors(claims, sender);
             case "stick" -> giveStick(claims, sender, args);
             case "save" -> save(claims, sender);
             case "manual", "book", "guide" -> manual(claims, sender);
@@ -138,6 +142,124 @@ public final class ClaimAdminCommand implements IClaimCommand {
                 new de.raindancer.modules.claims.util.ManualBook(claims,
                         de.raindancer.modules.claims.util.ManualBook.Edition.ADMIN);
         player.openBook(manual.asBook());
+    }
+
+    /**
+     * Makes every claim treat visitors exactly as it treats trusted players.
+     *
+     * <p>The one-off fix for ground that has visitors denied something trusted players are allowed —
+     * whether that was set on purpose or inherited from data older than the two tiers being kept separate.
+     * An owner may still split the two apart afterwards through their own flag screen; this only removes a
+     * difference that already exists, once.
+     */
+    private void alignVisitors(ClaimServices claims, CommandSender sender) {
+        int changed = claims.claimService().alignVisitorsToTrusted();
+        claims.messages().send(sender, "admin.visitors-aligned", "count", String.valueOf(changed));
+    }
+
+    /**
+     * Everything about the claim a server admin is standing in, in one place.
+     *
+     * <p>The question {@code /claimadmin why} does not answer: why does not say how big the claim is, whether
+     * it reaches this deep, who else is trusted here, or whether anybody is banned. A report like "monster
+     * spawning is off but they still spawn right here" is usually one of those, not the flag — most often the
+     * claim's own vertical range not reaching as far down as whoever is standing here, which is why that is
+     * the first thing under the header rather than the last.
+     */
+    private void here(ClaimServices claims, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            claims.messages().send(sender, "error.players-only");
+            return;
+        }
+        if (!claims.rights().isServerAdmin(player)) {
+            claims.messages().send(player, "error.not-allowed");
+            return;
+        }
+        Optional<Claim> standing = claims.claimAround(player);
+        if (standing.isEmpty()) {
+            claims.messages().send(player, "claim.none-here");
+            return;
+        }
+        Claim claim = standing.get();
+
+        claims.messages().send(player, "admin.here-header", "claim", claims.names().qualified(claim));
+        claims.messages().sendPlain(player, "admin.here-owners",
+                "owners", claims.names().allOwners(claim));
+        claims.messages().sendPlain(player, "admin.here-shape",
+                "world", claim.worldName(),
+                "area", String.valueOf(claim.shape().areaBlocks()),
+                "min-y", String.valueOf(claim.shape().minY()),
+                "max-y", String.valueOf(claim.shape().maxY()),
+                "corners", String.valueOf(claim.shape().vertices().size()));
+        boolean coversHere = claim.shape().minY() <= player.getLocation().getBlockY()
+                && player.getLocation().getBlockY() <= claim.shape().maxY();
+        if (!coversHere) {
+            claims.messages().sendPlain(player, "admin.here-not-covered",
+                    "y", String.valueOf(player.getLocation().getBlockY()));
+        }
+
+        int claimAdmins = 0;
+        for (var member : claim.members().values()) {
+            if (member.isClaimAdmin()) {
+                claimAdmins++;
+            }
+        }
+        claims.messages().sendPlain(player, "admin.here-members",
+                "count", String.valueOf(claim.members().size()),
+                "admins", String.valueOf(claimAdmins));
+
+        long activeBans = claim.bans().keySet().stream()
+                .filter(who -> claim.activeBan(who).isPresent()).count();
+        if (activeBans > 0) {
+            claims.messages().sendPlain(player, "admin.here-bans", "count", String.valueOf(activeBans));
+        }
+
+        if (claim.entryFee().enabled()) {
+            claims.messages().sendPlain(player, "admin.here-entry-fee",
+                    "amount", String.valueOf(claim.entryFee().amount()));
+        }
+        if (!claim.bank().isEmpty()) {
+            claims.messages().sendPlain(player, "admin.here-bank",
+                    "items", String.valueOf(claim.bank().items().size()),
+                    "xp", String.valueOf(claim.bank().experiencePoints()));
+        }
+
+        de.raindancer.core.world.protection.FlagRules flags = claims.flags();
+        claims.messages().sendPlain(player, "admin.here-flags-header");
+        for (de.raindancer.core.world.protection.LandFlag flag
+                : de.raindancer.core.world.protection.LandFlag.values()) {
+            if (!flags.isEnforced(flag)) {
+                continue;
+            }
+            if (!flag.audienceAware()) {
+                Optional<Boolean> override = claim.flagOverride(flag,
+                        de.raindancer.core.world.protection.LandAudience.OWNER);
+                boolean verdict = flags.isAllowed(claim.area(), flag);
+                claims.messages().sendPlain(player, "admin.here-flag-line",
+                        "flag", claims.messages().raw(flag.nameKey()),
+                        "override", override.map(value -> value ? "allowed" : "denied").orElse("—"),
+                        "verdict", verdict ? "allowed" : "denied");
+                continue;
+            }
+            claims.messages().sendPlain(player, "admin.here-flag-tiers",
+                    "flag", claims.messages().raw(flag.nameKey()),
+                    "owner", tierSummary(claim, flags, flag,
+                            de.raindancer.core.world.protection.LandAudience.OWNER),
+                    "trusted", tierSummary(claim, flags, flag,
+                            de.raindancer.core.world.protection.LandAudience.TRUSTED),
+                    "visitor", tierSummary(claim, flags, flag,
+                            de.raindancer.core.world.protection.LandAudience.VISITOR));
+        }
+    }
+
+    /** "allowed", "denied" — the claim's own choice if it has made one, otherwise what the server defaults to. */
+    private String tierSummary(Claim claim, de.raindancer.core.world.protection.FlagRules flags,
+                               de.raindancer.core.world.protection.LandFlag flag,
+                               de.raindancer.core.world.protection.LandAudience audience) {
+        boolean allowed = flags.isAllowed(claim.area(), flag, audience);
+        boolean overridden = claim.flagOverride(flag, audience).isPresent();
+        String word = allowed ? "allowed" : "denied";
+        return overridden ? word : word + " (default)";
     }
 
     /**
@@ -266,18 +388,88 @@ public final class ClaimAdminCommand implements IClaimCommand {
         claims.messages().send(sender, "admin.claim-deleted", "claim", name);
     }
 
+    /**
+     * Hands somebody else's claim over to a different person entirely, by qualified name.
+     *
+     * <p>What {@code /claim owner add} cannot do and is not meant to: that adds a co-owner alongside
+     * whoever already owns it, deliberately unable to touch the original owner — see {@code
+     * Claim#removeOwner}. This is the admin route past that protection, for a claim whose owner has
+     * left for good, or one made in the wrong person's name that nobody but an admin can now fix.
+     */
+    private void transfer(ClaimServices claims, CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            claims.messages().send(sender, "claim.who",
+                    "usage", "/claimadmin transfer <owner/claim> <new owner>");
+            return;
+        }
+        ClaimNames.Resolution found = claims.names().resolve(args[1], null);
+        if (found.isAmbiguous()) {
+            claims.messages().send(sender, "error.ambiguous-claim",
+                    "candidates", claims.names().describeCandidates(found.candidates()));
+            return;
+        }
+        Optional<Claim> claim = found.claim();
+        if (claim.isEmpty()) {
+            claims.messages().send(sender, "error.no-such-claim", "claim", args[1]);
+            return;
+        }
+        Optional<UUID> newOwner = resolvePlayer(claims, args[2]);
+        if (newOwner.isEmpty()) {
+            claims.messages().send(sender, "error.no-such-player", "player", args[2]);
+            return;
+        }
+        Claim theClaim = claim.get();
+        String oldName = claims.names().qualified(theClaim);
+        theClaim.transferTo(newOwner.get());
+        claims.claims().reindex(theClaim);
+        claims.claimService().saveAsync(theClaim);
+        claims.messages().send(sender, "admin.claim-transferred",
+                "claim", oldName, "player", args[2]);
+
+        Player online = claims.server().getPlayer(newOwner.get());
+        if (online != null) {
+            claims.messages().send(online, "admin.claim-transferred-to-you", "claim", theClaim.name());
+        }
+    }
+
+    /** By name, online or not — an admin reassigning a claim usually means the new owner is not here either. */
+    private Optional<UUID> resolvePlayer(ClaimServices claims, String name) {
+        Player online = claims.server().getPlayerExact(name);
+        if (online != null) {
+            return Optional.of(online.getUniqueId());
+        }
+        org.bukkit.OfflinePlayer seen = claims.server().getOfflinePlayer(name);
+        return seen.hasPlayedBefore() ? Optional.of(seen.getUniqueId()) : Optional.empty();
+    }
+
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
-            List<String> words = new ArrayList<>(
-                    List.of("bypass", "overview", "zone", "reload", "delete"));
+            List<String> words = new ArrayList<>(List.of(
+                    "bypass", "overview", "flags", "zone", "reload", "delete", "transfer", "why",
+                    "here", "alignvisitors", "stick", "save", "manual"));
             if (args.length == 1) {
-                words.removeIf(word -> !word.startsWith(args[0].toLowerCase(Locale.ROOT)));
+                String prefix = args[0].toLowerCase(Locale.ROOT);
+                words.removeIf(word -> !word.startsWith(prefix));
             }
             return words;
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("delete")) {
-            return services.get().names().suggestions(null);
+        if (args.length == 2 && (args[0].equalsIgnoreCase("delete") || args[0].equalsIgnoreCase("transfer"))) {
+            String prefix = args[1].toLowerCase(Locale.ROOT);
+            List<String> claims = new ArrayList<>(services.get().names().suggestions(null));
+            claims.removeIf(claim -> !claim.toLowerCase(Locale.ROOT).startsWith(prefix));
+            return claims;
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("stick")
+                || args.length == 3 && args[0].equalsIgnoreCase("transfer")) {
+            String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
+            List<String> names = new ArrayList<>();
+            services.get().server().getOnlinePlayers().forEach(who -> {
+                if (who.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                    names.add(who.getName());
+                }
+            });
+            return names;
         }
         return List.of();
     }

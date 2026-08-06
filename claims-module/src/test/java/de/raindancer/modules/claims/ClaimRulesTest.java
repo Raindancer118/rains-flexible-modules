@@ -44,9 +44,10 @@ class ClaimRulesTest {
     private final ClaimNames names = new ClaimNames(claims, id -> "Somebody");
 
     private ClaimSettings settings = ClaimSettings.DEFAULTS;
+    private boolean bypassing = false;
 
     private Rules<ClaimAttempt> chain() {
-        return ClaimRules.standard(() -> settings, claims, zones, names);
+        return ClaimRules.standard(() -> settings, claims, zones, names, player -> bypassing);
     }
 
     // ── fixtures ───────────────────────────────────────────────────────────────────────────────────
@@ -243,8 +244,10 @@ class ClaimRulesTest {
 
         @Test
         void anAdminMayClaimInsideAZone() {
+            // Not a permission any more: an operator or any staff rank gets nothing here for free. Only
+            // the explicit /claimadmin bypass toggle gets through a no-claim zone.
             zones.add(new NoClaimZone("spawn", WORLD, "world", square(10, 30), 0L));
-            permissions.add(ClaimRules.ZONE_BYPASS);
+            bypassing = true;
 
             assertThat(chain().judge(attempt(square(0, 20), "mine")).isAllowed()).isTrue();
         }

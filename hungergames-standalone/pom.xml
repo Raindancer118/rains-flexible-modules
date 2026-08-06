@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>hungergames-standalone</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Rain's Hunger Games</name>
+    <description>
+        The Hunger Games, as a plugin of its own. Nothing here but a build file and a descriptor: the
+        hunger games module and the standard wrapper are shaded together, and that is the whole plugin.
+
+        For a server that already has its own moderation. The jar most people want is
+        hungergames-bundle, which carries both — see its description for why a tournament night in
+        particular needs them together.
+    </description>
+
+    <properties>
+        <!--
+          The name the server sees, and the name of its data folder.
+
+          Not TheHungerGames, which the bundle takes. This is the module on its own — one module in the
+          jar, so the wrapper gives it the plugin folder outright and its files sit flat in
+          plugins/RainsHungerGames/, exactly the shape the v1 plugin's own folder had. The bundle carries
+          moderation as well, so there the same files live one level down in a hungergames/ subfolder.
+
+          Which of the two a server wants is a real choice rather than a packaging detail: this jar is the
+          game and nothing else, for a server that already has its own moderation.
+        -->
+        <plugin.name>RainsHungerGames</plugin.name>
+
+        <!--
+          2.0.0 continues the old plugin's version line rather than starting a new one. This is the same
+          feature for the same servers — the v2 rework, delivered as a module — so an upgrading server's
+          config.yml, teams.yml, whitelist.yml and session.yml are files this still has to read. Starting
+          at 1.0.0 would say the opposite.
+        -->
+        <plugin.version>2.0.0</plugin.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>hungergames-module</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-wrapper</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${plugin.name}-${plugin.version}</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <!-- The descriptor names the version, and a version written twice is one that drifts. -->
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+            </plugin>
+            <!--
+              StandaloneJarTest reads the jar this build produces, so it has to run after it exists. Surefire
+              bound to a later phase rather than failsafe, which is one more plugin to have cached — this
+              build has to work offline.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>after-the-jar-exists</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <skipTests>false</skipTests>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

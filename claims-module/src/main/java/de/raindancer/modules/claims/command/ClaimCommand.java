@@ -87,7 +87,7 @@ public final class ClaimCommand implements IClaimCommand {
             case "help", "?" -> help(claims, player);
             case "manual", "book", "guide" -> manual(claims, player);
             case "menu", "list", "mine" -> claims.screens().list(player);
-            case "new", "create" -> begin(claims, player);
+            case "new", "create", "claim" -> begin(claims, player);
             case "stick", "tool" -> stick(claims, player);
             case "select", "sel" -> claims.screens().selection(player);
             case "here", "info" -> here(claims, player);
@@ -102,6 +102,7 @@ public final class ClaimCommand implements IClaimCommand {
             case "unban" -> unban(claims, player, args);
             case "timeout", "mute" -> timeout(claims, player, args);
             case "owner" -> owner(claims, player, args);
+            case "transfer" -> transfer(claims, player, args);
             case "cancel" -> claims.selectionFlow().cancel(player);
             // The two halves of an entry-fee prompt. Without these the prompt is unanswerable, which makes
             // the whole feature a dead end rather than a degraded one.
@@ -197,6 +198,45 @@ public final class ClaimCommand implements IClaimCommand {
     }
 
     /**
+     * Hands the claim underfoot to somebody else entirely — the player-facing door to what
+     * {@code /claimadmin transfer} already did for staff. Not the same door as {@code /claim owner add}:
+     * that one deliberately cannot touch the primary owner, and this one is exactly for when the primary
+     * owner is the one leaving. Whoever it goes to owns it outright afterward, same as
+     * {@link Claim#transferTo(UUID)} always meant.
+     */
+    private void transfer(ClaimServices claims, Player player, String[] args) {
+        if (args.length < 2) {
+            claims.messages().send(player, "claim.who", "usage", "/claim transfer <player>");
+            return;
+        }
+        Optional<Claim> maybe = ownedHere(claims, player);
+        if (maybe.isEmpty()) {
+            return;
+        }
+        Claim claim = maybe.get();
+        Optional<UUID> subject = resolve(claims, args[1]);
+        if (subject.isEmpty()) {
+            claims.messages().send(player, "error.no-such-player", "player", args[1]);
+            return;
+        }
+        UUID who = subject.get();
+        if (who.equals(player.getUniqueId())) {
+            claims.messages().send(player, "claim.already-an-owner", "player", args[1]);
+            return;
+        }
+        claim.transferTo(who);
+        claims.claims().reindex(claim);
+        claims.claimService().saveAsync(claim);
+        claims.messages().send(player, "claim.transferred", "player", args[1], "claim", claim.name());
+        // Told if they are online — otherwise the only way to find out is walking into a claim that
+        // used to refuse them and noticing it does not any more.
+        Player theirs = claims.server().getPlayer(who);
+        if (theirs != null) {
+            claims.messages().send(theirs, "claim.transferred-to-you", "claim", claim.name());
+        }
+    }
+
+    /**
      * The claim underfoot, if this player owns it.
      *
      * <p>Renaming and deleting are the owner's alone — they are not among the permissions an owner can hand
@@ -278,6 +318,13 @@ public final class ClaimCommand implements IClaimCommand {
         if (adding) {
             claim.memberOrCreate(who).applyDefaultTrust();
             claims.messages().send(player, "claim.trusted", "player", args[1], "claim", claim.name());
+            // Told if they are online to be told — otherwise the only way to find out is walking into
+            // the claim and noticing the border no longer refuses you.
+            Player theirs = claims.server().getPlayer(who);
+            if (theirs != null) {
+                claims.messages().send(theirs, "notify.trusted",
+                        "player", player.getName(), "claim", claim.name());
+            }
         } else if (claim.removeMember(who)) {
             claims.messages().send(player, "claim.untrusted", "player", args[1], "claim", claim.name());
         } else {
@@ -525,25 +572,41 @@ public final class ClaimCommand implements IClaimCommand {
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
-            List<String> words = new ArrayList<>(List.of("new", "list", "here", "show", "trust",
-                    "untrust", "kick", "ban", "unban", "timeout", "owner", "cancel"));
+            List<String> words = new ArrayList<>(List.of(
+                    "new", "create", "list", "here", "info", "show", "border", "hide", "delete",
+                    "rename", "trust", "untrust", "kick", "ban", "unban", "timeout", "owner", "transfer",
+                    "cancel", "accept", "decline", "manual", "stick", "select", "help"));
             if (args.length == 1) {
-                words.removeIf(word -> !word.startsWith(args[0].toLowerCase(Locale.ROOT)));
+                String prefix = args[0].toLowerCase(Locale.ROOT);
+                words.removeIf(word -> !word.startsWith(prefix));
             }
             return words;
         }
-        if (args.length == 2 && List.of("trust", "untrust", "kick", "ban", "unban", "timeout")
+        if (args.length == 2 && List.of("trust", "untrust", "kick", "ban", "unban", "timeout", "mute", "transfer")
                 .contains(args[0].toLowerCase(Locale.ROOT))) {
+            String prefix = args[1].toLowerCase(Locale.ROOT);
             List<String> names = new ArrayList<>();
-            services.get().server().getOnlinePlayers().forEach(who -> names.add(who.getName()));
+            services.get().server().getOnlinePlayers().forEach(who -> {
+                if (who.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                    names.add(who.getName());
+                }
+            });
             return names;
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("owner")) {
-            return List.of("add", "remove");
+            String prefix = args[1].toLowerCase(Locale.ROOT);
+            List<String> sub = new ArrayList<>(List.of("add", "remove"));
+            sub.removeIf(word -> !word.startsWith(prefix));
+            return sub;
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("owner")) {
+            String prefix = args[2].toLowerCase(Locale.ROOT);
             List<String> names = new ArrayList<>();
-            services.get().server().getOnlinePlayers().forEach(who -> names.add(who.getName()));
+            services.get().server().getOnlinePlayers().forEach(who -> {
+                if (who.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                    names.add(who.getName());
+                }
+            });
             return names;
         }
         return List.of();

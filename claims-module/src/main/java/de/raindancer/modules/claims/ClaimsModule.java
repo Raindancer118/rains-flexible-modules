@@ -173,7 +173,7 @@ public final class ClaimsModule implements FlexModule {
                 costs, rights);
         claimService.features(features);
         claimService.rules(de.raindancer.modules.claims.rules.ClaimRules.standard(
-                settings::current, claims, zones, names));
+                settings::current, claims, zones, names, rights::isBypassing));
         visualizer = new BorderVisualizer(context.plugin(), settings.current());
         selections = new SelectionService(settings.current());
         stick = new SelectionStick(context.plugin(), settings.current(), context.core().messages());

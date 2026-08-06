@@ -293,7 +293,7 @@ public final class FenceService implements IClaimService {
         // Work out the budget before touching the world, so a half-charged build is impossible.
         int affordableColumns = todo.size();
         int missing = 0;
-        if (settings.fenceChargeMaterial() && !payer.hasPermission("rec.admin.nocost")) {
+        if (settings.fenceChargeMaterial() && !claims.isBypassing(payer)) {
             int available = countMaterial(payer.getInventory(), fence.material());
             affordableColumns = Math.min(todo.size(), available / height);
             missing = (todo.size() - affordableColumns) * height;
@@ -366,7 +366,7 @@ public final class FenceService implements IClaimService {
         int height = settings.fenceHeight();
         int needed = plain.size() * height;
         int missing = 0;
-        if (settings.fenceChargeMaterial() && !payer.hasPermission("rec.admin.nocost")) {
+        if (settings.fenceChargeMaterial() && !claims.isBypassing(payer)) {
             int available = countMaterial(payer.getInventory(), newMaterial);
             if (available < needed) {
                 // Refuse rather than leave a half-recoloured fence behind.

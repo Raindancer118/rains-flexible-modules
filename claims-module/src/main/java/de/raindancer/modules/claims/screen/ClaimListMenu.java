@@ -53,12 +53,7 @@ public final class ClaimListMenu extends PaginatedMenu<Claim> implements IClaimS
     protected void decorate() {
         super.decorate();
 
-        // Bottom centre, and always — this is the first screen anybody sees, and the people most in need of
-        // the manual are exactly the ones with no claim yet, who would otherwise have to own one to find it.
-        //
-        // That slot belongs to the one destructive button when a page has one. This page has none: there is
-        // nothing here to destroy, only claims to open. The framework gives up the page counter for it and
-        // keeps the arrows, so a long list still pages — it just stops saying "2 of 3".
+        // Bottom centre, unchanged.
         danger(Icons.of(Material.WRITTEN_BOOK, "<white>The manual",
                         "<gray>How claiming works, as a book you keep.",
                         "<dark_gray>also /claim manual"),
@@ -66,34 +61,35 @@ public final class ClaimListMenu extends PaginatedMenu<Claim> implements IClaimS
                     viewer.closeInventory();
                     services.screens().manual(viewer);
                 });
-    }
 
-    @Override
-    protected ItemStack emptyIcon() {
-        return Icons.of(Material.STICK, "<gray>You have no claims yet",
-                "<gray>Mark two corners with the tool and",
-                "<gray>the land between them is yours.",
-                "",
-                "<yellow>Click to start <dark_gray>· puts the tool in your hand");
+        // Directly above the manual, and always — not only while the list is empty. The old placement
+        // made this the one thing on the page that stopped being reachable the moment somebody owned a
+        // first claim.
+        toolbar(4, Icons.of(Material.STICK, "<white>Mark out a new claim",
+                        "<gray>Mark two corners with the tool and",
+                        "<gray>the land between them is yours.",
+                        "",
+                        "<yellow>Click to start <dark_gray>· puts the tool in your hand"),
+                click -> {
+                    viewer.closeInventory();
+                    services.selectionFlow().begin(viewer,
+                            de.raindancer.modules.claims.selection.Selection.Mode.RECTANGLE,
+                            de.raindancer.modules.claims.selection.Selection.Purpose.NEW_CLAIM,
+                            null, null, null);
+                });
     }
 
     /**
-     * Hands them the tool and starts a selection.
+     * Says there is nothing here rather than repeating the way out.
      *
-     * <p>The icon used to name the command to type and do nothing when clicked, which reads as a broken button
-     * rather than as instructions — it is the only thing on the page that is not clickable, and the one a player
-     * with no claims tries first. Reported exactly that way.
-     *
-     * <p>The same route as {@code /claim new}, not a copy of it: the flow revokes any tool they are already
-     * holding, gives a fresh one and tells them what to do with it, and none of that is worth having twice.
+     * <p>That way out is the stick above the manual now, always on screen — a second copy of the same
+     * button in the empty slot would be two things doing one job, and the first one a new player's eye
+     * would land on is the one that is not where every other page's start button lives.
      */
     @Override
-    protected void emptyAction(InventoryClickEvent event) {
-        viewer.closeInventory();
-        services.selectionFlow().begin(viewer,
-                de.raindancer.modules.claims.selection.Selection.Mode.RECTANGLE,
-                de.raindancer.modules.claims.selection.Selection.Purpose.NEW_CLAIM,
-                null, null, null);
+    protected ItemStack emptyIcon() {
+        return Icons.of(Material.COBWEB, "<gray>You have no claims yet",
+                "<gray>Pick the stick to create one!");
     }
 
     @Override

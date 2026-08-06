@@ -93,8 +93,20 @@ public final class TpaRequests {
         return make(from, to, kind).displaced();
     }
 
+    /**
+     * Both at once: the request made, and whatever it pushed aside.
+     *
+     * <p>For the one caller that needs both sides of the same asking. Calling {@link #put} and
+     * {@link #displacedBy} back to back would be two separate operations on the same state — the first
+     * already stores the request, so the second finds it sitting there for that same target and reports
+     * "asking the same person again", coming back empty even though nothing was actually asked before.
+     */
+    public Outcome ask(UUID from, UUID to, TpaKind kind) {
+        return make(from, to, kind);
+    }
+
     /** What one asking came to: the request made, and whatever it pushed aside. */
-    private record Outcome(Optional<TpaRequest> request, Optional<TpaRequest> displaced) {
+    public record Outcome(Optional<TpaRequest> request, Optional<TpaRequest> displaced) {
 
         static Outcome refused() {
             return new Outcome(Optional.empty(), Optional.empty());

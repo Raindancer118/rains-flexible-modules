@@ -1,0 +1,368 @@
+# Snapshot of TheHungerGames' real config.yml key space (272 leaf keys), as HgSettings.java's
+# SettingsRegistry actually reads and writes it -- dotted paths as nested YAML, one to one, the
+# way YamlConfigBackend persists it. This is what an upgrading server has on disk.
+#
+# Every value here is the shipped default from HgSettings.java, not a server's edited value --
+# HungerGamesSettingsMigrationTest only needs the key SET, not particular values, to prove no
+# key was dropped or silently renamed during the port.
+
+game:
+  duration: 180
+  grace-period: 60
+  countdown: 20
+  prep-time-percent: 30
+  death-action: "SPECTATOR"
+  disconnect-elimination: 0
+  restart:
+    offline-time-policy: "PAUSE"
+  pre-init-admins: []
+  preflight-difficulty: "PEACEFUL"
+  difficulty: "NORMAL"
+  admin-participants:
+    deop-on-start: true
+    reop-on-elimination: true
+    reop-on-finish: true
+    set-creative-on-elimination: true
+    teleport-to-center-on-elimination: true
+    center-y-offset: 10
+arena:
+  platform-min-gap: 4
+  platform-width: 3
+  underground-room-height: 4
+  underground-room-extra-radius: 5
+  tube-depth: 12
+  block-nether-portals: true
+  nether-allow-radius: 20
+  block-end-portals: true
+lobby:
+  height-offset: 100
+  width: 20
+  depth: 20
+  height: 5
+  block-type: "GLASS"
+startup:
+  lamp-delay: 5
+  levitation-start-delay: 40
+  player-levitation-delay: 10
+  levitation-amplifier: 2
+teams:
+  max-size: 2
+  max-teams: 0
+  allow-switching: true
+  captain-enabled: false
+  players-can-create: true
+  players-choose-color: true
+  lock-phase: "STARTUP"
+border:
+  initial-size: 2500
+  minimum-size: 100.0
+  max-edge-speed: 2.5
+  scale-nether: true
+  phases:
+  - "50% -> 1000 @ max:2.5"
+  - "80% -> 200 @ max:2.5"
+  prep-warnings:
+  - "10"
+  - "5"
+  - "1"
+  shrink-warning: 30
+protection:
+  cornucopia-radius: 20
+  cornucopia:
+    before-running: true
+    during-running: false
+    after-game: false
+  allowed-interactions:
+  - "CHEST"
+  - "TRAPPED_CHEST"
+  - "ENDER_CHEST"
+  - "BARREL"
+  - "SHULKER_BOX"
+  bypass-permission: "hungergames.protection.bypass"
+items:
+  fiendfinder:
+    glow-duration: 15
+    search-radius: 0
+  smoke-bomb:
+    radius: 6
+    enemy-duration: 6
+    self-invisibility: 3
+  medikit:
+    regen-seconds: 6
+    regen-level: 2
+    absorption-seconds: 60
+    absorption-level: 2
+    countdown-seconds: 3
+  lightning:
+    range: 80
+    bolt-count: 6
+    spread: 3
+    bonus-damage: 8
+    damage-radius: 4
+    fire-ticks: 80
+    bolt-delay: 3
+    knockup: true
+  hermes-boots:
+    flight-seconds: 4
+    warning-seconds: 3
+  krueckau:
+    radius: 4
+    nausea-seconds: 12
+    blindness-seconds: 0
+  aura:
+    duration-seconds: 5
+    radius: 4
+    damage: 6
+    interval-ticks: 10
+    knockback: 6
+    affect-mobs: true
+  grappling:
+    range: 40
+    power: 14
+  repulse:
+    radius: 6
+    strength: 12
+    slow-seconds: 2
+    affect-mobs: true
+  feast:
+    golden-apples: 2
+  war-kit:
+    material: "IRON"
+  leap:
+    power: 15
+  exmatrikulator:
+    duration-seconds: 5
+    radius: 8
+    interval-ticks: 4
+    bonus-damage: 6
+    max-targets: 5
+    fire-ticks: 40
+    modules:
+    - "Mathematik I"
+    - "Mathematik II"
+    - "Theoretische Informatik"
+    - "Programmierung"
+    - "Rechnungswesen"
+    - "Statistik"
+    - "Datenbanken"
+    - "Software Engineering"
+    - "BWL"
+    death-messages:
+    - "wurde exmatrikuliert, als er im Drittversuch in %modul% gegen %killer% versagte."
+    - "wurde nach nicht bestandener Klausur in %modul% von %killer% exmatrikuliert."
+    - "scheiterte in %modul% an Prüfer %killer% und wurde exmatrikuliert."
+    - "hat den Drittversuch in %modul% gegen %killer% vergeigt — exmatrikuliert."
+    - "wurde von Prüfungsausschuss %killer% wegen %modul% exmatrikuliert."
+    recipe:
+    - "LIGHTNING_ROD DIAMOND_BLOCK LIGHTNING_ROD"
+    - "NETHERITE_INGOT DIAMOND_BLOCK NETHERITE_INGOT"
+    - "LIGHTNING_ROD DIAMOND_BLOCK LIGHTNING_ROD"
+  stupidness-protector:
+    heal-health: 8
+    regen-seconds: 8
+    fire-resistance-seconds: 10
+    shove-radius: 5
+    shove-strength: 12
+loot:
+  scan-radius: 50
+  scan-y-range: 30
+  editor:
+    enabled: true
+    allow-runtime-edits: true
+    backup-before-save: true
+    max-test-rolls: 100
+    allow-test-give: true
+    allow-test-chest: true
+events:
+  supply-drops:
+    enabled: true
+    schedule:
+    - "20m"
+    - "45m"
+    - "75m"
+    warning-seconds: 60
+    drop-count: 1
+    radius-min: 30
+    radius-max: 250
+    only-overworld: true
+    announce-coordinates: true
+    coordinate-fuzz: 0
+    beacon-enabled: true
+    base-material: "IRON_BLOCK"
+    protected: true
+    firework-enabled: true
+    particles-enabled: true
+    loot-table: "supply_drop"
+  monster-waves:
+    default-mob: "ZOMBIE"
+    count-per-wave: 6
+    wave-count: 5
+    interval-seconds: 15
+    spread: 4
+  round-log:
+    enabled: true
+    file-per-round: true
+    include-coordinates: false
+deathmatch:
+  enabled: true
+  manual-only: true
+  target-border-size: 100
+  warning-seconds: 60
+  teleport-to-center: false
+  teleport-y-offset: 2
+  grace-after-teleport: 10
+  require-confirmation: true
+  allowed-phases:
+  - "RUNNING"
+  broadcast-enabled: true
+  sound-enabled: true
+gamemaster:
+  enabled: true
+  default-mode: "SPECTATOR"
+  keep-op: true
+  allow-teleport-menu: true
+  hide-from-player-count: true
+  names: []
+  permission-mode: "PERMISSION"
+sponsors:
+  enabled: true
+  tokens:
+    enabled: true
+    material: "NETHER_STAR"
+    display-name: "§6Sponsor Token"
+    lore:
+    - "§7Verdient durch Überleben."
+    - "§7Einlösbar an Sponsor Beacons."
+    interval: 10
+    amount-per-interval: 1
+    first-token-after: 10
+    max-per-player: 0
+    only-alive-players: true
+    announce-personal: true
+    broadcast-milestones: false
+    drop-on-death: true
+    clear-on-elimination: false
+    clear-on-round-reset: true
+  beacons:
+    enabled: true
+    spawn-mode: "CENTER"
+    center-on-start: true
+    material: "BEACON"
+    base-material: "IRON_BLOCK"
+    protected: true
+    radius-min: 30
+    radius-max: 200
+    spawn-schedule:
+    - "15m"
+    - "35m"
+    - "60m"
+    max-active: 3
+    announce-spawn: true
+    announce-coordinates: true
+    coordinate-fuzz: 0
+    particles-enabled: true
+    sound-enabled: true
+  shop:
+    enabled: true
+    items:
+    - "bread_pack|BREAD:8|1|Essen Paket"
+    - "arrows|ARROW:16|1|Pfeile"
+    - "iron_ingot|IRON_INGOT:2|2|Eisen"
+    - "glow_10s|EFFECT:GLOWING:10:0|2|Glow 10 Sekunden"
+    - "speed_15s|EFFECT:SPEED:15:0|3|Speed 15 Sekunden"
+    - "fiendfinder|ITEM:FIENDFINDER:1|4|Fiendfinder"
+sounds:
+  enabled: true
+  default-volume: 1.0
+  default-pitch: 1.0
+  countdown: "Countdown-Tick"
+  game-start: "Spielstart"
+  kill: "Kill"
+  elimination: "Eliminierung"
+  supply-drop-warning: "Supply-Drop-Warnung"
+  supply-drop-landed: "Supply-Drop-Landung"
+  sponsor-token-earned: "Sponsor-Token erhalten"
+  sponsor-beacon-spawn: "Sponsor-Beacon-Spawn"
+  sponsor-purchase-success: "Sponsor-Kauf erfolgreich"
+  sponsor-purchase-failed: "Sponsor-Kauf fehlgeschlagen"
+  deathmatch-warning: "Deathmatch-Warnung"
+  deathmatch-start: "Deathmatch-Start"
+  victory: "Sieg"
+  item-smoke-bomb: "Item: Rauchbombe"
+  item-medikit: "Item: Medikit"
+  item-hermes-boots: "Item: Hermes' Stiefel"
+  item-hermes-warning: "Item: Hermes' Stiefel — Warnsound (Flug endet gleich)"
+  item-krueckau-throw: "Item: Krückauwasser werfen"
+  item-krueckau-impact: "Item: Krückauwasser Aufprall"
+  item-fiendfinder: "Item: Fiendfinder"
+  item-aura: "Item: Aura"
+  item-grappling: "Item: Enterhaken"
+  item-repulse: "Item: Druckwelle"
+  item-feast: "Item: Festmahl"
+  item-war-kit: "Item: Kriegsausrüstung"
+  item-leap: "Item: Sprungfeder"
+  item-stupidness-protector: "Item: Trottel-Schutz"
+  item-exmatrikulator: "Item: Exmatrikulator (Aktivierung)"
+  startup-launch: "Startsequenz: Abschuss aus der Röhre"
+  startup-arrive: "Startsequenz: Ankunft auf der Plattform"
+  startup-lamp: "Startsequenz: Lampen-Ring"
+  cannon: "Kanonenschuss (bei jeder Eliminierung)"
+effects:
+  enabled: true
+  game-start: "Spielstart"
+  kill: "Kill"
+  elimination: "Eliminierung (am Opfer)"
+  victory: "Sieg"
+  supply-drop: "Supply-Drop-Landung"
+  deathmatch-start: "Deathmatch-Start"
+  sponsor-beacon-spawn: "Sponsor-Beacon-Spawn"
+  item-smoke-bomb: "Item: Rauchbombe"
+  item-medikit: "Item: Medikit"
+  item-hermes-boots: "Item: Hermes' Stiefel"
+  item-lightning: "Item: Blitzschlag"
+  item-krueckau-impact: "Item: Krückauwasser"
+  item-aura: "Item: Aura"
+  item-repulse: "Item: Druckwelle"
+  item-feast: "Item: Festmahl"
+  item-leap: "Item: Sprungfeder"
+  item-stupidness-protector: "Item: Trottel-Schutz"
+  item-exmatrikulator: "Item: Exmatrikulator"
+  startup-launch: "Startsequenz: Abschuss aus der Röhre"
+  startup-arrive: "Startsequenz: Ankunft auf der Plattform"
+  cannon: "Kanonenschuss-Partikel (global, Standard aus)"
+announcements:
+  enabled: true
+  use-title: true
+  use-actionbar: true
+  use-chat: true
+  killfeed-enabled: true
+  remaining-players-enabled: true
+  remaining-players-thresholds:
+  - "10"
+  - "5"
+  - "3"
+  - "2"
+  text:
+    game-start: "Spielstart"
+    countdown: "Countdown ({seconds})"
+    grace-end: "Ende der Schutzfrist"
+    kill: "Kill ({victim}, {killer}, {alive})"
+    elimination: "Eliminierung ohne Killer ({victim}, {alive})"
+    supply-drop-warning: "Supply-Drop-Warnung ({seconds}, {coords})"
+    supply-drop-landed: "Supply-Drop-Landung ({coords})"
+    sponsor-token-earned: "Sponsor-Token erhalten ({amount})"
+    sponsor-beacon-spawned: "Sponsor-Beacon gespawnt ({coords})"
+    sponsor-purchase: "Sponsor-Kauf erfolgreich ({item}, {cost})"
+    sponsor-not-enough: "Zu wenig Tokens ({cost})"
+    sponsor-shop-disabled: "Shop deaktiviert"
+    sponsor-beacon-disabled: "Beacons deaktiviert"
+    deathmatch-warning: "Deathmatch-Warnung ({seconds}, {size})"
+    deathmatch-start: "Deathmatch-Start"
+    winner: "Gewinner ({winner})"
+    remaining-players: "Verbleibende Tribute ({alive})"
+api:
+  enabled: false
+  bind-address: "127.0.0.1"
+  port: 8567
+  key: ""
+  read-only: false
