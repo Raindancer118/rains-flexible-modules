@@ -54,6 +54,24 @@ public final class Schematics {
     /** The folder inside the module's data folder, and the folder inside the jar. Deliberately the same. */
     private static final String FOLDER = "schem";
 
+    /**
+     * Where the bundled copies live inside the jar, as an absolute resource path.
+     *
+     * <h2>Why absolute, and why that is not a detail</h2>
+     * It was relative — {@code getResourceAsStream("schem/tube.schem")} — and a relative resource name is
+     * resolved against the <em>asking class's own package</em>. This class is in {@code …hungergames.visual},
+     * so it looked in {@code de/raindancer/modules/hungergames/visual/schem/} while the files are packaged one
+     * level up, beside the module class.
+     *
+     * <p>Nothing noticed. The jar test confirmed the schematics were present, and they were — at the path
+     * nothing was reading. {@code /init} reported "there is no schematic called 'tube.schem' in this module,
+     * and none on disk either", guessed a tube depth, and gave up when the middle would not paste: two
+     * platforms and no cornucopia, in front of whoever ran it.
+     *
+     * <p>Absolute, so moving this class between packages cannot move the files it reads.
+     */
+    private static final String BUNDLED_AT = "/de/raindancer/modules/hungergames/" + FOLDER + "/";
+
     private final Path schematics;
     private final LogChannel log;
 
@@ -109,7 +127,7 @@ public final class Schematics {
      * the wrong question entirely when it is one feature of a larger plugin.
      */
     private boolean extract(String name, Path to) {
-        try (InputStream bundled = Schematics.class.getResourceAsStream(FOLDER + "/" + name)) {
+        try (InputStream bundled = bundled(name)) {
             if (bundled == null) {
                 log.error("There is no schematic called '{}' in this module, and none on disk either.", name);
                 return false;
@@ -122,6 +140,17 @@ public final class Schematics {
             log.error("Could not write out the schematic '{}': {}", name, failed.getMessage());
             return false;
         }
+    }
+
+    /**
+     * The bundled copy of one schematic, or {@code null} when this module does not ship one by that name.
+     *
+     * <p>Public and static so a test can ask exactly what production asks — see
+     * {@code TheSchematicsAreReachableTest}. A resource path is a string, and the one that was wrong here was
+     * wrong by a single package.
+     */
+    public static InputStream bundled(String name) {
+        return Schematics.class.getResourceAsStream(BUNDLED_AT + name);
     }
 
     /**

@@ -54,6 +54,13 @@ hungergames:
   arena-building: "<gray>Building an arena for <white><platforms></white> tributes — the server will be busy for a few seconds.</gray>"
   arena-built: "<green>✔ The arena is up: <white><where></white></green>"
   arena-failed: "<red>The arena could not be built: <white><why></white></red> <gray>Nothing is standing; run /init again.</gray>"
+  # ---------------------------------------------------------------- /init asks how many
+  #
+  # It used to derive the count from the register and never ask, which is how somebody got an arena for two
+  # tributes on a server whose sign-up sheet was not finished. The number is a gamemaster's to choose.
+  init-needs-a-count: "<yellow>How many tributes? A console cannot be shown a page — say the number after the command: <white>/init <count></white> <gray>(<least>–<most>)</gray></yellow>"
+  init-not-a-count: "<red><typed> is not a tribute count.</red> <gray>Anything from <white><least></white> to <white><most></white>.</gray>"
+
   startup-underground: "<gray><tributes> tribute(s) are at the foot of their tubes. The lights are coming on…</gray>"
   startup-ready: "<green>✔ All <white><tributes></white> tributes are on their platforms. <gray>Run /start when you are ready.</gray></green>"
 
