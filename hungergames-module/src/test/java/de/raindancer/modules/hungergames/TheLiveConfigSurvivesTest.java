@@ -130,20 +130,20 @@ class TheLiveConfigSurvivesTest {
         void theShopSellsNothingImaginary() {
             LegacyConfigImport.from(oldConfig, store);
 
-            var soldButMissing = store.current().sponsorShopItems().stream()
-                    .map(line -> line.split("\\|"))
-                    .filter(parts -> parts.length > 1 && parts[1].startsWith("ITEM:"))
-                    // "ITEM:SMOKE_BOMB:1" names the item in the middle. The registries spell it
-                    // hungergames:smoke-bomb, so the two have to be reconciled rather than compared.
-                    .map(parts -> parts[1].split(":")[1].toLowerCase(java.util.Locale.ROOT)
-                            .replace('_', '-'))
-                    .filter(id -> !EVERY_ITEM_THIS_BUILD_HAS.contains(id))
-                    .toList();
+            // Through the real parser, not through a normalisation written here.
+            //
+            // This test did normalise the ids itself once — lower-cased them and swapped underscores for
+            // hyphens before comparing — and that is precisely why it stayed green while the production
+            // parser did not do the same thing. It was asserting that the ids *could* be reconciled, not
+            // that anything reconciled them. The live shop was rejected in full and this test said it was
+            // fine. A test that does the work under test is a test that cannot fail.
+            var refusal = de.raindancer.modules.hungergames.store.SponsorShopStore.validateList(
+                    store.current().sponsorShopItems(), EVERY_ITEM_THIS_BUILD_HAS);
 
-            assertThat(soldButMissing)
-                    .as("this was the worst finding of the whole port: eight of the shop's items had no "
-                            + "implementation at all, so a tribute spending twelve tokens on a lightning "
-                            + "strike would have received nothing and had no way of knowing why")
+            assertThat(refusal)
+                    .as("one unparseable line rejects the whole file, so this is all twelve entries or none "
+                            + "— and none is a sponsor shop that cannot be opened, for the thing tributes "
+                            + "earn tokens towards all evening")
                     .isEmpty();
         }
 
@@ -155,7 +155,7 @@ class TheLiveConfigSurvivesTest {
          * {@code CombatItemServiceTest}, {@code MobilityItemServiceTest} and {@code SurvivalItemServiceTest}
          * — this list is what the shop is judged against, and those are what judge the list.
          */
-        private static final java.util.Set<String> EVERY_ITEM_THIS_BUILD_HAS = java.util.Set.of(
+        static final java.util.Set<String> EVERY_ITEM_THIS_BUILD_HAS = java.util.Set.of(
                 "fiendfinder", "invisibility-cloak",
                 "smoke-bomb", "medikit", "lightning-strike", "krueckauwasser", "aura-of-protection",
                 "hermes-boots", "grappling-hook", "repulse", "leap",

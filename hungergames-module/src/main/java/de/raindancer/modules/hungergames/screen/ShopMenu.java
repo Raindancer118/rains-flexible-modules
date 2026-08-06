@@ -92,9 +92,17 @@ public final class ShopMenu extends PaginatedMenu<ShopItem> implements IHungerGa
         return "Shop";
     }
 
+    /**
+     * Every custom item this server has, spelled the way the registries spell it.
+     *
+     * <p>Not upper-cased on the way out any more. It used to be, to meet a config file written in screaming
+     * snake case — and that only worked for the one item whose name has no separator in it, because
+     * {@code smoke-bomb} upper-cased is {@code SMOKE-BOMB} and the file says {@code SMOKE_BOMB}. Reconciling
+     * the two spellings is {@code SponsorShopStore.canonicalItemId}'s job now, in one place, and this hands
+     * over the truth.
+     */
     private Set<String> knownCustomItemIds() {
         return customItems.all().stream().map(CustomItem::id)
-                .map(id -> id.toUpperCase(Locale.ROOT))
                 .collect(java.util.stream.Collectors.toSet());
     }
 

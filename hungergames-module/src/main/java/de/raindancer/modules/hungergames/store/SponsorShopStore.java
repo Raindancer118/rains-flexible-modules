@@ -238,6 +238,26 @@ public final class SponsorShopStore {
         };
     }
 
+    /**
+     * One spelling of a custom item's id, so two spellings of the same item are the same item.
+     *
+     * <h2>The bug this exists for, which took a live config to find</h2>
+     * A shop line says {@code ITEM:SMOKE_BOMB:1} — screaming snake case, because that is how the old plugin
+     * wrote every item name and therefore what is in every {@code config.yml} that already exists. Core
+     * registers the item as {@code smoke-bomb}, hyphenated and lower case. Compared after nothing but an
+     * upper-casing, that is {@code SMOKE_BOMB} against {@code SMOKE-BOMB}, which does not match.
+     *
+     * <p>And a line that cannot be parsed rejects <em>the whole shop file</em> — deliberately, so nobody is
+     * offered half a shop. So eight of a live server's twelve entries failing meant the other four failed
+     * too: no sponsor shop at all, for the thing tributes earn tokens towards all evening.
+     *
+     * <p>Being lenient here and nowhere else is the point. An id nobody registered is still refused; what is
+     * forgiven is a separator, which nobody ever meant to be part of the name.
+     */
+    static String canonicalItemId(String id) {
+        return id == null ? "" : id.strip().toLowerCase(Locale.ROOT).replace('_', '-');
+    }
+
     private static Reward parseReward(String raw, Set<String> knownCustomItemIds) {
         String[] parts = raw.split(":", -1);
         String head = parts[0].trim().toUpperCase(Locale.ROOT);
@@ -259,11 +279,24 @@ public final class SponsorShopStore {
             if (parts.length != 3) {
                 throw new IllegalArgumentException("ITEM needs 'ITEM:ID:AMOUNT': " + raw);
             }
-            String customId = parts[1].trim().toUpperCase(Locale.ROOT);
-            if (!knownCustomItemIds.contains(customId)) {
-                throw new IllegalArgumentException("unknown custom item: " + customId);
+            String written = parts[1].trim();
+            String customId = canonicalItemId(written);
+            // Matched against every known id in its own canonical form, so the file's spelling and the
+            // registry's do not have to agree — see canonicalItemId for why they never did.
+            String matched = null;
+            for (String known : knownCustomItemIds) {
+                if (canonicalItemId(known).equals(customId)) {
+                    matched = known;
+                    break;
+                }
             }
-            return new CustomItemReward(customId, parsePositiveInt(parts[2], "amount"));
+            if (matched == null) {
+                throw new IllegalArgumentException("unknown custom item: " + written);
+            }
+            // Stored as the registry spells it, not as the file did. A reward carrying a name nothing can
+            // look up is a purchase that succeeds and hands over nothing, which is worse than a refusal
+            // because there is no failure to report.
+            return new CustomItemReward(matched, parsePositiveInt(parts[2], "amount"));
         }
 
         if (head.equals("POTION")) {

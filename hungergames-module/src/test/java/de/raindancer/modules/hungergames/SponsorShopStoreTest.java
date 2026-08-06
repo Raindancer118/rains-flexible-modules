@@ -178,4 +178,86 @@ class SponsorShopStoreTest {
             assertThat(store.problems()).isNotEmpty();
         }
     }
+
+    @Nested
+    @DisplayName("how an item is named")
+    class ItemNaming {
+
+        /**
+         * The bug this was written for, and it took a live config to find.
+         *
+         * <p>A shop line says {@code ITEM:SMOKE_BOMB:1} — screaming snake case, because that is how the old
+         * plugin wrote every item name and therefore what is in every existing config.yml. The registered id
+         * is {@code smoke-bomb}, hyphenated, because that is how Core spells a custom item's id. Comparing
+         * them after nothing but an {@code toUpperCase} gives {@code SMOKE_BOMB} against {@code SMOKE-BOMB},
+         * which does not match.
+         *
+         * <p>And a line that does not parse rejects <em>the whole shop file</em> — deliberately, so nobody is
+         * offered half a shop. So eight of the live server's twelve entries failing meant the other four
+         * failed too: no sponsor shop at all, for a feature tributes earn tokens towards all evening.
+         *
+         * <p>{@code FIENDFINDER} matched, which is what made this so easy to miss: the one item with no
+         * separator in its name worked, so a spot check of the parser looked fine.
+         */
+        @Test
+        @DisplayName("an underscore and a hyphen name the same item")
+        void separatorsAreEquivalent() {
+            Set<String> registered = Set.of("smoke-bomb", "aura-of-protection");
+
+            // Exactly what a live config.yml contains.
+            assertThat(SponsorShopStore.parse("sb|ITEM:SMOKE_BOMB:1|6|Smoke bomb", registered).reward())
+                    .isEqualTo(new SponsorShopStore.CustomItemReward("smoke-bomb", 1));
+            assertThat(SponsorShopStore.parse("a|ITEM:AURA_OF_PROTECTION:1|8|Aura", registered).reward())
+                    .isEqualTo(new SponsorShopStore.CustomItemReward("aura-of-protection", 1));
+        }
+
+        @Test
+        @DisplayName("the id is stored the way the registries spell it, whatever the file said")
+        void theCanonicalFormIsKept() {
+            Set<String> registered = Set.of("smoke-bomb");
+
+            // Otherwise the reward carries a name nothing can look up, and the purchase succeeds while the
+            // player receives nothing — which is worse than a refusal, because there is nothing to report.
+            for (String written : List.of("SMOKE_BOMB", "smoke_bomb", "Smoke-Bomb", "smoke-bomb")) {
+                assertThat(SponsorShopStore.parse("x|ITEM:" + written + ":1|1|X", registered).reward())
+                        .as("written as '%s'", written)
+                        .isEqualTo(new SponsorShopStore.CustomItemReward("smoke-bomb", 1));
+            }
+        }
+
+        @Test
+        @DisplayName("an item that really does not exist is still refused")
+        void anUnknownItemIsStillUnknown() {
+            assertThat(catchThrowable(() ->
+                    SponsorShopStore.parse("x|ITEM:NO_SUCH_THING:1|1|X", Set.of("smoke-bomb"))))
+                    .as("being lenient about separators must not become being lenient about everything")
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("the live server's whole shop line loads")
+        void theRealShopLoads() {
+            // The twelve entries off the Fachschaft server, verbatim. Nine of them are custom items.
+            Set<String> registered = Set.of("fiendfinder", "smoke-bomb", "lightning-strike",
+                    "hermes-boots", "krueckauwasser", "stupidness-protector", "leap", "medikit",
+                    "aura-of-protection");
+            List<String> live = List.of(
+                    "bread_pack|BREAD:8|1|Essen Paket",
+                    "arrows|ARROW:16|1|Pfeile",
+                    "iron_ingot|IRON_INGOT:2|2|Eisen",
+                    "fiendfinder|ITEM:FIENDFINDER:1|4|Fiendfinder",
+                    "smoke_bomb|ITEM:SMOKE_BOMB:1|6|Rauchbombe",
+                    "lightning_strike|ITEM:LIGHTNING_STRIKE:1|12|Blitzschlag",
+                    "hermes_boots|ITEM:HERMES_BOOTS:2|9|Hermes' Stiefel",
+                    "krueckauwasser|ITEM:KRUECKAUWASSER:1|7|Krückauwasser",
+                    "stupidness_protector|ITEM:STUPIDNESS_PROTECTOR:1|5|Trottel-Schutz",
+                    "leap|ITEM:LEAP:1|4|Sprungfeder",
+                    "medikit|ITEM:MEDIKIT:1|12|Medikit",
+                    "aura_of_protection|ITEM:AURA_OF_PROTECTION:1|8|Aura der Bewahrung");
+
+            assertThat(SponsorShopStore.validateList(live, registered))
+                    .as("one unparseable line rejects the whole file, so this is all twelve or none")
+                    .isEmpty();
+        }
+    }
 }
