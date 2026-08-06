@@ -117,7 +117,11 @@ public final class ArenaItemService implements IHungerGamesService {
      */
     public void register() {
         items.defineIfAbsent(CustomItem.builder(PLUGIN, FIENDFINDER)
-                .material(Material.COMPASS)
+                // A spyglass, as it always was (Fiendfinder.java:45) — and the source refused to work on any
+                // other material at all (:87), so this was load-bearing rather than decorative. The port had
+                // made it a compass: defensible in isolation, and nobody asked for it. It is the item people
+                // recognise in a hotbar during a fight.
+                .material(Material.SPYGLASS)
                 .name("<light_purple>Fiendfinder")
                 .lore(List.of(
                         "<gray>Points at the nearest living tribute.",

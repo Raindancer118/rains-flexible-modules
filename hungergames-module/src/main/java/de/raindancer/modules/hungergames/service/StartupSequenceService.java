@@ -379,7 +379,12 @@ public final class StartupSequenceService implements IHungerGamesService {
      */
     private void watchForArrival(Player tribute, ArenaLayout layout, World world, int index, UUID actor) {
         ArenaLayout.Stand platform = layout.platforms().get(index);
-        double arrivesAt = platform.y() + ARRIVAL_MARGIN;
+        // Measured from the platform BLOCK, which is one below the standing position — that is what the
+        // source's platformPos was (StartupRunner:355, platformPos.getY() + 1.5). Adding the margin to
+        // Stand.y() instead put the threshold a whole block too high, so every tribute had to be carried
+        // further before their platform was sealed and their ring went up. See
+        // TheSourceIsTheSpecificationTest.
+        double arrivesAt = platform.y() - 1 + ARRIVAL_MARGIN;
         UUID uuid = tribute.getUniqueId();
         long[] waited = {0L};
 
