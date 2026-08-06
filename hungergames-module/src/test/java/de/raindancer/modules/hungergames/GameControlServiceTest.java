@@ -25,6 +25,8 @@ class GameControlServiceTest {
     private GameControlService control;
     private boolean countdownRunning;
     private int initCalls;
+    /** The count the build stage was handed — see TheChosenCountIsBuiltTest for why this is watched. */
+    private int builtFor;
     private int startupCalls;
     private int startCalls;
 
@@ -33,7 +35,7 @@ class GameControlServiceTest {
         session = new GameSession(TeamRules::defaults, new RecordingGameEvents(),
                 new InMemorySessionStore(), GameClock.system(), new Random(0));
         control = new GameControlService(session, actor -> countdownRunning,
-                actor -> { initCalls++; return true; },
+                (actor, count) -> { initCalls++; builtFor = count; return true; },
                 actor -> { startupCalls++; return true; },
                 actor -> { startCalls++; return true; });
         control.settings(HungerGamesSettings.DEFAULTS);

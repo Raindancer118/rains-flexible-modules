@@ -12,6 +12,7 @@ import de.raindancer.core.world.safety.Spot;
 import de.raindancer.core.world.spawn.Spawner;
 import de.raindancer.core.world.spawn.Spawns;
 import de.raindancer.modules.api.ModuleContext;
+import de.raindancer.modules.hungergames.listener.AdminHotbarListener;
 import de.raindancer.modules.hungergames.listener.AnnouncementListener;
 import de.raindancer.modules.hungergames.listener.ConnectionListener;
 import de.raindancer.modules.hungergames.listener.EliminationListener;
@@ -159,8 +160,10 @@ public final class HungerGamesWiring {
     private final GameControlService control;
     private final PreflightCheckService preflight;
     private final Gamemasters gamemasters;
+    private AdminHotbarListener hotbar;
 
     private volatile List<BorderPhaseConfig> borderPhases = List.of();
+    private IHungerGamesScreensOpener screens;
 
     public HungerGamesWiring(ModuleContext context, SettingsStore<HungerGamesSettings> settingsStore) {
         this.context = context;
@@ -281,6 +284,10 @@ public final class HungerGamesWiring {
      * would make this class impossible to build in a test without all of it happening.
      */
     public HungerGamesServices start() {
+        // Built once and held, because the hotbar items open the same pages the commands do — two openers
+        // would be two menu trees to keep in step.
+        this.screens = screens();
+
         // The fan-out, now that everything it calls exists. Order is the order they run in, and it matters
         // once: the op tracker restores operator status on the phase change that the announcer describes,
         // and an announcement naming somebody as a plain player before their OP came back reads as a lie.
@@ -318,6 +325,27 @@ public final class HungerGamesWiring {
         context.listener(new PortalListener(session::phase, () -> arena.centre().orElse(null),
                 core.messages(), message -> roundLog.log("ROUND", message), settings()));
 
+        // The three items a gamemaster runs a tournament from. Without them this module's whole "click, do
+        // not type" arrangement has no first click — see AdminHotbarListener.
+        this.hotbar = new AdminHotbarListener(plugin,
+                new AdminHotbarListener.Pages() {
+                    @Override
+                    public void admin(Player viewer) {
+                        screens.admin(viewer);
+                    }
+
+                    @Override
+                    public void control(Player viewer) {
+                        // The same page, opened at its round-control section. One entry point rather than a
+                        // second opener method: the admin suite is where a round is run from, and a separate
+                        // door into the middle of it is a second menu tree to keep in step.
+                        screens.admin(viewer);
+                    }
+                },
+                who -> countdown.run(who.getUniqueId()),
+                session::phase, settings());
+        context.listener(hotbar);
+
         // The cornucopia, as a Core protected area. Core owns the four listeners that ask it; this module
         // only says where the area is and what may happen inside it.
         core.land().provider(new de.raindancer.modules.hungergames.service.CornucopiaProvider(
@@ -342,7 +370,7 @@ public final class HungerGamesWiring {
         settingsStore.onChange(this::settingsChanged);
 
         return new HungerGamesServices(plugin, server, log, core.messages(), context.chat(), brand,
-                session, control, preflight, deathmatch, settingsStore::current, screens());
+                session, control, preflight, deathmatch, settingsStore::current, screens);
     }
 
     // ==================== the tick ====================
@@ -1142,6 +1170,9 @@ public final class HungerGamesWiring {
         countdown.settings(now);
         control.settings(now);
         preflight.settings(now);
+        if (hotbar != null) {
+            hotbar.settings(now);
+        }
         borderPhases = loadBorderPhases();
         log.info("The settings were reloaded and passed to every service that reads them.");
     }

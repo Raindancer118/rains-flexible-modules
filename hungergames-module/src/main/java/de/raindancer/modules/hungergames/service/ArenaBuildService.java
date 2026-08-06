@@ -158,12 +158,11 @@ public final class ArenaBuildService implements IHungerGamesService {
      * somewhere this class would have to invent — and the version that invented one built it at spawn, on
      * top of whatever was there.
      */
-    public GameControlService.Stage initStage() {
-        // The count comes from the register rather than from the stage's argument, because
-        // GameControlService.Stage carries only the actor — and it is the same number /init itself checked
-        // against MIN_PLAYERS and MAX_PLAYERS a moment earlier, read from the same register.
-        return actor -> build(actor,
-                Math.max(GameControlService.MIN_PLAYERS, session.participants().all().size()));
+    public GameControlService.BuildStage initStage() {
+        // The count comes straight through now. It used to be re-derived from the tribute register here,
+        // because Stage carried only the actor — and on a server whose register was empty that turned a
+        // gamemaster's choice of 42 into two platforms. See GameControlService.BuildStage.
+        return this::build;
     }
 
     /**
@@ -244,10 +243,15 @@ public final class ArenaBuildService implements IHungerGamesService {
                         + "starts will lose track of where it is.");
             }
 
-            // Onto the roof of the lobby, in adventure mode, exactly like the source: whoever built the
-            // arena is standing in the middle of it and would otherwise be inside a platform.
-            ArenaLayout.Stand roof = layout.lobbyRoofSpawn();
-            who.teleport(new Location(world, roof.x(), roof.y(), roof.z(), roof.yaw(), 0f));
+            // Inside the lobby, not on its roof.
+            //
+            // The world's spawn is the roof, deliberately — that is where somebody who is not a tribute lands,
+            // so they can see what is happening without being in the waiting room. Whoever ran /init is a
+            // different case: they are standing in the middle of an arena that has just been pasted around
+            // them and they want to be where the tributes will be. Putting them on the roof left them on top
+            // of a glass box wondering how to get in, which is what happened the first time this ran.
+            ArenaLayout.Stand inside = layout.lobbyCentre();
+            who.teleport(new Location(world, inside.x(), inside.y(), inside.z(), inside.yaw(), 0f));
             who.setGameMode(GameMode.ADVENTURE);
 
             if (!session.transitionTo(GamePhase.LOBBY)) {

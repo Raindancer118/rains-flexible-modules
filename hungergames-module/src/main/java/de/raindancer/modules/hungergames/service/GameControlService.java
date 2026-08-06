@@ -37,8 +37,7 @@ public final class GameControlService implements IHungerGamesService {
     public static final int MAX_PLAYERS = 100;
 
     /**
-     * One stage of the start-up sequence: building the arena, holding tributes in the tubes, or running the
-     * countdown. Supplied by whoever wires this module once the corresponding runner exists.
+     * One stage of the start-up sequence: holding tributes in the tubes, or running the countdown.
      *
      * @return whether the stage was actually carried out
      */
@@ -47,9 +46,29 @@ public final class GameControlService implements IHungerGamesService {
         boolean run(UUID actor);
     }
 
+    /**
+     * Building the arena, which is the one stage that needs to be told how big.
+     *
+     * <h2>Why this is its own type</h2>
+     * Because {@link Stage} was used for it, and {@code Stage} carries only the actor. {@link #init} validated
+     * the count against {@link #MIN_PLAYERS} and {@link #MAX_PLAYERS} and then called {@code run(actor)} —
+     * the number was checked and dropped one line later, and the builder re-derived it from the tribute
+     * register. On a live server a gamemaster chose 42 and got two platforms, because the register was empty.
+     *
+     * <p>A validated argument that reaches nothing is worse than no validation at all: the refusal quotes a
+     * range the value never had to be inside. So the count is part of the type now, and the compiler is what
+     * keeps it that way.
+     *
+     * @return whether the arena was actually built
+     */
+    @FunctionalInterface
+    public interface BuildStage {
+        boolean run(UUID actor, int playerCount);
+    }
+
     private final GameSession session;
     private final Predicate<UUID> isCountdownActive;
-    private final Stage initStage;
+    private final BuildStage initStage;
     private final Stage startupStage;
     private final Stage startStage;
 
@@ -62,7 +81,7 @@ public final class GameControlService implements IHungerGamesService {
      *                          for a countdown in progress
      */
     public GameControlService(GameSession session, Predicate<UUID> isCountdownActive,
-                               Stage initStage, Stage startupStage, Stage startStage) {
+                               BuildStage initStage, Stage startupStage, Stage startStage) {
         this.session = session;
         this.isCountdownActive = isCountdownActive;
         this.initStage = initStage;
@@ -117,7 +136,8 @@ public final class GameControlService implements IHungerGamesService {
             return Optional.of("the player count must be between " + MIN_PLAYERS
                     + " and " + MAX_PLAYERS);
         }
-        return initStage.run(actor) ? Optional.empty()
+        // The count goes through. It used to stop here — see BuildStage.
+        return initStage.run(actor, playerCount) ? Optional.empty()
                 : Optional.of("the arena could not be built — see the console");
     }
 
@@ -164,5 +184,10 @@ public final class GameControlService implements IHungerGamesService {
     /** A stage collaborator that never runs — for wiring a slot the module does not use yet. */
     public static Stage notYetAvailable() {
         return actor -> false;
+    }
+
+    /** The same for the build stage. */
+    public static BuildStage noArenaBuilderYet() {
+        return (actor, playerCount) -> false;
     }
 }

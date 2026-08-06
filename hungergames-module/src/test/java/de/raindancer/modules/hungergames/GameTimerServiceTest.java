@@ -152,7 +152,7 @@ class GameTimerServiceTest {
         // A dedicated instance whose control really is the session's own end-round path, so ending it here
         // is a real, observable phase change and not just "control.endRound() was called".
         GameControlService realControl = new GameControlService(session, actor -> false,
-                (a) -> true, (a) -> true, (a) -> true);
+                (a, count) -> true, (a) -> true, (a) -> true);
         realControl.settings(HungerGamesSettings.DEFAULTS);
         List<Runnable> endButtons = new ArrayList<>();
         RoundExpiryService expiry = new RoundExpiryService(realControl, () -> List.of(ALICE),
