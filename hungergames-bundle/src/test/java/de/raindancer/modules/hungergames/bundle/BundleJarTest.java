@@ -251,16 +251,33 @@ class BundleJarTest {
             // A stale shade is the worst kind of build mistake: the jar is newer than the source, it
             // loads, it enables, and it runs last week's code. Compared by class size rather than by
             // timestamp, because the timestamp is the thing that lies.
+            //
+            // EVERY class, not one per module. This checked only each module's settings record and passed
+            // while the jar was a build behind — the change that mattered was in HungerGamesModule, which
+            // rewired the whole plugin, and the settings record had not moved a byte. One canary class is
+            // one class's worth of confidence.
+            List<String> stale = new ArrayList<>();
             for (Bundled module : BUNDLE) {
-                Path justBuilt = Path.of("..", module.directory(), "target", "classes")
-                        .resolve(module.settingsEntry());
-
-                assertThat(sizeInJar(module.settingsEntry()))
-                        .as("the %s in the jar is not the one %s's build just produced — the shade "
-                                + "picked up an older artifact, and everything shipped from that module "
-                                + "is that old", module.settings(), module.id())
-                        .isEqualTo(Files.readAllBytes(justBuilt).length);
+                Path classes = Path.of("..", module.directory(), "target", "classes");
+                if (!Files.isDirectory(classes)) {
+                    throw new AssertionError(module.id() + " has no target/classes — build it first");
+                }
+                try (var walk = Files.walk(classes)) {
+                    for (Path built : walk.filter(path -> path.toString().endsWith(".class")).toList()) {
+                        String entry = classes.relativize(built).toString().replace('\\', '/');
+                        long inJar = sizeInJar(entry);
+                        long onDisk = Files.size(built);
+                        if (inJar != onDisk) {
+                            stale.add(entry + " (jar " + inJar + " bytes, build " + onDisk + ")");
+                        }
+                    }
+                }
             }
+            assertThat(stale)
+                    .as("the shade picked up an older artifact than the build just produced, so everything "
+                            + "shipped from that module is that old — and the jar's own timestamp says "
+                            + "otherwise. Always 'mvn clean install'")
+                    .isEmpty();
         }
     }
 
