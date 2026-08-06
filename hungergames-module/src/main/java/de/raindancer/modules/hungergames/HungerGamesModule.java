@@ -108,68 +108,36 @@ public final class HungerGamesModule implements FlexModule {
     }
 
     /**
-     * Builds what the commands need and hands it to {@link HungerGamesCommands}.
+     * Builds every service this module has, and hands the commands what they need.
      *
-     * <p>The commands were built during bootstrap, before any of this existed, and have been holding a
-     * supplier ever since. This is the moment it starts answering — and until it does, the host's own guard
-     * answers every one of them with a red line rather than a {@link NullPointerException}.
+     * <p>All of it is {@link HungerGamesWiring}: thirty-odd services, the arena builder, the launch sequence,
+     * the countdown, six loot tables, thirty-nine cues, the cornucopia's protected area and every listener.
+     * This method is two lines because the wiring is where the plumbing belongs, and {@code enable} should
+     * read as the five things a module does.
      *
-     * <h2>What is wired here and what is not</h2>
-     * The session, the round control and the deathmatch: exactly what a <em>command</em> needs. The other
-     * thirty-odd services are built by, and belong to, the screens and listeners that use them — a module
-     * that constructed all of them here would make every command implicitly depend on all of them, which is
-     * the god object this design exists to avoid.
+     * <h2>What used to be here, and what it cost</h2>
+     * An earlier version of this method, written while those services did not exist yet: three
+     * {@code GameControlService.notYetAvailable()} stages, a world border that reported itself unmoved and
+     * refused to move, and a screens opener that told whoever asked that nothing was wired up. Every one of
+     * them was an honest refusal with a javadoc explaining why it refused rather than pretended — and every
+     * one of them outlived its reason, because {@code HungerGamesWiring} was written, tested, and never
+     * called from here.
      *
-     * <p>The three arena stages are {@link GameControlService#notYetAvailable()}. That is not a stub standing
-     * in for finished work: pasting the arena needs WorldEdit and the schematic wave, and a stage wired to
-     * something that pretends to succeed would report a built arena that is not there. As it stands
-     * {@code /init} refuses with a reason, which is the honest answer until the runner exists.
+     * <p>The plugin started perfectly. The banner printed, the permissions registered, the log had no errors
+     * in it — nothing had failed. The arena could not be built, no loot table existed, no listener was
+     * registered and every cue was silent. The only clue was an absence: the line saying how many cues had
+     * been defined was missing, and nobody greps for a line that is not there. That is the failure mode of a
+     * placeholder that behaves well, and {@code TheRealWiringIsUsedTest} now fails the build for it.
      */
     private void wire(ModuleContext context) {
-        RoundLogService roundLog = new RoundLogService(
-                context.dataFolder().resolve("rounds"),
-                uuid -> session == null ? uuid.toString()
-                        : session.participants().nameOf(uuid).orElse(uuid.toString()),
-                TeamId::value,
-                log);
-
-        session = new GameSession(
-                TeamRules::defaults,
-                roundLog,
-                new YamlSessionStore(context.dataFolder().resolve("session.yml")),
-                GameClock.system(),
-                new Random());
-
-        GameControlService control = new GameControlService(session, actor -> false,
-                GameControlService.notYetAvailable(),
-                GameControlService.notYetAvailable(),
-                GameControlService.notYetAvailable());
-        control.settings(settings.current());
-
-        BorderService border = new BorderService(session, new VirtualTime(), new NoBorderYet());
-        border.settings(settings.current());
-
-        DeathmatchService deathmatch = new DeathmatchService(session, border, unused -> {
-            // Teleporting everybody to the middle belongs to the arena wave, which knows where the middle
-            // is. Empty and said out loud rather than guessed at: a deathmatch that teleported tributes to
-            // a coordinate this class invented would drop forty people into terrain.
-        });
-        deathmatch.settings(settings.current());
-
-        HungerGamesServices built = new HungerGamesServices(
-                context.plugin(), context.plugin().getServer(), log,
-                context.core().messages(), context.chat(), context.chat().brand(),
-                session, control, null, deathmatch,
-                settings::current, new NoScreensYet(log));
-
+        HungerGamesWiring wiring = new HungerGamesWiring(context, settings);
+        // Every service reads its settings once before anything can ask it a question. Without this each one
+        // holds HungerGamesSettings.DEFAULTS until the first reload, which is a tournament run on shipped
+        // numbers by a server that had configured its own.
+        wiring.applySettingsNow();
+        HungerGamesServices built = wiring.start();
+        session = built.session();
         HungerGamesCommands.ready(built);
-        // A reload has to reach the services that read settings, or they keep yesterday's numbers for the
-        // rest of the tournament — the exact failure IHungerGamesService.settings exists to prevent.
-        settings.onChange(now -> {
-            control.settings(now);
-            border.settings(now);
-            deathmatch.settings(now);
-        });
     }
 
     /**
@@ -309,79 +277,7 @@ public final class HungerGamesModule implements FlexModule {
         // precisely so that this method has nothing left to rescue.
     }
 
-    /**
-     * A world border nothing has claimed yet.
-     *
-     * <p>The real one belongs to the arena wave, which knows which world the arena is in. This reports the
-     * border as unmoved and refuses to move it, so a phase that fires before an arena exists does nothing
-     * rather than resizing the survival world's border — which is what a helpful default would have done.
-     */
-    private final class NoBorderYet implements BorderService.WorldBorderTarget {
 
-        @Override
-        public double currentSize() {
-            return settings.current().borderInitialSize();
-        }
-
-        @Override
-        public void shrinkOverworld(double targetSize, long ticks) {
-            log.warn("The border was asked to close to {} blocks, but no arena world is set up yet.",
-                    targetSize);
-        }
-
-        @Override
-        public void shrinkNether(double targetSize, long ticks) {
-            // Silent: the Nether follows the Overworld, and one warning per shrink is enough.
-        }
-
-        @Override
-        public void resetTo(double size) {
-            // Nothing to reset. Silent rather than warned: this is called when a round is cleaned up, and
-            // a warning there would fire on every server that never started one.
-        }
-    }
-
-    /**
-     * The screens, before anything has claimed the opener.
-     *
-     * <p>Every page in {@code screen/} exists and is tested; what does not exist yet is the object that
-     * holds the thirty-odd services they need and hands each page its own. Until it does, a command that
-     * would open a page says so — rather than opening a half-built one, and rather than throwing in front of
-     * whoever typed it.
-     */
-    private record NoScreensYet(LogChannel log) implements IHungerGamesScreensOpener {
-
-        @Override
-        public void admin(org.bukkit.entity.Player viewer) {
-            unavailable(viewer, "the admin suite");
-        }
-
-        @Override
-        public void teams(org.bukkit.entity.Player viewer) {
-            unavailable(viewer, "the team page");
-        }
-
-        @Override
-        public void shop(org.bukkit.entity.Player viewer) {
-            unavailable(viewer, "the sponsor shop");
-        }
-
-        @Override
-        public void spectate(org.bukkit.entity.Player viewer) {
-            unavailable(viewer, "the spectator page");
-        }
-
-        @Override
-        public void borderConflict(org.bukkit.entity.Player viewer) {
-            unavailable(viewer, "the border conflict page");
-        }
-
-        private void unavailable(org.bukkit.entity.Player viewer, String what) {
-            viewer.sendPlainMessage("The Hunger Games screens are not wired up in this build yet ("
-                    + what + ").");
-            log.warn("{} asked for {}, which has no opener wired yet.", viewer.getName(), what);
-        }
-    }
 
     /** The settings as they are right now, for a host that wants to show them. */
     public HungerGamesSettings settings() {
