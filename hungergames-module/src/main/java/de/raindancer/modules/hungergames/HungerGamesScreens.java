@@ -137,7 +137,7 @@ public final class HungerGamesScreens implements IHungerGamesScreensOpener {
                 wiring.borderPhases(), wiring.deathmatch(), wiring.settings(), wiring.supplyDrops(),
                 wiring.monsterWaves(), wiring.simulation(), wiring.spectator(), wiring.gamemasters(),
                 wiring.prompts(), wiring.roundLog(), wiring.virtualTime(), wiring.sponsorTokens(),
-                wiring.roster(), wiring.effects(), wiring.saveCues())
+                wiring.roster(), wiring.effects(), wiring.saveCues(), wiring.customItems())
                 .open();
     }
 

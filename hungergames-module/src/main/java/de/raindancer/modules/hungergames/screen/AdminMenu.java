@@ -68,6 +68,7 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
     private final GamemasterMenu.Gamemasters gamemasters;
     private final ChatPrompts prompts;
     private final de.raindancer.core.ui.effect.Effects effects;
+    private final de.raindancer.core.content.items.CustomItems customItems;
     private final Runnable saveCues;
     private final RoundLogService roundLog;
     private final VirtualTime virtualTime;
@@ -82,7 +83,8 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
                      GamemasterMenu.Gamemasters gamemasters, ChatPrompts prompts, RoundLogService roundLog,
                      VirtualTime virtualTime, SponsorTokenService sponsorTokens,
                      de.raindancer.modules.hungergames.store.TributeRoster roster,
-                     de.raindancer.core.ui.effect.Effects effects, Runnable saveCues) {
+                     de.raindancer.core.ui.effect.Effects effects, Runnable saveCues,
+                     de.raindancer.core.content.items.CustomItems customItems) {
         super(viewer, brand, null);
         this.session = session;
         this.gameControl = gameControl;
@@ -97,6 +99,7 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
         this.gamemasters = gamemasters;
         this.prompts = prompts;
         this.effects = effects;
+        this.customItems = customItems;
         this.saveCues = saveCues;
         this.roundLog = roundLog;
         this.virtualTime = virtualTime;
@@ -163,6 +166,13 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
                 click -> new de.raindancer.core.ui.effect.CuesMenu(viewer, brand(), this, effects,
                         saveCues).open(),
                 "Everything this server plays,", "and what each cue is bound to.");
+
+        // Core's item page, from here for the same reason as the cues: this is where a gamemaster is when
+        // they decide the exmatrikulator should cost a diamond block. One page for every plugin's items.
+        tile(43, Material.CRAFTING_TABLE, "Custom items", admin,
+                click -> new de.raindancer.core.content.items.ItemsMenu(viewer, brand(), this,
+                        customItems, saveCues).open(),
+                "Every custom item, and what", "each one is crafted from.");
 
         tile(39, Material.REDSTONE, "System & debug", admin,
                 click -> new SystemDebugMenu(viewer, brand(), this, session, roundLog, virtualTime,
