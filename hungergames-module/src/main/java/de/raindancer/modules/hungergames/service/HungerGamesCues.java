@@ -87,7 +87,6 @@ public final class HungerGamesCues {
     // ==================== the items ====================
 
     public static final String ITEM_FIENDFINDER = PREFIX + "item-fiendfinder";
-    public static final String ITEM_CLOAK = PREFIX + "item-cloak";
     public static final String ITEM_SMOKE_BOMB = PREFIX + "item-smoke-bomb";
     public static final String ITEM_MEDIKIT = PREFIX + "item-medikit";
     public static final String ITEM_LIGHTNING = PREFIX + "item-lightning";
@@ -189,7 +188,6 @@ public final class HungerGamesCues {
 
         // ---- the items
         sound(cues, ITEM_FIENDFINDER, "BLOCK_BEACON_ACTIVATE~2.0; ENTITY_ENDER_EYE_DEATH~0.5");
-        sound(cues, ITEM_CLOAK, "ENTITY_ILLUSIONER_MIRROR_MOVE~1.2");
         both(cues, ITEM_SMOKE_BOMB, "ENTITY_TNT_PRIMED~1.4; BLOCK_FIRE_EXTINGUISH~0.8",
                 "LARGE_SMOKE@140~2.2; CAMPFIRE_COSY_SMOKE@60~2.0");
         both(cues, ITEM_MEDIKIT, "ITEM_TOTEM_USE~1.4; ENTITY_PLAYER_LEVELUP~1.6", "HEART@20~0.5");

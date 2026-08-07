@@ -45,10 +45,11 @@ class CombatItemServiceTest {
         boolean answer = true;
 
         @Override
-        public boolean treat(ItemUse use, Duration regenerationDuration, int regenerationAmplifier,
-                              Duration absorptionDuration, int absorptionAmplifier) {
-            lastCall = new Object[] {use, regenerationDuration, regenerationAmplifier, absorptionDuration,
-                    absorptionAmplifier};
+        public boolean treat(ItemUse use, Duration windUp, Duration regenerationDuration,
+                              int regenerationAmplifier, Duration absorptionDuration,
+                              int absorptionAmplifier) {
+            lastCall = new Object[] {use, windUp, regenerationDuration, regenerationAmplifier,
+                    absorptionDuration, absorptionAmplifier};
             return answer;
         }
     }
@@ -253,7 +254,7 @@ class CombatItemServiceTest {
         }
 
         @Test
-        @DisplayName("the medikit passes both effect durations and both amplifiers")
+        @DisplayName("the medikit passes its wind-up, both effect durations and both amplifiers")
         void medikitNumbers() {
             ItemUse itemUse = use(CombatItemService.MEDIKIT);
 
@@ -261,9 +262,24 @@ class CombatItemServiceTest {
 
             assertThat(happened).isTrue();
             assertThat(medicine.lastCall).containsExactly(itemUse,
+                    Duration.ofSeconds(settings.medikitCountdownSeconds()),
                     Duration.ofSeconds(settings.medikitRegenSeconds()), settings.medikitRegenLevel() - 1,
                     Duration.ofSeconds(settings.medikitAbsorptionSeconds()),
                     settings.medikitAbsorptionLevel() - 1);
+        }
+
+        @Test
+        @DisplayName("the wind-up is the one from the settings, so a server that tuned it gets what it set")
+        void theWindUpIsTheServersOwn() {
+            // The regression this whole seam exists for: the port healed the instant the item was clicked
+            // and this number went nowhere at all, which turned the most expensive item in the shop from a
+            // gamble taken mid-fight into a free full heal.
+            service.settings(de.raindancer.modules.hungergames.Tweak.of(settings,
+                    "medikitCountdownSeconds", 7));
+
+            service.useMedikit(use(CombatItemService.MEDIKIT));
+
+            assertThat(medicine.lastCall[1]).isEqualTo(Duration.ofSeconds(7));
         }
 
         @Test

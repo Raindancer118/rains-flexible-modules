@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * The two arena items, registered with RainsCore rather than implemented here.
+ * The arena's own item — the Fiendfinder — registered with RainsCore rather than implemented here.
  *
  * <h2>Why there is no ItemListener</h2>
  * The plugin this is ported from had one, and behind it a 1120-line {@code CustomItems} class that built item
@@ -46,9 +46,6 @@ public final class ArenaItemService implements IHungerGamesService {
     /** Points at the nearest living tribute. */
     public static final String FIENDFINDER = "fiendfinder";
 
-    /** Makes the holder invisible for a while. */
-    public static final String CLOAK = "invisibility-cloak";
-
     /**
      * How long the Fiendfinder waits between readings.
      *
@@ -57,24 +54,6 @@ public final class ArenaItemService implements IHungerGamesService {
      * of what the border exists to defeat.
      */
     public static final Duration FIENDFINDER_COOLDOWN = Duration.ofSeconds(15);
-
-    /**
-     * How many times a cloak may be used.
-     *
-     * <p>Three, and charges rather than a cooldown because the two mean different things here: a cooldown
-     * makes the cloak a rhythm to be learned, and charges make it a resource to be spent at the right moment.
-     * The second is the more interesting item, and it is what the source intended before its charge counter
-     * turned out to reset on a rejoin.
-     */
-    public static final int CLOAK_CHARGES = 3;
-
-    /** Making somebody invisible. Injected, because it touches a player and this class must not need one. */
-    @FunctionalInterface
-    public interface Cloaking {
-
-        /** @return whether the holder actually became invisible */
-        boolean hide(ItemUse use, Duration forHowLong);
-    }
 
     /** Pointing a compass at the nearest living tribute. */
     @FunctionalInterface
@@ -87,17 +66,15 @@ public final class ArenaItemService implements IHungerGamesService {
     private final ItemAbilities abilities;
     private final CustomItems items;
     private final Supplier<GamePhase> phase;
-    private final Cloaking cloaking;
     private final Tracking tracking;
 
     private volatile HungerGamesSettings settings;
 
     public ArenaItemService(ItemAbilities abilities, CustomItems items, Supplier<GamePhase> phase,
-                            Cloaking cloaking, Tracking tracking, HungerGamesSettings settings) {
+                            Tracking tracking, HungerGamesSettings settings) {
         this.abilities = abilities;
         this.items = items;
         this.phase = phase;
-        this.cloaking = cloaking;
         this.tracking = tracking;
         this.settings = settings;
     }
@@ -108,7 +85,7 @@ public final class ArenaItemService implements IHungerGamesService {
     }
 
     /**
-     * Tells Core about both items and both abilities.
+     * Tells Core about the item and its ability.
      *
      * <p>{@code defineIfAbsent} rather than {@code define}: a server owner may have edited the Fiendfinder's
      * name or its model data, and overwriting that on every boot would make their change look like it never
@@ -131,29 +108,14 @@ public final class ArenaItemService implements IHungerGamesService {
                 .ability(FIENDFINDER)
                 .build());
 
-        items.defineIfAbsent(CustomItem.builder(PLUGIN, CLOAK)
-                .material(Material.PHANTOM_MEMBRANE)
-                .name("<dark_purple>Invisibility Cloak")
-                .lore(List.of(
-                        "<gray>Disappear for a moment.",
-                        "<dark_gray>Right-click. " + CLOAK_CHARGES + " uses."))
-                .glowing(true)
-                .ability(CLOAK)
-                .build());
-
         abilities.register(ItemAbility.builder(PLUGIN, FIENDFINDER)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Points at the nearest living tribute")
+                .consumesItem()
                 .cooldown(FIENDFINDER_COOLDOWN)
                 .attempts(this::readTheFiendfinder)
                 .build());
 
-        abilities.register(ItemAbility.builder(PLUGIN, CLOAK)
-                .on(ItemTrigger.RIGHT_CLICK)
-                .describedAs("Disappear for a moment")
-                .charges(CLOAK_CHARGES)
-                .attempts(this::wearTheCloak)
-                .build());
     }
 
     // ==================== what the items do ====================
@@ -171,14 +133,6 @@ public final class ArenaItemService implements IHungerGamesService {
         return tracking.pointAtNearestTribute(use);
     }
 
-    /** @return whether the holder actually vanished; {@code false} does not spend a charge. */
-    boolean wearTheCloak(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
-        return cloaking.hide(use, Duration.ofSeconds(settings.gracePeriodSeconds()));
-    }
-
     /**
      * Whether a round is actually on.
      *
@@ -191,6 +145,6 @@ public final class ArenaItemService implements IHungerGamesService {
 
     @Override
     public String describe() {
-        return "the arena's own items, as abilities Core dispatches";
+        return "the Fiendfinder, as an ability Core dispatches";
     }
 }

@@ -366,7 +366,60 @@ class SurvivalItemServiceTest {
 
             Optional<String> phrase = service.exmatrikulationPhrase(victim, "Katniss");
             assertThat(phrase).isPresent();
-            assertThat(phrase.get()).contains("Katniss").doesNotContain("%killer%").doesNotContain("%module%");
+            assertThat(phrase.get()).contains("Katniss")
+                    .doesNotContain(SurvivalItemService.KILLER_PLACEHOLDER)
+                    .doesNotContain(SurvivalItemService.MODULE_PLACEHOLDER);
+        }
+
+        @Test
+        @DisplayName("the lines are the server's own, not a set written into the code")
+        void theOwnersWordingIsUsed() {
+            // The regression: the port wrote three fixed English templates and three made-up module names
+            // into the class, so a server's own items.exmatrikulator.death-messages and .modules — nine
+            // modules and five lines on the live one — could never appear again, and nothing said so.
+            service.settings(de.raindancer.modules.hungergames.Tweak.of(HungerGamesSettings.DEFAULTS,
+                    "exmatrikulatorDeathMessages", List.of("was sent down by %killer% over %modul%."),
+                    "exmatrikulatorModules", List.of("Advanced Basket Weaving")));
+            phase = GamePhase.RUNNING;
+            UUID victim = UUID.randomUUID();
+            nextVolleyHits.add(victim);
+            service.useExmatrikulator(rightClick(UUID.randomUUID()));
+            service.pulse();
+
+            assertThat(service.exmatrikulationPhrase(victim, "Katniss"))
+                    .contains("was sent down by Katniss over Advanced Basket Weaving.");
+        }
+
+        @Test
+        @DisplayName("an owner who emptied the list gets the vanilla death message back")
+        void switchedOff() {
+            // An empty list is a decision, not a hole to fill with something invented.
+            service.settings(de.raindancer.modules.hungergames.Tweak.of(HungerGamesSettings.DEFAULTS,
+                    "exmatrikulatorDeathMessages", List.<String>of()));
+            phase = GamePhase.RUNNING;
+            UUID victim = UUID.randomUUID();
+            nextVolleyHits.add(victim);
+            service.useExmatrikulator(rightClick(UUID.randomUUID()));
+            service.pulse();
+
+            assertThat(service.exmatrikulationPhrase(victim, "Katniss")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("no modules configured still produces a death message")
+        void noModulesNamed() {
+            service.settings(de.raindancer.modules.hungergames.Tweak.of(HungerGamesSettings.DEFAULTS,
+                    "exmatrikulatorModules", List.<String>of()));
+            phase = GamePhase.RUNNING;
+            UUID victim = UUID.randomUUID();
+            nextVolleyHits.add(victim);
+            service.useExmatrikulator(rightClick(UUID.randomUUID()));
+            service.pulse();
+
+            assertThat(service.exmatrikulationPhrase(victim, "Katniss"))
+                    .isPresent()
+                    .get(org.assertj.core.api.InstanceOfAssertFactories.STRING)
+                    .doesNotContain(SurvivalItemService.MODULE_PLACEHOLDER);
         }
 
         @Test

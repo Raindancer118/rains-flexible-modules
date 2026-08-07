@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * That every item this module implements is actually handed to Core.
  *
  * <h2>The bug this was written for, reported by somebody looking at an empty page</h2>
- * "Why are none of the custom items there?" Because none of them was registered. Fifteen items across four
+ * "Why are none of the custom items there?" Because none of them was registered. Fourteen items across four
  * services, every one implemented, every one tested — and {@code HungerGamesWiring} never constructed a single
  * one of those services, so {@code register()} was never called and Core's registry stayed empty.
  *
@@ -64,7 +64,7 @@ class EveryItemIsRegisteredTest {
     @DisplayName("the scan found the item services, so it cannot pass by finding none")
     void theScanIsNotVacuous() {
         assertThat(itemServices())
-                .as("four services define this module's fifteen items")
+                .as("four services define this module's fourteen items")
                 .hasSizeGreaterThanOrEqualTo(4);
     }
 

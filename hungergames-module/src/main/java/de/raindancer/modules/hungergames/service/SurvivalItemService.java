@@ -188,20 +188,23 @@ public final class SurvivalItemService implements IHungerGamesService {
     public static final Duration EXMATRIKULATOR_KILL_WINDOW = Duration.ofSeconds(4);
 
     /**
-     * Death-message templates, each carrying {@code %killer%} for the name a caller of
-     * {@link #exmatrikulationPhrase} supplies. The source plugin read these from a config list
-     * ({@code items.exmatrikulator.death-messages}); this port has no settings key that owns that list, so
-     * these are a fixed English set rather than a literal translation of the German defaults — the flourish
-     * the source plugin was going for, not its exact wording.
+     * The placeholder a death-message template carries for whoever fired the exmatrikulator.
+     *
+     * <p>The source's own spelling, and it is not decoration: an upgrading server's own
+     * {@code items.exmatrikulator.death-messages} are written with these, so changing either name would
+     * print the placeholder to the server, mid-sentence, in front of everybody.
      */
-    public static final List<String> EXMATRIKULATOR_DEATH_MESSAGES = List.of(
-            "was exmatriculated after failing %module% on the third attempt, against %killer%.",
-            "got a mandatory re-enrolment notice from %killer%, care of %module%.",
-            "was struck from the roll of %module% by %killer%.");
+    public static final String KILLER_PLACEHOLDER = "%killer%";
 
-    /** The modules a death message may blame, standing in for the source's configurable list. */
-    public static final List<String> EXMATRIKULATOR_MODULES = List.of(
-            "a mandatory elective", "the practical exam", "a group project");
+    /** The placeholder for the module somebody failed. The source's spelling — German, deliberately. */
+    public static final String MODULE_PLACEHOLDER = "%modul%";
+
+    /**
+     * The fallback module name, for a server that emptied {@code items.exmatrikulator.modules}.
+     *
+     * <p>The source's own: an empty list there means "no module in particular", not "no death message".
+     */
+    public static final String NO_PARTICULAR_MODULE = "einem Wahlpflichtmodul";
 
     /**
      * Striking whatever is near the holder with one volley of the aura.
@@ -326,18 +329,21 @@ public final class SurvivalItemService implements IHungerGamesService {
         abilities.register(ItemAbility.builder(PLUGIN, FEAST)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Fills hunger, grants regeneration and golden apples")
+                .consumesItem()
                 .attempts(this::useFeast)
                 .build());
 
         abilities.register(ItemAbility.builder(PLUGIN, WAR_KIT)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Equips a full set of armour")
+                .consumesItem()
                 .attempts(this::useWarKit)
                 .build());
 
         abilities.register(ItemAbility.builder(PLUGIN, EXMATRIKULATOR)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Unleashes a several-second lightning aura")
+                .consumesItem()
                 .attempts(this::useExmatrikulator)
                 .build());
     }
@@ -428,11 +434,27 @@ public final class SurvivalItemService implements IHungerGamesService {
         }
     }
 
-    /** Picks a random template and module, and remembers the result against the victim for the kill window. */
+    /**
+     * Picks a random template and module, and remembers the result against the victim for the kill window.
+     *
+     * <p>Both lists come from the settings — {@code items.exmatrikulator.death-messages} and
+     * {@code items.exmatrikulator.modules}, at the paths the source used. They were written out here as a
+     * fixed English set at first, which quietly threw away every line a server had written: the live server
+     * had nine module names and five templates of its own, and none of them would ever have appeared again.
+     */
     private void markExmatrikuliert(UUID victim, long now) {
-        String template = EXMATRIKULATOR_DEATH_MESSAGES.get(random.nextInt(EXMATRIKULATOR_DEATH_MESSAGES.size()));
-        String module = EXMATRIKULATOR_MODULES.get(random.nextInt(EXMATRIKULATOR_MODULES.size()));
-        String withModule = template.replace("%module%", module);
+        HungerGamesSettings current = settings;
+        List<String> templates = current.exmatrikulatorDeathMessages();
+        List<String> modules = current.exmatrikulatorModules();
+        if (templates.isEmpty()) {
+            // An owner who emptied the list has switched the flourish off. The vanilla death message stands
+            // rather than a made-up one that is not in their file.
+            return;
+        }
+        String template = templates.get(random.nextInt(templates.size()));
+        String module = modules.isEmpty()
+                ? NO_PARTICULAR_MODULE : modules.get(random.nextInt(modules.size()));
+        String withModule = template.replace(MODULE_PLACEHOLDER, module);
         exmatrikulationHits.put(victim,
                 new ExmatrikulationHit(now + EXMATRIKULATOR_KILL_WINDOW.toMillis(), withModule));
     }
@@ -453,7 +475,7 @@ public final class SurvivalItemService implements IHungerGamesService {
             exmatrikulationHits.remove(victim);
             return Optional.empty();
         }
-        return Optional.of(hit.templateWithModule().replace("%killer%", killerName));
+        return Optional.of(hit.templateWithModule().replace(KILLER_PLACEHOLDER, killerName));
     }
 
     /**

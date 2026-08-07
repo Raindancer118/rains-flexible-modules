@@ -143,6 +143,22 @@ hungergames:
   allowed: "<green>✔ Now a tribute: <white><players></white></green> <gray>(<total> in total)</gray>"
   allowed-already: "<yellow>Already a tribute: <white><players></white></yellow>"
 
+  # ---------------------------------------------------------------- the medikit
+  #
+  # The medikit does not heal when it is clicked; it heals a few seconds later, and any damage in between
+  # cancels it (items.medikit.countdown-seconds — set it to 0 and it heals at once, and none of these lines
+  # is ever said). That wait is the entire price of the most valuable thing in the sponsor shop: with it,
+  # using one mid-fight is a gamble, and the counterplay to somebody using one is to keep hitting them.
+  #
+  # The count is on the action bar and the rest is chat, deliberately: a number that changes every second
+  # would be four lines of chat, and "you were interrupted" has to survive being replaced a tick later.
+  medikit-applied: "<red>Medikit applied — it works in <white><seconds>s</white>. Taking damage cancels it!</red>"
+  medikit-counting: "<red>Medikit works in <white><seconds>s</white> …</red>"
+  medikit-already: "<red>A medikit is already being applied …</red>"
+  # The item was never spent, so it is still theirs — worth saying, or this reads as having lost one.
+  medikit-interrupted: "<red>Medikit interrupted — you took damage. It is still in your inventory.</red>"
+  medikit-healed: "<red>Medikit used — fully healed.</red>"
+
   # /fliptable. Three lines before it happens and not one, because the three things somebody needs to read
   # are different — what it does, how to say yes, and that there is no undo — and one sentence carrying all
   # three is the one people skim. What is *kept* is named on purpose: a reset nobody trusts is a reset

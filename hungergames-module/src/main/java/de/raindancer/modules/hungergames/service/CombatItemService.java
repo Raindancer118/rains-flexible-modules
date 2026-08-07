@@ -28,12 +28,19 @@ import java.util.function.Supplier;
  * charge, {@link ItemTrigger} says what sets an item off, and Core's own listener does the watching for a
  * right click. What is left for this module is only what Core cannot know: what each item does.
  *
- * <h2>Why every item spends a charge rather than a cooldown</h2>
+ * <h2>Why every item consumes itself rather than spending a cooldown or a charge</h2>
  * The source called every one of these "Einmalig" ("single use") in its lore and physically removed the item
  * from the stack once it fired. A cooldown would let the same physical item be used again once it had ticked
- * down, which is not what the lore promised — {@code charges(1)} is. Core spends that charge (and, on it
- * reaching zero, the item itself) only when the predicate below says the use actually happened, so a smoke
- * bomb thrown between rounds, or a medikit that could not find its holder, costs nothing.
+ * down, which is not what the lore promised.
+ *
+ * <p>Neither is {@code charges(1)}, which is what this said first and is worth writing down: Core counts
+ * charges <em>per player</em>, for ever. So the first medikit somebody ever used spent the only charge they
+ * would ever get, and every medikit a sponsor sent them afterwards was a melon slice — an item bought from
+ * the shop, in the middle of a round, that did nothing at all. {@code consumesItem()} is the thing the lore
+ * actually promises: the item is single use, the player is not.
+ *
+ * <p>Either way it only happens when the predicate below says the use really happened, so a smoke bomb
+ * thrown between rounds, or a medikit that could not find its holder, costs nothing.
  *
  * <h2>Why the sustained effects (the storm, the aura) are not scheduled here</h2>
  * The source ran the lightning strike's staggered bolts and the aura's repeated pulses from a
@@ -66,10 +73,12 @@ public final class CombatItemService implements IHungerGamesService {
     public static final String AURA_OF_PROTECTION = "aura-of-protection";
 
     /**
-     * Every one of these five is "Einmalig" in the source's lore and is consumed on the first use that
-     * actually did something — one charge, never renewed by a cooldown.
+     * How many of one of these a successful use costs its holder.
+     *
+     * <p>Every one of the five is "Einmalig" in the source's lore and is taken out of the stack on the
+     * first use that actually did something. One, not "one per player" — see the class note.
      */
-    public static final int SINGLE_USE_CHARGES = 1;
+    public static final int ONE_ITEM_PER_USE = 1;
 
     // ==================== smoke bomb ====================
 
@@ -107,11 +116,11 @@ public final class CombatItemService implements IHungerGamesService {
      * How long Regeneration lasts once the medikit is used.
      *
      * <p>Documented fallback and reference value only — the live value comes from
-     * {@link HungerGamesSettings#medikitRegenSeconds()}. Kept here at the source's own default. The source
-     * also ran an optional cast-time countdown before the heal landed at all, cancelled by taking any damage
-     * in the meantime ({@link HungerGamesSettings#medikitCountdownSeconds()} carries that tuning across an
-     * upgrade), but the countdown itself needs a scheduler and a damage listener, neither of which this class
-     * may touch (see the class note), so the medikit here still heals the instant it is used.
+     * {@link HungerGamesSettings#medikitRegenSeconds()}. Kept here at the source's own default.
+     *
+     * <p>The cast time before any of it lands is {@link HungerGamesSettings#medikitCountdownSeconds()} and is
+     * passed to {@link Medicine#treat} rather than applied here: it needs a scheduler and a damage listener,
+     * and both are on the other side of that seam in {@code MedikitCountdownService}.
      */
     public static final Duration MEDIKIT_REGENERATION_DURATION = Duration.ofSeconds(6);
 
@@ -276,12 +285,23 @@ public final class CombatItemService implements IHungerGamesService {
         boolean detonate(ItemUse use, double radius, Duration enemyEffectDuration, Duration invisibilityDuration);
     }
 
-    /** Healing the holder. Injected, because it touches a player's health and this class must not need one. */
+    /**
+     * Healing the holder. Injected, because it touches a player's health and this class must not need one.
+     *
+     * <p>{@code windUp} is the medikit's cast time — {@code items.medikit.countdown-seconds}, three by
+     * default. Zero heals at once. Anything else starts a treatment that lands later and is cancelled by any
+     * damage in between, which is the whole price of the most valuable item in the sponsor shop: with it,
+     * using one mid-fight is a gamble, and the counterplay to somebody using one is to keep hitting them.
+     */
     @FunctionalInterface
     public interface Medicine {
 
-        /** @return whether the holder was actually treated */
-        boolean treat(ItemUse use, Duration regenerationDuration, int regenerationAmplifier,
+        /**
+         * @return whether the holder was healed <em>now</em>. False when a wind-up was started instead — the
+         *         medikit is not spent yet, exactly as the source had it, so an interrupted treatment costs
+         *         nothing and the item is still in the inventory to try again with
+         */
+        boolean treat(ItemUse use, Duration windUp, Duration regenerationDuration, int regenerationAmplifier,
                       Duration absorptionDuration, int absorptionAmplifier);
     }
 
@@ -408,35 +428,35 @@ public final class CombatItemService implements IHungerGamesService {
         abilities.register(ItemAbility.builder(PLUGIN, SMOKE_BOMB)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Fogs nearby enemies and hides the thrower")
-                .charges(SINGLE_USE_CHARGES)
+                .consumesItem()
                 .attempts(this::throwSmokeBomb)
                 .build());
 
         abilities.register(ItemAbility.builder(PLUGIN, MEDIKIT)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Heals the holder and grants extra hearts")
-                .charges(SINGLE_USE_CHARGES)
+                .consumesItem()
                 .attempts(this::useMedikit)
                 .build());
 
         abilities.register(ItemAbility.builder(PLUGIN, LIGHTNING_STRIKE)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Calls down a volley of lightning")
-                .charges(SINGLE_USE_CHARGES)
+                .consumesItem()
                 .attempts(this::callLightning)
                 .build());
 
         abilities.register(ItemAbility.builder(PLUGIN, KRUECKAUWASSER)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Throws a bottle of krückauwasser")
-                .charges(SINGLE_USE_CHARGES)
+                .consumesItem()
                 .attempts(this::throwKrueckauwasser)
                 .build());
 
         abilities.register(ItemAbility.builder(PLUGIN, AURA_OF_PROTECTION)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Raises a protective aura around the holder")
-                .charges(SINGLE_USE_CHARGES)
+                .consumesItem()
                 .attempts(this::activateAura)
                 .build());
     }
@@ -458,13 +478,18 @@ public final class CombatItemService implements IHungerGamesService {
                 Duration.ofSeconds(current.smokeBombInvisSeconds()));
     }
 
-    /** @return whether the holder was actually treated; {@code false} does not spend the medikit's charge. */
+    /**
+     * @return whether the holder was healed now; {@code false} does not take the medikit — which covers both
+     *         "there was nobody to heal" and "a wind-up started", the second being the ordinary case on a
+     *         server that has left {@code items.medikit.countdown-seconds} at its default
+     */
     boolean useMedikit(ItemUse use) {
         if (!duringARound()) {
             return false;
         }
         HungerGamesSettings current = settings;
-        return medicine.treat(use, Duration.ofSeconds(current.medikitRegenSeconds()),
+        return medicine.treat(use, Duration.ofSeconds(Math.max(0, current.medikitCountdownSeconds())),
+                Duration.ofSeconds(current.medikitRegenSeconds()),
                 current.medikitRegenLevel() - 1,
                 Duration.ofSeconds(current.medikitAbsorptionSeconds()),
                 current.medikitAbsorptionLevel() - 1);

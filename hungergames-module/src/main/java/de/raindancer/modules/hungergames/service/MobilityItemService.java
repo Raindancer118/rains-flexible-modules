@@ -305,6 +305,7 @@ public final class MobilityItemService implements IHungerGamesService {
         abilities.register(ItemAbility.builder(PLUGIN, HERMES_BOOTS)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Fly for a few seconds, with a warning before it ends")
+                .consumesItem()
                 .cooldown(HERMES_COOLDOWN)
                 .attempts(this::flyLikeHermes)
                 .build());
@@ -312,6 +313,7 @@ public final class MobilityItemService implements IHungerGamesService {
         abilities.register(ItemAbility.builder(PLUGIN, GRAPPLING_HOOK)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Pull towards whatever you are looking at")
+                .consumesItem()
                 .cooldown(GRAPPLING_COOLDOWN)
                 .attempts(this::fireTheGrapplingHook)
                 .build());
@@ -319,6 +321,7 @@ public final class MobilityItemService implements IHungerGamesService {
         abilities.register(ItemAbility.builder(PLUGIN, REPULSE)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Shove everybody nearby away")
+                .consumesItem()
                 .cooldown(REPULSE_COOLDOWN)
                 .attempts(this::unleashRepulse)
                 .build());
@@ -326,6 +329,7 @@ public final class MobilityItemService implements IHungerGamesService {
         abilities.register(ItemAbility.builder(PLUGIN, LEAP)
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Catapult forwards, with a soft landing")
+                .consumesItem()
                 .cooldown(LEAP_COOLDOWN)
                 .attempts(this::leap)
                 .build());

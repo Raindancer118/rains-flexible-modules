@@ -136,10 +136,10 @@ public final class HungerGamesCommand implements IHungerGamesCommand {
      * {@code /hg give <item> [amount] [player]} — a custom item, into somebody's hands.
      *
      * <h2>Why this had to come back</h2>
-     * It is how an item is tested. There are fifteen of them, most reachable in a round only through a
+     * It is how an item is tested. There are fourteen of them, most reachable in a round only through a
      * sponsor purchase or a lucky chest, and an admin checking whether the grappling hook still pulls
      * cannot play until one drops. The old plugin had it ({@code HgCommand:105}) with completion from the
-     * item registry; the port dropped it, and the fifteen items became untestable by anybody who was not
+     * item registry; the port dropped it, and the fourteen items became untestable by anybody who was not
      * willing to run a whole round.
      *
      * <h2>The argument order, kept exactly</h2>
@@ -236,7 +236,7 @@ public final class HungerGamesCommand implements IHungerGamesCommand {
     @Override
     public List<String> suggest(CommandSourceStack source, String[] args) {
         // The item names, for "/hg give <tab>" — the source completed these too (HgCommand:866), and
-        // fifteen ids nobody can remember are exactly what completion is for.
+        // fourteen ids nobody can remember are exactly what completion is for.
         if (args.length == 2 && args[0].equalsIgnoreCase("give")
                 && PermissionNodes.mayOpenTheAdminSuite(source.getSender())) {
             String typed = args[1].toLowerCase(Locale.ROOT);

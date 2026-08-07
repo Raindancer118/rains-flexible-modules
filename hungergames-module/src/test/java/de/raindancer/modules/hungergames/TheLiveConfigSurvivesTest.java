@@ -156,7 +156,7 @@ class TheLiveConfigSurvivesTest {
          * — this list is what the shop is judged against, and those are what judge the list.
          */
         static final java.util.Set<String> EVERY_ITEM_THIS_BUILD_HAS = java.util.Set.of(
-                "fiendfinder", "invisibility-cloak",
+                "fiendfinder",
                 "smoke-bomb", "medikit", "lightning-strike", "krueckauwasser", "aura-of-protection",
                 "hermes-boots", "grappling-hook", "repulse", "leap",
                 "feast", "war-kit", "stupidness-protector", "exmatrikulator");

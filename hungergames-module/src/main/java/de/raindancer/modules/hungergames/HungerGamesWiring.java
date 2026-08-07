@@ -7,6 +7,7 @@ import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.social.team.TeamColour;
 import de.raindancer.core.social.team.TeamId;
+import de.raindancer.core.ui.actionbar.ActionBarPriority;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.world.safety.Spot;
 import de.raindancer.core.world.spawn.Spawner;
@@ -17,6 +18,7 @@ import de.raindancer.modules.hungergames.listener.AnnouncementListener;
 import de.raindancer.modules.hungergames.listener.ConnectionListener;
 import de.raindancer.modules.hungergames.listener.EliminationListener;
 import de.raindancer.modules.hungergames.listener.LobbyListener;
+import de.raindancer.modules.hungergames.listener.MedikitInterruptListener;
 import de.raindancer.modules.hungergames.listener.PortalListener;
 import de.raindancer.modules.hungergames.listener.StupidnessProtectorListener;
 import de.raindancer.modules.hungergames.listener.WinnerFinishListener;
@@ -40,6 +42,7 @@ import de.raindancer.modules.hungergames.service.GameControlService;
 import de.raindancer.modules.hungergames.service.GameTimerService;
 import de.raindancer.modules.hungergames.service.HungerGamesCues;
 import de.raindancer.modules.hungergames.service.MannequinSimService;
+import de.raindancer.modules.hungergames.service.MedikitCountdownService;
 import de.raindancer.modules.hungergames.service.MobilityItemService;
 import de.raindancer.modules.hungergames.service.MonsterWaveService;
 import de.raindancer.modules.hungergames.service.OpTrackerService;
@@ -179,15 +182,27 @@ public final class HungerGamesWiring {
     private final Gamemasters gamemasters;
     private AdminHotbarListener hotbar;
 
-    // ---- the fifteen custom items, across the four services that define them — see EveryItemIsRegisteredTest
+    // ---- the fourteen custom items, across the four services that define them — see EveryItemIsRegisteredTest
     private final ArenaItemService arenaItems;
     private final CombatItemService combatItems;
     private final MobilityItemService mobilityItems;
     private final SurvivalItemService survivalItems;
 
     /**
-     * Armour lifted out of a holder's slots while the Invisibility Cloak or the smoke bomb's own
-     * invisibility is up, keyed by whoever is holding it. See {@link #hideFully}.
+     * Who owns the action bar slot the medikit's count is drawn in.
+     *
+     * <p>Its own owner rather than the announcements' one: they are two different subsystems writing to the
+     * same one line, and sharing a name means either can clear the other's message. Core's {@code ActionBars}
+     * exists precisely to arbitrate that, and it cannot if they both claim to be the same thing.
+     */
+    private static final String MEDIKIT_BAR = "hungergames-medikit";
+
+    /** The medikit's wind-up, and the damage that cancels it. */
+    private final MedikitCountdownService medikitCountdown;
+
+    /**
+     * Armour lifted out of a holder's slots while the smoke bomb's own invisibility is up, keyed by whoever
+     * is holding it. See {@link #hideFully}.
      */
     private final java.util.Map<UUID, ItemStack[]> hiddenArmour = new ConcurrentHashMap<>();
 
@@ -306,16 +321,23 @@ public final class HungerGamesWiring {
                 uuid -> server.getPlayer(uuid) != null, gamemasters::onlineActive,
                 supplyDropPlan(), sponsorShopStatus(), core.effects()::problems);
 
-        // ---- the fifteen custom items. Built here, registered with Core in start() — see that method's
+        // ---- the fourteen custom items. Built here, registered with Core in start() — see that method's
         // note on why a side effect on the server does not belong in a constructor. Forgetting to build one
         // of these is exactly the bug EveryItemIsRegisteredTest exists to catch: the service compiles, its
         // own tests pass, and the only symptom is an empty item page.
         this.arenaItems = new ArenaItemService(core.itemAbilities(), core.items(), session::phase,
-                cloaking(), tracking(), settings());
+                tracking(), settings());
         this.combatItems = new CombatItemService(core.itemAbilities(), core.items(), session::phase,
                 smokescreen(), medicine(), storm(), splash(), aura(), settings());
         this.mobilityItems = new MobilityItemService(core.itemAbilities(), core.items(), session::phase,
                 flight(), grappling(), repulsion(), launching(), settings());
+        // Built before combatItems, because medicine() reaches for it: the medikit's click is answered by
+        // starting a wind-up rather than by healing, and the thing that owns that wind-up has to exist first.
+        this.medikitCountdown = new MedikitCountdownService(medikitTreatment(),
+                task -> {
+                    var scheduled = Scheduling.globalTimer(plugin, 20L, 20L, handle -> task.run());
+                    return scheduled::cancel;
+                });
         this.survivalItems = new SurvivalItemService(core.itemAbilities(), core.items(), session::phase,
                 feasting(), armoury(), rescue(), volley(), System::currentTimeMillis, new Random(),
                 settings());
@@ -353,7 +375,7 @@ public final class HungerGamesWiring {
                 Scheduling.globalLater(plugin, Math.max(1L, millis / 50L), what));
         log.info("{} sound and particle cue(s) defined.", cues);
 
-        // The fifteen custom items and their abilities, into Core's registries — see the constructor's note
+        // The fourteen custom items and their abilities, into Core's registries — see the constructor's note
         // by the four fields above. Nothing before this point may fire one of them; nothing after this
         // point is missing from the item page or the sponsor shop.
         arenaItems.register();
@@ -389,6 +411,9 @@ public final class HungerGamesWiring {
         // The Stupidness Protector is passive — see SurvivalItemService's javadoc — so it has no ability of
         // its own and is caught here instead, at the one place that actually knows what killed somebody.
         context.listener(new StupidnessProtectorListener(survivalItems::wouldSaveFrom));
+        // Any hit at all stops a medikit landing — the price of the most valuable item in the shop, and the
+        // only counterplay to somebody using one mid-fight.
+        context.listener(new MedikitInterruptListener(medikitCountdown::interrupt));
 
         // The three items a gamemaster runs a tournament from. Without them this module's whole "click, do
         // not type" arrangement has no first click — see AdminHotbarListener.
@@ -742,7 +767,7 @@ public final class HungerGamesWiring {
         return core.items().byKey(token.key()).orElse(token);
     }
 
-    // ==================== the fifteen custom items ====================
+    // ==================== the fourteen custom items ====================
 
     /**
      * Every enemy a combat or survival item may catch nearby: living tributes who are still alive and not
@@ -878,19 +903,6 @@ public final class HungerGamesWiring {
 
     // -------------------- ArenaItemService --------------------
 
-    /** Making somebody invisible, armour included — the cloak's whole job. */
-    private ArenaItemService.Cloaking cloaking() {
-        return (use, forHowLong) -> {
-            Player holder = server.getPlayer(use.player());
-            if (holder == null) {
-                return false;
-            }
-            hideFully(holder, forHowLong);
-            core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_CLOAK);
-            return true;
-        };
-    }
-
     /**
      * Pointing at the nearest living tribute. Search radius and glow duration are read from the settings at
      * the moment of use rather than captured once, the same reasoning as every other live-tuned number in
@@ -960,28 +972,125 @@ public final class HungerGamesWiring {
         };
     }
 
-    /** Healing the holder: a full top-up, Regeneration and some extra hearts. */
+    /**
+     * The medikit's click.
+     *
+     * <p>Two answers, and which one is given is the server's own tuning. With
+     * {@code items.medikit.countdown-seconds} at zero it heals on the spot and returns true, so Core takes
+     * the item. With anything above zero it starts a wind-up and returns <b>false</b> — the item is not spent
+     * yet, exactly as the source had it, so a treatment cancelled by a hit costs the holder nothing and the
+     * medikit is still there to try again with. {@link MedikitCountdownService} takes it when the heal
+     * actually lands.
+     */
     private CombatItemService.Medicine medicine() {
-        return (use, regenerationDuration, regenerationAmplifier, absorptionDuration, absorptionAmplifier) -> {
+        return (use, windUp, regenerationDuration, regenerationAmplifier, absorptionDuration,
+                absorptionAmplifier) -> {
             Player holder = server.getPlayer(use.player());
             if (holder == null) {
                 return false;
             }
-            var maxHealth = holder.getAttribute(Attribute.MAX_HEALTH);
-            holder.setHealth(maxHealth == null ? 20.0 : maxHealth.getValue());
-            holder.setFoodLevel(20);
-            holder.setSaturation(20f);
-            holder.setFireTicks(0);
-            if (!regenerationDuration.isZero()) {
-                holder.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION,
-                        (int) ticksOf(regenerationDuration), Math.max(0, regenerationAmplifier)));
+            if (!windUp.isZero() && medikitCountdown.begin(holder.getUniqueId())) {
+                return false;
             }
-            if (!absorptionDuration.isZero()) {
-                holder.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION,
-                        (int) ticksOf(absorptionDuration), Math.max(0, absorptionAmplifier)));
-            }
-            core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_MEDIKIT);
+            healWithAMedikit(holder);
             return true;
+        };
+    }
+
+    /**
+     * What a medikit actually does, once it lands.
+     *
+     * <p>Its own method because it is reached from two places now — the instant version above and the end of
+     * a wind-up — and the version where those two drifted apart is one where a server that switched the
+     * countdown off got a quietly different heal.
+     */
+    private void healWithAMedikit(Player holder) {
+        HungerGamesSettings now = settings();
+        var maxHealth = holder.getAttribute(Attribute.MAX_HEALTH);
+        holder.setHealth(maxHealth == null ? 20.0 : maxHealth.getValue());
+        holder.setFoodLevel(20);
+        holder.setSaturation(20f);
+        holder.setFireTicks(0);
+        Duration regeneration = Duration.ofSeconds(now.medikitRegenSeconds());
+        if (!regeneration.isZero()) {
+            holder.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION,
+                    (int) ticksOf(regeneration), Math.max(0, now.medikitRegenLevel() - 1)));
+        }
+        Duration absorption = Duration.ofSeconds(now.medikitAbsorptionSeconds());
+        if (!absorption.isZero()) {
+            holder.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION,
+                    (int) ticksOf(absorption), Math.max(0, now.medikitAbsorptionLevel() - 1)));
+        }
+        core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_MEDIKIT);
+        holder.sendMessage(core.messages().get("hungergames.medikit-healed"));
+    }
+
+    /**
+     * Everything the medikit's wind-up says and does in the world.
+     *
+     * <p>The count goes on the action bar and the two one-off lines go to chat, which is the source's own
+     * split and the right one: a number that changes every second must not be four lines of chat, and
+     * "you were interrupted" must survive being replaced a tick later.
+     */
+    private MedikitCountdownService.Treatment medikitTreatment() {
+        return new MedikitCountdownService.Treatment() {
+
+            @Override
+            public boolean stillThere(UUID holder) {
+                Player player = server.getPlayer(holder);
+                return player != null && player.isOnline() && !player.isDead();
+            }
+
+            @Override
+            public void applied(UUID holder, int seconds) {
+                Player player = server.getPlayer(holder);
+                if (player != null) {
+                    player.sendMessage(core.messages().get("hungergames.medikit-applied",
+                            "seconds", String.valueOf(seconds)));
+                }
+            }
+
+            @Override
+            public void counting(UUID holder, int secondsLeft) {
+                core.actionBars().show(holder, MEDIKIT_BAR,
+                        core.messages().get("hungergames.medikit-counting",
+                                "seconds", String.valueOf(secondsLeft)),
+                        Duration.ofSeconds(2), ActionBarPriority.HIGH);
+            }
+
+            @Override
+            public void alreadyRunning(UUID holder) {
+                Player player = server.getPlayer(holder);
+                if (player != null) {
+                    player.sendMessage(core.messages().get("hungergames.medikit-already"));
+                }
+            }
+
+            @Override
+            public void interrupted(UUID holder) {
+                core.actionBars().clear(holder, MEDIKIT_BAR);
+                Player player = server.getPlayer(holder);
+                if (player != null) {
+                    player.sendMessage(core.messages().get("hungergames.medikit-interrupted"));
+                }
+            }
+
+            @Override
+            public boolean spendAndHeal(UUID holder) {
+                Player player = server.getPlayer(holder);
+                if (player == null) {
+                    return false;
+                }
+                core.actionBars().clear(holder, MEDIKIT_BAR);
+                // Taken only now, and only if it is still there. Somebody who dropped it, gave it away or
+                // put it in a chest during the wind-up does not get healed by an item they no longer have.
+                if (!core.itemFactory().takeOne(player.getInventory(),
+                        CombatItemService.PLUGIN + ":" + CombatItemService.MEDIKIT)) {
+                    return false;
+                }
+                healWithAMedikit(player);
+                return true;
+            }
         };
     }
 
@@ -1937,6 +2046,7 @@ public final class HungerGamesWiring {
         combatItems.settings(now);
         mobilityItems.settings(now);
         survivalItems.settings(now);
+        medikitCountdown.settings(now);
         if (hotbar != null) {
             hotbar.settings(now);
         }
