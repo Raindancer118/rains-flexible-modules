@@ -5,15 +5,19 @@ import de.raindancer.modules.hungergames.service.SpectatorService;
 import de.raindancer.modules.hungergames.store.GameSession;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * Turns a tribute's death into an elimination.
+ * Turns a tribute's death into an elimination — or, where the death action is {@code SPECTATOR}, stops the
+ * death from ever actually happening at all.
  *
  * <h2>What this class is and is not allowed to decide</h2>
  * It translates and nothing else. Whether an elimination actually happens is
@@ -24,6 +28,17 @@ import java.util.function.Consumer;
  *
  * <p>So this does exactly three things a death gives it that nothing else has: the victim, the killer, and
  * the place they fell.
+ *
+ * <h2>Two doors, and why there are two</h2>
+ * {@link #onLethalDamage} runs first, on the hit that would kill somebody — and cancels it, so a tribute
+ * whose death action is {@code SPECTATOR} never actually dies: no death screen, no respawn, no window in
+ * which the client shows them a real spectator camera before this module's own vanish-based one takes
+ * over. {@link #onDeath} is the fallback for everything that does not go through it: {@code KICK} and
+ * {@code BAN}, where an actual death is harmless because the tribute is about to leave the server anyway,
+ * and any death that somehow reaches {@link PlayerDeathEvent} without the damage event catching it first —
+ * a plugin calling {@code Player#setHealth(0)} directly is the one case Bukkit does not raise
+ * {@link EntityDamageEvent} for. Cancelling the damage event means {@link PlayerDeathEvent} never fires for
+ * that hit, so the two never double-eliminate the same tribute.
  *
  * <h2>Why the death message is suppressed</h2>
  * Vanilla announces "Alice was slain by Bram" and the round announces the elimination with a tribute count
@@ -106,6 +121,68 @@ public final class EliminationListener implements IHungerGamesListener {
         // empty method. It is emphatically NOT a place to eliminate anybody: see the class note.
     }
 
+    /**
+     * The hit that would kill a tribute whose death action is {@code SPECTATOR} — cancelled before it can,
+     * so the elimination is instant and there is no real death for the client to show a screen for.
+     *
+     * <h2>Why {@code MONITOR} rather than {@code HIGH}</h2>
+     * This has to run strictly after {@code StupidnessProtectorListener}, which cancels the very same
+     * event when a protector saves its holder — and same-priority listeners are not ordered against each
+     * other reliably. {@code MONITOR} is the one priority Bukkit guarantees runs after every other, so a
+     * protector always gets its chance first; {@code ignoreCancelled} then means a saved hit is never
+     * turned into an elimination.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onLethalDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player victim)) {
+            return;
+        }
+        if (!session.isWhitelisted(victim.getUniqueId())) {
+            return;
+        }
+        if (settings.deathAction() != HungerGamesSettings.DeathAction.SPECTATOR) {
+            // KICK and BAN let the death happen for real — the tribute is about to be off the server
+            // either way, and onDeath is what hands them to Eviction.
+            return;
+        }
+        if (victim.getHealth() - event.getFinalDamage() > 0) {
+            return;   // not lethal — an ordinary hit is an ordinary hit
+        }
+
+        Player killerPlayer = killerOf(event);
+        UUID killer = killerPlayer == null ? null : killerPlayer.getUniqueId();
+        Location fell = victim.getLocation().clone().add(0, 1, 0);
+
+        if (!session.eliminate(victim.getUniqueId(), killer)) {
+            // The round is not running, or they were already out — let the hit land as an ordinary one
+            // rather than cancelling damage that was never going to eliminate anybody.
+            return;
+        }
+
+        event.setCancelled(true);
+        spectacle.at(fell, killer != null);
+        spectators.makeSpectator(victim);
+    }
+
+    /** Who dealt the hit, as a player — a direct blow or a projectile they fired. */
+    private static Player killerOf(EntityDamageEvent event) {
+        if (!(event instanceof EntityDamageByEntityEvent byEntity)) {
+            return null;
+        }
+        var damager = byEntity.getDamager();
+        if (damager instanceof Player player) {
+            return player;
+        }
+        if (damager instanceof Projectile projectile && projectile.getShooter() instanceof Player shooter) {
+            return shooter;
+        }
+        return null;
+    }
+
+    /**
+     * The fallback for a death {@link #onLethalDamage} did not catch — {@code KICK}, {@code BAN}, and any
+     * lethal hit that reached here without raising {@link EntityDamageEvent} first. See the class note.
+     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onDeath(PlayerDeathEvent event) {
         Player victim = event.getEntity();
