@@ -451,10 +451,10 @@ public final class HungerGamesWiring {
         context.listener(new de.raindancer.modules.hungergames.listener.ChatChannelListener(
                 plugin, session, chatChannels, core.messages(), server));
         // No breaking, no placing, no item but the compass, no damage given or taken, no hunger, and a
-        // respawn that puts an eliminated tribute back where they fell — see the class note for why
-        // this is not folded into SpectatorService itself.
+        // respawn that puts an eliminated tribute back where they fell — for anybody SpectatorService
+        // put into its vanish-based state, an eliminated tribute or a gamemaster alike.
         context.listener(new de.raindancer.modules.hungergames.listener.SpectatorProtectionListener(
-                session, spectators));
+                spectators));
 
         // The three items a gamemaster runs a tournament from. Without them this module's whole "click, do
         // not type" arrangement has no first click — see AdminHotbarListener.
@@ -467,10 +467,13 @@ public final class HungerGamesWiring {
 
                     @Override
                     public void control(Player viewer) {
-                        // The same page, opened at its round-control section. One entry point rather than a
-                        // second opener method: the admin suite is where a round is run from, and a separate
-                        // door into the middle of it is a second menu tree to keep in step.
-                        screens.admin(viewer);
+                        // Straight to the round-control page itself — init, the launch sequence, the
+                        // phases — rather than the admin hub a click away from it. The nether star is
+                        // reached for specifically to run the round; a gamemaster who wanted the wider
+                        // suite has the compass for that.
+                        new de.raindancer.modules.hungergames.screen.GameControlMenu(viewer, brand, null,
+                                session, control, preflight, () -> borderPhases, simulation, monsterWaves,
+                                roster, core.prompts()).open();
                     }
                 },
                 who -> countdown.run(who.getUniqueId()),
@@ -2233,6 +2236,22 @@ public final class HungerGamesWiring {
                     supplyDrops.start();
                     roundExpiry.reset();
                     hermesBoots.resetForNewRound();
+                    // Once, the moment the round actually begins: a fresh inventory for whoever is
+                    // playing, so nothing carried over from the lobby — least of all this module's own
+                    // admin hotbar items — rides along into the round. A gamemaster who is also a
+                    // tribute must not be holding the tournament's own controls once they are one.
+                    for (Player online : server.getOnlinePlayers()) {
+                        if (session.isWhitelisted(online.getUniqueId())) {
+                            online.getInventory().clear();
+                        }
+                    }
+                }
+                // The hotbar items are phase-gated — see AdminHotbarListener.apply's own note — so every
+                // online player is re-evaluated on every change rather than only at their next join.
+                if (hotbar != null) {
+                    for (Player online : server.getOnlinePlayers()) {
+                        hotbar.apply(online);
+                    }
                 }
             }
 
@@ -2496,8 +2515,23 @@ public final class HungerGamesWiring {
             return Optional.empty();
         }
 
+        /**
+         * {@code SPECTATOR} is never a real game mode change any more — it is
+         * {@link SpectatorService#enterVanishSpectator}, the same "watch without being seen" this module
+         * gives an eliminated tribute: invisible, untouchable, still in whatever mode the gamemaster
+         * actually holds. Leaving it the same way, through {@link SpectatorService#leaveVanishSpectator},
+         * is what makes {@link #activate} and {@link #deactivate}'s own {@code previousMode} bookkeeping
+         * still correct — that mode was never actually left in the first place.
+         */
         @Override
         public void setMode(Player player, GameMode mode) {
+            if (mode == GameMode.SPECTATOR) {
+                spectators.enterVanishSpectator(player);
+                return;
+            }
+            if (spectators.isVanishSpectator(player.getUniqueId())) {
+                spectators.leaveVanishSpectator(player);
+            }
             player.setGameMode(mode);
         }
 
