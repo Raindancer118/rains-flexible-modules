@@ -44,11 +44,12 @@ import java.util.function.Supplier;
  * this module had one built yet.
  *
  * <h2>What this hub deliberately does not link to</h2>
- * Teams, the sponsor shop and the border-conflict page are reached through
+ * The tribute's own team page, the sponsor shop and the border-conflict page are reached through
  * {@link de.raindancer.modules.hungergames.IHungerGamesScreensOpener}'s own doors
  * ({@code teams}, {@code shop}, {@code borderConflict}), not by a tile here — those pages belong to a
  * different wave of this port, and this hub does not need to know their class names to open correctly for
- * the tiles that <em>are</em> its own.
+ * the tiles that <em>are</em> its own. {@link TeamAdminMenu} is the exception: it is an admin's page, not a
+ * tribute's, so it is a tile here like {@code Tributes} or {@code Gamemasters} rather than a door of its own.
  */
 public final class AdminMenu extends Menu implements IHungerGamesScreen {
 
@@ -75,6 +76,8 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
     private final RoundLogService roundLog;
     private final VirtualTime virtualTime;
     private final SponsorTokenService sponsorTokens;
+    private final TeamIdentityMenu.BadgeChooser badges;
+    private final TeamIdentityMenu.CaptainChooser captains;
 
     public AdminMenu(Player viewer, Brand brand, GameSession session, GameControlService gameControl,
                      PreflightCheckService preflight, Supplier<List<BorderPhaseConfig>> borderPhases,
@@ -88,7 +91,8 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
                      de.raindancer.core.ui.effect.Effects effects, Runnable saveCues,
                      de.raindancer.core.content.items.CustomItems customItems,
                      de.raindancer.core.ui.chat.Chat chat,
-                     de.raindancer.core.data.settings.SettingsNavigation settingsNavigation) {
+                     de.raindancer.core.data.settings.SettingsNavigation settingsNavigation,
+                     TeamIdentityMenu.BadgeChooser badges, TeamIdentityMenu.CaptainChooser captains) {
         super(viewer, brand, null);
         this.session = session;
         this.gameControl = gameControl;
@@ -111,6 +115,8 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
         this.virtualTime = virtualTime;
         this.sponsorTokens = sponsorTokens;
             this.roster = roster;
+        this.badges = badges;
+        this.captains = captains;
     }
 
     @Override
@@ -148,6 +154,11 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
         tile(16, Material.ENDER_EYE, "Spectate", true,
                 click -> new SpectateMenu(viewer, brand(), session, spectator).open(),
                 "Teleport to a living tribute.");
+
+        tile(19, Material.WHITE_BANNER, "Teams", admin,
+                click -> new TeamAdminMenu(viewer, brand(), this, session, prompts, roundLog, badges,
+                        captains, settings).open(),
+                session.teams().count() + " team(s).", "Create, delete, recolour,", "assign a captain.");
 
         tile(29, Material.CHEST_MINECART, "Supply drops", true,
                 click -> new SupplyDropMenu(viewer, brand(), this, supplyDrops, settings).open(),

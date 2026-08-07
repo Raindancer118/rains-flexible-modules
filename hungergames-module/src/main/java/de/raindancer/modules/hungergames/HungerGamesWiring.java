@@ -2122,7 +2122,8 @@ public final class HungerGamesWiring {
                 brand, session, settingsStore::current, () -> TeamRules.from(settings()), () -> borderPhases,
                 control, preflight, deathmatch, supplyDrops, monsterWaves, simulation, spectators,
                 sponsorTokens, roundLog, virtualTime,
-                shopStore, announcements, gamemasters, core.prompts(), core.items(),
+                shopStore, announcements, gamemasters, teamBadgeChooser(), teamCaptainChooser(),
+                core.prompts(), core.items(),
                 core.itemFactory(), plainStack(), roster, core.effects(),
                 // Cues live in Core's registry and Core persists them; nothing extra to write here. Named
                 // rather than passed as null so the page's own "did that save?" question has an answer.
@@ -2133,6 +2134,34 @@ public final class HungerGamesWiring {
                     log.info("The border phases were rewritten from the conflict screen.");
                 },
                 log));
+    }
+
+    /**
+     * Picking a team's badge — Core's own item chooser, so a badge is always something the server actually
+     * has an icon for.
+     */
+    private de.raindancer.modules.hungergames.screen.TeamIdentityMenu.BadgeChooser teamBadgeChooser() {
+        return (viewer, returnTo, chosen) ->
+                new de.raindancer.core.ui.choose.ItemChooser(viewer, brand, returnTo,
+                        "Pick a badge", chosen).open();
+    }
+
+    /**
+     * Picking a captain out of a team's own members — Core's player chooser, narrowed to exactly that team
+     * rather than the whole server, because a captain who is not on the team is not a captain of anything.
+     */
+    private de.raindancer.modules.hungergames.screen.TeamIdentityMenu.CaptainChooser teamCaptainChooser() {
+        return (viewer, returnTo, among, chosen) -> {
+            de.raindancer.core.ui.choose.PlayerDirectory directory =
+                    new de.raindancer.core.ui.choose.PlayerDirectory(
+                            () -> among.stream()
+                                    .map(uuid -> new de.raindancer.core.ui.choose.PlayerEntry(uuid,
+                                            nameOf(uuid), server.getPlayer(uuid) != null, 0L))
+                                    .toList(),
+                            System::currentTimeMillis);
+            new de.raindancer.core.ui.choose.PlayerChooser(viewer, brand, returnTo, "Pick a captain",
+                    directory, List.of(), entry -> chosen.accept(entry.id())).open();
+        };
     }
 
     /** A stack for a reward Core's registries do not own — a material, or a potion. */

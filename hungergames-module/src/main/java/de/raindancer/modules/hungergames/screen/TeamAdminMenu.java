@@ -45,12 +45,16 @@ public final class TeamAdminMenu extends PaginatedMenu<Team> implements IHungerG
     private final java.util.function.Supplier<de.raindancer.modules.hungergames.HungerGamesSettings> settings;
     private final ChatPrompts prompts;
     private final RoundLogService roundLog;
+    private final de.raindancer.core.ui.chat.Chat chat;
+    private final de.raindancer.core.data.settings.SettingsNavigation settingsNavigation;
 
     public TeamAdminMenu(Player viewer, Brand brand, Menu parent, GameSession session, ChatPrompts prompts,
                          RoundLogService roundLog, TeamIdentityMenu.BadgeChooser badges,
                          TeamIdentityMenu.CaptainChooser captains,
                          java.util.function.Supplier<de.raindancer.modules.hungergames.HungerGamesSettings>
-                                 settings) {
+                                 settings,
+                         de.raindancer.core.ui.chat.Chat chat,
+                         de.raindancer.core.data.settings.SettingsNavigation settingsNavigation) {
         super(viewer, brand, parent);
         this.session = session;
         this.prompts = prompts;
@@ -58,6 +62,20 @@ public final class TeamAdminMenu extends PaginatedMenu<Team> implements IHungerG
         this.badges = badges;
         this.captains = captains;
         this.settings = settings;
+        this.chat = chat;
+        this.settingsNavigation = settingsNavigation;
+    }
+
+    /**
+     * The same, for a host that has not wired the settings menu in — a test, or a build that has not built
+     * that far yet. Refuses to open it rather than showing a dead button.
+     */
+    public TeamAdminMenu(Player viewer, Brand brand, Menu parent, GameSession session, ChatPrompts prompts,
+                         RoundLogService roundLog, TeamIdentityMenu.BadgeChooser badges,
+                         TeamIdentityMenu.CaptainChooser captains,
+                         java.util.function.Supplier<de.raindancer.modules.hungergames.HungerGamesSettings>
+                                 settings) {
+        this(viewer, brand, parent, session, prompts, roundLog, badges, captains, settings, null, null);
     }
 
     /**
@@ -148,6 +166,18 @@ public final class TeamAdminMenu extends PaginatedMenu<Team> implements IHungerG
                     tell("<green>" + assigned + " tribute(s) assigned.");
                     refresh();
                 });
+
+        // The largest team, how many teams may exist, switching, captains — every rule the roster itself
+        // enforces rather than a choice per team, so it belongs beside the roster rather than inside any one
+        // team's own page. Straight to the "teams" topic rather than the module's whole settings tree: the
+        // question this button answers is "why can I not make an eleventh team", not "show me everything".
+        if (chat != null && settingsNavigation != null) {
+            toolbar(4, Icons.of(Material.COMPARATOR, "<aqua>Team settings",
+                            "<gray>Largest team, how many teams,",
+                            "<gray>switching, captains."),
+                    click -> new de.raindancer.core.data.settings.SettingsMenu(viewer, brand(), chat,
+                            settingsNavigation, "hungergames/teams", this).open());
+        }
     }
 
     private void askForTeamName() {

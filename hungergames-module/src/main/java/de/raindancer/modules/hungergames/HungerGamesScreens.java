@@ -100,6 +100,8 @@ public final class HungerGamesScreens implements IHungerGamesScreensOpener {
             SponsorShopStore shop,
             AnnouncementService announcements,
             GamemasterMenu.Gamemasters gamemasters,
+            de.raindancer.modules.hungergames.screen.TeamIdentityMenu.BadgeChooser teamBadges,
+            de.raindancer.modules.hungergames.screen.TeamIdentityMenu.CaptainChooser teamCaptains,
             ChatPrompts prompts,
             CustomItems customItems,
             ItemFactory itemFactory,
@@ -140,7 +142,7 @@ public final class HungerGamesScreens implements IHungerGamesScreensOpener {
                 wiring.monsterWaves(), wiring.simulation(), wiring.spectator(), wiring.gamemasters(),
                 wiring.prompts(), wiring.roundLog(), wiring.virtualTime(), wiring.sponsorTokens(),
                 wiring.roster(), wiring.effects(), wiring.saveCues(), wiring.customItems(),
-                wiring.chat(), wiring.settingsNavigation())
+                wiring.chat(), wiring.settingsNavigation(), wiring.teamBadges(), wiring.teamCaptains())
                 .open();
     }
 
