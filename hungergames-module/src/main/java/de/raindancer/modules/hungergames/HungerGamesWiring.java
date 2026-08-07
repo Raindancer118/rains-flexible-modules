@@ -1481,6 +1481,7 @@ public final class HungerGamesWiring {
                             (int) ticksOf(MobilityItemService.LEAP_SOFT_LANDING), 0, false, false, false));
                     tribute.sendMessage(core.messages().get("hungergames.item-hermes-spent"));
                     core.actionBars().clear(uuid, HERMES_BAR);
+                    takeOffSpentHermesBoots(tribute);
                     continue;
                 }
                 if (remaining <= now.hermesWarningSeconds()) {
@@ -1490,6 +1491,12 @@ public final class HungerGamesWiring {
                                     "seconds", String.valueOf(remaining)),
                             Duration.ofSeconds(2), ActionBarPriority.HIGH);
                 }
+            } else if (wearing && !hermesBoots.hasFlightLeft(uuid)) {
+                // Not the moment it ran out — a spent pair put back on, or a fresh pair bought after the
+                // first one emptied the same per-tribute budget (see HermesBootsService's own note on why
+                // the budget is per player, not per pair). Either way, boots with nothing left in them do
+                // not belong on a tribute's feet.
+                takeOffSpentHermesBoots(tribute);
             }
 
             if (tribute.getAllowFlight() != funded) {
@@ -1499,6 +1506,17 @@ public final class HungerGamesWiring {
                 }
             }
         }
+    }
+
+    /**
+     * Real feedback from testing: a tribute whose flight ran out kept wearing what looked like a live
+     * pair of Hermes' boots for the rest of the round — funded forever false, glowing exactly the same as
+     * a fresh pair, with nothing on screen to say they were dead weight. Taking them off the moment the
+     * budget hits zero is the tell a spent pair now gives; putting the boots back would need a fresh pair
+     * from the shop, the same as spending any other one-shot item.
+     */
+    private void takeOffSpentHermesBoots(Player tribute) {
+        tribute.getInventory().setBoots(null);
     }
 
     /** Whether this tribute currently has Hermes' boots on their feet, by the item's own key — never a name. */

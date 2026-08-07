@@ -46,7 +46,7 @@
           could not honestly claim any one of their numbers. Here there is a headline feature and a
           module that supports it, so the number people are looking for is the game's.
         -->
-        <plugin.version>2.6.0</plugin.version>
+        <plugin.version>2.7.0</plugin.version>
     </properties>
 
     <dependencies>
