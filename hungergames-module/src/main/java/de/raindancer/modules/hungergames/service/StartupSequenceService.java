@@ -90,6 +90,16 @@ public final class StartupSequenceService implements IHungerGamesService {
     /** How far above the platform a tribute counts as having arrived. */
     private static final double ARRIVAL_MARGIN = 1.5;
 
+    /**
+     * How many blocks above the platform's own level the temporary arrival ceiling sits.
+     *
+     * <p>Comfortably above {@link #ARRIVAL_MARGIN} — a standing tribute is under two blocks tall, so four
+     * blocks of headroom means the tick loop below always recognises them as arrived before their head
+     * could ever reach this ceiling. It exists as the physical backstop the flight actually stops against,
+     * not as the thing that decides when they have arrived; that is still the Y check it always was.
+     */
+    private static final int CEILING_CLEARANCE_BLOCKS = 4;
+
     /** The delay before loot is placed. One second, so chunks and their containers have settled first. */
     private static final long LOOT_DELAY_TICKS = 20L;
 
@@ -349,11 +359,14 @@ public final class StartupSequenceService implements IHungerGamesService {
     }
 
     /**
-     * Takes the platform's middle block out, remembering what it was.
+     * Takes the platform's middle block out, remembering what it was, and puts a temporary ceiling above
+     * the platform for the flight up to stop against.
      *
-     * <p>Remembered rather than assumed to be stone: platforms are a schematic a server may have replaced
-     * with a build of their own, and a sequence that sealed every one of them with stone would leave a stone
-     * plug in forty custom platforms.
+     * <p>The middle block is remembered rather than assumed to be stone: platforms are a schematic a server
+     * may have replaced with a build of their own, and a sequence that sealed every one of them with stone
+     * would leave a stone plug in forty custom platforms. The ceiling needs no such care — it is always a
+     * barrier this method placed and {@link #removeArrivalCeiling} always takes away again, never a block
+     * that belonged to the arena.
      */
     private void openThePlatform(World world, ArenaLayout layout, ArenaLayout.Stand platform) {
         // One below the standing position — see ArenaLayout.wayUpThrough for the off-by-one this replaced,
@@ -361,6 +374,9 @@ public final class StartupSequenceService implements IHungerGamesService {
         Block middle = world.getBlockAt(platform.blockX(), layout.wayUpThrough(platform), platform.blockZ());
         openedPlatforms.put(key(platform), middle.getType());
         middle.setType(Material.AIR, false);
+
+        world.getBlockAt(platform.blockX(), platform.blockY() + CEILING_CLEARANCE_BLOCKS, platform.blockZ())
+                .setType(Material.BARRIER, false);
     }
 
     /** Puts it back exactly as it was. */
@@ -370,12 +386,29 @@ public final class StartupSequenceService implements IHungerGamesService {
                 .setType(was, false);
     }
 
+    /** Takes the temporary arrival ceiling back out, once a tribute no longer needs it to fly into. */
+    private void removeArrivalCeiling(World world, ArenaLayout.Stand platform) {
+        world.getBlockAt(platform.blockX(), platform.blockY() + CEILING_CLEARANCE_BLOCKS, platform.blockZ())
+                .setType(Material.AIR, false);
+    }
+
     /**
-     * Waits, every tick, for one tribute to reach the top of their tube.
+     * Waits, every tick, for one tribute to reach the top of their tube — flown up under their own
+     * levitation the whole way, never teleported.
      *
      * <p>Every tick rather than every few, because the same task also flattens their horizontal velocity —
      * a tribute who bumps a wall on the way up drifts sideways and lands next to their platform instead of on
      * it, and a correction applied five ticks late is a correction applied after they have left the shaft.
+     *
+     * <h2>Why there is no teleport at the top</h2>
+     * There used to be one: the moment {@code arrivesAt} was reached, the tribute was placed exactly onto
+     * the platform's own coordinates. Real feedback from watching a launch — a tribute who is visibly
+     * flying up their tube and then snaps sideways onto the platform reads as a bug even though it is not
+     * one. What actually stops them now is {@link #openThePlatform}'s temporary ceiling: they fly into it,
+     * the collision halts them the way any solid block would, and this loop's job becomes purely
+     * "notice they have arrived" rather than "put them somewhere". See {@link #CEILING_CLEARANCE_BLOCKS}
+     * for why the ceiling itself is never what decides that — it is a physical backstop several blocks
+     * above where this loop already recognises them as arrived.
      */
     private void watchForArrival(Player tribute, ArenaLayout layout, World world, int index, UUID actor) {
         ArenaLayout.Stand platform = layout.platforms().get(index);
@@ -395,6 +428,7 @@ public final class StartupSequenceService implements IHungerGamesService {
                 log.warn("{} disconnected during the launch sequence; their platform was sealed.",
                         tribute.getName());
                 sealThePlatform(world, layout, platform);
+                removeArrivalCeiling(world, platform);
                 task.cancel();
                 countArrival(layout, world, actor);
                 return;
@@ -405,11 +439,10 @@ public final class StartupSequenceService implements IHungerGamesService {
 
             if (tribute.getLocation().getY() >= arrivesAt) {
                 sealThePlatform(world, layout, platform);
+                removeArrivalCeiling(world, platform);
                 tribute.removePotionEffect(PotionEffectType.LEVITATION);
                 effects.play(uuid, HungerGamesCues.STARTUP_ARRIVE);
 
-                tribute.teleport(new Location(world, platform.x(), platform.y(), platform.z(),
-                        tribute.getLocation().getYaw(), tribute.getLocation().getPitch()));
                 // Immediately, not once everybody is up: the first tribute to arrive would otherwise have
                 // the length of the whole sequence to walk off and open a chest.
                 BarrierRing.place(world, platform.blockX(), platform.blockY(), platform.blockZ());
@@ -424,6 +457,7 @@ public final class StartupSequenceService implements IHungerGamesService {
                         + "sequence can finish.", tribute.getName(), ARRIVAL_TIMEOUT_TICKS / 20);
                 tribute.removePotionEffect(PotionEffectType.LEVITATION);
                 sealThePlatform(world, layout, platform);
+                removeArrivalCeiling(world, platform);
                 task.cancel();
                 countArrival(layout, world, actor);
             }
