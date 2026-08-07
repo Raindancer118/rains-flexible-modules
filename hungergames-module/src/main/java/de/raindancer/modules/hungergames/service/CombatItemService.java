@@ -386,8 +386,9 @@ public final class CombatItemService implements IHungerGamesService {
                 .name("<red>Medikit")
                 .lore(List.of(
                         "<gray>A full heal, Regeneration and",
-                        "<gray>extra hearts. The sponsors' own",
-                        "<gray>rescue anchor."))
+                        "<gray>extra hearts — after a short",
+                        "<gray>wind-up. Taking damage cancels it.",
+                        "<dark_gray>The sponsors' own rescue anchor."))
                 .glowing(true)
                 .ability(MEDIKIT)
                 .build());

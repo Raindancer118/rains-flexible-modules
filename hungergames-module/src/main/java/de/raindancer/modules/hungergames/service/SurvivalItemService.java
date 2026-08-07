@@ -207,6 +207,24 @@ public final class SurvivalItemService implements IHungerGamesService {
     public static final String NO_PARTICULAR_MODULE = "einem Wahlpflichtmodul";
 
     /**
+     * The two things these items say to whoever is holding them.
+     *
+     * <p>A seam like every other, for the same reason: this class must not need a {@code Player}. It exists
+     * because the port had neither line — the source answered every item use with a sentence and the port
+     * answered none of them, which for the protector in particular means an item that looks broken. A
+     * passive thing that does nothing when clicked and does not say why is one somebody clicks until they
+     * are convinced it is not working.
+     */
+    public interface Voice {
+
+        /** "⚡ EXMATRIKULATOR unleashed (Ns)!", the moment the aura goes up. */
+        void unleashed(UUID holder, Duration forHowLong);
+
+        /** Right-clicking the stupidness protector: it is passive, and here is what it actually does. */
+        void protectorIsPassive(UUID holder);
+    }
+
+    /**
      * Striking whatever is near the holder with one volley of the aura.
      *
      * @see #pulse()
@@ -241,6 +259,7 @@ public final class SurvivalItemService implements IHungerGamesService {
     private final Armoury armoury;
     private final Rescue rescue;
     private final Volley volley;
+    private final Voice voice;
     private final LongSupplier clock;
     private final Random random;
 
@@ -254,7 +273,8 @@ public final class SurvivalItemService implements IHungerGamesService {
 
     public SurvivalItemService(ItemAbilities abilities, CustomItems items, Supplier<GamePhase> phase,
                                Feasting feasting, Armoury armoury, Rescue rescue, Volley volley,
-                               LongSupplier clock, Random random, HungerGamesSettings settings) {
+                               Voice voice, LongSupplier clock, Random random,
+                               HungerGamesSettings settings) {
         this.abilities = abilities;
         this.items = items;
         this.phase = phase;
@@ -262,6 +282,7 @@ public final class SurvivalItemService implements IHungerGamesService {
         this.armoury = armoury;
         this.rescue = rescue;
         this.volley = volley;
+        this.voice = voice;
         this.clock = clock;
         this.random = random;
         this.settings = settings;
@@ -346,6 +367,14 @@ public final class SurvivalItemService implements IHungerGamesService {
                 .consumesItem()
                 .attempts(this::useExmatrikulator)
                 .build());
+
+        // Registered precisely so that clicking it does nothing and says so. It never consumes itself here
+        // — the protector is spent by saving somebody, which is wouldSaveFrom's job.
+        abilities.register(ItemAbility.builder(PLUGIN, STUPIDNESS_PROTECTOR)
+                .on(ItemTrigger.RIGHT_CLICK)
+                .describedAs("Passive — it saves its holder from lethal environmental damage on its own")
+                .attempts(this::explainTheProtector)
+                .build());
     }
 
     // ==================== what the items do ====================
@@ -380,7 +409,20 @@ public final class SurvivalItemService implements IHungerGamesService {
         long now = clock.getAsLong();
         activeAuras.put(use.player(),
                 new ActiveAura(now + EXMATRIKULATOR_DURATION.toMillis(), now));
+        voice.unleashed(use.player(), EXMATRIKULATOR_DURATION);
         return true;
+    }
+
+    /**
+     * Right-clicking the stupidness protector.
+     *
+     * <p>Always {@code false}, so the protector is never spent by being clicked — the source's own
+     * behaviour, and the reason it is registered at all: an ability that declines still gets a sentence in
+     * front of the player, and without one the item is indistinguishable from a broken one.
+     */
+    boolean explainTheProtector(ItemUse use) {
+        voice.protectorIsPassive(use.player());
+        return false;
     }
 
     /**

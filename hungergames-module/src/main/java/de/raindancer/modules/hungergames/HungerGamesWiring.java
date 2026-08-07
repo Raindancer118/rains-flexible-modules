@@ -17,6 +17,7 @@ import de.raindancer.modules.hungergames.listener.AdminHotbarListener;
 import de.raindancer.modules.hungergames.listener.AnnouncementListener;
 import de.raindancer.modules.hungergames.listener.ConnectionListener;
 import de.raindancer.modules.hungergames.listener.EliminationListener;
+import de.raindancer.modules.hungergames.listener.KrueckauwasserListener;
 import de.raindancer.modules.hungergames.listener.LobbyListener;
 import de.raindancer.modules.hungergames.listener.MedikitInterruptListener;
 import de.raindancer.modules.hungergames.listener.PortalListener;
@@ -72,6 +73,7 @@ import de.raindancer.modules.hungergames.visual.Schematics;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
@@ -81,8 +83,11 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
+import org.bukkit.entity.Snowball;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -196,6 +201,9 @@ public final class HungerGamesWiring {
      * exists precisely to arbitrate that, and it cannot if they both claim to be the same thing.
      */
     private static final String MEDIKIT_BAR = "hungergames-medikit";
+
+    /** Who owns the action bar slot Hermes' Boots count down in. See {@link #MEDIKIT_BAR}. */
+    private static final String HERMES_BAR = "hungergames-hermes";
 
     /** The medikit's wind-up, and the damage that cancels it. */
     private final MedikitCountdownService medikitCountdown;
@@ -339,7 +347,7 @@ public final class HungerGamesWiring {
                     return scheduled::cancel;
                 });
         this.survivalItems = new SurvivalItemService(core.itemAbilities(), core.items(), session::phase,
-                feasting(), armoury(), rescue(), volley(), System::currentTimeMillis, new Random(),
+                feasting(), armoury(), rescue(), volley(), itemVoice(), System::currentTimeMillis, new Random(),
                 settings());
     }
 
@@ -414,6 +422,9 @@ public final class HungerGamesWiring {
         // Any hit at all stops a medikit landing — the price of the most valuable item in the shop, and the
         // only counterplay to somebody using one mid-fight.
         context.listener(new MedikitInterruptListener(medikitCountdown::interrupt));
+        // A thrown bottle of krückauwasser landing. Its own listener because the item is a projectile:
+        // where it lands is the item, and a hitscan version of it cannot be dodged.
+        context.listener(new KrueckauwasserListener(krueckauImpact()));
 
         // The three items a gamemaster runs a tournament from. Without them this module's whole "click, do
         // not type" arrangement has no first click — see AdminHotbarListener.
@@ -937,11 +948,19 @@ public final class HungerGamesWiring {
                 }
             }
             if (nearest == null) {
+                holder.sendMessage(core.messages().get("hungergames.item-fiendfinder-nobody"));
                 return false;
             }
             nearest.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING,
                     (int) ticksOf(Duration.ofSeconds(now.fiendfinderGlowDuration())), 0, false, false, true));
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_FIENDFINDER);
+            holder.sendMessage(core.messages().get("hungergames.item-fiendfinder"));
+            holder.sendMessage(core.messages().get("hungergames.item-fiendfinder-found",
+                    "who", nearest.getName(),
+                    "distance", String.valueOf((int) Math.round(nearestDistance))));
+            // The person found is told. Being tracked without knowing it is the version of this item that
+            // has no counterplay at all, and the source told them for exactly that reason.
+            nearest.sendMessage(core.messages().get("hungergames.item-fiendfinder-revealed"));
             return true;
         };
     }
@@ -956,17 +975,25 @@ public final class HungerGamesWiring {
                 return false;
             }
             Location centre = holder.getLocation();
+            int fogged = 0;
             for (Player other : enemiesNear(holder, radius).stream()
                     .filter(entity -> entity instanceof Player).map(entity -> (Player) entity).toList()) {
                 other.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS,
                         (int) ticksOf(enemyEffectDuration), 0));
                 other.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS,
                         (int) ticksOf(enemyEffectDuration), 1));
+                fogged++;
             }
             core.effects().playAt(centre.getWorld().getName(), centre.getX(), centre.getY() + 1, centre.getZ(),
                     HungerGamesCues.ITEM_SMOKE_BOMB);
             if (!invisibilityDuration.isZero()) {
                 hideFully(holder, invisibilityDuration);
+                holder.sendMessage(core.messages().get("hungergames.item-smoke-bomb",
+                        "count", String.valueOf(fogged),
+                        "seconds", String.valueOf(invisibilityDuration.toSeconds())));
+            } else {
+                holder.sendMessage(core.messages().get("hungergames.item-smoke-bomb-no-cloak",
+                        "count", String.valueOf(fogged)));
             }
             return true;
         };
@@ -1136,19 +1163,28 @@ public final class HungerGamesWiring {
             }
             core.effects().playAt(world.getName(), centre.getX(), centre.getY(), centre.getZ(),
                     HungerGamesCues.ITEM_LIGHTNING);
+            holder.sendMessage(core.messages().get("hungergames.item-lightning",
+                    "bolts", String.valueOf(bolts)));
             return true;
         };
     }
 
     /**
-     * Throwing (and landing) a bottle of krückauwasser.
+     * Throwing a bottle of krückauwasser — a real projectile, as the source threw it.
      *
-     * <p>The source plugin launched an actual snowball and waited for {@code ProjectileHitEvent}. This
-     * lands it the same place a lightning strike aims — the holder's own target block, or a point ahead of
-     * them when there is nothing to hit — rather than adding a second projectile listener for one item: the
-     * splash's whole effect is "an area, some seconds after a right-click", and where that area centres is
-     * the only thing a real throw would have added. Declines, spending no charge, when nobody was actually
-     * in range — the same reasoning as the grappling hook's miss.
+     * <p>The port had this hitscan to the holder's target block, which is a different item: a thrown bottle
+     * arcs, can be dodged, can be blocked by the wall you are hiding behind, and lands at your own feet if
+     * you aim down. A hitscan splash cannot be avoided by moving, and "get out of the way" is the whole
+     * counterplay this item is balanced around.
+     *
+     * <p>A snowball wearing a splash potion, exactly as the source did it, marked in its persistent data so
+     * {@link KrueckauwasserListener} can tell it from a snowball somebody threw. What it does on landing is
+     * carried on the projectile too, so a bottle in flight when a gamemaster retunes the item still does
+     * what it promised when it was thrown.
+     *
+     * <p>Always true when there was somebody to throw it: the source consumed the bottle on the throw, not
+     * on a hit. A thrown bottle is gone whether or not it caught anybody, which is what makes throwing it
+     * a decision.
      */
     private CombatItemService.Splash splash() {
         return (use, radius, nauseaDuration, blindnessDuration) -> {
@@ -1156,49 +1192,83 @@ public final class HungerGamesWiring {
             if (holder == null) {
                 return false;
             }
-            // No settings key carries a throwing range for this item — twenty blocks is a bottle's own
-            // reasonable reach, long enough to catch somebody at melee-plus-a-few, not long enough to
-            // snipe across the arena the way the lightning strike's much longer range is meant to.
-            Block target = holder.getTargetBlockExact(20);
-            Location impact = target != null ? target.getLocation().add(0.5, 1, 0.5)
-                    : holder.getEyeLocation().add(holder.getEyeLocation().getDirection().multiply(20));
-            World world = impact.getWorld();
-            if (world == null) {
-                return false;
-            }
+            Snowball bottle = holder.launchProjectile(Snowball.class);
+            bottle.setItem(ItemStack.of(Material.SPLASH_POTION));
+            var pdc = bottle.getPersistentDataContainer();
+            pdc.set(krueckauMarker(), PersistentDataType.BOOLEAN, true);
+            pdc.set(krueckauRadius(), PersistentDataType.DOUBLE, radius);
+            pdc.set(krueckauNausea(), PersistentDataType.INTEGER, (int) ticksOf(nauseaDuration));
+            pdc.set(krueckauBlindness(), PersistentDataType.INTEGER, (int) ticksOf(blindnessDuration));
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_KRUECKAU_THROW);
-            int affected = 0;
-            for (UUID uuid : session.participants().alive()) {
-                Player caught = server.getPlayer(uuid);
-                if (caught == null || caught.getGameMode() == GameMode.SPECTATOR
-                        || !caught.getWorld().equals(world) || caught.getLocation().distance(impact) > radius) {
-                    continue;
-                }
-                if (!nauseaDuration.isZero()) {
-                    caught.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, (int) ticksOf(nauseaDuration), 0));
-                }
-                if (!blindnessDuration.isZero()) {
-                    caught.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS,
-                            (int) ticksOf(blindnessDuration), 0));
-                }
-                affected++;
-            }
-            if (affected > 0) {
-                core.effects().playAt(world.getName(), impact.getX(), impact.getY(), impact.getZ(),
-                        HungerGamesCues.ITEM_KRUECKAU_IMPACT);
-            }
-            return affected > 0;
+            holder.sendMessage(core.messages().get("hungergames.item-krueckau"));
+            return true;
         };
     }
 
+    private NamespacedKey krueckauMarker() {
+        return new NamespacedKey(plugin, "krueckauwasser");
+    }
+
+    private NamespacedKey krueckauRadius() {
+        return new NamespacedKey(plugin, "krueckauwasser-radius");
+    }
+
+    private NamespacedKey krueckauNausea() {
+        return new NamespacedKey(plugin, "krueckauwasser-nausea-ticks");
+    }
+
+    private NamespacedKey krueckauBlindness() {
+        return new NamespacedKey(plugin, "krueckauwasser-blindness-ticks");
+    }
+
     /**
-     * Raising the aura of protection: a repeated pulse for as long as the aura is up, each one striking and
-     * shoving whatever is still nearby.
+     * A bottle landing: nausea and blindness for every tribute inside its radius.
      *
-     * <p>{@code Scheduling.entityTimer}, not a hand-rolled runnable — it cancels itself automatically if the
-     * holder's entity goes away mid-aura (death, disconnect), which is exactly the leak the source's own
-     * {@code BukkitRunnable} needed a separate quit handler for and never got one.
+     * <p>Everybody in range, the thrower included — the source did not exempt them either, and a splash you
+     * can stand in the middle of is what makes throwing one at your own feet a bad idea rather than a free
+     * area denial.
      */
+    private KrueckauwasserListener.Impact krueckauImpact() {
+        return (projectile, worldName, x, y, z) -> {
+            var pdc = projectile.getPersistentDataContainer();
+            if (!Boolean.TRUE.equals(pdc.get(krueckauMarker(), PersistentDataType.BOOLEAN))) {
+                return false;
+            }
+            World world = server.getWorld(worldName);
+            if (world == null) {
+                return true;   // ours, so it is removed, even though there is nothing left to splash
+            }
+            double radius = Optional.ofNullable(pdc.get(krueckauRadius(), PersistentDataType.DOUBLE))
+                    .orElse(CombatItemService.KRUECKAUWASSER_RADIUS);
+            int nauseaTicks = Optional.ofNullable(pdc.get(krueckauNausea(), PersistentDataType.INTEGER))
+                    .orElse((int) ticksOf(CombatItemService.KRUECKAUWASSER_NAUSEA_DURATION));
+            int blindTicks = Optional.ofNullable(pdc.get(krueckauBlindness(), PersistentDataType.INTEGER))
+                    .orElse((int) ticksOf(CombatItemService.KRUECKAUWASSER_BLINDNESS_DURATION));
+
+            Location impact = new Location(world, x, y, z);
+            int caught = 0;
+            for (UUID uuid : session.participants().alive()) {
+                Player player = server.getPlayer(uuid);
+                if (player == null || player.getGameMode() == GameMode.SPECTATOR
+                        || !player.getWorld().equals(world)
+                        || player.getLocation().distance(impact) > radius) {
+                    continue;
+                }
+                if (nauseaTicks > 0) {
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, nauseaTicks, 0));
+                }
+                if (blindTicks > 0) {
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, blindTicks, 0));
+                }
+                caught++;
+            }
+            if (caught > 0) {
+                core.effects().playAt(worldName, x, y, z, HungerGamesCues.ITEM_KRUECKAU_IMPACT);
+            }
+            return true;
+        };
+    }
+
     private CombatItemService.Aura aura() {
         return (use, duration, radius, damage, pulseInterval, knockback) -> {
             Player holder = server.getPlayer(use.player());
@@ -1206,6 +1276,8 @@ public final class HungerGamesWiring {
                 return false;
             }
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_AURA);
+            holder.sendMessage(core.messages().get("hungergames.item-aura",
+                    "seconds", String.valueOf(duration.toSeconds())));
             long periodTicks = ticksOf(pulseInterval);
             long totalTicks = Math.max(periodTicks, ticksOf(duration));
             UUID id = holder.getUniqueId();
@@ -1247,15 +1319,21 @@ public final class HungerGamesWiring {
     private MobilityItemService.Flight flight() {
         return (use, forHowLong, warnBefore) -> {
             Player holder = server.getPlayer(use.player());
-            if (holder == null || holder.getAllowFlight()) {
+            if (holder == null) {
+                return false;
+            }
+            if (holder.getAllowFlight()) {
                 // Somebody who can already fly (Creative, Spectator) declines rather than borrowing flight
                 // they already have — switching it off again when this "flight" timed out would strip
-                // theirs along with it.
+                // theirs along with it. Told so, or the boots look broken.
+                holder.sendMessage(core.messages().get("hungergames.item-hermes-already-flying"));
                 return false;
             }
             holder.setAllowFlight(true);
             holder.setFlying(true);
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_HERMES_BOOTS);
+            holder.sendMessage(core.messages().get("hungergames.item-hermes",
+                    "seconds", String.valueOf(forHowLong.toSeconds())));
             long totalTicks = ticksOf(forHowLong);
             long warnAtTicks = totalTicks - ticksOf(warnBefore);
             UUID id = holder.getUniqueId();
@@ -1274,11 +1352,18 @@ public final class HungerGamesWiring {
                         current.setAllowFlight(false);
                         current.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING,
                                 (int) ticksOf(MobilityItemService.LEAP_SOFT_LANDING), 0, false, false, false));
+                        current.sendMessage(core.messages().get("hungergames.item-hermes-over"));
                     }
                     return;
                 }
                 if (elapsed[0] >= warnAtTicks) {
                     core.effects().play(id, HungerGamesCues.ITEM_HERMES_WARNING);
+                    // On the action bar and not in chat: it is a number that changes every second, and
+                    // somebody in the air is looking at the ground rather than at their chat.
+                    core.actionBars().show(id, HERMES_BAR,
+                            core.messages().get("hungergames.item-hermes-left",
+                                    "seconds", String.valueOf(Math.max(1L, (totalTicks - elapsed[0]) / 20L))),
+                            Duration.ofSeconds(2), ActionBarPriority.HIGH);
                 }
             });
             return true;
@@ -1307,6 +1392,7 @@ public final class HungerGamesWiring {
             holder.setVelocity(pull.normalize().multiply(power).setY(Math.max(0.4, pull.getY() > 0 ? 0.6 : 0.3)));
             holder.setFallDistance(0f);
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_GRAPPLING);
+            holder.sendMessage(core.messages().get("hungergames.item-grappling"));
             return true;
         };
     }
@@ -1319,6 +1405,7 @@ public final class HungerGamesWiring {
                 return false;
             }
             Location centre = holder.getLocation();
+            int shoved = 0;
             for (LivingEntity victim : enemiesNear(holder, radius)) {
                 Vector push = victim.getLocation().toVector().subtract(centre.toVector());
                 if (push.lengthSquared() < 1.0E-4) {
@@ -1328,9 +1415,12 @@ public final class HungerGamesWiring {
                 if (!slowFor.isZero()) {
                     victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, (int) ticksOf(slowFor), 1));
                 }
+                shoved++;
             }
             core.effects().playAt(centre.getWorld().getName(), centre.getX(), centre.getY() + 1, centre.getZ(),
                     HungerGamesCues.ITEM_REPULSE);
+            holder.sendMessage(core.messages().get("hungergames.item-repulse",
+                    "count", String.valueOf(shoved)));
             return true;
         };
     }
@@ -1350,6 +1440,7 @@ public final class HungerGamesWiring {
                         (int) ticksOf(softLanding), 0, false, false, false));
             }
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_LEAP);
+            holder.sendMessage(core.messages().get("hungergames.item-leap"));
             return true;
         };
     }
@@ -1378,6 +1469,7 @@ public final class HungerGamesWiring {
                         .forEach(rest -> holder.getWorld().dropItemNaturally(holder.getLocation(), rest));
             }
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_FEAST);
+            holder.sendMessage(core.messages().get("hungergames.item-feast"));
             return true;
         };
     }
@@ -1403,6 +1495,7 @@ public final class HungerGamesWiring {
                 }
             }
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_WAR_KIT);
+            holder.sendMessage(core.messages().get("hungergames.item-war-kit"));
             return true;
         };
     }
@@ -1481,6 +1574,7 @@ public final class HungerGamesWiring {
                 }
             }
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_STUPIDNESS_PROTECTOR);
+            holder.sendMessage(core.messages().get("hungergames.item-stupidness-saved"));
             return true;
         };
     }
@@ -1512,6 +1606,29 @@ public final class HungerGamesWiring {
      * begun and calls no seam of its own (see that class's javadoc), so this is the only moment this item
      * has anything to make a noise about.
      */
+    /** The two sentences the survival items say for themselves. */
+    private SurvivalItemService.Voice itemVoice() {
+        return new SurvivalItemService.Voice() {
+
+            @Override
+            public void unleashed(UUID holder, Duration forHowLong) {
+                Player player = server.getPlayer(holder);
+                if (player != null) {
+                    player.sendMessage(core.messages().get("hungergames.item-exmatrikulator",
+                            "seconds", String.valueOf(forHowLong.toSeconds())));
+                }
+            }
+
+            @Override
+            public void protectorIsPassive(UUID holder) {
+                Player player = server.getPlayer(holder);
+                if (player != null) {
+                    player.sendMessage(core.messages().get("hungergames.item-stupidness-passive"));
+                }
+            }
+        };
+    }
+
     private SurvivalItemService.Volley volley() {
         return (holderId, radius, maxTargets, damage, fireDuration) -> {
             Player holder = server.getPlayer(holderId);

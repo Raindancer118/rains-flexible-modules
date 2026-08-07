@@ -143,6 +143,48 @@ hungergames:
   allowed: "<green>✔ Now a tribute: <white><players></white></green> <gray>(<total> in total)</gray>"
   allowed-already: "<yellow>Already a tribute: <white><players></white></yellow>"
 
+  # ---------------------------------------------------------------- what an item says
+  #
+  # The source plugin answered every single item use with a line of chat, and the port answered none of
+  # them: the effects happened, the cues played, and nobody was told anything. That is not cosmetic. Half of
+  # these carry a number the player cannot see any other way — how many the smoke bomb caught, how many
+  # seconds of flight are left, how long the aura holds — and an item that gives no feedback at all is one
+  # people click twice because the first click looked like nothing.
+  #
+  # Each line is the source's own, in English. Where the source put a count in, the count stays.
+  item-smoke-bomb: "<gray>Smoke bomb — <white><count></white> fogged, and you are invisible for <white><seconds>s</white>.</gray>"
+  # A server that set items.smoke-bomb.invis-seconds to 0 gets the shorter sentence rather than "0s".
+  item-smoke-bomb-no-cloak: "<gray>Smoke bomb — <white><count></white> fogged.</gray>"
+  item-lightning: "<aqua>⚡ Lightning storm called down — <white><bolts></white> strikes!</aqua>"
+  item-krueckau: "<dark_green>Krückauwasser thrown.</dark_green>"
+  item-aura: "<gold>Aura of Protection active (<white><seconds>s</white>).</gold>"
+
+  item-hermes: "<yellow>Hermes' Boots — <white><seconds>s</white> of flight!</yellow>"
+  # On the action bar, in the last few seconds, so somebody in the air knows to look for ground.
+  item-hermes-left: "<yellow>Hermes' Boots: <white><seconds>s</white> left</yellow>"
+  item-hermes-over: "<gray>Hermes' Boots fizzle out.</gray>"
+  # Refused rather than used: switching flight off again afterwards would take away flight they already had.
+  item-hermes-already-flying: "<gray>You can already fly.</gray>"
+  item-grappling: "<aqua>Grappling hook!</aqua>"
+  item-repulse: "<white>Repulse — <white><count></white> enemies thrown back.</white>"
+  item-leap: "<green>Leap!</green>"
+
+  item-feast: "<gold>Feast enjoyed — full and fortified.</gold>"
+  item-war-kit: "<gray>War kit equipped.</gray>"
+  item-exmatrikulator: "<light_purple>⚡ EXMATRIKULATOR unleashed (<white><seconds>s</white>)!</light_purple>"
+  # Right-clicking it does nothing on purpose, and saying so is the whole point: without a line here it
+  # looks broken, and somebody clicks it until they are convinced it is.
+  item-stupidness-passive: "<dark_aqua>The Stupidness Protector is passive — it saves you from lethal environmental damage on its own.</dark_aqua>"
+  item-stupidness-saved: "<dark_aqua>Your Stupidness Protector saved you!</dark_aqua>"
+
+  # The Fiendfinder tells three people something: the holder that it worked, the holder who it found, and
+  # the person found that they have been found. The last is the item's whole balance — being tracked without
+  # knowing it is the version of this that has no counterplay.
+  item-fiendfinder: "<gold><bold>FIENDFINDER ACTIVATED!</bold></gold>"
+  item-fiendfinder-found: "<gray>Revealed: <yellow><who></yellow> <gray>(~<distance> blocks away)</gray>"
+  item-fiendfinder-nobody: "<red>No enemies found nearby!</red>"
+  item-fiendfinder-revealed: "<red><bold>⚠ You have been revealed by a Fiendfinder!</bold></red>"
+
   # ---------------------------------------------------------------- the medikit
   #
   # The medikit does not heal when it is clicked; it heals a few seconds later, and any damage in between

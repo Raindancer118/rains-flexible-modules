@@ -30,6 +30,34 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SurvivalItemServiceTest {
 
+    /** What the two spoken lines said, so a test can assert them without a server. */
+    private static final class RecordingVoice implements SurvivalItemService.Voice {
+        final java.util.List<String> said = new java.util.ArrayList<>();
+
+        @Override
+        public void unleashed(UUID holder, java.time.Duration forHowLong) {
+            said.add("unleashed:" + forHowLong.toSeconds());
+        }
+
+        @Override
+        public void protectorIsPassive(UUID holder) {
+            said.add("passive");
+        }
+    }
+
+    /** For the registration test, which is about which items exist rather than what they say. */
+    private static final class SilentVoice implements SurvivalItemService.Voice {
+        @Override
+        public void unleashed(UUID holder, java.time.Duration forHowLong) {
+        }
+
+        @Override
+        public void protectorIsPassive(UUID holder) {
+        }
+    }
+
+    private RecordingVoice voice;
+
     private GamePhase phase;
     private final AtomicLong clockMillis = new AtomicLong(0L);
 
@@ -85,6 +113,7 @@ class SurvivalItemServiceTest {
             lastRescueShoveStrength = shoveStrength;
             return !rescueRefuses;
         };
+        voice = new RecordingVoice();
         SurvivalItemService.Volley volley = (holder, radius, maxTargets, damage, fireDuration) -> {
             lastVolleyHolder = holder;
             lastVolleyRadius = radius;
@@ -95,7 +124,7 @@ class SurvivalItemServiceTest {
         };
 
         service = new SurvivalItemService(abilities, items, () -> phase, feasting, armoury, rescue, volley,
-                clockMillis::get, new Random(42), HungerGamesSettings.DEFAULTS);
+                voice, clockMillis::get, new Random(42), HungerGamesSettings.DEFAULTS);
         service.register();
     }
 
@@ -114,7 +143,7 @@ class SurvivalItemServiceTest {
             ItemAbilities abilities = new ItemAbilities(clockMillis::get);
             SurvivalItemService another = new SurvivalItemService(abilities, items, () -> phase,
                     (u, r, l, a) -> true, (u, p) -> true, (h, r, f, sr, ss) -> true, (h, r, m, d, f) -> List.of(),
-                    clockMillis::get, new Random(1), HungerGamesSettings.DEFAULTS);
+                    new SilentVoice(), clockMillis::get, new Random(1), HungerGamesSettings.DEFAULTS);
 
             another.register();
 
@@ -125,9 +154,31 @@ class SurvivalItemServiceTest {
             assertThat(abilities.byKey(SurvivalItemService.PLUGIN + ":" + SurvivalItemService.WAR_KIT)).isPresent();
             assertThat(abilities.byKey(SurvivalItemService.PLUGIN + ":" + SurvivalItemService.EXMATRIKULATOR))
                     .isPresent();
-            // The stupidness protector is deliberately passive — see the class javadoc.
+            // The stupidness protector is deliberately passive — see the class javadoc — and its ability
+            // exists only to say so. Without it, clicking the item is silent, and a passive thing that
+            // says nothing when clicked is one somebody clicks until they decide it is broken.
             assertThat(abilities.byKey(SurvivalItemService.PLUGIN + ":" + SurvivalItemService.STUPIDNESS_PROTECTOR))
-                    .isEmpty();
+                    .isPresent();
+        }
+
+        @Test
+        @DisplayName("right-clicking the protector explains itself and never spends the item")
+        void theProtectorSaysItIsPassive() {
+            assertThat(service.explainTheProtector(rightClick(UUID.randomUUID())))
+                    .as("true would take the protector out of somebody's inventory for clicking it")
+                    .isFalse();
+            assertThat(voice.said).containsExactly("passive");
+        }
+
+        @Test
+        @DisplayName("the exmatrikulator announces itself with the duration it is actually up for")
+        void theExmatrikulatorSaysSo() {
+            phase = GamePhase.RUNNING;
+
+            service.useExmatrikulator(rightClick(UUID.randomUUID()));
+
+            assertThat(voice.said)
+                    .containsExactly("unleashed:" + SurvivalItemService.EXMATRIKULATOR_DURATION.toSeconds());
         }
     }
 
