@@ -122,4 +122,22 @@ class EveryServiceIsActuallyWiredTest {
             assertThat(source).contains(".modelData(LEAP_MODEL_DATA)");
         }
     }
+
+    @Nested
+    @DisplayName("a live settings edit reaches the cornucopia")
+    class CornucopiaSettings {
+
+        // The bug this was written for: CornucopiaProvider was built once at boot with that moment's
+        // settings and handed straight to Core without ever being kept — settingsChanged() had thirty-odd
+        // services on it and this one was not among them. A gamemaster flipping protection.cornucopia.*
+        // on the settings page, or a fresh boot after editing config.yml by hand mid-tournament, changed
+        // nothing: the cornucopia kept answering with whatever was true when the module started, for the
+        // rest of the round.
+
+        @Test
+        @DisplayName("HungerGamesWiring.settingsChanged(...) calls cornucopia.settings(now)")
+        void reachesCornucopia() {
+            assertThat(wiringSource()).contains("cornucopia.settings(now)");
+        }
+    }
 }

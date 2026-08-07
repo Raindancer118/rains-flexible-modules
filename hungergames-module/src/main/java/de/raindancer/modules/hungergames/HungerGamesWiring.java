@@ -192,6 +192,7 @@ public final class HungerGamesWiring {
     private final PreflightCheckService preflight;
     private final Gamemasters gamemasters;
     private AdminHotbarListener hotbar;
+    private de.raindancer.modules.hungergames.service.CornucopiaProvider cornucopia;
 
     // ---- the fourteen custom items, across the four services that define them — see EveryItemIsRegisteredTest
     private final ArenaItemService arenaItems;
@@ -492,9 +493,12 @@ public final class HungerGamesWiring {
                 timer::isGraceActive, session::phase, session::isWhitelisted));
 
         // The cornucopia, as a Core protected area. Core owns the four listeners that ask it; this module
-        // only says where the area is and what may happen inside it.
-        core.land().provider(new de.raindancer.modules.hungergames.service.CornucopiaProvider(
-                settings(), session::phase, () -> arena.centre().orElse(null)));
+        // only says where the area is and what may happen inside it. Kept as a field — not just handed to
+        // Core and forgotten — so settingsChanged() can push a live protection-toggle edit into it; without
+        // that it keeps whatever protection.cornucopia.* said at boot for the rest of the tournament.
+        cornucopia = new de.raindancer.modules.hungergames.service.CornucopiaProvider(
+                settings(), session::phase, () -> arena.centre().orElse(null));
+        core.land().provider(cornucopia);
 
         supplyDrops.restoreFromStore();
         opTracker.restoreFromStore();
@@ -2433,6 +2437,9 @@ public final class HungerGamesWiring {
         }
         if (hotbar != null) {
             hotbar.settings(now);
+        }
+        if (cornucopia != null) {
+            cornucopia.settings(now);
         }
         borderPhases = loadBorderPhases();
         log.info("The settings were reloaded and passed to every service that reads them.");
