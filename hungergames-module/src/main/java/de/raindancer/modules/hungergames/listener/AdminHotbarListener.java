@@ -116,11 +116,20 @@ public final class AdminHotbarListener implements IHungerGamesListener {
      * Gives a gamemaster their items and takes them off anybody else.
      *
      * <p>Public so the moment somebody is promoted — or turns gamemaster mode on — can be reflected without
-     * waiting for them to rejoin.
+     * waiting for them to rejoin; also the reason the module's own phase watcher calls this again for
+     * every online player on every phase change, rather than only at join.
+     *
+     * <h2>Why none of the three survives into {@code RUNNING}</h2>
+     * A gamemaster who is also playing must not be carrying the tournament's own controls once they are a
+     * tribute — an admin suite reachable mid-fight is not a small convenience, it is a way to end the round
+     * they are losing. So all three are withheld the moment the round actually starts, the same moment this
+     * module clears every tribute's inventory for a clean start — see
+     * {@code HungerGamesWiring.phaseWatcher()}. They come back once the round is {@code FINISHED} or reset,
+     * because running the next one is exactly the gamemaster work these items exist for.
      */
     public void apply(Player player) {
         clear(player);
-        if (!PermissionNodes.mayOpenTheAdminSuite(player)) {
+        if (!PermissionNodes.mayOpenTheAdminSuite(player) || phase.get() == GamePhase.RUNNING) {
             return;
         }
         PlayerInventory inventory = player.getInventory();
@@ -148,8 +157,19 @@ public final class AdminHotbarListener implements IHungerGamesListener {
         }
     }
 
-    /** Right-clicking one opens what it says. */
-    @EventHandler(priority = EventPriority.HIGH)
+    /**
+     * Right-clicking one opens what it says.
+     *
+     * <h2>Why {@code LOWEST}</h2>
+     * WorldEdit is a required dependency of this module — see {@code HungerGamesModule}'s own note on why —
+     * and it binds its navigation wand to a plain compass for anybody holding
+     * {@code worldedit.navigation}, which every operator has by default. At any later priority WorldEdit's
+     * own listener has already teleported the holder before this ever sees the click; cancelling here,
+     * first, is what stops that race rather than merely making it rarer. See also {@link #adminItem()} —
+     * a recovery compass rather than a plain one, so the two tools are not fighting over the same material
+     * even when something runs before {@code LOWEST} some day.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onUse(PlayerInteractEvent event) {
         String tag = tagOf(event.getItem());
         if (tag == null) {
@@ -192,8 +212,13 @@ public final class AdminHotbarListener implements IHungerGamesListener {
 
     // ==================== the items ====================
 
+    /**
+     * A recovery compass, not a plain one — see {@link #onUse}'s note. WorldEdit's navigation wand is a
+     * plain compass, and an operator holding one right-clicks WorldEdit's own teleport-to-target before this
+     * item is ever recognised as ours.
+     */
     private ItemStack adminItem() {
-        return Icons.of(Material.COMPASS, "<aqua>The tournament",
+        return Icons.of(Material.RECOVERY_COMPASS, "<aqua>The tournament",
                 List.of("<gray>Right-click: everything.", "<dark_gray>The same page as /hg admin."));
     }
 
