@@ -61,14 +61,16 @@ class MobilityItemServiceTest {
         double lastRadius;
         double lastVelocity;
         Duration lastSlowFor;
+        boolean lastIncludeMobs;
         boolean answer = true;
 
         @Override
-        public boolean shove(ItemUse use, double radius, double velocity, Duration slowFor) {
+        public boolean shove(ItemUse use, double radius, double velocity, Duration slowFor, boolean includeMobs) {
             uses.add(use);
             lastRadius = radius;
             lastVelocity = velocity;
             lastSlowFor = slowFor;
+            lastIncludeMobs = includeMobs;
             return answer;
         }
     }
@@ -172,6 +174,7 @@ class MobilityItemServiceTest {
             assertThat(repulsion.lastRadius).isEqualTo(settings.repulseRadius());
             assertThat(repulsion.lastVelocity).isEqualTo(settings.repulseStrengthMultiplier());
             assertThat(repulsion.lastSlowFor).isEqualTo(Duration.ofSeconds(settings.repulseSlowSeconds()));
+            assertThat(repulsion.lastIncludeMobs).isEqualTo(settings.repulseAffectMobs());
         }
 
         @Test
@@ -182,6 +185,16 @@ class MobilityItemServiceTest {
             service.unleashRepulse(use(MobilityItemService.REPULSE));
 
             assertThat(repulsion.lastRadius).isEqualTo(12.0);
+        }
+
+        @Test
+        @DisplayName("a server that turned affect-mobs off is actually honoured")
+        void affectMobsIsTheServersOwn() {
+            service.settings(Tweak.of(settings, "repulseAffectMobs", false));
+
+            service.unleashRepulse(use(MobilityItemService.REPULSE));
+
+            assertThat(repulsion.lastIncludeMobs).isFalse();
         }
 
         @Test

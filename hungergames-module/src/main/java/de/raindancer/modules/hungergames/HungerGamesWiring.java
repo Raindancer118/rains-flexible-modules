@@ -830,16 +830,22 @@ public final class HungerGamesWiring {
 
     /**
      * Every enemy a combat or survival item may catch nearby: living tributes who are still alive and not
-     * spectating — never the holder, never a mannequin standing in for one — and, the source plugin's own
-     * default for every item that asked, hostile mobs as well.
+     * spectating — never the holder, never a mannequin standing in for one — and, when {@code includeMobs}
+     * says so, hostile mobs as well.
      *
      * <p>The source's {@code enemiesAround} in one place rather than five: the smoke bomb, repulse, the
      * aura of protection, the exmatrikulator's volley and the Stupidness Protector's shove all asked this
      * exact question, each with its own copy of the same loop. Distance and world are both the caller's
      * radius against {@code holder.getWorld()}, so an item used across worlds catches nobody rather than
      * comparing coordinates that do not mean the same thing.
+     *
+     * <p>{@code includeMobs} exists because two of the five callers — the aura and repulse — have their own
+     * settings toggle for it ({@code items.aura.affect-mobs}, {@code items.repulse.affect-mobs}), the source
+     * plugin's own defaults, both {@code true}. The other three never offered that toggle in the source
+     * either, so their call sites pass {@code true} outright rather than reading a setting that was never
+     * theirs to read.
      */
-    private List<LivingEntity> enemiesNear(Player holder, double radius) {
+    private List<LivingEntity> enemiesNear(Player holder, double radius, boolean includeMobs) {
         List<LivingEntity> found = new ArrayList<>();
         for (Entity entity : holder.getWorld().getNearbyEntities(holder.getLocation(), radius, radius, radius)) {
             if (entity.equals(holder) || entity instanceof org.bukkit.entity.Mannequin) {
@@ -849,7 +855,7 @@ public final class HungerGamesWiring {
                 if (other.getGameMode() != GameMode.SPECTATOR && session.participants().isAlive(other.getUniqueId())) {
                     found.add(other);
                 }
-            } else if (entity instanceof Monster monster) {
+            } else if (includeMobs && entity instanceof Monster monster) {
                 found.add(monster);
             }
         }
@@ -1096,7 +1102,7 @@ public final class HungerGamesWiring {
             }
             Location centre = holder.getLocation();
             int fogged = 0;
-            for (Player other : enemiesNear(holder, radius).stream()
+            for (Player other : enemiesNear(holder, radius, false).stream()
                     .filter(entity -> entity instanceof Player).map(entity -> (Player) entity).toList()) {
                 other.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS,
                         (int) ticksOf(enemyEffectDuration), 0));
@@ -1390,7 +1396,7 @@ public final class HungerGamesWiring {
     }
 
     private CombatItemService.Aura aura() {
-        return (use, duration, radius, damage, pulseInterval, knockback) -> {
+        return (use, duration, radius, damage, pulseInterval, knockback, includeMobs) -> {
             Player holder = server.getPlayer(use.player());
             if (holder == null) {
                 return false;
@@ -1410,7 +1416,7 @@ public final class HungerGamesWiring {
                     return;
                 }
                 Location centre = current.getLocation();
-                for (LivingEntity victim : enemiesNear(current, radius)) {
+                for (LivingEntity victim : enemiesNear(current, radius, includeMobs)) {
                     if (damage > 0) {
                         victim.damage(damage, current);
                     }
@@ -1589,14 +1595,14 @@ public final class HungerGamesWiring {
 
     /** Shoving everybody within a radius of the holder away, and slowing them briefly. */
     private MobilityItemService.Repulsion repulsion() {
-        return (use, radius, velocity, slowFor) -> {
+        return (use, radius, velocity, slowFor, includeMobs) -> {
             Player holder = server.getPlayer(use.player());
             if (holder == null) {
                 return false;
             }
             Location centre = holder.getLocation();
             int shoved = 0;
-            for (LivingEntity victim : enemiesNear(holder, radius)) {
+            for (LivingEntity victim : enemiesNear(holder, radius, includeMobs)) {
                 Vector push = victim.getLocation().toVector().subtract(centre.toVector());
                 if (push.lengthSquared() < 1.0E-4) {
                     push = new Vector(1, 0, 0);
@@ -1755,7 +1761,7 @@ public final class HungerGamesWiring {
             holder.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 100, 0, false, false, false));
             if (shoveRadius > 0 && shoveStrength > 0) {
                 Location centre = holder.getLocation();
-                for (LivingEntity victim : enemiesNear(holder, shoveRadius)) {
+                for (LivingEntity victim : enemiesNear(holder, shoveRadius, true)) {
                     Vector push = victim.getLocation().toVector().subtract(centre.toVector());
                     if (push.lengthSquared() < 1.0E-4) {
                         push = new Vector(1, 0, 0);
@@ -1827,7 +1833,7 @@ public final class HungerGamesWiring {
             }
             List<UUID> struck = new ArrayList<>();
             int fired = 0;
-            for (LivingEntity victim : enemiesNear(holder, radius)) {
+            for (LivingEntity victim : enemiesNear(holder, radius, true)) {
                 if (fired++ >= maxTargets) {
                     break;
                 }

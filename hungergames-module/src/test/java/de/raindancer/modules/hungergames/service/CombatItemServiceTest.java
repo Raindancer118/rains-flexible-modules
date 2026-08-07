@@ -81,8 +81,8 @@ class CombatItemServiceTest {
 
         @Override
         public boolean protect(ItemUse use, Duration duration, double radius, double damage,
-                                Duration pulseInterval, double knockback) {
-            lastCall = new Object[] {use, duration, radius, damage, pulseInterval, knockback};
+                                Duration pulseInterval, double knockback, boolean includeMobs) {
+            lastCall = new Object[] {use, duration, radius, damage, pulseInterval, knockback, includeMobs};
             return answer;
         }
     }
@@ -299,7 +299,7 @@ class CombatItemServiceTest {
         }
 
         @Test
-        @DisplayName("the aura passes its duration, radius, damage, pulse interval and knockback")
+        @DisplayName("the aura passes its duration, radius, damage, pulse interval, knockback and affect-mobs")
         void auraNumbers() {
             ItemUse itemUse = use(CombatItemService.AURA_OF_PROTECTION);
 
@@ -308,7 +308,21 @@ class CombatItemServiceTest {
             assertThat(happened).isTrue();
             assertThat(aura.lastCall).containsExactly(itemUse, Duration.ofSeconds(settings.auraDurationSeconds()),
                     (double) settings.auraRadius(), (double) settings.auraDamage(),
-                    Duration.ofMillis(settings.auraInterval() * 50L), settings.auraKnockbackStrength());
+                    Duration.ofMillis(settings.auraInterval() * 50L), settings.auraKnockbackStrength(),
+                    settings.auraAffectMobs());
+        }
+
+        @Test
+        @DisplayName("a server that turned affect-mobs off is actually honoured")
+        void auraAffectMobsIsTheServersOwn() {
+            // The regression this exists for: items.aura.affect-mobs was fully modelled as a setting but
+            // the seam never carried an includeMobs parameter at all — turning it off on a server changed
+            // nothing, because the geometry helper behind it hardcoded hostile mobs in unconditionally.
+            service.settings(de.raindancer.modules.hungergames.Tweak.of(settings, "auraAffectMobs", false));
+
+            service.activateAura(use(CombatItemService.AURA_OF_PROTECTION));
+
+            assertThat(aura.lastCall[6]).isEqualTo(false);
         }
     }
 

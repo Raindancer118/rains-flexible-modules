@@ -121,7 +121,7 @@ public final class MobilityItemService implements IHungerGamesService {
     public interface Repulsion {
 
         /** @return whether the shockwave actually went off */
-        boolean shove(ItemUse use, double radius, double velocity, Duration slowFor);
+        boolean shove(ItemUse use, double radius, double velocity, Duration slowFor, boolean includeMobs);
     }
 
     /** Launching the holder forwards, and softening whatever landing follows. */
@@ -240,7 +240,7 @@ public final class MobilityItemService implements IHungerGamesService {
     boolean unleashRepulse(ItemUse use) {
         HungerGamesSettings current = settings;
         return repulsion.shove(use, current.repulseRadius(), current.repulseStrengthMultiplier(),
-                Duration.ofSeconds(current.repulseSlowSeconds()));
+                Duration.ofSeconds(current.repulseSlowSeconds()), current.repulseAffectMobs());
     }
 
     /** @return whether the holder was actually launched. */

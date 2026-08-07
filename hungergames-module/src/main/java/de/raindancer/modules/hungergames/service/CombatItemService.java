@@ -326,7 +326,7 @@ public final class CombatItemService implements IHungerGamesService {
 
         /** @return whether the aura actually went up */
         boolean protect(ItemUse use, Duration duration, double radius, double damage, Duration pulseInterval,
-                        double knockback);
+                        double knockback, boolean includeMobs);
     }
 
     private final ItemAbilities abilities;
@@ -508,7 +508,7 @@ public final class CombatItemService implements IHungerGamesService {
         HungerGamesSettings current = settings;
         return aura.protect(use, Duration.ofSeconds(current.auraDurationSeconds()), current.auraRadius(),
                 current.auraDamage(), Duration.ofMillis(current.auraInterval() * 50L),
-                current.auraKnockbackStrength());
+                current.auraKnockbackStrength(), current.auraAffectMobs());
     }
 
 
