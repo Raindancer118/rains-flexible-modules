@@ -33,8 +33,10 @@ import java.util.List;
  *   <li><b>{@code /init}, {@code /startup}, {@code /start}</b> are a sequence, typed in order by somebody who
  *       already knows what comes next — and they are the part a console can do, so a scripted server can
  *       build its arena with nobody logged in.</li>
- *   <li><b>{@code /hg}</b> is the door to the pages, plus the two things that are not pages: what the round is
- *       doing, and ending it from a console that has no inventory to hold a confirmation in.</li>
+ *   <li><b>{@code /hg}</b> is the door to the pages, plus three things that are not pages: what the round is
+ *       doing, ending it from a console that has no inventory to hold a confirmation in, and switching a
+ *       tribute's chat channel mid-sentence — the one toggle worth typing rather than opening a menu for,
+ *       since it happens while a chat box is already open.</li>
  *   <li><b>{@code /fliptable confirm}</b> for the same reason as that last one, and more so: resetting the
  *       server between evenings is done by whoever is on SSH, and a console cannot click a dialog. The typed
  *       word <em>is</em> the confirmation, which is why tab completion does not offer it.</li>
@@ -69,6 +71,7 @@ public final class HungerGamesCommands {
                                 // No "shop": the sponsor shop opens at a beacon and nowhere else.
                                 "spectate — watch a living tribute",
                                 "give <item> [amount] [player] — a custom item, for testing",
+                                "chat [team|all] — switch your channel, or flip it with no argument",
                                 "status — where the round is",
                                 "admin — the page a tournament is run from",
                                 "end — score the round now"),

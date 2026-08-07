@@ -2,6 +2,8 @@ package de.raindancer.modules.hungergames.command;
 
 import de.raindancer.core.content.items.CustomItem;
 import de.raindancer.modules.hungergames.HungerGamesServices;
+import de.raindancer.modules.hungergames.model.ChatChannel;
+import de.raindancer.modules.hungergames.service.ChatChannelService;
 import de.raindancer.modules.hungergames.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
@@ -79,6 +81,7 @@ public final class HungerGamesCommand implements IHungerGamesCommand {
             // the beacon into decoration, which is not a thing a port gets to decide.
             case "spectate" -> openFor(hg, sender, true, hg.screens()::spectate);
             case "give" -> give(hg, sender, args);
+            case "chat" -> chat(hg, sender, args);
             case "end" -> end(hg, sender);
             default -> hg.messages().send(sender, "hungergames.unknown-subcommand", "what", sub);
         }
@@ -220,11 +223,54 @@ public final class HungerGamesCommand implements IHungerGamesCommand {
                 recipient.getName());
     }
 
+    /**
+     * {@code /hg chat [team|all]} — switching which of a tribute's two channels their next line goes to.
+     *
+     * <p>Typed rather than a button, unlike almost everything else in this class — see the class note on
+     * why the six that are commands earn their place. A chat channel is switched in the middle of typing
+     * to somebody, and asking a player to close their chat box, open a menu, click a tile and reopen chat
+     * defeats the entire point of a quick toggle.
+     *
+     * <p>No argument flips between the two; naming one is for a tribute who already knows which they want
+     * and does not want to guess which way a flip goes. {@link ChatChannelService} refuses outright rather
+     * than half-applying — see {@link ChatChannelService.SwitchOutcome}.
+     */
+    private void chat(HungerGamesServices hg, CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            hg.messages().send(sender, "hungergames.only-a-player");
+            return;
+        }
+        ChatChannel requested;
+        if (args.length >= 2) {
+            String named = args[1].toLowerCase(Locale.ROOT);
+            requested = switch (named) {
+                case "team" -> ChatChannel.TEAM;
+                case "all" -> ChatChannel.ALL;
+                default -> null;
+            };
+            if (requested == null) {
+                hg.messages().send(sender, "hungergames.unknown-subcommand", "what", "chat " + named);
+                return;
+            }
+        } else {
+            requested = hg.chatChannels().other(player.getUniqueId());
+        }
+
+        ChatChannelService.SwitchOutcome outcome = hg.chatChannels().switchTo(player.getUniqueId(), requested);
+        switch (outcome) {
+            case OK -> hg.messages().send(sender,
+                    requested == ChatChannel.TEAM ? "hungergames.chat-switched-team"
+                            : "hungergames.chat-switched-all");
+            case YOU_ARE_A_SPECTATOR -> hg.messages().send(sender, "hungergames.chat-you-are-a-spectator");
+            case YOU_HAVE_NO_TEAM -> hg.messages().send(sender, "hungergames.chat-no-team");
+        }
+    }
+
     private void help(HungerGamesServices hg, CommandSender sender) {
         // No help-shop line: the shop has no command any more, and a help page naming one is worse than a
         // help page that is short.
         for (String line : List.of("hungergames.help-header", "hungergames.help-teams",
-                "hungergames.help-spectate", "hungergames.help-status")) {
+                "hungergames.help-spectate", "hungergames.help-status", "hungergames.help-chat")) {
             hg.messages().send(sender, line);
         }
         if (PermissionNodes.mayOpenTheAdminSuite(sender)) {
@@ -248,12 +294,16 @@ public final class HungerGamesCommand implements IHungerGamesCommand {
                     .sorted()
                     .toList();
         }
+        if (args.length == 2 && args[0].equalsIgnoreCase("chat")) {
+            String typed = args[1].toLowerCase(Locale.ROOT);
+            return List.of("team", "all").stream().filter(one -> one.startsWith(typed)).sorted().toList();
+        }
         if (args.length > 1) {
             return List.of();
         }
         String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
 
-        List<String> offered = new ArrayList<>(List.of("teams", "spectate", "status", "help"));
+        List<String> offered = new ArrayList<>(List.of("teams", "spectate", "status", "chat", "help"));
         // Suggested only to somebody who may use them. Offering "admin" to every player is how a page they
         // cannot open becomes the thing they type first.
         if (PermissionNodes.mayOpenTheAdminSuite(source.getSender())) {

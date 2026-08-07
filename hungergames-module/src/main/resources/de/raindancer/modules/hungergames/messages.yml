@@ -137,6 +137,20 @@ hungergames:
   unknown-subcommand: "<red>No such thing as <white><what></white>. Try /hg help.</red>"
   status: "<gold>Phase <white><phase></white> — <white><alive></white> of <white><registered></white> tributes alive, <white><teams></white> team(s).</gold>"
 
+  # ---------------------------------------------------------------- /hg chat
+  #
+  # There was no channel at all before this: every tribute's chat was ordinary server chat, on for
+  # everybody including whoever had just been eliminated. <who> is never escaped through Messages — it is
+  # rebuilt by ChatChannelListener as plain text first, the same rule the moderation module's staff chat
+  # follows, so a tribute named with a stray MiniMessage tag cannot recolour somebody else's line.
+  chat-switched-team: "<green>You are now talking in <white>team chat</white>.</green>"
+  chat-switched-all: "<green>You are now talking to <white>everybody</white>.</green>"
+  chat-no-team: "<red>You are not on a team, so there is nobody to switch to.</red>"
+  chat-you-are-a-spectator: "<red>Eliminated tributes only talk in the spectator channel.</red>"
+  chat-team-line: "<aqua>[Team]</aqua> <white><who></white><gray>: <what></gray>"
+  chat-all-line: "<white><who></white><gray>: <what></gray>"
+  chat-spectator-line: "<dark_gray>[Spectator]</dark_gray> <gray><who></gray><dark_gray>: <what></dark_gray>"
+
   # /allow. Both name the players rather than counting them: somebody pasting a sign-up list needs to see
   # which of them were already there, because the usual reason is that they pasted the same block twice.
   allow-usage: "<red>/allow <player> [player…] — several at once, online or not.</red>"
@@ -226,6 +240,7 @@ hungergames:
   # makes a beacon worth crossing the arena for.
   help-spectate: "<gray>/hg spectate — watch a living tribute</gray>"
   help-status: "<gray>/hg status — where the round is</gray>"
+  help-chat: "<gray>/hg chat [team|all] — switch your channel, or flip it with no argument</gray>"
   help-admin: "<yellow>/hg admin — the page a tournament is run from</yellow>"
   help-give: "<yellow>/hg give <item> [amount] [player] — a custom item, for testing</yellow>"
 

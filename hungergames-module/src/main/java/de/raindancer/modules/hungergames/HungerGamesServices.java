@@ -6,6 +6,7 @@ import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.modules.hungergames.service.ChatChannelService;
 import de.raindancer.modules.hungergames.service.DeathmatchService;
 import de.raindancer.modules.hungergames.service.GameControlService;
 import de.raindancer.modules.hungergames.service.PreflightCheckService;
@@ -51,6 +52,7 @@ public record HungerGamesServices(
         GameControlService control,
         PreflightCheckService preflight,
         DeathmatchService deathmatch,
+        ChatChannelService chatChannels,
 
         Supplier<HungerGamesSettings> settings,
         IHungerGamesScreensOpener screens,

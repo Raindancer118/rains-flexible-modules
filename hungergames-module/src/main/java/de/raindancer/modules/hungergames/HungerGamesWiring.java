@@ -171,6 +171,7 @@ public final class HungerGamesWiring {
     private final BorderService border;
     private final DeathmatchService deathmatch;
     private final SpectatorService spectators;
+    private final de.raindancer.modules.hungergames.service.ChatChannelService chatChannels;
     private final TeamPresentationService presentation;
     private final OpTrackerService opTracker;
     private final AnnouncementService announcements;
@@ -294,6 +295,7 @@ public final class HungerGamesWiring {
                 uuid -> Optional.ofNullable(server.getPlayer(uuid)),
                 (spectator, target) -> spectator.teleport(target.getLocation()),
                 player -> player.setGameMode(GameMode.SPECTATOR));
+        this.chatChannels = new de.raindancer.modules.hungergames.service.ChatChannelService(session);
         this.opTracker = new OpTrackerService(session, opAccess(), runtimeStore, roundLog,
                 (uuid, message) -> {
                     Player who = server.getPlayer(uuid);
@@ -441,6 +443,11 @@ public final class HungerGamesWiring {
         // A thrown bottle of krückauwasser landing. Its own listener because the item is a projectile:
         // where it lands is the item, and a hitscan version of it cannot be dodged.
         context.listener(new KrueckauwasserListener(krueckauImpact()));
+        // Team, all, or spectator — see ChatChannelService's class note for the bug this fixes: there was
+        // no channel at all before this, so a team's fight plan was overheard by everybody they were
+        // fighting, and being eliminated changed nothing about who could still read a tribute's words.
+        context.listener(new de.raindancer.modules.hungergames.listener.ChatChannelListener(
+                plugin, session, chatChannels, core.messages(), server));
 
         // The three items a gamemaster runs a tournament from. Without them this module's whole "click, do
         // not type" arrangement has no first click — see AdminHotbarListener.
@@ -493,7 +500,8 @@ public final class HungerGamesWiring {
         settingsStore.onChange(this::settingsChanged);
 
         return new HungerGamesServices(plugin, server, log, core.messages(), context.chat(), brand,
-                session, control, preflight, deathmatch, settingsStore::current, screens, core.items(), core.itemFactory());
+                session, control, preflight, deathmatch, chatChannels, settingsStore::current, screens,
+                core.items(), core.itemFactory());
     }
 
     // ==================== the tick ====================
@@ -2373,6 +2381,7 @@ public final class HungerGamesWiring {
         hermesBoots.settings(now);
         survivalItems.settings(now);
         medikitCountdown.settings(now);
+        chatChannels.settings(now);
         if (apiSupport != null) {
             apiSupport.settings(now);
         }
