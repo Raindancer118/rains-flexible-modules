@@ -5,7 +5,6 @@ import de.raindancer.core.content.items.ItemTrigger;
 import de.raindancer.core.content.items.ItemUse;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
 import de.raindancer.modules.hungergames.Tweak;
-import de.raindancer.modules.hungergames.model.GamePhase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -97,7 +96,6 @@ class MobilityItemServiceTest {
 
     private final HungerGamesSettings settings = HungerGamesSettings.DEFAULTS;
 
-    private GamePhase phase;
     private RecordingGrappling grappling;
     private RecordingRepulsion repulsion;
     private RecordingLaunching launching;
@@ -105,12 +103,10 @@ class MobilityItemServiceTest {
 
     @BeforeEach
     void setUp() {
-        phase = GamePhase.RUNNING;
         grappling = new RecordingGrappling();
         repulsion = new RecordingRepulsion();
         launching = new RecordingLaunching();
-        service = new MobilityItemService(abilities, items, () -> phase, grappling, repulsion,
-                launching, settings);
+        service = new MobilityItemService(abilities, items, grappling, repulsion, launching, settings);
     }
 
     private static ItemUse use(String ability) {
@@ -143,14 +139,11 @@ class MobilityItemServiceTest {
         }
 
         @Test
-        @DisplayName("does nothing outside a running round")
-        void doesNothingOutsideARunningRound() {
-            phase = GamePhase.READY;
-
+        @DisplayName("still works with no round on at all")
+        void worksOutsideARound() {
             boolean result = service.fireTheGrapplingHook(use(MobilityItemService.GRAPPLING_HOOK));
 
-            assertThat(result).isFalse();
-            assertThat(grappling.uses).isEmpty();
+            assertThat(result).isTrue();
         }
 
         @Test
@@ -192,14 +185,11 @@ class MobilityItemServiceTest {
         }
 
         @Test
-        @DisplayName("does nothing outside a running round")
-        void doesNothingOutsideARunningRound() {
-            phase = GamePhase.FINISHED;
-
+        @DisplayName("still works with no round on at all")
+        void worksOutsideARound() {
             boolean result = service.unleashRepulse(use(MobilityItemService.REPULSE));
 
-            assertThat(result).isFalse();
-            assertThat(repulsion.uses).isEmpty();
+            assertThat(result).isTrue();
         }
 
         @Test
@@ -238,14 +228,11 @@ class MobilityItemServiceTest {
         }
 
         @Test
-        @DisplayName("does nothing outside a running round")
-        void doesNothingOutsideARunningRound() {
-            phase = GamePhase.STARTUP;
-
+        @DisplayName("still works with no round on at all")
+        void worksOutsideARound() {
             boolean result = service.leap(use(MobilityItemService.LEAP));
 
-            assertThat(result).isFalse();
-            assertThat(launching.uses).isEmpty();
+            assertThat(result).isTrue();
         }
 
         @Test
@@ -285,7 +272,7 @@ class MobilityItemServiceTest {
         @Test
         @DisplayName("a server that set one is actually honoured, at the moment it registers")
         void aConfiguredCooldownIsHonoured() {
-            MobilityItemService tuned = new MobilityItemService(abilities, items, () -> phase,
+            MobilityItemService tuned = new MobilityItemService(abilities, items,
                     grappling, repulsion, launching, Tweak.of(settings, "leapCooldownSeconds", 6));
 
             tuned.register();
@@ -298,22 +285,6 @@ class MobilityItemServiceTest {
                             .filter(ability -> ability.id().equals(MobilityItemService.LEAP))
                             .findFirst().orElseThrow().cooldownMillis())
                     .isEqualTo(6_000L);
-        }
-    }
-
-    @Nested
-    @DisplayName("phase checking")
-    class PhaseChecking {
-
-        @Test
-        @DisplayName("duringARound is true only while the round is RUNNING")
-        void duringARoundIsTrueOnlyWhileRunning() {
-            for (GamePhase candidate : GamePhase.values()) {
-                phase = candidate;
-                assertThat(service.duringARound())
-                        .as("phase " + candidate)
-                        .isEqualTo(candidate == GamePhase.RUNNING);
-            }
         }
     }
 

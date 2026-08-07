@@ -7,11 +7,9 @@ import de.raindancer.core.content.items.ItemAbility;
 import de.raindancer.core.content.items.ItemTrigger;
 import de.raindancer.core.content.items.ItemUse;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
-import de.raindancer.modules.hungergames.model.GamePhase;
 import org.bukkit.Material;
 
 import java.util.List;
-import java.util.function.Supplier;
 
 /**
  * The arena's own item — the Fiendfinder — registered with RainsCore rather than implemented here.
@@ -31,11 +29,12 @@ import java.util.function.Supplier;
  * item), a charge count that survived a rejoin because it was keyed on the item stack rather than the player,
  * and an ability that fired on both {@code RIGHT_CLICK_AIR} and {@code RIGHT_CLICK_BLOCK} for one click.
  *
- * <h2>Why the phase check is in the predicate rather than around it</h2>
- * Because Core is what will call this, from its own listener, and the answer has to be current at the moment
- * of the click rather than at the moment of registration. A Fiendfinder pointing at the nearest tribute
- * between rounds is a compass that tells somebody where a player is standing on a server they are not playing
- * a game with — which is a considerably worse thing to ship than a broken item.
+ * <h2>Why there is no round check any more</h2>
+ * There used to be one: a Fiendfinder that only worked while {@code GamePhase.RUNNING}. Real feedback from
+ * using it — testing an item is the reason to hold one between rounds, and a gamemaster checking whether the
+ * grappling hook still pulls should not have to start a whole tournament first. What tracking somebody
+ * between rounds means is now the tracking function's own business, not this class's to refuse on its
+ * behalf.
  */
 public final class ArenaItemService implements IHungerGamesService {
 
@@ -64,16 +63,14 @@ public final class ArenaItemService implements IHungerGamesService {
 
     private final ItemAbilities abilities;
     private final CustomItems items;
-    private final Supplier<GamePhase> phase;
     private final Tracking tracking;
 
     private volatile HungerGamesSettings settings;
 
-    public ArenaItemService(ItemAbilities abilities, CustomItems items, Supplier<GamePhase> phase,
-                            Tracking tracking, HungerGamesSettings settings) {
+    public ArenaItemService(ItemAbilities abilities, CustomItems items, Tracking tracking,
+                            HungerGamesSettings settings) {
         this.abilities = abilities;
         this.items = items;
-        this.phase = phase;
         this.tracking = tracking;
         this.settings = settings;
     }
@@ -124,20 +121,7 @@ public final class ArenaItemService implements IHungerGamesService {
      *         left to find must not burn fifteen seconds.
      */
     boolean readTheFiendfinder(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         return tracking.pointAtNearestTribute(use);
-    }
-
-    /**
-     * Whether a round is actually on.
-     *
-     * <p>Asked per use rather than once at registration. An arena item that works between rounds is a tracker
-     * pointed at people who are not playing — see the class note.
-     */
-    boolean duringARound() {
-        return phase.get() == GamePhase.RUNNING;
     }
 
     @Override

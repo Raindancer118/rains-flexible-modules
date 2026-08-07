@@ -7,7 +7,6 @@ import de.raindancer.core.content.items.ItemAbility;
 import de.raindancer.core.content.items.ItemTrigger;
 import de.raindancer.core.content.items.ItemUse;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
-import de.raindancer.modules.hungergames.model.GamePhase;
 import org.bukkit.Material;
 
 import java.time.Duration;
@@ -20,7 +19,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
-import java.util.function.Supplier;
 
 /**
  * Four of the source plugin's custom items, ported onto Core's {@link ItemAbilities} the same way
@@ -254,7 +252,6 @@ public final class SurvivalItemService implements IHungerGamesService {
 
     private final ItemAbilities abilities;
     private final CustomItems items;
-    private final Supplier<GamePhase> phase;
     private final Feasting feasting;
     private final Armoury armoury;
     private final Rescue rescue;
@@ -271,13 +268,12 @@ public final class SurvivalItemService implements IHungerGamesService {
 
     private volatile HungerGamesSettings settings;
 
-    public SurvivalItemService(ItemAbilities abilities, CustomItems items, Supplier<GamePhase> phase,
+    public SurvivalItemService(ItemAbilities abilities, CustomItems items,
                                Feasting feasting, Armoury armoury, Rescue rescue, Volley volley,
                                Voice voice, LongSupplier clock, Random random,
                                HungerGamesSettings settings) {
         this.abilities = abilities;
         this.items = items;
-        this.phase = phase;
         this.feasting = feasting;
         this.armoury = armoury;
         this.rescue = rescue;
@@ -381,17 +377,11 @@ public final class SurvivalItemService implements IHungerGamesService {
 
     /** @return whether there was a live holder to feed — always the case during a round. */
     boolean useFeast(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         return feasting.feed(use, FEAST_REGENERATION, FEAST_REGENERATION_LEVEL, FEAST_GOLDEN_APPLES);
     }
 
     /** @return whether the holder actually received the armour. */
     boolean useWarKit(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         return armoury.equip(use, WAR_KIT_ARMOUR);
     }
 
@@ -403,9 +393,6 @@ public final class SurvivalItemService implements IHungerGamesService {
      * @return whether the aura was actually raised
      */
     boolean useExmatrikulator(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         long now = clock.getAsLong();
         activeAuras.put(use.player(),
                 new ActiveAura(now + EXMATRIKULATOR_DURATION.toMillis(), now));
@@ -438,9 +425,6 @@ public final class SurvivalItemService implements IHungerGamesService {
      * @return whether the holder was saved — the caller should cancel the damage exactly when this is true
      */
     public boolean wouldSaveFrom(UUID holder, String causeName) {
-        if (!duringARound()) {
-            return false;
-        }
         if (causeName != null && STUPIDNESS_EXCLUDED_CAUSES.contains(causeName.toUpperCase(java.util.Locale.ROOT))) {
             return false;
         }
@@ -520,13 +504,6 @@ public final class SurvivalItemService implements IHungerGamesService {
         return Optional.of(hit.templateWithModule().replace(KILLER_PLACEHOLDER, killerName));
     }
 
-    /**
-     * Whether a round is actually on. Asked per use rather than once at registration — see
-     * {@link ArenaItemService#duringARound()}'s javadoc for why.
-     */
-    boolean duringARound() {
-        return phase.get() == GamePhase.RUNNING;
-    }
 
     @Override
     public String describe() {

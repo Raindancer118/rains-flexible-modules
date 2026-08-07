@@ -5,7 +5,6 @@ import de.raindancer.core.content.items.ItemTrigger;
 import de.raindancer.core.content.items.ItemUse;
 import de.raindancer.core.content.items.CustomItems;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
-import de.raindancer.modules.hungergames.model.GamePhase;
 import org.bukkit.Material;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -58,7 +57,6 @@ class SurvivalItemServiceTest {
 
     private RecordingVoice voice;
 
-    private GamePhase phase;
     private final AtomicLong clockMillis = new AtomicLong(0L);
 
     private boolean feastRefuses;
@@ -89,7 +87,6 @@ class SurvivalItemServiceTest {
 
     @BeforeEach
     void setUp(@TempDir Path dir) {
-        phase = GamePhase.LOBBY;
         ItemAbilities abilities = new ItemAbilities(clockMillis::get);
         CustomItems items = new CustomItems(dir.resolve("items.yml"));
 
@@ -123,7 +120,7 @@ class SurvivalItemServiceTest {
             return List.copyOf(nextVolleyHits);
         };
 
-        service = new SurvivalItemService(abilities, items, () -> phase, feasting, armoury, rescue, volley,
+        service = new SurvivalItemService(abilities, items, feasting, armoury, rescue, volley,
                 voice, clockMillis::get, new Random(42), HungerGamesSettings.DEFAULTS);
         service.register();
     }
@@ -141,7 +138,7 @@ class SurvivalItemServiceTest {
         void definesEverything(@TempDir Path dir) {
             CustomItems items = new CustomItems(dir.resolve("items.yml"));
             ItemAbilities abilities = new ItemAbilities(clockMillis::get);
-            SurvivalItemService another = new SurvivalItemService(abilities, items, () -> phase,
+            SurvivalItemService another = new SurvivalItemService(abilities, items,
                     (u, r, l, a) -> true, (u, p) -> true, (h, r, f, sr, ss) -> true, (h, r, m, d, f) -> List.of(),
                     new SilentVoice(), clockMillis::get, new Random(1), HungerGamesSettings.DEFAULTS);
 
@@ -173,7 +170,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("the exmatrikulator announces itself with the duration it is actually up for")
         void theExmatrikulatorSaysSo() {
-            phase = GamePhase.RUNNING;
 
             service.useExmatrikulator(rightClick(UUID.randomUUID()));
 
@@ -187,20 +183,17 @@ class SurvivalItemServiceTest {
     class Feast {
 
         @Test
-        @DisplayName("does nothing outside RUNNING")
-        void refusesOutsideRunning() {
-            phase = GamePhase.LOBBY;
-
+        @DisplayName("still works with no round on at all")
+        void worksOutsideARound() {
             boolean result = service.useFeast(rightClick(UUID.randomUUID()));
 
-            assertThat(result).isFalse();
-            assertThat(lastFeastUse).isNull();
+            assertThat(result).isTrue();
+            assertThat(lastFeastUse).isNotNull();
         }
 
         @Test
         @DisplayName("feeds the holder during RUNNING, with the tuned constants")
         void feedsDuringRunning() {
-            phase = GamePhase.RUNNING;
             UUID player = UUID.randomUUID();
 
             boolean result = service.useFeast(rightClick(player));
@@ -215,7 +208,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("a refused seam means the ability reports failure too")
         void refusedSeamPropagates() {
-            phase = GamePhase.RUNNING;
             feastRefuses = true;
 
             boolean result = service.useFeast(rightClick(UUID.randomUUID()));
@@ -229,20 +221,17 @@ class SurvivalItemServiceTest {
     class WarKit {
 
         @Test
-        @DisplayName("does nothing outside RUNNING")
-        void refusesOutsideRunning() {
-            phase = GamePhase.STARTUP;
-
+        @DisplayName("still works with no round on at all")
+        void worksOutsideARound() {
             boolean result = service.useWarKit(rightClick(UUID.randomUUID()));
 
-            assertThat(result).isFalse();
-            assertThat(lastWarKitUse).isNull();
+            assertThat(result).isTrue();
+            assertThat(lastWarKitUse).isNotNull();
         }
 
         @Test
         @DisplayName("equips the full iron set during RUNNING")
         void equipsDuringRunning() {
-            phase = GamePhase.RUNNING;
 
             boolean result = service.useWarKit(rightClick(UUID.randomUUID()));
 
@@ -255,7 +244,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("a refused seam means the ability reports failure too")
         void refusedSeamPropagates() {
-            phase = GamePhase.RUNNING;
             warKitRefuses = true;
 
             boolean result = service.useWarKit(rightClick(UUID.randomUUID()));
@@ -269,20 +257,17 @@ class SurvivalItemServiceTest {
     class StupidnessProtector {
 
         @Test
-        @DisplayName("does nothing outside RUNNING")
-        void refusesOutsideRunning() {
-            phase = GamePhase.LOBBY;
-
+        @DisplayName("still saves with no round on at all")
+        void worksOutsideARound() {
             boolean result = service.wouldSaveFrom(UUID.randomUUID(), "LAVA");
 
-            assertThat(result).isFalse();
-            assertThat(lastRescueHolder).isNull();
+            assertThat(result).isTrue();
+            assertThat(lastRescueHolder).isNotNull();
         }
 
         @Test
         @DisplayName("saves from lava, a fall, fire and an ordinary mob")
         void savesFromEnvironmentalCauses() {
-            phase = GamePhase.RUNNING;
             UUID player = UUID.randomUUID();
 
             for (String cause : List.of("LAVA", "FALL", "FIRE", "ENTITY_ATTACK", "DROWNING")) {
@@ -298,7 +283,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("never saves from another tribute's kill")
         void neverSavesFromAPlayer() {
-            phase = GamePhase.RUNNING;
 
             boolean result = service.wouldSaveFrom(UUID.randomUUID(), "player");
 
@@ -309,7 +293,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("never saves from a custom item's damage, e.g. the exmatrikulator's lightning")
         void neverSavesFromACustomItem() {
-            phase = GamePhase.RUNNING;
 
             boolean result = service.wouldSaveFrom(UUID.randomUUID(), "custom_item");
 
@@ -320,7 +303,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("a refused rescue (no protector in inventory) reports failure")
         void refusedRescuePropagates() {
-            phase = GamePhase.RUNNING;
             rescueRefuses = true;
 
             boolean result = service.wouldSaveFrom(UUID.randomUUID(), "lava");
@@ -334,22 +316,20 @@ class SurvivalItemServiceTest {
     class Exmatrikulator {
 
         @Test
-        @DisplayName("does not raise an aura outside RUNNING")
-        void refusesOutsideRunning() {
-            phase = GamePhase.LOBBY;
+        @DisplayName("still raises an aura with no round on at all")
+        void worksOutsideARound() {
             UUID player = UUID.randomUUID();
 
             boolean result = service.useExmatrikulator(rightClick(player));
             service.pulse();
 
-            assertThat(result).isFalse();
-            assertThat(lastVolleyHolder).isNull();
+            assertThat(result).isTrue();
+            assertThat(lastVolleyHolder).isNotNull();
         }
 
         @Test
         @DisplayName("the first volley fires immediately, with the tuned constants")
         void firstVolleyFiresImmediately() {
-            phase = GamePhase.RUNNING;
             UUID player = UUID.randomUUID();
 
             boolean result = service.useExmatrikulator(rightClick(player));
@@ -366,7 +346,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("a second pulse before the interval has elapsed fires no further volley")
         void noVolleyBeforeItsTime() {
-            phase = GamePhase.RUNNING;
             service.useExmatrikulator(rightClick(UUID.randomUUID()));
             service.pulse();
             lastVolleyHolder = null;
@@ -380,7 +359,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("a pulse once the interval has elapsed fires another volley")
         void volleyFiresOnceIntervalElapses() {
-            phase = GamePhase.RUNNING;
             service.useExmatrikulator(rightClick(UUID.randomUUID()));
             service.pulse();
             lastVolleyHolder = null;
@@ -394,7 +372,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("the aura fires no more volleys once its duration has run out")
         void auraEndsAfterItsDuration() {
-            phase = GamePhase.RUNNING;
             service.useExmatrikulator(rightClick(UUID.randomUUID()));
             service.pulse();
             lastVolleyHolder = null;
@@ -408,7 +385,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("a struck victim carries an exmatrikulation phrase within the kill window")
         void struckVictimCarriesAPhrase() {
-            phase = GamePhase.RUNNING;
             UUID victim = UUID.randomUUID();
             nextVolleyHits.add(victim);
 
@@ -431,7 +407,6 @@ class SurvivalItemServiceTest {
             service.settings(de.raindancer.modules.hungergames.Tweak.of(HungerGamesSettings.DEFAULTS,
                     "exmatrikulatorDeathMessages", List.of("was sent down by %killer% over %modul%."),
                     "exmatrikulatorModules", List.of("Advanced Basket Weaving")));
-            phase = GamePhase.RUNNING;
             UUID victim = UUID.randomUUID();
             nextVolleyHits.add(victim);
             service.useExmatrikulator(rightClick(UUID.randomUUID()));
@@ -447,7 +422,6 @@ class SurvivalItemServiceTest {
             // An empty list is a decision, not a hole to fill with something invented.
             service.settings(de.raindancer.modules.hungergames.Tweak.of(HungerGamesSettings.DEFAULTS,
                     "exmatrikulatorDeathMessages", List.<String>of()));
-            phase = GamePhase.RUNNING;
             UUID victim = UUID.randomUUID();
             nextVolleyHits.add(victim);
             service.useExmatrikulator(rightClick(UUID.randomUUID()));
@@ -461,7 +435,6 @@ class SurvivalItemServiceTest {
         void noModulesNamed() {
             service.settings(de.raindancer.modules.hungergames.Tweak.of(HungerGamesSettings.DEFAULTS,
                     "exmatrikulatorModules", List.<String>of()));
-            phase = GamePhase.RUNNING;
             UUID victim = UUID.randomUUID();
             nextVolleyHits.add(victim);
             service.useExmatrikulator(rightClick(UUID.randomUUID()));
@@ -476,7 +449,6 @@ class SurvivalItemServiceTest {
         @Test
         @DisplayName("the phrase expires once the kill window has passed")
         void phraseExpiresAfterTheKillWindow() {
-            phase = GamePhase.RUNNING;
             UUID victim = UUID.randomUUID();
             nextVolleyHits.add(victim);
             service.useExmatrikulator(rightClick(UUID.randomUUID()));

@@ -7,12 +7,10 @@ import de.raindancer.core.content.items.ItemAbility;
 import de.raindancer.core.content.items.ItemTrigger;
 import de.raindancer.core.content.items.ItemUse;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
-import de.raindancer.modules.hungergames.model.GamePhase;
 import org.bukkit.Material;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.function.Supplier;
 
 /**
  * Three mobility items, registered with RainsCore rather than implemented here: the grappling hook,
@@ -130,19 +128,17 @@ public final class MobilityItemService implements IHungerGamesService {
 
     private final ItemAbilities abilities;
     private final CustomItems items;
-    private final Supplier<GamePhase> phase;
     private final Grappling grappling;
     private final Repulsion repulsion;
     private final Launching launching;
 
     private volatile HungerGamesSettings settings;
 
-    public MobilityItemService(ItemAbilities abilities, CustomItems items, Supplier<GamePhase> phase,
+    public MobilityItemService(ItemAbilities abilities, CustomItems items,
                                Grappling grappling, Repulsion repulsion, Launching launching,
                                HungerGamesSettings settings) {
         this.abilities = abilities;
         this.items = items;
-        this.phase = phase;
         this.grappling = grappling;
         this.repulsion = repulsion;
         this.launching = launching;
@@ -228,9 +224,6 @@ public final class MobilityItemService implements IHungerGamesService {
      *         exactly the broken-feeling item the class note warns about.
      */
     boolean fireTheGrapplingHook(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         HungerGamesSettings current = settings;
         return grappling.pullTowardsTarget(use, current.grapplingRange(), current.grapplingPowerStrength(),
                 GRAPPLING_MAX_PULL_DURATION);
@@ -238,9 +231,6 @@ public final class MobilityItemService implements IHungerGamesService {
 
     /** @return whether the shockwave actually went off. */
     boolean unleashRepulse(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         HungerGamesSettings current = settings;
         return repulsion.shove(use, current.repulseRadius(), current.repulseStrengthMultiplier(),
                 Duration.ofSeconds(current.repulseSlowSeconds()));
@@ -248,22 +238,8 @@ public final class MobilityItemService implements IHungerGamesService {
 
     /** @return whether the holder was actually launched. */
     boolean leap(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         HungerGamesSettings current = settings;
         return launching.launchForwards(use, current.leapPowerStrength(), LEAP_SOFT_LANDING);
-    }
-
-    /**
-     * Whether a round is actually on.
-     *
-     * <p>Asked per use rather than once at registration, the same reasoning as {@link ArenaItemService}: a
-     * grappling hook that still works between rounds pulls somebody towards a point on a server they are not
-     * playing a game with.
-     */
-    boolean duringARound() {
-        return phase.get() == GamePhase.RUNNING;
     }
 
     @Override

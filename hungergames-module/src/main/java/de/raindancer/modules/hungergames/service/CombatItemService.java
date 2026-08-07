@@ -7,12 +7,10 @@ import de.raindancer.core.content.items.ItemAbility;
 import de.raindancer.core.content.items.ItemTrigger;
 import de.raindancer.core.content.items.ItemUse;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
-import de.raindancer.modules.hungergames.model.GamePhase;
 import org.bukkit.Material;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.function.Supplier;
 
 /**
  * Five sponsor combat items, registered with RainsCore rather than implemented here — the smoke bomb, the
@@ -333,7 +331,6 @@ public final class CombatItemService implements IHungerGamesService {
 
     private final ItemAbilities abilities;
     private final CustomItems items;
-    private final Supplier<GamePhase> phase;
     private final Smokescreen smokescreen;
     private final Medicine medicine;
     private final Storm storm;
@@ -342,12 +339,11 @@ public final class CombatItemService implements IHungerGamesService {
 
     private volatile HungerGamesSettings settings;
 
-    public CombatItemService(ItemAbilities abilities, CustomItems items, Supplier<GamePhase> phase,
+    public CombatItemService(ItemAbilities abilities, CustomItems items,
                              Smokescreen smokescreen, Medicine medicine, Storm storm, Splash splash, Aura aura,
                              HungerGamesSettings settings) {
         this.abilities = abilities;
         this.items = items;
-        this.phase = phase;
         this.smokescreen = smokescreen;
         this.medicine = medicine;
         this.storm = storm;
@@ -470,9 +466,6 @@ public final class CombatItemService implements IHungerGamesService {
      *         smoke bomb used between rounds must not vanish from the holder's inventory for nothing.
      */
     boolean throwSmokeBomb(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         HungerGamesSettings current = settings;
         return smokescreen.detonate(use, current.smokeBombRadius(),
                 Duration.ofSeconds(current.smokeBombEnemyDuration()),
@@ -485,9 +478,6 @@ public final class CombatItemService implements IHungerGamesService {
      *         server that has left {@code items.medikit.countdown-seconds} at its default
      */
     boolean useMedikit(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         HungerGamesSettings current = settings;
         return medicine.treat(use, Duration.ofSeconds(Math.max(0, current.medikitCountdownSeconds())),
                 Duration.ofSeconds(current.medikitRegenSeconds()),
@@ -498,9 +488,6 @@ public final class CombatItemService implements IHungerGamesService {
 
     /** @return whether there was anywhere to strike; {@code false} does not spend the item's charge. */
     boolean callLightning(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         HungerGamesSettings current = settings;
         return storm.callDown(use, current.lightningBoltCount(),
                 Duration.ofMillis(current.lightningBoltDelay() * 50L), current.lightningDamageRadius(),
@@ -510,9 +497,6 @@ public final class CombatItemService implements IHungerGamesService {
 
     /** @return whether the bottle actually landed on somebody; {@code false} does not spend the item's charge. */
     boolean throwKrueckauwasser(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         HungerGamesSettings current = settings;
         return splash.drench(use, current.krueckauRadius(),
                 Duration.ofSeconds(current.krueckauNauseaSeconds()),
@@ -521,25 +505,12 @@ public final class CombatItemService implements IHungerGamesService {
 
     /** @return whether the aura actually went up; {@code false} does not spend the item's charge. */
     boolean activateAura(ItemUse use) {
-        if (!duringARound()) {
-            return false;
-        }
         HungerGamesSettings current = settings;
         return aura.protect(use, Duration.ofSeconds(current.auraDurationSeconds()), current.auraRadius(),
                 current.auraDamage(), Duration.ofMillis(current.auraInterval() * 50L),
                 current.auraKnockbackStrength());
     }
 
-    /**
-     * Whether a round is actually on.
-     *
-     * <p>Asked per use rather than once at registration, and per item rather than shared with
-     * {@link ArenaItemService} — see that class's note on why a compass (or, here, a storm) pointed at nobody
-     * between rounds is worse than an item that briefly does nothing.
-     */
-    boolean duringARound() {
-        return phase.get() == GamePhase.RUNNING;
-    }
 
     @Override
     public String describe() {

@@ -3,7 +3,6 @@ package de.raindancer.modules.hungergames.service;
 import de.raindancer.core.content.items.ItemTrigger;
 import de.raindancer.core.content.items.ItemUse;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
-import de.raindancer.modules.hungergames.model.GamePhase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -13,7 +12,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -89,7 +87,6 @@ class CombatItemServiceTest {
         }
     }
 
-    private final AtomicReference<GamePhase> phase = new AtomicReference<>(GamePhase.RUNNING);
     private FakeSmokescreen smokescreen;
     private FakeMedicine medicine;
     private FakeStorm storm;
@@ -99,13 +96,12 @@ class CombatItemServiceTest {
 
     @BeforeEach
     void setUp() {
-        phase.set(GamePhase.RUNNING);
         smokescreen = new FakeSmokescreen();
         medicine = new FakeMedicine();
         storm = new FakeStorm();
         splash = new FakeSplash();
         aura = new FakeAura();
-        service = new CombatItemService(null, null, phase::get, smokescreen, medicine, storm, splash, aura,
+        service = new CombatItemService(null, null, smokescreen, medicine, storm, splash, aura,
                 HungerGamesSettings.DEFAULTS);
     }
 
@@ -114,62 +110,55 @@ class CombatItemServiceTest {
     }
 
     @Nested
-    @DisplayName("outside RUNNING")
-    class OutsideRunning {
+    @DisplayName("with no round on at all")
+    class OutsideARound {
+
+        // The regression this guards: an earlier version refused every one of these outside
+        // GamePhase.RUNNING, so testing an item meant starting a whole tournament first.
 
         @Test
-        @DisplayName("the smoke bomb does nothing before a round starts")
-        void smokeBombRefusesInLobby() {
-            phase.set(GamePhase.LOBBY);
-
+        @DisplayName("the smoke bomb still works")
+        void smokeBombStillWorks() {
             boolean happened = service.throwSmokeBomb(use(CombatItemService.SMOKE_BOMB));
 
-            assertThat(happened).isFalse();
-            assertThat(smokescreen.lastCall).as("the seam must not even be asked").isNull();
+            assertThat(happened).isTrue();
+            assertThat(smokescreen.lastCall).isNotNull();
         }
 
         @Test
-        @DisplayName("the medikit does nothing once a round has ended")
-        void medikitRefusesAfterEnd() {
-            phase.set(GamePhase.FINISHED);
-
+        @DisplayName("the medikit still works")
+        void medikitStillWorks() {
             boolean happened = service.useMedikit(use(CombatItemService.MEDIKIT));
 
-            assertThat(happened).isFalse();
-            assertThat(medicine.lastCall).isNull();
+            assertThat(happened).isTrue();
+            assertThat(medicine.lastCall).isNotNull();
         }
 
         @Test
-        @DisplayName("the lightning strike does nothing during preflight")
-        void lightningRefusesDuringPreflight() {
-            phase.set(GamePhase.PREFLIGHT);
-
+        @DisplayName("the lightning strike still works")
+        void lightningStillWorks() {
             boolean happened = service.callLightning(use(CombatItemService.LIGHTNING_STRIKE));
 
-            assertThat(happened).isFalse();
-            assertThat(storm.lastCall).isNull();
+            assertThat(happened).isTrue();
+            assertThat(storm.lastCall).isNotNull();
         }
 
         @Test
-        @DisplayName("krückauwasser cannot be thrown before the round is running")
-        void krueckauwasserRefusesDuringStartup() {
-            phase.set(GamePhase.STARTUP);
-
+        @DisplayName("krückauwasser can still be thrown")
+        void krueckauwasserStillWorks() {
             boolean happened = service.throwKrueckauwasser(use(CombatItemService.KRUECKAUWASSER));
 
-            assertThat(happened).isFalse();
-            assertThat(splash.lastCall).isNull();
+            assertThat(happened).isTrue();
+            assertThat(splash.lastCall).isNotNull();
         }
 
         @Test
-        @DisplayName("the aura of protection does not go up outside a round")
-        void auraRefusesDuringReady() {
-            phase.set(GamePhase.READY);
-
+        @DisplayName("the aura of protection still goes up")
+        void auraStillWorks() {
             boolean happened = service.activateAura(use(CombatItemService.AURA_OF_PROTECTION));
 
-            assertThat(happened).isFalse();
-            assertThat(aura.lastCall).isNull();
+            assertThat(happened).isTrue();
+            assertThat(aura.lastCall).isNotNull();
         }
     }
 

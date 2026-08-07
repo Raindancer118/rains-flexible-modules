@@ -6,7 +6,6 @@ import de.raindancer.core.content.items.ItemAbility;
 import de.raindancer.core.content.items.ItemTrigger;
 import de.raindancer.core.content.items.ItemUse;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
-import de.raindancer.modules.hungergames.model.GamePhase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,15 +30,12 @@ class ArenaItemServiceTest {
     private CustomItems items;
     private ItemAbilities abilities;
     private ArenaItemService service;
-    private GamePhase phase;
 
     @BeforeEach
     void setUp(@TempDir Path dir) {
         items = new CustomItems(dir.resolve("items.yml"));
         abilities = new ItemAbilities(() -> 0L);
-        phase = GamePhase.RUNNING;
-        service = new ArenaItemService(abilities, items, () -> phase, use -> true,
-                HungerGamesSettings.DEFAULTS);
+        service = new ArenaItemService(abilities, items, use -> true, HungerGamesSettings.DEFAULTS);
     }
 
     @Test
@@ -74,13 +70,14 @@ class ArenaItemServiceTest {
     }
 
     @Test
-    @DisplayName("does nothing outside a running round")
-    void doesNothingOutsideARunningRound() {
-        phase = GamePhase.LOBBY;
-
+    @DisplayName("works with no round on at all — testing an item is the reason to hold one between rounds")
+    void worksOutsideARound() {
+        // The regression this guards: an earlier version refused every arena item outside
+        // GamePhase.RUNNING, so a gamemaster checking whether the Fiendfinder still works had to start
+        // a whole tournament first.
         boolean happened = service.readTheFiendfinder(
                 new ItemUse(UUID.randomUUID(), ArenaItemService.FIENDFINDER, ItemTrigger.RIGHT_CLICK, null));
 
-        assertThat(happened).isFalse();
+        assertThat(happened).isTrue();
     }
 }
