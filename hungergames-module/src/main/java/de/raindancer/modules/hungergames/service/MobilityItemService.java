@@ -75,6 +75,12 @@ public final class MobilityItemService implements IHungerGamesService {
     public static final String LEAP = "leap";
 
     /**
+     * {@code hgpack}'s custom-model-data threshold for Leap's texture — see {@code HermesBootsService}'s
+     * own constant for why this number and the pack must change together.
+     */
+    private static final int LEAP_MODEL_DATA = 1002;
+
+    /**
      * How long leap protects the landing.
      *
      * <p>Four seconds of slow-falling, the source's value — chosen there, and kept here, because a catapult
@@ -187,6 +193,7 @@ public final class MobilityItemService implements IHungerGamesService {
                         "<gray>with a soft landing."))
                 .glowing(true)
                 .ability(LEAP)
+                .modelData(LEAP_MODEL_DATA)
                 .build());
 
         HungerGamesSettings now = settings;

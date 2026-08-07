@@ -109,4 +109,17 @@ class EveryServiceIsActuallyWiredTest {
             assertThat(source).contains(".modelData(HERMES_BOOTS_MODEL_DATA)");
         }
     }
+
+    @Nested
+    @DisplayName("Leap keeps its resource pack texture")
+    class LeapModelData {
+
+        @Test
+        @DisplayName("MobilityItemService sets Leap's custom model data")
+        void setsCustomModelData() throws IOException {
+            String source = Files.readString(Path.of(
+                    "src/main/java/de/raindancer/modules/hungergames/service/MobilityItemService.java"));
+            assertThat(source).contains(".modelData(LEAP_MODEL_DATA)");
+        }
+    }
 }
