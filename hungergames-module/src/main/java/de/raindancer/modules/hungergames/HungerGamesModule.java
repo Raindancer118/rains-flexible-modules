@@ -55,7 +55,7 @@ import java.util.Random;
  */
 public final class HungerGamesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("hungergames", "Hunger Games", "2.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("hungergames", "Hunger Games", "2.2.1")
             .describedAs("A tournament: tributes, teams, a shrinking border, and the screens a "
                     + "gamemaster runs a round from")
             .by("Raindancer118");

@@ -116,10 +116,20 @@ public final class SpectatorService implements IHungerGamesService, AdminEndpoin
         // intentionally empty
     }
 
-    /** Tells Core about the spectator compass and its ability — see {@code ArenaItemService.register}. */
+    /**
+     * Tells Core about the spectator compass and its ability — see {@code ArenaItemService.register}.
+     *
+     * <p>A recovery compass, not a plain one — the same fix as {@code AdminHotbarListener.adminItem()},
+     * and for the same reason: WorldEdit is a required dependency of this module and binds its navigation
+     * wand to a plain compass for anybody holding {@code worldedit.navigation}, which every operator has
+     * by default. Core's own {@code CustomItemListener} dispatches at {@code NORMAL}, a priority WorldEdit's
+     * own listener can easily run ahead of, so the material is what actually has to change rather than the
+     * priority — there is no priority this module could pick for a plain compass that WorldEdit could not
+     * still win.
+     */
     public void register() {
         items.defineIfAbsent(CustomItem.builder(PLUGIN, SPECTATOR_COMPASS)
-                .material(Material.COMPASS)
+                .material(Material.RECOVERY_COMPASS)
                 .name("<aqua>Spectate")
                 .lore(List.of("<gray>Right-click to watch a living tribute."))
                 .glowing(true)

@@ -43,7 +43,7 @@
           config.yml, teams.yml, whitelist.yml and session.yml are files this still has to read. Starting
           at 1.0.0 would say the opposite.
         -->
-        <plugin.version>2.2.0</plugin.version>
+        <plugin.version>2.2.1</plugin.version>
     </properties>
 
     <dependencies>
