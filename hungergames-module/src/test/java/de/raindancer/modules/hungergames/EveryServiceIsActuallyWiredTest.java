@@ -95,5 +95,18 @@ class EveryServiceIsActuallyWiredTest {
                     "src/main/java/de/raindancer/modules/hungergames/service/HermesBootsService.java"));
             assertThat(source).contains(".material(Material.GOLDEN_BOOTS)");
         }
+
+        // The bug this guards against: a golden boot and Hermes' Boots look identical without a resource
+        // pack override, and the override in hgpack (assets/minecraft/items/golden_boots.json, repo
+        // MC-Resourcepacks) dispatches on one specific custom-model-data threshold. A material fix alone,
+        // without wiring .modelData(...) to that same number, ships an unmarked golden boot forever.
+
+        @Test
+        @DisplayName("HermesBootsService sets the resource pack's custom model data")
+        void setsCustomModelData() throws IOException {
+            String source = Files.readString(Path.of(
+                    "src/main/java/de/raindancer/modules/hungergames/service/HermesBootsService.java"));
+            assertThat(source).contains(".modelData(HERMES_BOOTS_MODEL_DATA)");
+        }
     }
 }

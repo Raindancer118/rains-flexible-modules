@@ -60,6 +60,14 @@ public final class HermesBootsService implements IHungerGamesService {
     }
 
     /**
+     * The resource pack's own number for the boots' texture override — {@code hgpack}'s
+     * {@code assets/minecraft/items/golden_boots.json} dispatches on this exact value (threshold 1001),
+     * to {@code assets/hgpack/models/item/hermes_boots.json}. Changing this without changing the pack in
+     * lockstep silently puts a plain golden boot back on every tribute.
+     */
+    private static final int HERMES_BOOTS_MODEL_DATA = 1001;
+
+    /**
      * Tells Core about the item.
      *
      * <p>{@code defineIfAbsent}, the same reasoning as every other item service: a server owner may have
@@ -75,6 +83,7 @@ public final class HermesBootsService implements IHungerGamesService {
                         "<gray>" + settings.hermesFlightSeconds() + "s of flight for the round.",
                         "<dark_gray>Standing still costs nothing."))
                 .glowing(true)
+                .modelData(HERMES_BOOTS_MODEL_DATA)
                 .build());
     }
 
