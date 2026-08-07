@@ -149,7 +149,8 @@ public final class HungerGamesScreens implements IHungerGamesScreensOpener {
     /** {@code /hg teams} — picking a team, for a tribute in the lobby. */
     @Override
     public void teams(Player viewer) {
-        new TeamsMenu(viewer, wiring.brand(), wiring.session(), wiring.teamRules(), wiring.prompts())
+        new TeamsMenu(viewer, wiring.brand(), wiring.session(), wiring.teamRules(), wiring.prompts(),
+                wiring.roundLog(), wiring.teamBadges(), wiring.teamCaptains(), wiring.settings())
                 .open();
     }
 

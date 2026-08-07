@@ -27,20 +27,16 @@ import java.util.function.Supplier;
 /**
  * Picking a team — for a tribute standing in the lobby, not for an admin.
  *
- * <h2>Where the colour picker went</h2>
- * It did not move, it stopped existing: {@link TeamColour} is Core's, {@code Teams.create} already gives a
- * fresh team the first colour nobody else is holding, and there is no page in this module that asks a
- * player to pick one — see the module's porting brief. The one place a colour was ever chosen by hand in
- * the source plugin was inside a captain's own settings, which is a feature this port does not carry
- * forward for tributes (an admin can still recolour a team from {@link TeamAdminMenu} once it exists).
+ * <h2>Where the colour picker is</h2>
+ * The source plugin put it inside a captain's own settings, not the team-picking grid, and this keeps that
+ * split: {@link TeamIdentityMenu} — colour, emblem and the item a team is drawn as — opens from
+ * {@link #render()}'s "Customize my team" button rather than from clicking the grid, and only for whoever
+ * is allowed to touch it. See {@link #mayCustomize(Team)} for exactly who that is.
  *
- * <h2>The badge is drawn, not yet chosen here</h2>
+ * <h2>The badge is drawn, and now chosen here too</h2>
  * {@link Team#badge()} and {@link Team#display()} are read on every button — a team's row is its own badge
- * with its own name, emblem included. Letting a team's members choose that badge through Core's item
- * chooser needs a way to write it back onto the roster, and {@code Teams} does not yet expose one: it can
- * be read from a {@link Team}, but nothing on {@code Teams} sets it after a team already exists. That is
- * tracked as a follow-up in Core rather than fudged here with a second, private notion of "this team's
- * item" that {@code Teams} itself would not agree with.
+ * with its own name, emblem included. {@link TeamIdentityMenu} is what writes that badge back onto the
+ * roster, through the same item chooser {@link TeamAdminMenu} hands an admin.
  */
 public final class TeamsMenu extends PaginatedMenu<Team> implements IHungerGamesScreen {
 
@@ -49,13 +45,33 @@ public final class TeamsMenu extends PaginatedMenu<Team> implements IHungerGames
     private final GameSession session;
     private final Supplier<TeamRules> rules;
     private final ChatPrompts prompts;
+    private final de.raindancer.modules.hungergames.service.RoundLogService roundLog;
+    private final TeamIdentityMenu.BadgeChooser badges;
+    private final TeamIdentityMenu.CaptainChooser captains;
+    private final Supplier<de.raindancer.modules.hungergames.HungerGamesSettings> settings;
 
     public TeamsMenu(Player viewer, Brand brand, GameSession session, Supplier<TeamRules> rules,
-                     ChatPrompts prompts) {
+                     ChatPrompts prompts, de.raindancer.modules.hungergames.service.RoundLogService roundLog,
+                     TeamIdentityMenu.BadgeChooser badges, TeamIdentityMenu.CaptainChooser captains,
+                     Supplier<de.raindancer.modules.hungergames.HungerGamesSettings> settings) {
         super(viewer, brand, null);
         this.session = session;
         this.rules = rules;
         this.prompts = prompts;
+        this.roundLog = roundLog;
+        this.badges = badges;
+        this.captains = captains;
+        this.settings = settings;
+    }
+
+    /**
+     * The same, for a host that has not wired a team's identity page in — a test, or a build that has not
+     * built that far yet. "Customize my team" simply does not appear rather than opening a broken page.
+     */
+    public TeamsMenu(Player viewer, Brand brand, GameSession session, Supplier<TeamRules> rules,
+                     ChatPrompts prompts) {
+        this(viewer, brand, session, rules, prompts, null, null, null,
+                () -> de.raindancer.modules.hungergames.HungerGamesSettings.DEFAULTS);
     }
 
     @Override
@@ -159,7 +175,36 @@ public final class TeamsMenu extends PaginatedMenu<Team> implements IHungerGames
                                 : "<red>Could not leave: " + outcome.key());
                         refresh();
                     });
+
+            if (badges != null) {
+                Team mine = ownTeam.get();
+                toolbar(4, mayCustomize(r, mine, viewer.getUniqueId()),
+                        Icons.of(mine.badge(), "<yellow>Customize my team",
+                                "<gray>Colour, emblem, item, name",
+                                "<gray>and who leads it."),
+                        r.captainEnabled() ? "Only the captain may do this."
+                                : "The server has turned this off.",
+                        click -> new TeamIdentityMenu(viewer, brand(), this, session, mine, roundLog, badges,
+                                captains, settings, prompts).open());
+            }
         }
+    }
+
+    /**
+     * Whether that player may open {@link TeamIdentityMenu} for that team.
+     *
+     * <p>The source plugin put the colour picker inside a captain's own settings, and this is that same
+     * line: a server that has turned the whole thing off ({@code teams.players-can-choose-colour}) gets
+     * nothing here, and one that has captains on restricts it to whoever leads the team — a member cannot
+     * repaint a team out from under its captain mid-round. A team with no captain assigned yet is treated
+     * as anybody's to set up, so the very first member is not locked out of a page that would otherwise be
+     * unreachable until somebody picks a leader. Pure and package-private, for {@code TeamsMenuTest}.
+     */
+    static boolean mayCustomize(TeamRules rules, Team team, java.util.UUID viewer) {
+        if (!rules.playersCanChooseColor()) {
+            return false;
+        }
+        return !rules.captainEnabled() || team.captain().isEmpty() || team.isCaptain(viewer);
     }
 
     private boolean eligible(TeamRules r) {
