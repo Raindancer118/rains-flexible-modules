@@ -89,6 +89,17 @@ public final class ConnectionListener implements IHungerGamesListener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
+
+        // Ahead of everything else, and unconditional on the phase: /allow and the tribute file both
+        // register somebody who has never connected under a UUID derived from their name, and this is the
+        // one moment the real one becomes knowable. Done before the whitelist check below reads uuid, or
+        // this join finds nobody home under the name they were added by and is treated as a stranger's.
+        UUID placeholder = de.raindancer.modules.hungergames.store.TributeRoster.derivedIdFor(player.getName());
+        if (!placeholder.equals(uuid) && session.claimRealIdentity(placeholder, uuid, player.getName())) {
+            note.say(player.getName() + " connected for the first time — their placeholder tribute entry "
+                    + "now carries their real account.");
+        }
+
         boolean inTheTournament = session.isWhitelisted(uuid);
 
         if (inTheTournament) {

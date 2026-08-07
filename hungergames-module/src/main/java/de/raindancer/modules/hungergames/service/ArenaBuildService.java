@@ -185,9 +185,7 @@ public final class ArenaBuildService implements IHungerGamesService {
             return false;
         }
 
-        if (!session.transitionTo(GamePhase.PREFLIGHT)) {
-            log.error("The round could not move into PREFLIGHT from {} — nothing was built.",
-                    session.phase());
+        if (!claimPreflight()) {
             return false;
         }
 
@@ -282,6 +280,37 @@ public final class ArenaBuildService implements IHungerGamesService {
     private boolean giveUp() {
         session.resetForNextRound();
         return false;
+    }
+
+    /**
+     * Moves the round into {@link GamePhase#PREFLIGHT}, from wherever it actually is.
+     *
+     * <h2>Why a finished round is cleared first</h2>
+     * A finished round is exactly when the next arena gets built — it is what a gamemaster does between two
+     * rounds of an evening. The phase machine has no {@code FINISHED -> PREFLIGHT} edge on purpose: the way
+     * back is through {@link GamePhase#NOT_INITIALIZED}, and that is what clears the winner, the elimination
+     * states and the clock. So the clearing happens here rather than by widening the machine, and the
+     * tributes and teams survive it — they were entered by hand and the next round is the same evening.
+     *
+     * <h2>The bug this is</h2>
+     * Found on a live server. {@code /init} answered "the arena could not be built — see the console" after
+     * every completed round, and the console said the round could not leave {@code FINISHED}.
+     * {@code GameControlService.canInit()} lists {@code FINISHED} as a phase {@code /init} may run from; the
+     * machine refused the move. Both were individually tested and the two had never been asked the same
+     * question in one test — which is what {@code TheNextRoundCanBeBuiltTest} now does.
+     *
+     * @return whether the round is now in preflight
+     */
+    public boolean claimPreflight() {
+        if (session.phase() == GamePhase.FINISHED) {
+            session.resetForNextRound();
+        }
+        if (!session.transitionTo(GamePhase.PREFLIGHT)) {
+            log.error("The round could not move into PREFLIGHT from {} — nothing was built.",
+                    session.phase());
+            return false;
+        }
+        return true;
     }
 
     // ==================== the steps ====================

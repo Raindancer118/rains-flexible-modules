@@ -489,20 +489,38 @@ public final class StartupSequenceService implements IHungerGamesService {
 
         arena.removeTheLobby();
 
-        // A rehearsal: nobody came up a tube, so nobody is standing anywhere. Without this the mannequins
-        // are wherever the admin who spawned them was, and a dry run looks nothing like the round it is
-        // rehearsing.
-        if (expected == 0) {
-            List<org.bukkit.Location> platforms = layout.platforms().stream()
-                    .map(stand -> new Location(world, stand.x(), stand.y(), stand.z(), stand.yaw(), 0f))
-                    .toList();
-            int placed = simulation.placeOnPlatforms(platforms);
+        // Mannequins take whatever platforms real tributes did not — indices [expected, platformCount).
+        // Real tributes occupy 0..expected-1 in takeThemUnderground's own order, so this is never a guess
+        // at which platforms are free.
+        //
+        // Bug this fixes: gated on {@code expected == 0} before, so a rehearsal with even one real tribute
+        // online (an admin testing alongside spawned mannequins, say) skipped this branch entirely — the
+        // mannequins stayed wherever they were spawned while the real tribute alone went through the tube
+        // sequence. A pure simulation and a mixed one are the same case: mannequins fill whatever platforms
+        // are left over, empty or not.
+        List<org.bukkit.Location> leftoverPlatforms = leftoverPlatforms(layout.platforms(), expected).stream()
+                .map(stand -> new Location(world, stand.x(), stand.y(), stand.z(), stand.yaw(), 0f))
+                .toList();
+        if (!leftoverPlatforms.isEmpty()) {
+            int placed = simulation.placeOnPlatforms(leftoverPlatforms);
             if (placed > 0) {
                 log.info("{} mannequin(s) are standing on platforms for the simulation.", placed);
             }
         }
 
         told.ready(actor, expected);
+    }
+
+    /**
+     * The platforms real tributes did not take — {@code takeThemUnderground} always fills indices
+     * {@code [0, expected)} in {@code layout.platforms()}'s own order, so whatever comes after {@code expected}
+     * is free, whether that is every platform (a pure rehearsal) or none at all (a full round with no
+     * mannequins). Its own method, and package-visible, so the bug this fixes — mannequins skipped entirely
+     * whenever even one real tribute was online — is pinned by a test that needs no {@code World} or
+     * {@code Player} to run.
+     */
+    static List<ArenaLayout.Stand> leftoverPlatforms(List<ArenaLayout.Stand> platforms, int expected) {
+        return platforms.stream().skip(Math.max(0, expected)).toList();
     }
 
     /**

@@ -193,6 +193,31 @@ public final class GameSession {
         persist();
     }
 
+    /**
+     * Exchanges a placeholder UUID for somebody's real one, the moment they actually join.
+     *
+     * <h2>The bug this exists to fix</h2>
+     * {@code /allow} and the tribute file both register somebody who has never connected under a UUID
+     * derived from their name — there is nobody online to ask for the real one. Nothing ever exchanged that
+     * placeholder for the truth: {@link de.raindancer.modules.hungergames.command.AllowCommand}'s own
+     * javadoc claimed a join would do it and no code ever did. The visible symptom was a head icon that
+     * could never be theirs — {@code Icons.head} asked Mojang for a skin belonging to a UUID nobody's
+     * account has — but the real one is worse: every screen, count and the winner check itself were reading
+     * a UUID that would never again match the person actually playing.
+     *
+     * @return whether {@code placeholder} was actually a pending tribute — false leaves both UUIDs
+     *         untouched, which is the ordinary case of somebody who was never added by name at all
+     */
+    public boolean claimRealIdentity(UUID placeholder, UUID real, String name) {
+        if (!participants.rekey(placeholder, real)) {
+            return false;
+        }
+        participants.updateName(real, name);
+        teams.reassign(placeholder, real);
+        persist();
+        return true;
+    }
+
     // ==================== elimination / victory ====================
 
     /**

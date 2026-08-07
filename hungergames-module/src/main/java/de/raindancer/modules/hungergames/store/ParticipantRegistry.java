@@ -73,6 +73,30 @@ public final class ParticipantRegistry {
     }
 
     /**
+     * Moves a tribute's entry from one UUID to another, keeping its state.
+     *
+     * <p>For a tribute whitelisted by name before ever joining — {@code /allow} keys them on a UUID derived
+     * from the name, because there is nobody online to ask their real one. This is the moment that
+     * placeholder is exchanged for the truth, and it has to be exchanged rather than added-alongside: two
+     * entries for one person is two entries in every screen, every count and every winner check.
+     *
+     * @return whether there was an entry at {@code from} to move — {@code false} leaves both keys untouched
+     */
+    public boolean rekey(UUID from, UUID to) {
+        if (from.equals(to) || entries.containsKey(to)) {
+            // Already the real UUID, or the real UUID somehow already has its own entry — either way,
+            // overwriting it would silently merge two tributes into one.
+            return false;
+        }
+        Entry entry = entries.remove(from);
+        if (entry == null) {
+            return false;
+        }
+        entries.put(to, entry);
+        return true;
+    }
+
+    /**
      * Marks a tribute eliminated.
      *
      * @return {@code false} if unknown, or already eliminated
