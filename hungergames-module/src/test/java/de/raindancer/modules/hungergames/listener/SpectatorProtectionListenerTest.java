@@ -1,9 +1,6 @@
 package de.raindancer.modules.hungergames.listener;
 
-import de.raindancer.modules.hungergames.model.GamePhase;
-import de.raindancer.modules.hungergames.rules.TeamRules;
 import de.raindancer.modules.hungergames.service.SpectatorService;
-import de.raindancer.modules.hungergames.store.GameSession;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -18,7 +15,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
-import java.util.Random;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,35 +22,25 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * What an eliminated tribute may not do — and, just as important, what an ordinary alive tribute or a
- * staff member who happens to be vanished may still do without this listener getting in the way.
+ * What a vanish-based spectator may not do — whether that is an eliminated tribute or a gamemaster who
+ * picked "Watch without being seen" — and, just as important, what an ordinary alive tribute or a staff
+ * member who is merely vanished (not one of {@link SpectatorService#isVanishSpectator}'s cases) may still
+ * do without this listener getting in the way.
  */
 @ExtendWith(MockitoExtension.class)
 class SpectatorProtectionListenerTest {
 
-    private GameSession session;
     private SpectatorService spectators;
     private SpectatorProtectionListener listener;
 
-    private final UUID eliminated = UUID.randomUUID();
-    private final UUID alive = UUID.randomUUID();
-    private final UUID stranger = UUID.randomUUID();
+    private final UUID vanishSpectator = UUID.randomUUID();
+    private final UUID ordinary = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        session = new GameSession(TeamRules::defaults, new de.raindancer.modules.hungergames.RecordingGameEvents(),
-                new de.raindancer.modules.hungergames.InMemorySessionStore(), () -> 0L, new Random(1));
-        session.whitelistAdd(eliminated, "Eliminated");
-        session.whitelistAdd(alive, "Alive");
-        session.transitionTo(GamePhase.PREFLIGHT);
-        session.transitionTo(GamePhase.LOBBY);
-        session.transitionTo(GamePhase.STARTUP);
-        session.transitionTo(GamePhase.READY);
-        session.transitionTo(GamePhase.RUNNING);
-        session.eliminate(eliminated, null);
-
         spectators = mock(SpectatorService.class);
-        listener = new SpectatorProtectionListener(session, spectators);
+        org.mockito.Mockito.lenient().when(spectators.isVanishSpectator(vanishSpectator)).thenReturn(true);
+        listener = new SpectatorProtectionListener(spectators);
     }
 
     private Player playerFor(UUID uuid) {
@@ -68,10 +54,10 @@ class SpectatorProtectionListenerTest {
     class Breaking {
 
         @Test
-        @DisplayName("is refused for an eliminated tribute")
-        void refusedForEliminated() {
+        @DisplayName("is refused for a vanish spectator")
+        void refusedForVanishSpectator() {
             BlockBreakEvent event = new BlockBreakEvent(mock(org.bukkit.block.Block.class),
-                    playerFor(eliminated));
+                    playerFor(vanishSpectator));
 
             listener.onBreak(event);
 
@@ -79,22 +65,13 @@ class SpectatorProtectionListenerTest {
         }
 
         @Test
-        @DisplayName("is left alone for a tribute who is still alive")
-        void allowedForAlive() {
-            BlockBreakEvent event = new BlockBreakEvent(mock(org.bukkit.block.Block.class), playerFor(alive));
-
-            listener.onBreak(event);
-
-            assertThat(event.isCancelled()).isFalse();
-        }
-
-        @Test
-        @DisplayName("is left alone for somebody who is not a tribute of this round at all")
-        void allowedForAStranger() {
-            // The gate is "eliminated tribute", not "vanished" — a moderator who vanished to watch a
-            // build must keep every one of these abilities. See the class javadoc.
+        @DisplayName("is left alone for an ordinary player")
+        void allowedForOrdinary() {
+            // The gate is isVanishSpectator, not "vanished" more broadly — a moderator vanished to
+            // watch a build, who is not one of SpectatorService's own cases, must keep every one of
+            // these abilities. See the class javadoc.
             BlockBreakEvent event = new BlockBreakEvent(mock(org.bukkit.block.Block.class),
-                    playerFor(stranger));
+                    playerFor(ordinary));
 
             listener.onBreak(event);
 
@@ -107,9 +84,9 @@ class SpectatorProtectionListenerTest {
     class Interacting {
 
         @Test
-        @DisplayName("is refused for an eliminated tribute")
-        void refusedForEliminated() {
-            Player player = playerFor(eliminated);
+        @DisplayName("is refused for a vanish spectator")
+        void refusedForVanishSpectator() {
+            Player player = playerFor(vanishSpectator);
             PlayerInteractEvent event = new PlayerInteractEvent(player, org.bukkit.event.block.Action.RIGHT_CLICK_AIR,
                     mock(ItemStack.class), null, null);
 
@@ -121,7 +98,7 @@ class SpectatorProtectionListenerTest {
         @Test
         @DisplayName("the spectator compass itself is exempted, so its own ability can still fire")
         void compassIsExempted() {
-            Player player = playerFor(eliminated);
+            Player player = playerFor(vanishSpectator);
             ItemStack compass = mock(ItemStack.class);
             when(spectators.isTheSpectatorCompass(compass)).thenReturn(true);
             PlayerInteractEvent event = new PlayerInteractEvent(player, org.bukkit.event.block.Action.RIGHT_CLICK_AIR,
@@ -143,9 +120,9 @@ class SpectatorProtectionListenerTest {
         @DisplayName("is moved to where they last stood, when that is remembered")
         void movedToLastKnownLocation() {
             org.bukkit.World world = mock(org.bukkit.World.class);
-            Player player = playerFor(eliminated);
+            Player player = playerFor(vanishSpectator);
             Location remembered = new Location(world, 1, 2, 3);
-            when(spectators.lastKnownLocation(eliminated)).thenReturn(Optional.of(remembered));
+            when(spectators.lastKnownLocation(vanishSpectator)).thenReturn(Optional.of(remembered));
             PlayerRespawnEvent event = new PlayerRespawnEvent(player, new Location(world, 9, 9, 9), false);
 
             listener.onRespawn(event);
@@ -157,9 +134,9 @@ class SpectatorProtectionListenerTest {
         @DisplayName("is left at vanilla's own choice when nothing is remembered")
         void leftAloneWithNothingRemembered() {
             org.bukkit.World world = mock(org.bukkit.World.class);
-            Player player = playerFor(alive);
+            Player player = playerFor(ordinary);
             Location vanillaChoice = new Location(world, 9, 9, 9);
-            when(spectators.lastKnownLocation(alive)).thenReturn(Optional.empty());
+            when(spectators.lastKnownLocation(ordinary)).thenReturn(Optional.empty());
             PlayerRespawnEvent event = new PlayerRespawnEvent(player, vanillaChoice, false);
 
             listener.onRespawn(event);
@@ -171,6 +148,6 @@ class SpectatorProtectionListenerTest {
     @Test
     @DisplayName("what it watches, for the diagnostic that lists what is registered")
     void describesItself() {
-        assertThat(listener.describe()).contains("eliminated");
+        assertThat(listener.describe()).contains("spectator");
     }
 }

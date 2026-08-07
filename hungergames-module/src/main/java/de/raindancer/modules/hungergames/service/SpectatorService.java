@@ -17,12 +17,16 @@ import org.bukkit.entity.Player;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * Eliminated tributes as spectators — vanished, not switched to {@code GameMode.SPECTATOR}.
+ * Eliminated tributes as spectators — vanished, not switched to {@code GameMode.SPECTATOR}. The same
+ * mechanism is also what a gamemaster's own "Watch without being seen" mode uses — see
+ * {@link #enterVanishSpectator} — since the two want exactly the same guarantees for exactly the same
+ * reason: invisible, untouchable, still in whatever game mode they actually hold.
  *
  * <h2>Why not real spectator mode</h2>
  * The Hypixel shape this was asked to match: a tribute who is out stays in survival, invisible to
@@ -85,6 +89,14 @@ public final class SpectatorService implements IHungerGamesService, AdminEndpoin
      */
     private final Map<UUID, Location> lastStandingAt = new ConcurrentHashMap<>();
 
+    /**
+     * Everybody currently in this vanish-based spectator state — an eliminated tribute or a gamemaster who
+     * picked "Watch without being seen". One flag for both, read by {@link SpectatorProtectionListener}:
+     * neither may break, place, use another item, deal or take damage, or go hungry, and the reason is the
+     * same for both of them — they are here to watch, not to touch.
+     */
+    private final Set<UUID> vanishSpectators = ConcurrentHashMap.newKeySet();
+
     public SpectatorService(GameSession session, OnlinePlayers online, Teleport teleport, Vanish vanish,
                             ItemAbilities abilities, CustomItems items, ItemFactory itemFactory,
                             Consumer<Player> openSpectateMenu) {
@@ -142,8 +154,19 @@ public final class SpectatorService implements IHungerGamesService, AdminEndpoin
      * and remembered, so a respawn a moment later does not undo the "stay where you were" half of it.
      */
     public void makeSpectator(Player player) {
+        lastStandingAt.put(player.getUniqueId(), player.getLocation().clone());
+        enterVanishSpectator(player);
+    }
+
+    /**
+     * The same vanish, flight and compass a fresh spectator gets — without the death bookkeeping, for
+     * anybody entering it by their own choice rather than by being eliminated. A gamemaster picking
+     * "Watch without being seen" is exactly this: nothing died, there is nowhere they need to be put back
+     * to, and {@link #leaveVanishSpectator} is the plain reverse rather than a revive.
+     */
+    public void enterVanishSpectator(Player player) {
         UUID uuid = player.getUniqueId();
-        lastStandingAt.put(uuid, player.getLocation().clone());
+        vanishSpectators.add(uuid);
         vanish.vanish(uuid, player.getAllowFlight(), false);
         player.setAllowFlight(true);
         player.setFlying(true);
@@ -163,12 +186,23 @@ public final class SpectatorService implements IHungerGamesService, AdminEndpoin
      * back cannot forget to take the compass out of their hand.
      */
     public void restoreFromElimination(Player player) {
+        leaveVanishSpectator(player);
+        lastStandingAt.remove(player.getUniqueId());
+    }
+
+    /** The plain reverse of {@link #enterVanishSpectator} — reveals, grounds, and takes the compass back. */
+    public void leaveVanishSpectator(Player player) {
         UUID uuid = player.getUniqueId();
+        vanishSpectators.remove(uuid);
         vanish.reveal(uuid);
         player.setFlying(false);
         player.setFlySpeed(NORMAL_FLY_SPEED);
         takeTheCompassBack(player);
-        lastStandingAt.remove(uuid);
+    }
+
+    /** Whether that player is currently in this vanish-based spectator state — see {@link #vanishSpectators}. */
+    public boolean isVanishSpectator(UUID uuid) {
+        return vanishSpectators.contains(uuid);
     }
 
     private void takeTheCompassBack(Player player) {
