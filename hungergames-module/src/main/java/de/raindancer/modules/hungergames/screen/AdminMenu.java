@@ -139,7 +139,7 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
 
         tile(10, Material.CLOCK, "Game control", true,
                 click -> new GameControlMenu(viewer, brand(), this, session, gameControl, preflight,
-                        borderPhases, simulation, monsterWaves, roster, prompts).open(),
+                        borderPhases, simulation, monsterWaves, roster, prompts, virtualTime::elapsed).open(),
                 "Status, init, start-up, start,", "end and reset.");
 
         tile(12, Material.PLAYER_HEAD, "Tributes", admin,
@@ -169,7 +169,7 @@ public final class AdminMenu extends Menu implements IHungerGamesScreen {
                 deathmatch.state().toString(), "Trigger, or cancel the warning.");
 
         tile(33, Material.ZOMBIE_HEAD, "Monster waves", true,
-                click -> new MonsterWaveMenu(viewer, brand(), this, monsterWaves).open(),
+                click -> new MonsterWaveMenu(viewer, brand(), this, monsterWaves, virtualTime::elapsed).open(),
                 monsterWaves.activeSeries() + " running series.", "Start a wave at your position.");
 
         tile(37, Material.ARMOR_STAND, "Test simulation", admin,

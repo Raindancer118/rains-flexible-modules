@@ -456,6 +456,11 @@ public final class HungerGamesWiring {
         context.listener(new de.raindancer.modules.hungergames.listener.SpectatorProtectionListener(
                 spectators));
 
+        // A sponsor beacon opens the shop, not vanilla's own beacon interface — see the listener's own
+        // class note for the bug this fixes.
+        context.listener(new de.raindancer.modules.hungergames.listener.SponsorBeaconListener(
+                sponsorBeacons, viewer -> screens.shop(viewer)));
+
         // The three items a gamemaster runs a tournament from. Without them this module's whole "click, do
         // not type" arrangement has no first click — see AdminHotbarListener.
         this.hotbar = new AdminHotbarListener(plugin,
@@ -473,7 +478,7 @@ public final class HungerGamesWiring {
                         // suite has the compass for that.
                         new de.raindancer.modules.hungergames.screen.GameControlMenu(viewer, brand, null,
                                 session, control, preflight, () -> borderPhases, simulation, monsterWaves,
-                                roster, core.prompts()).open();
+                                roster, core.prompts(), virtualTime::elapsed).open();
                     }
                 },
                 who -> countdown.run(who.getUniqueId()),
@@ -534,6 +539,11 @@ public final class HungerGamesWiring {
         sponsorBeacons.tick(elapsed, this::beaconTimes);
         sponsorTokens.tick(elapsed, tokenSchedule(), server::getPlayer);
         roundExpiry.tick(elapsed);
+        // Fires whatever pack of a running series is due now — see MonsterWaveService.tick's own
+        // javadoc. Nothing called this before: a wave started through MonsterWaveMenu was queued and
+        // never actually spawned anything, because the one method that reads the queue and places mobs
+        // was never reached from anywhere in this module.
+        monsterWaves.tick(elapsed);
         // Advances every exmatrikulator aura currently up — see SurvivalItemService.pulse()'s javadoc for
         // why that is an externally-driven method rather than a BukkitRunnable the service would have to
         // cancel correctly on every exit path. Guarded by the same phase check as everything else above:

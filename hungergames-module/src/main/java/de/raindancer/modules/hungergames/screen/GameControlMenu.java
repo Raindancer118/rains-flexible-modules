@@ -18,6 +18,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -49,12 +50,14 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
     private final Supplier<List<BorderPhaseConfig>> borderPhases;
     private final MannequinSimService simulation;
     private final MonsterWaveService monsterWaves;
+    private final Supplier<Duration> elapsedNow;
 
     public GameControlMenu(Player viewer, Brand brand, Menu parent, GameSession session,
                            GameControlService gameControl, PreflightCheckService preflight,
                            Supplier<List<BorderPhaseConfig>> borderPhases, MannequinSimService simulation,
                            MonsterWaveService monsterWaves,
-                     de.raindancer.modules.hungergames.store.TributeRoster roster, ChatPrompts prompts) {
+                     de.raindancer.modules.hungergames.store.TributeRoster roster, ChatPrompts prompts,
+                     Supplier<Duration> elapsedNow) {
         super(viewer, brand, parent, 5);
         this.session = session;
         this.gameControl = gameControl;
@@ -64,6 +67,7 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
         this.monsterWaves = monsterWaves;
             this.roster = roster;
             this.prompts = prompts;
+        this.elapsedNow = elapsedNow;
     }
 
     @Override
@@ -162,7 +166,7 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
 
         set(33, Icons.of(Material.ZOMBIE_HEAD, "<aqua>Monster waves",
                         "<gray>" + monsterWaves.activeSeries() + " running series"),
-                click -> new MonsterWaveMenu(viewer, brand(), this, monsterWaves).open());
+                click -> new MonsterWaveMenu(viewer, brand(), this, monsterWaves, elapsedNow).open());
     }
 
     private void askPlayerCount() {

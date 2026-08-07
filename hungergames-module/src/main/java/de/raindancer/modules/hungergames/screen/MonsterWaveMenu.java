@@ -10,6 +10,9 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
+import java.time.Duration;
+import java.util.function.Supplier;
+
 /**
  * Monster waves, spawned at wherever the viewer is standing.
  *
@@ -26,10 +29,20 @@ public final class MonsterWaveMenu extends Menu implements IHungerGamesScreen {
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
     private final MonsterWaveService monsterWaves;
+    private final Supplier<Duration> elapsedNow;
 
-    public MonsterWaveMenu(Player viewer, Brand brand, Menu parent, MonsterWaveService monsterWaves) {
+    /**
+     * @param elapsedNow the round's elapsed time right now — {@code VirtualTime::elapsed}, in practice.
+     *                    A wave started at {@code Duration.ZERO} instead has every pack's due time computed
+     *                    relative to the round's beginning rather than to this moment, so the first tick
+     *                    after starting one mid-round finds every pack already overdue and fires them all
+     *                    in one burst instead of spreading them out.
+     */
+    public MonsterWaveMenu(Player viewer, Brand brand, Menu parent, MonsterWaveService monsterWaves,
+                           Supplier<Duration> elapsedNow) {
         super(viewer, brand, parent, 4);
         this.monsterWaves = monsterWaves;
+        this.elapsedNow = elapsedNow;
     }
 
     @Override
@@ -71,7 +84,8 @@ public final class MonsterWaveMenu extends Menu implements IHungerGamesScreen {
 
     private void startHere(String mob) {
         monsterWaves.start(viewer.getLocation(), mob, monsterWaves.defaultCount(),
-                monsterWaves.defaultWaves(), monsterWaves.defaultInterval(), viewer.getName());
+                monsterWaves.defaultWaves(), monsterWaves.defaultInterval(), viewer.getName(),
+                elapsedNow.get());
         refresh();
     }
 
