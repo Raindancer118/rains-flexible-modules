@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 /** Records every event as a string, for assertions in logic tests. */
-final class RecordingGameEvents implements GameEvents {
+public final class RecordingGameEvents implements GameEvents {
 
     final List<String> events = new ArrayList<>();
     final List<Winner> winners = new ArrayList<>();

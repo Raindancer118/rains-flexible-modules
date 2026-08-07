@@ -133,10 +133,9 @@ final class StatusEndpoints implements ApiRouter.Module, IHungerGamesService {
         if (!support.session().revive(uuid)) {
             return ApiResponse.conflict("Not eliminated, or not a tribute: " + uuid);
         }
-        Player player = Bukkit.getPlayer(uuid);
-        if (player != null) {
-            player.setGameMode(GameMode.SURVIVAL);
-        }
+        // Nothing about the player is undone here. GameSession.revive fires the event
+        // HungerGamesWiring's own phase watcher answers by calling SpectatorService.restoreFromElimination
+        // — one door for every way a revive can happen, so this endpoint cannot forget the compass.
         support.log(uuid + " revived via the HTTP API");
         return ApiResponse.ok();
     }
@@ -150,7 +149,7 @@ final class StatusEndpoints implements ApiRouter.Module, IHungerGamesService {
         }
         Player player = Bukkit.getPlayer(uuid);
         if (player != null) {
-            player.setGameMode(GameMode.SPECTATOR);
+            support.spectators().makeSpectator(player);
         }
         support.log(uuid + " eliminated via the HTTP API"
                 + (killer == null ? "" : " (killer: " + killer + ")"));

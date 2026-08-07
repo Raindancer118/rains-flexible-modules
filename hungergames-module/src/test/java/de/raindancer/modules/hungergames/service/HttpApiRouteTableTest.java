@@ -45,7 +45,8 @@ class HttpApiRouteTableTest {
      * table, which is the right way round.
      */
     private static ApiRouter table() {
-        ApiSupport support = new ApiSupport(null, mock(LogChannel.class), HungerGamesSettings.DEFAULTS);
+        ApiSupport support = new ApiSupport(null, mock(LogChannel.class), mock(SpectatorService.class),
+                HungerGamesSettings.DEFAULTS);
         @SuppressWarnings("unchecked")
         de.raindancer.core.data.settings.SettingsStore<HungerGamesSettings> store =
                 mock(de.raindancer.core.data.settings.SettingsStore.class);

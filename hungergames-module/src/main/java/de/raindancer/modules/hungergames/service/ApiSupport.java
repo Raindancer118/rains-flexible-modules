@@ -33,16 +33,23 @@ public final class ApiSupport implements IHungerGamesService {
 
     private final GameSession session;
     private final LogChannel log;
+    private final SpectatorService spectators;
     private volatile HungerGamesSettings settings;
 
-    public ApiSupport(GameSession session, LogChannel log, HungerGamesSettings settings) {
+    public ApiSupport(GameSession session, LogChannel log, SpectatorService spectators,
+                      HungerGamesSettings settings) {
         this.session = session;
         this.log = log;
+        this.spectators = spectators;
         this.settings = settings;
     }
 
     public GameSession session() {
         return session;
+    }
+
+    public SpectatorService spectators() {
+        return spectators;
     }
 
     public HungerGamesSettings settings() {

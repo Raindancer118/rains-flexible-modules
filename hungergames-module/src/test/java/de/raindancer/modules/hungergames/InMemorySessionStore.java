@@ -6,7 +6,7 @@ import de.raindancer.modules.hungergames.store.SessionStore;
 import java.util.Optional;
 
 /** An in-memory {@link SessionStore} for tests; counts how many times it was saved to. */
-final class InMemorySessionStore implements SessionStore {
+public final class InMemorySessionStore implements SessionStore {
 
     private SessionSnapshot snapshot;
     int saveCount;

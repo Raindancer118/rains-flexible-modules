@@ -1,14 +1,21 @@
 package de.raindancer.modules.hungergames;
 
+import de.raindancer.core.content.items.CustomItems;
+import de.raindancer.core.content.items.ItemAbilities;
+import de.raindancer.core.content.items.ItemFactory;
+import de.raindancer.core.moderation.vanish.Vanish;
 import de.raindancer.core.social.team.TeamColour;
 import de.raindancer.modules.hungergames.model.GamePhase;
 import de.raindancer.modules.hungergames.rules.TeamRules;
 import de.raindancer.modules.hungergames.service.SpectatorService;
 import de.raindancer.modules.hungergames.store.GameEvents.MembershipCause;
 import de.raindancer.modules.hungergames.store.GameSession;
+import org.bukkit.Location;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -21,10 +28,12 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * The one door onto a living tribute: {@link SpectatorService#teleportTo} and the preference it uses to
- * pick a fresh spectator's first target.
+ * {@link SpectatorService} without {@code GameMode.SPECTATOR} — vanished instead, so the hotbar and the
+ * inventory survive being eliminated. See the class javadoc for why not real spectator mode.
  */
 @ExtendWith(MockitoExtension.class)
 class SpectatorServiceTest {
@@ -32,9 +41,11 @@ class SpectatorServiceTest {
     private final Map<UUID, Player> online = new HashMap<>();
     private final java.util.List<Player> teleportedTo = new java.util.ArrayList<>();
     private final java.util.List<Player> teleportedFrom = new java.util.ArrayList<>();
-    private final java.util.List<Player> switchedToSpectator = new java.util.ArrayList<>();
 
     private GameSession session;
+    private Vanish vanish;
+    private CustomItems items;
+    private ItemFactory itemFactory;
     private SpectatorService service;
 
     private final UUID victim = UUID.randomUUID();
@@ -49,19 +60,28 @@ class SpectatorServiceTest {
         session.whitelistAdd(teammate, "Teammate");
         session.whitelistAdd(stranger, "Stranger");
 
+        vanish = mock(Vanish.class);
+        items = mock(CustomItems.class);
+        itemFactory = mock(ItemFactory.class);
+
         service = new SpectatorService(session, uuid -> Optional.ofNullable(online.get(uuid)),
                 (spectator, target) -> {
                     teleportedFrom.add(spectator);
                     teleportedTo.add(target);
                 },
-                switchedToSpectator::add);
+                vanish, mock(ItemAbilities.class), items, itemFactory,
+                player -> { });
     }
 
     private Player playerFor(UUID uuid) {
         Player player = mock(Player.class);
-        // Lenient: only makeSpectator() ever asks a Player for their own UUID (to find their first
-        // target); teleportTo() is handed the target UUID directly, so most tests below never touch this.
+        // Lenient: not every test below asks a player for their own UUID, their location or their
+        // inventory — teleportTo() is handed the target UUID directly, for instance.
         org.mockito.Mockito.lenient().when(player.getUniqueId()).thenReturn(uuid);
+        org.mockito.Mockito.lenient().when(player.getLocation())
+                .thenReturn(new Location(null, 0, 64, 0));
+        org.mockito.Mockito.lenient().when(player.getInventory())
+                .thenReturn(mock(PlayerInventory.class));
         online.put(uuid, player);
         return player;
     }
@@ -134,16 +154,73 @@ class SpectatorServiceTest {
         assertThat(service.firstTarget(victim)).isEmpty();
     }
 
-    @Test
-    @DisplayName("makeSpectator switches the mode and points at the first sensible target")
-    void makeSpectatorSwitchesAndTeleports() {
-        Player victimPlayer = playerFor(victim);
-        Player strangerPlayer = playerFor(stranger);
+    @Nested
+    @DisplayName("makeSpectator")
+    class MakingASpectator {
 
-        service.makeSpectator(victimPlayer);
+        @Test
+        @DisplayName("vanishes without a fake departure — they never left in any sense that would be honest")
+        void vanishesSilently() {
+            Player victimPlayer = playerFor(victim);
+            when(victimPlayer.getAllowFlight()).thenReturn(false);
 
-        assertThat(switchedToSpectator).containsExactly(victimPlayer);
-        assertThat(teleportedTo).containsExactly(strangerPlayer);
+            service.makeSpectator(victimPlayer);
+
+            verify(vanish).vanish(victim, false, false);
+        }
+
+        @Test
+        @DisplayName("remembers whether they could already fly, for a correct reveal later")
+        void rememberssExistingFlight() {
+            Player victimPlayer = playerFor(victim);
+            when(victimPlayer.getAllowFlight()).thenReturn(true);
+
+            service.makeSpectator(victimPlayer);
+
+            verify(vanish).vanish(victim, true, false);
+        }
+
+        @Test
+        @DisplayName("grants flight, at more than vanilla's own speed")
+        void grantsFasterFlight() {
+            Player victimPlayer = playerFor(victim);
+
+            service.makeSpectator(victimPlayer);
+
+            verify(victimPlayer).setAllowFlight(true);
+            verify(victimPlayer).setFlying(true);
+            verify(victimPlayer).setFlySpeed(org.mockito.ArgumentMatchers.floatThat(speed -> speed > 0.1F));
+        }
+
+        @Test
+        @DisplayName("remembers where they stood, for the respawn that follows")
+        void remembersWhereTheyStood() {
+            Player victimPlayer = playerFor(victim);
+            Location where = new Location(null, 12, 34, 56);
+            when(victimPlayer.getLocation()).thenReturn(where);
+
+            service.makeSpectator(victimPlayer);
+
+            assertThat(service.lastKnownLocation(victim)).contains(where);
+        }
+    }
+
+    @Nested
+    @DisplayName("restoreFromElimination")
+    class RestoringFromElimination {
+
+        @Test
+        @DisplayName("reveals, stops flying, and forgets the remembered location")
+        void undoesEverything() {
+            Player victimPlayer = playerFor(victim);
+            service.makeSpectator(victimPlayer);
+
+            service.restoreFromElimination(victimPlayer);
+
+            verify(vanish).reveal(victim);
+            verify(victimPlayer).setFlying(false);
+            assertThat(service.lastKnownLocation(victim)).isEmpty();
+        }
     }
 
     @Test

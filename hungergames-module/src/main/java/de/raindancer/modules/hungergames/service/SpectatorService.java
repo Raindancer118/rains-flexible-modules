@@ -1,25 +1,62 @@
 package de.raindancer.modules.hungergames.service;
 
+import de.raindancer.core.content.items.CustomItem;
+import de.raindancer.core.content.items.CustomItems;
+import de.raindancer.core.content.items.ItemAbilities;
+import de.raindancer.core.content.items.ItemAbility;
+import de.raindancer.core.content.items.ItemFactory;
+import de.raindancer.core.content.items.ItemTrigger;
+import de.raindancer.core.content.items.ItemUse;
+import de.raindancer.core.moderation.vanish.Vanish;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
 import de.raindancer.modules.hungergames.store.GameSession;
+import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
- * Eliminated tributes as real spectators: {@code GameMode.SPECTATOR} — no interacting, no collision,
- * invisible to the living, all Vanilla guarantees — plus a teleport restricted to living, online tributes.
+ * Eliminated tributes as spectators — vanished, not switched to {@code GameMode.SPECTATOR}.
  *
- * <h2>Why the restriction is enforced here, not trusted to whoever asks</h2>
- * Vanilla's own spectator-mode "fly to any entity" would let a spectator watch a tribute who has already
- * been eliminated (a corpse's camera, effectively) or one still in the lobby before the round exists at
- * all. {@link #teleportTo} is the one door: it asks {@link GameSession#participants()} whether the target
- * is alive and {@link OnlinePlayers} whether they are actually reachable, and a caller — command, menu, or
- * the admin HTTP endpoint — gets a plain {@code false} rather than a teleport to somewhere that makes no
- * sense.
+ * <h2>Why not real spectator mode</h2>
+ * The Hypixel shape this was asked to match: a tribute who is out stays in survival, invisible to
+ * everybody who is still playing, unable to be hurt, unable to hurt anyone, unable to touch a block —
+ * and still holding their hotbar, because vanilla spectator mode replaces it with nothing to hold at
+ * all. Real spectator mode gives every one of those guarantees at the cost of the one thing this
+ * module was asked to keep.
+ *
+ * <p>{@link de.raindancer.core.moderation.vanish.Vanish} already owns "properly not here" — the
+ * tablist, the collision, the fake departure. What it does not own is "cannot mine the cornucopia
+ * while nobody can see them", which is why {@link SpectatorProtectionListener} exists beside this
+ * class rather than folded into it.
+ *
+ * <h2>Why the departure is never faked here</h2>
+ * An eliminated tribute has not left in any sense a "left the game" line would be honest about — they
+ * are still connected, still watching, still on this server. {@link Vanish}'s three-argument
+ * {@code vanish} exists for exactly this call.
  */
 public final class SpectatorService implements IHungerGamesService, AdminEndpoints.Spectator {
+
+    /** Who this module's items belong to, in Core's registry — see {@link ArenaItemService#PLUGIN}. */
+    public static final String PLUGIN = "hungergames";
+
+    /** The item a spectator holds to reach {@link de.raindancer.modules.hungergames.screen.SpectateMenu}. */
+    public static final String SPECTATOR_COMPASS = "spectator-compass";
+
+    /** Where {@link #giveTheCompass} puts it — the first hotbar slot, so it is never lost in a search. */
+    private static final int COMPASS_SLOT = 0;
+
+    /** Vanilla's own flying speed, and what a returning tribute is put back to. */
+    private static final float NORMAL_FLY_SPEED = 0.1F;
+
+    /** Twice vanilla — a spectator watching a round from above should not be crawling across the arena. */
+    private static final float SPECTATOR_FLY_SPEED = 0.2F;
 
     /** Resolving a UUID to an online {@link Player} — Bukkit's job, seamed so this class needs no server. */
     @FunctionalInterface
@@ -33,23 +70,32 @@ public final class SpectatorService implements IHungerGamesService, AdminEndpoin
         void go(Player spectator, Player target);
     }
 
-    /** Switching a freshly eliminated tribute into spectator mode and clearing whatever they were carrying. */
-    @FunctionalInterface
-    public interface SpectatorMode {
-        void apply(Player player);
-    }
-
     private final GameSession session;
     private final OnlinePlayers online;
     private final Teleport teleport;
-    private final SpectatorMode spectatorMode;
+    private final Vanish vanish;
+    private final ItemAbilities abilities;
+    private final CustomItems items;
+    private final ItemFactory itemFactory;
+    private final Consumer<Player> openSpectateMenu;
 
-    public SpectatorService(GameSession session, OnlinePlayers online, Teleport teleport,
-                             SpectatorMode spectatorMode) {
+    /**
+     * Where a tribute stood the instant they were eliminated — read by {@link SpectatorProtectionListener}
+     * to keep a respawn from moving them to the world's spawn point instead.
+     */
+    private final Map<UUID, Location> lastStandingAt = new ConcurrentHashMap<>();
+
+    public SpectatorService(GameSession session, OnlinePlayers online, Teleport teleport, Vanish vanish,
+                            ItemAbilities abilities, CustomItems items, ItemFactory itemFactory,
+                            Consumer<Player> openSpectateMenu) {
         this.session = session;
         this.online = online;
         this.teleport = teleport;
-        this.spectatorMode = spectatorMode;
+        this.vanish = vanish;
+        this.abilities = abilities;
+        this.items = items;
+        this.itemFactory = itemFactory;
+        this.openSpectateMenu = openSpectateMenu;
     }
 
     /** Nothing here reads a setting — see {@link IHungerGamesService}'s note on implementing this empty. */
@@ -58,13 +104,85 @@ public final class SpectatorService implements IHungerGamesService, AdminEndpoin
         // intentionally empty
     }
 
+    /** Tells Core about the spectator compass and its ability — see {@code ArenaItemService.register}. */
+    public void register() {
+        items.defineIfAbsent(CustomItem.builder(PLUGIN, SPECTATOR_COMPASS)
+                .material(Material.COMPASS)
+                .name("<aqua>Spectate")
+                .lore(List.of("<gray>Right-click to watch a living tribute."))
+                .glowing(true)
+                .ability(SPECTATOR_COMPASS)
+                .build());
+        abilities.register(ItemAbility.builder(PLUGIN, SPECTATOR_COMPASS)
+                .on(ItemTrigger.RIGHT_CLICK)
+                .describedAs("Opens the page for watching a living tribute")
+                .attempts(this::openTheSpectateMenu)
+                .build());
+    }
+
+    /** @return whether there was somebody online to show the page to */
+    private boolean openTheSpectateMenu(ItemUse use) {
+        Optional<Player> player = online.byUuid(use.player());
+        player.ifPresent(openSpectateMenu);
+        return player.isPresent();
+    }
+
     /**
-     * Turns a freshly eliminated tribute into a spectator and points them at whoever makes the most sense
-     * to watch first — see {@link #firstTarget}.
+     * Whether that item is the spectator's own compass — the one thing
+     * {@link SpectatorProtectionListener} lets an eliminated tribute still use.
+     */
+    public boolean isTheSpectatorCompass(org.bukkit.inventory.ItemStack stack) {
+        return stack != null && itemFactory.keyOf(stack)
+                .map(key -> key.equals(PLUGIN + ":" + SPECTATOR_COMPASS))
+                .orElse(false);
+    }
+
+    /**
+     * Turns a freshly eliminated tribute into a spectator: vanished, flying, holding the compass —
+     * and remembered, so a respawn a moment later does not undo the "stay where you were" half of it.
      */
     public void makeSpectator(Player player) {
-        spectatorMode.apply(player);
-        firstTarget(player.getUniqueId()).ifPresent(target -> teleportTo(player, target));
+        UUID uuid = player.getUniqueId();
+        lastStandingAt.put(uuid, player.getLocation().clone());
+        vanish.vanish(uuid, player.getAllowFlight(), false);
+        player.setAllowFlight(true);
+        player.setFlying(true);
+        player.setFlySpeed(SPECTATOR_FLY_SPEED);
+        giveTheCompass(player);
+    }
+
+    private void giveTheCompass(Player player) {
+        items.byKey(PLUGIN + ":" + SPECTATOR_COMPASS)
+                .flatMap(itemFactory::create)
+                .ifPresent(compass -> player.getInventory().setItem(COMPASS_SLOT, compass));
+    }
+
+    /**
+     * Undoes {@link #makeSpectator} — a revive, whether typed at the console, clicked in
+     * {@code TributesMenu}, or called through the HTTP API. One door, so a fourth way to bring somebody
+     * back cannot forget to take the compass out of their hand.
+     */
+    public void restoreFromElimination(Player player) {
+        UUID uuid = player.getUniqueId();
+        vanish.reveal(uuid);
+        player.setFlying(false);
+        player.setFlySpeed(NORMAL_FLY_SPEED);
+        takeTheCompassBack(player);
+        lastStandingAt.remove(uuid);
+    }
+
+    private void takeTheCompassBack(Player player) {
+        org.bukkit.inventory.PlayerInventory inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (isTheSpectatorCompass(inventory.getItem(slot))) {
+                inventory.setItem(slot, null);
+            }
+        }
+    }
+
+    /** Where a spectator stood the moment they were eliminated — for {@link SpectatorProtectionListener}. */
+    public Optional<Location> lastKnownLocation(UUID uuid) {
+        return Optional.ofNullable(lastStandingAt.get(uuid));
     }
 
     /**
@@ -90,8 +208,9 @@ public final class SpectatorService implements IHungerGamesService, AdminEndpoin
      * otherwise any living tribute who is online, otherwise nobody.
      *
      * <p>Pure given {@link GameSession} and {@link OnlinePlayers} — the reason
-     * {@code SpectatorServiceTest} can check this preference without a server: a teammate over a stranger
-     * is what makes "you just died" land on somebody the spectator was actually playing with.
+     * {@code SpectatorServiceTest} can check this preference without a server. Still used by the
+     * {@code /hg spectate} page and the spectator compass to choose who a fresh spectator sees first;
+     * {@link #makeSpectator} itself no longer teleports anywhere on its own — see its own note.
      */
     public Optional<UUID> firstTarget(UUID spectatorUuid) {
         Optional<UUID> teammate = session.teams().teamOf(spectatorUuid)
@@ -115,6 +234,6 @@ public final class SpectatorService implements IHungerGamesService, AdminEndpoin
 
     @Override
     public String describe() {
-        return "eliminated tributes as real spectators";
+        return "eliminated tributes as spectators — vanished, flying, and still holding a hotbar";
     }
 }

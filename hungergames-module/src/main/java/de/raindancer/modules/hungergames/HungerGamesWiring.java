@@ -294,7 +294,8 @@ public final class HungerGamesWiring {
         this.spectators = new SpectatorService(session,
                 uuid -> Optional.ofNullable(server.getPlayer(uuid)),
                 (spectator, target) -> spectator.teleport(target.getLocation()),
-                player -> player.setGameMode(GameMode.SPECTATOR));
+                core.vanish(), core.itemAbilities(), core.items(), core.itemFactory(),
+                player -> screens.spectate(player));
         this.chatChannels = new de.raindancer.modules.hungergames.service.ChatChannelService(session);
         this.opTracker = new OpTrackerService(session, opAccess(), runtimeStore, roundLog,
                 (uuid, message) -> {
@@ -344,11 +345,11 @@ public final class HungerGamesWiring {
         // note on why a side effect on the server does not belong in a constructor. Forgetting to build one
         // of these is exactly the bug EveryItemIsRegisteredTest exists to catch: the service compiles, its
         // own tests pass, and the only symptom is an empty item page.
-        this.arenaItems = new ArenaItemService(core.itemAbilities(), core.items(), session::phase,
+        this.arenaItems = new ArenaItemService(core.itemAbilities(), core.items(),
                 tracking(), settings());
-        this.combatItems = new CombatItemService(core.itemAbilities(), core.items(), session::phase,
+        this.combatItems = new CombatItemService(core.itemAbilities(), core.items(),
                 smokescreen(), medicine(), storm(), splash(), aura(), settings());
-        this.mobilityItems = new MobilityItemService(core.itemAbilities(), core.items(), session::phase,
+        this.mobilityItems = new MobilityItemService(core.itemAbilities(), core.items(),
                 grappling(), repulsion(), launching(), settings());
         this.hermesBoots = new HermesBootsService(core.items(), settings());
         // Built before combatItems, because medicine() reaches for it: the medikit's click is answered by
@@ -358,7 +359,7 @@ public final class HungerGamesWiring {
                     var scheduled = Scheduling.globalTimer(plugin, 20L, 20L, handle -> task.run());
                     return scheduled::cancel;
                 });
-        this.survivalItems = new SurvivalItemService(core.itemAbilities(), core.items(), session::phase,
+        this.survivalItems = new SurvivalItemService(core.itemAbilities(), core.items(),
                 feasting(), armoury(), rescue(), volley(), itemVoice(), System::currentTimeMillis, new Random(),
                 settings());
     }
@@ -403,6 +404,7 @@ public final class HungerGamesWiring {
         mobilityItems.register();
         survivalItems.register();
         hermesBoots.register();
+        spectators.register();
         // Once a second: grants and revokes the flight the boots earn, and spends the budget while it is
         // actually being used — see tickHermesBoots's own note for why this is a tick rather than a click.
         Scheduling.globalTimer(plugin, 20L, 20L, handle -> tickHermesBoots());
@@ -448,6 +450,11 @@ public final class HungerGamesWiring {
         // fighting, and being eliminated changed nothing about who could still read a tribute's words.
         context.listener(new de.raindancer.modules.hungergames.listener.ChatChannelListener(
                 plugin, session, chatChannels, core.messages(), server));
+        // No breaking, no placing, no item but the compass, no damage given or taken, no hunger, and a
+        // respawn that puts an eliminated tribute back where they fell — see the class note for why
+        // this is not folded into SpectatorService itself.
+        context.listener(new de.raindancer.modules.hungergames.listener.SpectatorProtectionListener(
+                session, spectators));
 
         // The three items a gamemaster runs a tournament from. Without them this module's whole "click, do
         // not type" arrangement has no first click — see AdminHotbarListener.
@@ -1826,7 +1833,8 @@ public final class HungerGamesWiring {
      * not yet model.
      */
     private void startTheHttpApi() {
-        this.apiSupport = new de.raindancer.modules.hungergames.service.ApiSupport(session, log, settings());
+        this.apiSupport = new de.raindancer.modules.hungergames.service.ApiSupport(session, log, spectators,
+                settings());
         var wiring = new de.raindancer.modules.hungergames.service.HttpApiService.Wiring(
                 new de.raindancer.modules.hungergames.service.GameControlApiAdapter(
                         control, preflight, border, virtualTime, () -> borderPhases),
@@ -2236,6 +2244,12 @@ public final class HungerGamesWiring {
             @Override
             public void participantRevived(UUID participant) {
                 opTracker.onRevived(participant);
+                // One door for every way a revive can happen — the console, TributesMenu, the HTTP
+                // API — so a fourth one cannot forget to take the compass out of somebody's hand.
+                Player revived = server.getPlayer(participant);
+                if (revived != null) {
+                    spectators.restoreFromElimination(revived);
+                }
             }
 
             @Override
