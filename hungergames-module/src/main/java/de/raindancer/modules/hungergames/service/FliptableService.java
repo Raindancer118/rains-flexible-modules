@@ -9,10 +9,8 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Stream;
 
 /**
  * {@code /fliptable confirm} — the whole server back to nothing, worlds and all.
@@ -239,21 +237,59 @@ public final class FliptableService {
         }
     }
 
-    /** Depth-first, so a directory is removed after everything in it. */
+    /**
+     * Depth-first, so a directory is removed after everything in it.
+     *
+     * <h2>Why this walks the tree by hand rather than through {@code Files.walk}</h2>
+     * {@code Files.walk} is one lazy stream, and an {@code IOException} reading <em>any</em> directory in
+     * it — a region file mid-write, a permission bit, anything — propagates out of the terminal operation
+     * and abandons the walk right there. Everything visited before that point is already deleted; nothing
+     * after it is even looked at. The result is exactly the half-deleted world this whole class exists to
+     * avoid: {@code level.dat} gone, an empty {@code dimensions/minecraft/} left behind, and the server
+     * refusing to boot with "Overworld settings missing" — which is precisely what happened on this
+     * server's own {@code world/} folder the first time this ran into one such entry.
+     *
+     * <p>{@link Files#walkFileTree} with a visitor does not have that failure mode: {@code visitFileFailed}
+     * is called <em>per entry</em>, so one unreadable file is skipped and the walk continues into every
+     * sibling and every directory after it. A tree that cannot be fully deleted still ends up as empty as
+     * it can be made, rather than abandoned at the first obstacle.
+     */
     private static boolean deleteTree(Path root) {
-        try (Stream<Path> walk = Files.walk(root)) {
-            walk.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException ignored) {
-                    // Reported by the existence check below rather than per file: forty lines about one
-                    // locked region file is not more useful than "this folder is still there".
+        try {
+            Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<>() {
+                @Override
+                public java.nio.file.FileVisitResult visitFile(Path file,
+                        java.nio.file.attribute.BasicFileAttributes attrs) {
+                    deleteQuietly(file);
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public java.nio.file.FileVisitResult visitFileFailed(Path file, IOException unreadable) {
+                    // Skipped rather than aborting the whole tree — see the class note above.
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public java.nio.file.FileVisitResult postVisitDirectory(Path dir, IOException failure) {
+                    deleteQuietly(dir);
+                    return java.nio.file.FileVisitResult.CONTINUE;
                 }
             });
-        } catch (IOException unreadable) {
+        } catch (IOException cannotEvenStart) {
             return false;
         }
         return !Files.exists(root);
+    }
+
+    /** One path, gone if it can be — never a reason for the rest of the tree to stop being deleted. */
+    private static void deleteQuietly(Path path) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ignored) {
+            // Reported by the existence check the caller makes afterwards, rather than per file: forty
+            // lines about one locked region file is not more useful than "this folder is still there".
+        }
     }
 
     private static void say(String line) {
