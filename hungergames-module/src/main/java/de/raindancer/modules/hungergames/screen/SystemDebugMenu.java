@@ -29,7 +29,9 @@ import org.bukkit.entity.Player;
  *
  * <h2>Why the speed change is Core's {@link AmountChooser} rather than four fixed buttons</h2>
  * ×1/×2/×4/×8 was the source's whole range; {@link AmountChooser} offers the same kind of stepped choice
- * without this page maintaining a second, smaller idea of what a sensible multiplier is.
+ * without this page maintaining a second, smaller idea of what a sensible multiplier is. Raised to ×20 on
+ * request — testing a round end-to-end at ×8 was still several real minutes, and {@link VirtualTime} itself
+ * has never had a ceiling of its own (only a floor of ×1); the ×8 top was only ever this page's choice.
  */
 public final class SystemDebugMenu extends Menu implements IHungerGamesScreen {
 
@@ -78,7 +80,7 @@ public final class SystemDebugMenu extends Menu implements IHungerGamesScreen {
                         "<gray>Current: ×" + virtualTime.multiplier(),
                         "<dark_gray>Speeds up the clock, the border and every timer that reads it."),
                 click -> new AmountChooser(viewer, brand(), this, "Round speed multiplier",
-                        1, 8, (int) Math.round(virtualTime.multiplier()),
+                        1, 20, (int) Math.round(virtualTime.multiplier()),
                         chosen -> {
                             virtualTime.setMultiplier(chosen);
                             refresh();
