@@ -229,9 +229,20 @@ class HungerGamesSettingsMigrationTest {
         // config value that stopped existing without anybody deciding it should. The fifty-two items.* keys
         // moved from MOVED into the schema when a live server's config.yml proved they were real settings
         // rather than content Core owns — see TheLiveConfigSurvivesTest.
-        assertThat(schemaKeys).hasSize(193);
+        //
+        // Four more joined afterwards, and are not part of the 272 at all: a cooldown on Hermes' boots, the
+        // grappling hook, repulse and leap. The source had none of the four — every one of those items was
+        // single-use and gone the moment it fired, so there was nothing to cool down. The port's earlier
+        // pass gave them a cooldown anyway, as durable equipment, and baked in a number nobody could turn
+        // off. Real feedback from testing: keep the mechanism, default it to zero so an upgrading server's
+        // tournament plays exactly as before, and let a server that wants one type it in.
+        //
+        // The Fiendfinder got the same treatment in that earlier pass and does not get it here: it is
+        // single use in the source, consumed the instant it fires, and a cooldown on top of that is a
+        // different item rather than a configurable version of the same one — see ArenaItemServiceTest.
+        assertThat(schemaKeys).hasSize(196);
         assertThat(MOVED).hasSize(79);
-        assertThat(schemaKeys.size() + MOVED.size()).isEqualTo(272);
+        assertThat(schemaKeys.size() + MOVED.size()).isEqualTo(275);
     }
 
     @Test

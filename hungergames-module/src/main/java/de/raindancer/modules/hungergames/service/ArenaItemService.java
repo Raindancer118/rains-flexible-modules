@@ -10,7 +10,6 @@ import de.raindancer.modules.hungergames.HungerGamesSettings;
 import de.raindancer.modules.hungergames.model.GamePhase;
 import org.bukkit.Material;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -47,13 +46,13 @@ public final class ArenaItemService implements IHungerGamesService {
     public static final String FIENDFINDER = "fiendfinder";
 
     /**
-     * How long the Fiendfinder waits between readings.
-     *
-     * <p>Fifteen seconds. Short enough to be worth carrying, long enough that it cannot be held down as a
-     * live tracker — a compass that updates continuously removes hiding from the game entirely, which is half
-     * of what the border exists to defeat.
+     * The Fiendfinder is single use, exactly as the source had it — {@code Fiendfinder.activate} returns
+     * whether to consume the item and nothing about a wait before the next one. An earlier pass of this
+     * port added a fifteen-second cooldown on top of the source's own consumesItem() behaviour, which is
+     * not a smaller version of the source's design, it is a different item: the source's Fiendfinder is
+     * spent finding one enemy, once; this port's mistaken version could be right-clicked again after
+     * fifteen seconds without spending a second one, which is not what "single use" means.
      */
-    public static final Duration FIENDFINDER_COOLDOWN = Duration.ofSeconds(15);
 
     /** Pointing a compass at the nearest living tribute. */
     @FunctionalInterface
@@ -102,8 +101,7 @@ public final class ArenaItemService implements IHungerGamesService {
                 .name("<light_purple>Fiendfinder")
                 .lore(List.of(
                         "<gray>Points at the nearest living tribute.",
-                        "<dark_gray>Right-click. " + FIENDFINDER_COOLDOWN.toSeconds()
-                                + "s between readings."))
+                        "<dark_gray>Right-click. Single use."))
                 .glowing(true)
                 .ability(FIENDFINDER)
                 .build());
@@ -112,7 +110,6 @@ public final class ArenaItemService implements IHungerGamesService {
                 .on(ItemTrigger.RIGHT_CLICK)
                 .describedAs("Points at the nearest living tribute")
                 .consumesItem()
-                .cooldown(FIENDFINDER_COOLDOWN)
                 .attempts(this::readTheFiendfinder)
                 .build());
 

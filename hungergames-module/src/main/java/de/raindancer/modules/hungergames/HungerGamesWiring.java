@@ -40,6 +40,7 @@ import de.raindancer.modules.hungergames.service.CombatItemService;
 import de.raindancer.modules.hungergames.service.CountdownService;
 import de.raindancer.modules.hungergames.service.DeathmatchService;
 import de.raindancer.modules.hungergames.service.GameControlService;
+import de.raindancer.modules.hungergames.service.HermesBootsService;
 import de.raindancer.modules.hungergames.service.GameTimerService;
 import de.raindancer.modules.hungergames.service.HungerGamesCues;
 import de.raindancer.modules.hungergames.service.MannequinSimService;
@@ -195,6 +196,7 @@ public final class HungerGamesWiring {
     private final ArenaItemService arenaItems;
     private final CombatItemService combatItems;
     private final MobilityItemService mobilityItems;
+    private final HermesBootsService hermesBoots;
     private final SurvivalItemService survivalItems;
 
     /**
@@ -208,6 +210,9 @@ public final class HungerGamesWiring {
 
     /** Who owns the action bar slot Hermes' Boots count down in. See {@link #MEDIKIT_BAR}. */
     private static final String HERMES_BAR = "hungergames-hermes";
+
+    /** Who owns the action bar slot the Fiendfinder's arrow and distance are drawn in. See {@link #MEDIKIT_BAR}. */
+    private static final String FIENDFINDER_BAR = "hungergames-fiendfinder";
 
     /** The medikit's wind-up, and the damage that cancels it. */
     private final MedikitCountdownService medikitCountdown;
@@ -342,7 +347,8 @@ public final class HungerGamesWiring {
         this.combatItems = new CombatItemService(core.itemAbilities(), core.items(), session::phase,
                 smokescreen(), medicine(), storm(), splash(), aura(), settings());
         this.mobilityItems = new MobilityItemService(core.itemAbilities(), core.items(), session::phase,
-                flight(), grappling(), repulsion(), launching(), settings());
+                grappling(), repulsion(), launching(), settings());
+        this.hermesBoots = new HermesBootsService(core.items(), settings());
         // Built before combatItems, because medicine() reaches for it: the medikit's click is answered by
         // starting a wind-up rather than by healing, and the thing that owns that wind-up has to exist first.
         this.medikitCountdown = new MedikitCountdownService(medikitTreatment(),
@@ -394,6 +400,10 @@ public final class HungerGamesWiring {
         combatItems.register();
         mobilityItems.register();
         survivalItems.register();
+        hermesBoots.register();
+        // Once a second: grants and revokes the flight the boots earn, and spends the budget while it is
+        // actually being used — see tickHermesBoots's own note for why this is a tick rather than a click.
+        Scheduling.globalTimer(plugin, 20L, 20L, handle -> tickHermesBoots());
         // Counted out loud. Three separate times in this port, finished and tested code was simply never
         // called — the session store, this whole class, and these four services — and every time the only
         // evidence on a clean boot was a log line that was *absent*. A number here is the difference
@@ -957,8 +967,9 @@ public final class HungerGamesWiring {
                 holder.sendMessage(core.messages().get("hungergames.item-fiendfinder-nobody"));
                 return false;
             }
+            Duration glowDuration = Duration.ofSeconds(now.fiendfinderGlowDuration());
             nearest.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING,
-                    (int) ticksOf(Duration.ofSeconds(now.fiendfinderGlowDuration())), 0, false, false, true));
+                    (int) ticksOf(glowDuration), 0, false, false, true));
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_FIENDFINDER);
             holder.sendMessage(core.messages().get("hungergames.item-fiendfinder"));
             holder.sendMessage(core.messages().get("hungergames.item-fiendfinder-found",
@@ -967,8 +978,79 @@ public final class HungerGamesWiring {
             // The person found is told. Being tracked without knowing it is the version of this item that
             // has no counterplay at all, and the source told them for exactly that reason.
             nearest.sendMessage(core.messages().get("hungergames.item-fiendfinder-revealed"));
+            trackOnTheActionBar(holder.getUniqueId(), nearest.getUniqueId(), glowDuration);
             return true;
         };
+    }
+
+    /**
+     * A rotating arrow and a live distance, on the action bar, for as long as the target keeps glowing.
+     *
+     * <h2>Why an arrow drawn as text rather than the vanilla locator bar</h2>
+     * Minecraft's own locator bar — the off-screen marker other games call a "waypoint arrow" — has no
+     * plugin API on this server's Paper build at all: nothing under {@code org.bukkit} or Paper's own
+     * extensions creates or targets one. Building it anyway would mean reaching past both APIs into the
+     * raw protocol, version-locked to exactly this Minecraft release — the kind of dependency this project
+     * takes on WorldEdit for and writes itself for nothing else. An arrow built from the holder's own yaw
+     * and the bearing to the target is available today, on every Paper version this module supports, and
+     * needs nothing from the server that was not already being read for the glow effect.
+     *
+     * <h2>Why it only runs for the glow's own duration</h2>
+     * The source's Fiendfinder was one line of text, read once, about where the target was standing at the
+     * moment of the click — a snapshot, not a tracker. A live-updating arrow that ran forever would turn a
+     * single reading into a permanent radar, which is a different balance decision from the one
+     * {@code items.fiendfinder.glow-duration} already makes about how long a reveal lasts. Tying the two
+     * together means a server tuning how long somebody stays lit is also tuning how long the holder can
+     * navigate towards them, without a second setting to keep in step with the first.
+     *
+     * <h2>Why it is private to the holder</h2>
+     * {@link ActionBarPriority#HIGH}, shown only to the one player, on its own owner slot — the same reason
+     * the Hermes' boots countdown and the medikit's wind-up are private: this is the holder's own read of
+     * the Fiendfinder they spent, not something the person revealed, or anybody else nearby, should see.
+     */
+    private void trackOnTheActionBar(UUID holderId, UUID targetId, Duration forHowLong) {
+        Player holder = server.getPlayer(holderId);
+        if (holder == null) {
+            return;
+        }
+        long totalTicks = ticksOf(forHowLong);
+        long[] elapsed = {0L};
+        Scheduling.entityTimer(plugin, holder, 20L, 20L, scheduled -> {
+            elapsed[0] += 20L;
+            Player current = server.getPlayer(holderId);
+            Player target = server.getPlayer(targetId);
+            if (current == null || target == null || !session.participants().isAlive(targetId)
+                    || elapsed[0] >= totalTicks) {
+                if (current != null) {
+                    core.actionBars().clear(holderId, FIENDFINDER_BAR);
+                }
+                scheduled.cancel();
+                return;
+            }
+            Vector toTarget = target.getLocation().toVector().subtract(current.getLocation().toVector());
+            double distance = toTarget.length();
+            String arrow = compassArrow(current.getLocation().getYaw(), toTarget);
+            core.actionBars().show(holderId, FIENDFINDER_BAR,
+                    core.messages().get("hungergames.item-fiendfinder-tracking",
+                            "arrow", arrow, "distance", String.valueOf((int) Math.round(distance))),
+                    Duration.ofSeconds(2), ActionBarPriority.HIGH);
+        });
+    }
+
+    /**
+     * One of eight arrows for the direction {@code toTarget} lies in, relative to {@code facingYaw}.
+     *
+     * <p>Minecraft's yaw is measured clockwise from south (0°) rather than the usual east-from-positive-x
+     * convention, which is why the bearing below reads {@code -dx, dz} rather than {@code dz, dx}: it is
+     * the same formula {@code Location.setDirection} uses in reverse, so a bearing computed here and a yaw
+     * read from the engine always agree about which way is which.
+     */
+    private static String compassArrow(float facingYaw, Vector toTarget) {
+        double bearing = Math.toDegrees(Math.atan2(-toTarget.getX(), toTarget.getZ()));
+        double relative = ((bearing - facingYaw) % 360 + 360) % 360;   // normalised to [0, 360)
+        String[] arrows = {"↑", "↗", "→", "↘", "↓", "↙", "←", "↖"};
+        int index = (int) Math.round(relative / 45.0) % 8;
+        return arrows[index];
     }
 
     // -------------------- CombatItemService --------------------
@@ -1315,90 +1397,142 @@ public final class HungerGamesWiring {
 
     // -------------------- MobilityItemService --------------------
 
+    // -------------------- HermesBootsService --------------------
+
     /**
-     * Temporary flight, with a warning before it ends.
+     * One second: grants or revokes the flight the boots earn, and spends the budget while it is actually
+     * being used.
      *
-     * <p>The per-second countdown is the source plugin's own rhythm: a warning cue in the last
-     * {@code warnBefore} seconds, flight switched off (and a landing cushion applied, the same
-     * {@link MobilityItemService#LEAP_SOFT_LANDING} leap already uses) the second it runs out.
+     * <h2>Why this is a tick rather than a click</h2>
+     * There is no click. Hermes' boots are worn, and what they do is entirely a function of whether they
+     * are on somebody's feet and whether that somebody is, this second, actually flying — both of which can
+     * change without any event this module owns firing (taking a boot off is an inventory click Core does
+     * not route through here, and starting or stopping flight is the client's own decision once
+     * {@code allowFlight} is true). Asking the question once a second, for everybody alive, is simpler and
+     * more robust than trying to catch every path that could change either answer.
+     *
+     * <h2>Why only flying spends the budget</h2>
+     * Real feedback from testing: wearing the boots costs nothing by itself, and neither does walking
+     * around in them — only {@link Player#isFlying()} being true drains the second. A tribute who forgets
+     * they are wearing them loses nothing; a tribute using them to cross a ravine spends exactly the
+     * seconds the crossing took.
+     *
+     * <h2>Why {@code setAllowFlight} is granted and revoked here rather than left standing</h2>
+     * Creative and Spectator already fly on their own terms, and this must never touch that — both the
+     * grant and the revoke are skipped for those two modes. For everybody else, flight tracks the boots and
+     * the budget exactly: worn and funded grants it, taken off or spent revokes it, every second, so a
+     * tribute who runs out mid-air is landed the same tick the budget hits zero rather than a tick later.
      */
-    private MobilityItemService.Flight flight() {
-        return (use, forHowLong, warnBefore) -> {
-            Player holder = server.getPlayer(use.player());
-            if (holder == null) {
-                return false;
+    private void tickHermesBoots() {
+        if (session.phase() != GamePhase.RUNNING) {
+            return;
+        }
+        HungerGamesSettings now = settings();
+        for (UUID uuid : session.participants().alive()) {
+            Player tribute = server.getPlayer(uuid);
+            if (tribute == null || tribute.getGameMode() == GameMode.CREATIVE
+                    || tribute.getGameMode() == GameMode.SPECTATOR) {
+                continue;
             }
-            if (holder.getAllowFlight()) {
-                // Somebody who can already fly (Creative, Spectator) declines rather than borrowing flight
-                // they already have — switching it off again when this "flight" timed out would strip
-                // theirs along with it. Told so, or the boots look broken.
-                holder.sendMessage(core.messages().get("hungergames.item-hermes-already-flying"));
-                return false;
+            boolean wearing = isWearingHermesBoots(tribute);
+            if (wearing) {
+                hermesBoots.grantIfAbsent(uuid);
             }
-            holder.setAllowFlight(true);
-            holder.setFlying(true);
-            core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_HERMES_BOOTS);
-            holder.sendMessage(core.messages().get("hungergames.item-hermes",
-                    "seconds", String.valueOf(forHowLong.toSeconds())));
-            long totalTicks = ticksOf(forHowLong);
-            long warnAtTicks = totalTicks - ticksOf(warnBefore);
-            UUID id = holder.getUniqueId();
-            long[] elapsed = {0L};
-            Scheduling.entityTimer(plugin, holder, 20L, 20L, scheduled -> {
-                elapsed[0] += 20L;
-                Player current = server.getPlayer(id);
-                if (current == null) {
-                    scheduled.cancel();
-                    return;
+            boolean funded = wearing && hermesBoots.hasFlightLeft(uuid);
+
+            if (tribute.isFlying()) {
+                int remaining = hermesBoots.depleteOneSecond(uuid);
+                if (remaining <= 0) {
+                    tribute.setFlying(false);
+                    tribute.setAllowFlight(false);
+                    tribute.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING,
+                            (int) ticksOf(MobilityItemService.LEAP_SOFT_LANDING), 0, false, false, false));
+                    tribute.sendMessage(core.messages().get("hungergames.item-hermes-spent"));
+                    core.actionBars().clear(uuid, HERMES_BAR);
+                    continue;
                 }
-                if (elapsed[0] >= totalTicks) {
-                    scheduled.cancel();
-                    if (current.getGameMode() != GameMode.CREATIVE && current.getGameMode() != GameMode.SPECTATOR) {
-                        current.setFlying(false);
-                        current.setAllowFlight(false);
-                        current.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING,
-                                (int) ticksOf(MobilityItemService.LEAP_SOFT_LANDING), 0, false, false, false));
-                        current.sendMessage(core.messages().get("hungergames.item-hermes-over"));
-                    }
-                    return;
-                }
-                if (elapsed[0] >= warnAtTicks) {
-                    core.effects().play(id, HungerGamesCues.ITEM_HERMES_WARNING);
-                    // On the action bar and not in chat: it is a number that changes every second, and
-                    // somebody in the air is looking at the ground rather than at their chat.
-                    core.actionBars().show(id, HERMES_BAR,
+                if (remaining <= now.hermesWarningSeconds()) {
+                    core.effects().play(uuid, HungerGamesCues.ITEM_HERMES_WARNING);
+                    core.actionBars().show(uuid, HERMES_BAR,
                             core.messages().get("hungergames.item-hermes-left",
-                                    "seconds", String.valueOf(Math.max(1L, (totalTicks - elapsed[0]) / 20L))),
+                                    "seconds", String.valueOf(remaining)),
                             Duration.ofSeconds(2), ActionBarPriority.HIGH);
                 }
-            });
-            return true;
-        };
+            }
+
+            if (tribute.getAllowFlight() != funded) {
+                tribute.setAllowFlight(funded);
+                if (!funded) {
+                    tribute.setFlying(false);
+                }
+            }
+        }
+    }
+
+    /** Whether this tribute currently has Hermes' boots on their feet, by the item's own key — never a name. */
+    private boolean isWearingHermesBoots(Player tribute) {
+        ItemStack boots = tribute.getInventory().getBoots();
+        return boots != null
+                && core.itemFactory().is(boots, HermesBootsService.PLUGIN + ":" + HermesBootsService.HERMES_BOOTS);
     }
 
     /**
-     * Pulling the holder towards whatever they are looking at.
+     * Pulling the holder towards a block they are looking at — a continuous flight in a straight line, not
+     * a single shove.
      *
-     * <p>The extra upward push mirrors the source: without it a grapple aimed level with the wall it hit
-     * plants the holder straight into that wall rather than up and over it.
+     * <h2>Why a real block is required</h2>
+     * A grapple aimed at open sky has nothing to hook onto, and declines rather than picking an arbitrary
+     * point in the air to fly towards — see the interface note. This is a deliberate change from the port's
+     * earlier version, which fell back to a point at maximum range when nothing was hit: that made the item
+     * a worse Leap (a single velocity impulse in whatever direction the holder faced) rather than a
+     * grappling hook.
+     *
+     * <h2>Why this recomputes the direction every tick rather than setting one velocity</h2>
+     * A single impulse hands the rest of the flight to gravity, which curves it into a parabola — indistinguishable
+     * from Leap once it is in the air. Recomputing the vector from the holder's current position to the
+     * fixed destination, every tick, is what keeps the flight taut and straight for as long as it lasts:
+     * gravity is still pulling on the holder between ticks, and each tick's velocity set corrects for it.
+     *
+     * <h2>Why it stops on its own</h2>
+     * Arrival — within {@link MobilityItemService#GRAPPLING_ARRIVAL_DISTANCE} of the block — lets go so the
+     * holder lands rather than hovering at the anchor point forever. {@code maxDuration} is the safety
+     * bound for a target the pull cannot actually reach (behind terrain the holder cannot pass, or a target
+     * that walked away): without it, aiming somewhere unreachable would pull forever rather than for a
+     * bounded few seconds.
      */
     private MobilityItemService.Grappling grappling() {
-        return (use, range, power) -> {
+        return (use, range, speed, maxDuration) -> {
             Player holder = server.getPlayer(use.player());
             if (holder == null) {
                 return false;
             }
             Block target = holder.getTargetBlockExact((int) range);
-            Location destination = target != null ? target.getLocation().add(0.5, 1, 0.5)
-                    : holder.getEyeLocation().add(holder.getEyeLocation().getDirection().multiply(range));
-            Vector pull = destination.toVector().subtract(holder.getLocation().toVector());
-            if (pull.lengthSquared() < 0.01) {
-                return false;   // nothing close enough to be worth grappling onto — see the interface note
+            if (target == null) {
+                return false;   // nothing solid within range to hook onto — see the interface note
             }
-            holder.setVelocity(pull.normalize().multiply(power).setY(Math.max(0.4, pull.getY() > 0 ? 0.6 : 0.3)));
-            holder.setFallDistance(0f);
+            Location destination = target.getLocation().add(0.5, 1, 0.5);
             core.effects().play(holder.getUniqueId(), HungerGamesCues.ITEM_GRAPPLING);
             holder.sendMessage(core.messages().get("hungergames.item-grappling"));
+
+            UUID id = holder.getUniqueId();
+            long maxTicks = ticksOf(maxDuration);
+            long[] elapsed = {0L};
+            Scheduling.entityTimer(plugin, holder, 1L, 1L, scheduled -> {
+                elapsed[0]++;
+                Player current = server.getPlayer(id);
+                if (current == null) {
+                    scheduled.cancel();
+                    return;
+                }
+                Vector toTarget = destination.toVector().subtract(current.getLocation().toVector());
+                if (toTarget.length() <= MobilityItemService.GRAPPLING_ARRIVAL_DISTANCE
+                        || elapsed[0] >= maxTicks) {
+                    scheduled.cancel();
+                    return;
+                }
+                current.setVelocity(toTarget.normalize().multiply(speed));
+                current.setFallDistance(0f);
+            });
             return true;
         };
     }
@@ -2053,6 +2187,7 @@ public final class HungerGamesWiring {
                     timer.start();
                     supplyDrops.start();
                     roundExpiry.reset();
+                    hermesBoots.resetForNewRound();
                 }
             }
 
@@ -2206,6 +2341,7 @@ public final class HungerGamesWiring {
         arenaItems.settings(now);
         combatItems.settings(now);
         mobilityItems.settings(now);
+        hermesBoots.settings(now);
         survivalItems.settings(now);
         medikitCountdown.settings(now);
         if (apiSupport != null) {

@@ -965,6 +965,7 @@ public record HungerGamesSettings(
         @Key("items.fiendfinder.search-radius")
         int fiendfinderSearchRadius,
 
+
         @In("hungergames/items") @Title("Smoke bomb radius") @Range(min = 1, max = 100)
         @Describe("How far the smoke bomb's blindness and slowness reach, in blocks. Too wide catches "
                 + "allies streets away from the fight it was thrown into; too narrow and it does nothing "
@@ -1070,17 +1071,21 @@ public record HungerGamesSettings(
         @Key("items.lightning.knockup")
         boolean lightningKnockup,
 
-        @In("hungergames/items") @Title("Hermes' boots: flight (seconds)") @Range(min = 1, max = 60)
-        @Describe("How long Hermes' boots keep the holder airborne. Too long and flight becomes a way to "
-                + "simply out-run the border rather than clear a single obstacle.")
+        @In("hungergames/items") @Title("Hermes' boots: flight budget (seconds)") @Range(min = 1, max = 120)
+        @Describe("The total time somebody wearing Hermes' boots may spend actually flying, for the whole "
+                + "round — not per use. The clock only runs while they are airborne and flying; standing "
+                + "around in the boots on the ground costs nothing. Too long and flight becomes a way to "
+                + "out-run the border rather than clear an obstacle here and there.")
         @Key("items.hermes-boots.flight-seconds")
         int hermesFlightSeconds,
 
         @In("hungergames/items") @Title("Hermes' boots: warning (seconds)") @Range(min = 0, max = 60)
-        @Describe("How long before flight ends the warning sound starts. Zero removes the warning "
-                + "entirely, leaving the holder to fall out of the sky with no notice.")
+        @Describe("How much of the flight budget must be left before the warning sound starts. Zero "
+                + "removes the warning entirely, leaving the holder to fall out of the sky with no notice "
+                + "when the budget runs out.")
         @Key("items.hermes-boots.warning-seconds")
         int hermesWarningSeconds,
+
 
         @In("hungergames/items") @Title("Krückauwasser: radius") @Range(min = 1, max = 50)
         @Describe("How far krückauwasser's nausea and blindness reach once it lands, in blocks. Too wide "
@@ -1141,12 +1146,19 @@ public record HungerGamesSettings(
         @Key("items.grappling.range")
         int grapplingRange,
 
-        @In("hungergames/items") @Title("Grappling hook: pull strength") @Range(min = 1, max = 50)
-        @Describe("How hard the grappling hook pulls the holder towards its target. Stored as tenths, the "
-                + "same reason as the aura's knockback above — a value of 14 here is a pull strength of "
-                + "1.4, not 14.")
+        @In("hungergames/items") @Title("Grappling hook: pull speed") @Range(min = 1, max = 50)
+        @Describe("How fast the grappling hook pulls the holder towards the block it is aimed at — a "
+                + "continuous pull along a straight line, not a single shove. Stored as tenths, the same "
+                + "reason as the aura's knockback above — a value of 14 here is a speed of 1.4 blocks per "
+                + "tick, not 14.")
         @Key("items.grappling.power")
         int grapplingPower,
+
+        @In("hungergames/items") @Title("Grappling hook: cooldown (seconds)") @Range(min = 0, max = 300)
+        @Describe("How long a holder must wait to fire the grappling hook again. Zero — the default — "
+                + "matches the source plugin, which had no cooldown on this item at all.")
+        @Key("items.grappling.cooldown-seconds")
+        int grapplingCooldownSeconds,
 
         @In("hungergames/items") @Title("Repulse: radius") @Range(min = 1, max = 50)
         @Describe("How far repulse's shockwave reaches from the holder, in blocks.")
@@ -1171,6 +1183,12 @@ public record HungerGamesSettings(
         @Key("items.repulse.affect-mobs")
         boolean repulseAffectMobs,
 
+        @In("hungergames/items") @Title("Repulse: cooldown (seconds)") @Range(min = 0, max = 300)
+        @Describe("How long a holder must wait to use repulse again. Zero — the default — matches the "
+                + "source plugin, which had no cooldown on this item at all.")
+        @Key("items.repulse.cooldown-seconds")
+        int repulseCooldownSeconds,
+
         @In("hungergames/items") @Title("Feast: golden apples") @Range(min = 0, max = 20)
         @Describe("How many golden apples a Capitol feast hands out, on top of its regeneration. Zero "
                 + "removes them entirely, leaving only the regeneration and the food refill.")
@@ -1190,6 +1208,12 @@ public record HungerGamesSettings(
                 + "repulse's strength above.")
         @Key("items.leap.power")
         int leapPower,
+
+        @In("hungergames/items") @Title("Leap: cooldown (seconds)") @Range(min = 0, max = 300)
+        @Describe("How long a holder must wait to leap again. Zero — the default — matches the source "
+                + "plugin, which had no cooldown on this item at all.")
+        @Key("items.leap.cooldown-seconds")
+        int leapCooldownSeconds,
 
         @In("hungergames/items") @Title("Exmatrikulator: duration (seconds)") @Range(min = 1, max = 60)
         @Describe("How long one activation of the exmatrikulator's lightning aura lasts.")
@@ -1402,13 +1426,13 @@ public record HungerGamesSettings(
             15, 0, 6, 3, 3,
             6, 2, 60, 2, 2,
             80, 6, 3, 8, 4, 80, 3, true,
-            4, 3,
+            10, 3,
             4, 12, 0,
             5, 4, 6, 10, 6, true,
-            40, 14,
-            6, 12, 2, true,
+            40, 14, 0,
+            6, 12, 2, true, 0,
             2, "IRON",
-            15,
+            15, 0,
             5, 8, 4, 6, 5, 40,
             List.of("Mathematik I", "Mathematik II", "Theoretische Informatik",
                     "Programmierung", "Rechnungswesen", "Statistik",
@@ -1619,8 +1643,8 @@ public record HungerGamesSettings(
                 lightningFireTicks, lightningBoltDelay, lightningKnockup, hermesFlightSeconds,
                 hermesWarningSeconds, krueckauRadius, krueckauNauseaSeconds, krueckauBlindnessSeconds,
                 auraDurationSeconds, auraRadius, auraDamage, auraInterval, auraKnockback, auraAffectMobs,
-                grapplingRange, grapplingPower, repulseRadius, repulseStrength, repulseSlowSeconds,
-                repulseAffectMobs, feastGoldenApples, warKitMaterial, leapPower, exmatrikulatorDuration,
+                grapplingRange, grapplingPower, grapplingCooldownSeconds, repulseRadius, repulseStrength, repulseSlowSeconds,
+                repulseAffectMobs, repulseCooldownSeconds, feastGoldenApples, warKitMaterial, leapPower, leapCooldownSeconds, exmatrikulatorDuration,
                 exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
                 exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
                 exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,
@@ -1677,8 +1701,8 @@ public record HungerGamesSettings(
                 lightningFireTicks, lightningBoltDelay, lightningKnockup, hermesFlightSeconds,
                 hermesWarningSeconds, krueckauRadius, krueckauNauseaSeconds, krueckauBlindnessSeconds,
                 auraDurationSeconds, auraRadius, auraDamage, auraInterval, auraKnockback, auraAffectMobs,
-                grapplingRange, grapplingPower, repulseRadius, repulseStrength, repulseSlowSeconds,
-                repulseAffectMobs, feastGoldenApples, warKitMaterial, leapPower, exmatrikulatorDuration,
+                grapplingRange, grapplingPower, grapplingCooldownSeconds, repulseRadius, repulseStrength, repulseSlowSeconds,
+                repulseAffectMobs, repulseCooldownSeconds, feastGoldenApples, warKitMaterial, leapPower, leapCooldownSeconds, exmatrikulatorDuration,
                 exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
                 exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
                 exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,
@@ -1735,8 +1759,8 @@ public record HungerGamesSettings(
                 lightningFireTicks, lightningBoltDelay, lightningKnockup, hermesFlightSeconds,
                 hermesWarningSeconds, krueckauRadius, krueckauNauseaSeconds, krueckauBlindnessSeconds,
                 auraDurationSeconds, auraRadius, auraDamage, auraInterval, auraKnockback, auraAffectMobs,
-                grapplingRange, grapplingPower, repulseRadius, repulseStrength, repulseSlowSeconds,
-                repulseAffectMobs, feastGoldenApples, warKitMaterial, leapPower, exmatrikulatorDuration,
+                grapplingRange, grapplingPower, grapplingCooldownSeconds, repulseRadius, repulseStrength, repulseSlowSeconds,
+                repulseAffectMobs, repulseCooldownSeconds, feastGoldenApples, warKitMaterial, leapPower, leapCooldownSeconds, exmatrikulatorDuration,
                 exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
                 exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
                 exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,
@@ -1793,8 +1817,8 @@ public record HungerGamesSettings(
                 lightningFireTicks, lightningBoltDelay, lightningKnockup, hermesFlightSeconds,
                 hermesWarningSeconds, krueckauRadius, krueckauNauseaSeconds, krueckauBlindnessSeconds,
                 auraDurationSeconds, auraRadius, auraDamage, auraInterval, auraKnockback, auraAffectMobs,
-                grapplingRange, grapplingPower, repulseRadius, repulseStrength, repulseSlowSeconds,
-                repulseAffectMobs, feastGoldenApples, warKitMaterial, leapPower, exmatrikulatorDuration,
+                grapplingRange, grapplingPower, grapplingCooldownSeconds, repulseRadius, repulseStrength, repulseSlowSeconds,
+                repulseAffectMobs, repulseCooldownSeconds, feastGoldenApples, warKitMaterial, leapPower, leapCooldownSeconds, exmatrikulatorDuration,
                 exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
                 exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
                 exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,
@@ -1851,8 +1875,8 @@ public record HungerGamesSettings(
                 lightningFireTicks, lightningBoltDelay, lightningKnockup, hermesFlightSeconds,
                 hermesWarningSeconds, krueckauRadius, krueckauNauseaSeconds, krueckauBlindnessSeconds,
                 auraDurationSeconds, auraRadius, auraDamage, auraInterval, auraKnockback, auraAffectMobs,
-                grapplingRange, grapplingPower, repulseRadius, repulseStrength, repulseSlowSeconds,
-                repulseAffectMobs, feastGoldenApples, warKitMaterial, leapPower, exmatrikulatorDuration,
+                grapplingRange, grapplingPower, grapplingCooldownSeconds, repulseRadius, repulseStrength, repulseSlowSeconds,
+                repulseAffectMobs, repulseCooldownSeconds, feastGoldenApples, warKitMaterial, leapPower, leapCooldownSeconds, exmatrikulatorDuration,
                 exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
                 exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
                 exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,

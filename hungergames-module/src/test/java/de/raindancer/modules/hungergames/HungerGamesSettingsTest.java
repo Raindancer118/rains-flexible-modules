@@ -315,7 +315,7 @@ class HungerGamesSettingsTest {
 
         @Test
         @DisplayName("every per-item tuning value is what the old plugin shipped, except the two a live "
-                + "tournament actually tuned")
+                + "tournament actually tuned and Hermes' boots' flight time")
         void isWhatItWasExceptWhereATournamentChangedIt() {
             assertThat(defaults.fiendfinderGlowDuration()).as("fiendfinder glow duration").isEqualTo(15);
             assertThat(defaults.fiendfinderSearchRadius()).as("fiendfinder search radius").isZero();
@@ -342,7 +342,10 @@ class HungerGamesSettingsTest {
             assertThat(defaults.lightningBoltDelay()).as("lightning bolt delay").isEqualTo(3);
             assertThat(defaults.lightningKnockup()).as("lightning knockup").isTrue();
 
-            assertThat(defaults.hermesFlightSeconds()).as("hermes flight seconds").isEqualTo(4);
+            // Not the old plugin's 4 -- Hermes' boots stopped being a four-second right-click ability and
+            // became worn equipment with a flight budget for the whole round. Real feedback from testing
+            // set the new default deliberately, the same way the two counts above were.
+            assertThat(defaults.hermesFlightSeconds()).as("hermes flight seconds").isEqualTo(10);
             assertThat(defaults.hermesWarningSeconds()).as("hermes warning seconds").isEqualTo(3);
 
             assertThat(defaults.krueckauRadius()).as("krueckau radius").isEqualTo(4);
@@ -439,7 +442,7 @@ class HungerGamesSettingsTest {
         }
 
         @Test
-        void hasOneHundredAndNinetyThreeComponents() {
+        void hasOneHundredAndNinetySixComponents() {
             // 193 of the old plugin's 272 keys. The rest is wording, cues and stored data -- see
             // HungerGamesSettingsMigrationTest for where each of the others went.
             //
@@ -454,7 +457,18 @@ class HungerGamesSettingsTest {
             // been written off as "RainsCore content.items (CustomItem)", and that server had tuned two of
             // them -- items.smoke-bomb.enemy-duration and items.medikit.countdown-seconds -- so a restart on
             // the new build would have silently reverted both to the shipped default.
-            assertThat(HungerGamesSettings.class.getRecordComponents()).hasSize(193);
+            //
+            // It became 196 for three keys that never existed at all: a cooldown on the grappling hook,
+            // repulse and leap. The source had none -- every one of those three was single-use and gone the
+            // instant it fired, so nothing needed cooling down. An earlier pass of this port gave them a
+            // cooldown anyway with no way to turn it off. Real feedback from testing kept the mechanism and
+            // defaulted it to zero, so an upgrading server's tournament plays exactly as it did before --
+            // see items.grappling.cooldown-seconds and its two siblings. The Fiendfinder and Hermes' boots
+            // got the same treatment in that earlier pass and gained no key here: the Fiendfinder is single
+            // use in the source, and a cooldown on top of that is a different item; Hermes' boots stopped
+            // being an ability-triggered, consumed item at all, becoming worn equipment with a flight
+            // budget for the round instead, which has no "wait before using it again" to configure.
+            assertThat(HungerGamesSettings.class.getRecordComponents()).hasSize(196);
         }
 
         @Test

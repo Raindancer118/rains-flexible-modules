@@ -159,12 +159,14 @@ hungergames:
   item-krueckau: "<dark_green>Krückauwasser thrown.</dark_green>"
   item-aura: "<gold>Aura of Protection active (<white><seconds>s</white>).</gold>"
 
-  item-hermes: "<yellow>Hermes' Boots — <white><seconds>s</white> of flight!</yellow>"
-  # On the action bar, in the last few seconds, so somebody in the air knows to look for ground.
+  # Hermes' boots are worn, not clicked — see HermesBootsService's class note. There is no "put them on"
+  # line: a boot going into a slot is not an event this module makes a fuss over, and the flight it grants
+  # is silent until somebody actually leaves the ground.
+  #
+  # On the action bar, once the remaining budget crosses items.hermes-boots.warning-seconds, so somebody in
+  # the air knows to look for ground before the budget runs out under them.
   item-hermes-left: "<yellow>Hermes' Boots: <white><seconds>s</white> left</yellow>"
-  item-hermes-over: "<gray>Hermes' Boots fizzle out.</gray>"
-  # Refused rather than used: switching flight off again afterwards would take away flight they already had.
-  item-hermes-already-flying: "<gray>You can already fly.</gray>"
+  item-hermes-spent: "<gray>Hermes' Boots are spent for this round.</gray>"
   item-grappling: "<aqua>Grappling hook!</aqua>"
   item-repulse: "<white>Repulse — <white><count></white> enemies thrown back.</white>"
   item-leap: "<green>Leap!</green>"
@@ -184,6 +186,10 @@ hungergames:
   item-fiendfinder-found: "<gray>Revealed: <yellow><who></yellow> <gray>(~<distance> blocks away)</gray>"
   item-fiendfinder-nobody: "<red>No enemies found nearby!</red>"
   item-fiendfinder-revealed: "<red><bold>⚠ You have been revealed by a Fiendfinder!</bold></red>"
+  # A live arrow and distance, on the action bar, private to whoever used the Fiendfinder — for as long as
+  # the target keeps glowing. Not the source's behaviour, which was one line read once; added because a
+  # glow with no sense of direction only helps if the arena is small enough to spot it by eye.
+  item-fiendfinder-tracking: "<light_purple><arrow></light_purple> <white><distance>m</white>"
 
   # ---------------------------------------------------------------- the medikit
   #
