@@ -94,7 +94,9 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
                 "Tributes into the tubes, then up to their platforms.", "Phase: LOBBY -> STARTUP -> READY",
                 gameControl.canStartup(), () -> {
                     gameControl.startup(viewer.getUniqueId());
-                    refresh();
+                    // Closed rather than refreshed: tributes are about to be moved through the tubes and
+                    // onto their platforms, and a menu still open over that is a menu that looks stuck.
+                    viewer.closeInventory();
                 }, phase);
 
         boolean canStart = gameControl.canStart(viewer.getUniqueId());
@@ -113,7 +115,9 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
                                     + "back."),
                     () -> {
                         gameControl.start(viewer.getUniqueId());
-                        refresh();
+                        // Closed, not refreshed: every tribute is released from their platform the moment
+                        // this runs, and a gamemaster watching that happen should not be looking at a menu.
+                        viewer.closeInventory();
                     }).open();
         });
 
@@ -125,7 +129,7 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
                                 "<gray>A winner is decided the same way a time-out would decide one."),
                         () -> {
                             gameControl.endRound();
-                            refresh();
+                            viewer.closeInventory();
                         }).open(), phase);
 
         if (admin) {
@@ -138,7 +142,7 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
                                     "<gray>Tributes and teams stay registered."),
                             () -> {
                                 gameControl.prepareNextRound();
-                                refresh();
+                                viewer.closeInventory();
                             }).open(), phase);
         }
 
@@ -166,7 +170,9 @@ public final class GameControlMenu extends Menu implements IHungerGamesScreen {
                 GameControlService.MAX_PLAYERS, GameControlService.MIN_PLAYERS,
                 count -> {
                     gameControl.init(viewer.getUniqueId(), count);
-                    open();
+                    // Closed rather than reopened: the arena is about to be built at the gamemaster's own
+                    // position, and a menu still on their screen is a menu between them and watching it.
+                    viewer.closeInventory();
                 }).open();
     }
 
