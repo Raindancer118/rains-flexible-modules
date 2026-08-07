@@ -91,6 +91,11 @@ public final class BorderService implements IHungerGamesService {
         return nextPhaseIndex;
     }
 
+    /** The Overworld border's live diameter, for a status page — never cached, always asked of the target. */
+    public double currentSize() {
+        return target.currentSize();
+    }
+
     /**
      * One tick of the round's border. Asks {@link BorderRules} what should happen, applies it if anything
      * should, and always keeps {@link #nextPhaseIndex()} current — even on a tick that fires nothing, so a

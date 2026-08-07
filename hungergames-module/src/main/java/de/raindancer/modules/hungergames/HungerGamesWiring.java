@@ -178,6 +178,10 @@ public final class HungerGamesWiring {
     private final SupplyDropService supplyDrops;
     private final MonsterWaveService monsterWaves;
     private final MannequinSimService simulation;
+
+    /** The HTTP admin API's transport — the socket, the key, the routing table. Started in {@link #start()}. */
+    private de.raindancer.modules.hungergames.service.HttpApiService httpApi;
+    private de.raindancer.modules.hungergames.service.ApiSupport apiSupport;
     private final GameTimerService timer;
     private final RoundExpiryService roundExpiry;
     private final StartupSequenceService startup;
@@ -398,6 +402,8 @@ public final class HungerGamesWiring {
                 core.items().all().stream()
                         .filter(item -> "hungergames".equals(item.plugin()))
                         .count());
+
+        startTheHttpApi();
 
         // So the writer thread does not outlive a reload, and so the last queued lines are flushed.
         context.closeWith(() -> {
@@ -1663,6 +1669,44 @@ public final class HungerGamesWiring {
      * The entries themselves come from {@link LootDefaults} — see its javadoc for why they are six real
      * pools rather than the two empty ones this used to define, and for the tier each was given.
      */
+    /**
+     * Opens the HTTP admin API's socket, if {@code api.enabled} says so.
+     *
+     * <p>Everything on the other side of this call — every one of {@code HttpApiService}'s seven endpoint
+     * groups and its socket — was written, and unit tested, and never once started: nothing anywhere in
+     * this module constructed a {@code HttpApiService}. The settings page and the boot banner both showed
+     * an address and a port, correctly, for an API that had never opened either. This is the line that was
+     * missing — the same shape of bug as the session store, this whole class, and the four item services
+     * before it: finished work nobody called.
+     *
+     * <p>Loot table editing is the one endpoint group that is honest about a real gap rather than papering
+     * over it — see {@code LootCatalogueApiAdapter}'s class note for exactly what {@code LootEntry} does
+     * not yet model.
+     */
+    private void startTheHttpApi() {
+        this.apiSupport = new de.raindancer.modules.hungergames.service.ApiSupport(session, log, settings());
+        var wiring = new de.raindancer.modules.hungergames.service.HttpApiService.Wiring(
+                new de.raindancer.modules.hungergames.service.GameControlApiAdapter(
+                        control, preflight, border, virtualTime, () -> borderPhases),
+                new de.raindancer.modules.hungergames.service.DeathmatchApiAdapter(deathmatch),
+                supplyDrops,
+                sponsorBeacons,
+                monsterWaves,
+                new de.raindancer.modules.hungergames.service.SoundEffectsApiAdapter(core.effects()),
+                new de.raindancer.modules.hungergames.service.LootCatalogueApiAdapter(lootTables, core.lootTables()),
+                new de.raindancer.modules.hungergames.service.GamemastersApiAdapter(gamemasters),
+                spectators,
+                simulation,
+                settingsStore);
+        var router = de.raindancer.modules.hungergames.service.HttpApiService.route(apiSupport, wiring);
+        this.httpApi = new de.raindancer.modules.hungergames.service.HttpApiService(plugin, apiSupport, log,
+                router, de.raindancer.modules.hungergames.service.HttpApiService.viaScheduling(plugin,
+                        de.raindancer.modules.hungergames.service.HttpApiService.SERVER_THREAD_TIMEOUT),
+                key -> settingsStore.set("api.key", key), settings());
+        httpApi.start();
+        context.closeWith(httpApi::stop);
+    }
+
     private void defineTheLootTables() {
         LootDefaults.all().values().forEach(table ->
                 lootTables.defineIfAbsent(table.name(), table.tier(), table.fillPercent(), table.entries()));
@@ -2164,6 +2208,12 @@ public final class HungerGamesWiring {
         mobilityItems.settings(now);
         survivalItems.settings(now);
         medikitCountdown.settings(now);
+        if (apiSupport != null) {
+            apiSupport.settings(now);
+        }
+        if (httpApi != null) {
+            httpApi.settings(now);
+        }
         if (hotbar != null) {
             hotbar.settings(now);
         }
