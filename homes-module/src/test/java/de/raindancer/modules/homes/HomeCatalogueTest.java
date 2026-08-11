@@ -173,15 +173,20 @@ class HomeCatalogueTest {
     }
 
     @Nested
-    @DisplayName("both migrations can run on the same server")
-    class BothMigrationsTogether {
+    @DisplayName("RainsHomes wins when both sources are on the same server")
+    class RainsHomesTakesPrecedence {
+
+        private Path rainsHomesFileWith(String body) throws IOException {
+            Path file = directory.resolve("homes.yml");
+            Files.writeString(file, body);
+            return file;
+        }
 
         @Test
-        @DisplayName("RainsHomes' own legacy file and SetHome's are independent — one running does not consume the other")
-        void independentSources() throws IOException {
+        @DisplayName("SetHome is not imported once RainsHomes' own migration has brought anything across")
+        void setHomeIsSkippedWhenRainsHomesHasHomes() throws IOException {
             UUID alice = UUID.fromString("11111111-2222-3333-4444-555555555555");
-            Path rainsHomesFile = directory.resolve("homes.yml");
-            Files.writeString(rainsHomesFile, """
+            Path rainsHomesFile = rainsHomesFileWith("""
                     players:
                       11111111-2222-3333-4444-555555555555:
                         name: Alice
@@ -205,9 +210,83 @@ class HomeCatalogueTest {
             int fromSetHome = homes.importSetHomePlugin(setHomeFile, LOG);
 
             assertThat(fromLegacy).isEqualTo(1);
+            assertThat(fromSetHome)
+                    .as("RainsHomes already had a home, so SetHome's export must not be touched")
+                    .isZero();
+            assertThat(homes.of(alice)).extracting(Home::name).containsExactly("fromrains");
+        }
+
+        @Test
+        @DisplayName("skipping leaves SetHome's file exactly where it was, not set aside")
+        void skippedFileIsNotMovedAside() throws IOException {
+            rainsHomesFileWith("""
+                    players:
+                      11111111-2222-3333-4444-555555555555:
+                        name: Alice
+                        homes:
+                          fromrains:
+                            world: world
+                            x: 1.0
+                            y: 2.0
+                            z: 3.0
+                    """);
+            homes.importLegacy(directory.resolve("homes.yml"), LOG);
+            Path setHomeFile = setHomeFileWith("""
+                    11111111-2222-3333-4444-555555555555:
+                      fromsethome:
+                        world: TTV
+                        x: 4.0
+                        y: 5.0
+                        z: 6.0
+                    """);
+
+            homes.importSetHomePlugin(setHomeFile, LOG);
+
+            assertThat(Files.exists(setHomeFile)).isTrue();
+            assertThat(Files.exists(setHomeFile.resolveSibling(setHomeFile.getFileName() + ".imported")))
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("RainsHomes homes already in the store from an earlier boot also block SetHome, "
+                + "not only ones just imported this run")
+        void alreadyPresentHomesAlsoBlockIt() throws IOException {
+            UUID alice = UUID.fromString("11111111-2222-3333-4444-555555555555");
+            World world = org.mockito.Mockito.mock(World.class);
+            org.mockito.Mockito.when(world.getName()).thenReturn("world");
+            homes.set(alice, "Alice", "handset", new Location(world, 10, 20, 30));
+            Path setHomeFile = setHomeFileWith("""
+                    11111111-2222-3333-4444-555555555555:
+                      fromsethome:
+                        world: TTV
+                        x: 4.0
+                        y: 5.0
+                        z: 6.0
+                    """);
+
+            int fromSetHome = homes.importSetHomePlugin(setHomeFile, LOG);
+
+            assertThat(fromSetHome).isZero();
+            assertThat(homes.of(alice)).extracting(Home::name).containsExactly("handset");
+        }
+
+        @Test
+        @DisplayName("with no RainsHomes data at all, SetHome imports normally")
+        void noRainsHomesDataIsFineForSetHome() throws IOException {
+            UUID alice = UUID.fromString("11111111-2222-3333-4444-555555555555");
+            Path setHomeFile = setHomeFileWith("""
+                    11111111-2222-3333-4444-555555555555:
+                      fromsethome:
+                        world: TTV
+                        x: 4.0
+                        y: 5.0
+                        z: 6.0
+                    """);
+
+            int fromSetHome = homes.importSetHomePlugin(setHomeFile, LOG);
+
             assertThat(fromSetHome).isEqualTo(1);
-            assertThat(homes.of(alice)).extracting(Home::name)
-                    .containsExactlyInAnyOrder("fromrains", "fromsethome");
+            assertThat(homes.of(alice)).extracting(Home::name).containsExactly("fromsethome");
         }
     }
 

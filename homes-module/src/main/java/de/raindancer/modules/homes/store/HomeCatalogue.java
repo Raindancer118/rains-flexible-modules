@@ -31,9 +31,10 @@ import java.util.UUID;
  * <h2>The migration</h2>
  * An upgrading server's homes are in a {@code homes.yml}, so {@link #importLegacy} (this module's own
  * predecessor, {@code RainsHomes}) and {@link #importSetHomePlugin} (the third-party {@code SetHome}
- * plugin) each read a different shape of it once and put the result in the place store. Nothing is
- * deleted: the old file is renamed aside, which means a server that has to roll back still has it, and
- * a second start does not import twice.
+ * plugin) each read a different shape of it once and put the result in the place store. RainsHomes
+ * always wins when both are present — see {@link #importSetHomePlugin} for why. Nothing is deleted: the
+ * old file is renamed aside, which means a server that has to roll back still has it, and a second
+ * start does not import twice.
  */
 public final class HomeCatalogue {
 
@@ -85,6 +86,19 @@ public final class HomeCatalogue {
 
     public int count(UUID owner) {
         return owner == null ? 0 : places.count(owner, KIND);
+    }
+
+    /**
+     * Whether anybody on the server has a home at all.
+     *
+     * <p>What {@link #importSetHomePlugin} checks before running, not {@link #count(UUID)} for one
+     * player: RainsHomes' own migration is the one that must win when both are on the same server, and
+     * the only cheap, reliable sign that it already has is that the store is not empty — a file that
+     * happened to exist but held nothing, or one already read on an earlier boot, look the same either
+     * way from here.
+     */
+    public boolean isEmpty() {
+        return places.ofKind(KIND).isEmpty();
     }
 
     public boolean has(UUID owner, String name) {
@@ -191,15 +205,34 @@ public final class HomeCatalogue {
     }
 
     /**
-     * Brings across a server's homes from the third-party {@code SetHome} plugin, once.
+     * Brings across a server's homes from the third-party {@code SetHome} plugin, once — but only onto
+     * a server that has no homes from RainsHomes' own migration already.
      *
-     * <p>Same rules as {@link #importLegacy}: a home the owner already has under that name is left
-     * alone rather than overwritten, and the file is set aside rather than deleted so this cannot run
-     * twice and a rollback still has it.
+     * <h2>Why RainsHomes wins outright rather than the two merging</h2>
+     * A server only has both files when it changed homes plugins twice: SetHome, then RainsHomes, and
+     * whatever is in RainsHomes' own file is what the owner has actually been playing with since —
+     * newer, and the one they would call correct if the two disagree about where {@code base} is.
+     * Merging by per-name skip, the way two runs of the <em>same</em> source do, would let whichever
+     * file happened to be read first win a coin flip the owner never asked for. Deferring to RainsHomes
+     * whenever it has anything at all removes the coin flip: SetHome's export is left exactly where it
+     * was, untouched and not set aside, so it is still there to bring across by hand if that ever turns
+     * out to be the wrong call.
+     *
+     * <p>Otherwise the same rules as {@link #importLegacy}: a home the owner already has under that
+     * name is left alone rather than overwritten, and the file is set aside rather than deleted so this
+     * cannot run twice and a rollback still has it.
      *
      * @return how many were brought across
      */
     public int importSetHomePlugin(Path homesFile, LogChannel log) {
+        if (!isEmpty()) {
+            if (log != null) {
+                log.info("Not importing {} — RainsHomes already has homes of its own, and those are "
+                                + "the ones kept. The file was left where it is.",
+                        homesFile == null ? SetHomePluginFile.FILE_NAME : homesFile.getFileName());
+            }
+            return 0;
+        }
         return importEntries(SetHomePluginFile.read(homesFile), homesFile, log);
     }
 
