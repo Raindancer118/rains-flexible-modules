@@ -10,6 +10,7 @@ import de.raindancer.core.data.settings.Topic;
 import de.raindancer.core.world.protection.FlagPolicy;
 import de.raindancer.core.world.teleport.Scatter;
 import org.bukkit.Material;
+import org.bukkit.World;
 
 import java.util.List;
 
@@ -26,6 +27,7 @@ import java.util.List;
         @Topic(path = "rtp", title = "Random teleport", icon = Material.ENDER_PEARL),
         @Topic(path = "rtp/travelling", title = "Going there", icon = Material.CLOCK),
         @Topic(path = "rtp/where", title = "Where somebody may land", icon = Material.MAP),
+        @Topic(path = "rtp/pool", title = "Getting ready ahead of time", icon = Material.CHEST),
 })
 public record RtpSettings(
 
@@ -96,7 +98,29 @@ public record RtpSettings(
         @Describe("Names, comma separated. A minigame arena or a lobby is not somewhere a random "
                 + "point is ever wanted.")
         @Key("disabled-worlds")
-        List<String> disabledWorlds) {
+        List<String> disabledWorlds,
+
+        @In("rtp/pool") @Title("Prepare locations ahead of time")
+        @Describe("Off searches for a landing at the moment somebody asks, exactly as if this whole "
+                + "page did not exist. On keeps a pool of already-checked spots ready, so most trips "
+                + "skip the search entirely — each one is still re-checked the moment it is actually "
+                + "used, since the ground under it can change between being found and being given out.")
+        @Key("pool-enabled")
+        boolean poolEnabled,
+
+        @In("rtp/pool") @Title("At least this many prepared every day") @Range(min = 0, max = 1000)
+        @Describe("However many the pool is short of this by, found once a day, per world this runs "
+                + "in. Zero switches the daily top-up off without switching the pool itself off — an "
+                + "owner who only ever prepares by hand still gets to use one.")
+        @Key("pool-daily-minimum")
+        int poolDailyMinimum,
+
+        @In("rtp/pool") @Title("Never keep more than this many ready") @Range(min = 0, max = 20000)
+        @Describe("Across every world this runs in combined. Each one is a handful of bytes on disk, "
+                + "so the ceiling exists for the search it would otherwise cost to keep filling a pool "
+                + "nobody is emptying, not for the space.")
+        @Key("pool-max-size")
+        int poolMaxSize) {
 
     public RtpSettings {
         disabledWorlds = disabledWorlds == null ? List.of() : List.copyOf(disabledWorlds);
@@ -104,7 +128,8 @@ public record RtpSettings(
     }
 
     public static final RtpSettings DEFAULTS = new RtpSettings(
-            3, 30, true, 100, 5000, FlagPolicy.AVAILABLE, 8, 1, false, List.of());
+            3, 30, true, 100, 5000, FlagPolicy.AVAILABLE, 8, 1, false, List.of(),
+            true, 40, 3000);
 
     // ------------------------------------------------------------------ read back safely
 
@@ -137,6 +162,32 @@ public record RtpSettings(
         return new Scatter(true, minRadius, maxRadius);
     }
 
+    /**
+     * The same, kept inside this world's own border.
+     *
+     * <p>A border nobody has narrowed is Bukkit's own huge default, and {@link Scatter#within} is a
+     * no-op whenever the border is wider than the configured ring anyway — so there is no need to tell
+     * the default apart from a real one here. One method rather than two call sites each doing the same
+     * three lines: a live trip and the pool preparing one ahead of time both want exactly this.
+     */
+    public Scatter scatterWithin(World world) {
+        if (world == null) {
+            return scatter();
+        }
+        double size = world.getWorldBorder().getSize();
+        return scatter().within((int) Math.min(Integer.MAX_VALUE, size / 2));
+    }
+
+    /** How many the pool is topped up by at once, clamped. */
+    public int dailyMinimum() {
+        return Math.max(0, Math.min(1000, poolDailyMinimum));
+    }
+
+    /** How many the pool may hold in total, clamped. */
+    public int maxPoolSize() {
+        return Math.max(0, Math.min(20000, poolMaxSize));
+    }
+
     /** Whether this world is switched off, by name and case-insensitively. */
     public boolean isDisabled(String world) {
         if (world == null) {
@@ -154,51 +205,71 @@ public record RtpSettings(
 
     public RtpSettings withWarmupSeconds(int seconds) {
         return new RtpSettings(seconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
     }
 
     public RtpSettings withCooldownSeconds(int seconds) {
         return new RtpSettings(warmupSeconds, seconds, hurtCancelsWarmup, minRadius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
     }
 
     public RtpSettings withHurtCancelsWarmup(boolean cancels) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, cancels, minRadius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
     }
 
     public RtpSettings withMinRadius(int radius) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, radius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
     }
 
     public RtpSettings withMaxRadius(int radius) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, radius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
     }
 
     public RtpSettings withSafeArrivalPolicy(FlagPolicy policy) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
-                policy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds);
+                policy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
     }
 
     public RtpSettings withSafeArrivalRadius(int radius) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
-                safeArrivalPolicy, radius, heightTolerance, centreOnPlayer, disabledWorlds);
+                safeArrivalPolicy, radius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
     }
 
     public RtpSettings withHeightTolerance(int tolerance) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, tolerance, centreOnPlayer, disabledWorlds);
+                safeArrivalPolicy, safeArrivalRadius, tolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
     }
 
     public RtpSettings withCentreOnPlayer(boolean centred) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centred, disabledWorlds);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centred, disabledWorlds,
+                poolEnabled, poolDailyMinimum, poolMaxSize);
     }
 
     public RtpSettings withDisabledWorlds(List<String> worlds) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, worlds);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, worlds,
+                poolEnabled, poolDailyMinimum, poolMaxSize);
+    }
+
+    public RtpSettings withPoolEnabled(boolean enabled) {
+        return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds,
+                enabled, poolDailyMinimum, poolMaxSize);
+    }
+
+    public RtpSettings withPoolDailyMinimum(int minimum) {
+        return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds,
+                poolEnabled, minimum, poolMaxSize);
+    }
+
+    public RtpSettings withPoolMaxSize(int maxSize) {
+        return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds,
+                poolEnabled, poolDailyMinimum, maxSize);
     }
 }

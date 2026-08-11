@@ -85,6 +85,7 @@ public final class RtpService implements IRtpService {
     private final Plugin plugin;
     private final Travel travel;
     private final Safety safety;
+    private final RtpLocationPoolService pool;
     private final RtpRule rule;
     private final Messages messages;
     private final Effects effects;
@@ -110,12 +111,13 @@ public final class RtpService implements IRtpService {
      *               from anything about the world: two players asking in the same second must not
      *               land in the same place, and a seed derived from the world would do exactly that
      */
-    public RtpService(Plugin plugin, Travel travel, Safety safety, RtpRule rule, Messages messages,
-                      Effects effects, ActionBars actionBars, LogChannel log, RtpSettings settings,
-                      Random random) {
+    public RtpService(Plugin plugin, Travel travel, Safety safety, RtpLocationPoolService pool,
+                      RtpRule rule, Messages messages, Effects effects, ActionBars actionBars,
+                      LogChannel log, RtpSettings settings, Random random) {
         this.plugin = plugin;
         this.travel = travel;
         this.safety = safety;
+        this.pool = pool;
         this.rule = rule;
         this.messages = messages;
         this.effects = effects;
@@ -186,6 +188,30 @@ public final class RtpService implements IRtpService {
             return;
         }
 
+        if (pool == null) {
+            searchLive(traveller, raw);
+            return;
+        }
+        // The pool first: a spot already found and checked, re-verified once more because the ground
+        // under it can have changed since — see RtpLocationPoolService. Empty means the pool had
+        // nothing left this player has not already been sent to, which is a reason to search live,
+        // not a reason to refuse the trip.
+        pool.take(traveller.getUniqueId(), world)
+                .thenAccept(fromPool -> fromPool.ifPresentOrElse(
+                        location -> onThePlayersThread(traveller, () -> {
+                            if (traveller.isOnline()) {
+                                depart(traveller, location);
+                            }
+                        }),
+                        () -> searchLive(traveller, raw)))
+                .exceptionally(failure -> {
+                    searchLive(traveller, raw);
+                    return null;
+                });
+    }
+
+    /** The search this module always did before there was a pool to try first. */
+    private void searchLive(Player traveller, Location raw) {
         // The search is bounded to a couple of seconds even on bad terrain — see
         // SafeSpots#nearestConsistentHeight — but a couple of seconds of nothing happening still
         // reads as a frozen command. Shown at LOW priority: a refusal or an arrival either one
@@ -269,29 +295,10 @@ public final class RtpService implements IRtpService {
      */
     private Location destinationIn(World world, Player traveller) {
         Location centre = settings.centreOnPlayer() ? traveller.getLocation() : world.getSpawnLocation();
-        Scatter scatter = borderAware(world);
-        Scatter.Point point = scatter.pick(random);
+        Scatter.Point point = settings.scatterWithin(world).pick(random);
         double top = Math.max(64, world.getMaxHeight() - FROM_THE_SKY);
         return new Location(world, centre.getX() + point.x() + 0.5, top,
                 centre.getZ() + point.z() + 0.5);
-    }
-
-    /**
-     * The configured ring, kept inside the world's own border.
-     *
-     * <p>A border of two thousand and a configured maximum of five thousand would send most requests
-     * outside the wall, where the server refuses to move anybody — a command that fails for a reason
-     * nothing on screen explains.
-     */
-    private Scatter borderAware(World world) {
-        if (world == null) {
-            return settings.scatter();
-        }
-        // A border nobody has narrowed is Bukkit's own huge default, and Scatter.within is a no-op
-        // whenever the border is wider than the configured ring anyway — so there is no need to tell
-        // the default apart from a real one here.
-        double size = world.getWorldBorder().getSize();
-        return settings.scatter().within((int) Math.min(Integer.MAX_VALUE, size / 2));
     }
 
     /**

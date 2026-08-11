@@ -158,6 +158,43 @@ class RtpSettingsTest {
     }
 
     @Nested
+    @DisplayName("preparing locations ahead of time")
+    class Pool {
+
+        @Test
+        @DisplayName("on by default, forty a day, up to three thousand")
+        void defaults() {
+            assertThat(defaults.poolEnabled()).isTrue();
+            assertThat(defaults.dailyMinimum()).isEqualTo(40);
+            assertThat(defaults.maxPoolSize()).isEqualTo(3000);
+        }
+
+        @Test
+        @DisplayName("switching it off is exactly that setting and nothing else")
+        void switchingItOffChangesOnlyThat() {
+            RtpSettings off = defaults.withPoolEnabled(false);
+
+            assertThat(off.poolEnabled()).isFalse();
+            assertThat(off.dailyMinimum()).isEqualTo(defaults.dailyMinimum());
+            assertThat(off.maxPoolSize()).isEqualTo(defaults.maxPoolSize());
+        }
+
+        @Test
+        @DisplayName("a negative daily minimum is nothing to top up, not an error")
+        void dailyMinimumIsClamped() {
+            assertThat(defaults.withPoolDailyMinimum(-5).dailyMinimum()).isZero();
+            assertThat(defaults.withPoolDailyMinimum(9_000).dailyMinimum()).isEqualTo(1000);
+        }
+
+        @Test
+        @DisplayName("a negative ceiling is an empty pool, not an error")
+        void maxSizeIsClamped() {
+            assertThat(defaults.withPoolMaxSize(-1).maxPoolSize()).isZero();
+            assertThat(defaults.withPoolMaxSize(50_000).maxPoolSize()).isEqualTo(20000);
+        }
+    }
+
+    @Nested
     @DisplayName("changing one thing")
     class Withers {
 

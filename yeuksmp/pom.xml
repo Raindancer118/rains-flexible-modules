@@ -188,8 +188,18 @@
           overhang, a floating structure) fell back to the exact quadratic walk the heightmap seeding
           exists to avoid, starting from wherever the search began rather than from the heightmap's
           own — if wrong — answer; it now starts there instead.
+
+          1.4.0: /rtp can now keep a pool of already-checked landings ready, so most trips skip the
+          search entirely instead of paying for it live. A daily job tops every world up to a
+          configurable minimum (40 by default), an owner can ask for more by hand with
+          /rtp prepare, and the whole thing has a ceiling (3000 by default) and an off switch, all in
+          /settings. Nobody gets sent to the same prepared spot twice, though a spot stays in the pool
+          for everybody else once used. And because the ground under a prepared spot can change
+          between being found and being handed out — somebody builds on it, a tree grows, a chunk
+          regenerates — every one is checked again, on the spot, the instant it is actually given to a
+          player, before the search that filled the pool is ever trusted.
         -->
-        <plugin.version>1.3.0</plugin.version>
+        <plugin.version>1.4.0</plugin.version>
     </properties>
 
     <dependencies>

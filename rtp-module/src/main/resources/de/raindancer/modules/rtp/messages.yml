@@ -29,3 +29,12 @@ rtp:
   cancelled:
     moved: "<yellow>You moved, so you are staying put."
     hurt: "<yellow>Something hit you, so you are staying put."
+
+  pool:
+    no-permission: "<red>You may not prepare locations ahead of time."
+    disabled: "<red>Preparing locations ahead of time is switched off."
+    no-world: "<red>There is nowhere to prepare locations in."
+    invalid-amount: "<red><white><value></white> is not a number of locations to prepare."
+    full: "<yellow>The pool is already as full as it is allowed to be."
+    preparing: "<gray>Looking for <white><amount></white> location(s) in <white><world></white>…"
+    prepared: "<green>Prepared <white><amount></white> location(s) in <white><world></white>."

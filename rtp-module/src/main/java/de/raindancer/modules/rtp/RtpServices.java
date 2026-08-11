@@ -4,6 +4,7 @@ import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.modules.rtp.service.RtpLocationPoolService;
 import de.raindancer.modules.rtp.service.RtpService;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
@@ -34,6 +35,7 @@ public record RtpServices(
         SettingsStore<RtpSettings> store,
 
         RtpService rtp,
+        RtpLocationPoolService locations,
         IRtpScreensOpener screens) {
 
     /** The settings as they are right now. */

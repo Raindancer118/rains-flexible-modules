@@ -2,6 +2,7 @@ package de.raindancer.modules.rtp;
 
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.world.teleport.Travel;
 import de.raindancer.core.world.teleport.TravelListener;
 import de.raindancer.modules.api.FlexModule;
@@ -11,7 +12,10 @@ import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.rtp.listener.RtpSessionListener;
 import de.raindancer.modules.rtp.rules.RtpRule;
 import de.raindancer.modules.rtp.screen.RtpChooserMenu;
+import de.raindancer.modules.rtp.service.RtpLocationPoolService;
 import de.raindancer.modules.rtp.service.RtpService;
+import de.raindancer.modules.rtp.store.RtpLocationRegistry;
+import de.raindancer.modules.rtp.store.RtpLocationStorage;
 import de.raindancer.modules.rtp.util.PermissionNodes;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -36,11 +40,12 @@ import java.util.Random;
  * The one command, the one rule (is this world even allowed to be jumped around in), and the ordering
  * that turns "a player typed {@code /rtp}" into a call to {@code Travel}.
  *
- * <h2>Why there is no screen, model or store package</h2>
- * Nothing here is a thing with an identity to browse, edit or persist — there is no list to page
- * through and no per-item state to keep across a restart. Everything a random teleport needs is either
- * a setting, reached through {@code /settings} like every other module's, or arithmetic Core already
- * owns.
+ * <h2>Why there is a model and a store now, and why there was not before</h2>
+ * A single random teleport still has no state of its own worth keeping — the warm-up, the cooldown and
+ * the landing are all decided and forgotten in the same call. What does have an identity worth
+ * persisting is the pool of already-checked landings {@link RtpLocationPoolService} keeps ready: a list
+ * of places with a life longer than one trip, exactly the {@code model}/{@code store} shape every other
+ * module with a list uses — see {@code HomeCatalogue} and the moderation report queue.
  */
 public final class RtpModule implements FlexModule {
 
@@ -49,11 +54,15 @@ public final class RtpModule implements FlexModule {
                     + "sets — the warm-up, the safe landing and the teleport are RainsCore's Travel")
             .by("Raindancer118");
 
+    /** How often the pool is topped up. Once a day, in the only unit {@code Scheduling} takes ticks in. */
+    private static final long ONE_DAY_TICKS = 20L * 60 * 60 * 24;
+
     private LogChannel log;
     private SettingsStore<RtpSettings> settings;
 
     private Travel travel;
     private RtpService rtp;
+    private RtpLocationPoolService pool;
     private RtpServices services;
 
     @Override
@@ -85,9 +94,25 @@ public final class RtpModule implements FlexModule {
             log.info("{} permission(s) registered.", registered);
         }
 
+        RtpLocationRegistry locations = new RtpLocationRegistry();
+        RtpLocationStorage locationStorage = new RtpLocationStorage(context.dataFolder());
+        pool = new RtpLocationPoolService(context.plugin(), context.core().safety(), locations,
+                locationStorage, log, settings.current(), new Random());
+        pool.load();
+        settings.onChange(pool::settings);
+
+        // Every day, whatever worlds are actually loaded right now — not just the one this module
+        // started in. Reads the settings fresh each time it fires, so switching the pool off through
+        // /settings takes effect on the next day without a restart; see the method's own note.
+        var toppingUp = Scheduling.globalTimer(context.plugin(), ONE_DAY_TICKS, ONE_DAY_TICKS,
+                task -> pool.topUpAllWorlds(server));
+        if (toppingUp != null) {
+            context.closeWith(toppingUp::cancel);
+        }
+
         RtpRule rule = new RtpRule();
         travel = new Travel(context.plugin(), context.core().safety());
-        rtp = new RtpService(context.plugin(), travel, context.core().safety(), rule,
+        rtp = new RtpService(context.plugin(), travel, context.core().safety(), pool, rule,
                 context.core().messages(), context.core().effects(), context.core().actionBars(),
                 log, settings.current(), new Random());
 
@@ -104,15 +129,17 @@ public final class RtpModule implements FlexModule {
 
         services = new RtpServices(context.plugin(), server, log,
                 context.core().messages(), context.chat().brand(), settings::current, settings, rtp,
-                new LiveScreens());
+                pool, new LiveScreens());
 
         // The command was registered during bootstrap, long before any of this existed, and has been
         // answering "not started yet" until now. See RtpCommands.
         RtpCommands.ready(services);
 
-        log.info("Random Teleport is up: {}-{} block ring, {}s to stand still, {}s between goes.",
+        log.info("Random Teleport is up: {}-{} block ring, {}s to stand still, {}s between goes, "
+                        + "pool {} ({} ready).",
                 settings.current().minRadius(), settings.current().maxRadius(),
-                settings.current().warmup(), settings.current().cooldown());
+                settings.current().warmup(), settings.current().cooldown(),
+                settings.current().poolEnabled() ? "on" : "off", pool.size());
     }
 
     /**
@@ -147,6 +174,12 @@ public final class RtpModule implements FlexModule {
         // them.
         if (travel != null) {
             travel.clear();
+        }
+
+        // Whatever the pool has not yet written — a location marked used a moment ago, say — must not
+        // wait for a save that was scheduled but never got to run before the process ended.
+        if (pool != null) {
+            pool.flushNow();
         }
 
         // The listeners are unregistered by the context, in the reverse order they were registered —

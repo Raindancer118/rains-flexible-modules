@@ -16,14 +16,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * That each package holds what its name says. The same scan the other modules have, against the same
  * layout — see {@code MODULE-LAYOUT.md}.
  *
- * <h2>Why there is no model or store package here</h2>
- * Nothing in this module is a thing with an identity to browse, edit or persist across a restart —
- * there is no list to page through and no per-item state to keep. Everything a random teleport needs
- * is either a setting, reached through {@code /settings} like every other module's, or arithmetic
- * Core already owns ({@code Scatter}, {@code Travel}, {@code Safety}). Adding those two packages
- * empty just to match the shape would be exactly the kind of unused abstraction the layout warns
- * against. There is a {@code screen} package, small as it is — whether to check a landing for safety
- * is a real choice a player makes, and that is a menu's job, not a command flag's.
+ * <h2>{@code model} and {@code store} — the one thing here with an identity to persist</h2>
+ * The pool of already-checked landings {@code RtpLocationPoolService} keeps ready: a list of places
+ * with a life longer than one trip, the exact shape {@code HomeCatalogue} and the moderation report
+ * queue already have theirs in. There is also a {@code screen} package, small as it is — whether to
+ * check a landing for safety is a real choice a player makes, and that is a menu's job, not a command
+ * flag's.
  */
 class PackageGrammarTest {
 
@@ -56,7 +54,8 @@ class PackageGrammarTest {
     @Test
     @DisplayName("the scan found the packages, so a rename cannot quietly empty it")
     void theScanIsNotVacuous() {
-        for (String pkg : List.of("rules", "service", "listener", "command", "util", "screen")) {
+        for (String pkg : List.of("rules", "service", "listener", "command", "util", "screen",
+                "model", "store")) {
             assertThat(in(pkg)).as("the %s package is empty", pkg).isNotEmpty();
         }
     }

@@ -25,6 +25,9 @@ public final class PermissionNodes {
     /** Skipping the stand-still-first warm-up. */
     public static final String BYPASS_WARMUP = "rainsrtp.rtp.bypass.warmup";
 
+    /** Preparing locations ahead of time by hand, with {@code /rtp prepare}. */
+    public static final String PREPARE = "rainsrtp.rtp.prepare";
+
     private PermissionNodes() {
     }
 
@@ -34,6 +37,8 @@ public final class PermissionNodes {
                 new Permission(BYPASS_COOLDOWN, "Skip the wait between random teleports",
                         PermissionDefault.OP),
                 new Permission(BYPASS_WARMUP, "Skip the stand-still warm-up before a random teleport",
+                        PermissionDefault.OP),
+                new Permission(PREPARE, "Prepare random-teleport locations ahead of time by hand",
                         PermissionDefault.OP));
     }
 
