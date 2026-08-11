@@ -27,10 +27,12 @@ public final class RtpChooserMenu extends Menu implements IRtpScreen {
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
     private final RtpServices services;
+    private final Integer minDistance;
 
-    public RtpChooserMenu(RtpServices services, Player viewer, Menu parent) {
+    public RtpChooserMenu(RtpServices services, Player viewer, Integer minDistance, Menu parent) {
         super(viewer, services.brand(), parent, 3);
         this.services = services;
+        this.minDistance = minDistance;
     }
 
     @Override
@@ -68,7 +70,7 @@ public final class RtpChooserMenu extends Menu implements IRtpScreen {
 
     private void choose(boolean safe) {
         viewer.closeInventory();
-        services.rtp().go(viewer, safe);
+        services.rtp().go(viewer, safe, minDistance);
     }
 
     @Override

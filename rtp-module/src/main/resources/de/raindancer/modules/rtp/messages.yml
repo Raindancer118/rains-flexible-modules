@@ -25,6 +25,7 @@ rtp:
   teleport-refused: "<red>Something stopped you arriving. Try again."
   cannot-schedule: "<red>The server cannot send you anywhere just now."
   only-a-player: "<red>Only somebody standing in the world can be sent somewhere random."
+  invalid-distance: "<red><white><value></white> is not a distance to ask for."
 
   cancelled:
     moved: "<yellow>You moved, so you are staying put."

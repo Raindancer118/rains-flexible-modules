@@ -10,6 +10,11 @@ import org.bukkit.entity.Player;
  */
 public interface IRtpScreensOpener {
 
-    /** Safe landing, or take your chances — asked only when the settings leave it up to the player. */
-    void chooser(Player viewer);
+    /**
+     * Safe landing, or take your chances — asked only when the settings leave it up to the player.
+     *
+     * @param minDistance the same override {@code /rtp <distance>} would pass to
+     *                    {@code RtpService#go} directly; null when nobody asked for one
+     */
+    void chooser(Player viewer, Integer minDistance);
 }

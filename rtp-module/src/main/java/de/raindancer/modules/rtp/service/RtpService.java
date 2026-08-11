@@ -79,6 +79,17 @@ public final class RtpService implements IRtpService {
 
     private static final int FROM_THE_SKY = 40;
 
+    /**
+     * How many different random points a checked trip tries before actually giving up.
+     *
+     * <p>"Nowhere safe within the radius" is a fact about the one point that was picked, not about
+     * the world — a different roll a moment later can land somewhere with room to search in easily.
+     * Bounded rather than endless so a world genuinely without anywhere to land (a radius pinned
+     * entirely over one lake, say) still answers in a few searches instead of hanging a player's
+     * command on a point that was never going to work.
+     */
+    private static final int MAX_SEARCH_ATTEMPTS = 3;
+
     /** How long the "still searching" action bar is shown for at a time. Refreshed while it waits. */
     private static final java.time.Duration SEARCHING_NOTICE_LIFETIME = java.time.Duration.ofSeconds(3);
 
@@ -152,6 +163,11 @@ public final class RtpService implements IRtpService {
 
     // ------------------------------------------------------------------------ going
 
+    /** The same as {@link #go(Player, boolean, Integer)}, with no minimum distance asked for. */
+    public void go(Player traveller, boolean playerWantsSafe) {
+        go(traveller, playerWantsSafe, null);
+    }
+
     /**
      * Sends this player somewhere random in the world they are standing in, or tells them why not.
      *
@@ -160,8 +176,13 @@ public final class RtpService implements IRtpService {
      *
      * @param playerWantsSafe what this player asked for this trip. Honoured only when the settings
      *                        say {@code AVAILABLE} — see {@link RtpRule#effectiveSafeArrival}
+     * @param minDistance     how close to the middle this one trip refuses to land, overriding the
+     *                        owner's own minimum for this trip only; null asks for nothing beyond what
+     *                        the settings already say. The pool is skipped when this is asked for — a
+     *                        spot prepared ahead of time was found without knowing anybody would ask
+     *                        for this, so it cannot promise it
      */
-    public void go(Player traveller, boolean playerWantsSafe) {
+    public void go(Player traveller, boolean playerWantsSafe, Integer minDistance) {
         if (traveller == null) {
             return;
         }
@@ -181,15 +202,15 @@ public final class RtpService implements IRtpService {
             return;
         }
 
-        Location raw = destinationIn(world, traveller);
+        Location raw = destinationIn(world, traveller, minDistance);
         boolean checked = rule.effectiveSafeArrival(settings.safeArrivalPolicy(), playerWantsSafe);
         if (!checked || safety == null) {
             depart(traveller, raw);
             return;
         }
 
-        if (pool == null) {
-            searchLive(traveller, raw);
+        if (pool == null || minDistance != null) {
+            searchLive(traveller, raw, minDistance, 1);
             return;
         }
         // The pool first: a spot already found and checked, re-verified once more because the ground
@@ -203,15 +224,22 @@ public final class RtpService implements IRtpService {
                                 depart(traveller, location);
                             }
                         }),
-                        () -> searchLive(traveller, raw)))
+                        () -> searchLive(traveller, raw, null, 1)))
                 .exceptionally(failure -> {
-                    searchLive(traveller, raw);
+                    searchLive(traveller, raw, null, 1);
                     return null;
                 });
     }
 
-    /** The search this module always did before there was a pool to try first. */
-    private void searchLive(Player traveller, Location raw) {
+    /**
+     * The search this module always did before there was a pool to try first.
+     *
+     * <p>A point with nothing safe near it is a fact about that one roll of the dice, not about the
+     * world — so rather than tell a player no and make them type the command again, this quietly
+     * rolls again itself, up to {@link #MAX_SEARCH_ATTEMPTS} times, with a fresh point of its own each
+     * time. Only the last attempt's failure is ever actually shown to anybody.
+     */
+    private void searchLive(Player traveller, Location raw, Integer minDistance, int attempt) {
         // The search is bounded to a couple of seconds even on bad terrain — see
         // SafeSpots#nearestConsistentHeight — but a couple of seconds of nothing happening still
         // reads as a frozen command. Shown at LOW priority: a refusal or an arrival either one
@@ -225,16 +253,23 @@ public final class RtpService implements IRtpService {
         safety.findSafeAtConsistentHeight(around, settings.arrivalRadius(), settings.tolerance(),
                         spots -> spots.naturalGroundOnly(true))
                 .thenAccept(found -> onThePlayersThread(traveller, () -> {
-                    clearSearching(traveller);
-                    if (!traveller.isOnline()) {
+                    if (found.isPresent()) {
+                        clearSearching(traveller);
+                        if (traveller.isOnline()) {
+                            depart(traveller, at(found.get(), raw));
+                        }
                         return;
                     }
-                    found.ifPresentOrElse(
-                            spot -> depart(traveller, at(spot, raw)),
-                            () -> {
-                                messages.send(traveller, "rtp.nowhere-safe");
-                                refused(traveller);
-                            });
+                    if (attempt < MAX_SEARCH_ATTEMPTS && traveller.isOnline()) {
+                        Location again = destinationIn(traveller.getWorld(), traveller, minDistance);
+                        searchLive(traveller, again, minDistance, attempt + 1);
+                        return;
+                    }
+                    clearSearching(traveller);
+                    if (traveller.isOnline()) {
+                        messages.send(traveller, "rtp.nowhere-safe");
+                        refused(traveller);
+                    }
                 })).exceptionally(failure -> {
                     if (log != null) {
                         log.warn("Could not check whether a random point was safe: {}",
@@ -293,9 +328,17 @@ public final class RtpService implements IRtpService {
      * <p>The middle is the world's own spawn unless the owner asked for it to be wherever the player is
      * standing — see {@link RtpSettings#centreOnPlayer()}.
      */
-    private Location destinationIn(World world, Player traveller) {
+    /**
+     * @param minDistance overrides how close to the middle this point may be, for this call only;
+     *                     null takes whatever the settings already say
+     */
+    private Location destinationIn(World world, Player traveller, Integer minDistance) {
         Location centre = settings.centreOnPlayer() ? traveller.getLocation() : world.getSpawnLocation();
-        Scatter.Point point = settings.scatterWithin(world).pick(random);
+        Scatter base = settings.scatterWithin(world);
+        // Built from the settings' own furthest, already kept inside the border — only the nearest
+        // changes, and Scatter's own compact constructor sorts out a distance further out than that.
+        Scatter scatter = minDistance == null ? base : new Scatter(true, minDistance, base.furthest());
+        Scatter.Point point = scatter.pick(random);
         double top = Math.max(64, world.getMaxHeight() - FROM_THE_SKY);
         return new Location(world, centre.getX() + point.x() + 0.5, top,
                 centre.getZ() + point.z() + 0.5);

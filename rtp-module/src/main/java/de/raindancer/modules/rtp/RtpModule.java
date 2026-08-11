@@ -153,10 +153,10 @@ public final class RtpModule implements FlexModule {
     private final class LiveScreens implements IRtpScreensOpener {
 
         @Override
-        public void chooser(Player viewer) {
+        public void chooser(Player viewer, Integer minDistance) {
             // null parent: this is an entry point from a command, and Core draws no Back button on a
             // parentless menu — right, since there is nowhere behind it to go back to.
-            new RtpChooserMenu(services, viewer, null).open();
+            new RtpChooserMenu(services, viewer, minDistance, null).open();
         }
     }
 

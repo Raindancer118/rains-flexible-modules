@@ -17,10 +17,13 @@ import java.util.function.Supplier;
 /**
  * {@code /rtp} — send the player somewhere random in their own world.
  *
- * <p>Takes no arguments for a player asking to go somewhere, with one exception: whether this trip's
- * landing is checked for safety, when the owner's settings leave that up to the player — see {@code
- * RtpSettings#safeArrivalPolicy()}. Under any other policy there is nothing to ask, so the trip goes
- * straight ahead. Everything else that varies is an owner's setting, reached through {@code /settings}.
+ * <p>A bare {@code /rtp} takes the owner's own minimum distance from {@code RtpSettings#minRadius()}.
+ * {@code /rtp <distance>} asks for at least that many blocks from the middle instead, for this trip
+ * only — somebody who has already explored the nearest ring wants further out without an owner having
+ * to widen it for everybody. Whether this trip's landing is checked for safety is the other thing that
+ * varies per trip, when the owner's settings leave that up to the player — see {@code
+ * RtpSettings#safeArrivalPolicy()}. Everything else is an owner's setting, reached through
+ * {@code /settings}.
  *
  * <h2>The one exception: {@code prepare}</h2>
  * An owner filling the pool by hand — see {@code RtpLocationPoolService} — asks for it here rather than
@@ -57,13 +60,24 @@ public final class RtpCommand implements IRtpCommand {
             live.messages().send(sender, "rtp.only-a-player");
             return;
         }
+
+        Integer minDistance = null;
+        if (args.length > 0) {
+            try {
+                minDistance = Integer.parseInt(args[0]);
+            } catch (NumberFormatException notANumber) {
+                live.messages().send(sender, "rtp.invalid-distance", "value", args[0]);
+                return;
+            }
+        }
+
         if (live.rtp().playerMayChoose()) {
-            live.screens().chooser(player);
+            live.screens().chooser(player, minDistance);
             return;
         }
         // Nothing to ask: the owner's policy has already decided one way or the other, so the safe
         // choice passed here is only ever a placeholder the rule ends up ignoring.
-        live.rtp().go(player, true);
+        live.rtp().go(player, true, minDistance);
     }
 
     /**
@@ -111,19 +125,30 @@ public final class RtpCommand implements IRtpCommand {
         }
 
         live.messages().send(sender, "rtp.pool.preparing", "amount", asked, "world", world.getName());
-        live.locations().prepare(world, asked).thenAccept(added -> Scheduling.global(live.plugin(), () ->
-                live.messages().send(sender, "rtp.pool.prepared", "amount", added, "world",
-                        world.getName())));
+        if (live.log() != null) {
+            live.log().info("{} asked for {} random-teleport location(s) in {} to be prepared.",
+                    sender.getName(), asked, world.getName());
+        }
+        live.locations().prepare(world, asked).thenAccept(added -> Scheduling.global(live.plugin(), () -> {
+            live.messages().send(sender, "rtp.pool.prepared", "amount", added, "world", world.getName());
+            if (live.log() != null) {
+                live.log().info("Prepared {} random-teleport location(s) in {}, asked for by {}.",
+                        added, world.getName(), sender.getName());
+            }
+        }));
     }
 
     @Override
     public @NotNull Collection<String> suggest(@NotNull CommandSourceStack source,
                                                String @NotNull [] args) {
-        if (args.length == 1 && source.getSender().hasPermission(PermissionNodes.PREPARE)
-                && PREPARE.regionMatches(true, 0, args[0], 0, args[0].length())) {
-            return List.of(PREPARE);
+        // args is empty rather than one blank string the instant after "/rtp ", before anything has
+        // been typed for the first argument — the length check alone would leave that moment with no
+        // suggestions at all, which is exactly when they are most wanted.
+        if (args.length > 1 || !source.getSender().hasPermission(PermissionNodes.PREPARE)) {
+            return List.of();
         }
-        return List.of();
+        String typed = args.length == 1 ? args[0] : "";
+        return PREPARE.regionMatches(true, 0, typed, 0, typed.length()) ? List.of(PREPARE) : List.of();
     }
 
     @Override

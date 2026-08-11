@@ -34,17 +34,17 @@ public record RtpSettings(
         @In("rtp/travelling") @Title("Stand still for") @Range(min = 0, max = 60)
         @Describe("Seconds somebody must stand still before they are sent, so that running away "
                 + "from a fight this way costs something. Zero sends them at once.")
-        @Key("warmup-seconds")
+        @Key("rtp-warmup-seconds")
         int warmupSeconds,
 
         @In("rtp/travelling") @Title("Wait between goes") @Range(min = 0, max = 86400)
         @Describe("Seconds before the same player may do this again. Zero switches it off.")
-        @Key("cooldown-seconds")
+        @Key("rtp-cooldown-seconds")
         int cooldownSeconds,
 
         @In("rtp/travelling") @Title("Being hurt cancels the wait")
         @Describe("Whether taking damage gives up on a trip somebody is standing still for.")
-        @Key("hurt-cancels-warmup")
+        @Key("rtp-hurt-cancels-warmup")
         boolean hurtCancelsWarmup,
 
         @In("rtp/where") @Title("Nearest anybody lands to the middle") @Range(min = 0, max = 100000)
@@ -75,7 +75,7 @@ public record RtpSettings(
                 + "searches for somewhere safe near it rather than dropping somebody wherever that "
                 + "turned out to be. Also how much of the world is loaded to find out, so a large "
                 + "number is a pause for everybody, not only the person going.")
-        @Key("safe-arrival-radius")
+        @Key("rtp-safe-arrival-radius")
         int safeArrivalRadius,
 
         @In("rtp/where") @Title("How uneven the landing may be") @Range(min = 0, max = 10)

@@ -198,8 +198,22 @@
           between being found and being handed out — somebody builds on it, a tree grows, a chunk
           regenerates — every one is checked again, on the spot, the instant it is actually given to a
           player, before the search that filled the pool is ever trusted.
+
+          1.5.0: kelp and seagrass — and any waterlogged block — were being counted as ordinary
+          passable air rather than water, because Bukkit's own isPassable() answers "does this stop
+          you walking" and not "is this dry"; a checked landing could put a player standing on the
+          sea floor believing it had found dry ground. Fixed in RainsCore (1.10.0, see its own
+          history), where the same fix closes a real, if narrow, race on every plugin disable: a read
+          from Core's own databases genuinely in flight at the exact moment the server stopped could
+          leave a write-ahead log unfolded, logged as a warning on the next start for no reason
+          anyone watching the console could see. Two smaller things ride along: /rtp's own settings
+          no longer share four key names with /rtp:warps' (rtp-warmup-seconds and the like), and a
+          checked trip that rolls a point with nothing safe nearby quietly tries a few more times
+          before actually refusing, since that is a fact about the one point and not about the world.
+          /rtp <distance> lets a player ask for at least that many blocks from the middle for one
+          trip, without an owner having to widen the ring for everybody to get it.
         -->
-        <plugin.version>1.4.0</plugin.version>
+        <plugin.version>1.5.0</plugin.version>
     </properties>
 
     <dependencies>
