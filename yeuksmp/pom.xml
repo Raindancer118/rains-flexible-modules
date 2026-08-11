@@ -212,8 +212,15 @@
           before actually refusing, since that is a fact about the one point and not about the world.
           /rtp <distance> lets a player ask for at least that many blocks from the middle for one
           trip, without an owner having to widen the ring for everybody to get it.
+
+          1.6.0: homes.bypass.warmup and homes.bypass.cooldown defaulted to operators-only, so every
+          operator skipped both waits no matter what homes' own "operators skip the waits" setting
+          said — which defaults to off, on purpose, so an admin testing the feature is not the one
+          person who cannot. Fixed in homes-module: both nodes now default to nobody, the same as
+          the identical setting in tpa-module already had it, which is what makes the setting the
+          only thing deciding for an operator with nothing explicitly granted.
         -->
-        <plugin.version>1.5.0</plugin.version>
+        <plugin.version>1.6.0</plugin.version>
     </properties>
 
     <dependencies>

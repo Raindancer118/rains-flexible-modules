@@ -69,10 +69,10 @@ public final class PermissionNodes {
                         PermissionDefault.FALSE),
                 new Permission(BYPASS_WARMUP,
                         "Go home without standing still first",
-                        PermissionDefault.OP),
+                        PermissionDefault.FALSE),
                 new Permission(BYPASS_COOLDOWN,
                         "Go home again without waiting",
-                        PermissionDefault.OP));
+                        PermissionDefault.FALSE));
     }
 
     /**

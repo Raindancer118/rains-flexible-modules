@@ -188,4 +188,69 @@ class HomeTravelServiceTest {
             assertThat(played).isEmpty();
         }
     }
+
+    /**
+     * The bug this exists to catch: {@code homes.bypass.warmup} used to default to
+     * {@code PermissionDefault.OP}, so every operator bypassed the wait no matter what
+     * {@code operators-bypass} said — the setting whose own javadoc promises the opposite by
+     * default. Fixed by giving the permission itself a plain {@code FALSE} default, the same as
+     * {@code tpa-module}'s identical setting already had, so the setting is the only thing deciding.
+     */
+    @Nested
+    @DisplayName("an operator's own wait")
+    class OperatorsBypassingTheWait {
+
+        private int warmupOf(HomeSettings settings, Player traveller) {
+            Travel travel = mock(Travel.class);
+            HomeTravelService service = new HomeTravelService(travel, mock(Messages.class), effects(),
+                    settings);
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            when(traveller.getWorld()).thenReturn(world);
+            when(traveller.getUniqueId()).thenReturn(UUID.randomUUID());
+            Home home = homeAt(world);
+
+            service.go(traveller, home);
+            ArgumentCaptor<de.raindancer.core.world.teleport.Trip> trip =
+                    ArgumentCaptor.forClass(de.raindancer.core.world.teleport.Trip.class);
+            verify(travel).go(eq(traveller), any(Location.class), trip.capture(), any());
+            return trip.getValue().warmupSeconds();
+        }
+
+        @Test
+        @DisplayName("an operator with nothing granted waits like anybody else, by default")
+        void anOperatorWaitsByDefault() {
+            Player op = mock(Player.class);
+            when(op.isOp()).thenReturn(true);
+
+            assertThat(warmupOf(HomeSettings.DEFAULTS, op)).isEqualTo(HomeSettings.DEFAULTS.warmup());
+        }
+
+        @Test
+        @DisplayName("turning the setting on is what actually lets an operator skip it")
+        void theSettingIsWhatBypassesIt() {
+            Player op = mock(Player.class);
+            when(op.isOp()).thenReturn(true);
+
+            assertThat(warmupOf(HomeSettings.DEFAULTS.withOperatorsBypass(true), op)).isZero();
+        }
+
+        @Test
+        @DisplayName("a plain player explicitly granted the node bypasses it regardless of the setting")
+        void anExplicitGrantAlwaysWorks() {
+            Player granted = mock(Player.class);
+            when(granted.hasPermission(
+                    de.raindancer.modules.homes.util.PermissionNodes.BYPASS_WARMUP)).thenReturn(true);
+
+            assertThat(warmupOf(HomeSettings.DEFAULTS, granted)).isZero();
+        }
+
+        @Test
+        @DisplayName("a plain player with neither waits the ordinary amount")
+        void anOrdinaryPlayerWaits() {
+            Player nobody = mock(Player.class);
+
+            assertThat(warmupOf(HomeSettings.DEFAULTS, nobody)).isEqualTo(HomeSettings.DEFAULTS.warmup());
+        }
+    }
 }
