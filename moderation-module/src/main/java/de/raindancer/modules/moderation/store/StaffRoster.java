@@ -41,6 +41,25 @@ public final class StaffRoster {
     private final Grants grants;
     private final YamlStore store;
 
+    /**
+     * Nodes an admin has individually taken away from somebody, remembered so {@link #topUpFromPreset}
+     * knows not to hand them straight back.
+     *
+     * <h2>Why this has to be its own list rather than just "absent from grants"</h2>
+     * A node missing from somebody's grants means one of two completely different things: an admin
+     * took it away on purpose, or they were promoted before the preset grew it and simply never
+     * received it. {@link Grants} cannot tell those apart — a node is either held or it is not, with
+     * nothing to say which of the two stories is true — so without this, {@link #topUpFromPreset}
+     * could not tell "add what is new" from "restore what was refused" and had no choice but to do
+     * both, which is exactly the bug this list exists to prevent: a permission explicitly revoked
+     * quietly reappearing the next time its owner logs in.
+     *
+     * <p>Cleared whenever {@link #promote} runs — a fresh rank, including a re-application of the same
+     * one through {@link #reapplyPreset}, is a fresh start, not a set of exclusions carried over from
+     * whatever rank they held a moment before.
+     */
+    private final Map<UUID, Set<String>> denied = new ConcurrentHashMap<>();
+
     public StaffRoster(Path dataFolder, Grants grants) {
         this.grants = grants;
         this.store = new YamlStore(dataFolder.resolve("staff.yml"));
@@ -68,6 +87,10 @@ public final class StaffRoster {
         }
         ranks.put(who, rank);
         grants.set(who, rank.nodes());
+        // A fresh assignment of the rank's full node set already includes whatever was individually
+        // refused before — carrying the exclusion forward would have topUpFromPreset immediately
+        // undo half of what this line just did.
+        denied.remove(who);
         return true;
     }
 
@@ -83,6 +106,7 @@ public final class StaffRoster {
         // Everything, including immunity. A demoted admin who keeps it is an account nobody can act on
         // and nobody meant to protect.
         grants.clear(who);
+        denied.remove(who);
         return true;
     }
 
@@ -131,15 +155,43 @@ public final class StaffRoster {
         }
         if (grants.has(who, node)) {
             grants.revoke(who, node);
+            // Marked, so a later join does not read the absence as "never got around to granting
+            // this" and hand it straight back — see the field note on denied.
+            deniedFor(who).add(node);
             return false;
         }
         grants.grant(who, node);
+        // Granting it by hand is exactly as deliberate as revoking it was, and un-marks whatever
+        // refusal came before — a node given back on purpose is not still "denied".
+        undeny(who, node);
         return true;
     }
 
-    /** Puts a drifted person back to exactly what their rank grants. */
+    /**
+     * Puts a drifted person back to exactly what their rank grants — both what is missing and, just as
+     * much, what is not. The deliberate full reset behind "Put the preset back": every individual
+     * toggle, in either direction, is undone.
+     */
     public boolean reapplyPreset(UUID who) {
         return rankOf(who).map(rank -> promote(who, rank)).orElse(false);
+    }
+
+    /**
+     * Grants whatever the rank has gained since somebody was last given it — and only that. A node an
+     * admin individually {@link #toggle}d off stays off, because it is in {@link #denied} rather than
+     * merely absent; this never removes anything either, so it is safe to call on every join rather
+     * than only when a screen asks for a deliberate reset. See {@code StaffService#topUpOnJoin}, its
+     * one caller.
+     *
+     * @return whether anything was actually new
+     */
+    public boolean topUpFromPreset(UUID who) {
+        return rankOf(who).map(rank -> {
+            Set<String> excluded = denied.getOrDefault(who, Set.of());
+            List<String> due = new ArrayList<>(rank.nodes());
+            due.removeAll(excluded);
+            return grants.grantAll(who, due);
+        }).orElse(false);
     }
 
     /** Whether their permissions are exactly what their rank grants. */
@@ -182,37 +234,78 @@ public final class StaffRoster {
      */
     public void load() {
         ranks.clear();
-        var root = store.read().getConfigurationSection("staff");
-        if (root == null) {
-            return;
-        }
-        List<String> unreadable = new ArrayList<>();
-        for (String id : root.getKeys(false)) {
-            UUID who;
-            try {
-                who = UUID.fromString(id);
-            } catch (IllegalArgumentException notAnId) {
-                unreadable.add(id);
-                continue;
+        denied.clear();
+        var yaml = store.read();
+        var root = yaml.getConfigurationSection("staff");
+        if (root != null) {
+            List<String> unreadable = new ArrayList<>();
+            for (String id : root.getKeys(false)) {
+                UUID who;
+                try {
+                    who = UUID.fromString(id);
+                } catch (IllegalArgumentException notAnId) {
+                    unreadable.add(id);
+                    continue;
+                }
+                Optional<StaffRank> rank = StaffRank.byName(root.getString(id));
+                if (rank.isEmpty()) {
+                    unreadable.add(id + " (" + root.getString(id) + ")");
+                    continue;
+                }
+                ranks.put(who, rank.get());
             }
-            Optional<StaffRank> rank = StaffRank.byName(root.getString(id));
-            if (rank.isEmpty()) {
-                unreadable.add(id + " (" + root.getString(id) + ")");
-                continue;
+            if (!unreadable.isEmpty()) {
+                log.error("{} entry/entries in staff.yml could not be read and have been skipped: {}. "
+                                + "Anybody they named is not staff this session — their granted "
+                                + "permissions are untouched, so check grants.yml as well.",
+                        unreadable.size(), String.join(", ", unreadable));
             }
-            ranks.put(who, rank.get());
         }
-        if (!unreadable.isEmpty()) {
-            log.error("{} entry/entries in staff.yml could not be read and have been skipped: {}. "
-                            + "Anybody they named is not staff this session — their granted "
-                            + "permissions are untouched, so check grants.yml as well.",
-                    unreadable.size(), String.join(", ", unreadable));
+        var deniedRoot = yaml.getConfigurationSection("denied");
+        if (deniedRoot != null) {
+            for (String id : deniedRoot.getKeys(false)) {
+                try {
+                    UUID who = UUID.fromString(id);
+                    List<String> nodes = deniedRoot.getStringList(id);
+                    if (!nodes.isEmpty()) {
+                        deniedFor(who).addAll(nodes);
+                    }
+                } catch (IllegalArgumentException notAnId) {
+                    // Already logged loudly above for the ranks that fail the same way. Losing an
+                    // entry here means a future top-up might hand back a node this one was refused —
+                    // not silent data loss, since grants.yml still says what they actually hold.
+                }
+            }
         }
     }
 
     /** Writes the roster. @return whether it reached the disk */
     public boolean flush() {
-        return store.write(yaml -> ranks.forEach((who, rank) ->
-                yaml.set("staff." + who, rank.key())));
+        return store.write(yaml -> {
+            ranks.forEach((who, rank) -> yaml.set("staff." + who, rank.key()));
+            denied.forEach((who, nodes) -> {
+                if (!nodes.isEmpty()) {
+                    yaml.set("denied." + who, new ArrayList<>(nodes));
+                }
+            });
+        });
+    }
+
+    // ---------------------------------------------------------------------------- internals
+
+    private Set<String> deniedFor(UUID who) {
+        return denied.computeIfAbsent(who, id -> ConcurrentHashMap.newKeySet());
+    }
+
+    /** Un-marks one node, dropping the entry entirely once nothing is left in it. */
+    private void undeny(UUID who, String node) {
+        Set<String> theirs = denied.get(who);
+        if (theirs == null) {
+            return;
+        }
+        theirs.remove(node);
+        if (theirs.isEmpty()) {
+            denied.remove(who, theirs);
+        }
     }
 }

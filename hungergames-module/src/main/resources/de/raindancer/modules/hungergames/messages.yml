@@ -112,7 +112,7 @@ hungergames:
   #
   # The first is a kick screen, so it is the only line in this file written to be read on a black background
   # with nothing else around it — it says why and it says what to do, because somebody reading it cannot ask.
-  not-open-yet: "<red>The arena is not built yet.</red><newline><newline><gray>The Hunger Games server opens once a gamemaster has run /init.<newline>Try again shortly.</gray>"
+  not-open-yet: "<red>The arena is not finished yet.</red><newline><newline><gray>The Gamemakers are still shaping it. The Games will open once their work is done.<newline>Try again shortly.</gray>"
   waiting-in-the-lobby: "<gray>Welcome, tribute. Wait here — pick a team with <yellow>/hg teams</yellow>.</gray>"
   no-fighting-yet: "<red>Not yet. The Games have not begun.</red>"
 

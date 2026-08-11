@@ -35,8 +35,16 @@
           punishments, the vanish, the inventory viewing and the audit trail all moved into RainsCore,
           and what is left here is the commands, the screens and the product decisions. Nothing an
           owner configured is lost, but a major number is what says "read the notes before upgrading".
+
+          2.12.0: a permission an admin individually took away from a staff member — through the per-
+          person toggle, rank left alone — came straight back the next time that person logged in,
+          because the join top-up that hands out nodes a preset has gained since somebody's promotion
+          used to do it by fully re-applying the preset, wiping every individual toggle in the process
+          rather than only adding what was actually new. It now remembers which nodes were explicitly
+          refused and leaves them refused; only "put the preset back" on the rank screen, the
+          deliberate full reset, still undoes those on purpose.
         -->
-        <plugin.version>2.11.0</plugin.version>
+        <plugin.version>2.12.0</plugin.version>
     </properties>
 
     <dependencies>

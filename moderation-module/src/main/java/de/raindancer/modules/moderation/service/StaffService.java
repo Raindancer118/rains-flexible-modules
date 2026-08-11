@@ -167,7 +167,7 @@ public final class StaffService implements IModerationService {
         if (who == null || roster.rankOf(who).isEmpty()) {
             return false;
         }
-        boolean changed = roster.reapplyPreset(who);
+        boolean changed = roster.topUpFromPreset(who);
         // Applied whether or not the roster changed: the roster is what they *should* hold, and the
         // permission plugin is what they *do*. Those come apart on their own — a LuckPerms edit, a
         // restore from backup — and this is the one moment both are in the same place.

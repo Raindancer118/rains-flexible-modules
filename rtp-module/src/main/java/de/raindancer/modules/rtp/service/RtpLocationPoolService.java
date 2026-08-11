@@ -186,6 +186,25 @@ public final class RtpLocationPoolService implements IRtpService {
     }
 
     /**
+     * Tops the pool up by exactly one more, right after a trip that just happened — see
+     * {@code RtpService.Wording#arrived}. The daily top-up alone only catches the pool back up to the
+     * minimum once a day; a server busy enough to empty it faster than that would otherwise leave
+     * everybody after the minimum searching live until the next day comes around. One more per trip
+     * keeps the pool refilling itself at roughly the rate it is actually being spent, without a
+     * schedule of its own to configure.
+     *
+     * <p>Silently does nothing when the pool is switched off — preparing locations nobody's {@link
+     * #take} will ever look at would just be a search spent for no reason.
+     */
+    public void afterATrip(World world) {
+        RtpSettings snapshot = settings;
+        if (world == null || safety == null || !snapshot.poolEnabled()) {
+            return;
+        }
+        prepare(world, 1);
+    }
+
+    /**
      * Tops every world this runs in up to the daily minimum, once — the job the scheduled timer calls.
      *
      * <p>Reads the settings fresh each time rather than once at startup, so switching the pool off, or

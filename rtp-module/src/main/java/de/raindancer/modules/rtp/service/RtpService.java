@@ -398,6 +398,12 @@ public final class RtpService implements IRtpService {
             play(traveller, Cues.TELEPORT);
             messages.send(traveller, "rtp.arrived",
                     "where", where.getBlockX() + ", " + where.getBlockZ());
+            // One more prepared for the next person, so the pool keeps pace with how often it is
+            // actually being spent rather than only catching up once a day — see
+            // RtpLocationPoolService#afterATrip.
+            if (pool != null) {
+                pool.afterATrip(traveller.getWorld());
+            }
         }
 
         @Override

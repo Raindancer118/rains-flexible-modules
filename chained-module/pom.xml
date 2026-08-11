@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>chained-module</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Chained</name>
+    <description>
+        Two players, mechanically chained together — a speedrun challenge module: get too far apart
+        and further separation is simply blocked, an arbitrary end condition (an advancement, a
+        death, or manual) stops the clock, and the map can be reset with a fixed or a fresh random
+        seed between attempts.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

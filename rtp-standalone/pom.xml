@@ -24,8 +24,22 @@
         <!-- The name the server sees, and the name of its data folder. -->
         <plugin.name>RainsRandomTeleport</plugin.name>
 
-        <!-- 1.0.0: the first release of this as a plugin. There is no earlier version line. -->
-        <plugin.version>1.0.0</plugin.version>
+        <!--
+          1.0.0: the first release of this as a plugin. There is no earlier version line.
+
+          1.1.0: a checked landing's fallback search — the one that runs when the world's heightmap
+          has no standing room within a few blocks of what it reported, a thick canopy or a cave mouth
+          most often — used to walk the entire column with nothing stopping it, so it could tunnel
+          straight through solid rock into any cave it found first, however deep. Bounded now, in
+          RainsCore (1.12.0, see its own history), to a sane distance from the heightmap's own answer.
+          Landings also now prefer a grass block over sand, gravel or bare stone, and a spot with clear
+          sky above over one under a tree's canopy, whenever a checked search has a choice between
+          otherwise equally good spots — never a reason to widen the search or refuse one, only a tie
+          -break. And the location pool tops itself up by one more after every trip that uses it, not
+          only once a day, so a server busy enough to empty it stays ahead rather than falling back to
+          a live search until the next day's job runs.
+        -->
+        <plugin.version>1.1.0</plugin.version>
     </properties>
 
     <dependencies>

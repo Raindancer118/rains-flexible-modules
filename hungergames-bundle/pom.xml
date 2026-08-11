@@ -45,8 +45,12 @@
           takes it rather than inventing its own — unlike YeukSMP, which is six unrelated features and
           could not honestly claim any one of their numbers. Here there is a headline feature and a
           module that supports it, so the number people are looking for is the game's.
+
+          2.8.1: the arena-not-ready kick screen's wording, softened — see hungergames-standalone's own
+          history. Alongside it, moderation's join top-up no longer regrants a permission an admin took
+          away from a staff member by hand — see moderation-standalone's own history for the fix itself.
         -->
-        <plugin.version>2.8.0</plugin.version>
+        <plugin.version>2.8.1</plugin.version>
     </properties>
 
     <dependencies>

@@ -228,6 +228,44 @@ class StaffRosterTest {
         }
 
         @Test
+        @DisplayName("topping up from the preset never regrants a node taken away by hand")
+        void toppingUpNeverUndoesARevoke(@TempDir Path folder) {
+            Grants grants = new Grants(folder);
+            StaffRoster roster = new StaffRoster(folder, grants);
+            roster.promote(ayla, StaffRank.MOD);
+            roster.toggle(ayla, ModerationPermission.MUTE.node());
+
+            // The join top-up runs every single time they log in — unlike "put the preset back",
+            // which only ever runs when an admin asks for it.
+            boolean changed = roster.topUpFromPreset(ayla);
+
+            assertThat(changed)
+                    .as("nothing about the preset actually changed, so there was nothing to top up")
+                    .isFalse();
+            assertThat(grants.has(ayla, ModerationPermission.MUTE.node()))
+                    .as("an admin took this away on purpose; logging back in must not give it back")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("topping up still adds a node the preset gained after the promotion")
+        void toppingUpStillAddsWhatThePresetGained(@TempDir Path folder) {
+            Grants grants = new Grants(folder);
+            StaffRoster roster = new StaffRoster(folder, grants);
+            // Never toggled — this models a moderator promoted before MUTE was part of the preset,
+            // not an admin's deliberate choice, which is the one case topping up must still fix.
+            java.util.Set<String> beforeMuteExisted = new java.util.LinkedHashSet<>(StaffRank.MOD.nodes());
+            beforeMuteExisted.remove(ModerationPermission.MUTE.node());
+            roster.promote(ayla, StaffRank.MOD);
+            grants.set(ayla, beforeMuteExisted);
+
+            boolean changed = roster.topUpFromPreset(ayla);
+
+            assertThat(changed).isTrue();
+            assertThat(grants.has(ayla, ModerationPermission.MUTE.node())).isTrue();
+        }
+
+        @Test
         @DisplayName("somebody who is not staff cannot be toggled")
         void notStaff(@TempDir Path folder) {
             // Otherwise a node lands on a player with no rank, and nothing in the GUI shows it.

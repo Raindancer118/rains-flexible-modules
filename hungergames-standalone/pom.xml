@@ -42,8 +42,12 @@
           feature for the same servers — the v2 rework, delivered as a module — so an upgrading server's
           config.yml, teams.yml, whitelist.yml and session.yml are files this still has to read. Starting
           at 1.0.0 would say the opposite.
+
+          2.8.1: the arena-not-ready kick screen's wording, softened — "the gamemakers are still
+          shaping it" rather than naming /init, the command that opens the arena and the one a
+          tribute reading a kick screen has no use for.
         -->
-        <plugin.version>2.8.0</plugin.version>
+        <plugin.version>2.8.1</plugin.version>
     </properties>
 
     <dependencies>

@@ -1,0 +1,39 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see that class for why every line
+# here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Two players, mechanically chained together — get too far apart and further separation is simply blocked, a speedrun timer runs underneath it, and the map can be reset between attempts.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# NOT Folia-safe, unlike this reactor's other modules. RainsCore's own SpeedrunReset.regenerate is documented
+# main-thread-only: it calls Bukkit.unloadWorld and WorldCreator#createWorld directly, the way FarmWorlds does,
+# and neither of those is a regionised operation Folia can run from just anywhere. This module's admin screen
+# and /chain reset call SpeedrunReset.regenerate directly from whatever thread the click or the command landed
+# on — a player's own region thread on Folia, not the single "main" thread Paper guarantees — rather than
+# hopping onto the global region scheduler first. Doing that hop correctly (and testing that it actually
+# happens) was out of scope for this pass; until it is added, this module is honest about not being Folia-safe
+# rather than silently corrupting a world reset on a Folia server.
+folia-supported: false
+
+dependencies:
+  # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and
+  # its own classpath, and the bootstrapper is where the modules are first discovered — it has to look, since
+  # commands are registered during bootstrap or they never exist. Declared for the server phase alone, the
+  # module fails to link at bootstrap with a ClassNotFoundException for a RainsCore class and the plugin
+  # reports that it contains no modules. That is what the claims plugin did on the test server the first time.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      # The line that actually puts RainsCore's classes on this plugin's classpath. Paper plugins get isolated
+      # classloaders, so without it everything above is right and the plugin dies the moment it touches one.
+      join-classpath: true

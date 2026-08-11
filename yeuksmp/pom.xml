@@ -219,8 +219,28 @@
           person who cannot. Fixed in homes-module: both nodes now default to nobody, the same as
           the identical setting in tpa-module already had it, which is what makes the setting the
           only thing deciding for an operator with nothing explicitly granted.
+
+          1.7.0: /rtp — a checked landing's fallback search, the one that runs when the world's
+          heightmap has no standing room within a few blocks of what it reported, used to walk the
+          entire column with nothing stopping it: a thick canopy or a cave mouth is exactly when that
+          happens, and the walk would tunnel straight through solid rock into whatever cave it found
+          first, however deep. Fixed in RainsCore (1.12.0, see its own history), bounded now to a sane
+          distance from the heightmap's own answer. Landings also prefer a grass block over sand,
+          gravel or bare stone, and a spot with clear sky above over one under a tree's canopy, when a
+          checked search has a choice between otherwise equally good spots — never a reason to widen
+          the search or refuse a ring, only a tie-break. And the location pool tops itself up by one
+          more after every trip that uses it, not only once a day, so a busy server stays ahead of it
+          rather than falling back to a live search until the next day's job runs.
+
+          Also: an admin taking one permission away from a staff member by hand, through the rank
+          screen's per-person toggle, used to come straight back the next time that person logged in —
+          the join top-up that hands out a node a preset has gained since somebody's promotion was
+          fully re-applying the whole preset, wiping every individual toggle rather than only adding
+          what was actually new. It now remembers which nodes were explicitly refused and leaves them
+          refused; only "put the preset back" on the rank screen, the deliberate full reset, still
+          undoes those on purpose.
         -->
-        <plugin.version>1.6.0</plugin.version>
+        <plugin.version>1.7.0</plugin.version>
     </properties>
 
     <dependencies>
