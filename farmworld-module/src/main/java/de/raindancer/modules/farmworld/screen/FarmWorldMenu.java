@@ -8,7 +8,7 @@ import de.raindancer.modules.farmworld.FarmWorldServices;
 import de.raindancer.modules.farmworld.FarmWorldSettings;
 import de.raindancer.modules.farmworld.model.Arrival;
 import de.raindancer.modules.farmworld.model.FarmWorldView;
-import de.raindancer.modules.farmworld.model.Scatter;
+import de.raindancer.core.world.teleport.Scatter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;

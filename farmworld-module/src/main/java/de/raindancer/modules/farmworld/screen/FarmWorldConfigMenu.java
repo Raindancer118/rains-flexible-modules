@@ -7,7 +7,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.farmworld.FarmWorldServices;
 import de.raindancer.modules.farmworld.FarmWorldSettings;
-import de.raindancer.modules.farmworld.model.Scatter;
+import de.raindancer.core.world.teleport.Scatter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;

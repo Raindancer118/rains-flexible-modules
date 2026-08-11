@@ -1,5 +1,7 @@
 package de.raindancer.modules.farmworld.model;
 
+import de.raindancer.core.world.teleport.Scatter;
+
 import java.util.Locale;
 import java.util.Set;
 

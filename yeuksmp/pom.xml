@@ -15,13 +15,13 @@
 
     <name>YeukSMP</name>
     <description>
-        One plugin carrying six modules — claims, teleport requests, warps, moderation, the server
-        pack and coloured names — for a server that wants all of them and would otherwise install six
-        jars that each have to be updated separately.
+        One plugin carrying eight modules — claims, teleport requests, warps, moderation, the server
+        pack, coloured names, homes and random teleport — for a server that wants all of them and
+        would otherwise install eight jars that each have to be updated separately.
 
         Nothing here but a build file and a descriptor. The wrapper already knows what to do with a
         jar holding more than one module: ModuleHosts.standalone reads the module count and gives
-        each one a subfolder rather than letting six fight over one config.yml.
+        each one a subfolder rather than letting eight fight over one config.yml.
     </description>
 
     <properties>
@@ -146,16 +146,58 @@
           all — fixed by evicting on join the same way /claim ban already evicts someone caught inside,
           deliberately not by refusing the login itself, which would have turned a claim ban into one
           nobody could ever lift.
+
+          1.1.0: added homes and random teleport, and moderation gained two automated watchers.
+          Homes was ported from the third-party SetHome plugin (see homes-module's own history) and
+          is no longer deliberately excluded — a server asking for this bundle now gets it, sethome
+          and delhome included, importing an existing SetHome installation's homes on a first run the
+          same way the standalone plugin does. Random teleport is new: /rtp (wild, randomtp), a ring
+          around spawn or the player with a configurable minimum and maximum, and a landing whose
+          safety is the owner's policy — available to the player, forced either way, or off
+          entirely, in which case a checked-off /rtp is exactly a random point with no net under it,
+          void included. Moderation's own two: typing a watched command (seedcracker and its typos,
+          by default) and a mining pattern that looks like x-ray both now file an automatic report
+          into the same queue /report already uses, the x-ray threshold able to learn what this
+          server's own players actually mine rather than one fixed number for every server. And
+          fixed here, in the wrapper every module in this jar shares: /settings itself was never
+          registered by anything — every module could be reached through its own /<name> config
+          subcommand, but the command a player would actually type for "everything on this server"
+          simply did not exist on any module-standalone plugin or bundle in this repository.
+
+          1.2.0: /rtp with a checked landing could take the better part of a minute to actually go —
+          RainsCore's search for solid ground was walking down one block at a time from high above
+          the target, and every one of those steps itself scanned up to ninety-six blocks looking for
+          a landing while there was still nothing solid below: quadratic in the distance fallen, over
+          open air the search always had to fall through first. Fixed in RainsCore (1.8.0, see its own
+          history): the search now seeds itself from the world's own heightmap — one lookup instead of
+          a walk — and a neighbour's height is checked in a narrow window instead of a second full
+          walk of its own. Measured on the same terrain that used to take the better part of a minute:
+          862 block reads where it used to take 190,285. A hard two-second ceiling backs that up
+          regardless of how uncooperative the terrain turns out to be, and /rtp now shows "Looking for
+          somewhere safe to land…" on the action bar for as long as the search actually takes, so the
+          wait — a couple of seconds at the very most now — no longer reads as a frozen command.
+
+          1.3.0: a scattered arrival could land at the top of a tree, on a roof, or on any other
+          solid thing merely because it was the first thing the search found — fixed in RainsCore
+          (1.9.0, see its own history) with a natural-ground-only check /rtp now asks for, so a
+          checked landing only ever counts stone, dirt, sand and the rest of the terrain itself as
+          somewhere to actually put a player. Two further RainsCore fixes ride along: the search
+          could touch Bukkit's block data off the thread that owns it whenever the chunks it needed
+          were still loading, which Paper and Folia both call undefined behaviour rather than merely
+          slow — it now always hops back first. And a heightmap that missed near the sky (an
+          overhang, a floating structure) fell back to the exact quadratic walk the heightmap seeding
+          exists to avoid, starting from wherever the search began rather than from the heightmap's
+          own — if wrong — answer; it now starts there instead.
         -->
-        <plugin.version>1.0.15</plugin.version>
+        <plugin.version>1.3.0</plugin.version>
     </properties>
 
     <dependencies>
         <!--
-          The six the server asked for, and deliberately not homes or farm worlds: a bundle is a
-          decision about what this server runs, not a shortcut for "everything in the repository".
-          Adding one later is adding a dependency here — ServiceLoader finds it, the shade merges the
-          service files, and no list anywhere else has to be edited.
+          The eight the server asked for, and deliberately not farm worlds: a bundle is a decision
+          about what this server runs, not a shortcut for "everything in the repository". Adding one
+          later is adding a dependency here — ServiceLoader finds it, the shade merges the service
+          files, and no list anywhere else has to be edited.
         -->
         <dependency>
             <groupId>de.raindancer.modules</groupId>
@@ -180,6 +222,14 @@
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>names-module</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>homes-module</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>rtp-module</artifactId>
         </dependency>
 
         <dependency>

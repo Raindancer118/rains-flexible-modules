@@ -10,16 +10,22 @@ import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.moderation.listener.StaffChatListener;
 import de.raindancer.modules.moderation.listener.StaffSessionListener;
+import de.raindancer.modules.moderation.listener.SuspiciousCommandListener;
+import de.raindancer.modules.moderation.listener.XrayWatchListener;
 import de.raindancer.modules.moderation.model.Reason;
 import de.raindancer.modules.moderation.rules.AnnouncementRule;
 import de.raindancer.modules.moderation.rules.EscalationRule;
 import de.raindancer.modules.moderation.rules.ReportRule;
 import de.raindancer.modules.moderation.rules.StaffRule;
+import de.raindancer.modules.moderation.rules.SuspiciousCommandRule;
+import de.raindancer.modules.moderation.rules.XrayRule;
 import de.raindancer.modules.moderation.service.NoteService;
 import de.raindancer.modules.moderation.service.PunishmentService;
 import de.raindancer.modules.moderation.service.ReportService;
 import de.raindancer.modules.moderation.service.StaffChatService;
 import de.raindancer.modules.moderation.service.StaffService;
+import de.raindancer.modules.moderation.service.SuspiciousCommandService;
+import de.raindancer.modules.moderation.service.XrayDetectionService;
 import de.raindancer.modules.moderation.service.WorldToolsService;
 import de.raindancer.modules.moderation.store.NoteRegistry;
 import de.raindancer.modules.moderation.store.NoteStorage;
@@ -64,7 +70,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.10.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.11.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -86,6 +92,8 @@ public final class ModerationModule implements FlexModule {
 
     private PunishmentService punishmentService;
     private ReportService reportService;
+    private SuspiciousCommandService suspiciousCommands;
+    private XrayDetectionService xrayDetection;
     private NoteService noteService;
     private StaffChatService staffChat;
     private StaffRoster roster;
@@ -173,6 +181,9 @@ public final class ModerationModule implements FlexModule {
         reportService = new ReportService(context.plugin(), server, reports, reportStorage,
                 context.core().audit(), context.core().messages(), context.chat(), pending,
                 this::filingRule, settings.current());
+        suspiciousCommands = new SuspiciousCommandService(reportService, new SuspiciousCommandRule(),
+                settings.current());
+        xrayDetection = new XrayDetectionService(reportService, new XrayRule(), settings.current());
         noteService = new NoteService(context.plugin(), notes, noteStorage, context.core().audit(),
                 settings.current());
         staffChat = new StaffChatService(settings.current());
@@ -211,7 +222,7 @@ public final class ModerationModule implements FlexModule {
                 context.core().audit(), context.core().grants(), () -> directoryOf(server),
                 reasons, reports, notes, staffRule, escalation, announcements, this::standingRule,
                 this::banLimitRule, this::promotionRule, this::filingRule,
-                punishmentService, reportService, noteService, staffChat, roster, immune,
+                punishmentService, reportService, suspiciousCommands, xrayDetection, noteService, staffChat, roster, immune,
                 staffService, worldTools,
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
@@ -226,6 +237,8 @@ public final class ModerationModule implements FlexModule {
         settings.onChange(fresh -> {
             punishmentService.settings(fresh);
             reportService.settings(fresh);
+            suspiciousCommands.settings(fresh);
+            xrayDetection.settings(fresh);
             noteService.settings(fresh);
             staffChat.settings(fresh);
             staffService.settings(fresh);
@@ -235,6 +248,8 @@ public final class ModerationModule implements FlexModule {
 
         context.listener(session);
         context.listener(staffChatListener);
+        context.listener(new SuspiciousCommandListener(services));
+        context.listener(new XrayWatchListener(services));
 
         // Reports and notes reach the disk on a timer as well as on every change: the per-change save
         // is asynchronous and can fail, and a queue that only reaches disk on shutdown is one crash

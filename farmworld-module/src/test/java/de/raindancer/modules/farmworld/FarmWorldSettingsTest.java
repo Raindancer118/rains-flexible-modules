@@ -4,7 +4,7 @@ import de.raindancer.core.data.settings.In;
 import de.raindancer.core.data.settings.Key;
 import de.raindancer.core.data.settings.SettingsSchema;
 import de.raindancer.core.world.teleport.Companions;
-import de.raindancer.modules.farmworld.model.Scatter;
+import de.raindancer.core.world.teleport.Scatter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

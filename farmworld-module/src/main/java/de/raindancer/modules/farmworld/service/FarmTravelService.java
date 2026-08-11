@@ -12,7 +12,7 @@ import de.raindancer.core.world.teleport.Trip;
 import de.raindancer.modules.farmworld.FarmWorldSettings;
 import de.raindancer.modules.farmworld.model.Arrival;
 import de.raindancer.modules.farmworld.model.FarmWorldView;
-import de.raindancer.modules.farmworld.model.Scatter;
+import de.raindancer.core.world.teleport.Scatter;
 import de.raindancer.modules.farmworld.rules.FarmAccessRule;
 import de.raindancer.modules.farmworld.store.FarmWorldCatalogue;
 import org.bukkit.Location;

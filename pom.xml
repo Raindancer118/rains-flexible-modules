@@ -23,8 +23,8 @@
           portable jar.
         -->
         <java.version>25</java.version>
-        <paper.api.version>26.2.build.68-beta</paper.api.version>
-        <rainscore.version>1.5.1</rainscore.version>
+        <paper.api.version>26.2.build.111-stable</paper.api.version>
+        <rainscore.version>1.9.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -51,6 +51,8 @@
         <module>farmworld-standalone</module>
         <module>pack-module</module>
         <module>pack-standalone</module>
+        <module>rtp-module</module>
+        <module>rtp-standalone</module>
         <module>hungergames-module</module>
         <module>hungergames-standalone</module>
         <!--
@@ -128,6 +130,11 @@
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>hungergames-module</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>rtp-module</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

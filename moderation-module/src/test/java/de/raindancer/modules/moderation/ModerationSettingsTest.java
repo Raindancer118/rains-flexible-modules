@@ -136,6 +136,101 @@ class ModerationSettingsTest {
     }
 
     @Nested
+    @DisplayName("suspicious commands")
+    class Suspicious {
+
+        @Test
+        @DisplayName("watching is on, for /seed, with a wait so five goes are not five reports")
+        void theDefaults() {
+            assertThat(defaults.suspiciousCommandsEnabled()).isTrue();
+            assertThat(defaults.suspiciousCommands()).containsExactly("seed", "seedcracker");
+            assertThat(defaults.suspiciousCooldownSeconds()).isEqualTo(600);
+        }
+
+        @Test
+        @DisplayName("the cooldown as a duration is what the service is given")
+        void theCooldownAsADuration() {
+            assertThat(defaults.suspiciousCooldown()).isEqualTo(Duration.ofSeconds(600));
+        }
+
+        @Test
+        @DisplayName("a null list from a hand-edited file reads as no commands watched, not a crash")
+        void nullListIsSafe() {
+            assertThat(defaults.withSuspiciousCommands(null).suspiciousCommands()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("each wither changes exactly its own component")
+        void withersChangeOneThing() {
+            assertThat(defaults.withSuspiciousCommandsEnabled(false).suspiciousCommandsEnabled())
+                    .isFalse();
+            assertThat(defaults.withSuspiciousCommandsEnabled(false).suspiciousCommands())
+                    .isEqualTo(defaults.suspiciousCommands());
+
+            assertThat(defaults.withSuspiciousCommands(List.of("xray")).suspiciousCommands())
+                    .containsExactly("xray");
+
+            assertThat(defaults.withSuspiciousCooldownSeconds(60).suspiciousCooldownSeconds())
+                    .isEqualTo(60);
+            assertThat(defaults.withSuspiciousCooldownSeconds(60).suspiciousCommandsEnabled())
+                    .isEqualTo(defaults.suspiciousCommandsEnabled());
+        }
+    }
+
+    @Nested
+    @DisplayName("x-ray detection")
+    class Xray {
+
+        @Test
+        @DisplayName("watching is on, for the classic valuable ores")
+        void theDefaults() {
+            assertThat(defaults.xrayDetectionEnabled()).isTrue();
+            assertThat(defaults.xrayOres()).contains("DIAMOND_ORE", "ANCIENT_DEBRIS");
+            assertThat(defaults.xrayWindowBlocks()).isEqualTo(200);
+            assertThat(defaults.xrayMinimumOre()).isEqualTo(3);
+            assertThat(defaults.xrayThresholdPercent()).isEqualTo(8);
+            assertThat(defaults.xrayCooldownSeconds()).isEqualTo(900);
+        }
+
+        @Test
+        @DisplayName("learning is on, and can only ever raise the threshold")
+        void learningDefaults() {
+            assertThat(defaults.xrayLearningEnabled()).isTrue();
+            assertThat(defaults.xrayLearnedMultiplier()).isEqualTo(5);
+        }
+
+        @Test
+        @DisplayName("the cooldown as a duration is what the service is given")
+        void theCooldownAsADuration() {
+            assertThat(defaults.xrayCooldown()).isEqualTo(Duration.ofSeconds(900));
+        }
+
+        @Test
+        @DisplayName("a null ore list from a hand-edited file reads as nothing watched, not a crash")
+        void nullOreListIsSafe() {
+            assertThat(defaults.withXrayOres(null).xrayOres()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("each wither changes exactly its own component")
+        void withersChangeOneThing() {
+            assertThat(defaults.withXrayDetectionEnabled(false).xrayDetectionEnabled()).isFalse();
+            assertThat(defaults.withXrayOres(List.of("GOLD_ORE")).xrayOres())
+                    .containsExactly("GOLD_ORE");
+            assertThat(defaults.withXrayWindowBlocks(500).xrayWindowBlocks()).isEqualTo(500);
+            assertThat(defaults.withXrayMinimumOre(10).xrayMinimumOre()).isEqualTo(10);
+            assertThat(defaults.withXrayThresholdPercent(20).xrayThresholdPercent()).isEqualTo(20);
+            assertThat(defaults.withXrayCooldownSeconds(60).xrayCooldownSeconds()).isEqualTo(60);
+            assertThat(defaults.withXrayLearningEnabled(false).xrayLearningEnabled()).isFalse();
+            assertThat(defaults.withXrayLearnedMultiplier(10).xrayLearnedMultiplier()).isEqualTo(10);
+
+            // None of the above should have touched a sibling field.
+            assertThat(defaults.withXrayThresholdPercent(20).xrayWindowBlocks())
+                    .isEqualTo(defaults.xrayWindowBlocks());
+        }
+    }
+
+    @Nested
     @DisplayName("staff")
     class Staff {
 

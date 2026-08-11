@@ -48,6 +48,15 @@ public final class ModuleBootstrap implements PluginBootstrap {
             // happens to want a button first, because a claim fee's [Accept] and a tpa request's are
             // the same mechanism and should not depend on load order to be wired up.
             de.raindancer.core.platform.command.CoreCommands.clickCallback(event.registrar());
+            // Core deliberately registers nothing of its own — see CoreCommands' own class comment on
+            // why — which means /settings does not exist on any server running these plugins unless
+            // something registers it. Nothing here ever did: every module-standalone plugin, and the
+            // bundle, reached every one of its own settings only through a module's own /<name> config
+            // subcommand or Core's generic screen opened from one, and the bare command a player would
+            // actually type for "everything on this server" was simply never wired up. Registered here,
+            // once, the same way commandList and clickCallback already are, so every module-standalone
+            // plugin and every bundle gets it for free regardless of which modules are actually present.
+            de.raindancer.core.platform.command.CoreCommands.settings(event.registrar(), "settings");
         });
     }
 }

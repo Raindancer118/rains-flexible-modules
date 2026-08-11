@@ -8,7 +8,7 @@ import de.raindancer.core.data.settings.Settings;
 import de.raindancer.core.data.settings.Title;
 import de.raindancer.core.data.settings.Topic;
 import de.raindancer.core.world.teleport.Companions;
-import de.raindancer.modules.farmworld.model.Scatter;
+import de.raindancer.core.world.teleport.Scatter;
 import org.bukkit.Material;
 
 import java.time.Duration;

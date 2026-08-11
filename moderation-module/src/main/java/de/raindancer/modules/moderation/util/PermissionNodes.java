@@ -2,6 +2,7 @@ package de.raindancer.modules.moderation.util;
 
 import de.raindancer.modules.moderation.command.PromoteCommand;
 import de.raindancer.modules.moderation.command.ReportCommand;
+import de.raindancer.modules.moderation.listener.SuspiciousCommandListener;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.model.StaffRank;
 import de.raindancer.modules.moderation.rules.StaffRule;
@@ -81,6 +82,12 @@ public final class PermissionNodes {
         wanted.add(new Permission(ReportCommand.USE,
                 "File a report about another player", PermissionDefault.TRUE));
 
+        // OP, not a rank preset: exempting staff from being auto-reported for testing the feature, or
+        // for typing /seed to help somebody, is not a working power the way MUTE or KICK are.
+        wanted.add(new Permission(SuspiciousCommandListener.BYPASS,
+                "Exempt from automatic flagging: suspicious commands and the x-ray watch",
+                PermissionDefault.OP));
+
         return wanted;
     }
 
@@ -136,6 +143,7 @@ public final class PermissionNodes {
         }
         nodes.add(PromoteCommand.USE);
         nodes.add(ReportCommand.USE);
+        nodes.add(SuspiciousCommandListener.BYPASS);
         for (String granted : StaffRank.everyGrantableNode()) {
             if (!nodes.contains(granted)) {
                 nodes.add(granted);

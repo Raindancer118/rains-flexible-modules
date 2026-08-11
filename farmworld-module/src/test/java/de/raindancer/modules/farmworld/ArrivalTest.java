@@ -1,7 +1,7 @@
 package de.raindancer.modules.farmworld;
 
 import de.raindancer.modules.farmworld.model.Arrival;
-import de.raindancer.modules.farmworld.model.Scatter;
+import de.raindancer.core.world.teleport.Scatter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

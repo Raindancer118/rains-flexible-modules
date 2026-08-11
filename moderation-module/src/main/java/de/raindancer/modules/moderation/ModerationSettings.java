@@ -10,6 +10,7 @@ import de.raindancer.core.data.settings.Topic;
 import org.bukkit.Material;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Everything a server owner can decide about moderation, as one record.
@@ -36,6 +37,8 @@ import java.time.Duration;
         @Topic(path = "moderation/vanilla", title = "The server's own ban list",
                 icon = Material.COMMAND_BLOCK),
         @Topic(path = "moderation/reports", title = "Reports", icon = Material.PAPER),
+        @Topic(path = "moderation/suspicious", title = "Suspicious commands", icon = Material.SPYGLASS),
+        @Topic(path = "moderation/xray", title = "X-ray detection", icon = Material.DIAMOND_ORE),
         @Topic(path = "moderation/staff", title = "Staff", icon = Material.PLAYER_HEAD),
         @Topic(path = "moderation/records", title = "Records", icon = Material.BOOKSHELF),
 })
@@ -177,6 +180,95 @@ public record ModerationSettings(
         @Key("reports.notify-staff")
         boolean notifyStaffOnReport,
 
+        // ───────────────────────────────────────────────────────────── suspicious commands
+
+        @In("moderation/suspicious") @Title("Watch for suspicious commands")
+        @Describe("Typing one of the commands below files an automatic report on the player, the "
+                + "same queue a moderator's own /report goes into. For a command that only makes "
+                + "sense alongside a seed cracker or a similar outside tool — /seed is the obvious "
+                + "one, since a seed is what a cracker needs to find every structure in the world.")
+        @Key("suspicious.enabled")
+        boolean suspiciousCommandsEnabled,
+
+        @In("moderation/suspicious") @Title("Which commands")
+        @Describe("Names, comma separated, without the slash and without arguments — 'seed' catches "
+                + "'/seed' and '/seed confirm' alike. Matched against the first word only, so this "
+                + "never catches a command that merely contains one of these as a substring.")
+        @Key("suspicious.commands")
+        List<String> suspiciousCommands,
+
+        @In("moderation/suspicious") @Title("Wait before flagging the same player again")
+        @Range(min = 0, max = 86400)
+        @Describe("Seconds. Typing a watched command five times in a row should file one report, "
+                + "not five — the queue exists to be read, and a moderator stops trusting it the "
+                + "first time it is five identical lines about the same person. 0 files one every "
+                + "time.")
+        @Key("suspicious.cooldown-seconds")
+        int suspiciousCooldownSeconds,
+
+        // ───────────────────────────────────────────────────────────── x-ray detection
+
+        @In("moderation/xray") @Title("Watch mining for x-ray")
+        @Describe("The server cannot see a texture pack or a hacked client — what it can see is which "
+                + "blocks somebody chooses to break. This watches the ratio of valuable ore to "
+                + "everything else a player has mined recently, and files a report — the same queue "
+                + "/report uses — when it looks like a pattern rather than luck.")
+        @Key("xray.enabled")
+        boolean xrayDetectionEnabled,
+
+        @In("moderation/xray") @Title("Which blocks count as valuable")
+        @Describe("Material names, comma separated, exactly as Bukkit spells them — "
+                + "'DIAMOND_ORE, DEEPSLATE_DIAMOND_ORE'. An unknown name is skipped rather than "
+                + "refusing the whole list.")
+        @Key("xray.ores")
+        List<String> xrayOres,
+
+        @In("moderation/xray") @Title("How many recent blocks to judge by") @Range(min = 20, max = 2000)
+        @Describe("The ratio is taken over this many of the player's most recent mined blocks, not "
+                + "their whole time on the server — a lucky vein an hour ago should not keep somebody "
+                + "flagged for ever, and a window is what lets the number recover.")
+        @Key("xray.window-blocks")
+        int xrayWindowBlocks,
+
+        @In("moderation/xray") @Title("Ore needed before the ratio means anything") @Range(min = 1, max = 50)
+        @Describe("Below this many valuable blocks in the window, the ratio is not judged at all — "
+                + "three diamonds in the first ten blocks of a fresh vein is a real ratio and not a "
+                + "pattern.")
+        @Key("xray.minimum-ore")
+        int xrayMinimumOre,
+
+        @In("moderation/xray") @Title("Ore share that counts as a pattern") @Range(min = 1, max = 100)
+        @Describe("Percent of the window. Ordinary survival mining is nowhere near this even with a "
+                + "good vein; x-ray digs almost nothing else. Set it too low and a lucky player is "
+                + "reported; set it too high and nothing ever is — this is the one setting worth "
+                + "watching the report queue for after changing.")
+        @Key("xray.threshold-percent")
+        int xrayThresholdPercent,
+
+        @In("moderation/xray") @Title("Wait before flagging the same player again") @Range(min = 0, max = 86400)
+        @Describe("Seconds. A player whose ratio stays high should file one report and then be left "
+                + "to actually be looked at, not a fresh one on every ore block afterwards.")
+        @Key("xray.cooldown-seconds")
+        int xrayCooldownSeconds,
+
+        @In("moderation/xray") @Title("Learn what is normal here, over time")
+        @Describe("On, the threshold above can only be raised, never lowered, by what this server's "
+                + "own players actually mine — a badlands or ancient-debris-rich seed has more "
+                + "valuable ore per block of stone than an ordinary one, purely from terrain, and a "
+                + "fixed percentage tuned for one is wrong for the other. Off uses the threshold "
+                + "exactly as set.")
+        @Key("xray.learn-from-server")
+        boolean xrayLearningEnabled,
+
+        @In("moderation/xray") @Title("How far above normal counts as suspicious") @Range(min = 2, max = 20)
+        @Describe("A multiple of whatever this server's own players have actually been mining "
+                + "lately. 5 means somebody has to be finding ore at five times the server's own "
+                + "average rate before this counts towards flagging them. Only used when learning is "
+                + "on, and only ever raises the threshold above — it can never excuse x-ray as normal "
+                + "just because enough players are already doing it.")
+        @Key("xray.learned-multiplier")
+        int xrayLearnedMultiplier,
+
         // ───────────────────────────────────────────────────────────── staff
 
         @In("moderation/staff") @Title("Show waiting reports on joining")
@@ -252,6 +344,11 @@ public record ModerationSettings(
         @Key("records.debug")
         boolean debug) {
 
+    public ModerationSettings {
+        suspiciousCommands = suspiciousCommands == null ? List.of() : List.copyOf(suspiciousCommands);
+        xrayOres = xrayOres == null ? List.of() : List.copyOf(xrayOres);
+    }
+
     /**
      * What a server gets before anybody changes anything.
      *
@@ -264,12 +361,21 @@ public record ModerationSettings(
             "perm", "1h", "15m", true, 3, 30, "perm", "1d", true,
             true, true,
             true, 120, 3, 8, true, true,
+            true, List.of("seed", "seedcracker"), 600,
+            true, List.of("DIAMOND_ORE", "DEEPSLATE_DIAMOND_ORE", "ANCIENT_DEBRIS",
+                    "EMERALD_ORE", "DEEPSLATE_EMERALD_ORE"),
+            200, 3, 8, 900, true, 5,
             true, true, "<dark_aqua>[Staff]</dark_aqua>", false, true, true, false, true,
             true, 0, 300, false);
 
     /** The report cooldown as the rule wants it. */
     public Duration reportCooldown() {
         return Duration.ofSeconds(Math.max(0, reportCooldownSeconds));
+    }
+
+    /** The wait before the same player can be auto-reported again, as the rule wants it. */
+    public Duration suspiciousCooldown() {
+        return Duration.ofSeconds(Math.max(0, suspiciousCooldownSeconds));
     }
 
     /** How long records are kept, or empty for for ever. */
@@ -310,7 +416,10 @@ public record ModerationSettings(
                 useEscalation, warnsBeforeBan, warnWindowDays, warnBanLength, modTempBanMax,
                 kickOnBan, mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
-                tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
+                tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug);
@@ -323,7 +432,10 @@ public record ModerationSettings(
                 warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
                 importVanillaBans, reportsEnabled, reportCooldownSeconds,
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -335,7 +447,10 @@ public record ModerationSettings(
                 warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
                 importVanillaBans, reportsEnabled, reportCooldownSeconds,
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -346,7 +461,10 @@ public record ModerationSettings(
                 useEscalation, warnsBeforeBan, warnWindowDays, warnBanLength, modTempBanMax,
                 kickOnBan, mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
-                tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
+                tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug);
@@ -358,7 +476,10 @@ public record ModerationSettings(
                 useEscalation, warnsBeforeBan, warnWindowDays, warnBanLength, modTempBanMax,
                 kickOnBan, mirrorToVanillaBanList, importVanillaBans, reportsEnabled,
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
-                tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
+                tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug);
@@ -370,7 +491,10 @@ public record ModerationSettings(
                 defaultFreezeLength, useEscalation, howMany, warnWindowDays, warnBanLength,
                 modTempBanMax, kickOnBan, mirrorToVanillaBanList, importVanillaBans,
                 reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
-                tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
+                tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug);
@@ -383,7 +507,10 @@ public record ModerationSettings(
                 warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
                 importVanillaBans, reportsEnabled, reportCooldownSeconds,
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, opped,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -394,7 +521,10 @@ public record ModerationSettings(
                 defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
                 warnBanLength, longest, kickOnBan, mirrorToVanillaBanList, importVanillaBans,
                 reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
-                tellReporterWhenClosed, notifyStaffOnReport, openReportsOnJoin,
+                tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug);
@@ -407,7 +537,10 @@ public record ModerationSettings(
                 warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
                 importVanillaBans, reportsEnabled, reportCooldownSeconds,
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, allowed, mayDemoteBelow, adminsAreOp, flightWhileVanished,
                 auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -419,8 +552,184 @@ public record ModerationSettings(
                 warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
                 importVanillaBans, reportsEnabled, reportCooldownSeconds,
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, allowed, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withSuspiciousCommandsEnabled(boolean enabled) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, enabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withSuspiciousCommands(List<String> commands) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, commands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withSuspiciousCooldownSeconds(int seconds) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                seconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withXrayDetectionEnabled(boolean enabled) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                enabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withXrayOres(List<String> ores) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, ores, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withXrayWindowBlocks(int blocks) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, blocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withXrayMinimumOre(int minimum) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, minimum, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withXrayThresholdPercent(int percent) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, percent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withXrayCooldownSeconds(int seconds) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                seconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
+                notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withXrayLearningEnabled(boolean enabled) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, enabled, xrayLearnedMultiplier, openReportsOnJoin,
+                notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withXrayLearnedMultiplier(int multiplier) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, multiplier, openReportsOnJoin,
+                notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    /** The wait before flagging the same player again, as the service wants it. */
+    public java.time.Duration xrayCooldown() {
+        return java.time.Duration.ofSeconds(Math.max(0, xrayCooldownSeconds));
     }
 }
