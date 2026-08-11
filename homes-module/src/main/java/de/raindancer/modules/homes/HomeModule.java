@@ -104,11 +104,13 @@ public final class HomeModule implements FlexModule {
                     defaults = HomeSettings.DEFAULTS
                             .withMax(imported.maxHomes())
                             .withCooldownSeconds(imported.cooldownSeconds())
-                            .withCancelOnMove(imported.cancelOnMove());
+                            .withCancelOnMove(imported.cancelOnMove())
+                            .withPlaySound(imported.playSound());
                     log.info("Starting with SetHome's own settings: {} home(s) by default, "
-                                    + "{}s between going home, moving {} the wait.",
+                                    + "{}s between going home, moving {} the wait, sound on arrival {}.",
                             imported.maxHomes(), imported.cooldownSeconds(),
-                            imported.cancelOnMove() ? "cancels" : "does not cancel");
+                            imported.cancelOnMove() ? "cancels" : "does not cancel",
+                            imported.playSound() ? "on" : "off");
                 }
                 SetHomeConfigFile.setAside(setHomeConfig.get(), log);
             }
@@ -153,7 +155,8 @@ public final class HomeModule implements FlexModule {
                 .ifPresent(setHomeFile -> homes.importSetHomePlugin(setHomeFile, log));
 
         travel = new Travel(context.plugin(), context.core().safety());
-        travelling = new HomeTravelService(travel, context.core().messages(), settings.current());
+        travelling = new HomeTravelService(travel, context.core().messages(), context.core().effects(),
+                settings.current());
         keeping = new HomeKeepingService(homes, limits, names, context.core().messages(),
                 settings.current());
 

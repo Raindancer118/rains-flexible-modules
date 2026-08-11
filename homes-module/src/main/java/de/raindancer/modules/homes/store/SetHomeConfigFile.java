@@ -25,19 +25,16 @@ import java.util.Optional;
  * {@code homes.limit.<n>} permission already raises, so a per-group SetHome override becomes a
  * per-group permission an owner grants by hand rather than a setting this can carry across by itself.
  *
- * <p>{@code play-sound} is read and kept on {@link Values#playSound()} even though nothing in
- * {@code HomeSettings} uses it yet — RainsCore already has the matching cue
- * ({@code Cues.TELEPORT}, bound to the same enderman sound SetHome played) but nothing in the travel
- * path calls it for any of the modules that share it, homes included. Wiring that up is a separate,
- * larger decision than migrating a value that already has somewhere to go, so this only carries the
- * value — it is on whoever applies it to decide whether to use it.
+ * <p>{@code play-sound} lands on {@code HomeSettings.playSound()} — {@code HomeTravelService} plays
+ * Core's own {@code Cues.TELEPORT} on arrival when it is on, the same enderman sound SetHome played,
+ * so switching it off carries across exactly as switching off any other setting would.
  */
 public final class SetHomeConfigFile {
 
     /** What SetHome's own file was always called, under its plugin's data folder. */
     public static final String FILE_NAME = "config.yml";
 
-    /** What SetHome's {@code config.yml} held that this module has somewhere to put — and one it doesn't. */
+    /** What SetHome's {@code config.yml} held, all four fields with somewhere to go in {@code HomeSettings}. */
     public record Values(int cooldownSeconds, int maxHomes, boolean cancelOnMove, boolean playSound) {
     }
 

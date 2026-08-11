@@ -2,6 +2,8 @@ package de.raindancer.modules.homes.service;
 
 import de.raindancer.core.moderation.punishment.Durations;
 import de.raindancer.core.platform.util.Cooldowns;
+import de.raindancer.core.ui.effect.Cues;
+import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.teleport.Companions;
 import de.raindancer.core.world.teleport.Travel;
@@ -39,6 +41,7 @@ public final class HomeTravelService implements IHomeService {
 
     private final Travel travel;
     private final Messages messages;
+    private final Effects effects;
 
     /**
      * The wait between teleports.
@@ -50,9 +53,10 @@ public final class HomeTravelService implements IHomeService {
 
     private volatile HomeSettings settings;
 
-    public HomeTravelService(Travel travel, Messages messages, HomeSettings settings) {
+    public HomeTravelService(Travel travel, Messages messages, Effects effects, HomeSettings settings) {
         this.travel = travel;
         this.messages = messages;
+        this.effects = effects;
         settings(settings);
     }
 
@@ -157,6 +161,13 @@ public final class HomeTravelService implements IHomeService {
         public void arrived(Player traveller, Location where, Trip trip) {
             waits.start(traveller.getUniqueId());
             messages.send(traveller, "homes.arrived", "name", home.name());
+            // At the place, not to the player alone: SetHome played the enderman sound for whoever
+            // was standing there too, and Cues.TELEPORT is the same cue Core's other teleports use
+            // for exactly that reason — a home does not get to sound different from a warp.
+            if (settings.playSound() && where.getWorld() != null) {
+                effects.playAt(where.getWorld().getName(), where.getX(), where.getY(), where.getZ(),
+                        Cues.TELEPORT);
+            }
         }
 
         @Override

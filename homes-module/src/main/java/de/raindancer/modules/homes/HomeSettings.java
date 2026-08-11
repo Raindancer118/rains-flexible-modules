@@ -87,18 +87,25 @@ public record HomeSettings(
         @Describe("Whether the dog on your lead, the boat you are towing and whatever is riding "
                 + "with you come home too. Never another player, and never somebody else's animal.")
         @Key("homes.bring-what-you-lead")
-        boolean bringWhatYouLead) {
+        boolean bringWhatYouLead,
+
+        @In("homes/travelling") @Title("Play a sound on arrival")
+        @Describe("Whether everybody nearby hears the enderman teleport sound when somebody arrives "
+                + "home — the same cue Core's other teleports use (Cues.TELEPORT), so it sounds like "
+                + "the rest of the server rather than a home-specific chime.")
+        @Key("homes.play-sound")
+        boolean playSound) {
 
     /**
-     * What the old plugin shipped, plus the two that are new.
+     * What the old plugin shipped, plus the three that are new.
      *
      * <p>The first seven are {@code HomeOptions.defaults()} exactly — {@code (3, true, 3, true,
      * true, 0, false)} — so a server that upgrades and never touches the file behaves as it did.
-     * {@code safeArrival} and {@code bringWhatYouLead} are new and default on: neither existed to be
-     * configured, and both are what somebody would expect if asked.
+     * {@code safeArrival}, {@code bringWhatYouLead} and {@code playSound} are new and default on:
+     * none of them existed to be configured, and all three are what somebody would expect if asked.
      */
     public static final HomeSettings DEFAULTS =
-            new HomeSettings(3, true, 3, true, true, 0, false, true, true);
+            new HomeSettings(3, true, 3, true, true, 0, false, true, true, true);
 
     // ------------------------------------------------------------------ read back safely
 
@@ -125,46 +132,51 @@ public record HomeSettings(
 
     public HomeSettings withMax(int homes) {
         return new HomeSettings(homes, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
     }
 
     public HomeSettings withAllowCrossWorld(boolean allow) {
         return new HomeSettings(max, allow, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
     }
 
     public HomeSettings withWarmupSeconds(int seconds) {
         return new HomeSettings(max, allowCrossWorld, seconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
     }
 
     public HomeSettings withCancelOnMove(boolean cancels) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancels, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
     }
 
     public HomeSettings withCancelOnDamage(boolean cancels) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancels,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
     }
 
     public HomeSettings withCooldownSeconds(int seconds) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                seconds, operatorsBypass, safeArrival, bringWhatYouLead);
+                seconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
     }
 
     public HomeSettings withOperatorsBypass(boolean bypass) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, bypass, safeArrival, bringWhatYouLead);
+                cooldownSeconds, bypass, safeArrival, bringWhatYouLead, playSound);
     }
 
     public HomeSettings withSafeArrival(boolean safe) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safe, bringWhatYouLead);
+                cooldownSeconds, operatorsBypass, safe, bringWhatYouLead, playSound);
     }
 
     public HomeSettings withBringWhatYouLead(boolean bring) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bring);
+                cooldownSeconds, operatorsBypass, safeArrival, bring, playSound);
+    }
+
+    public HomeSettings withPlaySound(boolean play) {
+        return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, play);
     }
 }
