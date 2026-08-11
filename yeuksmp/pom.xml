@@ -239,8 +239,23 @@
           what was actually new. It now remembers which nodes were explicitly refused and leaves them
           refused; only "put the preset back" on the rank screen, the deliberate full reset, still
           undoes those on purpose.
+
+          1.7.1: /vanish — a vanished player's own tablist stopped receiving updates at all for as
+          long as they stayed hidden, because the header/footer's recipient list and its
+          vanish-filtered count came from the same list — the one person excluded from it (the
+          vanished one) never got another packet. Their own tablist froze on whatever was true the
+          moment they vanished, and coming back simply resumed updates from there, which read as
+          nothing having changed. Fixed in RainsCore (1.13.0, see its own history): everybody online
+          is sent a fresh header and footer every refresh now, hidden or not — only the count and the
+          per-world tallies inside it stay filtered, for every screen including the vanished player's
+          own. Alongside it: revealing somebody who is currently in Creative or Spectator mode could
+          strip their flight — Spectator's client always flies regardless of the ability flag, so
+          taking it away there only desynced server and client and dropped a revealed moderator
+          through the world; Creative owns its own flight as a fact about the gamemode, which a
+          reveal driven by vanish's own bookkeeping had no business overruling. Neither gamemode is
+          touched by this any more.
         -->
-        <plugin.version>1.7.0</plugin.version>
+        <plugin.version>1.7.1</plugin.version>
     </properties>
 
     <dependencies>
