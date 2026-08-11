@@ -19,10 +19,12 @@ import de.raindancer.modules.homes.service.HomeKeepingService;
 import de.raindancer.modules.homes.service.HomeTravelService;
 import de.raindancer.modules.homes.store.HomeCatalogue;
 import de.raindancer.modules.homes.store.LegacyHomesFile;
+import de.raindancer.modules.homes.store.SetHomePluginFile;
 import de.raindancer.modules.homes.util.PermissionNodes;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -45,9 +47,10 @@ import java.util.List;
  * it may be called, what block it shows as, and three screens.
  *
  * <h2>The migration</h2>
- * An upgrading server's homes are in {@code homes.yml}, in a format that has never changed and therefore
- * has no migration to imitate. {@link HomeCatalogue#importLegacy} reads them once into the place store
- * and renames the file aside — kept, not deleted, so a server that has to roll back still has every home.
+ * An upgrading server's homes are in a {@code homes.yml}, in one of two shapes: this module's own
+ * predecessor's, read by {@link HomeCatalogue#importLegacy}, or the third-party {@code SetHome}
+ * plugin's, read by {@link HomeCatalogue#importSetHomePlugin}. Either reads its file once into the place
+ * store and renames it aside — kept, not deleted, so a server that has to roll back still has every home.
  */
 public final class HomeModule implements FlexModule {
 
@@ -105,6 +108,19 @@ public final class HomeModule implements FlexModule {
         // Before anything reads the homes, so a server upgrading from the standalone plugin has them
         // all by the time the first player types /home.
         homes.importLegacy(context.dataFolder().resolve(LegacyHomesFile.FILE_NAME), log);
+
+        // A second, independent migration: a server that ran the third-party SetHome plugin before
+        // this one. Its data folder is a sibling of every plugin's, including this module's host's —
+        // not of this module's own dataFolder(), which is only that when the module is standalone and
+        // a corner of the host's otherwise. Going through the host plugin's own data folder is the one
+        // way to find "plugins/" that holds whether this module is standalone or a guest.
+        //
+        // SetHomePluginFile.locate does the actual finding, and does not insist on the exact expected
+        // path: a renamed or differently-cased SetHome folder, or an export dropped by hand next to
+        // this module's own files, is still found rather than silently leaving every home behind.
+        Path pluginsFolder = context.plugin().getDataFolder().toPath().getParent();
+        SetHomePluginFile.locate(pluginsFolder, context.dataFolder())
+                .ifPresent(setHomeFile -> homes.importSetHomePlugin(setHomeFile, log));
 
         travel = new Travel(context.plugin(), context.core().safety());
         travelling = new HomeTravelService(travel, context.core().messages(), settings.current());

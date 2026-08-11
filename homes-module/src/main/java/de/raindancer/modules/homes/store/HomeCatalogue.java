@@ -29,9 +29,11 @@ import java.util.UUID;
  * deleting a world takes its homes with it rather than leaving them pointing at nothing.
  *
  * <h2>The migration</h2>
- * An upgrading server's homes are in {@code homes.yml}, so {@link #importLegacy} reads them once and
- * puts them in the place store. Nothing is deleted: the old file is renamed aside, which means a
- * server that has to roll back still has it, and a second start does not import twice.
+ * An upgrading server's homes are in a {@code homes.yml}, so {@link #importLegacy} (this module's own
+ * predecessor, {@code RainsHomes}) and {@link #importSetHomePlugin} (the third-party {@code SetHome}
+ * plugin) each read a different shape of it once and put the result in the place store. Nothing is
+ * deleted: the old file is renamed aside, which means a server that has to roll back still has it, and
+ * a second start does not import twice.
  */
 public final class HomeCatalogue {
 
@@ -185,7 +187,23 @@ public final class HomeCatalogue {
      * @return how many were brought across
      */
     public int importLegacy(Path homesFile, LogChannel log) {
-        List<LegacyHomesFile.Entry> waiting = LegacyHomesFile.read(homesFile);
+        return importEntries(LegacyHomesFile.read(homesFile), homesFile, log);
+    }
+
+    /**
+     * Brings across a server's homes from the third-party {@code SetHome} plugin, once.
+     *
+     * <p>Same rules as {@link #importLegacy}: a home the owner already has under that name is left
+     * alone rather than overwritten, and the file is set aside rather than deleted so this cannot run
+     * twice and a rollback still has it.
+     *
+     * @return how many were brought across
+     */
+    public int importSetHomePlugin(Path homesFile, LogChannel log) {
+        return importEntries(SetHomePluginFile.read(homesFile), homesFile, log);
+    }
+
+    private int importEntries(List<LegacyHomesFile.Entry> waiting, Path homesFile, LogChannel log) {
         if (waiting.isEmpty()) {
             return 0;
         }
