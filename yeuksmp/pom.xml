@@ -254,8 +254,15 @@
           through the world; Creative owns its own flight as a fact about the gamemode, which a
           reveal driven by vanish's own bookkeeping had no business overruling. Neither gamemode is
           touched by this any more.
+
+          1.7.2: /vanish now also silences the player, not only hides them — footsteps, splashing,
+          drinking and taking damage used to play exactly as loud whether or not anybody nearby
+          could see who they belonged to, which is not actually hidden, only unseen. Fixed in
+          RainsCore (1.14.0, see its own history) with vanilla's own Silent flag. A block a vanished
+          player mines is untouched by this and still sounds as loud as ever — that sound belongs to
+          the block, not the player.
         -->
-        <plugin.version>1.7.1</plugin.version>
+        <plugin.version>1.7.2</plugin.version>
     </properties>
 
     <dependencies>
