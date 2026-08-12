@@ -11,6 +11,9 @@
     </parent>
 
     <artifactId>warp-module</artifactId>
+    <!-- Own version, independent of the reactor's: this module is published to the registry on its own
+         schedule under its own tag (warp-module-vX.Y.Z), not tied to any other module's release. -->
+    <version>${warp-module.version}</version>
     <packaging>jar</packaging>
 
     <name>Rain's Flexible Modules — Warps</name>
@@ -30,7 +33,7 @@
             <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>
             <type>test-jar</type>
-            <version>${project.version}</version>
+            <version>${modules-api.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -11,6 +11,9 @@
     </parent>
 
     <artifactId>modules-api</artifactId>
+    <!-- Own version, independent of the reactor's: this module is published to the registry on its own
+         schedule under its own tag (modules-api-vX.Y.Z), not tied to any other module's release. -->
+    <version>${modules-api.version}</version>
     <packaging>jar</packaging>
 
     <name>Rain's Flexible Modules — API</name>

@@ -50,7 +50,6 @@
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>claims-module</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>

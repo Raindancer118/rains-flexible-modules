@@ -17,11 +17,25 @@ on:
       - 'homes-v*'
       - 'tpa-v*'
       - 'yeuk-v*'
-      # Publishes modules-api, modules-wrapper and every *-module jar to packages.tstieh.de. Separate
-      # from the per-plugin tags above because it follows the reactor's own version (the parent pom's
-      # <version>), not any single plugin's — the standalone/bundle jars stay off the registry entirely
-      # (maven.deploy.skip=true in each of their poms) since nothing depends on a deployable plugin jar.
-      - 'modules-v*'
+      # Publishes one library module to packages.tstieh.de. Each module has its own version — a
+      # property in the parent pom (e.g. claims-module.version), independent of the reactor's own
+      # <version> and of every other module's — so each gets its own tag namespace too, the same way
+      # the plugin tags above are per-plugin rather than one shared tag. The standalone/bundle jars
+      # stay off the registry entirely (maven.deploy.skip=true in each of their poms) since nothing
+      # depends on a deployable plugin jar.
+      - 'modules-api-v*'
+      - 'modules-wrapper-v*'
+      - 'claims-module-v*'
+      - 'moderation-module-v*'
+      - 'names-module-v*'
+      - 'warp-module-v*'
+      - 'homes-module-v*'
+      - 'tpa-module-v*'
+      - 'farmworld-module-v*'
+      - 'pack-module-v*'
+      - 'chained-module-v*'
+      - 'rtp-module-v*'
+      - 'hungergames-module-v*'
     branches:
       - '**'
   pull_request:
@@ -345,32 +359,49 @@ jobs:
             --notes-file release-notes.md \
             --generate-notes
 
-      # ── what a modules-v tag publishes ────────────────────────────────────────────────────────
+      # ── what a <module>-v tag publishes ───────────────────────────────────────────────────────
       #
-      # modules-api, modules-wrapper and every *-module jar, deployed under their own coordinates.
-      # The *-standalone/*-bundle modules and yeuksmp are skipped via maven.deploy.skip in their own
-      # poms, so a plain reactor `deploy` here only ever pushes the libraries, never the plugin jars
-      # the step above already published as GitHub releases.
-      - name: Check modules-v tag matches the reactor version
-        if: startsWith(github.ref, 'refs/tags/modules-v')
+      # One module, deployed under its own coordinates at its own version — never the whole reactor.
+      # The module name is the tag with its trailing -vX.Y.Z stripped, which is also the directory
+      # name and the artifactId, so `-pl` needs nothing more than that to scope the build to it.
+      # Its dependencies (modules-api, RainsCore, ...) are already sitting in ~/.m2 from the earlier
+      # `install` in this same job, so `-pl` alone (no `-am`) is enough and deploys nothing but the
+      # tagged module — never modules-api as a side effect of building against it, and never the
+      # *-standalone/*-bundle jars, which are `maven.deploy.skip`d in their own poms regardless.
+      - name: Determine the tagged module
+        id: module
+        if: contains(github.ref_name, '-module-v') || startsWith(github.ref_name, 'modules-api-v') || startsWith(github.ref_name, 'modules-wrapper-v')
         run: |
           set -euo pipefail
-          wanted="${GITHUB_REF_NAME#modules-v}"
-          built="$(mvn -B -q -Dexpression=project.version -DforceStdout help:evaluate)"
-          if [ "$built" != "$wanted" ]; then
-            echo "::error::$GITHUB_REF_NAME says $wanted but the reactor pom says $built. Bump the pom or fix the tag."
+          tag="${GITHUB_REF_NAME}"
+          module="${tag%-v*}"
+          wanted="${tag##*-v}"
+          case "$module" in
+            modules-api|modules-wrapper|claims-module|moderation-module|names-module|warp-module|homes-module|tpa-module|farmworld-module|pack-module|chained-module|rtp-module|hungergames-module) ;;
+            *) echo "::error::$tag names no library module I know about"; exit 1 ;;
+          esac
+          echo "module=$module" >> "$GITHUB_OUTPUT"
+          echo "wanted=$wanted" >> "$GITHUB_OUTPUT"
+
+      - name: Check tag matches that module's own version
+        if: steps.module.outcome == 'success'
+        run: |
+          set -euo pipefail
+          built="$(mvn -B -q -pl '${{ steps.module.outputs.module }}' -Dexpression=project.version -DforceStdout help:evaluate)"
+          if [ "$built" != "${{ steps.module.outputs.wanted }}" ]; then
+            echo "::error::$GITHUB_REF_NAME says ${{ steps.module.outputs.wanted }} but ${{ steps.module.outputs.module }}'s own pom says $built. Bump its version property in the parent pom or fix the tag."
             exit 1
           fi
 
-      - name: Publish modules to packages.tstieh.de
-        if: startsWith(github.ref, 'refs/tags/modules-v')
+      - name: Publish to packages.tstieh.de
+        if: steps.module.outcome == 'success'
         env:
           REPOSILITE_USERNAME: ci-deploy
           REPOSILITE_PASSWORD: ${{ secrets.REPOSILITE_PASSWORD }}
           # Reposilite's TLS termination trips a TLSv1.3/SNI handshake bug in Maven's HTTP transport
           # (works fine with plain java.net.http.HttpClient or curl) — pin TLSv1.2.
           MAVEN_OPTS: -Djdk.tls.client.protocols=TLSv1.2
-        run: mvn --batch-mode --no-transfer-progress -DskipTests deploy
+        run: mvn --batch-mode --no-transfer-progress -pl '${{ steps.module.outputs.module }}' -DskipTests deploy
 
   # ── the download site ───────────────────────────────────────────────────────────────────────────
   #

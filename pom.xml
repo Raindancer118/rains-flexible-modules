@@ -30,6 +30,25 @@
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
         <mockito.version>5.21.0</mockito.version>
+
+        <!-- One property per library module, each its own version — independent of the reactor's
+             <version> and of each other. Bumping one of these is what a <module>-vX.Y.Z release tag
+             is checked against; nothing else in this file ties a module's version to another's. -->
+        <modules-api.version>1.0.0</modules-api.version>
+        <modules-wrapper.version>1.0.0</modules-wrapper.version>
+        <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
+             version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
+        <claims-module.version>2.1.0</claims-module.version>
+        <moderation-module.version>2.16.0</moderation-module.version>
+        <names-module.version>2.1.0</names-module.version>
+        <warp-module.version>1.1.0</warp-module.version>
+        <homes-module.version>2.3.0</homes-module.version>
+        <tpa-module.version>2.1.0</tpa-module.version>
+        <farmworld-module.version>1.0.0</farmworld-module.version>
+        <pack-module.version>1.0.0</pack-module.version>
+        <chained-module.version>1.0.0</chained-module.version>
+        <rtp-module.version>1.1.0</rtp-module.version>
+        <hungergames-module.version>2.8.1</hungergames-module.version>
     </properties>
 
     <modules>
@@ -82,67 +101,67 @@
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>modules-api</artifactId>
-                <version>${project.version}</version>
+                <version>${modules-api.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>modules-wrapper</artifactId>
-                <version>${project.version}</version>
+                <version>${modules-wrapper.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>claims-module</artifactId>
-                <version>${project.version}</version>
+                <version>${claims-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>moderation-module</artifactId>
-                <version>${project.version}</version>
+                <version>${moderation-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>names-module</artifactId>
-                <version>${project.version}</version>
+                <version>${names-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>warp-module</artifactId>
-                <version>${project.version}</version>
+                <version>${warp-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>homes-module</artifactId>
-                <version>${project.version}</version>
+                <version>${homes-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>tpa-module</artifactId>
-                <version>${project.version}</version>
+                <version>${tpa-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>farmworld-module</artifactId>
-                <version>${project.version}</version>
+                <version>${farmworld-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>pack-module</artifactId>
-                <version>${project.version}</version>
+                <version>${pack-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>hungergames-module</artifactId>
-                <version>${project.version}</version>
+                <version>${hungergames-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>rtp-module</artifactId>
-                <version>${project.version}</version>
+                <version>${rtp-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>chained-module</artifactId>
-                <version>${project.version}</version>
+                <version>${chained-module.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

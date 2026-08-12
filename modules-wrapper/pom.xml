@@ -11,6 +11,9 @@
     </parent>
 
     <artifactId>modules-wrapper</artifactId>
+    <!-- Own version, independent of the reactor's: this module is published to the registry on its own
+         schedule under its own tag (modules-wrapper-vX.Y.Z), not tied to any other module's release. -->
+    <version>${modules-wrapper.version}</version>
     <packaging>jar</packaging>
 
     <name>Rain's Flexible Modules — the standard wrapper</name>

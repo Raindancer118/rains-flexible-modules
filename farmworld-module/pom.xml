@@ -11,6 +11,9 @@
     </parent>
 
     <artifactId>farmworld-module</artifactId>
+    <!-- Own version, independent of the reactor's: this module is published to the registry on its own
+         schedule under its own tag (farmworld-module-vX.Y.Z), not tied to any other module's release. -->
+    <version>${farmworld-module.version}</version>
     <packaging>jar</packaging>
 
     <name>Rain's Flexible Modules — Farm Worlds</name>
@@ -31,7 +34,7 @@
             <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>
             <type>test-jar</type>
-            <version>${project.version}</version>
+            <version>${modules-api.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
