@@ -56,4 +56,7 @@ public interface ModerationScreensOpener {
 
     /** The world tools: ore veins, packs and waves. */
     void worldTools(Player viewer);
+
+    /** Everybody this server has learnt anything about, ranked by how worth checking they look. */
+    void xraySuspicion(Player viewer);
 }

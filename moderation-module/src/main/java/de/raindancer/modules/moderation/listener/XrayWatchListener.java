@@ -1,6 +1,7 @@
 package de.raindancer.modules.moderation.listener;
 
 import de.raindancer.modules.moderation.ModerationServices;
+import de.raindancer.modules.moderation.model.MinedBlock;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -59,8 +60,9 @@ public final class XrayWatchListener implements IModerationListener {
         if (player.hasPermission(SuspiciousCommandListener.BYPASS)) {
             return;
         }
-        boolean isOre = isWatchedOre(block.getType());
-        services.xrayDetection().mined(player.getUniqueId(), player.getName(), isOre);
+        services.xrayDetection().mined(player.getUniqueId(), player.getName(),
+                new MinedBlock(block.getWorld().getName(), block.getX(), block.getY(), block.getZ(),
+                        block.getType().name()));
     }
 
     private boolean isWatchedOre(Material material) {

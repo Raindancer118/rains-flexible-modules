@@ -184,6 +184,7 @@ moderation:
   xray:
     not-enough-ore: "<gray>Not enough valuable ore in the window yet — needs at least <white><detail></white>."
     ratio-too-low: "<gray>Below the <white><detail></white>% threshold."
+    world-missing: "<gray>That world (<white><world></white>) is not loaded right now."
 
   # ── reports ──────────────────────────────────────────────────────────────
   report:

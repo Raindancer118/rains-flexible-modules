@@ -261,8 +261,16 @@
           RainsCore (1.14.0, see its own history) with vanilla's own Silent flag. A block a vanished
           player mines is untouched by this and still sounds as loud as ever — that sound belongs to
           the block, not the player.
+
+          1.7.3: /mod <player> shows playtime, first-joined, last-seen and a handful of combat
+          statistics now, read straight from Minecraft's own per-player records. A persisted x-ray
+          probability rides alongside it — a long-running average of both the ore ratio and the
+          mining-directness signal, surviving a restart, shown on the player's own page and ranked
+          across everybody who has ever mined anything on a new /mod xray leaderboard. Clicking
+          anybody on it opens the same block-by-block review a report's own investigation would, so
+          the number is never the last thing anybody sees before deciding what to do with it.
         -->
-        <plugin.version>1.7.2</plugin.version>
+        <plugin.version>1.7.3</plugin.version>
     </properties>
 
     <dependencies>

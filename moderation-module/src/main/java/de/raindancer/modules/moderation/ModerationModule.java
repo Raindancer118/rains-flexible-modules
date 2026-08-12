@@ -33,6 +33,7 @@ import de.raindancer.modules.moderation.store.Reasons;
 import de.raindancer.modules.moderation.store.ReportRegistry;
 import de.raindancer.modules.moderation.store.ImmuneStaff;
 import de.raindancer.modules.moderation.store.PendingNotices;
+import de.raindancer.modules.moderation.store.PlayerMiningProfiles;
 import de.raindancer.modules.moderation.store.ReportStorage;
 import de.raindancer.modules.moderation.store.StaffRoster;
 import de.raindancer.modules.moderation.util.PermissionNodes;
@@ -70,7 +71,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.12.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.13.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -85,6 +86,7 @@ public final class ModerationModule implements FlexModule {
     private NoteStorage noteStorage;
     private ImmuneStaff immune;
     private PendingNotices pending;
+    private PlayerMiningProfiles miningProfiles;
 
     private StaffRule staffRule;
     private EscalationRule escalation;
@@ -144,6 +146,8 @@ public final class ModerationModule implements FlexModule {
         immune.load();
         pending = new PendingNotices(context.dataFolder());
         pending.load();
+        miningProfiles = new PlayerMiningProfiles(context.dataFolder());
+        miningProfiles.load();
 
         // ── the rules ─────────────────────────────────────────────────────────────────────────
         // The permission lookup goes through a Player rather than an OfflinePlayer, and that is
@@ -183,7 +187,8 @@ public final class ModerationModule implements FlexModule {
                 this::filingRule, settings.current());
         suspiciousCommands = new SuspiciousCommandService(reportService, new SuspiciousCommandRule(),
                 settings.current());
-        xrayDetection = new XrayDetectionService(reportService, new XrayRule(), settings.current());
+        xrayDetection = new XrayDetectionService(reportService, new XrayRule(), miningProfiles,
+                settings.current());
         noteService = new NoteService(context.plugin(), notes, noteStorage, context.core().audit(),
                 settings.current());
         staffChat = new StaffChatService(settings.current());
@@ -259,6 +264,7 @@ public final class ModerationModule implements FlexModule {
             var writing = Scheduling.asyncTimer(context.plugin(), every, every, task -> {
                 reportService.flush();
                 noteService.flush();
+                xrayDetection.flush();
             });
             context.closeWith(writing::cancel);
         }
@@ -391,6 +397,12 @@ public final class ModerationModule implements FlexModule {
         public void staff(Player viewer) {
             new de.raindancer.modules.moderation.screen.StaffMenu(services, viewer, null).open();
         }
+
+        @Override
+        public void xraySuspicion(Player viewer) {
+            new de.raindancer.modules.moderation.screen.XraySuspicionMenu(services, viewer, null)
+                    .open();
+        }
     }
 
     /**
@@ -426,6 +438,9 @@ public final class ModerationModule implements FlexModule {
         }
         if (immune != null && !immune.flush()) {
             log.error("The list of protected accounts could not be written on shutdown.");
+        }
+        if (xrayDetection != null && !xrayDetection.flush()) {
+            log.error("The x-ray suspicion profiles could not be written on shutdown.");
         }
         // What nobody has been told yet. Losing these on a restart is the whole thing PendingNotices
         // exists to stop, and a shutdown is when it would happen.

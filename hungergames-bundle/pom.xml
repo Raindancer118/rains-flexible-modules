@@ -49,8 +49,12 @@
           2.8.1: the arena-not-ready kick screen's wording, softened — see hungergames-standalone's own
           history. Alongside it, moderation's join top-up no longer regrants a permission an admin took
           away from a staff member by hand — see moderation-standalone's own history for the fix itself.
+
+          2.8.2: moderation gained a persisted x-ray probability per player and a /mod xray leaderboard
+          ranking everybody who has mined anything, plus playtime and a handful of statistics shown
+          on /mod's own player page — see moderation-standalone's own history for all of it.
         -->
-        <plugin.version>2.8.1</plugin.version>
+        <plugin.version>2.8.2</plugin.version>
     </properties>
 
     <dependencies>

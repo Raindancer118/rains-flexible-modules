@@ -10,6 +10,7 @@ import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.model.Sentence;
+import de.raindancer.modules.moderation.util.PlayerStats;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
@@ -107,6 +108,14 @@ public final class PlayerMenu extends ModerationScreen {
                         "<dark_gray>Every kind, newest first."),
                 "For whoever may read a record",
                 click -> new HistoryMenu(services(), viewer, this, subject, subjectName).open());
+
+        band(MenuLayout.LAND, 5, may(ModerationPermission.REPORTS),
+                Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Mining history",
+                        "<gray>" + services().xrayDetection().approachesFor(subject).size()
+                                + " watched ore block(s) remembered.",
+                        "<dark_gray>Where each one came from, and how directly."),
+                "For whoever may read reports",
+                click -> new XrayReviewMenu(services(), viewer, this, subject, subjectName).open());
 
         // Staff rank. Drawn for everybody, greyed for anybody who is not the server owner — so a
         // moderator can see that ranks exist and that handing them out is not theirs.
@@ -281,6 +290,17 @@ public final class PlayerMenu extends ModerationScreen {
         }
         if (lore.isEmpty()) {
             lore.add("<green>Nothing in force.");
+        }
+        lore.add("");
+        lore.addAll(PlayerStats.summarize(services().server().getOfflinePlayer(subject)));
+        if (may(ModerationPermission.REPORTS)) {
+            int probability = services().xrayDetection().probabilityFor(subject);
+            // Inlined rather than a helper of its own: WordingTest holds every module to never
+            // returning a literal String of markup from a method, precisely because a value that
+            // looks like ordinary text at its call site is how markup ends up somewhere it is
+            // escaped instead of rendered — see XrayReviewMenu's own note on the same rule.
+            String colour = probability >= 80 ? "<red>" : probability >= 50 ? "<yellow>" : "<green>";
+            lore.add("<gray>X-ray probability: " + colour + probability + "%");
         }
         lore.add("");
         lore.add("<dark_gray>" + services().punishmentService().history(subject).size()

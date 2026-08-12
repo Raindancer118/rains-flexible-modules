@@ -43,7 +43,7 @@ import java.util.function.Supplier;
 public final class ModerationCommand extends StaffCommand {
 
     private static final List<String> SUBCOMMANDS =
-            List.of("info", "config", "reports", "staff", "note", "notes");
+            List.of("info", "config", "reports", "staff", "note", "notes", "xray");
 
     public ModerationCommand(Supplier<ModerationServices> services) {
         super(services, ModerationPermission.HISTORY);
@@ -74,6 +74,7 @@ public final class ModerationCommand extends StaffCommand {
             case "config" -> openConfig(viewer);
             case "reports" -> moderation.screens().reports(viewer);
             case "staff" -> moderation.screens().staff(viewer);
+            case "xray" -> moderation.screens().xraySuspicion(viewer);
             case "note" -> writeANote(viewer, args);
             case "notes" -> openNotes(viewer, args);
             default -> openPlayer(viewer, args[0]);
