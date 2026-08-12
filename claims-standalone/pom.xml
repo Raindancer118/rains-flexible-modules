@@ -22,6 +22,8 @@
     </description>
 
     <properties>
+        <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
         <!-- What the server sees. Kept apart from the reactor's version so the plugin can be released on its
              own schedule if it ever needs to be. -->
         <!--

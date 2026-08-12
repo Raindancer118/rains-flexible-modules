@@ -17,6 +17,11 @@ on:
       - 'homes-v*'
       - 'tpa-v*'
       - 'yeuk-v*'
+      # Publishes modules-api, modules-wrapper and every *-module jar to packages.tstieh.de. Separate
+      # from the per-plugin tags above because it follows the reactor's own version (the parent pom's
+      # <version>), not any single plugin's — the standalone/bundle jars stay off the registry entirely
+      # (maven.deploy.skip=true in each of their poms) since nothing depends on a deployable plugin jar.
+      - 'modules-v*'
     branches:
       - '**'
   pull_request:
@@ -64,6 +69,9 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+          server-id: packages-releases
+          server-username: REPOSILITE_USERNAME
+          server-password: REPOSILITE_PASSWORD
 
       # Tests skipped deliberately: RainsCore's own workflow runs them on its own pushes, and running
       # them again here would make this build red for something that is not in this repository.
@@ -336,6 +344,33 @@ jobs:
             --title "$title $built" \
             --notes-file release-notes.md \
             --generate-notes
+
+      # ── what a modules-v tag publishes ────────────────────────────────────────────────────────
+      #
+      # modules-api, modules-wrapper and every *-module jar, deployed under their own coordinates.
+      # The *-standalone/*-bundle modules and yeuksmp are skipped via maven.deploy.skip in their own
+      # poms, so a plain reactor `deploy` here only ever pushes the libraries, never the plugin jars
+      # the step above already published as GitHub releases.
+      - name: Check modules-v tag matches the reactor version
+        if: startsWith(github.ref, 'refs/tags/modules-v')
+        run: |
+          set -euo pipefail
+          wanted="${GITHUB_REF_NAME#modules-v}"
+          built="$(mvn -B -q -Dexpression=project.version -DforceStdout help:evaluate)"
+          if [ "$built" != "$wanted" ]; then
+            echo "::error::$GITHUB_REF_NAME says $wanted but the reactor pom says $built. Bump the pom or fix the tag."
+            exit 1
+          fi
+
+      - name: Publish modules to packages.tstieh.de
+        if: startsWith(github.ref, 'refs/tags/modules-v')
+        env:
+          REPOSILITE_USERNAME: ci-deploy
+          REPOSILITE_PASSWORD: ${{ secrets.REPOSILITE_PASSWORD }}
+          # Reposilite's TLS termination trips a TLSv1.3/SNI handshake bug in Maven's HTTP transport
+          # (works fine with plain java.net.http.HttpClient or curl) — pin TLSv1.2.
+          MAVEN_OPTS: -Djdk.tls.client.protocols=TLSv1.2
+        run: mvn --batch-mode --no-transfer-progress -DskipTests deploy
 
   # ── the download site ───────────────────────────────────────────────────────────────────────────
   #

@@ -20,6 +20,8 @@
     </description>
 
     <properties>
+        <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
         <!-- The name the server sees, and the name of its data folder. -->
         <plugin.name>RainsWarps</plugin.name>
 

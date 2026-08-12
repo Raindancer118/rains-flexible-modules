@@ -293,4 +293,14 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- Applies to every module by inheritance. The terminal *-standalone/*-bundle modules and yeuksmp
+         opt back out via maven.deploy.skip=true — they are deployable plugin jars for a server's
+         plugins/ folder, not Maven libraries anyone depends on. -->
+    <distributionManagement>
+        <repository>
+            <id>packages-releases</id>
+            <url>https://packages.tstieh.de/releases</url>
+        </repository>
+    </distributionManagement>
 </project>
