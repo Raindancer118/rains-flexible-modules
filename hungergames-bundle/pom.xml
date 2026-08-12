@@ -57,8 +57,12 @@
           2.8.3: the review screen's own findings now survive a restart too, the leaderboard only
           lists players actually found mining a watched ore, and the watched-ore list has a clickable
           picker instead of typed material names — see moderation-standalone's own history.
+
+          2.8.4: ore already exposed in a cave/ravine no longer counts as an x-ray find, and a new
+          VeinMiner mode collapses a whole vein broken in one click into a single find — see
+          moderation-standalone's own history.
         -->
-        <plugin.version>2.8.3</plugin.version>
+        <plugin.version>2.8.4</plugin.version>
     </properties>
 
     <dependencies>

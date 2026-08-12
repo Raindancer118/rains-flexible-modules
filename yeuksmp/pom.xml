@@ -285,8 +285,18 @@
           anybody who has ever broken a single block of anything. And "which blocks count as
           valuable" has a proper picker now — /mod xray → Watched ores — a grid of nineteen common
           ores to click through instead of typing material names into chat.
+
+          1.7.6: ore already exposed on two or more faces before anybody touched it — a lush cave, a
+          ravine wall, an ordinary cavern — no longer counts as an x-ray find at all: both the ratio
+          and the mining-directness signal assume ore reached by digging through rock that hid it, and
+          ore somebody simply walked up to was never hidden. A player who stumbled onto an exposed vein
+          exploring a cave no longer gets reported for it. Alongside it, a new "VeinMiner mode" setting
+          (/mod xray, or xray.veinminer-mode in config) treats every same-material ore block broken
+          within a quarter second of the last one credited to the same player as the tail of one
+          vein-mining click rather than a separate find, so a server running a VeinMiner-style plugin
+          no longer turns one deposit into a wall of separate suspicious events.
         -->
-        <plugin.version>1.7.5</plugin.version>
+        <plugin.version>1.7.6</plugin.version>
     </properties>
 
     <dependencies>

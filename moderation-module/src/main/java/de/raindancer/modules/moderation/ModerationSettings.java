@@ -269,6 +269,16 @@ public record ModerationSettings(
         @Key("xray.learned-multiplier")
         int xrayLearnedMultiplier,
 
+        @In("moderation/xray") @Title("VeinMiner installed")
+        @Describe("On, only the first ore block of a chain a vein-mining plugin breaks in one go "
+                + "counts towards the ratio or the review screen — the rest were never individually "
+                + "found, they came along for free the moment the first one broke, and counting all "
+                + "of them is how a lucky vein exposed in a lush cave or a ravine reads as a pattern "
+                + "that was never there. Off treats every block VeinMiner breaks as its own find, "
+                + "which is right for a server that does not run one at all.")
+        @Key("xray.veinminer-mode")
+        boolean xrayVeinminerModeEnabled,
+
         // ───────────────────────────────────────────────────────────── staff
 
         @In("moderation/staff") @Title("Show waiting reports on joining")
@@ -364,7 +374,7 @@ public record ModerationSettings(
             true, List.of("seed", "seedcracker"), 600,
             true, List.of("DIAMOND_ORE", "DEEPSLATE_DIAMOND_ORE", "ANCIENT_DEBRIS",
                     "EMERALD_ORE", "DEEPSLATE_EMERALD_ORE"),
-            200, 3, 8, 900, true, 5,
+            200, 3, 8, 900, true, 5, false,
             true, true, "<dark_aqua>[Staff]</dark_aqua>", false, true, true, false, true,
             true, 0, 300, false);
 
@@ -419,7 +429,7 @@ public record ModerationSettings(
                 tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug);
@@ -435,7 +445,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -450,7 +460,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -464,7 +474,7 @@ public record ModerationSettings(
                 tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug);
@@ -479,7 +489,7 @@ public record ModerationSettings(
                 tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug);
@@ -494,7 +504,7 @@ public record ModerationSettings(
                 tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug);
@@ -510,7 +520,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, opped,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -524,7 +534,7 @@ public record ModerationSettings(
                 tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug);
@@ -540,7 +550,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, allowed, mayDemoteBelow, adminsAreOp, flightWhileVanished,
                 auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -555,7 +565,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, allowed, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -570,7 +580,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, enabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -585,7 +595,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, commands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -600,7 +610,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 seconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -615,7 +625,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 enabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -630,7 +640,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, ores, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -645,7 +655,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, blocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -660,7 +670,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, minimum, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -675,7 +685,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, percent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
@@ -690,7 +700,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                seconds, xrayLearningEnabled, xrayLearnedMultiplier, openReportsOnJoin,
+                seconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
@@ -706,7 +716,7 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, enabled, xrayLearnedMultiplier, openReportsOnJoin,
+                xrayCooldownSeconds, enabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
@@ -722,8 +732,24 @@ public record ModerationSettings(
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
                 xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, multiplier, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix,
+                xrayCooldownSeconds, xrayLearningEnabled, multiplier, xrayVeinminerModeEnabled,
+                openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
+                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
+    }
+
+    public ModerationSettings withXrayVeinminerModeEnabled(boolean enabled) {
+        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
+                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
+                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
+                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
+                importVanillaBans, reportsEnabled, reportCooldownSeconds,
+                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
+                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
+                suspiciousCooldownSeconds,
+                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
+                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, enabled,
+                openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug);
     }
