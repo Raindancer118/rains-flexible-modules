@@ -33,6 +33,7 @@ import de.raindancer.modules.moderation.store.Reasons;
 import de.raindancer.modules.moderation.store.ReportRegistry;
 import de.raindancer.modules.moderation.store.ImmuneStaff;
 import de.raindancer.modules.moderation.store.PendingNotices;
+import de.raindancer.modules.moderation.store.PersistedFindings;
 import de.raindancer.modules.moderation.store.PlayerMiningProfiles;
 import de.raindancer.modules.moderation.store.ReportStorage;
 import de.raindancer.modules.moderation.store.StaffRoster;
@@ -71,7 +72,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.13.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.14.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -87,6 +88,7 @@ public final class ModerationModule implements FlexModule {
     private ImmuneStaff immune;
     private PendingNotices pending;
     private PlayerMiningProfiles miningProfiles;
+    private PersistedFindings miningFindings;
 
     private StaffRule staffRule;
     private EscalationRule escalation;
@@ -147,7 +149,7 @@ public final class ModerationModule implements FlexModule {
         pending = new PendingNotices(context.dataFolder());
         pending.load();
         miningProfiles = new PlayerMiningProfiles(context.dataFolder());
-        miningProfiles.load();
+        miningFindings = new PersistedFindings(context.dataFolder());
 
         // ── the rules ─────────────────────────────────────────────────────────────────────────
         // The permission lookup goes through a Player rather than an OfflinePlayer, and that is
@@ -188,7 +190,8 @@ public final class ModerationModule implements FlexModule {
         suspiciousCommands = new SuspiciousCommandService(reportService, new SuspiciousCommandRule(),
                 settings.current());
         xrayDetection = new XrayDetectionService(reportService, new XrayRule(), miningProfiles,
-                settings.current());
+                miningFindings, settings.current());
+        xrayDetection.load();
         noteService = new NoteService(context.plugin(), notes, noteStorage, context.core().audit(),
                 settings.current());
         staffChat = new StaffChatService(settings.current());

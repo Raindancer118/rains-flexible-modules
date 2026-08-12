@@ -48,7 +48,7 @@ public final class PlayerStats {
                 + "</white> ago.");
 
         if (!player.isOnline()) {
-            Instant lastSeen = Instant.ofEpochMilli(player.getLastPlayed());
+            Instant lastSeen = Instant.ofEpochMilli(player.getLastLogin());
             lore.add("<gray>Last seen <white>" + Times.describe(Duration.between(lastSeen, now()))
                     + "</white> ago.");
         }

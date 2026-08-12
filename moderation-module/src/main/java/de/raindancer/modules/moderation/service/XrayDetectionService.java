@@ -10,8 +10,10 @@ import de.raindancer.modules.moderation.model.MiningWindow;
 import de.raindancer.modules.moderation.model.PlayerMiningProfile;
 import de.raindancer.modules.moderation.model.ServerMiningBaseline;
 import de.raindancer.modules.moderation.rules.XrayRule;
+import de.raindancer.modules.moderation.store.PersistedFindings;
 import de.raindancer.modules.moderation.store.PlayerMiningProfiles;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -22,26 +24,32 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Watching what everybody mines, and filing a report when one player's own pattern looks like x-ray.
  *
- * <h2>Four things this learns from, and why they are kept apart</h2>
+ * <h2>Five things this learns from, and why they are kept apart</h2>
  * Each player has their own {@link MiningWindow} — the last few hundred blocks <em>they</em> broke, as
  * nothing but counts, which is what {@link XrayRule} judges as cheaply as possible on every single
  * block. Alongside it, the same player's {@link MiningTrail} keeps the same stretch of digging as
- * actual positions, which nothing here judges automatically — it exists purely to be read by a human,
- * through {@link #approachesFor}, once a report is already open and somebody wants to know more than a
- * ratio. Both of those are session-only and cost nothing to lose on a restart.
+ * actual positions, and both of those are session-only and cost nothing to lose on a restart — the
+ * trail's whole job is computing one {@link ApproachReading} the moment an ore block is found, and
+ * once that is done, the raw stone-by-stone context behind it has done its job.
  *
- * <p>{@link #profiles}, by contrast, is kept across restarts: a longer-memory, much slower-moving
- * {@link PlayerMiningProfile} per player, which is what {@link #probabilityFor} and the "everybody"
- * overview are built from — see that class for why it needs to outlive a session when the other two
- * do not. The server as a whole has one shared {@link ServerMiningBaseline}, fed by every player's
- * every block, which only ever raises {@link XrayRule}'s threshold above the owner's configured floor
- * — see that class for why it must never be allowed to lower it.
+ * <p>{@link #profiles} and {@link #findings}, by contrast, are both kept across restarts: the first a
+ * longer-memory, much slower-moving {@link PlayerMiningProfile} per player, which
+ * {@link #probabilityFor} is built from; the second every {@link ApproachReading} the trail has ever
+ * worked out, capped per player, which {@link #approachesFor} reads. Restarting used to lose the
+ * second half of that pair even though the first survived — a moderator could see a probability with
+ * nothing behind it once the review screen opened. See {@link PersistedFindings} for why keeping the
+ * readings rather than the raw trail is what makes that affordable to keep for good.
+ *
+ * <p>The server as a whole has one shared {@link ServerMiningBaseline}, fed by every player's every
+ * block, which only ever raises {@link XrayRule}'s threshold above the owner's configured floor — see
+ * that class for why it must never be allowed to lower it.
  */
 public final class XrayDetectionService implements IModerationService {
 
     private final ReportService reports;
     private final XrayRule rule;
     private final PlayerMiningProfiles profiles;
+    private final PersistedFindings findings;
     private final ServerMiningBaseline baseline = new ServerMiningBaseline();
     private final Map<UUID, MiningWindow> windows = new ConcurrentHashMap<>();
     private final Map<UUID, MiningTrail> trails = new ConcurrentHashMap<>();
@@ -50,10 +58,11 @@ public final class XrayDetectionService implements IModerationService {
     private volatile ModerationSettings settings;
 
     public XrayDetectionService(ReportService reports, XrayRule rule, PlayerMiningProfiles profiles,
-                                ModerationSettings settings) {
+                                PersistedFindings findings, ModerationSettings settings) {
         this.reports = reports;
         this.rule = rule;
         this.profiles = profiles;
+        this.findings = findings;
         settings(settings);
     }
 
@@ -99,12 +108,15 @@ public final class XrayDetectionService implements IModerationService {
             // a different answer, and there is no approach reading for a block that is not ore.
             return;
         }
-        // Only this one block's own approach is folded in — see MiningTrail#approachToMostRecent's
+        // Only this one block's own approach is worked out — see MiningTrail#approachToMostRecent's
         // own note on why recomputing every other ore block's reading in the trail, on every single
         // block mined, would be paying every time for work already done the moment each of those
-        // earlier blocks was mined.
-        trail.approachToMostRecent(now.xrayOres())
-                .ifPresent(reading -> profile.recordApproach(reading.directnessPercent(), observedAt));
+        // earlier blocks was mined. Folded into both the long-running average and the persisted list
+        // of findings the moment it exists, so a restart a second later loses neither.
+        trail.approachToMostRecent(now.xrayOres()).ifPresent(reading -> {
+            profile.recordApproach(reading.directnessPercent(), observedAt);
+            findings.add(player, reading);
+        });
 
         int threshold = rule.effectiveThresholdPercent(now.xrayThresholdPercent(),
                 now.xrayLearningEnabled(), baseline.ratio(), now.xrayLearnedMultiplier());
@@ -119,19 +131,13 @@ public final class XrayDetectionService implements IModerationService {
     }
 
     /**
-     * Every ore this player's remembered trail holds, most direct approach first — the thing worth
+     * Every ore this player has ever been found mining, most direct approach first — the thing worth
      * reading before a report like this one turns into a ban. See {@code XrayReviewMenu}, the one
-     * place this is ever shown to anybody.
+     * place this is ever shown to anybody, and {@link PersistedFindings} for why this answers exactly
+     * the same way before and after a restart.
      */
     public List<ApproachReading> approachesFor(UUID player) {
-        if (player == null) {
-            return List.of();
-        }
-        MiningTrail trail = trails.get(player);
-        if (trail == null) {
-            return List.of();
-        }
-        List<ApproachReading> readings = trail.oreApproaches(settings.xrayOres());
+        List<ApproachReading> readings = new ArrayList<>(findings.of(player));
         readings.sort(Comparator.comparingInt(ApproachReading::directnessPercent).reversed());
         return readings;
     }
@@ -164,19 +170,27 @@ public final class XrayDetectionService implements IModerationService {
         return profiles.of(player).probabilityPercent(threshold);
     }
 
-    /** Everybody this has ever learnt anything about — the list {@code XraySuspicionMenu} is built from. */
-    public Set<UUID> everybodyWithAProfile() {
-        return profiles.everybody();
+    /**
+     * Everybody who has actually been found mining a watched ore — the list {@code XraySuspicionMenu}
+     * is built from. Not everybody with a {@link PlayerMiningProfile}: that includes anybody who has
+     * ever mined a single block of anything, ore or not, and a leaderboard built from it would list
+     * the whole server for a question most of them have never given a reason to ask.
+     */
+    public Set<UUID> everybodyWorthReviewing() {
+        return findings.everybody();
     }
 
     /** Reads what is on disk. Called once, when the module starts. */
     public void load() {
         profiles.load();
+        findings.load();
     }
 
     /** Writes the lot. @return whether it reached the disk */
     public boolean flush() {
-        return profiles.flush();
+        boolean profilesOk = profiles.flush();
+        boolean findingsOk = findings.flush();
+        return profilesOk && findingsOk;
     }
 
     /** What the server has learnt is normal here, for a diagnostic. */

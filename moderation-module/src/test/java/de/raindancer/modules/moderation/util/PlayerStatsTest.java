@@ -22,7 +22,7 @@ class PlayerStatsTest {
         when(player.getStatistic(Statistic.PLAY_ONE_MINUTE)).thenReturn(20 * 3600); // one hour, in ticks
         when(player.getFirstPlayed())
                 .thenReturn(Instant.now().minus(Duration.ofDays(10)).toEpochMilli());
-        when(player.getLastPlayed())
+        when(player.getLastLogin())
                 .thenReturn(Instant.now().minus(Duration.ofDays(1)).toEpochMilli());
         when(player.getStatistic(Statistic.DEATHS)).thenReturn(3);
         when(player.getStatistic(Statistic.MOB_KILLS)).thenReturn(40);

@@ -21,10 +21,11 @@ import java.util.UUID;
  * Everybody this server has ever learnt anything about, ranked by how worth checking they are.
  *
  * <h2>What earns somebody a place on this list</h2>
- * Having mined at least one block since {@code PlayerMiningProfiles} started keeping score — nobody
- * else. A player who has never mined anything has no signal either way, and showing them here at 0%
- * would read as "checked and found clean" for somebody nobody has actually looked at, which is a worse
- * answer than simply leaving them off.
+ * Having actually been found mining a watched ore at least once — nobody else. Everybody who has ever
+ * broken a single block of anything has a {@code PlayerMiningProfile}, ore or not, and a leaderboard
+ * built from that would list the whole server for a question most of them have never given a reason
+ * to ask. Showing somebody here at a low percentage would read as "checked and found mostly clean"
+ * for somebody nobody has actually looked at, which is a worse answer than simply leaving them off.
  *
  * <h2>What the number is, and what it is not</h2>
  * See {@code PlayerMiningProfile#probabilityPercent} for how it is built. It orders this list and
@@ -43,7 +44,7 @@ public final class XraySuspicionMenu extends ModerationList<UUID> {
         // Ranked once, on open, rather than recomputed on every render: a moderator paging through
         // this should see one consistent order throughout, not one that reshuffles under them as
         // people keep mining while the page is open.
-        this.ranked = new ArrayList<>(services.xrayDetection().everybodyWithAProfile());
+        this.ranked = new ArrayList<>(services.xrayDetection().everybodyWorthReviewing());
         ranked.sort(Comparator.comparingInt(services.xrayDetection()::probabilityFor).reversed());
     }
 
@@ -96,6 +97,17 @@ public final class XraySuspicionMenu extends ModerationList<UUID> {
         OfflinePlayer player = services().server().getOfflinePlayer(who);
         String name = player.getName() == null ? "somebody who has left" : player.getName();
         new XrayReviewMenu(services(), viewer, this, who, name).open();
+    }
+
+    @Override
+    protected void render() {
+        super.render();
+        toolbar(6, may(ModerationPermission.CONFIG),
+                Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Watched ores",
+                        "<gray>" + services().config().xrayOres().size() + " watched right now.",
+                        "<dark_gray>Click to add or remove one."),
+                "An admin's decision",
+                click -> new XrayOrePickerMenu(services(), viewer, this).open());
     }
 
     @Override

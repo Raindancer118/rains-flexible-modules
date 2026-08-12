@@ -4,6 +4,7 @@ import de.raindancer.modules.moderation.ModerationSettings;
 import de.raindancer.modules.moderation.model.ApproachReading;
 import de.raindancer.modules.moderation.model.MinedBlock;
 import de.raindancer.modules.moderation.rules.XrayRule;
+import de.raindancer.modules.moderation.store.PersistedFindings;
 import de.raindancer.modules.moderation.store.PlayerMiningProfiles;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -45,7 +46,7 @@ class XrayDetectionServiceTest {
      */
     private XrayDetectionService newService(ReportService reports, ModerationSettings settings) {
         return new XrayDetectionService(reports, new XrayRule(), new PlayerMiningProfiles(folder),
-                settings);
+                new PersistedFindings(folder), settings);
     }
 
     private static ModerationSettings settingsWith(boolean xrayEnabled, int windowBlocks,
@@ -114,6 +115,27 @@ class XrayDetectionServiceTest {
     class Reviewing {
 
         @Test
+        @DisplayName("survives a restart — a fresh service reading the same folder sees it too")
+        void survivesARestart() {
+            ReportService reports = mock(ReportService.class);
+            XrayDetectionService beforeRestart = newService(reports, settingsWith(true, 200, 1, 100));
+            beforeRestart.mined(MOD, "Mod", stone(0));
+            beforeRestart.mined(MOD, "Mod", diamond(1));
+            beforeRestart.flush();
+
+            // Nothing about this reuses beforeRestart — a brand new service, over new in-memory
+            // windows and trails, is exactly what actually happens when the plugin reloads.
+            XrayDetectionService afterRestart = newService(mock(ReportService.class),
+                    settingsWith(true, 200, 1, 100));
+            afterRestart.load();
+
+            assertThat(afterRestart.approachesFor(MOD)).hasSize(1);
+            assertThat(afterRestart.probabilityFor(MOD))
+                    .as("the probability the review screen is shown alongside must survive too")
+                    .isEqualTo(beforeRestart.probabilityFor(MOD));
+        }
+
+        @Test
         @DisplayName("an ore block with a straight approach behind it shows up as highly direct")
         void remembersTheApproach() {
             ReportService reports = mock(ReportService.class);
@@ -169,8 +191,12 @@ class XrayDetectionServiceTest {
         }
 
         @Test
-        @DisplayName("leaving forgets both the ratio window and the trail")
-        void forgettingDropsEverything() {
+        @DisplayName("leaving forgets the session's ratio window, but not what was already found")
+        void forgettingKeepsWhatWasAlreadyFound() {
+            // The window and the live trail are session-only and cost nothing to lose on a quit —
+            // see MiningWindow and MiningTrail's own notes. What has already been turned into a
+            // finding is not: forgetting a player the moment they disconnect is exactly the wrong
+            // time to lose the one thing a moderator might come back tomorrow to read.
             ReportService reports = mock(ReportService.class);
             XrayDetectionService service = newService(reports, settingsWith(true, 200, 1, 100));
             service.mined(MOD, "Mod", stone(0));
@@ -178,7 +204,7 @@ class XrayDetectionServiceTest {
 
             service.forget(MOD);
 
-            assertThat(service.approachesFor(MOD)).isEmpty();
+            assertThat(service.approachesFor(MOD)).hasSize(1);
         }
     }
 }

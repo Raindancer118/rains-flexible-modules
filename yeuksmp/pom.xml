@@ -277,8 +277,16 @@
           out. Claims also gained a new flag, equipment durability: on lets an arena hand out a
           reusable kit — armour, elytra, swords, tools, all of it — that never wears out for anybody,
           or an owner spare only their own gear while a visitor's still wears down as normal.
+
+          1.7.5: /mod xray's review screen used to lose every found ore on a restart even though the
+          probability survived one — a moderator could see "72%" and open the review to find nothing
+          behind it. The actual findings are persisted now too, capped per player. The leaderboard
+          also only lists players who have actually been found mining a watched ore, rather than
+          anybody who has ever broken a single block of anything. And "which blocks count as
+          valuable" has a proper picker now — /mod xray → Watched ores — a grid of nineteen common
+          ores to click through instead of typing material names into chat.
         -->
-        <plugin.version>1.7.4</plugin.version>
+        <plugin.version>1.7.5</plugin.version>
     </properties>
 
     <dependencies>

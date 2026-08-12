@@ -53,8 +53,17 @@
           mined anything on a new /mod xray leaderboard. Never a verdict on its own: clicking anybody
           on the leaderboard opens the same block-by-block review a report's own investigation would,
           so the number is never the last thing anybody sees before deciding what to do with it.
+
+          2.14.0: the review screen used to lose every found ore on a restart even though the
+          probability survived one — a moderator could see "72%" and open the review to find nothing
+          behind it. The actual findings are persisted now too, capped per player rather than kept
+          for good, closing that gap. The leaderboard also only lists players who have actually been
+          found mining a watched ore now, rather than anybody who has ever broken a single block of
+          anything. And "Which blocks count as valuable" has a proper picker — /mod xray → Watched
+          ores — a grid of nineteen common ores to click through instead of typing material names
+          into chat one comma at a time; both write the exact same setting.
         -->
-        <plugin.version>2.13.0</plugin.version>
+        <plugin.version>2.14.0</plugin.version>
     </properties>
 
     <dependencies>
