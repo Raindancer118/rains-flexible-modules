@@ -72,8 +72,18 @@
           material ore block broken within a quarter second of the last one credited to the same player
           as the tail of one vein-mining click rather than a separate find, so a server running a
           VeinMiner-style plugin no longer turns one deposit into a wall of separate suspicious events.
+
+          2.16.0: 2.15.0's exposure check asked for two open faces before exempting anything, on the
+          assumption that a cave-wall ore block sits in fairly open space — but a vein embedded in a
+          cave wall usually only borders the cavity on the one face actually facing it, same as a
+          straight tunnel dug at hidden ore only ever opens the one face it was just broken through
+          from. Counting faces alone cannot tell those two apart. It now instead remembers a player's
+          own last several breaks and asks whether an open face was already open before they touched
+          anything, rather than open because they just mined it themselves: a single pre-existing
+          opening is enough to exempt a find, and a face the player dug through their own tunnel a
+          moment ago never is, however many or few of the six sides end up open either way.
         -->
-        <plugin.version>2.15.0</plugin.version>
+        <plugin.version>2.16.0</plugin.version>
     </properties>
 
     <dependencies>

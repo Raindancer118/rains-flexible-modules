@@ -61,8 +61,12 @@
           2.8.4: ore already exposed in a cave/ravine no longer counts as an x-ray find, and a new
           VeinMiner mode collapses a whole vein broken in one click into a single find — see
           moderation-standalone's own history.
+
+          2.8.5: the exposure check from 2.8.4 now correctly exempts a cave-wall ore block with only
+          one face open, rather than needing two, by telling a pre-existing opening apart from a face
+          the player just dug through themselves — see moderation-standalone's own history.
         -->
-        <plugin.version>2.8.4</plugin.version>
+        <plugin.version>2.8.5</plugin.version>
     </properties>
 
     <dependencies>

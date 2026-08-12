@@ -15,7 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -30,7 +29,7 @@ import static org.mockito.Mockito.when;
  * What gets past the listener before {@code XrayDetectionService} ever sees it.
  *
  * <h2>Both exemptions tested here are about the same thing</h2>
- * Neither an ore block sitting in the open nor the ninth block of one veinminer click is a
+ * Neither an ore block sitting in the open nor the second block of one veinminer click is a
  * <em>find</em> in the sense the ratio and the review screen care about — the first was never hidden,
  * and the second was never individually chosen. Both are excluded before {@link XrayDetectionService}
  * is even asked, rather than taught to it, because the service's whole job is judging finds and
@@ -40,43 +39,54 @@ class XrayWatchListenerTest {
 
     private static final UUID MOD = UUID.randomUUID();
     private static final World WORLD = mock(World.class);
+    private static final BlockFace[] SIDES = {
+            BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST,
+            BlockFace.WEST,
+    };
 
     /** A block with every neighbour solid — a fresh face broken straight out of untouched stone. */
     private static Block fullyEnclosedOre(Material material) {
-        Block block = solidBlock(material);
-        for (BlockFace side : List.of(BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH,
-                BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST)) {
-            Block neighbour = solidBlock(Material.STONE);
+        Block block = blockAt(material, false, 0, 64, 0);
+        for (BlockFace side : SIDES) {
+            Block neighbour = blockAt(Material.STONE, false, coord(side));
             when(block.getRelative(side)).thenReturn(neighbour);
         }
         return block;
     }
 
-    /** The same, but with {@code openSides} of its six faces already open before the break. */
+    /**
+     * An ore block whose {@code openSides} first faces are already open — pre-existing air, never
+     * broken by anybody in this test — the shape a cave-wall find actually has.
+     */
     private static Block partlyExposedOre(Material material, int openSides) {
-        Block block = solidBlock(material);
-        List<BlockFace> sides = List.of(BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH,
-                BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST);
-        for (int index = 0; index < sides.size(); index++) {
-            Block neighbour = index < openSides ? openBlock() : solidBlock(Material.STONE);
-            when(block.getRelative(sides.get(index))).thenReturn(neighbour);
+        Block block = blockAt(material, false, 0, 64, 0);
+        for (int index = 0; index < SIDES.length; index++) {
+            BlockFace side = SIDES[index];
+            Block neighbour = index < openSides
+                    ? blockAt(Material.CAVE_AIR, true, coord(side))
+                    : blockAt(Material.STONE, false, coord(side));
+            when(block.getRelative(side)).thenReturn(neighbour);
         }
         return block;
     }
 
-    private static Block solidBlock(Material material) {
-        Block block = mock(Block.class);
-        when(block.getType()).thenReturn(material);
-        when(block.isPassable()).thenReturn(false);
-        when(block.getWorld()).thenReturn(WORLD);
-        when(block.getLocation()).thenReturn(new Location(WORLD, 0, 64, 0));
-        return block;
+    private static int[] coord(BlockFace side) {
+        return new int[] {side.getModX(), 64 + side.getModY(), side.getModZ()};
     }
 
-    private static Block openBlock() {
+    private static Block blockAt(Material material, boolean passable, int[] xyz) {
+        return blockAt(material, passable, xyz[0], xyz[1], xyz[2]);
+    }
+
+    private static Block blockAt(Material material, boolean passable, int x, int y, int z) {
         Block block = mock(Block.class);
-        when(block.getType()).thenReturn(Material.CAVE_AIR);
-        when(block.isPassable()).thenReturn(true);
+        when(block.getType()).thenReturn(material);
+        when(block.isPassable()).thenReturn(passable);
+        when(block.getWorld()).thenReturn(WORLD);
+        when(block.getX()).thenReturn(x);
+        when(block.getY()).thenReturn(y);
+        when(block.getZ()).thenReturn(z);
+        when(block.getLocation()).thenReturn(new Location(WORLD, x, y, z));
         return block;
     }
 
@@ -118,21 +128,8 @@ class XrayWatchListenerTest {
         }
 
         @Test
-        @DisplayName("a diamond with two open faces already, a cave wall's own shape, is not")
-        void twoOpenFacesIsExempt() {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            XrayWatchListener listener = new XrayWatchListener(
-                    servicesWith(ModerationSettings.DEFAULTS, xray));
-            Player player = playerWithId(MOD);
-
-            listener.onBreak(eventFor(player, partlyExposedOre(Material.DIAMOND_ORE, 2)));
-
-            verify(xray, never()).mined(any(), any(), any());
-        }
-
-        @Test
-        @DisplayName("one open face — exactly what a mining tunnel produces on its own — still counts")
-        void oneOpenFaceStillCounts() {
+        @DisplayName("one face open before the player arrived, a cave wall's own shape, is exempt")
+        void onePreExistingOpenFaceIsExempt() {
             XrayDetectionService xray = mock(XrayDetectionService.class);
             XrayWatchListener listener = new XrayWatchListener(
                     servicesWith(ModerationSettings.DEFAULTS, xray));
@@ -140,7 +137,45 @@ class XrayWatchListenerTest {
 
             listener.onBreak(eventFor(player, partlyExposedOre(Material.DIAMOND_ORE, 1)));
 
-            verify(xray).mined(eq(MOD), eq("Mod"), any(MinedBlock.class));
+            verify(xray, never()).mined(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("several pre-existing open faces, an ordinary cavern, are exempt too")
+        void severalPreExistingOpenFacesAreExempt() {
+            XrayDetectionService xray = mock(XrayDetectionService.class);
+            XrayWatchListener listener = new XrayWatchListener(
+                    servicesWith(ModerationSettings.DEFAULTS, xray));
+            Player player = playerWithId(MOD);
+
+            listener.onBreak(eventFor(player, partlyExposedOre(Material.DIAMOND_ORE, 4)));
+
+            verify(xray, never()).mined(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("the one open face a straight tunnel just dug through still counts")
+        void aFaceThePlayerJustDugThemselvesStillCounts() {
+            XrayDetectionService xray = mock(XrayDetectionService.class);
+            XrayWatchListener listener = new XrayWatchListener(
+                    servicesWith(ModerationSettings.DEFAULTS, xray));
+            Player player = playerWithId(MOD);
+            int[] northOfOre = coord(BlockFace.NORTH);
+
+            // The block the player tunnels through, broken a moment before reaching the ore.
+            listener.onBreak(eventFor(player, blockAt(Material.STONE, false, northOfOre)));
+
+            Block ore = blockAt(Material.DIAMOND_ORE, false, 0, 64, 0);
+            for (BlockFace side : SIDES) {
+                Block neighbour = side == BlockFace.NORTH
+                        // Now open — the player just broke it — but at this exact spot.
+                        ? blockAt(Material.CAVE_AIR, true, northOfOre)
+                        : blockAt(Material.STONE, false, coord(side));
+                when(ore.getRelative(side)).thenReturn(neighbour);
+            }
+            listener.onBreak(eventFor(player, ore));
+
+            verify(xray, times(2)).mined(eq(MOD), eq("Mod"), any(MinedBlock.class));
         }
 
         @Test

@@ -12,6 +12,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -32,14 +34,20 @@ import java.util.concurrent.ConcurrentHashMap;
  * few of these, and the set is never asked to remember a whole build.
  *
  * <h2>Why ore already sitting in the open does not count either</h2>
- * A lush cave, an ordinary cavern, a ravine wall — anywhere ore is exposed on more than one face before
- * anybody touches it — is found by looking, not by digging, and the whole premise behind the ratio and
- * the approach signal is that x-ray changes which blocks somebody chooses to break <em>through</em> to
- * reach ore that was not visible. A tunnel dug straight at hidden ore only ever opens the one face the
- * player is standing at; a block sitting in a cavern typically has several. See {@link #openFaces}: two
- * or more open faces at the moment of the break is treated as "found, not detected", and never reaches
- * the ratio, the baseline, the trail or a report — a player who happened onto an exposed vein while
- * exploring a cave should never see the same warning a wall-hacking miner does.
+ * A lush cave, an ordinary cavern, a ravine wall — anywhere ore is exposed before anybody touches it —
+ * is found by looking, not by digging, and the whole premise behind the ratio and the approach signal is
+ * that x-ray changes which blocks somebody chooses to break <em>through</em> to reach ore that was not
+ * visible. Counting open faces is not enough on its own to tell those two apart, though: an ore block
+ * embedded in a cave wall usually only borders the void on the one face actually facing the cavity, every
+ * other face is still solid rock — and a tunnel dug straight at hidden ore also only ever opens the one
+ * face the player is standing at when it finally breaks. The two look identical by face count alone.
+ * What actually differs is whether that opening existed <em>before</em> the player did anything, which is
+ * exactly what {@link #openFacesNotDugByPlayer} checks: a face is only "already open" if it is not one
+ * of the player's own last {@link #RECENT_BREAK_MEMORY} breaks. A tunnelled-through face is excluded,
+ * because the player made it; a face that was air, water or anything else walkable before they arrived is
+ * not, however many or few of the six there turn out to be. One such face is enough — a player who
+ * happened onto an exposed vein while exploring a cave should never see the same warning a wall-hacking
+ * miner does.
  *
  * <h2>Why a whole vein is one find, when {@code xray.veinminer-mode} is on</h2>
  * A vein-mining plugin turns one block broken into a whole connected deposit breaking with it, all in
@@ -53,14 +61,21 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class XrayWatchListener implements IModerationListener {
 
     /**
-     * Open faces at or above this many mean "already exposed" — see the class note.
-     *
-     * <p>One is what an ordinary mining tunnel produces on its own, dug straight at ore nobody could
-     * see: the single face the player just broke through from. Two is not something a straight tunnel
-     * produces by accident, and is exactly what a block sitting in real open space — a cave wall, a
-     * ravine, the inside of a lush cave — looks like instead.
+     * Open faces not dug by the player themselves, at or above this many, mean "already exposed" —
+     * see the class note. One is enough: once self-dug faces are excluded, any remaining open face was
+     * there before the player arrived, which is already the whole condition for "found, not detected".
      */
-    private static final int OPEN_FACES_COUNTED_AS_EXPOSED = 2;
+    private static final int OPEN_FACES_COUNTED_AS_EXPOSED = 1;
+
+    /**
+     * How many of a player's most recent breaks — of any block, not only ore — are remembered for
+     * telling their own tunnel apart from a pre-existing opening, see {@link #openFacesNotDugByPlayer}.
+     *
+     * <p>Generous rather than exact: a straight tunnel to one deep, isolated ore can run for dozens of
+     * blocks, and a shorter memory would start crediting the tail of a player's own dig as a natural
+     * opening the moment it scrolled out of this window.
+     */
+    private static final int RECENT_BREAK_MEMORY = 64;
 
     private static final BlockFace[] SIDES = {
             BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST,
@@ -89,6 +104,9 @@ public final class XrayWatchListener implements IModerationListener {
      */
     private final Map<UUID, VeinCredit> lastCredited = new ConcurrentHashMap<>();
 
+    /** Per player, the positions of their own last {@link #RECENT_BREAK_MEMORY} breaks, oldest first. */
+    private final Map<UUID, Deque<String>> recentBreaks = new ConcurrentHashMap<>();
+
     private record VeinCredit(String material, long atEpochMillis) {
     }
 
@@ -116,11 +134,14 @@ public final class XrayWatchListener implements IModerationListener {
         if (player.hasPermission(SuspiciousCommandListener.BYPASS)) {
             return;
         }
+        // Remembered before the exposure check below reads it — not after — so a face this exact break
+        // just opened is never mistaken for one that was already there.
+        rememberBreak(player.getUniqueId(), block);
         // Read before mined() is called, and never after: the block is still standing at MONITOR
         // priority — Bukkit only actually removes it once every handler has had its say — so this is
         // exactly the state the player found, not whatever the break itself changes about it.
         boolean isOre = isWatchedOre(block.getType());
-        if (isOre && openFaces(block) >= OPEN_FACES_COUNTED_AS_EXPOSED) {
+        if (isOre && openFacesNotDugByPlayer(player.getUniqueId(), block) >= OPEN_FACES_COUNTED_AS_EXPOSED) {
             return;
         }
         if (isOre && services.config().xrayVeinminerModeEnabled()) {
@@ -160,21 +181,36 @@ public final class XrayWatchListener implements IModerationListener {
     }
 
     /**
-     * How many of the six neighbouring blocks are already open — air, water, anything walkable.
+     * How many of the six neighbouring blocks were already open — air, water, anything walkable —
+     * before this player touched anything, as opposed to open because they just mined their way there.
      *
      * <p>{@code isPassable()} rather than a narrower "is this air" on purpose: a diamond exposed into
      * a flooded pocket of an underwater cave is exactly as visible as one exposed into dry open space,
      * and treating water as "still solid" for this one question would mark every underwater find as
      * suspicious for no reason that has anything to do with x-ray.
      */
-    private static int openFaces(Block block) {
+    private int openFacesNotDugByPlayer(UUID player, Block block) {
         int open = 0;
         for (BlockFace side : SIDES) {
-            if (block.getRelative(side).isPassable()) {
+            Block neighbour = block.getRelative(side);
+            if (neighbour.isPassable() && !dugByPlayer(player, neighbour)) {
                 open++;
             }
         }
         return open;
+    }
+
+    private void rememberBreak(UUID player, Block block) {
+        Deque<String> recent = recentBreaks.computeIfAbsent(player, ignored -> new ArrayDeque<>());
+        recent.addLast(keyOf(block.getLocation()));
+        while (recent.size() > RECENT_BREAK_MEMORY) {
+            recent.removeFirst();
+        }
+    }
+
+    private boolean dugByPlayer(UUID player, Block block) {
+        Deque<String> recent = recentBreaks.get(player);
+        return recent != null && recent.contains(keyOf(block.getLocation()));
     }
 
     private static String keyOf(Location location) {
@@ -185,6 +221,7 @@ public final class XrayWatchListener implements IModerationListener {
     @Override
     public void forget(UUID player) {
         lastCredited.remove(player);
+        recentBreaks.remove(player);
         services.xrayDetection().forget(player);
     }
 
