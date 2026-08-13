@@ -49,7 +49,7 @@
         <chained-module.version>1.0.0</chained-module.version>
         <rtp-module.version>1.1.0</rtp-module.version>
         <worldgate-module.version>1.0.0</worldgate-module.version>
-        <mannequin-module.version>1.3.0</mannequin-module.version>
+        <mannequin-module.version>1.5.0</mannequin-module.version>
         <hungergames-module.version>2.8.1</hungergames-module.version>
         <!-- Split out of RainsCore 13.08.2026, after a join handler there cleared a player's
              inventory on every join anywhere on the server — see speedrun-module's own README/javadoc

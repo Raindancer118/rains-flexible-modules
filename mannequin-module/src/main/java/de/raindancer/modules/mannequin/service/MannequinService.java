@@ -5,6 +5,7 @@ import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.mannequin.MannequinSettings;
 import de.raindancer.modules.mannequin.model.ItemSpec;
 import de.raindancer.modules.mannequin.model.Mannequin;
+import de.raindancer.modules.mannequin.model.MannequinKind;
 import de.raindancer.modules.mannequin.store.MannequinRegistry;
 import de.raindancer.modules.mannequin.store.MannequinStore;
 import io.papermc.paper.datacomponent.item.ResolvableProfile;
@@ -16,9 +17,16 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Mob;
+import org.bukkit.entity.Skeleton;
+import org.bukkit.entity.Wither;
+import org.bukkit.entity.Zombie;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.Map;
 import java.util.Optional;
@@ -28,9 +36,12 @@ import java.util.UUID;
  * Turns a stored {@link Mannequin} into a live one, and back.
  *
  * <h2>Static, but not invulnerable</h2>
- * Every spawn or respawn places the entity at the mannequin's own anchor block and calls {@code
- * setImmovable(true)} — no knockback, no piston, no water, no explosion moves it. It is
- * <em>not</em> invulnerable, though: it has a real health pool ({@link Mannequin#resolvedMaxHealth}
+ * Every spawn or respawn places the entity at the mannequin's own anchor block and pins it there:
+ * {@link Mannequin#kind()} {@code PLAYER} gets {@code setImmovable(true)} directly, and every other
+ * kind gets {@code setGravity(false)} plus {@code listener.MannequinKnockbackListener} instead,
+ * since {@code setImmovable} is a Mannequin-only API — no knockback, no piston, no water, no
+ * explosion moves any of them. It is <em>not</em> invulnerable, though: it has a real health pool
+ * ({@link Mannequin#resolvedMaxHealth}
  * against {@link MannequinSettings#maxHealth}) and can genuinely be killed. What replaces
  * invincibility is {@link #scheduleRespawn}: an identical replacement — same block, same loadout,
  * same skin — appears after {@code MannequinSettings#respawnDelaySeconds}, and {@code
@@ -74,11 +85,21 @@ public final class MannequinService implements IMannequinService {
 
     // ---------------------------------------------------------------------------- creating / removing
 
-    /** A brand-new mannequin, on the block the player is standing on. */
+    /** A brand-new {@link MannequinKind#PLAYER} mannequin, on the block the player is standing on. */
     public Mannequin create(UUID owner, Location anchor) {
+        return create(owner, MannequinKind.PLAYER, anchor);
+    }
+
+    /**
+     * A brand-new mannequin of a chosen kind, on the block the player is standing on, facing the
+     * same way they were — {@code anchor}'s own yaw, read before anything block-snaps the
+     * location, so the dummy looks the way its owner was looking rather than vanilla's default
+     * (due south).
+     */
+    public Mannequin create(UUID owner, MannequinKind kind, Location anchor) {
         String id = registry.nextId();
         Mannequin mannequin = Mannequin.freshlyPlaced(id, owner, anchor.getWorld().getName(),
-                anchor.getBlockX(), anchor.getBlockY(), anchor.getBlockZ());
+                anchor.getBlockX(), anchor.getBlockY(), anchor.getBlockZ(), kind, anchor.getYaw());
         registry.put(mannequin);
         store.save(mannequin);
         spawn(mannequin);
@@ -114,17 +135,34 @@ public final class MannequinService implements IMannequinService {
         }
     }
 
-    /** Places (or replaces) the live entity for one stored mannequin. */
-    public org.bukkit.entity.Mannequin spawn(Mannequin mannequin) {
+    /**
+     * Places (or replaces) the live entity for one stored mannequin — dispatched on {@link
+     * Mannequin#kind()} to the matching real Bukkit entity class. Five explicit branches rather
+     * than anything generic over {@code Class<? extends LivingEntity>}: {@link MannequinKind}
+     * already enumerates exactly these five, each with its own spawn-time extras, and a sixth kind
+     * is a change to the enum before it is ever a change here.
+     */
+    public LivingEntity spawn(Mannequin mannequin) {
         World world = Bukkit.getWorld(mannequin.world());
         if (world == null) {
             return null;
         }
         despawn(mannequin.id());
 
-        Location at = new Location(world, mannequin.x() + 0.5, mannequin.y(), mannequin.z() + 0.5);
-        org.bukkit.entity.Mannequin entity = world.spawn(at, org.bukkit.entity.Mannequin.class,
-                spawned -> configure(spawned, mannequin));
+        Location at = new Location(world, mannequin.x() + 0.5, mannequin.y(), mannequin.z() + 0.5,
+                mannequin.yaw(), 0f);
+        LivingEntity entity = switch (mannequin.kind()) {
+            case PLAYER -> world.spawn(at, org.bukkit.entity.Mannequin.class,
+                    spawned -> configurePlayer(spawned, mannequin));
+            case ZOMBIE -> world.spawn(at, Zombie.class,
+                    spawned -> configureMob(spawned, mannequin));
+            case SKELETON -> world.spawn(at, Skeleton.class,
+                    spawned -> configureMob(spawned, mannequin));
+            case WITHER -> world.spawn(at, Wither.class,
+                    spawned -> configureWither(spawned, mannequin));
+            case IRON_GOLEM -> world.spawn(at, IronGolem.class,
+                    spawned -> configureMob(spawned, mannequin));
+        };
         registry.bindEntity(mannequin.id(), entity.getUniqueId());
         return entity;
     }
@@ -150,10 +188,34 @@ public final class MannequinService implements IMannequinService {
         delayedScheduler.schedule(delay, () -> spawn(mannequin));
     }
 
-    private void configure(org.bukkit.entity.Mannequin entity, Mannequin mannequin) {
+    /**
+     * Never rendered visibly — {@code ambient=true, particles=false, icon=false} — so a Zombie or
+     * Skeleton dummy standing in daylight with no helmet chosen does not spontaneously catch fire
+     * and die from something that has nothing to do with combat training. {@link
+     * PotionEffect#INFINITE_DURATION} rather than a very large number, since that is the real
+     * constant vanilla itself uses for "never expires".
+     *
+     * <p>Built lazily, on the one code path that actually needs it, rather than as a static field:
+     * constructing a {@code PotionEffect} touches {@code PotionEffectType}'s own registry lookup,
+     * which — like every other real-server registry this module reads — does not exist outside a
+     * running Paper server. A static field would fail this class's own {@code <clinit>} the moment
+     * anything in this module was loaded by a plain unit test, taking every other test in the class
+     * down with it.
+     */
+    private static PotionEffect fireResistanceForever() {
+        return new PotionEffect(PotionEffectType.FIRE_RESISTANCE, PotionEffect.INFINITE_DURATION,
+                0, true, false, false);
+    }
+
+    /**
+     * Everything every kind needs, regardless of which real entity it is: the name, persistence,
+     * health, and — where the kind supports it — the loadout and the skin. {@link #spawn} calls
+     * this from every one of its five branches before applying whatever is specific to that one
+     * kind.
+     */
+    private void configureCommon(LivingEntity entity, Mannequin mannequin) {
         entity.customName(Component.text(mannequin.displayName()));
         entity.setCustomNameVisible(true);
-        entity.setImmovable(true);
         entity.setCanPickupItems(true);
         entity.setRemoveWhenFarAway(false);
         entity.setPersistent(true);
@@ -162,9 +224,16 @@ public final class MannequinService implements IMannequinService {
         entity.setMaxHealth(health);
         entity.setHealth(health);
 
-        applySkin(entity, mannequin.skinSource());
-        for (Map.Entry<EquipmentSlot, ItemSpec> entry : mannequin.loadout().entrySet()) {
-            equip.apply(entity, entry.getKey(), entry.getValue().toItemStack());
+        if (mannequin.kind().supportsSkin() && entity instanceof org.bukkit.entity.Mannequin skinnable) {
+            applySkin(skinnable, mannequin.skinSource());
+        }
+        if (mannequin.kind().supportsLoadout()) {
+            for (Map.Entry<EquipmentSlot, ItemSpec> entry : mannequin.loadout().entrySet()) {
+                equip.apply(entity, entry.getKey(), entry.getValue().toItemStack());
+            }
+        }
+        if (mannequin.kind().burnsInDaylight()) {
+            entity.addPotionEffect(fireResistanceForever());
         }
         if (mannequin.emitsRedstoneSignal()) {
             placeBarrel(entity.getWorld(), mannequin);
@@ -172,8 +241,55 @@ public final class MannequinService implements IMannequinService {
     }
 
     /**
+     * {@link MannequinKind#PLAYER}: the original mannequin. {@code setImmovable(true)} is a
+     * Mannequin-only API and the reason the other four kinds instead lean on {@code
+     * setGravity(false)} plus {@code MannequinKnockbackListener}.
+     *
+     * <h2>{@code setSkinParts(allParts())}</h2>
+     * Without this, a mannequin renders only its base skin layer — no jacket, hat, sleeve or pants
+     * overlay, and no cape — regardless of which skin {@link #applySkin} gives it, because Paper's
+     * own default for a freshly spawned {@code Mannequin} is not "every layer on". Every part is
+     * switched on unconditionally here so a mannequin always looks like the player it is wearing.
+     */
+    private void configurePlayer(org.bukkit.entity.Mannequin entity, Mannequin mannequin) {
+        configureCommon(entity, mannequin);
+        entity.setImmovable(true);
+        entity.setSkinParts(com.destroystokyo.paper.SkinParts.allParts());
+    }
+
+    /** {@link MannequinKind#ZOMBIE}, {@link MannequinKind#SKELETON} and {@link MannequinKind#IRON_GOLEM}. */
+    private void configureMob(LivingEntity entity, Mannequin mannequin) {
+        configureCommon(entity, mannequin);
+        disableAiAndFalling(entity);
+        if (entity instanceof Zombie zombie) {
+            zombie.setBaby(false);
+        }
+    }
+
+    /** {@link MannequinKind#WITHER}: additionally never allowed back into its brief spawn invulnerability. */
+    private void configureWither(Wither entity, Mannequin mannequin) {
+        configureCommon(entity, mannequin);
+        disableAiAndFalling(entity);
+        entity.setInvulnerableTicks(0);
+    }
+
+    /**
+     * The AI-suppression recipe every non-{@code PLAYER} kind shares: no goal selector at all, no
+     * targeting or aggression, and no falling. {@code setGravity(false)} is the "does not fall"
+     * half of "fully static"; {@code MannequinKnockbackListener} is the other half, "does not get
+     * shoved" — {@code setGravity} has nothing to say about knockback.
+     */
+    private void disableAiAndFalling(LivingEntity entity) {
+        entity.setAI(false);
+        entity.setGravity(false);
+        if (entity instanceof Mob mob) {
+            mob.setAware(false);
+        }
+    }
+
+    /**
      * Applies a player's skin to a live mannequin — {@code null} resets it to vanilla's own
-     * default profile. Public, and the only place this happens: {@link #configure} calls it on
+     * default profile. Public, and the only place this happens: {@link #configureCommon} calls it on
      * every spawn, and {@code screen.SkinScreen} calls it directly when an owner picks a new one,
      * rather than repeating the same three Bukkit calls a second time in the screen.
      *
@@ -291,7 +407,7 @@ public final class MannequinService implements IMannequinService {
      * next despawn/respawn cycle.
      *
      * <p>Exists because turning {@link Mannequin#emitsRedstoneSignal()} on is something an owner
-     * does from the behaviour screen to an already-live mannequin — {@link #configure} only ever
+     * does from the behaviour screen to an already-live mannequin — {@link #configureCommon} only ever
      * placed the barrel at spawn time, so a mannequin created before the flag was ever switched on
      * would never get one and every hit's pulse would silently do nothing (the same reason it never
      * worked at all before there was any screen to flip the flag with).
@@ -322,5 +438,15 @@ public final class MannequinService implements IMannequinService {
                 .map(Bukkit::getEntity)
                 .filter(LivingEntity.class::isInstance)
                 .map(LivingEntity.class::cast);
+    }
+
+    /**
+     * Whether this live entity's id belongs to a mannequin this module is currently tracking —
+     * {@code listener.MannequinKnockbackListener}'s one question, asked through this service rather
+     * than reaching into {@link MannequinRegistry} directly, the same "the listener goes through a
+     * service" shape every other listener in this package already follows.
+     */
+    public boolean isTracked(UUID liveEntityId) {
+        return registry.idFor(liveEntityId).isPresent();
     }
 }

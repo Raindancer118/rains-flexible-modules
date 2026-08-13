@@ -66,8 +66,39 @@
           front of the owner the moment the signal is switched on, since the most likely real
           reason a comparator reads nothing is a build one block too high — the barrel sits a full
           block under the mannequin's feet, not beside them.
+
+          1.4.0: added four more mannequin kinds alongside the original humanoid one — Zombie,
+          Skeleton, Wither and Iron Golem, each a real entity of that type with AI/targeting/gravity
+          disabled and knockback cancelled, creatable through a new GUI kind-picker screen (reachable
+          from the mannequin list, not only /mannequin create) as well as the command with a new
+          optional argument. Loadout only applies to the kinds that have real equipment slots
+          (player/zombie/skeleton); skin only ever applied to the player kind.
+
+          Also fixed two real, pre-existing bugs found along the way: the shield and redstone
+          toggles on the per-mannequin edit page were never actually visible or clickable at all —
+          that page was built with three rows, and the row those two buttons live in is the exact
+          row Core's own menu framework reserves for the Back/Danger/Close buttons on a three-row
+          menu, so every write to it was silently rejected. This was very likely the entire reason
+          the redstone signal "didn't work" through every previous release, more than anything about
+          comparator-refresh mechanics. And mannequin skins were rendering without their second
+          layer (jacket, hat, sleeve and trouser overlays, cape) — nothing had ever told the entity
+          to show them.
         -->
-        <plugin.version>1.3.0</plugin.version>
+
+        <!--
+          1.5.0: non-player kinds now default to that kind's own vanilla-realistic max health
+          (a Wither starts at 300, an Iron Golem at 100) rather than a bare player's 20, unless an
+          owner sets their own override — which also fixes a Wither's native boss bar reading as a
+          strangely low-health Wither. A hostile mob could still attack an Iron Golem (or any other
+          non-player kind) even with its own AI disabled, since targeting is decided by the
+          attacker, not the target; a tracked mannequin is no longer a valid target for anything.
+          Fixed two more deprecated-API warnings found on boot (Wither#setInvulnerabilityTicks,
+          the deprecated org.bukkit.event.entity.EntityKnockbackEvent — both replaced with their
+          non-deprecated Paper equivalents). A freshly created mannequin now faces the direction its
+          owner was facing, instead of always due south. Added a "Rename" option to the mannequin's
+          edit page.
+        -->
+        <plugin.version>1.5.0</plugin.version>
     </properties>
 
     <dependencies>

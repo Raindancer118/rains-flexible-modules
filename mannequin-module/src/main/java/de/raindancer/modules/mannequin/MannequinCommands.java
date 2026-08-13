@@ -22,7 +22,7 @@ public final class MannequinCommands {
                 ModuleCommand.of("mannequin", "Create, dress and inspect training dummies",
                                 new MannequinCommand(MannequinCommands::require))
                         .needing(PermissionNodes.USE)
-                        .taking("create", "remove <id>", "loadout <id>", "skin <id>", "stats <id>", "list"));
+                        .taking("create [kind]", "remove <id>", "loadout <id>", "skin <id>", "stats <id>", "list"));
     }
 
     static void ready(MannequinServices live) {

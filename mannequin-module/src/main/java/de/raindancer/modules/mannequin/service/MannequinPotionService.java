@@ -6,6 +6,7 @@ import io.papermc.paper.datacomponent.item.Consumable;
 import io.papermc.paper.datacomponent.item.consumable.ConsumeEffect;
 import org.bukkit.Material;
 import org.bukkit.entity.Item;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
@@ -88,7 +89,7 @@ public final class MannequinPotionService implements IMannequinService {
      *
      * @return whether anything was actually consumed
      */
-    public boolean tryConsume(org.bukkit.entity.Mannequin mannequin, Item itemEntity) {
+    public boolean tryConsume(LivingEntity mannequin, Item itemEntity) {
         if (mannequin == null || itemEntity == null) {
             return false;
         }

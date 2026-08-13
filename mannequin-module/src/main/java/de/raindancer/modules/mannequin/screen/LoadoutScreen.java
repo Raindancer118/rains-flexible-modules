@@ -211,8 +211,6 @@ public final class LoadoutScreen extends Menu implements IMannequinScreen {
         mannequin = mannequin.withSlot(slot, null);
         services.mannequins().save(mannequin);
         services.mannequins().liveEntity(mannequin.id())
-                .filter(org.bukkit.entity.Mannequin.class::isInstance)
-                .map(org.bukkit.entity.Mannequin.class::cast)
                 .ifPresent(live -> services.equip().apply(live, slot, ItemSpec.of(Material.AIR).toItemStack()));
     }
 
@@ -258,8 +256,6 @@ public final class LoadoutScreen extends Menu implements IMannequinScreen {
         mannequin = mannequin.withSlot(slot, spec);
         services.mannequins().save(mannequin);
         services.mannequins().liveEntity(mannequin.id())
-                .filter(org.bukkit.entity.Mannequin.class::isInstance)
-                .map(org.bukkit.entity.Mannequin.class::cast)
                 .ifPresent(live -> services.equip().apply(live, slot, spec.toItemStack()));
     }
 

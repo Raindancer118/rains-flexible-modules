@@ -42,11 +42,17 @@ import java.util.UUID;
  *                             starting points; any raw value works too, since the point of keeping
  *                             this a plain number rather than an enum is that a server can give a
  *                             dummy a mob's health pool without this module being changed for it
+ * @param kind                 which mob this is spawned as — see {@link MannequinKind}; never
+ *                             {@code null}, defaulted to {@link MannequinKind#PLAYER} for anything
+ *                             built before this field existed
+ * @param yaw                  which way it faces, in degrees — the owner's own yaw at the moment
+ *                             of creation, so a freshly placed dummy looks the way they were
+ *                             looking rather than vanilla's default (due south, yaw 0)
  */
 public record Mannequin(String id, UUID owner, String world, int x, int y, int z,
                         String displayName, Map<EquipmentSlot, ItemSpec> loadout,
                         UUID skinSource, boolean blocksWithShield, boolean emitsRedstoneSignal,
-                        Double maxHealthOverride) {
+                        Double maxHealthOverride, MannequinKind kind, float yaw) {
 
     public Mannequin {
         if (id == null || id.isBlank()) {
@@ -63,11 +69,25 @@ public record Mannequin(String id, UUID owner, String world, int x, int y, int z
         if (maxHealthOverride != null && maxHealthOverride <= 0) {
             throw new IllegalArgumentException("a max health override has to be positive");
         }
+        kind = kind == null ? MannequinKind.PLAYER : kind;
     }
 
-    /** A freshly placed mannequin: no loadout yet, default skin, shield blocking on by default. */
+    /** A freshly placed, {@link MannequinKind#PLAYER} mannequin — every call site from before kinds existed. */
     public static Mannequin freshlyPlaced(String id, UUID owner, String world, int x, int y, int z) {
-        return new Mannequin(id, owner, world, x, y, z, "Mannequin", Map.of(), null, true, false, null);
+        return freshlyPlaced(id, owner, world, x, y, z, MannequinKind.PLAYER, 0f);
+    }
+
+    /** The same, facing a chosen direction — every call site from before yaw was captured. */
+    public static Mannequin freshlyPlaced(String id, UUID owner, String world, int x, int y, int z,
+                                          MannequinKind kind) {
+        return freshlyPlaced(id, owner, world, x, y, z, kind, 0f);
+    }
+
+    /** A freshly placed mannequin of a chosen kind and facing: no loadout yet, default skin, shield blocking on. */
+    public static Mannequin freshlyPlaced(String id, UUID owner, String world, int x, int y, int z,
+                                          MannequinKind kind, float yaw) {
+        return new Mannequin(id, owner, world, x, y, z, "Mannequin", Map.of(), null, true, false,
+                null, kind, yaw);
     }
 
     /** The barrel this mannequin's redstone pulse is written to — directly under its feet. */
@@ -75,14 +95,22 @@ public record Mannequin(String id, UUID owner, String world, int x, int y, int z
         return y - 1;
     }
 
-    /** Its own max health if it has one, otherwise the server-wide default handed in. */
-    public double resolvedMaxHealth(double serverDefault) {
-        return maxHealthOverride == null ? serverDefault : maxHealthOverride;
+    /**
+     * Its own max health if an owner has set one, otherwise a sensible default: the server-wide
+     * setting for {@link MannequinKind#PLAYER}, or that kind's own vanilla-realistic health for
+     * anything else ({@link MannequinKind#defaultMaxHealth()}) — a Wither dummy defaults to a
+     * Wither's own 300, not the 20 a bare player has, and matches what its native boss bar expects.
+     */
+    public double resolvedMaxHealth(double serverDefaultForPlayer) {
+        if (maxHealthOverride != null) {
+            return maxHealthOverride;
+        }
+        return kind == MannequinKind.PLAYER ? serverDefaultForPlayer : kind.defaultMaxHealth();
     }
 
     public Mannequin withDisplayName(String name) {
         return new Mannequin(id, owner, world, x, y, z, name, loadout, skinSource,
-                blocksWithShield, emitsRedstoneSignal, maxHealthOverride);
+                blocksWithShield, emitsRedstoneSignal, maxHealthOverride, kind, yaw);
     }
 
     public Mannequin withSlot(EquipmentSlot slot, ItemSpec spec) {
@@ -93,28 +121,40 @@ public record Mannequin(String id, UUID owner, String world, int x, int y, int z
             next.put(slot, spec);
         }
         return new Mannequin(id, owner, world, x, y, z, displayName, next, skinSource,
-                blocksWithShield, emitsRedstoneSignal, maxHealthOverride);
+                blocksWithShield, emitsRedstoneSignal, maxHealthOverride, kind, yaw);
     }
 
     public Mannequin withSkinSource(UUID skin) {
         return new Mannequin(id, owner, world, x, y, z, displayName, loadout, skin,
-                blocksWithShield, emitsRedstoneSignal, maxHealthOverride);
+                blocksWithShield, emitsRedstoneSignal, maxHealthOverride, kind, yaw);
     }
 
     public Mannequin withBlocksWithShield(boolean blocks) {
         return new Mannequin(id, owner, world, x, y, z, displayName, loadout, skinSource,
-                blocks, emitsRedstoneSignal, maxHealthOverride);
+                blocks, emitsRedstoneSignal, maxHealthOverride, kind, yaw);
     }
 
     public Mannequin withEmitsRedstoneSignal(boolean emits) {
         return new Mannequin(id, owner, world, x, y, z, displayName, loadout, skinSource,
-                blocksWithShield, emits, maxHealthOverride);
+                blocksWithShield, emits, maxHealthOverride, kind, yaw);
     }
 
     /** @param health {@code null} to fall back to the server-wide default again */
     public Mannequin withMaxHealthOverride(Double health) {
         return new Mannequin(id, owner, world, x, y, z, displayName, loadout, skinSource,
-                blocksWithShield, emitsRedstoneSignal, health);
+                blocksWithShield, emitsRedstoneSignal, health, kind, yaw);
+    }
+
+    /** Which mob this is spawned as — see {@link MannequinKind}. */
+    public Mannequin withKind(MannequinKind newKind) {
+        return new Mannequin(id, owner, world, x, y, z, displayName, loadout, skinSource,
+                blocksWithShield, emitsRedstoneSignal, maxHealthOverride, newKind, yaw);
+    }
+
+    /** Which way it faces, in degrees. */
+    public Mannequin withYaw(float newYaw) {
+        return new Mannequin(id, owner, world, x, y, z, displayName, loadout, skinSource,
+                blocksWithShield, emitsRedstoneSignal, maxHealthOverride, kind, newYaw);
     }
 
     public ItemSpec specFor(EquipmentSlot slot) {

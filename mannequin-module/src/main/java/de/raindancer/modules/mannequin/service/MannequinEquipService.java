@@ -4,6 +4,7 @@ import de.raindancer.modules.mannequin.MannequinSettings;
 import de.raindancer.modules.mannequin.model.ItemSpec;
 import de.raindancer.modules.mannequin.rules.DurabilityRule;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
@@ -45,7 +46,7 @@ public final class MannequinEquipService implements IMannequinService {
      * true would fire the same equip-change event a player putting on armor fires, which some other
      * plugin could react to as if a player had done it.
      */
-    public void apply(org.bukkit.entity.Mannequin entity, EquipmentSlot slot, ItemStack stack) {
+    public void apply(LivingEntity entity, EquipmentSlot slot, ItemStack stack) {
         if (entity == null || slot == null) {
             return;
         }
@@ -53,7 +54,7 @@ public final class MannequinEquipService implements IMannequinService {
     }
 
     /** A fresh, undamaged copy of exactly what the owner chose — never a copy of the worn item. */
-    public void rebuildFromSpec(org.bukkit.entity.Mannequin entity, EquipmentSlot slot, ItemSpec spec) {
+    public void rebuildFromSpec(LivingEntity entity, EquipmentSlot slot, ItemSpec spec) {
         apply(entity, slot, spec == null ? null : spec.toItemStack());
     }
 
@@ -64,7 +65,7 @@ public final class MannequinEquipService implements IMannequinService {
      * @param spec the original loadout spec for this slot, so a broken piece comes back identical
      * @param rng  the source of randomness for the Unbreaking roll — injected so this is testable
      */
-    public void damageEquippedPiece(org.bukkit.entity.Mannequin entity, EquipmentSlot slot,
+    public void damageEquippedPiece(LivingEntity entity, EquipmentSlot slot,
                                     ItemSpec spec, Random rng) {
         if (entity == null || slot == null || spec == null || rng == null) {
             return;

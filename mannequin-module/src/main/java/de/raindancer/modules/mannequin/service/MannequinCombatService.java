@@ -13,6 +13,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -71,7 +72,7 @@ public final class MannequinCombatService implements IMannequinService {
      * @param finalDamage    {@code EntityDamageEvent#getFinalDamage()}, read as the hit lands
      * @param now            when the hit landed
      */
-    public void recordHit(Mannequin mannequin, org.bukkit.entity.Mannequin entity, Player attacker,
+    public void recordHit(Mannequin mannequin, LivingEntity entity, Player attacker,
                           double finalDamage, long now) {
         MannequinSettings current = settings;
         String id = mannequin.id();

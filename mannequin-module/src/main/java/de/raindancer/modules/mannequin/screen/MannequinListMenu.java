@@ -66,10 +66,7 @@ public final class MannequinListMenu extends PaginatedMenu<Mannequin> implements
         if (!CREATE_RULE.mayCreate(services.config().openCreation(), viewer)) {
             return;
         }
-        viewer.closeInventory();
-        Mannequin created = services.mannequins().create(viewer.getUniqueId(),
-                viewer.getLocation().getBlock().getLocation());
-        services.messages().send(viewer, "mannequin.create.done", "id", created.id());
+        new CreateMannequinScreen(services, viewer, this).open();
     }
 
     @Override
@@ -103,10 +100,22 @@ public final class MannequinListMenu extends PaginatedMenu<Mannequin> implements
     protected void decorate() {
         super.decorate();
         int have = services.registry().ownedBy(viewer.getUniqueId()).size();
-        toolbar(4, Icons.of(Material.ARMOR_STAND, "<white>Your mannequins",
-                        "<gray>" + have + " right now.",
-                        "<dark_gray>/mannequin create makes another where you stand."),
-                click -> { });
+        boolean mayCreate = CREATE_RULE.mayCreate(services.config().openCreation(), viewer);
+        // Always present, not only when the list is empty — creating a second or third mannequin
+        // used to mean removing every existing one first, since emptyAction() was the only door in.
+        toolbar(4, mayCreate
+                        ? Icons.of(Material.ARMOR_STAND, "<white>Your mannequins",
+                                "<gray>" + have + " right now.",
+                                "",
+                                "<gray>Click to create another.")
+                        : Icons.of(Material.ARMOR_STAND, "<white>Your mannequins",
+                                "<gray>" + have + " right now.",
+                                "<dark_gray>/mannequin create makes another where you stand."),
+                click -> {
+                    if (mayCreate) {
+                        new CreateMannequinScreen(services, viewer, this).open();
+                    }
+                });
     }
 
     @Override

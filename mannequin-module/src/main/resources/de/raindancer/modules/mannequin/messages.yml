@@ -21,9 +21,15 @@ mannequin:
     found: "<green>Found <white><name></white> — applying their skin."
     not-found: "<red>Nobody called <white><name></white> could be found."
 
+  rename:
+    ask-name: "<gray>Type a new name for this mannequin, or 'cancel'."
+    left-as-it-is: "<gray>Left as it was."
+    done: "<green>Renamed to <white><name></white>."
+
   create:
     no-permission: "<red>You may not create a mannequin here."
     done: "<green>Created mannequin <white><id></white>."
+    unknown-kind: "<red>There is no mannequin kind called <white><kind></white>. Try player, zombie, skeleton, wither or iron_golem."
 
   remove:
     no-permission: "<red>That is not your mannequin to remove."

@@ -5,6 +5,7 @@ import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.modules.mannequin.model.ItemSpec;
 import de.raindancer.modules.mannequin.model.Mannequin;
+import de.raindancer.modules.mannequin.model.MannequinKind;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -73,6 +74,8 @@ public final class MannequinStore {
             yaml.set("blocks-with-shield", mannequin.blocksWithShield());
             yaml.set("emits-redstone-signal", mannequin.emitsRedstoneSignal());
             yaml.set("max-health-override", mannequin.maxHealthOverride());
+            yaml.set("kind", mannequin.kind().name());
+            yaml.set("yaw", (double) mannequin.yaw());
             for (Map.Entry<EquipmentSlot, ItemSpec> entry : mannequin.loadout().entrySet()) {
                 String at = "loadout." + entry.getKey().name();
                 yaml.set(at + ".material", entry.getValue().material().name());
@@ -142,6 +145,13 @@ public final class MannequinStore {
         boolean emitsRedstoneSignal = yaml.getBoolean("emits-redstone-signal", false);
         Double maxHealthOverride = yaml.contains("max-health-override") && yaml.get("max-health-override") != null
                 ? yaml.getDouble("max-health-override") : null;
+        // Missing (a file from before kinds existed) or unreadable (a typo, a hand edit) both fall
+        // back to PLAYER rather than throwing — the same "read old data safely" discipline every
+        // other optional field in this file already follows.
+        MannequinKind kind = MannequinKind.byName(yaml.getString("kind")).orElse(MannequinKind.PLAYER);
+        // Missing (a file from before facing was captured) defaults to 0 — vanilla's own "due
+        // south" — rather than throwing.
+        float yaw = (float) yaml.getDouble("yaw", 0.0);
 
         Map<EquipmentSlot, ItemSpec> loadout = new LinkedHashMap<>();
         ConfigurationSection loadoutSection = yaml.getConfigurationSection("loadout");
@@ -183,7 +193,7 @@ public final class MannequinStore {
         }
 
         return new Mannequin(id, owner, world, x, y, z, displayName, loadout, skinSource,
-                blocksWithShield, emitsRedstoneSignal, maxHealthOverride);
+                blocksWithShield, emitsRedstoneSignal, maxHealthOverride, kind, yaw);
     }
 
     private static String required(String value, String what) {

@@ -3,6 +3,7 @@ package de.raindancer.modules.mannequin.command;
 import de.raindancer.modules.mannequin.MannequinServices;
 import de.raindancer.modules.mannequin.MannequinSettings;
 import de.raindancer.modules.mannequin.model.Mannequin;
+import de.raindancer.modules.mannequin.model.MannequinKind;
 import de.raindancer.modules.mannequin.rules.CreateMannequinRule;
 import de.raindancer.modules.mannequin.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -56,7 +57,7 @@ public final class MannequinCommand implements IMannequinCommand {
         }
         String sub = args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
-            case "create" -> create(live, sender);
+            case "create" -> create(live, sender, args);
             case "remove" -> withMannequin(live, sender, args, (l, p, m) -> remove(l, p, m, args));
             case "loadout" -> withMannequin(live, sender, args, (l, p, m) -> l.screens().loadout(p, m));
             case "skin" -> withMannequin(live, sender, args, (l, p, m) -> l.screens().skin(p, m));
@@ -66,7 +67,14 @@ public final class MannequinCommand implements IMannequinCommand {
         }
     }
 
-    private void create(MannequinServices live, CommandSender sender) {
+    /**
+     * {@code /mannequin create [kind]} — {@code kind} is optional and case-insensitive, defaulting
+     * to {@code player} when omitted. An unrecognised kind is reported rather than silently
+     * defaulted, the same "a refusal says something" rule every screen in this module already
+     * follows for a button — a typo here should not quietly hand somebody a different mob than the
+     * one they typed.
+     */
+    private void create(MannequinServices live, CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
             live.messages().send(sender, "mannequin.only-a-player");
             return;
@@ -76,8 +84,18 @@ public final class MannequinCommand implements IMannequinCommand {
             live.messages().send(sender, "mannequin.create.no-permission");
             return;
         }
-        Mannequin created = live.mannequins().create(player.getUniqueId(),
-                player.getLocation().getBlock().getLocation());
+        MannequinKind kind = MannequinKind.PLAYER;
+        if (args.length >= 2) {
+            Optional<MannequinKind> requested = MannequinKind.byName(args[1]);
+            if (requested.isEmpty()) {
+                live.messages().send(sender, "mannequin.create.unknown-kind", "kind", args[1]);
+                return;
+            }
+            kind = requested.get();
+        }
+        // The full location, not block-snapped: MannequinService#create reads its yaw before
+        // deriving the block coordinates, so the dummy faces the way the player was looking.
+        Mannequin created = live.mannequins().create(player.getUniqueId(), kind, player.getLocation());
         live.messages().send(sender, "mannequin.create.done", "id", created.id());
     }
 
@@ -141,6 +159,13 @@ public final class MannequinCommand implements IMannequinCommand {
             return SUBCOMMANDS.stream().filter(name -> name.startsWith(typed)).toList();
         }
         String sub = args[0].toLowerCase(Locale.ROOT);
+        if (args.length == 2 && sub.equals("create")) {
+            String typed = args[1].toLowerCase(Locale.ROOT);
+            return java.util.Arrays.stream(de.raindancer.modules.mannequin.model.MannequinKind.values())
+                    .map(kind -> kind.name().toLowerCase(Locale.ROOT))
+                    .filter(name -> name.startsWith(typed))
+                    .toList();
+        }
         if (args.length == 2 && List.of("remove", "loadout", "skin", "stats").contains(sub)
                 && source.getSender() instanceof Player player) {
             MannequinServices live = services.get();

@@ -11,6 +11,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 
@@ -38,11 +39,20 @@ public final class MannequinEditMenu extends Menu implements IMannequinScreen {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
+    /** How long somebody has to type a new name before the question is dropped. */
+    private static final Duration TO_ANSWER = Duration.ofSeconds(60);
+
     private final MannequinServices services;
     private final String id;
 
     public MannequinEditMenu(MannequinServices services, Player viewer, Mannequin mannequin, Menu parent) {
-        super(viewer, services.brand(), parent, 3);
+        // Four rows, not three: MenuLayout.RULES is band row 2 (slots 18-26), and a three-row menu's
+        // chrome row starts at slot 18 (MenuLayout.chromeRowStart(3) == 18) — the shield and redstone
+        // toggles below would be silently rejected by Menu#set's own layout.accepts() check, never
+        // drawn and never clickable, which is exactly what a live screenshot showed: no shield or
+        // comparator icon at all, just the WHO row and the chrome row underneath it. Four rows moves
+        // chromeRowStart to 27, safely past the whole RULES band.
+        super(viewer, services.brand(), parent, 4);
         this.services = services;
         this.id = mannequin.id();
     }
@@ -76,17 +86,28 @@ public final class MannequinEditMenu extends Menu implements IMannequinScreen {
 
         set(MenuLayout.HEADER_SUBJECT, headerIcon(mannequin));
 
-        band(MenuLayout.WHO, 1, Icons.of(Material.IRON_CHESTPLATE, "<white>Loadout",
-                        "<gray>Armor, weapons and enchants.",
-                        "",
-                        "<gray>Click to open."),
-                click -> new LoadoutScreen(services, viewer, mannequin, this).open());
+        // Loadout and Skin are each greyed-never-hidden in every other sense on this page, but a
+        // kind that structurally cannot wear equipment (WITHER, IRON_GOLEM) or a skin (everything but
+        // PLAYER) has no button to grey — there is nothing behind it to open. Left as a gap at its
+        // usual column rather than compacted, the same precedent claims-module's own conditional
+        // WHO-band buttons already follow (e.g. ClaimHeightMenu leaving a column empty rather than
+        // sliding the next button over): a player who has learnt "Stats is always column 5" on one
+        // mannequin should not have to relearn it on a kind that lacks a Loadout button.
+        if (mannequin.kind().supportsLoadout()) {
+            band(MenuLayout.WHO, 1, Icons.of(Material.IRON_CHESTPLATE, "<white>Loadout",
+                            "<gray>Armor, weapons and enchants.",
+                            "",
+                            "<gray>Click to open."),
+                    click -> new LoadoutScreen(services, viewer, mannequin, this).open());
+        }
 
-        band(MenuLayout.WHO, 3, Icons.of(Material.PLAYER_HEAD, "<white>Skin",
-                        "<gray>Whose face this mannequin wears.",
-                        "",
-                        "<gray>Click to open."),
-                click -> new SkinScreen(services, viewer, mannequin, this).open());
+        if (mannequin.kind().supportsSkin()) {
+            band(MenuLayout.WHO, 3, Icons.of(Material.PLAYER_HEAD, "<white>Skin",
+                            "<gray>Whose face this mannequin wears.",
+                            "",
+                            "<gray>Click to open."),
+                    click -> new SkinScreen(services, viewer, mannequin, this).open());
+        }
 
         band(MenuLayout.WHO, 5, Icons.of(Material.PAPER, "<white>Stats",
                         "<gray>Damage, hits and combo history.",
@@ -102,6 +123,12 @@ public final class MannequinEditMenu extends Menu implements IMannequinScreen {
                         "",
                         "<gray>Click to open."),
                 click -> new HealthScreen(services, viewer, mannequin, this).open());
+
+        band(MenuLayout.RULES, 5, Icons.of(Material.NAME_TAG, "<white>Rename",
+                        "<gray>Called <white>" + mannequin.displayName() + "<gray> now.",
+                        "",
+                        "<gray>Click to type a new name."),
+                click -> askForANewName(mannequin));
 
         band(MenuLayout.RULES, 1, shieldIcon(mannequin), click -> {
             Mannequin updated = mannequin.withBlocksWithShield(!mannequin.blocksWithShield());
@@ -144,6 +171,36 @@ public final class MannequinEditMenu extends Menu implements IMannequinScreen {
                                 viewer.closeInventory();
                             }
                         }).open());
+    }
+
+    /**
+     * Asks in chat, which is the one thing this menu genuinely cannot ask — a name has nothing to
+     * enumerate, so there is no chooser to open, the same reasoning {@code homes-module}'s own
+     * {@code HomeEditMenu.askForANewName} already follows for the same shape of question.
+     */
+    private void askForANewName(Mannequin mannequin) {
+        viewer.closeInventory();
+        boolean asking = services.core().prompts().ask(viewer.getUniqueId(), "mannequin", TO_ANSWER,
+                answer -> {
+                    if (answer == null || answer.isBlank() || answer.equalsIgnoreCase("cancel")) {
+                        services.messages().send(viewer, "mannequin.rename.left-as-it-is");
+                        open();
+                        return;
+                    }
+                    Mannequin updated = mannequin.withDisplayName(answer.trim());
+                    services.mannequins().save(updated);
+                    services.mannequins().liveEntity(id).ifPresent(entity ->
+                            entity.customName(Component.text(updated.displayName())));
+                    services.messages().send(viewer, "mannequin.rename.done", "name", updated.displayName());
+                    open();
+                },
+                this::open);
+        if (!asking) {
+            services.messages().send(viewer, "mannequin.busy");
+            open();
+            return;
+        }
+        services.messages().send(viewer, "mannequin.rename.ask-name");
     }
 
     private ItemStack headerIcon(Mannequin mannequin) {

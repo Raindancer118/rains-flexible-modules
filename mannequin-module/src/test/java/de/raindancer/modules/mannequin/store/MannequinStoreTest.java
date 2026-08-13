@@ -2,6 +2,7 @@ package de.raindancer.modules.mannequin.store;
 
 import de.raindancer.modules.mannequin.model.ItemSpec;
 import de.raindancer.modules.mannequin.model.Mannequin;
+import de.raindancer.modules.mannequin.model.MannequinKind;
 import org.bukkit.Material;
 import org.bukkit.inventory.EquipmentSlot;
 import org.junit.jupiter.api.DisplayName;
@@ -99,6 +100,41 @@ class MannequinStoreTest {
         assertThat(store.delete("MQ1")).isTrue();
 
         assertThat(store.loadAll()).extracting(Mannequin::id).containsExactly("MQ2");
+    }
+
+    @Test
+    @DisplayName("a mannequin's kind round-trips exactly")
+    void kindRoundTrips() {
+        MannequinStore store = new MannequinStore(folder);
+        Mannequin zombie = Mannequin.freshlyPlaced("MQ1", UUID.randomUUID(), "world", 0, 64, 0,
+                MannequinKind.ZOMBIE);
+
+        store.save(zombie);
+
+        assertThat(store.loadAll().getFirst().kind()).isEqualTo(MannequinKind.ZOMBIE);
+    }
+
+    @Test
+    @DisplayName("a file written before kinds existed loads as PLAYER, not a crash")
+    void aFileWithNoKindDefaultsToPlayer() throws Exception {
+        MannequinStore store = new MannequinStore(folder);
+        Files.writeString(store.folder().resolve("MQ1.yml"),
+                "id: MQ1\nowner: " + UUID.randomUUID() + "\nworld: world\nx: 0\ny: 64\nz: 0\n");
+
+        List<Mannequin> loaded = store.loadAll();
+
+        assertThat(loaded).hasSize(1);
+        assertThat(loaded.getFirst().kind()).isEqualTo(MannequinKind.PLAYER);
+    }
+
+    @Test
+    @DisplayName("a garbled kind value falls back to PLAYER rather than throwing")
+    void aGarbledKindDefaultsToPlayer() throws Exception {
+        MannequinStore store = new MannequinStore(folder);
+        Files.writeString(store.folder().resolve("MQ1.yml"),
+                "id: MQ1\nowner: " + UUID.randomUUID() + "\nworld: world\nx: 0\ny: 64\nz: 0\nkind: DRAGON\n");
+
+        assertThat(store.loadAll().getFirst().kind()).isEqualTo(MannequinKind.PLAYER);
     }
 
     @Test

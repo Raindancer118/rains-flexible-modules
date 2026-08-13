@@ -2,6 +2,7 @@ package de.raindancer.modules.mannequin.listener;
 
 import de.raindancer.modules.mannequin.service.MannequinPotionService;
 import de.raindancer.modules.mannequin.store.MannequinRegistry;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 
@@ -33,7 +34,7 @@ public final class MannequinPickupListener implements IMannequinListener {
         if (registry.idFor(event.getEntity().getUniqueId()).isEmpty()) {
             return;
         }
-        if (!(event.getEntity() instanceof org.bukkit.entity.Mannequin mannequin)) {
+        if (!(event.getEntity() instanceof LivingEntity mannequin)) {
             return;
         }
         if (!MannequinPotionService.isRecognised(event.getItem().getItemStack().getType())) {

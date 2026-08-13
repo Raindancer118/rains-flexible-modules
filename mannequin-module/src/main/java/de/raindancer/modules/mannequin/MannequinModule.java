@@ -9,7 +9,9 @@ import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.mannequin.listener.MannequinCombatListener;
 import de.raindancer.modules.mannequin.listener.MannequinDeathListener;
+import de.raindancer.modules.mannequin.listener.MannequinKnockbackListener;
 import de.raindancer.modules.mannequin.listener.MannequinPickupListener;
+import de.raindancer.modules.mannequin.listener.MannequinTargetListener;
 import de.raindancer.modules.mannequin.listener.MannequinWorldListener;
 import de.raindancer.modules.mannequin.model.Mannequin;
 import de.raindancer.modules.mannequin.rules.ComboWindowRule;
@@ -45,7 +47,7 @@ import java.util.List;
  */
 public final class MannequinModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("mannequin", "Mannequin", "1.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("mannequin", "Mannequin", "1.5.0")
             .describedAs("Training dummies an owner spawns and dresses: real health that can be "
                     + "brought down and respawns identically afterwards, every hit tracked, "
                     + "blocking with a shield, and never leaving anything obtainable behind.")
@@ -125,6 +127,8 @@ public final class MannequinModule implements FlexModule {
         context.listener(new MannequinDeathListener(registry, mannequins));
         context.listener(new MannequinPickupListener(registry, potions));
         context.listener(new MannequinWorldListener(mannequins));
+        context.listener(new MannequinKnockbackListener(mannequins));
+        context.listener(new MannequinTargetListener(mannequins));
 
         services = new MannequinServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core().actionBars(), context.core(),
@@ -152,8 +156,6 @@ public final class MannequinModule implements FlexModule {
         MannequinSettings current = settings.current();
         for (Mannequin mannequin : registry.all()) {
             mannequins.liveEntity(mannequin.id())
-                    .filter(org.bukkit.entity.Mannequin.class::isInstance)
-                    .map(org.bukkit.entity.Mannequin.class::cast)
                     .ifPresent(entity -> {
                         if (current.blockingEnabled() && mannequin.blocksWithShield()) {
                             maybeRaiseShield(entity, current);
@@ -164,12 +166,14 @@ public final class MannequinModule implements FlexModule {
     }
 
     /**
-     * A mannequin is inert rather than a pathing mob, so it never walks over to a dropped potion
-     * or golden apple the way a real mob's own AI would — {@code EntityPickupItemEvent} alone
-     * never fired for one. This is the fix: found here on a schedule instead, and consumed through
-     * the exact same {@link MannequinPotionService#tryConsume} the reactive listener also uses.
+     * A mannequin is inert rather than a pathing mob (AI is switched off for every kind but
+     * {@code PLAYER}, which never had any to begin with), so it never walks over to a dropped
+     * potion or golden apple the way a real mob's own AI would — {@code EntityPickupItemEvent}
+     * alone never fired for one. This is the fix: found here on a schedule instead, and consumed
+     * through the exact same {@link MannequinPotionService#tryConsume} the reactive listener also
+     * uses. Works the same for every {@link org.bukkit.entity.LivingEntity} kind this module spawns.
      */
-    private void consumeNearbyConsumables(org.bukkit.entity.Mannequin entity) {
+    private void consumeNearbyConsumables(org.bukkit.entity.LivingEntity entity) {
         for (org.bukkit.entity.Entity nearby
                 : entity.getNearbyEntities(CONSUMABLE_RANGE, CONSUMABLE_RANGE, CONSUMABLE_RANGE)) {
             if (nearby instanceof org.bukkit.entity.Item item) {
@@ -178,7 +182,7 @@ public final class MannequinModule implements FlexModule {
         }
     }
 
-    private void maybeRaiseShield(org.bukkit.entity.Mannequin entity, MannequinSettings current) {
+    private void maybeRaiseShield(org.bukkit.entity.LivingEntity entity, MannequinSettings current) {
         ItemStack offHand = entity.getEquipment().getItemInOffHand();
         boolean hasShield = offHand != null && offHand.getType() == org.bukkit.Material.SHIELD;
         boolean alreadyBlocking = entity.isHandRaised();

@@ -3,6 +3,7 @@ package de.raindancer.modules.mannequin.listener;
 import de.raindancer.modules.mannequin.model.Mannequin;
 import de.raindancer.modules.mannequin.service.MannequinCombatService;
 import de.raindancer.modules.mannequin.store.MannequinRegistry;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -46,7 +47,7 @@ public final class MannequinCombatListener implements IMannequinListener {
         }
         Optional<Mannequin> mannequin = registry.get(id.get());
         if (mannequin.isEmpty() || !(event.getDamager() instanceof Player attacker)
-                || !(event.getEntity() instanceof org.bukkit.entity.Mannequin live)) {
+                || !(event.getEntity() instanceof LivingEntity live)) {
             return;
         }
         combat.recordHit(mannequin.get(), live, attacker, event.getFinalDamage(),
