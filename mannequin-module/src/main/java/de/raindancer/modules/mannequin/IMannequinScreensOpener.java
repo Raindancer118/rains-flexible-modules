@@ -11,6 +11,9 @@ import org.bukkit.entity.Player;
  */
 public interface IMannequinScreensOpener {
 
+    /** Every mannequin this player owns — what bare {@code /mannequin} opens. */
+    void list(Player viewer);
+
     /** Choosing a slot's material and enchants. */
     void loadout(Player viewer, Mannequin mannequin);
 

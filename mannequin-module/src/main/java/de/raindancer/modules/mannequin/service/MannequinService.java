@@ -133,10 +133,18 @@ public final class MannequinService implements IMannequinService {
      * configured delay. The stored record was never touched by the death, so this simply spawns it
      * again — the same path {@link #spawn} always takes, including the durability-rebuild-style
      * equip calls, is what guarantees the replacement is indistinguishable from the original.
+     *
+     * <h2>The training tally survives a death — it used to be wiped here, deliberately</h2>
+     * The first version of this reset {@code registry.resetSession} on every death, on the theory
+     * that a fresh mannequin means a fresh training session. In practice that meant landing a
+     * killing blow was the one hit that erased the evidence it happened: total damage, hit count
+     * and the longest combo a player had actually reached all reported zero right after the
+     * moment they would matter most. A mannequin's own {@code StatsScreen} already has a reset
+     * button, behind a confirmation — that is the one place a tally is meant to be cleared, not a
+     * side effect of the thing the tally exists to measure.
      */
     public void scheduleRespawn(Mannequin mannequin) {
         registry.unbindEntity(mannequin.id());
-        registry.resetSession(mannequin.id());
         long delay = settings.respawnDelayTicks();
         delayedScheduler.schedule(delay, () -> spawn(mannequin));
     }
@@ -182,6 +190,23 @@ public final class MannequinService implements IMannequinService {
         if (block.getType() != Material.BARREL) {
             block.setType(Material.BARREL);
         }
+    }
+
+    /**
+     * Places the barrel a redstone-emitting mannequin needs, right now, without waiting for its
+     * next despawn/respawn cycle.
+     *
+     * <p>Exists because turning {@link Mannequin#emitsRedstoneSignal()} on is something an owner
+     * does from the behaviour screen to an already-live mannequin — {@link #configure} only ever
+     * placed the barrel at spawn time, so a mannequin created before the flag was ever switched on
+     * would never get one and every hit's pulse would silently do nothing (the same reason it never
+     * worked at all before there was any screen to flip the flag with).
+     */
+    public void ensureBarrel(Mannequin mannequin) {
+        if (mannequin == null || !mannequin.emitsRedstoneSignal()) {
+            return;
+        }
+        liveEntity(mannequin.id()).ifPresent(entity -> placeBarrel(entity.getWorld(), mannequin));
     }
 
     /** Removes the live entity, if there is one, without touching the stored record. */

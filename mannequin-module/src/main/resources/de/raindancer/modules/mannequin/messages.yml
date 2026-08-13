@@ -16,6 +16,7 @@ mannequin:
 
   remove:
     no-permission: "<red>That is not your mannequin to remove."
+    are-you-sure: "<yellow>This removes <white><id></white> for good. Type /mannequin remove <id> confirm to do it."
     done: "<green>Removed mannequin <white><id></white>."
 
   list:

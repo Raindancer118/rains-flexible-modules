@@ -18,6 +18,7 @@ import de.raindancer.modules.mannequin.rules.LethalHitRule;
 import de.raindancer.modules.mannequin.rules.ShieldBlockRule;
 import de.raindancer.modules.mannequin.rules.SignalStrengthRule;
 import de.raindancer.modules.mannequin.screen.LoadoutScreen;
+import de.raindancer.modules.mannequin.screen.MannequinListMenu;
 import de.raindancer.modules.mannequin.screen.SkinScreen;
 import de.raindancer.modules.mannequin.screen.StatsScreen;
 import de.raindancer.modules.mannequin.service.MannequinCombatService;
@@ -51,13 +52,24 @@ public final class MannequinModule implements FlexModule {
                     + "blocking with a shield, and never leaving anything obtainable behind.")
             .by("Raindancer118");
 
-    /** How often the shield-block check runs — a few times a second is plenty for a raised arm. */
-    private static final long SHIELD_CHECK_TICKS = 10L;
+    /**
+     * How often the periodic upkeep runs — the shield-block check and the consumable sweep both
+     * ride the same timer, a few times a second being plenty for either.
+     */
+    private static final long UPKEEP_TICKS = 10L;
+
+    /**
+     * How close a dropped potion or golden apple has to land to count as "at its feet" — a
+     * mannequin never walks to fetch one, so this only needs to cover an item thrown or dropped
+     * right beside it.
+     */
+    private static final double CONSUMABLE_RANGE = 1.5;
 
     private LogChannel log;
     private SettingsStore<MannequinSettings> settings;
     private MannequinRegistry registry;
     private MannequinService mannequins;
+    private MannequinPotionService potions;
     private MannequinServices services;
     private final ShieldBlockRule shieldBlockRule = new ShieldBlockRule();
 
@@ -89,7 +101,7 @@ public final class MannequinModule implements FlexModule {
 
         MannequinEquipService equip = new MannequinEquipService(new DurabilityRule(), settings.current());
         MannequinRedstoneService redstone = new MannequinRedstoneService(context.plugin(), settings.current());
-        MannequinPotionService potion = new MannequinPotionService(settings.current());
+        potions = new MannequinPotionService(settings.current());
         MannequinCombatService combat = new MannequinCombatService(registry, equip, redstone,
                 context.core().actionBars(), new ComboWindowRule(), new LethalHitRule(),
                 new SignalStrengthRule(), settings.current());
@@ -100,7 +112,7 @@ public final class MannequinModule implements FlexModule {
 
         settings.onChange(equip::settings);
         settings.onChange(redstone::settings);
-        settings.onChange(potion::settings);
+        settings.onChange(potions::settings);
         settings.onChange(combat::settings);
         settings.onChange(mannequins::settings);
 
@@ -112,19 +124,19 @@ public final class MannequinModule implements FlexModule {
 
         context.listener(new MannequinCombatListener(registry, combat));
         context.listener(new MannequinDeathListener(registry, mannequins));
-        context.listener(new MannequinPickupListener(registry, potion));
+        context.listener(new MannequinPickupListener(registry, potions));
         context.listener(new MannequinWorldListener(mannequins));
 
         services = new MannequinServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core().actionBars(), settings::current, settings,
-                registry, mannequins, equip, redstone, potion, combat, new LiveScreens());
+                registry, mannequins, equip, redstone, potions, combat, new LiveScreens());
 
         MannequinCommands.ready(services);
 
-        var shieldTimer = Scheduling.globalTimer(context.plugin(), SHIELD_CHECK_TICKS, SHIELD_CHECK_TICKS,
-                task -> checkShields());
-        if (shieldTimer != null) {
-            context.closeWith(shieldTimer::cancel);
+        var upkeepTimer = Scheduling.globalTimer(context.plugin(), UPKEEP_TICKS, UPKEEP_TICKS,
+                task -> periodicUpkeep());
+        if (upkeepTimer != null) {
+            context.closeWith(upkeepTimer::cancel);
         }
 
         log.info("Mannequins are up: {} loaded, combo window {}ms, one-shot threshold {}.",
@@ -132,22 +144,37 @@ public final class MannequinModule implements FlexModule {
     }
 
     /**
-     * The periodic shield-block check requirement 6 asks for: a mannequin holding a shield raises
-     * it whenever a player is close enough and it is not already blocking.
+     * Everything a live mannequin needs done to it on a schedule rather than in response to an
+     * event: raising a shield it holds, and consuming a potion or golden apple dropped near it.
+     * One timer rather than two, since both walk the same {@code registry.all()} on the same tick.
      */
-    private void checkShields() {
+    private void periodicUpkeep() {
         MannequinSettings current = settings.current();
-        if (!current.blockingEnabled()) {
-            return;
-        }
         for (Mannequin mannequin : registry.all()) {
-            if (!mannequin.blocksWithShield()) {
-                continue;
-            }
             mannequins.liveEntity(mannequin.id())
                     .filter(org.bukkit.entity.Mannequin.class::isInstance)
                     .map(org.bukkit.entity.Mannequin.class::cast)
-                    .ifPresent(entity -> maybeRaiseShield(entity, current));
+                    .ifPresent(entity -> {
+                        if (current.blockingEnabled() && mannequin.blocksWithShield()) {
+                            maybeRaiseShield(entity, current);
+                        }
+                        consumeNearbyConsumables(entity);
+                    });
+        }
+    }
+
+    /**
+     * A mannequin is inert rather than a pathing mob, so it never walks over to a dropped potion
+     * or golden apple the way a real mob's own AI would — {@code EntityPickupItemEvent} alone
+     * never fired for one. This is the fix: found here on a schedule instead, and consumed through
+     * the exact same {@link MannequinPotionService#tryConsume} the reactive listener also uses.
+     */
+    private void consumeNearbyConsumables(org.bukkit.entity.Mannequin entity) {
+        for (org.bukkit.entity.Entity nearby
+                : entity.getNearbyEntities(CONSUMABLE_RANGE, CONSUMABLE_RANGE, CONSUMABLE_RANGE)) {
+            if (nearby instanceof org.bukkit.entity.Item item) {
+                potions.tryConsume(entity, item);
+            }
         }
     }
 
@@ -169,6 +196,13 @@ public final class MannequinModule implements FlexModule {
 
     /** Opening this module's screens, without the command or a listener knowing the menu classes. */
     private final class LiveScreens implements IMannequinScreensOpener {
+
+        @Override
+        public void list(Player viewer) {
+            // null parent: this is an entry point from a command, and Core draws no Back button on
+            // a parentless menu — right, since there is nowhere behind it to go back to.
+            new MannequinListMenu(services, viewer, null).open();
+        }
 
         @Override
         public void loadout(Player viewer, Mannequin mannequin) {

@@ -19,6 +19,13 @@ import java.util.function.Supplier;
 /**
  * {@code /mannequin create|remove|loadout|skin|stats|list} — everything typing is faster for than
  * clicking through a menu, or that takes an argument a menu cannot ask for (an id).
+ *
+ * <h2>{@code remove} confirms the same way {@code farmworld-module}'s {@code delete} does</h2>
+ * {@code /mannequin remove <id> confirm} — a bare {@code /mannequin remove <id>} says what would
+ * happen and stops there. Tab completion deliberately never offers the word {@code confirm}
+ * itself, so it has to be typed on purpose rather than tabbed past. The GUI's own remove button
+ * already confirms through a page; a command with the same effect and no confirmation at all would
+ * be a second, weaker entrance to the same irreversible action.
  */
 public final class MannequinCommand implements IMannequinCommand {
 
@@ -38,13 +45,19 @@ public final class MannequinCommand implements IMannequinCommand {
         CommandSender sender = source.getSender();
 
         if (args.length == 0) {
+            // The same door /claim and /home open bare: whichever answer is right for everybody,
+            // rather than a guess about which mannequin somebody meant.
+            if (sender instanceof Player player) {
+                live.screens().list(player);
+                return;
+            }
             live.messages().send(sender, "mannequin.usage");
             return;
         }
         String sub = args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
             case "create" -> create(live, sender);
-            case "remove" -> withMannequin(live, sender, args, this::remove);
+            case "remove" -> withMannequin(live, sender, args, (l, p, m) -> remove(l, p, m, args));
             case "loadout" -> withMannequin(live, sender, args, (l, p, m) -> l.screens().loadout(p, m));
             case "skin" -> withMannequin(live, sender, args, (l, p, m) -> l.screens().skin(p, m));
             case "stats" -> withMannequin(live, sender, args, (l, p, m) -> l.screens().stats(p, m));
@@ -68,10 +81,14 @@ public final class MannequinCommand implements IMannequinCommand {
         live.messages().send(sender, "mannequin.create.done", "id", created.id());
     }
 
-    private void remove(MannequinServices live, Player player, Mannequin mannequin) {
+    private void remove(MannequinServices live, Player player, Mannequin mannequin, String[] args) {
         boolean owns = mannequin.owner().equals(player.getUniqueId());
         if (!owns && !player.hasPermission(PermissionNodes.REMOVE_ANY)) {
             live.messages().send(player, "mannequin.remove.no-permission");
+            return;
+        }
+        if (args.length < 3 || !args[2].equalsIgnoreCase("confirm")) {
+            live.messages().send(player, "mannequin.remove.are-you-sure", "id", mannequin.id());
             return;
         }
         live.mannequins().remove(mannequin.id());

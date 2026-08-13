@@ -53,14 +53,13 @@ class MannequinServiceRespawnTest {
     }
 
     @Test
-    @DisplayName("the live-entity binding and training tally are cleared right away, not after the delay")
-    void clearsStateImmediately() {
+    @DisplayName("the live-entity binding is cleared right away, not after the delay")
+    void clearsTheBindingImmediately() {
         MannequinSettings settings = MannequinSettings.DEFAULTS;
         MannequinRegistry registry = new MannequinRegistry();
         Mannequin mannequin = Mannequin.freshlyPlaced("MQ1", UUID.randomUUID(), "world", 0, 64, 0);
         registry.put(mannequin);
         registry.bindEntity("MQ1", UUID.randomUUID());
-        registry.updateSession("MQ1", registry.sessionFor("MQ1").hit(15.0, 1000L, false));
 
         MannequinService service = new MannequinService(null, null, registry,
                 new MannequinStore(folder), new MannequinEquipService(new DurabilityRule(), settings),
@@ -70,10 +69,31 @@ class MannequinServiceRespawnTest {
         service.scheduleRespawn(mannequin);
 
         assertThat(registry.liveEntity("MQ1")).isEmpty();
-        assertThat(registry.sessionFor("MQ1").hitCount()).isZero();
         // The stored record itself must survive a death — a respawn resurrects it, it does not
         // recreate a mannequin from nothing.
         assertThat(registry.get("MQ1")).isPresent();
+    }
+
+    @Test
+    @DisplayName("the training tally survives a death — only the reset button clears it")
+    void trainingTallySurvivesADeath() {
+        MannequinSettings settings = MannequinSettings.DEFAULTS;
+        MannequinRegistry registry = new MannequinRegistry();
+        Mannequin mannequin = Mannequin.freshlyPlaced("MQ1", UUID.randomUUID(), "world", 0, 64, 0);
+        registry.put(mannequin);
+        registry.bindEntity("MQ1", UUID.randomUUID());
+        registry.updateSession("MQ1", registry.sessionFor("MQ1").hit(15.0, 1000L, false));
+
+        MannequinService service = new MannequinService(null, null, registry,
+                new MannequinStore(folder), new MannequinEquipService(new DurabilityRule(), settings),
+                (delay, task) -> { }, settings);
+
+        service.scheduleRespawn(mannequin);
+
+        // The killing blow itself must still be on the tally afterward — landing it is not the one
+        // hit that erases the evidence it happened.
+        assertThat(registry.sessionFor("MQ1").hitCount()).isEqualTo(1);
+        assertThat(registry.sessionFor("MQ1").totalDamage()).isEqualTo(15.0);
     }
 
     @Test
