@@ -11,18 +11,31 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
+import java.time.Duration;
 import java.util.List;
 
 /**
- * Choosing whose skin a mannequin wears, via Core's {@link PlayerChooser}, or resetting to
- * vanilla's default profile.
+ * Choosing whose skin a mannequin wears: Core's {@link PlayerChooser} for anybody who has already
+ * joined this server, a typed username for anybody who has not, or resetting to vanilla's own
+ * default profile.
+ *
+ * <h2>Why a typed username exists on a page that otherwise never asks for one</h2>
+ * {@link PlayerChooser} can only offer players this server already knows about — {@code
+ * Bukkit.getOfflinePlayers()} is the whole list, and somebody who has never connected here (a
+ * well-known player picked as a joke, a friend from a different server) is not on it at any page
+ * or in any search. This project's own rule for choosers — never ask for a name in chat — carries
+ * its own stated exception for exactly this shape of question: nothing bounded to enumerate. A
+ * duration is one example already in use elsewhere; a global Minecraft username is another.
  */
 public final class SkinScreen extends Menu implements IMannequinScreen {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
+    /** How long somebody has to type a username before the question is dropped. */
+    private static final Duration TO_ANSWER = Duration.ofSeconds(60);
+
     private final MannequinServices services;
-    private final Mannequin mannequin;
+    private Mannequin mannequin;
 
     public SkinScreen(MannequinServices services, Player viewer, Mannequin mannequin, Menu parent) {
         super(viewer, services.brand(), parent, 3);
@@ -56,6 +69,50 @@ public final class SkinScreen extends Menu implements IMannequinScreen {
         band(MenuLayout.WHO, 5, Icons.of(Material.BARRIER, "<yellow>Reset to default",
                         "<gray>Vanilla's own default mannequin profile."),
                 click -> applySkin(null));
+
+        band(MenuLayout.WHO, 7, Icons.of(Material.WRITABLE_BOOK, "<aqua>Type a username",
+                        "<gray>Anybody in Minecraft, even somebody",
+                        "<gray>who has never joined this server.",
+                        "",
+                        "<gray>Click to type a name."),
+                click -> askForUsername());
+    }
+
+    /**
+     * Asks in chat, which is the one thing this menu genuinely cannot ask — see the class doc for
+     * why a global username is exactly the shape of question a chooser cannot enumerate.
+     */
+    private void askForUsername() {
+        viewer.closeInventory();
+        boolean asking = services.core().prompts().ask(viewer.getUniqueId(), "mannequin", TO_ANSWER,
+                answer -> {
+                    if (answer == null || answer.isBlank() || answer.equalsIgnoreCase("cancel")) {
+                        services.messages().send(viewer, "mannequin.skin.left-as-it-is");
+                        open();
+                        return;
+                    }
+                    services.messages().send(viewer, "mannequin.skin.looking-up", "name", answer);
+                    services.mannequins().lookupAndApplySkinByUsername(mannequin.id(), answer,
+                            resolvedName -> {
+                                services.messages().send(viewer, "mannequin.skin.found",
+                                        "name", resolvedName);
+                                services.registry().get(mannequin.id())
+                                        .ifPresent(current -> mannequin = current);
+                                open();
+                            },
+                            () -> {
+                                services.messages().send(viewer, "mannequin.skin.not-found",
+                                        "name", answer);
+                                open();
+                            });
+                },
+                this::open);
+        if (!asking) {
+            services.messages().send(viewer, "mannequin.busy");
+            open();
+            return;
+        }
+        services.messages().send(viewer, "mannequin.skin.ask-name");
     }
 
     /**

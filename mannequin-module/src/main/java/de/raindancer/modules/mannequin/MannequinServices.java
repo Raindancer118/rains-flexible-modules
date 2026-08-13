@@ -1,5 +1,6 @@
 package de.raindancer.modules.mannequin;
 
+import de.raindancer.core.RainsCore;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.actionbar.ActionBars;
@@ -27,6 +28,7 @@ public record MannequinServices(
         Messages messages,
         Brand brand,
         ActionBars actionBars,
+        RainsCore core,
 
         Supplier<MannequinSettings> settings,
         SettingsStore<MannequinSettings> store,

@@ -1,6 +1,7 @@
 package de.raindancer.modules.mannequin.service;
 
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.mannequin.MannequinSettings;
 import de.raindancer.modules.mannequin.model.ItemSpec;
 import de.raindancer.modules.mannequin.model.Mannequin;
@@ -216,9 +217,65 @@ public final class MannequinService implements IMannequinService {
             // mannequin that died and respawned in the meantime just does not get the upgrade,
             // which is fine for a best-effort skin refresh.
             profile.update().thenAcceptAsync(updated ->
-                    de.raindancer.core.platform.util.Scheduling.entity(plugin, entity,
+                    Scheduling.entity(plugin, entity,
                             () -> entity.setProfile(ResolvableProfile.resolvableProfile(updated))));
         }
+    }
+
+    /**
+     * Looks somebody up by username — including somebody who has never joined this server at all,
+     * like a well-known player picked as a joke or a friend from elsewhere — and applies their
+     * skin once Mojang answers.
+     *
+     * <h2>Why this exists alongside {@link #applySkin}</h2>
+     * {@code screen.SkinScreen}'s {@link de.raindancer.core.ui.choose.PlayerChooser} can only ever
+     * offer players {@code Bukkit.getOfflinePlayers()} already knows about — everybody who has
+     * actually connected to <em>this</em> server before. That chooser deliberately never became "a
+     * text box that asks Mojang" because typing a name is the exact failure mode {@code
+     * PlayerChooser}'s own javadoc exists to avoid for anyone already on the list. Someone who has
+     * never joined is not on any list this server could enumerate, though — {@code
+     * PlayerChooser}'s own project convention allows exactly this: "a duration or a reason may
+     * still be a chat prompt … nothing to enumerate." A global username has nothing to enumerate.
+     *
+     * <p>Always asynchronous — {@code PlayerProfile#update()} is a real Mojang network call — and
+     * the mannequin is only touched once back on its own region thread. A mannequin removed, or
+     * whose world has since unloaded, while the lookup was in flight is handled by re-reading the
+     * registry rather than trusting a captured reference.
+     *
+     * @param mannequinId  which mannequin this applies to, looked up fresh once the answer arrives
+     * @param username     what was typed
+     * @param onResolved   told the name that was actually found, once the skin has been applied
+     * @param onNotFound   told nothing was found for that name (a typo, or nobody by that name exists)
+     */
+    public void lookupAndApplySkinByUsername(String mannequinId, String username,
+                                             java.util.function.Consumer<String> onResolved,
+                                             Runnable onNotFound) {
+        if (plugin == null || mannequinId == null || username == null || username.isBlank()) {
+            if (onNotFound != null) {
+                onNotFound.run();
+            }
+            return;
+        }
+        var candidate = Bukkit.createProfile(username.trim());
+        candidate.update().whenCompleteAsync((resolved, error) -> Scheduling.global(plugin, () -> {
+            if (error != null || resolved == null || resolved.getId() == null || !resolved.hasTextures()) {
+                if (onNotFound != null) {
+                    onNotFound.run();
+                }
+                return;
+            }
+            registry.get(mannequinId).ifPresent(mannequin -> {
+                Mannequin updated = mannequin.withSkinSource(resolved.getId());
+                save(updated);
+                liveEntity(mannequinId)
+                        .filter(org.bukkit.entity.Mannequin.class::isInstance)
+                        .map(org.bukkit.entity.Mannequin.class::cast)
+                        .ifPresent(live -> live.setProfile(ResolvableProfile.resolvableProfile(resolved)));
+            });
+            if (onResolved != null) {
+                onResolved.accept(resolved.getName());
+            }
+        }));
     }
 
     /** The container an opted-in mannequin's redstone pulse is written to — directly under it. */

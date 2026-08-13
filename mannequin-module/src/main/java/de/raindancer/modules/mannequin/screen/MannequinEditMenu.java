@@ -110,9 +110,18 @@ public final class MannequinEditMenu extends Menu implements IMannequinScreen {
         });
 
         band(MenuLayout.RULES, 3, redstoneIcon(mannequin), click -> {
-            Mannequin updated = mannequin.withEmitsRedstoneSignal(!mannequin.emitsRedstoneSignal());
+            boolean nowOn = !mannequin.emitsRedstoneSignal();
+            Mannequin updated = mannequin.withEmitsRedstoneSignal(nowOn);
             services.mannequins().save(updated);
             services.mannequins().ensureBarrel(updated);
+            if (nowOn) {
+                // The barrel is easy to build a comparator against wrong: it sits one full block
+                // under where the mannequin stands, not beside its feet at the surface — a
+                // comparator one level too high reads nothing at all. Told in exact coordinates
+                // because "underneath it" is not specific enough to get right on the first try.
+                services.messages().send(viewer, "mannequin.redstone.barrel-at",
+                        "x", updated.x(), "y", updated.barrelY(), "z", updated.z());
+            }
             refresh();
         });
 
@@ -158,12 +167,23 @@ public final class MannequinEditMenu extends Menu implements IMannequinScreen {
 
     private ItemStack redstoneIcon(Mannequin mannequin) {
         boolean on = mannequin.emitsRedstoneSignal();
-        return Icons.of(Material.COMPARATOR, (on ? "<green>" : "<gray>") + "Redstone signal",
-                on ? "<gray>A barrel under it pulses 0-15, read by a"
-                        : "<gray>No barrel is placed or read for this one.",
-                on ? "<gray>comparator, scaled to how hard the last hit was." : "",
+        if (!on) {
+            return Icons.of(Material.COMPARATOR, "<gray>Redstone signal",
+                    "<gray>No barrel is placed or read for this one.",
+                    "",
+                    "<gray>Click to turn on.");
+        }
+        return Icons.of(Material.COMPARATOR, "<green>Redstone signal",
+                "<gray>A barrel one block directly under it",
+                "<gray>pulses 0-15, scaled to how hard the last",
+                "<gray>hit was — build a comparator beside the",
+                "<gray>barrel itself, at its own height, not at",
+                "<gray>the mannequin's feet.",
                 "",
-                "<gray>Click to " + (on ? "turn off" : "turn on") + ".");
+                "<gray>" + mannequin.world() + " " + mannequin.x() + " "
+                        + mannequin.barrelY() + " " + mannequin.z(),
+                "",
+                "<gray>Click to turn off.");
     }
 
     @Override

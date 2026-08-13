@@ -95,13 +95,18 @@ public final class MannequinRedstoneService implements IMannequinService {
      */
     public void pulse(Block barrel, int desiredSignal, long clearAfterTicks) {
         if (barrel == null || !(barrel.getState() instanceof Barrel state)) {
+            log.debug("[redstone] pulse skipped: block at {} is not a barrel (was it broken?).",
+                    barrel == null ? "null" : barrel.getLocation());
             return;
         }
         Inventory inventory = state.getInventory();
         inventory.clear();
-        fill(inventory, itemsForSignal(desiredSignal, inventory.getSize()));
+        int items = itemsForSignal(desiredSignal, inventory.getSize());
+        fill(inventory, items);
         state.update();
         refreshAdjacentComparators(barrel);
+        log.debug("[redstone] pulse at {}: signal {} -> {} item(s), for {} tick(s).",
+                barrel.getLocation(), desiredSignal, items, clearAfterTicks);
 
         if (plugin == null) {
             return;
@@ -130,24 +135,28 @@ public final class MannequinRedstoneService implements IMannequinService {
     }
 
     /**
-     * Forces every comparator directly beside the barrel to re-check it, right now.
+     * Forces every comparator directly beside the barrel to re-check it, right now — defence in
+     * depth alongside {@code state.update()}'s own physics update, not a replacement for it.
      *
-     * <h2>Why this call exists at all — this is the fix for the signal never firing</h2>
-     * Confirmed and still open as
-     * <a href="https://github.com/PaperMC/Paper/issues/505">PaperMC/Paper#505</a>: an optimisation
-     * in Paper's own hopper handling means a container's comparator does <em>not</em> recheck the
-     * container just because the container's block state was updated — {@code state.update()} on
-     * the barrel notifies the barrel's own neighbours in the generic physics sense, and that is
-     * exactly the path the linked optimisation short-circuits for a comparator specifically. A
-     * maintainer's own comment on that issue names the actual fix: "force a block update on the
-     * comparator (like placing a block beside it)" — the comparator's <em>own</em> block state has
-     * to be told to update, not the container's. Without this, filling the barrel through the
-     * Bukkit API silently changes what a comparator would report if asked, without ever asking it.
-     *
-     * <p>Package-private rather than {@code private}: this half of {@link #pulse} needs only a
-     * {@link Block}, unlike the rest of it, which constructs a live-server-only {@link ItemStack}
-     * via {@link #fill} and so cannot run under a plain unit test at all — visible so {@code
-     * MannequinRedstoneServiceTest} can exercise this specific behaviour with mocks alone.
+     * <h2>A correction, left here so the mistake is not repeated</h2>
+     * An earlier version of this class cited
+     * <a href="https://github.com/PaperMC/Paper/issues/505">PaperMC/Paper#505</a> as a "confirmed,
+     * still open" Paper bug that made this call necessary. That was wrong on the one fact that
+     * actually mattered: the issue was closed as fixed in 2016, a decade before this module existed
+     * — whatever was stopping a comparator from noticing an API-driven container change on old
+     * Paper builds should already be gone on 26.2, and {@code state.update()}'s own "trigger a
+     * physics update to surrounding blocks" ought to be enough on its own. This call stays anyway,
+     * because it costs nothing and directly targets the one block that actually matters if some
+     * other, unrelated reason keeps a comparator from rechecking — but if the redstone signal is
+     * still not appearing after this, <strong>the actual fault is almost certainly not this
+     * method</strong>. Read {@link #pulse}'s debug log line first: it says the exact block the
+     * barrel sits at and how many items were placed. If that line shows a sane item count at the
+     * expected coordinates and a comparator still reads nothing, the comparator is very likely not
+     * actually touching that barrel — it has to sit at <em>the same Y level as the barrel itself</em>,
+     * on one of its four horizontal sides, facing toward it; one level above (at the mannequin's own
+     * feet height) reads nothing at all, which is an easy mistake to make since {@link
+     * de.raindancer.modules.mannequin.service.MannequinService}'s barrel sits one full block
+     * <em>under</em> where the mannequin stands.
      */
     static void refreshAdjacentComparators(Block barrel) {
         for (BlockFace side : COMPARATOR_SIDES) {

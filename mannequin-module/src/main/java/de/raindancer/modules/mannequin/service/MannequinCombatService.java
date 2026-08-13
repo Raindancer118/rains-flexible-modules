@@ -12,7 +12,6 @@ import de.raindancer.modules.mannequin.store.MannequinRegistry;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
-import org.bukkit.block.Barrel;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
@@ -95,7 +94,10 @@ public final class MannequinCombatService implements IMannequinService {
 
         if (mannequin.emitsRedstoneSignal()) {
             Block barrel = entity.getWorld().getBlockAt(mannequin.x(), mannequin.barrelY(), mannequin.z());
-            if (barrel.getState() instanceof Barrel || barrel.getType() == Material.AIR) {
+            // Was: "instanceof Barrel || getType() == AIR" — the AIR branch called pulse() on a
+            // block pulse() itself immediately no-ops for (see its own debug log line), so it never
+            // did anything; simplified to the one condition that was ever real.
+            if (barrel.getType() == Material.BARREL) {
                 redstone.pulse(barrel, signal, current.redstonePulseTicksClamped());
             }
         }

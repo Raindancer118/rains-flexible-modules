@@ -54,8 +54,20 @@
           player" hit feedback — it made sense while a mannequin could not die at all; now that it
           can, the dummy dying already says that, and a dummy with more health surviving a
           "lethal" hit had nothing on screen explaining why.
+
+          1.3.0: added a "type a username" option to the skin screen — the player chooser can only
+          ever offer somebody who has already joined this server, so anybody else (Notch, a friend
+          from elsewhere) was simply not reachable; resolved through Paper's own async profile
+          lookup, the same one vanilla uses. Corrected a mistaken claim in 1.2.0's own code comment
+          that PaperMC/Paper#505 was "confirmed, still open" — it was closed as fixed in 2016, so
+          the comparator-refresh workaround from that release stays as harmless defence in depth
+          rather than the actual fix it was described as. Added a debug log line to every redstone
+          pulse (exact block, item count, tick length) and put the barrel's exact coordinates in
+          front of the owner the moment the signal is switched on, since the most likely real
+          reason a comparator reads nothing is a build one block too high — the barrel sits a full
+          block under the mannequin's feet, not beside them.
         -->
-        <plugin.version>1.2.0</plugin.version>
+        <plugin.version>1.3.0</plugin.version>
     </properties>
 
     <dependencies>

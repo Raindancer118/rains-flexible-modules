@@ -9,6 +9,17 @@ mannequin:
   only-a-player: "<red>Only a player standing in the world can do that."
   missing-id: "<red>Which one? /mannequin <remove|loadout|skin|stats> <id>"
   unknown-id: "<red>There is no mannequin called <white><id></white>."
+  busy: "<red>You are already being asked something else."
+
+  redstone:
+    barrel-at: "<yellow>The barrel is at <white><x> <y> <z></white>. Build a comparator beside it, at that exact height."
+
+  skin:
+    ask-name: "<gray>Type a Minecraft username, or 'cancel'."
+    left-as-it-is: "<gray>Left as it was."
+    looking-up: "<gray>Looking up <white><name></white>…"
+    found: "<green>Found <white><name></white> — applying their skin."
+    not-found: "<red>Nobody called <white><name></white> could be found."
 
   create:
     no-permission: "<red>You may not create a mannequin here."
