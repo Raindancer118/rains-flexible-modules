@@ -37,7 +37,22 @@ KEEP=0
 [ "${1:-}" = "--keep" ] && KEEP=1
 
 WORKDIR="$(mktemp -d /tmp/rains-live-server-test.XXXXXX)"
+# Set by boot_once() while a server is actually up, so any exit — a timeout, a failed check, this
+# script being killed — can still stop it. A run that failed after the "Done" check used to leave
+# the java process running and holding the port, which then made the *next* run fail with
+# "Failed to bind to port" for a completely unrelated reason — a real incident this exact script
+# caused once, on the boot right after it had just caught a real bug.
+RUNNING_SERVER_PID=""
 cleanup() {
+  if [ -n "$RUNNING_SERVER_PID" ] && kill -0 "$RUNNING_SERVER_PID" 2>/dev/null; then
+    echo "[live-server-test] cleanup: stopping still-running server (pid $RUNNING_SERVER_PID)"
+    kill "$RUNNING_SERVER_PID" 2>/dev/null || true
+    for _ in $(seq 1 15); do
+      kill -0 "$RUNNING_SERVER_PID" 2>/dev/null || break
+      sleep 1
+    done
+    kill -9 "$RUNNING_SERVER_PID" 2>/dev/null || true
+  fi
   if [ "$KEEP" = "1" ]; then
     echo "Kept server directory at: $WORKDIR"
   else
@@ -111,9 +126,15 @@ boot_once() {
   rm -f "$logfile"
 
   log "Boot ($label): starting the server …"
-  ( cd "$SERVER_DIR" && java -Xmx2G -jar paper.jar --nogui \
-      > "$SERVER_DIR/stdout-$label.log" 2>&1 & echo $! > "$SERVER_DIR/server.pid" )
-  local pid; pid="$(cat "$SERVER_DIR/server.pid")"
+  # exec inside the subshell replaces that subshell's own process with java, so $! backgrounding
+  # the whole "( … )" is unambiguously java's actual PID — not a wrapper shell that "cd … && java
+  # … &" can leave behind depending on how bash forks a backgrounded list inside a function's own
+  # subshell. That mismatch is exactly what let an earlier version of this script kill the wrong
+  # PID on cleanup and leave the real server running, silently, holding the port for the next run.
+  ( cd "$SERVER_DIR" && exec java -Xmx2G -jar paper.jar --nogui \
+      > "$SERVER_DIR/stdout-$label.log" 2>&1 ) &
+  local pid=$!
+  RUNNING_SERVER_PID="$pid"
 
   local waited=0
   until [ -f "$logfile" ] && grep -qE '\]: Done \(' "$logfile" 2>/dev/null; do
@@ -133,6 +154,16 @@ boot_once() {
   done
   log "Boot ($label): reached 'Done' after ${waited}s"
 
+  # RainsCoreTestPlugin's report() is itself scheduled a couple of ticks after its onEnable
+  # returns — deliberately, so it can wait on thread probes without blocking the very thread that
+  # has to run them — so it has not necessarily printed the instant "Done" appears in the log.
+  # Checking immediately here raced it exactly once and reported a false "it did not run".
+  local report_waited=0
+  until grep -q 'RAINSCORE-TEST-RESULT:' "$logfile" 2>/dev/null || [ "$report_waited" -ge 15 ]; do
+    sleep 1
+    report_waited=$((report_waited + 1))
+  done
+
   # RainsCoreTestPlugin's own in-server oracle.
   if grep -q 'RAINSCORE-TEST-RESULT: ALL .* CHECKS PASSED' "$logfile"; then
     log "Boot ($label): RainsCoreTestPlugin — all checks passed"
@@ -144,13 +175,29 @@ boot_once() {
     fail "Boot ($label): RainsCoreTestPlugin never printed a RAINSCORE-TEST-RESULT line — it did not run"
   fi
 
-  # A stray uncaught exception anywhere in the log is a real failure. The handful of deliberate
-  # resilience tests (corrupted-file recovery) log a WARNUNG, never a Java stack trace, so this
-  # stays a clean signal rather than something that has to allowlist test fixtures.
-  if grep -qE '^\s+at [a-zA-Z0-9_.$]+\(' "$logfile"; then
-    log "── a stack trace appeared in the server log: ──"
-    grep -B5 -E '^\s+at [a-zA-Z0-9_.$]+\(' "$logfile" | head -60
-    fail "Boot ($label): an uncaught exception was logged"
+  # A plugin that failed to enable, or a server that crashed outright, is a real failure — checked
+  # by the specific banners Bukkit/Paper print for exactly those two things, not by "a stack trace
+  # appeared anywhere in the log". That broader check sounded right and was not: RainsCoreTestPlugin
+  # deliberately writes a row with a bogus foreign key to prove the real SQLite engine enforces the
+  # constraint, RainsCore's own Database.write logs the resulting SQLiteException at ERROR level as
+  # standard rollback diagnostics, and the test then asserts on exactly that refusal — a stack trace
+  # that is the passing test, not a crash. RainsCoreTestPlugin's own RAINSCORE-TEST-RESULT above is
+  # what actually judges that case; this only ever needs to catch what it alone cannot see.
+  if grep -qE '^\[.*ERROR\]: Error occurred while enabling |Encountered an unexpected exception' \
+      "$logfile"; then
+    log "── the server logged a plugin-enable failure or a crash: ──"
+    grep -B2 -A20 -E 'Error occurred while enabling |Encountered an unexpected exception' \
+      "$logfile" | head -80
+    fail "Boot ($label): a plugin failed to enable, or the server crashed"
+  fi
+
+  # A module skipped for a "requires" that turned out not to be satisfied — the exact shape of the
+  # chained/speedrun incident this pipeline's first real runs found. WARN, not ERROR, so the check
+  # above never catches it on its own.
+  if grep -q 'was not started — requires' "$logfile"; then
+    log "── a module was skipped for an unsatisfied requirement: ──"
+    grep 'was not started — requires' "$logfile"
+    fail "Boot ($label): a module refused to start because a requirement was not satisfied"
   fi
 
   # Every YAML file a plugin wrote still has to parse. A ".broken-" file is the plugin's own,
@@ -179,6 +226,7 @@ boot_once() {
     kill "$pid" 2>/dev/null || true
     fail "Boot ($label): did not shut down within ${SHUTDOWN_TIMEOUT}s of 'stop'"
   fi
+  RUNNING_SERVER_PID=""
   log "Boot ($label): shut down cleanly"
 }
 
