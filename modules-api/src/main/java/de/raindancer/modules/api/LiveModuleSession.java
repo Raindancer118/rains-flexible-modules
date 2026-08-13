@@ -127,8 +127,14 @@ public final class LiveModuleSession implements ModuleSession {
 
         @Override
         public <T> SettingsStore<T> settings(Class<T> type, T defaults) {
-            return core().settingsFor(SettingsSchema.of(type, defaults),
+            SettingsStore<T> store = core().settingsFor(SettingsSchema.of(type, defaults),
                     host.layout().configFor(module.info()));
+            // Undone the same way a listener is. enable() can still throw after this line, and a module
+            // that never finished starting must not leave its settings looking like a running feature in
+            // Core's menu — see RainsCore.forgetSettings. Disabling later removes it for the same reason:
+            // a module that has stopped is not one whose config a player should be able to open.
+            unwind.add(() -> core().forgetSettings(store));
+            return store;
         }
 
         @Override
