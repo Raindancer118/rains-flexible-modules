@@ -1,0 +1,42 @@
+# Rain's World Gate — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins, and so
+# does a host's bundled wording. See Messages.defineFrom.
+#
+# Two things MessagesTest holds against this file, both of which have gone wrong before in this
+# project's other modules:
+#
+#   - Every placeholder a line asks for is supplied where it is sent, and nothing is supplied in
+#     vain. An unfilled <count> is printed as written, mid-sentence, and reads to a player as a
+#     broken plugin rather than as two files disagreeing.
+#   - Nothing here is YAML's idea of a truth value. A bare on, off, yes or no is a boolean, and a
+#     message that has become one prints its own key to somebody's face.
+worldgate:
+
+  drained-entry-denied: "<yellow><white><dimension></white> is being drained right now — nobody new may enter."
+  closed-entry-denied: "<red><white><dimension></white> is closed on this server."
+  evacuate-notice: "<yellow>You have been pulled out of <white><dimension></white>."
+
+  no-permission: "<red>You may not lock, open or evacuate a dimension."
+  unknown-dimension: "<red><white><value></white> is not nether or end."
+  unknown-lock-mode: "<red><white><value></white> is not drain or close."
+  could-not-save: "<red>That could not be written to disk. Nothing has changed."
+
+  now-drained: "<yellow><white><dimension></white> is now draining — nobody new may enter, and whoever is already there may still leave freely."
+  now-closed: "<red><white><dimension></white> is now closed."
+  now-open: "<green><white><dimension></white> is open again."
+  evacuated: "<green>Pulled <white><count></white> player(s) out of <white><dimension></white>."
+
+  status-heading: "<gray>The Nether and the End, right now:"
+  status-row: "  <white><dimension></white>: <white><state></white>"
+
+  usage:
+    lock: "<yellow>Usage: /worldgate lock (nether or end) (drain or close)"
+    open: "<yellow>Usage: /worldgate open (nether or end)"
+    evacuate: "<yellow>Usage: /worldgate evacuate (nether or end)"
+
+  help:
+    - "<gray>/worldgate status — both dimensions' current state"
+    - "<gray>/worldgate lock (nether or end) (drain or close) — stop new arrivals"
+    - "<gray>/worldgate open (nether or end) — let people back in"
+    - "<gray>/worldgate evacuate (nether or end) — pull everybody there back to the overworld"
