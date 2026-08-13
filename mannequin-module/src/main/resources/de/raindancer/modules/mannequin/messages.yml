@@ -1,0 +1,23 @@
+# Rain's Mannequins — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins. See
+# Messages.defineFrom. Every placeholder a line asks for is supplied where it is sent, and nothing
+# here is YAML's idea of a truth value — see rtp-module's messages.yml for why both of those matter.
+mannequin:
+
+  usage: "<gray>/mannequin create|remove|loadout|skin|stats|list"
+  only-a-player: "<red>Only a player standing in the world can do that."
+  missing-id: "<red>Which one? /mannequin <remove|loadout|skin|stats> <id>"
+  unknown-id: "<red>There is no mannequin called <white><id></white>."
+
+  create:
+    no-permission: "<red>You may not create a mannequin here."
+    done: "<green>Created mannequin <white><id></white>."
+
+  remove:
+    no-permission: "<red>That is not your mannequin to remove."
+    done: "<green>Removed mannequin <white><id></white>."
+
+  list:
+    empty: "<gray>You have no mannequins."
+    entry: "<white><id></white> <gray>— <white><name></white> <gray>in <white><world></white>"

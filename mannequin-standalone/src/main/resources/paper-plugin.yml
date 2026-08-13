@@ -1,0 +1,29 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see rtp-standalone's own copy for
+# why every line here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Training dummies an owner spawns, dresses and never has to worry about losing.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Nothing in the module touches Bukkit.getScheduler() — every scheduled thing goes through Core's
+# Scheduling, which uses the region scheduler on Paper and the same call regionised on Folia.
+folia-supported: true
+
+dependencies:
+  # Both phases, and bootstrap is not belt-and-braces — see rtp-standalone's own copy of this file for
+  # the full reasoning: without it the module fails to link at bootstrap and the plugin reports that
+  # it contains no modules.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
