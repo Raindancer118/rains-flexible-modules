@@ -32,7 +32,15 @@ import java.util.List;
  * challenge plugin. Not RainsCore's: that engine briefly lived built into RainsCore itself, until a
  * join handler that came along with it cleared a player's inventory on every join anywhere on the
  * server — see speedrun-module's own class javadoc. Installing RainsChained now also requires
- * RainsSpeedrun on the server, the same way it already required RainsCore.
+ * RainsSpeedrun on the server, the same way it already required RainsCore. That requirement is
+ * declared in chained-standalone's paper-plugin.yml, at the Bukkit level, and only there —
+ * {@link ModuleInfo#requiring} looks the other module up in the ModuleRegistry this module's own
+ * host constructed, and a standalone plugin's host only ever knows about the one module its own
+ * jar shaded in. Adding {@code .requiring("speedrun")} here looked harmless because nothing
+ * currently co-hosts the two inside one bundle, but the live-server pipeline's own boot found
+ * that it makes RainsChained refuse to start on every real server regardless: it is skipped as
+ * "requires 'speedrun', which is not installed" even with RainsSpeedrun actually running right
+ * next to it, because from this module's own host's point of view it genuinely is not.
  *
  * <p>What is left, and what this module actually is: {@link de.raindancer.modules.chained.model.ChainPair
  * two players registered as chained}, the invisible wall that keeps them from separating too far,
@@ -43,11 +51,7 @@ public final class ChainedModule implements FlexModule {
     private static final ModuleInfo INFO = ModuleInfo.of("chained", "Chained", "1.0.0")
             .describedAs("Two players, mechanically chained together — separating too far is "
                     + "simply blocked, and a speedrun timer runs underneath the run")
-            .by("Raindancer118")
-            // Not currently co-hosted with speedrun in any bundle, but the dependency is real — the
-            // classes come from it, provided-scope, exactly the way this module also needs RainsCore.
-            // If the two are ever hosted inside the same plugin, this is what makes speedrun enable first.
-            .requiring("speedrun");
+            .by("Raindancer118");
 
     private LogChannel log;
     private SettingsStore<ChainedSettings> settings;
