@@ -24,8 +24,38 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <!-- The name the server sees, and the name of its data folder. -->
         <plugin.name>RainsMannequins</plugin.name>
-        <!-- 1.0.0: the first release of this as a plugin. There is no earlier version line. -->
-        <plugin.version>1.0.0</plugin.version>
+        <!--
+          1.0.0: the first release of this as a plugin. There is no earlier version line.
+
+          1.1.0: the loadout GUI's material picker silently dropped an item chosen without also
+          being enchanted, and editing several slots in one visit could overwrite an earlier
+          change with a later one built from the same stale snapshot. Added the missing menu
+          entirely — a list of a player's own mannequins and an edit hub for one, matching every
+          other module's shape — which also fixed the redstone signal never firing at all: nothing
+          had ever called the code that places the barrel for a mannequin switched on after
+          creation. A mannequin now also eats a dropped golden apple, not only a potion, found on a
+          periodic sweep rather than a pickup event a mannequin's lack of AI never triggers. And a
+          death no longer wipes the training tally it exists to record.
+
+          1.2.0: the redstone signal never actually reached a comparator — confirmed as
+          PaperMC/Paper#505, an optimisation that stops a plain container update from making an
+          adjacent comparator recheck it; fixed by force-updating the comparator's own block state
+          directly. The enchant screen offered ten hand-picked enchants in a single seven-slot row,
+          so anything past the seventh silently overwrote an earlier button instead of ever
+          appearing — replaced with every registered enchantment, paginated, read live from the
+          server's own registry. Loadout slots now show the real enchanted item as their button,
+          not a generic icon that only mentions the enchants in text. Giving a mannequin an offline
+          player's skin silently produced the default skin, because nothing ever asked their cached
+          profile to actually resolve its textures — fixed with completeFromCache(), with an async
+          Mojang lookup as a fallback for a profile the cache genuinely never saw. Added "copy my
+          current gear" to the loadout screen, and a per-mannequin damage leaderboard (ranked by
+          player, weapons one click deeper, each with the real weapon last used and its own combat
+          numbers) reachable from the stats screen. Removed the "would have killed an unarmored
+          player" hit feedback — it made sense while a mannequin could not die at all; now that it
+          can, the dummy dying already says that, and a dummy with more health surviving a
+          "lethal" hit had nothing on screen explaining why.
+        -->
+        <plugin.version>1.2.0</plugin.version>
     </properties>
 
     <dependencies>

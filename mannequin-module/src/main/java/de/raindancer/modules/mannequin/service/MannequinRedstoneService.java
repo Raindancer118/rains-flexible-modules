@@ -8,6 +8,7 @@ import de.raindancer.modules.mannequin.rules.SignalStrengthRule;
 import org.bukkit.Material;
 import org.bukkit.block.Barrel;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -36,6 +37,13 @@ public final class MannequinRedstoneService implements IMannequinService {
 
     /** Any stackable, non-meaningful material — nothing a player would read as "an item". */
     private static final Material FILLER = Material.STONE;
+
+    /**
+     * A comparator reads a container from directly beside it, always at the same height as the
+     * comparator itself — never from above or below.
+     */
+    private static final BlockFace[] COMPARATOR_SIDES =
+            {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST};
 
     /**
      * Vanilla's own constant in {@code floor(1 + (items / max) * 14)} — the 15 possible non-zero
@@ -93,6 +101,7 @@ public final class MannequinRedstoneService implements IMannequinService {
         inventory.clear();
         fill(inventory, itemsForSignal(desiredSignal, inventory.getSize()));
         state.update();
+        refreshAdjacentComparators(barrel);
 
         if (plugin == null) {
             return;
@@ -103,6 +112,7 @@ public final class MannequinRedstoneService implements IMannequinService {
                         if (barrel.getState() instanceof Barrel stillBarrel) {
                             stillBarrel.getInventory().clear();
                             stillBarrel.update();
+                            refreshAdjacentComparators(barrel);
                         }
                     } finally {
                         task.cancel();
@@ -116,6 +126,35 @@ public final class MannequinRedstoneService implements IMannequinService {
             int amount = Math.min(64, remaining);
             inventory.setItem(slot, new ItemStack(FILLER, amount));
             remaining -= amount;
+        }
+    }
+
+    /**
+     * Forces every comparator directly beside the barrel to re-check it, right now.
+     *
+     * <h2>Why this call exists at all — this is the fix for the signal never firing</h2>
+     * Confirmed and still open as
+     * <a href="https://github.com/PaperMC/Paper/issues/505">PaperMC/Paper#505</a>: an optimisation
+     * in Paper's own hopper handling means a container's comparator does <em>not</em> recheck the
+     * container just because the container's block state was updated — {@code state.update()} on
+     * the barrel notifies the barrel's own neighbours in the generic physics sense, and that is
+     * exactly the path the linked optimisation short-circuits for a comparator specifically. A
+     * maintainer's own comment on that issue names the actual fix: "force a block update on the
+     * comparator (like placing a block beside it)" — the comparator's <em>own</em> block state has
+     * to be told to update, not the container's. Without this, filling the barrel through the
+     * Bukkit API silently changes what a comparator would report if asked, without ever asking it.
+     *
+     * <p>Package-private rather than {@code private}: this half of {@link #pulse} needs only a
+     * {@link Block}, unlike the rest of it, which constructs a live-server-only {@link ItemStack}
+     * via {@link #fill} and so cannot run under a plain unit test at all — visible so {@code
+     * MannequinRedstoneServiceTest} can exercise this specific behaviour with mocks alone.
+     */
+    static void refreshAdjacentComparators(Block barrel) {
+        for (BlockFace side : COMPARATOR_SIDES) {
+            Block neighbor = barrel.getRelative(side);
+            if (neighbor.getType() == Material.COMPARATOR) {
+                neighbor.getState().update(true, true);
+            }
         }
     }
 }

@@ -56,7 +56,16 @@ public final class StatsScreen extends Menu implements IMannequinScreen {
                 "<gray>Average damage: <white>"
                         + String.format(Locale.ROOT, "%.2f", session.averageDamage())));
 
-        danger(Icons.of(Material.TNT, "<red>Reset stats", "<gray>Clears this mannequin's tally."),
+        band(de.raindancer.core.ui.menu.MenuLayout.WHO, 4, Icons.of(Material.GOLDEN_SWORD,
+                        "<white>Leaderboard",
+                        "<gray>Who has hit this mannequin hardest,",
+                        "<gray>and with what.",
+                        "",
+                        "<gray>Click to open."),
+                click -> new LeaderboardScreen(services, viewer, mannequin, this).open());
+
+        danger(Icons.of(Material.TNT, "<red>Reset stats",
+                        "<gray>Clears this mannequin's tally and its leaderboard."),
                 click -> new ConfirmMenu(viewer, brand(), this,
                         "<red>Reset " + mannequin.displayName() + "'s stats?",
                         List.of("<gray>Total damage, hits and combo history are all cleared."),

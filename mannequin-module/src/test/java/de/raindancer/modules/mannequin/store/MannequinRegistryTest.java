@@ -1,7 +1,9 @@
 package de.raindancer.modules.mannequin.store;
 
+import de.raindancer.modules.mannequin.model.Leaderboard;
 import de.raindancer.modules.mannequin.model.Mannequin;
 import de.raindancer.modules.mannequin.model.TrainingSession;
+import org.bukkit.Material;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -43,6 +45,17 @@ class MannequinRegistryTest {
 
             assertThat(registry.get("MQ1")).isEmpty();
             assertThat(registry.sessionFor("MQ1")).isEqualTo(TrainingSession.EMPTY);
+        }
+
+        @Test
+        @DisplayName("removing also forgets its leaderboard")
+        void removingForgetsTheLeaderboardToo() {
+            registry.put(Mannequin.freshlyPlaced("MQ1", UUID.randomUUID(), "world", 0, 64, 0));
+            registry.recordLeaderboardHit("MQ1", UUID.randomUUID(), Material.STICK, null, 5.0);
+
+            registry.remove("MQ1");
+
+            assertThat(registry.leaderboardFor("MQ1")).isEqualTo(Leaderboard.EMPTY);
         }
     }
 
@@ -104,6 +117,48 @@ class MannequinRegistryTest {
             registry.resetSession("MQ1");
 
             assertThat(registry.sessionFor("MQ1")).isEqualTo(TrainingSession.EMPTY);
+        }
+
+        @Test
+        @DisplayName("resetting the session clears the leaderboard along with it")
+        void resettingSessionClearsTheLeaderboardToo() {
+            registry.recordLeaderboardHit("MQ1", UUID.randomUUID(), Material.STICK, null, 5.0);
+
+            registry.resetSession("MQ1");
+
+            assertThat(registry.leaderboardFor("MQ1")).isEqualTo(Leaderboard.EMPTY);
+        }
+    }
+
+    @Nested
+    @DisplayName("the leaderboard")
+    class LeaderboardTests {
+
+        @Test
+        @DisplayName("defaults to empty for a mannequin nobody has hit")
+        void defaultsToEmpty() {
+            assertThat(registry.leaderboardFor("MQ1")).isEqualTo(Leaderboard.EMPTY);
+        }
+
+        @Test
+        @DisplayName("records accumulate rather than replacing each other")
+        void recordsAccumulate() {
+            UUID player = UUID.randomUUID();
+            registry.recordLeaderboardHit("MQ1", player, Material.NETHERITE_SWORD, null, 10.0);
+            registry.recordLeaderboardHit("MQ1", player, Material.NETHERITE_SWORD, null, 5.0);
+
+            assertThat(registry.leaderboardFor("MQ1").byPlayer().get(player).totalDamage())
+                    .isEqualTo(15.0);
+        }
+
+        @Test
+        @DisplayName("a null id, player or weapon is a no-op, not a NullPointerException")
+        void missingArgumentsAreANoOp() {
+            registry.recordLeaderboardHit(null, UUID.randomUUID(), Material.STICK, null, 5.0);
+            registry.recordLeaderboardHit("MQ1", null, Material.STICK, null, 5.0);
+            registry.recordLeaderboardHit("MQ1", UUID.randomUUID(), null, null, 5.0);
+
+            assertThat(registry.leaderboardFor("MQ1")).isEqualTo(Leaderboard.EMPTY);
         }
     }
 }

@@ -14,7 +14,6 @@ import de.raindancer.modules.mannequin.listener.MannequinWorldListener;
 import de.raindancer.modules.mannequin.model.Mannequin;
 import de.raindancer.modules.mannequin.rules.ComboWindowRule;
 import de.raindancer.modules.mannequin.rules.DurabilityRule;
-import de.raindancer.modules.mannequin.rules.LethalHitRule;
 import de.raindancer.modules.mannequin.rules.ShieldBlockRule;
 import de.raindancer.modules.mannequin.rules.SignalStrengthRule;
 import de.raindancer.modules.mannequin.screen.LoadoutScreen;
@@ -46,7 +45,7 @@ import java.util.List;
  */
 public final class MannequinModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("mannequin", "Mannequin", "1.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("mannequin", "Mannequin", "1.2.0")
             .describedAs("Training dummies an owner spawns and dresses: real health that can be "
                     + "brought down and respawns identically afterwards, every hit tracked, "
                     + "blocking with a shield, and never leaving anything obtainable behind.")
@@ -103,7 +102,7 @@ public final class MannequinModule implements FlexModule {
         MannequinRedstoneService redstone = new MannequinRedstoneService(context.plugin(), settings.current());
         potions = new MannequinPotionService(settings.current());
         MannequinCombatService combat = new MannequinCombatService(registry, equip, redstone,
-                context.core().actionBars(), new ComboWindowRule(), new LethalHitRule(),
+                context.core().actionBars(), new ComboWindowRule(),
                 new SignalStrengthRule(), settings.current());
         MannequinService.DelayedScheduler delayedScheduler = (delayTicks, task) ->
                 Scheduling.globalLater(context.plugin(), delayTicks, task);

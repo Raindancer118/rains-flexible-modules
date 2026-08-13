@@ -1,7 +1,10 @@
 package de.raindancer.modules.mannequin.store;
 
+import de.raindancer.modules.mannequin.model.Leaderboard;
 import de.raindancer.modules.mannequin.model.Mannequin;
 import de.raindancer.modules.mannequin.model.TrainingSession;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -24,6 +27,7 @@ public final class MannequinRegistry {
     private final Map<String, Mannequin> byId = new LinkedHashMap<>();
     private final Map<String, UUID> liveEntities = new LinkedHashMap<>();
     private final Map<String, TrainingSession> sessions = new LinkedHashMap<>();
+    private final Map<String, Leaderboard> leaderboards = new LinkedHashMap<>();
     private long highest;
 
     // ---------------------------------------------------------------------------- the data
@@ -44,6 +48,7 @@ public final class MannequinRegistry {
         }
         liveEntities.remove(id);
         sessions.remove(id);
+        leaderboards.remove(id);
         return byId.remove(id) != null;
     }
 
@@ -142,6 +147,24 @@ public final class MannequinRegistry {
     public synchronized void resetSession(String id) {
         if (id != null) {
             sessions.put(id, TrainingSession.EMPTY);
+            // The leaderboard is the same "current session" concept as the tally, told per player
+            // and per weapon instead of as one running total — the one reset button clears both.
+            leaderboards.remove(id);
         }
+    }
+
+    // ---------------------------------------------------------------------------- the leaderboard
+
+    public synchronized Leaderboard leaderboardFor(String id) {
+        return leaderboards.getOrDefault(id, Leaderboard.EMPTY);
+    }
+
+    public synchronized void recordLeaderboardHit(String id, UUID player, Material weapon,
+                                                  ItemStack sample, double damage) {
+        if (id == null || player == null || weapon == null) {
+            return;
+        }
+        Leaderboard current = leaderboards.getOrDefault(id, Leaderboard.EMPTY);
+        leaderboards.put(id, current.withHit(player, weapon, sample, damage));
     }
 }

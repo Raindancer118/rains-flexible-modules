@@ -170,7 +170,32 @@ public final class MannequinService implements IMannequinService {
         }
     }
 
-    private void applySkin(org.bukkit.entity.Mannequin entity, UUID skinSource) {
+    /**
+     * Applies a player's skin to a live mannequin — {@code null} resets it to vanilla's own
+     * default profile. Public, and the only place this happens: {@link #configure} calls it on
+     * every spawn, and {@code screen.SkinScreen} calls it directly when an owner picks a new one,
+     * rather than repeating the same three Bukkit calls a second time in the screen.
+     *
+     * <h2>Why an offline player's skin needs {@code completeFromCache()} at all</h2>
+     * {@code OfflinePlayer#getPlayerProfile()} for somebody who is not currently connected can come
+     * back with a profile that only knows their name and UUID — no texture properties — because
+     * nothing has asked the profile to actually resolve them. For an online player this is never
+     * visible, since the client already has its own skin loaded; for an offline one it silently
+     * produced the default Steve/Alex skin regardless of who was picked, which is exactly what
+     * "give it an offline player's skin" looked like from the loadout screen. {@code
+     * completeFromCache()} reads Paper's own local profile cache — built from every player who has
+     * ever actually joined this server — synchronously and without a network call, so it is safe to
+     * run right here rather than needing to be scheduled off-thread.
+     *
+     * <p>If even the cache does not have it (a profile Paper has genuinely never seen texture data
+     * for), an async {@link com.destroystokyo.paper.profile.PlayerProfile#update()} is kicked off as
+     * a best-effort upgrade: the mannequin shows whatever it already has immediately, and only gets
+     * a better skin later if Mojang actually answers.
+     */
+    public void applySkin(org.bukkit.entity.Mannequin entity, UUID skinSource) {
+        if (entity == null) {
+            return;
+        }
         if (skinSource == null) {
             entity.setProfile(org.bukkit.entity.Mannequin.defaultProfile());
             return;
@@ -181,7 +206,19 @@ public final class MannequinService implements IMannequinService {
             entity.setProfile(org.bukkit.entity.Mannequin.defaultProfile());
             return;
         }
+        if (!profile.isComplete()) {
+            profile.completeFromCache();
+        }
         entity.setProfile(ResolvableProfile.resolvableProfile(profile));
+
+        if (!profile.isComplete() && plugin != null) {
+            // Scheduling.entity silently drops this if the entity has since been removed — a
+            // mannequin that died and respawned in the meantime just does not get the upgrade,
+            // which is fine for a best-effort skin refresh.
+            profile.update().thenAcceptAsync(updated ->
+                    de.raindancer.core.platform.util.Scheduling.entity(plugin, entity,
+                            () -> entity.setProfile(ResolvableProfile.resolvableProfile(updated))));
+        }
     }
 
     /** The container an opted-in mannequin's redstone pulse is written to — directly under it. */

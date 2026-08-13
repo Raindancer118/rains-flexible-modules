@@ -6,10 +6,8 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.mannequin.MannequinServices;
 import de.raindancer.modules.mannequin.model.Mannequin;
-import io.papermc.paper.datacomponent.item.ResolvableProfile;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
@@ -60,20 +58,20 @@ public final class SkinScreen extends Menu implements IMannequinScreen {
                 click -> applySkin(null));
     }
 
+    /**
+     * Saves the pick and, if the mannequin is live, applies it through {@code
+     * MannequinService#applySkin} — the one place that knows an offline player's profile needs
+     * {@code completeFromCache()} before it has real textures. Duplicating those three lines here
+     * instead is exactly how the offline-skin bug happened the first time: two places that both had
+     * to remember the fix, and only one of them did.
+     */
     private void applySkin(java.util.UUID skinSource) {
         Mannequin updated = mannequin.withSkinSource(skinSource);
         services.mannequins().save(updated);
         services.mannequins().liveEntity(mannequin.id())
                 .filter(org.bukkit.entity.Mannequin.class::isInstance)
                 .map(org.bukkit.entity.Mannequin.class::cast)
-                .ifPresent(live -> {
-                    if (skinSource == null) {
-                        live.setProfile(org.bukkit.entity.Mannequin.defaultProfile());
-                        return;
-                    }
-                    var profile = Bukkit.getOfflinePlayer(skinSource).getPlayerProfile();
-                    live.setProfile(ResolvableProfile.resolvableProfile(profile));
-                });
+                .ifPresent(live -> services.mannequins().applySkin(live, skinSource));
         backToWhoeverOpenedThis();
     }
 
