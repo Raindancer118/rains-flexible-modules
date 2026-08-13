@@ -84,8 +84,16 @@
           anything, rather than open because they just mined it themselves: a single pre-existing
           opening is enough to exempt a find, and a face the player dug through their own tunnel a
           moment ago never is, however many or few of the six sides end up open either way.
+
+          2.16.1: the per-player permission grant screen listed every module's own permission nodes -
+          rec.admin, rainswarps.warp.staff, homes.unlimited, tpa.back, hungergames.gamemaster and the
+          rest - regardless of whether the owning module was actually installed on the server, because
+          StaffRank hardcodes those literals by design (moderation has no compile dependency on any of
+          them) and the screen showed the whole list unfiltered. It now only offers a node Bukkit has
+          actually registered as a permission, which is true exactly when the owning module ran its
+          own enable().
         -->
-        <plugin.version>2.16.0</plugin.version>
+        <plugin.version>2.16.1</plugin.version>
     </properties>
 
     <dependencies>

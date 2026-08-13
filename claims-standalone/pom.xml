@@ -42,8 +42,16 @@
           configured is lost — claims, config and messages from 1.2.2 onwards are read and brought
           forward — but a major number is what says "read the notes before upgrading", and here they
           should.
+
+          2.2.0: auto-equip, the claim effects and the pantry were already audienceAware - the owner
+          could always be excluded from their own perk, and EquipService/AmbienceService already
+          checked FeatureRules.appliesTo before doing anything - but no menu ever called
+          Claim.setFeatureAudience, so a fresh claim's auto-equip served owner, trusted and visitor
+          alike with no way to narrow it. PerksMenu's perk buttons now take a right click for any of
+          the three, opening the same three-tier owner/trusted/visitor toggle FlagChooser already
+          teaches for narrowing a flag.
         -->
-        <plugin.version>2.1.0</plugin.version>
+        <plugin.version>2.2.0</plugin.version>
     </properties>
 
     <dependencies>

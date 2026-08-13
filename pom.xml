@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.18.0</rainscore.version>
+        <rainscore.version>1.19.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -38,8 +38,8 @@
         <modules-wrapper.version>1.0.0</modules-wrapper.version>
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
-        <claims-module.version>2.1.0</claims-module.version>
-        <moderation-module.version>2.16.0</moderation-module.version>
+        <claims-module.version>2.2.0</claims-module.version>
+        <moderation-module.version>2.16.1</moderation-module.version>
         <names-module.version>2.1.0</names-module.version>
         <warp-module.version>1.1.0</warp-module.version>
         <homes-module.version>2.3.0</homes-module.version>
@@ -101,6 +101,16 @@
         <repository>
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+        <!--
+          RainsCore itself: published here by its own CI on every version bump (see its build.yml),
+          and read from here rather than from a sibling checkout built by hand. The id has to be
+          exactly packages-releases — that is the server block a build's settings.xml carries the
+          read credentials under, the same one distributionManagement below writes with.
+        -->
+        <repository>
+            <id>packages-releases</id>
+            <url>https://packages.tstieh.de/releases</url>
         </repository>
     </repositories>
 

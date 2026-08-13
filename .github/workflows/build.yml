@@ -51,6 +51,13 @@ jobs:
   build:
     name: Build & test
     runs-on: ubuntu-latest
+    # Every mvn invocation in this job needs these, not only the deploy steps near the bottom: RainsCore
+    # now resolves from packages.tstieh.de (see the root pom's <repositories>) rather than from a sibling
+    # checkout built by hand, and Reposilite requires the same credentials to read a release as to
+    # publish one. ci-deploy has both.
+    env:
+      REPOSILITE_USERNAME: ci-deploy
+      REPOSILITE_PASSWORD: ${{ secrets.REPOSILITE_PASSWORD }}
 
     steps:
       - name: Check out
@@ -58,22 +65,6 @@ jobs:
         with:
           # The whole history, so the release notes can name what changed since the last build.
           fetch-depth: 0
-
-      # RainsCore is a `provided` dependency with no repository behind it: `de.raindancer:RainsCore` is
-      # not published anywhere, so it resolves from the local ~/.m2 and nothing else. That is fine on a
-      # laptop that has just built it and fatal on a runner that has never seen it — the build fails
-      # while resolving, which reads as a broken repository rather than a missing sibling.
-      #
-      # So the sibling is checked out and installed first. The alternative is publishing RainsCore to
-      # GitHub Packages, which is tidier and costs a token in both repositories; this needs none, as long
-      # as RainsCore is public. If it is private, add a PAT with read access as a secret and pass it here
-      # as `token:`.
-      - name: Check out RainsCore
-        uses: actions/checkout@v4
-        with:
-          repository: Raindancer118/RainsCore
-          path: .rainscore
-          # token: ${{ secrets.RAINSCORE_READ_TOKEN }}
 
       # Must be 25: paper-api 26.2 ships Java 25 class files, so an older JDK cannot read the dependency
       # at all — it fails while resolving rather than while compiling, which reads as a broken repository
@@ -88,17 +79,14 @@ jobs:
           server-username: REPOSILITE_USERNAME
           server-password: REPOSILITE_PASSWORD
 
-      # Tests skipped deliberately: RainsCore's own workflow runs them on its own pushes, and running
-      # them again here would make this build red for something that is not in this repository.
-      - name: Install RainsCore into the local repository
-        run: mvn --batch-mode --no-transfer-progress -f .rainscore/pom.xml install -DskipTests
-
       # `install` rather than `verify`, and that is not a preference. The standalone projects shade the
       # module jars out of the local repository, so a plain `verify` can shade whatever an earlier build
       # happened to leave in ~/.m2 — a jar newer than its own source, carrying last week's code. That
       # went out to a live server once. `install` writes this build's artifacts before they are shaded,
       # and StandaloneJarTest#theJarIsNotStale then checks that what ended up in the jar is what was
-      # just compiled.
+      # just compiled. RainsCore itself now comes off packages.tstieh.de on this same step, at whatever
+      # version the root pom's rainscore.version property names — bump that property to pick up a new
+      # RainsCore release, the same way bumping a *-module.version property picks up a new module.
       - name: Build and run tests
         run: mvn --batch-mode --no-transfer-progress clean install
 
