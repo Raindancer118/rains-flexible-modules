@@ -31,13 +31,25 @@ public record SpeedrunSettings(
 
         @In("config/speedrun") @Title("Death policy")
         @Describe("Whether a death ends the run, and whether one death is enough.")
-        SpeedrunDeathPolicy deathPolicy
+        SpeedrunDeathPolicy deathPolicy,
+
+        @In("config/speedrun") @Title("Require the exit portal")
+        @Describe("When the advancement goal is the vanilla dragon kill, whether killing it is only "
+                + "the first half — a run does not end until a participant then steps into the exit "
+                + "portal, the way an actual dragon-kill speedrun is judged. Has no effect on any other "
+                + "advancement goal, or when death alone ends the run.")
+        boolean requireExitPortalAfterDragon
 
 ) {
 
+    /** The advancement key {@link #requireExitPortalAfterDragon} looks for — vanilla's own dragon kill. */
+    public static final String DRAGON_KILL_ADVANCEMENT = "minecraft:end/kill_dragon";
+
     /**
-     * What a fresh install ships with: the vanilla dragon kill, nobody's death ends it, and the
-     * server's own primary world — {@code "world"}, Paper's own {@code level-name} default.
+     * What a fresh install ships with: the vanilla dragon kill, nobody's death ends it, the server's
+     * own primary world — {@code "world"}, Paper's own {@code level-name} default — and the portal
+     * requirement on, since a run that stops timing the instant the dragon dies is not how anybody
+     * actually races this goal.
      *
      * <p><b>Found the hard way:</b> shipping a placeholder like {@code "speedrun"} here means a
      * server that never renamed anything, and never will, has a lobby bound to a world that does not
@@ -47,7 +59,13 @@ public record SpeedrunSettings(
      * which is indistinguishable from broken.
      */
     public static final SpeedrunSettings DEFAULTS = new SpeedrunSettings(
-            "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF);
+            "world", DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true);
+
+    /** Whether the configured goal is specifically the vanilla dragon kill — the only goal
+     *  {@link #requireExitPortalAfterDragon} means anything for. */
+    public boolean isDragonKillGoal() {
+        return DRAGON_KILL_ADVANCEMENT.equals(advancementKey);
+    }
 
     /** Whether an advancement goal is actually set — an empty key is "none", not a bad one. */
     public boolean hasAdvancementGoal() {

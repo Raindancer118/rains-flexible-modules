@@ -65,7 +65,7 @@ class SpeedrunLobbyListenerTest {
         void givesKitWhenReadyInLobbyWorld() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF));
+                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false));
             Player player = playerInWorld("world");
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
@@ -85,7 +85,7 @@ class SpeedrunLobbyListenerTest {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
                     new SpeedrunSettings("speedrun-lobby", "minecraft:end/kill_dragon",
-                            SpeedrunDeathPolicy.OFF));
+                            SpeedrunDeathPolicy.OFF, false));
             Player player = playerInWorld("world");   // the server's real, shared world — not the lobby
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
@@ -127,6 +127,90 @@ class SpeedrunLobbyListenerTest {
     }
 
     @Nested
+    @DisplayName("moving before a run exists")
+    class Movement {
+
+        private Player playerInWorld(String worldName) {
+            Player player = playerWithId(ALICE);
+            World world = mock(World.class);
+            when(world.getName()).thenReturn(worldName);
+            when(player.getWorld()).thenReturn(world);
+            return player;
+        }
+
+        @Test
+        @DisplayName("cancels an actual step in the lobby world while READY")
+        void cancelsStepsWhileReady() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false));
+            Player player = playerInWorld("world");
+            World world = player.getWorld();
+            org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10, 90f, 0f);
+            org.bukkit.Location walked = new org.bukkit.Location(world, 11, 64, 10);
+
+            org.bukkit.event.player.PlayerMoveEvent event =
+                    new org.bukkit.event.player.PlayerMoveEvent(player, from, walked);
+            listener.onMove(event);
+
+            assertThat(event.isCancelled()).isTrue();
+        }
+
+        @Test
+        @DisplayName("does not cancel just looking around")
+        void allowsLookingAround() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false));
+            Player player = playerInWorld("world");
+            World world = player.getWorld();
+            org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10, 90f, 0f);
+            org.bukkit.Location lookedAround = new org.bukkit.Location(world, 10, 64, 10, 180f, 0f);
+
+            org.bukkit.event.player.PlayerMoveEvent event =
+                    new org.bukkit.event.player.PlayerMoveEvent(player, from, lookedAround);
+            listener.onMove(event);
+
+            assertThat(event.isCancelled()).isFalse();
+        }
+
+        @Test
+        @DisplayName("leaves movement alone once a run is under way")
+        void allowsMovementOnceRunning() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
+            Player player = playerInWorld("world");
+            World world = player.getWorld();
+            org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10);
+            org.bukkit.Location walked = new org.bukkit.Location(world, 11, 64, 10);
+
+            org.bukkit.event.player.PlayerMoveEvent event =
+                    new org.bukkit.event.player.PlayerMoveEvent(player, from, walked);
+            listener.onMove(event);
+
+            assertThat(event.isCancelled()).isFalse();
+        }
+
+        @Test
+        @DisplayName("leaves movement alone outside the lobby world, even while READY")
+        void allowsMovementOutsideTheLobbyWorld() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("speedrun-lobby", "minecraft:end/kill_dragon",
+                            SpeedrunDeathPolicy.OFF, false));
+            Player player = playerInWorld("world");
+            World world = player.getWorld();
+            org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10);
+            org.bukkit.Location walked = new org.bukkit.Location(world, 11, 64, 10);
+
+            org.bukkit.event.player.PlayerMoveEvent event =
+                    new org.bukkit.event.player.PlayerMoveEvent(player, from, walked);
+            listener.onMove(event);
+
+            assertThat(event.isCancelled()).isFalse();
+        }
+    }
+
+    @Nested
     @DisplayName("clicking the start block")
     class StartClick {
 
@@ -148,7 +232,7 @@ class SpeedrunLobbyListenerTest {
             when(items.isMenu(startBlock)).thenReturn(false);
 
             SpeedrunSettings config = new SpeedrunSettings("world", "minecraft:end/kill_dragon",
-                    SpeedrunDeathPolicy.OFF);
+                    SpeedrunDeathPolicy.OFF, false);
             when(lobby.config()).thenReturn(config);
         }
 

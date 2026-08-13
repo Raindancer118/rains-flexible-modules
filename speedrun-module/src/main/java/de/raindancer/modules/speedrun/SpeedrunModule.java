@@ -45,7 +45,8 @@ public final class SpeedrunModule implements FlexModule {
         SettingsStore<SpeedrunSettings> settings = context.settings(SpeedrunSettings.class,
                 SpeedrunSettings.DEFAULTS);
         lobby = new SpeedrunLobby(context.plugin(), settings, context.core().bossBars(),
-                context.core().effects(), context.core().messages());
+                context.core().effects(), context.core().messages(), context.core().actionBars(),
+                context.core().players());
         context.listener(new SpeedrunLobbyListener(lobby, new SpeedrunLobbyItems(context.plugin()),
                 context.chat().brand(), context.core().messages()));
 

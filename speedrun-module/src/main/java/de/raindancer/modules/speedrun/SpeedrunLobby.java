@@ -1,13 +1,16 @@
 package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.moderation.players.PlayerAdmin;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.ui.actionbar.ActionBars;
 import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.speedrun.conditions.AdvancementEndCondition;
 import de.raindancer.modules.speedrun.conditions.DeathEndCondition;
+import de.raindancer.modules.speedrun.conditions.DragonExitEndCondition;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
@@ -66,6 +69,10 @@ public final class SpeedrunLobby {
     private final SpeedrunReset reset;
     private final SpeedrunCountdownLauncher countdownLauncher;
     private final Messages messages;
+    /** {@code null} for a lobby built without an {@link ActionBars} — the run clock is simply not shown. */
+    private final SpeedrunTimerDisplay timerDisplay;
+    /** {@code null} for a lobby built without a {@link PlayerAdmin} — nothing is reset before a run starts. */
+    private final SpeedrunPreparation preparation;
 
     private SpeedrunSession session;
     /** Registered fresh for every session, so a finished run's listener does not linger. */
@@ -73,32 +80,57 @@ public final class SpeedrunLobby {
     /** Set the moment {@link #beginCountdown} launches one, cleared the moment it completes. */
     private boolean countingDown;
 
-    /** No countdown, no finish announcement — {@link #beginCountdown} is not usable from this alone. */
+    /** No countdown, no finish announcement, no action-bar clock, no start-of-run reset —
+     *  {@link #beginCountdown} is not usable from this alone. */
     public SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings) {
-        this(plugin, settings, new SpeedrunReset(), null, null);
+        this(plugin, settings, new SpeedrunReset(), null, null, null, null);
     }
 
     public SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, BossBars bossBars,
-                         Effects effects, Messages messages) {
+                         Effects effects, Messages messages, ActionBars actionBars, PlayerAdmin players) {
         this(plugin, settings, new SpeedrunReset(),
                 (participants, onComplete) ->
                         new SpeedrunCountdown(plugin, bossBars, effects, participants, onComplete).begin(),
-                messages);
+                messages,
+                actionBars == null ? null
+                        : new SpeedrunTimerDisplay(actionBars, SpeedrunTimerDisplay.viaScheduling(plugin)),
+                players == null ? null : new SpeedrunPreparation(players));
     }
 
     /** For tests: a fake {@link SpeedrunCountdownLauncher} that never touches a live server. */
     SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, SpeedrunReset reset,
                  SpeedrunCountdownLauncher countdownLauncher) {
-        this(plugin, settings, reset, countdownLauncher, null);
+        this(plugin, settings, reset, countdownLauncher, null, null, null);
+    }
+
+    /** For tests: exercises the finish announcement without a live server. */
+    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, SpeedrunReset reset,
+                 SpeedrunCountdownLauncher countdownLauncher, Messages messages) {
+        this(plugin, settings, reset, countdownLauncher, messages, null, null);
+    }
+
+    /** For tests: also exercises the action-bar clock without a live server or scheduler. */
+    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, SpeedrunReset reset,
+                 SpeedrunCountdownLauncher countdownLauncher, SpeedrunTimerDisplay timerDisplay) {
+        this(plugin, settings, reset, countdownLauncher, null, timerDisplay, null);
+    }
+
+    /** For tests: also exercises the start-of-run reset without a live server. */
+    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, SpeedrunReset reset,
+                 SpeedrunCountdownLauncher countdownLauncher, SpeedrunPreparation preparation) {
+        this(plugin, settings, reset, countdownLauncher, null, null, preparation);
     }
 
     SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, SpeedrunReset reset,
-                 SpeedrunCountdownLauncher countdownLauncher, Messages messages) {
+                 SpeedrunCountdownLauncher countdownLauncher, Messages messages,
+                 SpeedrunTimerDisplay timerDisplay, SpeedrunPreparation preparation) {
         this.plugin = plugin;
         this.settings = settings;
         this.reset = reset;
         this.countdownLauncher = countdownLauncher;
+        this.preparation = preparation;
         this.messages = messages;
+        this.timerDisplay = timerDisplay;
     }
 
     public SpeedrunSettings config() {
@@ -165,9 +197,14 @@ public final class SpeedrunLobby {
      * what a test calls directly to exercise the actual session-building without waiting on one.
      *
      * <p>Arms every end condition the current configuration names — an {@link AdvancementEndCondition}
-     * when {@link SpeedrunSettings#hasAdvancementGoal()}, a {@link DeathEndCondition} when
-     * {@link SpeedrunSettings#hasDeathCondition()} — and registers a fresh {@link SpeedrunOccupancyListener}
-     * so the clock pauses while every participant is offline.
+     * when {@link SpeedrunSettings#hasAdvancementGoal()} (a {@link DragonExitEndCondition} instead,
+     * when that goal is the vanilla dragon kill and {@link SpeedrunSettings#requireExitPortalAfterDragon()}
+     * is on), a {@link DeathEndCondition} when {@link SpeedrunSettings#hasDeathCondition()} — and
+     * registers a fresh {@link SpeedrunOccupancyListener} so the clock pauses while every participant
+     * is offline. Also runs {@link SpeedrunPreparation}, if this lobby was built with a
+     * {@code PlayerAdmin} — full health, full hunger, no leftover effects or fire, and the world
+     * itself set to morning with every hostile mob and dropped item cleared — so a run always begins
+     * from the same standard conditions, whatever state the map was left in.
      */
     public StartOutcome start(Collection<UUID> participants) {
         StartOutcome problem = validate(participants);
@@ -179,7 +216,9 @@ public final class SpeedrunLobby {
         if (current.hasAdvancementGoal()) {
             NamespacedKey key = NamespacedKey.fromString(current.advancementKey());
             if (key != null) {
-                fresh.addEndCondition(new AdvancementEndCondition(plugin, key));
+                fresh.addEndCondition(current.isDragonKillGoal() && current.requireExitPortalAfterDragon()
+                        ? new DragonExitEndCondition(plugin, key)
+                        : new AdvancementEndCondition(plugin, key));
             } else {
                 log.warn("'{}' is not a valid advancement key; the advancement goal was skipped.",
                         current.advancementKey());
@@ -195,6 +234,12 @@ public final class SpeedrunLobby {
         occupancy = new SpeedrunOccupancyListener(fresh);
         plugin.getServer().getPluginManager().registerEvents(occupancy, plugin);
         fresh.onFinish(outcome -> announceFinish(fresh, outcome));
+        if (preparation != null) {
+            preparation.prepare(world().orElse(null), fresh.participants());
+        }
+        if (timerDisplay != null) {
+            timerDisplay.start(fresh);
+        }
         fresh.start();
         return StartOutcome.STARTED;
     }

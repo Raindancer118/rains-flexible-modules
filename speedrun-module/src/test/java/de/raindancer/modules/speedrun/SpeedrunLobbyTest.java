@@ -2,7 +2,10 @@ package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.data.settings.SettingsSchema;
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.ui.actionbar.ActionBarSink;
+import de.raindancer.core.ui.actionbar.ActionBars;
 import de.raindancer.core.ui.messages.Messages;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -20,7 +23,9 @@ import org.mockito.MockedStatic;
 import org.bukkit.Server;
 
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -219,6 +224,86 @@ class SpeedrunLobbyTest {
                 assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.RUNNING);
                 assertThat(lobby.session()).isPresent();
                 assertThat(lobby.session().orElseThrow().participants()).containsExactlyInAnyOrder(ALICE, BOB);
+            }
+        }
+
+        @Test
+        @DisplayName("arms a DragonExitEndCondition for the default dragon-kill goal, not a plain advancement one")
+        void wiresTheExitPortalConditionForTheDragonKillGoal() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                SpeedrunLobby lobby = lobby();
+
+                lobby.start(Set.of(ALICE));
+
+                org.mockito.ArgumentCaptor<org.bukkit.event.Listener> captor =
+                        org.mockito.ArgumentCaptor.forClass(org.bukkit.event.Listener.class);
+                verify(pluginManager, org.mockito.Mockito.atLeastOnce())
+                        .registerEvents(captor.capture(), eq(plugin));
+                assertThat(captor.getAllValues()).anyMatch(
+                        listener -> listener instanceof de.raindancer.modules.speedrun.conditions.DragonExitEndCondition);
+                assertThat(captor.getAllValues()).noneMatch(
+                        listener -> listener instanceof de.raindancer.modules.speedrun.conditions.AdvancementEndCondition);
+            }
+        }
+
+        @Test
+        @DisplayName("arms a plain AdvancementEndCondition once the exit-portal requirement is turned off")
+        void wiresThePlainAdvancementConditionWhenThePortalIsNotRequired() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                settings.set("require-exit-portal-after-dragon", "false");
+                SpeedrunLobby lobby = lobby();
+
+                lobby.start(Set.of(ALICE));
+
+                org.mockito.ArgumentCaptor<org.bukkit.event.Listener> captor =
+                        org.mockito.ArgumentCaptor.forClass(org.bukkit.event.Listener.class);
+                verify(pluginManager, org.mockito.Mockito.atLeastOnce())
+                        .registerEvents(captor.capture(), eq(plugin));
+                assertThat(captor.getAllValues()).anyMatch(
+                        listener -> listener instanceof de.raindancer.modules.speedrun.conditions.AdvancementEndCondition);
+                assertThat(captor.getAllValues()).noneMatch(
+                        listener -> listener instanceof de.raindancer.modules.speedrun.conditions.DragonExitEndCondition);
+            }
+        }
+
+        @Test
+        @DisplayName("starts the action-bar clock for the fresh session")
+        void startsTheActionBarClock() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                Map<UUID, Component> shown = new HashMap<>();
+                ActionBarSink sink = (player, message) -> shown.put(player, message);
+                SpeedrunTimerDisplay.Ticker noopTicker = task -> () -> { };
+                SpeedrunTimerDisplay display = new SpeedrunTimerDisplay(
+                        new ActionBars(sink, () -> 0L), noopTicker);
+                SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings, new SpeedrunReset(),
+                        (participants, onComplete) -> onComplete.run(), display);
+
+                lobby.start(Set.of(ALICE));
+
+                assertThat(shown).containsKey(ALICE);
+            }
+        }
+
+        @Test
+        @DisplayName("resets every participant and the world before the clock starts")
+        void resetsStandardConditionsOnStart() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                when(world.getEntities()).thenReturn(List.of());
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                de.raindancer.core.moderation.players.PlayerAdmin players =
+                        mock(de.raindancer.core.moderation.players.PlayerAdmin.class);
+                SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+                SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings, new SpeedrunReset(),
+                        (participants, onComplete) -> onComplete.run(), preparation);
+
+                lobby.start(Set.of(ALICE));
+
+                verify(players).heal(ALICE);
+                verify(world).setTime(SpeedrunPreparation.DAY_START);
             }
         }
 

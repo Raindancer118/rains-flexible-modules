@@ -2,6 +2,7 @@ package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -9,6 +10,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
@@ -42,6 +44,10 @@ import java.util.stream.Collectors;
  * the menu would only offer to reconfigure a run already under way, and the block cannot be pressed
  * twice into one run. Clearing it now rather than at zero also means the items are gone for the
  * whole countdown, not just visible props for it.
+ *
+ * <h2>Why movement is frozen even before the countdown</h2>
+ * See {@link #onMove} — asked for explicitly, so nobody can wander off with the lobby items instead
+ * of actually racing once somebody presses start.
  */
 public final class SpeedrunLobbyListener implements Listener {
 
@@ -73,6 +79,40 @@ public final class SpeedrunLobbyListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
         lobby.resetIfAbandoned(event.getPlayer().getUniqueId());
+    }
+
+    /**
+     * Freezes anybody standing in the lobby world before a run exists to race in — asked for
+     * explicitly: choosing a goal from the compass menu needs no movement, and wandering off with the
+     * items before pressing the start block is not "waiting in the lobby", it is leaving it. Once
+     * {@link SpeedrunLobby#beginCountdown} actually launches, {@link SpeedrunCountdown} takes over the
+     * same freeze for the frozen roster it was given; this handler's job is only the gap before that —
+     * {@link SpeedrunLobbyState#READY}, and nothing later, so a run once under way is never touched
+     * here.
+     *
+     * <p>Block-quantised, the same trick {@link SpeedrunCountdown#onMove} uses, so looking around
+     * still works — only an actual step is cancelled.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onMove(PlayerMoveEvent event) {
+        if (lobby.state() != SpeedrunLobbyState.READY) {
+            return;
+        }
+        Player player = event.getPlayer();
+        if (!player.getWorld().getName().equals(lobby.config().worldName())) {
+            return;
+        }
+        if (event.getTo() == null || sameBlock(event.getFrom(), event.getTo())) {
+            return;
+        }
+        event.setCancelled(true);
+    }
+
+    private static boolean sameBlock(Location from, Location to) {
+        return from.getWorld() == to.getWorld()
+                && from.getBlockX() == to.getBlockX()
+                && from.getBlockY() == to.getBlockY()
+                && from.getBlockZ() == to.getBlockZ();
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
