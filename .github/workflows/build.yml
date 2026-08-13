@@ -36,6 +36,7 @@ on:
       - 'chained-module-v*'
       - 'rtp-module-v*'
       - 'hungergames-module-v*'
+      - 'speedrun-module-v*'
     branches:
       - '**'
   pull_request:
@@ -298,7 +299,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           set -euo pipefail
-          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module farmworld-module pack-module chained-module rtp-module hungergames-module"
+          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module farmworld-module pack-module chained-module rtp-module hungergames-module speedrun-module"
           new=""
           for module in $modules; do
             version="$(grep -oPm1 "(?<=<${module}\.version>)[^<]+" pom.xml)"
