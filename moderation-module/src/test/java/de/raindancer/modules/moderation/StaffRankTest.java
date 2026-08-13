@@ -320,4 +320,53 @@ class StaffRankTest {
     void nodesAreImmutable() {
         assertThat(StaffRank.MOD.nodes()).isUnmodifiable();
     }
+
+    /**
+     * The bug this guards against: the permissions screen offering to toggle a node for a module that
+     * is not on this server. Moderation does not depend on claims, warps, homes, tpa or the hungergames
+     * module — see the nodes' own class comments — so {@code nodes()}/{@code everyGrantableNode()} carry
+     * every one of them regardless of what is actually installed, on purpose, for the promotion grant.
+     * The screen needs the narrower, live answer instead.
+     */
+    @Nested
+    @DisplayName("the nodes a server can actually act on")
+    class GrantableHere {
+
+        @Test
+        @DisplayName("with no server to ask, every grantable node is answered, foreign ones included")
+        void withNoServerEverythingIsAnswered() {
+            assertThat(StaffRank.grantableNodesOn(null))
+                    .isEqualTo(StaffRank.everyGrantableNode());
+        }
+
+        @Test
+        @DisplayName("a node no module has registered on this server is left out")
+        void leavesOutWhatNoModuleRegistered() {
+            org.bukkit.Server server = org.mockito.Mockito.mock(org.bukkit.Server.class);
+            org.bukkit.plugin.PluginManager pluginManager =
+                    org.mockito.Mockito.mock(org.bukkit.plugin.PluginManager.class);
+            org.mockito.Mockito.when(server.getPluginManager()).thenReturn(pluginManager);
+            // Nothing has registered rec.admin on this server — claims is not installed here.
+            org.mockito.Mockito.when(pluginManager.getPermission(org.mockito.ArgumentMatchers.anyString()))
+                    .thenReturn(null);
+
+            assertThat(StaffRank.grantableNodesOn(server)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("a node this server has actually registered is offered")
+        void offersWhatIsActuallyRegistered() {
+            org.bukkit.Server server = org.mockito.Mockito.mock(org.bukkit.Server.class);
+            org.bukkit.plugin.PluginManager pluginManager =
+                    org.mockito.Mockito.mock(org.bukkit.plugin.PluginManager.class);
+            org.mockito.Mockito.when(server.getPluginManager()).thenReturn(pluginManager);
+            // Homes is installed here and registered its own node; claims is not and did not.
+            org.mockito.Mockito.when(pluginManager.getPermission(StaffRank.HOMES_UNLIMITED))
+                    .thenReturn(new org.bukkit.permissions.Permission(StaffRank.HOMES_UNLIMITED));
+
+            assertThat(StaffRank.grantableNodesOn(server))
+                    .contains(StaffRank.HOMES_UNLIMITED)
+                    .doesNotContain(StaffRank.CLAIM_ADMIN);
+        }
+    }
 }

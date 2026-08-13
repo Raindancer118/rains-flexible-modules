@@ -2,6 +2,7 @@ package de.raindancer.modules.moderation.model;
 
 import de.raindancer.modules.moderation.rules.StaffRule;
 import org.bukkit.Material;
+import org.bukkit.Server;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -316,5 +317,43 @@ public enum StaffRank {
     public static List<String> everyGrantableNode() {
         Set<String> everything = new LinkedHashSet<>(ADMIN.nodes());
         return List.copyOf(everything);
+    }
+
+    /**
+     * {@link #everyGrantableNode()}, narrowed to what this server can actually act on.
+     *
+     * <h2>Why a second list, rather than filtering {@code everyGrantableNode()} itself</h2>
+     * That one has to stay complete: a promotion sets every node a rank carries, on purpose, whether or
+     * not the module that owns it happens to be installed today — {@code homes.unlimited} granted to a
+     * moderator on a server without Homes yet is exactly what lets installing Homes tomorrow hand it to
+     * them for free, rather than a second migration walking every existing moderator's grants. Filtering
+     * that list would quietly take that property away, and every test that asserts a tier's nodes would
+     * have to stand a fake server up to keep asserting them.
+     *
+     * <p>A screen offering to toggle a node answers a different question: "what could clicking here
+     * actually change, right now?" This module does not depend on claims, warps, homes, tpa or the
+     * Hunger Games — see the class note on why those nodes are string literals rather than references —
+     * so it cannot ask a registry whether any of them is installed. What it can ask is the server: a
+     * node one of those modules owns is only ever a real Bukkit permission once that module has
+     * actually run {@code PermissionNodes.register()} during its own {@code enable()}, which happens
+     * regardless of which plugin or classloader ends up hosting it. A node nothing has registered is a
+     * string nobody reads, and offering to grant it is a button that does nothing while looking like it
+     * does something.
+     *
+     * @param server null-safe: answers the unfiltered list when there is no server to ask, which is the
+     *               right thing for a test building this list without one
+     */
+    public static List<String> grantableNodesOn(Server server) {
+        List<String> everything = everyGrantableNode();
+        if (server == null) {
+            return everything;
+        }
+        List<String> live = new ArrayList<>();
+        for (String node : everything) {
+            if (server.getPluginManager().getPermission(node) != null) {
+                live.add(node);
+            }
+        }
+        return List.copyOf(live);
     }
 }

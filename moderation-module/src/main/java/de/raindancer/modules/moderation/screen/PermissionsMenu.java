@@ -72,9 +72,11 @@ public final class PermissionsMenu extends ModerationList<String> {
 
     @Override
     protected List<String> entries() {
-        // Every node any rank can grant, so the page can give as well as take. Held ones first, since
-        // "what has she got" is the more common question of the two.
-        List<String> everything = new ArrayList<>(StaffRank.everyGrantableNode());
+        // Every node any rank can grant and this server can actually act on, so the page can give as
+        // well as take without offering a toggle for a module that is not installed here — see
+        // StaffRank.grantableNodesOn() for why that is a narrower list than everyGrantableNode(). Held
+        // ones first, since "what has she got" is the more common question of the two.
+        List<String> everything = new ArrayList<>(StaffRank.grantableNodesOn(services().server()));
         everything.sort((left, right) -> {
             boolean leftHeld = services().staff().has(subject, left);
             boolean rightHeld = services().staff().has(subject, right);
