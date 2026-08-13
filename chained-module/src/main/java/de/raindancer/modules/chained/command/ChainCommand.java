@@ -1,6 +1,6 @@
 package de.raindancer.modules.chained.command;
 
-import de.raindancer.core.world.speedrun.SpeedrunSeed;
+import de.raindancer.modules.speedrun.SpeedrunSeed;
 import de.raindancer.modules.chained.ChainedServices;
 import de.raindancer.modules.chained.model.ChainPair;
 import de.raindancer.modules.chained.util.PermissionNodes;

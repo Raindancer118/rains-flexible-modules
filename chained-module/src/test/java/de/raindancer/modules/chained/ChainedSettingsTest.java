@@ -2,7 +2,7 @@ package de.raindancer.modules.chained;
 
 import de.raindancer.core.data.settings.In;
 import de.raindancer.core.data.settings.Key;
-import de.raindancer.core.world.speedrun.conditions.DeathEndCondition;
+import de.raindancer.modules.speedrun.conditions.DeathEndCondition;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

@@ -25,8 +25,19 @@ dependencies:
   # commands are registered during bootstrap or they never exist. Declared for the server phase alone, the
   # module fails to link at bootstrap with a ClassNotFoundException for a RainsCore class and the plugin
   # reports that it contains no modules. That is what the claims plugin did on the test server the first time.
+  #
+  # RainsSpeedrun is the second required host here, not RainsCore alone — chained-module compiles against
+  # speedrun-module's engine classes (SpeedrunSession, SpeedrunTimer, the end conditions) as a `provided`
+  # dependency, exactly the way every module compiles against RainsCore itself, so those classes have to
+  # come from somewhere real at runtime. RainsChained.jar deliberately does not shade speedrun-module in:
+  # a shaded copy alongside an installed RainsSpeedrun would be two independent SpeedrunSessions on one
+  # server, each with its own idea of whether a run has already finished.
   bootstrap:
     RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    RainsSpeedrun:
       load: BEFORE
       required: true
       join-classpath: true
@@ -36,4 +47,8 @@ dependencies:
       required: true
       # The line that actually puts RainsCore's classes on this plugin's classpath. Paper plugins get isolated
       # classloaders, so without it everything above is right and the plugin dies the moment it touches one.
+      join-classpath: true
+    RainsSpeedrun:
+      load: BEFORE
+      required: true
       join-classpath: true

@@ -133,13 +133,31 @@ public final class AdminHotbarListener implements IHungerGamesListener {
             return;
         }
         PlayerInventory inventory = player.getInventory();
-        inventory.setItem(SLOT_ADMIN, tagged(adminItem(), ADMIN));
-        inventory.setItem(SLOT_QUICK, tagged(quickItem(), QUICK));
+        if (isFree(inventory.getItem(SLOT_ADMIN))) {
+            inventory.setItem(SLOT_ADMIN, tagged(adminItem(), ADMIN));
+        }
+        if (isFree(inventory.getItem(SLOT_QUICK))) {
+            inventory.setItem(SLOT_QUICK, tagged(quickItem(), QUICK));
+        }
         // The green one only while a round can actually be started. A button that starts nothing is worse
         // than a missing one: it is pressed, and then explained.
-        if (phase.get() == GamePhase.READY) {
+        if (phase.get() == GamePhase.READY && isFree(inventory.getItem(SLOT_START))) {
             inventory.setItem(SLOT_START, tagged(startItem(), START));
         }
+    }
+
+    /**
+     * Whether a slot has nothing real standing in it.
+     *
+     * <p>This toolkit follows an op across every world on purpose — see the class note — which is exactly
+     * what makes the slot it lands in not always this module's business. {@link #clear} has already taken
+     * out whatever we put there ourselves; anything still in the slot after that belongs to the player, and
+     * overwriting it destroyed real gear an operator happened to be holding at slot 7 or 8 while playing,
+     * not managing a tournament. A slot that is not free is simply skipped — the item that would have gone
+     * there is still reachable through {@code /hg admin} and {@code /hg control}.
+     */
+    static boolean isFree(ItemStack current) {
+        return current == null || current.getType() == Material.AIR;
     }
 
     /**

@@ -285,6 +285,60 @@ jobs:
             gh release delete "$tag" --yes --cleanup-tag --repo "${{ github.repository }}" || true
           done
 
+      # ── auto-publish every module version that has no tag yet ──────────────────────────────────
+      #
+      # The tag-triggered path below requires remembering `git tag <module>-vX.Y.Z && git push --tags`
+      # after bumping a module's version property in the parent pom. Bumping the property and pushing
+      # to master used to stop there — the jar built, but nothing reached packages.tstieh.de unless the
+      # tag was pushed separately, and it usually was not. This finds every module whose `<module>.version`
+      # in the parent pom has no matching tag on the remote yet, and deploys + tags all of them in this
+      # same job — the same fix RainsCore's own workflow now applies to its single version.
+      - name: Find module versions with no tag yet
+        id: newmodules
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          set -euo pipefail
+          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module farmworld-module pack-module chained-module rtp-module hungergames-module"
+          new=""
+          for module in $modules; do
+            version="$(grep -oPm1 "(?<=<${module}\.version>)[^<]+" pom.xml)"
+            tag="${module}-v${version}"
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+              continue
+            fi
+            echo "new: $tag"
+            new="$new $module:$version"
+          done
+          echo "list=$new" >> "$GITHUB_OUTPUT"
+
+      # Deployed before it is tagged, not after: the tag is the record of what is actually on
+      # packages.tstieh.de, so a deploy that fails partway through must leave that module untagged —
+      # otherwise the next push would see the tag, believe the module already went out, and never
+      # retry it. Reposilite's own 409 on an already-published version is still the backstop if a tag
+      # somehow exists without the deploy having happened.
+      - name: Deploy and tag the new module versions
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && steps.newmodules.outputs.list != ''
+        env:
+          REPOSILITE_USERNAME: ci-deploy
+          REPOSILITE_PASSWORD: ${{ secrets.REPOSILITE_PASSWORD }}
+          # Reposilite's TLS termination trips a TLSv1.3/SNI handshake bug in Maven's HTTP transport
+          # (works fine with plain java.net.http.HttpClient or curl) — pin TLSv1.2.
+          MAVEN_OPTS: -Djdk.tls.client.protocols=TLSv1.2
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for entry in ${{ steps.newmodules.outputs.list }}; do
+            module="${entry%%:*}"
+            version="${entry#*:}"
+            tag="${module}-v${version}"
+            echo "::group::$tag"
+            mvn --batch-mode --no-transfer-progress -pl "$module" -DskipTests deploy
+            git tag "$tag"
+            git push origin "$tag"
+            echo "::endgroup::"
+          done
+
       # ── what a tag publishes ────────────────────────────────────────────────────────────────────
 
       # A permanent release for one plugin. The tag names it because the two version independently, and

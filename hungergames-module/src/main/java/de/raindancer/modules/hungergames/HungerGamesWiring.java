@@ -431,7 +431,7 @@ public final class HungerGamesWiring {
         defineTheLootTables();
 
         context.listener(new ConnectionListener(session, spectators, presentation, timer,
-                core.messages(), message -> roundLog.log("ROUND", message), settings()));
+                core.messages(), message -> roundLog.log("ROUND", message), settings(), arena));
         context.listener(new LobbyListener(session, lobbyBox(), core.messages(), settings()));
         context.listener(new EliminationListener(session, spectators, this::deathSpectacle, eviction(),
                 message -> roundLog.log("ROUND", message), settings()));
@@ -2254,6 +2254,18 @@ public final class HungerGamesWiring {
         };
     }
 
+    /**
+     * Whether a fresh round is this online player's business at all.
+     *
+     * <p>Whitelisting is a decision about the round, not about every inventory a tribute owns on the
+     * server — see the phase watcher's own note on the incident this guards against. Both halves are
+     * required: a whitelisted tribute who wandered off to another world keeps whatever they are carrying
+     * there, and a stranger standing in the arena's own world is still nobody's business to clear.
+     */
+    static boolean shouldResetForRoundStart(GameSession session, Player online, World arenaWorld) {
+        return session.isWhitelisted(online.getUniqueId()) && online.getWorld().equals(arenaWorld);
+    }
+
     // ==================== the phase watcher ====================
 
     /**
@@ -2278,11 +2290,18 @@ public final class HungerGamesWiring {
                     // playing, so nothing carried over from the lobby — least of all this module's own
                     // admin hotbar items — rides along into the round. A gamemaster who is also a
                     // tribute must not be holding the tournament's own controls once they are one.
-                    for (Player online : server.getOnlinePlayers()) {
-                        if (session.isWhitelisted(online.getUniqueId())) {
-                            online.getInventory().clear();
+                    //
+                    // Confined to the arena's own world: whitelisting somebody is a decision about the
+                    // round, not about every inventory they own on the server, and a tribute who stepped
+                    // away to another world before the countdown finished must not come back to find it
+                    // emptied on a server this module never touched.
+                    arena.arenaWorld().ifPresent(world -> {
+                        for (Player online : server.getOnlinePlayers()) {
+                            if (shouldResetForRoundStart(session, online, world)) {
+                                online.getInventory().clear();
+                            }
                         }
-                    }
+                    });
                 }
                 // The hotbar items are phase-gated — see AdminHotbarListener.apply's own note — so every
                 // online player is re-evaluated on every change rather than only at their next join.

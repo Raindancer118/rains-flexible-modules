@@ -3,6 +3,7 @@ package de.raindancer.modules.hungergames.listener;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
 import de.raindancer.modules.hungergames.model.GamePhase;
+import de.raindancer.modules.hungergames.service.ArenaBuildService;
 import de.raindancer.modules.hungergames.service.GameTimerService;
 import de.raindancer.modules.hungergames.service.SpectatorService;
 import de.raindancer.modules.hungergames.service.TeamPresentationService;
@@ -59,12 +60,14 @@ public final class ConnectionListener implements IHungerGamesListener {
     private final GameTimerService timer;
     private final Messages messages;
     private final Note note;
+    private final ArenaBuildService arena;
 
     private volatile HungerGamesSettings settings;
 
     public ConnectionListener(GameSession session, SpectatorService spectators,
                               TeamPresentationService presentation, GameTimerService timer,
-                              Messages messages, Note note, HungerGamesSettings settings) {
+                              Messages messages, Note note, HungerGamesSettings settings,
+                              ArenaBuildService arena) {
         this.session = session;
         this.spectators = spectators;
         this.presentation = presentation;
@@ -72,6 +75,7 @@ public final class ConnectionListener implements IHungerGamesListener {
         this.messages = messages;
         this.note = note;
         this.settings = settings;
+        this.arena = arena;
     }
 
     public void settings(HungerGamesSettings settings) {
@@ -119,6 +123,15 @@ public final class ConnectionListener implements IHungerGamesListener {
         // The round's furniture, for late arrivals as much as for rejoins — a spectator with no boss bar
         // cannot tell how long is left, which is most of what a spectator is watching for.
         timer.addViewer(uuid);
+
+        // Everything below forces a game mode or a spectator state — real mutations of somebody's
+        // account, not just a message. Confined to the arena's own world: a round running here does not
+        // give this listener any business deciding what a stranger joining an unrelated world should be
+        // doing on their own server, and doing so anyway once cost a player their entire inventory on an
+        // entirely different server. See ArenaBuildService#arenaWorld.
+        if (!arena.arenaWorld().filter(player.getWorld()::equals).isPresent()) {
+            return;
+        }
 
         if (!inTheTournament) {
             player.setGameMode(GameMode.SPECTATOR);

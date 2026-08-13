@@ -29,6 +29,21 @@
             <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>
         </dependency>
+        <!--
+          provided, the same reasoning as paper-api and RainsCore at the reactor's own root: this
+          module's classes come from RainsSpeedrun at runtime, which chained-standalone's own
+          paper-plugin.yml now declares as a second required host plugin (join-classpath, both
+          phases) alongside RainsCore. Shading speedrun-module into RainsChained.jar as well would put
+          a second copy of SpeedrunSession/SpeedrunTimer/the end conditions on the server the moment
+          both plugins are installed — a second "who is still around" and a second "did this run
+          already finish", each with its own idea of the answer.
+        -->
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>speedrun-module</artifactId>
+            <version>${speedrun-module.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>

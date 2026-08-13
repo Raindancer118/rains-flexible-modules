@@ -69,7 +69,7 @@ public final class EffectsMenu extends PaginatedMenu<ClaimEffect> implements ICl
                 "",
                 "<yellow>Left-click <gray>raise the level",
                 "<yellow>Right-click <gray>lower the level",
-                "<yellow>Middle-click <gray>toggle particles",
+                "<yellow>Press Q <gray>toggle particles",
                 "<yellow>Shift + right-click <gray>remove");
     }
 
@@ -103,7 +103,7 @@ public final class EffectsMenu extends PaginatedMenu<ClaimEffect> implements ICl
                     "effect", effect.displayName(), "claim", claim.name());
             return;
         }
-        if (event.getClick() == ClickType.MIDDLE || event.getClick().isCreativeAction()) {
+        if (togglesParticles(event.getClick())) {
             effect.showParticles(!effect.showParticles());
             save();
             return;
@@ -112,6 +112,17 @@ public final class EffectsMenu extends PaginatedMenu<ClaimEffect> implements ICl
         int step = event.isRightClick() ? -1 : 1;
         effect.amplifier(Math.max(0, Math.min(max, effect.amplifier() + step)));
         save();
+    }
+
+    /**
+     * Not {@code ClickType.MIDDLE}: Bukkit only ever delivers that for a creative-mode player picking a
+     * block, so a survival claim owner's middle click never reaches the server at all and the toggle it
+     * used to gate on silently did nothing for anyone but an operator in creative. {@code DROP} (the Q
+     * key) fires for every game mode while hovering a slot, and the menu framework already cancels it
+     * like every other click here, so nothing is actually dropped.
+     */
+    static boolean togglesParticles(ClickType click) {
+        return click == ClickType.DROP || click == ClickType.CONTROL_DROP;
     }
 
     private void save() {

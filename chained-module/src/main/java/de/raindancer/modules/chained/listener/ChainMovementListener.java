@@ -2,8 +2,8 @@ package de.raindancer.modules.chained.listener;
 
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.platform.util.Scheduling;
-import de.raindancer.core.world.speedrun.SpeedrunSession;
-import de.raindancer.core.world.speedrun.SpeedrunState;
+import de.raindancer.modules.speedrun.SpeedrunSession;
+import de.raindancer.modules.speedrun.SpeedrunState;
 import de.raindancer.modules.chained.ChainedServices;
 import de.raindancer.modules.chained.model.ChainPair;
 import org.bukkit.Bukkit;

@@ -26,11 +26,13 @@ import java.util.List;
  *
  * <h2>What is deliberately not here</h2>
  * The speedrun timer, its pause-while-everybody-is-offline behaviour, the advancement and death end
- * conditions, and throwing a world away and making it again are all RainsCore's — a brand-new
- * {@code core.world.speedrun} package built for exactly this kind of module, so a "who is still
- * around" question, an accidental double-finish and a half-deleted world folder are solved and
- * tested once rather than once per challenge plugin. The menu, the buttons, the wording, the
- * settings, the cooldown and the shared boss bar are Core's too.
+ * conditions, and throwing a world away and making it again are all {@code speedrun-module}'s — the
+ * {@code de.raindancer.modules.speedrun} package, so a "who is still around" question, an accidental
+ * double-finish and a half-deleted world folder are solved and tested once rather than once per
+ * challenge plugin. Not RainsCore's: that engine briefly lived built into RainsCore itself, until a
+ * join handler that came along with it cleared a player's inventory on every join anywhere on the
+ * server — see speedrun-module's own class javadoc. Installing RainsChained now also requires
+ * RainsSpeedrun on the server, the same way it already required RainsCore.
  *
  * <p>What is left, and what this module actually is: {@link de.raindancer.modules.chained.model.ChainPair
  * two players registered as chained}, the invisible wall that keeps them from separating too far,
@@ -41,7 +43,11 @@ public final class ChainedModule implements FlexModule {
     private static final ModuleInfo INFO = ModuleInfo.of("chained", "Chained", "1.0.0")
             .describedAs("Two players, mechanically chained together — separating too far is "
                     + "simply blocked, and a speedrun timer runs underneath the run")
-            .by("Raindancer118");
+            .by("Raindancer118")
+            // Not currently co-hosted with speedrun in any bundle, but the dependency is real — the
+            // classes come from it, provided-scope, exactly the way this module also needs RainsCore.
+            // If the two are ever hosted inside the same plugin, this is what makes speedrun enable first.
+            .requiring("speedrun");
 
     private LogChannel log;
     private SettingsStore<ChainedSettings> settings;

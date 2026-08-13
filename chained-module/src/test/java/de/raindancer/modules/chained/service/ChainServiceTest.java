@@ -2,12 +2,12 @@ package de.raindancer.modules.chained.service;
 
 import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.messages.Messages;
-import de.raindancer.core.world.speedrun.SpeedrunOccupancyListener;
-import de.raindancer.core.world.speedrun.SpeedrunReset;
-import de.raindancer.core.world.speedrun.SpeedrunSeed;
-import de.raindancer.core.world.speedrun.SpeedrunSession;
-import de.raindancer.core.world.speedrun.conditions.AdvancementEndCondition;
-import de.raindancer.core.world.speedrun.conditions.DeathEndCondition;
+import de.raindancer.modules.speedrun.SpeedrunOccupancyListener;
+import de.raindancer.modules.speedrun.SpeedrunReset;
+import de.raindancer.modules.speedrun.SpeedrunSeed;
+import de.raindancer.modules.speedrun.SpeedrunSession;
+import de.raindancer.modules.speedrun.conditions.AdvancementEndCondition;
+import de.raindancer.modules.speedrun.conditions.DeathEndCondition;
 import de.raindancer.modules.chained.ChainedSettings;
 import de.raindancer.modules.chained.model.ChainPair;
 import de.raindancer.modules.chained.store.ChainPairStore;

@@ -558,7 +558,15 @@ public final class ArenaBuildService implements IHungerGamesService {
         };
     }
 
-    private Optional<World> arenaWorld() {
+    /**
+     * The world the arena — and the lobby beside it, see {@link de.raindancer.modules.hungergames.model.ArenaLayout}'s
+     * own note on why they share one — was actually built in, or empty before {@code /init} has run.
+     *
+     * <p>Public so a listener that mutates player state while a round is running or about to (a spectator
+     * gate, a whitelisted tribute's inventory reset) can confine itself to the tournament's own world
+     * instead of acting on whichever world a player happens to be standing in.
+     */
+    public Optional<World> arenaWorld() {
         return layout().flatMap(arena -> worlds.byName(arena.world()));
     }
 

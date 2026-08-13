@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>speedrun-module</artifactId>
+    <!-- Own version, independent of the reactor's: this module is published to the registry on its own
+         schedule under its own tag (speedrun-module-vX.Y.Z), not tied to any other module's release. -->
+    <version>${speedrun-module.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Speedrun</name>
+    <description>
+        A speedrun lobby: an advancement goal or a death policy picked from a compass's menu, a
+        countdown that freezes every racer before a green block actually starts the clock, and a
+        world that resets itself once the last racer has left. Used directly by chained-module too,
+        which needs this module installed alongside it for the shared engine underneath both.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${modules-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

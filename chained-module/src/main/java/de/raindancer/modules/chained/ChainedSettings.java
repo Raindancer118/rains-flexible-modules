@@ -7,7 +7,7 @@ import de.raindancer.core.data.settings.Range;
 import de.raindancer.core.data.settings.Settings;
 import de.raindancer.core.data.settings.Title;
 import de.raindancer.core.data.settings.Topic;
-import de.raindancer.core.world.speedrun.conditions.DeathEndCondition;
+import de.raindancer.modules.speedrun.conditions.DeathEndCondition;
 import org.bukkit.Material;
 
 /**
