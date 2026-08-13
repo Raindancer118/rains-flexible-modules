@@ -5,13 +5,13 @@ import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
-import de.raindancer.modules.claims.model.Claim;
-import de.raindancer.modules.claims.model.ClaimFeature;
+import de.raindancer.core.world.protection.LandAudience;
 import de.raindancer.modules.claims.ClaimServices;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -90,6 +90,13 @@ public final class PerksMenu extends ClaimScreen {
      *
      * <p>The important one is "the server took this away": the button stays, greyed, saying so. A perk that simply
      * vanished from the menu is a support question.
+     *
+     * <h2>Right click, for who it reaches</h2>
+     * Asked for explicitly, after auto-equip shipped with no way to keep it from feeding every visitor: an
+     * {@link ClaimFeature#audienceAware()} perk gets a second click, the same grammar {@code FlagChooser} already
+     * teaches owners for flags — left click still flips the one on/off switch everybody wants, right click opens
+     * {@link AudiencePage} for the three tiers. Two different questions ("does this run at all" vs "who does it
+     * serve") stay two different clicks rather than one button trying to be both.
      */
     private void perk(int band, int column, ClaimFeature feature, Material icon, String name,
                       String detail, Runnable toggle) {
@@ -97,13 +104,16 @@ public final class PerksMenu extends ClaimScreen {
         boolean forced = services().features().isForced(feature);
         boolean on = services().features().isEnabled(claim(), feature);
 
-        List<String> lore = List.of(
+        List<String> lore = new ArrayList<>(List.of(
                 "<gray>" + feature.description(),
                 "<dark_gray>" + detail,
                 "",
                 on ? "<green>✔ running" : "<red>✘ off",
                 forced ? "<gold>the server keeps this on"
-                        : offered ? "<dark_gray>click to change" : "<red>the server has switched this off");
+                        : offered ? "<dark_gray>click to change" : "<red>the server has switched this off"));
+        if (offered && !forced && feature.audienceAware()) {
+            lore.add("<dark_gray>right click for owners / trusted / visitors");
+        }
 
         if (!offered) {
             band(band, column, false, Icons.of(icon, "<dark_gray>" + name, lore),
@@ -116,10 +126,68 @@ public final class PerksMenu extends ClaimScreen {
             return;
         }
         band(band, column, Icons.of(icon, (on ? "<green>" : "<gray>") + name, lore), click -> {
+            if (opensAudiencePage(click.getClick(), feature.audienceAware())) {
+                new AudiencePage(services(), viewer, claim(), this, feature, name).open();
+                return;
+            }
             toggle.run();
             claim().markDirty();
             services().claimService().saveAsync(claim());
             refresh();
         });
+    }
+
+    /** Extracted for {@code PerksMenuTest} — a right click opens who-it-serves, but only for a perk that
+     *  has one; a feature with no audience to narrow does not gain a dead click. */
+    static boolean opensAudiencePage(org.bukkit.event.inventory.ClickType click, boolean audienceAware) {
+        return audienceAware && click.isRightClick();
+    }
+
+    /**
+     * Who a perk reaches: owner, trusted, visitors — each toggled on its own, the same shape as
+     * {@code FlagChooser.TierPage}, so a perk that narrows down and a flag that narrows down feel like one
+     * mechanism rather than two menus that happen to agree.
+     */
+    private final class AudiencePage extends ClaimScreen {
+
+        private final ClaimFeature feature;
+        private final String featureName;
+
+        private AudiencePage(ClaimServices services, Player viewer, Claim claim, Menu parent,
+                             ClaimFeature feature, String featureName) {
+            super(services, viewer, claim, parent, 3);
+            this.feature = feature;
+            this.featureName = featureName;
+        }
+
+        @Override
+        protected Component title() {
+            return Component.text(featureName);
+        }
+
+        @Override
+        protected void render() {
+            int column = 2;
+            for (LandAudience audience : LandAudience.values()) {
+                boolean served = claim().featureServes(feature, audience);
+                band(MenuLayout.WHO, column, Icons.of(audience.icon(),
+                                (served ? "<green>" : "<red>") + words(audience.nameKey()),
+                                "<gray>" + words(audience.descriptionKey()),
+                                "",
+                                served ? "<green>✔ served" : "<red>✘ not served",
+                                "<dark_gray>click to change"),
+                        click -> {
+                            claim().setFeatureAudience(feature, audience, !served);
+                            claim().markDirty();
+                            services().claimService().saveAsync(claim());
+                            refresh();
+                        });
+                column += 2;
+            }
+        }
+
+        private String words(String key) {
+            return services().messages().raw(key);
+        }
     }
 }
