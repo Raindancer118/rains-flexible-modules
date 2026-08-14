@@ -73,6 +73,12 @@ public final class FarmWorldState {
     private static final String CHUNKS = "region";
 
     private final Path file;
+    /**
+     * Beside {@link #file}, so a server that moves its whole data folder keeps the two together.
+     * Existing is the whole answer: {@link #migrateFrom} touches the legacy database once, ever,
+     * and this is how a boot after the first one knows not to.
+     */
+    private final Path migratedMarker;
     private final YamlStore store;
     private final Map<String, WorldSet> sets = new ConcurrentHashMap<>();
     private final Map<String, Instant> madeAt = new ConcurrentHashMap<>();
@@ -92,6 +98,7 @@ public final class FarmWorldState {
      */
     public FarmWorldState(Path file, Database database) {
         this.file = file;
+        this.migratedMarker = file.resolveSibling(file.getFileName() + ".migrated-from-core");
         this.store = new YamlStore(file);
         this.database = database;
     }
@@ -454,7 +461,17 @@ public final class FarmWorldState {
      *                   RainsCore release finally drops the table
      */
     public void migrateFrom(Database legacyCore) {
+        if (Files.exists(migratedMarker)) {
+            // Already resolved, on a previous boot — not even the read runs again. Without this,
+            // a database read on the thread running the world happens on every single boot for
+            // the rest of this server's life, for a question that was only ever going to be asked
+            // once.
+            return;
+        }
         if (legacyCore == null || !legacyCore.isUsable() || !database.isUsable()) {
+            // Not resolved — one side was not ready to be asked. No marker, so a real attempt is
+            // made again next boot rather than being skipped forever on the strength of a moment
+            // that was never a real answer.
             return;
         }
         record Row(String name, Long madeAt, Long triedAt) {
@@ -476,6 +493,7 @@ public final class FarmWorldState {
             return rows;
         }).orElse(List.of());
         if (found.isEmpty()) {
+            markMigrated();
             return;
         }
         boolean written = database.write(connection -> {
@@ -501,9 +519,23 @@ public final class FarmWorldState {
         if (written) {
             log.info("Migrated {} farm world record(s) out of RainsCore's shared database.",
                     found.size());
+            markMigrated();
         } else {
             log.error("Found {} farm world record(s) in RainsCore's shared database, but could not "
                     + "write them to this module's own one. Will try again next boot.", found.size());
+        }
+    }
+
+    /**
+     * Marks the legacy migration as resolved so future boots skip it outright. Best-effort — if the
+     * marker can't be written, the next boot just checks again, which is the pre-fix behaviour.
+     */
+    private void markMigrated() {
+        try {
+            Files.createFile(migratedMarker);
+        } catch (IOException e) {
+            log.warn("Could not write the farm world migration marker at {}. Will check again next "
+                    + "boot.", migratedMarker, e);
         }
     }
 

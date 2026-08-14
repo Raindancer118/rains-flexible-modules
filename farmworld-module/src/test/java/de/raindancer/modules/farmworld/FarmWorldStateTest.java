@@ -678,6 +678,30 @@ class FarmWorldStateTest {
         }
 
         @Test
+        @DisplayName("once migrated, a later boot never reads the legacy database again")
+        void neverReadsLegacyAgainOnceMarked() {
+            seedLegacy("farmworld", 1000L, 2000L);
+            FarmWorldState state = new FarmWorldState(serverDirectory.resolve("farmworlds.yml"),
+                    ownDatabase);
+            state.define(WorldSet.of("farmworld"));
+            state.flush();
+            state.migrateFrom(legacyCore);
+
+            // Something appears in the legacy database afterwards — the exact shape of a server
+            // rolled back to an older module version for a session, then forward again. A second
+            // migration attempt must not go looking, or every single boot forever pays for a
+            // database read nothing needs any more.
+            seedLegacy("latecomer", 9000L, 9000L);
+            state.migrateFrom(legacyCore);
+            state.load();
+
+            assertThat(state.lastRegenerated("latecomer"))
+                    .as("a marked migration must not read the legacy database again, not even to "
+                            + "notice a row that was not there the first time")
+                    .isEmpty();
+        }
+
+        @Test
         @DisplayName("an empty legacy table migrates nothing, and does not fail")
         void emptyLegacyIsFine() {
             FarmWorldState state = new FarmWorldState(serverDirectory.resolve("farmworlds.yml"),
