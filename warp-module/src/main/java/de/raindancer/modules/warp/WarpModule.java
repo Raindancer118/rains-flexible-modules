@@ -31,16 +31,20 @@ import java.util.List;
  * <p>Shipped through the standard wrapper this is {@code RainsWarps}, a plugin of its own. Hosted
  * inside another plugin it is one feature among several, and the code below cannot tell which.
  *
- * <h2>What is deliberately not here</h2>
- * Nearly all of it. The places are RainsCore's — a warp is a POI of kind {@code warp}, so persistence,
- * atomic writes, worlds that are not loaded and "is this reachable" are solved and tested there, and a
- * ghast line can fly somebody to a warp because of it. The warm-up, the movement cancelling, finding
- * somewhere safe to land and the teleport itself are Core's {@code Travel}, which is the same code the
- * teleport requests and the homes use. The cooldown is Core's {@code Cooldowns}, behind
- * {@code Warps}. The menu, the buttons, the wording, the settings and the chat prompt are Core's too.
+ * <h2>What is Core's, and what is this module's</h2>
+ * The places are Core's — a warp is a POI of kind {@code warp}, stored on
+ * {@code context.core().places()}, so persistence, atomic writes, worlds that are not loaded and
+ * "is this reachable" are solved and tested there, and a ghast line can fly somebody to a warp
+ * because of it. The warm-up, the movement cancelling, finding somewhere safe to land and the
+ * teleport itself are Core's {@code Travel}, which is the same code the teleport requests and the
+ * homes use. The menu framework, the wording plumbing and the chat prompt machinery are Core's too.
  *
- * <p>What is left, and what this module actually is: who may use which warp, how a server groups
- * them, and the four screens.
+ * <p>What a warp actually <em>is</em> — the model, the registry that turns places into warps, the
+ * cooldown between one player's goes, who may use which warp, how a server groups them, and the four
+ * screens — is this module's own, in {@link de.raindancer.modules.warp.model} and
+ * {@link de.raindancer.modules.warp.store}. It used to live in Core, behind {@code core.warps()};
+ * moved out because "a warp" is a product concept this module owns, not a mechanism every plugin on
+ * the server needs — Core only ever had one consumer of it.
  *
  * <h2>Who may use which warp</h2>
  * Three answers rather than two — everybody, the staff, or whoever holds one particular permission —
@@ -58,6 +62,7 @@ public final class WarpModule implements FlexModule {
     private LogChannel log;
     private SettingsStore<WarpSettings> settings;
 
+    private de.raindancer.modules.warp.store.WarpRegistry registry;
     private WarpCatalogue catalogue;
     private Travel travel;
     private TravelService travelling;
@@ -99,17 +104,22 @@ public final class WarpModule implements FlexModule {
         }
 
         WarpAccessRule access = new WarpAccessRule();
-        catalogue = new WarpCatalogue(context.core().warps(), context.core().places()::flush);
+        // This module's own registry, on Core's shared places — not a second store, and not Core's
+        // any more either. See WarpRegistry's own class note for why it moved out from behind
+        // core.warps().
+        registry = new de.raindancer.modules.warp.store.WarpRegistry(context.core().places(),
+                System::currentTimeMillis);
+        catalogue = new WarpCatalogue(registry, context.core().places()::flush);
         travel = new Travel(context.plugin(), context.core().safety());
-        travelling = new TravelService(catalogue, context.core().warps(), travel, access,
+        travelling = new TravelService(catalogue, registry, travel, access,
                 context.core().messages(), settings.current());
         admin = new WarpAdminService(catalogue, access, context.core().messages(),
                 settings.current());
 
-        // The cooldown lives on Core's Warps, so it has to be pushed in at start as well as on
-        // reload — otherwise the file says thirty seconds and nothing is enforced until somebody
-        // edits it.
-        context.core().warps().cooldown(Duration.ofSeconds(settings.current().cooldown()));
+        // The cooldown lives on this module's WarpRegistry, so it has to be pushed in at start as
+        // well as on reload — otherwise the file says thirty seconds and nothing is enforced until
+        // somebody edits it.
+        registry.cooldown(Duration.ofSeconds(settings.current().cooldown()));
 
         services = new WarpServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
@@ -123,6 +133,10 @@ public final class WarpModule implements FlexModule {
         settings.onChange(fresh -> {
             travelling.settings(fresh);
             admin.settings(fresh);
+            // Pushed here too, not only at startup — otherwise a changed cooldown reads correctly in
+            // every screen and command but goes on enforcing whatever the file said when the module
+            // started, until the next restart.
+            registry.cooldown(Duration.ofSeconds(fresh.cooldown()));
         });
 
         // Core's, not a fourth copy of "stand still or it is cancelled". Whether being hurt counts

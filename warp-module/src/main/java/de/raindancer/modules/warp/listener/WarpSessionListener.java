@@ -14,7 +14,8 @@ import java.util.UUID;
  * Because the other three things worth watching — walking off the block, being hurt mid-wait, and
  * logging out part-way through a warp — are Core's {@code TravelListener}, and the module registers
  * that rather than writing a fourth copy of it. This is the one thing left over: the warp cooldown,
- * which belongs to Core's {@code Warps} and knows nothing about players coming and going.
+ * which belongs to this module's own {@code WarpRegistry} and knows nothing about players coming
+ * and going.
  *
  * <p>Without it the cooldown map keeps an entry for every player who has ever warped on this server.
  * That is a leak measured in months, and it is invisible: the server is a little larger every day
@@ -42,7 +43,7 @@ public final class WarpSessionListener implements IWarpListener {
 
     @Override
     public void forget(UUID player) {
-        services.core().warps().forget(player);
+        services.catalogue().forget(player);
     }
 
     @Override

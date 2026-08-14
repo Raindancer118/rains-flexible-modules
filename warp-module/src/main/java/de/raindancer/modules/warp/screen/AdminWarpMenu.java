@@ -3,7 +3,7 @@ package de.raindancer.modules.warp.screen;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
-import de.raindancer.core.world.warp.Warp;
+import de.raindancer.modules.warp.model.Warp;
 import de.raindancer.modules.warp.WarpServices;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;

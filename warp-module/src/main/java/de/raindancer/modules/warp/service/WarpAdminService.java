@@ -1,7 +1,7 @@
 package de.raindancer.modules.warp.service;
 
 import de.raindancer.core.ui.messages.Messages;
-import de.raindancer.core.world.warp.Warp;
+import de.raindancer.modules.warp.model.Warp;
 import de.raindancer.modules.warp.WarpSettings;
 import de.raindancer.modules.warp.model.WarpAccess;
 import de.raindancer.modules.warp.rules.WarpAccessRule;

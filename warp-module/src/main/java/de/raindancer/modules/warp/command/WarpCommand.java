@@ -1,6 +1,6 @@
 package de.raindancer.modules.warp.command;
 
-import de.raindancer.core.world.warp.Warp;
+import de.raindancer.modules.warp.model.Warp;
 import de.raindancer.modules.warp.WarpServices;
 import de.raindancer.modules.warp.model.WarpAccess;
 import de.raindancer.modules.warp.rules.WarpNameRule;

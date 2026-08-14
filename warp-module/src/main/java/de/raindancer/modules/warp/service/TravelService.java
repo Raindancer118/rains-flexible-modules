@@ -6,8 +6,8 @@ import de.raindancer.core.world.teleport.Travel;
 import de.raindancer.core.world.teleport.TravelReason;
 import de.raindancer.core.world.teleport.TravelWatcher;
 import de.raindancer.core.world.teleport.Trip;
-import de.raindancer.core.world.warp.Warp;
-import de.raindancer.core.world.warp.Warps;
+import de.raindancer.modules.warp.model.Warp;
+import de.raindancer.modules.warp.store.WarpRegistry;
 import de.raindancer.modules.warp.WarpSettings;
 import de.raindancer.modules.warp.rules.WarpAccessRule;
 import de.raindancer.modules.warp.store.WarpCatalogue;
@@ -23,7 +23,7 @@ import java.util.UUID;
  * <h2>What is here and what is Core's</h2>
  * The waiting, the movement cancelling, finding somewhere safe to land and the teleport itself are
  * all {@link Travel}'s — the same code the teleport requests and the homes use, which is the point
- * of it being there. The cooldown is {@link Warps}'. What is left here, and it is the whole job of
+ * of it being there. The cooldown is {@link WarpRegistry}'s. What is left here, and it is the whole job of
  * this class, is the order the questions are asked in and what each answer is worded as.
  *
  * <h2>The order, and why it is that order</h2>
@@ -35,14 +35,14 @@ import java.util.UUID;
 public final class TravelService implements IWarpService {
 
     private final WarpCatalogue catalogue;
-    private final Warps warps;
+    private final WarpRegistry warps;
     private final Travel travel;
     private final WarpAccessRule access;
     private final Messages messages;
 
     private volatile WarpSettings settings;
 
-    public TravelService(WarpCatalogue catalogue, Warps warps, Travel travel,
+    public TravelService(WarpCatalogue catalogue, WarpRegistry warps, Travel travel,
                          WarpAccessRule access, Messages messages, WarpSettings settings) {
         this.catalogue = catalogue;
         this.warps = warps;
@@ -55,7 +55,7 @@ public final class TravelService implements IWarpService {
     @Override
     public void settings(WarpSettings fresh) {
         this.settings = fresh;
-        // The cooldown lives on Core's Warps, so a changed setting has to be pushed into it. Left
+        // The cooldown lives on this module's WarpRegistry, so a changed setting has to be pushed into it. Left
         // out, the file says thirty seconds and the server keeps enforcing yesterday's fifteen.
         warps.cooldown(Duration.ofSeconds(fresh.cooldown()));
     }

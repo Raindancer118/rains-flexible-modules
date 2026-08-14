@@ -1,7 +1,7 @@
 package de.raindancer.modules.warp.store;
 
-import de.raindancer.core.world.warp.Warp;
-import de.raindancer.core.world.warp.Warps;
+import de.raindancer.modules.warp.model.Warp;
+import de.raindancer.modules.warp.store.WarpRegistry;
 import de.raindancer.modules.warp.model.WarpAccess;
 import de.raindancer.modules.warp.rules.WarpAccessRule;
 import org.bukkit.Location;
@@ -35,14 +35,19 @@ import java.util.function.Predicate;
  */
 public final class WarpCatalogue {
 
-    private final Warps warps;
+    private final WarpRegistry warps;
     /** Writing the places out. Core's {@code PoiStore::flush}, behind an interface for the tests. */
     private final Runnable flush;
 
-    public WarpCatalogue(Warps warps, Runnable flush) {
+    public WarpCatalogue(WarpRegistry warps, Runnable flush) {
         this.warps = warps;
         this.flush = flush == null ? () -> {
         } : flush;
+    }
+
+    /** Forgets a player's cooldown. Called when they log out — see {@code WarpSessionListener}. */
+    public void forget(java.util.UUID player) {
+        warps.forget(player);
     }
 
     // ------------------------------------------------------------------------ looking
@@ -119,7 +124,7 @@ public final class WarpCatalogue {
         return made;
     }
 
-    /** Moves one, keeping its access, its category and its icon — see {@code Warps.move}. */
+    /** Moves one, keeping its access, its category and its icon — see {@code WarpRegistry.move}. */
     public boolean move(String name, Location where) {
         return written(warps.move(name, where));
     }

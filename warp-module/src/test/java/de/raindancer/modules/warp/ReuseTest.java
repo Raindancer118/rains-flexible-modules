@@ -120,12 +120,15 @@ class ReuseTest {
         forbidden.put("PlayerMoveEvent", "Core's TravelListener, which already cancels a warm-up when "
                 + "somebody walks off the block");
 
-        // The place itself. A warp is a point of interest RainsCore already keeps — persistence,
+        // The store itself. A warp is a point of interest RainsCore already keeps — persistence,
         // atomic writes, worlds that are not loaded and "is this reachable" are solved and tested
-        // there. Constructing one, or a second store of them, here would mean a ghast line could not
-        // fly to a warp and deleting a world would leave its warps pointing at nothing.
-        forbidden.put("new Poi(", "context.core().warps(), which owns the places");
-        forbidden.put("PoiStore(", "context.core().warps(), which owns the places");
+        // there, on context.core().places(). What must never happen is a *second* store: this
+        // module's own WarpRegistry is the one place that builds a Poi for a warp, and it does so
+        // through Poi.builder(...), not the constructor — a second PoiStore instance here would mean
+        // a ghast line could not fly to a warp and deleting a world would leave this module's warps
+        // pointing at nothing.
+        forbidden.put("new Poi(", "Poi.builder(...), which WarpRegistry already uses");
+        forbidden.put("new PoiStore(", "context.core().places(), which owns the one store");
 
         return forbidden;
     }
@@ -169,6 +172,33 @@ class ReuseTest {
         assertThat(travelling)
                 .as("nothing here builds a journey out of Core's Travel and Trip, which is what a "
                         + "rewrite that quietly dropped the warm-up would look like")
+                .isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("the warp registry is built on Core's shared places, not a second store")
+    void theRegistryGoesThroughCoresPlaces() {
+        // The inverse of the "new PoiStore(" ban above: it is not enough that a second store is
+        // absent, WarpRegistry actually has to be handed Core's — this used to be core.warps() and
+        // moved out from behind it, so a rewrite that quietly rebuilt a private store would still
+        // pass every other check here.
+        List<Source> onCoresPlaces = module().stream()
+                .filter(source -> source.name().endsWith("WarpRegistry.java"))
+                .filter(source -> source.body().contains("PoiStore"))
+                .toList();
+
+        assertThat(onCoresPlaces)
+                .as("WarpRegistry has to be built on Core's PoiStore type, taken in rather than made")
+                .isNotEmpty();
+
+        List<Source> wiredFromCore = module().stream()
+                .filter(source -> source.name().endsWith("WarpModule.java"))
+                .filter(source -> source.body().contains("context.core().places()"))
+                .toList();
+
+        assertThat(wiredFromCore)
+                .as("the module has to actually hand WarpRegistry context.core().places() — the "
+                        + "shared store, not one built here")
                 .isNotEmpty();
     }
 
