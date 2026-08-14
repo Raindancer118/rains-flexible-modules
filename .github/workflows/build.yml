@@ -35,7 +35,7 @@ on:
       - 'pack-module-v*'
       - 'chained-module-v*'
       - 'rtp-module-v*'
-      - 'hungergames-module-v*'
+      # hungergames-module-v* archived 2026-08-14 alongside its <module> entries in pom.xml — see there
       - 'speedrun-module-v*'
       - 'mannequin-module-v*'
       - 'worldgate-module-v*'
@@ -289,7 +289,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           set -euo pipefail
-          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module farmworld-module pack-module chained-module rtp-module hungergames-module speedrun-module mannequin-module worldgate-module"
+          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module farmworld-module pack-module chained-module rtp-module speedrun-module mannequin-module worldgate-module"
           new=""
           for module in $modules; do
             version="$(grep -oPm1 "(?<=<${module}\.version>)[^<]+" pom.xml)"
@@ -422,7 +422,7 @@ jobs:
           module="${tag%-v*}"
           wanted="${tag##*-v}"
           case "$module" in
-            modules-api|modules-wrapper|claims-module|moderation-module|names-module|warp-module|homes-module|tpa-module|farmworld-module|pack-module|chained-module|rtp-module|hungergames-module|speedrun-module|mannequin-module|worldgate-module) ;;
+            modules-api|modules-wrapper|claims-module|moderation-module|names-module|warp-module|homes-module|tpa-module|farmworld-module|pack-module|chained-module|rtp-module|speedrun-module|mannequin-module|worldgate-module) ;;
             *) echo "::error::$tag names no library module I know about"; exit 1 ;;
           esac
           echo "module=$module" >> "$GITHUB_OUTPUT"

@@ -88,14 +88,14 @@
         <module>speedrun-standalone</module>
         <module>chained-module</module>
         <module>chained-standalone</module>
+        <!--
+          Archived 2026-08-14: not being worked on for a while, and there is no value in the reactor
+          spending a build and 850+ tests on it every push in the meantime. The code is untouched on
+          disk — re-add these three lines (and the matching CI lines noted in build.yml) to resume.
         <module>hungergames-module</module>
         <module>hungergames-standalone</module>
-        <!--
-          After both modules it shades, for the same reason yeuksmp is last. Its own project rather than
-          a profile of the standalone, because the two ship different plugins: one jar is the game alone
-          and the other is the game with the moderation a tournament night needs.
-        -->
         <module>hungergames-bundle</module>
+        -->
         <!--
           Last, because it shades six of the modules above and a reactor builds in the order it is
           given. Every dependency it has is built by the time it is reached.
