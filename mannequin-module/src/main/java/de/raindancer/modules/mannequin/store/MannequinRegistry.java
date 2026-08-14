@@ -70,6 +70,31 @@ public final class MannequinRegistry {
         return found;
     }
 
+    /** Everything this player owns or has been trusted with — the same shape as a claim's "accessible" list. */
+    public synchronized List<Mannequin> accessibleBy(UUID player) {
+        List<Mannequin> found = new ArrayList<>();
+        for (Mannequin mannequin : byId.values()) {
+            if (mannequin.mayManage(player)) {
+                found.add(mannequin);
+            }
+        }
+        return found;
+    }
+
+    /** Every mannequin belonging to this claim — a claims-module id, but this class never resolves it. */
+    public synchronized List<Mannequin> inClaim(UUID claimId) {
+        List<Mannequin> found = new ArrayList<>();
+        if (claimId == null) {
+            return found;
+        }
+        for (Mannequin mannequin : byId.values()) {
+            if (claimId.equals(mannequin.claimId())) {
+                found.add(mannequin);
+            }
+        }
+        return found;
+    }
+
     public synchronized List<Mannequin> inWorld(String world) {
         List<Mannequin> found = new ArrayList<>();
         for (Mannequin mannequin : byId.values()) {

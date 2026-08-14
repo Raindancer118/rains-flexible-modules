@@ -3,6 +3,7 @@ package de.raindancer.modules.mannequin.model;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,7 +66,7 @@ class MannequinTest {
     @Test
     void aNullKindPassedDirectlyDefaultsToPlayer() {
         Mannequin built = new Mannequin("MQ3", UUID.randomUUID(), "world", 0, 64, 0, "Dummy",
-                Map.of(), null, true, false, null, null, 0f);
+                Map.of(), null, true, false, null, null, 0f, Set.of(), null);
 
         assertThat(built.kind()).isEqualTo(MannequinKind.PLAYER);
     }
@@ -112,5 +113,80 @@ class MannequinTest {
         assertThat(facingWest.yaw()).isEqualTo(90f);
         assertThat(base.withYaw(180f).yaw()).isEqualTo(180f);
         assertThat(base.withYaw(180f).id()).isEqualTo(base.id());
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("freshlyPlaced starts trusted by nobody")
+    void freshlyPlacedHasNoTrustedPlayers() {
+        assertThat(base.trusted()).isEmpty();
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("the owner may always manage it, trusted or not")
+    void ownerAlwaysMayManage() {
+        assertThat(base.mayManage(base.owner())).isTrue();
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("a stranger may not manage it")
+    void strangerMayNotManage() {
+        assertThat(base.mayManage(UUID.randomUUID())).isFalse();
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("withTrusted adds somebody who may then manage it")
+    void withTrustedGrantsManagement() {
+        UUID friend = UUID.randomUUID();
+        Mannequin shared = base.withTrusted(friend);
+
+        assertThat(shared.trusted()).containsExactly(friend);
+        assertThat(shared.mayManage(friend)).isTrue();
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("withoutTrusted withdraws the right again")
+    void withoutTrustedWithdrawsManagement() {
+        UUID friend = UUID.randomUUID();
+        Mannequin shared = base.withTrusted(friend);
+        Mannequin withdrawn = shared.withoutTrusted(friend);
+
+        assertThat(withdrawn.trusted()).isEmpty();
+        assertThat(withdrawn.mayManage(friend)).isFalse();
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("trusting the owner is a no-op — they already may manage it")
+    void trustingTheOwnerIsANoOp() {
+        assertThat(base.withTrusted(base.owner()).trusted()).isEmpty();
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("the owner can never end up inside their own trusted set, even handed in directly")
+    void ownerNeverEndsUpInTrustedSet() {
+        UUID owner = UUID.randomUUID();
+        Mannequin built = new Mannequin("MQ5", owner, "world", 0, 64, 0, "Dummy",
+                Map.of(), null, true, false, null, null, 0f, Set.of(owner), null);
+
+        assertThat(built.trusted()).isEmpty();
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("freshlyPlaced belongs to no claim")
+    void freshlyPlacedHasNoClaim() {
+        assertThat(base.claimId()).isNull();
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("withClaimId links it to a claim")
+    void withClaimIdLinksIt() {
+        UUID claim = UUID.randomUUID();
+        assertThat(base.withClaimId(claim).claimId()).isEqualTo(claim);
+    }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("withClaimId(null) takes it off any claim it was on")
+    void withClaimIdNullUnlinksIt() {
+        Mannequin linked = base.withClaimId(UUID.randomUUID());
+        assertThat(linked.withClaimId(null).claimId()).isNull();
     }
 }

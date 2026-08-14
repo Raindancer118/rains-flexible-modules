@@ -4,6 +4,9 @@ import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.util.Items;
+import de.raindancer.modules.claims.extension.ClaimMenuButton;
+import de.raindancer.modules.claims.extension.ClaimMenuExtension;
+import de.raindancer.modules.claims.extension.ClaimMenuExtensions;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -114,6 +117,20 @@ public final class ClaimMenu extends ClaimScreen {
                         "<gray>What this claim is called, and what it looks like in a list."),
                 "The owner's to change",
                 click -> new ClaimIdentityMenu(services(), viewer, claim, this).open());
+
+        // ── whatever another module has to say about this claim ─────────────────────────────────────────
+        // The RULES band is otherwise unused here (ConfigMenu owns its own row on its own page), so a
+        // contributor gets a whole band to itself rather than squeezing in beside WHO or LAND. Extensions
+        // are asked fresh on every render, same as every other button on this page — a stale count in the
+        // lore would be its own bug.
+        int column = 2;
+        for (ClaimMenuExtension extension : ClaimMenuExtensions.all()) {
+            ClaimMenuButton button = extension.contribute(services(), claim, viewer, this);
+            if (button != null && column <= 6) {
+                band(MenuLayout.RULES, column, button.icon(), button.onClick());
+                column += 2;
+            }
+        }
 
         // ── the toolbar ──────────────────────────────────────────────────────────────────────────────────
         // The manual sits where the info book used to. The book said what the claim was, which is what the

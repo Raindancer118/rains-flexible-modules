@@ -58,7 +58,9 @@ public final class MannequinCommand implements IMannequinCommand {
         String sub = args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
             case "create" -> create(live, sender, args);
-            case "remove" -> withMannequin(live, sender, args, (l, p, m) -> remove(l, p, m, args));
+            // remove has its own, wider check (mayManage OR the server-wide REMOVE_ANY permission),
+            // so it is looked up with withAnyMannequin rather than gated a second, narrower time.
+            case "remove" -> withAnyMannequin(live, sender, args, (l, p, m) -> remove(l, p, m, args));
             case "loadout" -> withMannequin(live, sender, args, (l, p, m) -> l.screens().loadout(p, m));
             case "skin" -> withMannequin(live, sender, args, (l, p, m) -> l.screens().skin(p, m));
             case "stats" -> withMannequin(live, sender, args, (l, p, m) -> l.screens().stats(p, m));
@@ -100,8 +102,12 @@ public final class MannequinCommand implements IMannequinCommand {
     }
 
     private void remove(MannequinServices live, Player player, Mannequin mannequin, String[] args) {
-        boolean owns = mannequin.owner().equals(player.getUniqueId());
-        if (!owns && !player.hasPermission(PermissionNodes.REMOVE_ANY)) {
+        // Trusted, not only owned: sharing a mannequin means being able to actually retire it, the
+        // same as a claim's trusted members can give up the claim they were let into. REMOVE_ANY is
+        // the server-wide escape hatch on top of that, for an admin cleaning up after somebody who
+        // has left.
+        boolean allowed = mannequin.mayManage(player.getUniqueId());
+        if (!allowed && !player.hasPermission(PermissionNodes.REMOVE_ANY)) {
             live.messages().send(player, "mannequin.remove.no-permission");
             return;
         }
@@ -118,7 +124,7 @@ public final class MannequinCommand implements IMannequinCommand {
             live.messages().send(sender, "mannequin.only-a-player");
             return;
         }
-        List<Mannequin> owned = live.registry().ownedBy(player.getUniqueId());
+        List<Mannequin> owned = live.registry().accessibleBy(player.getUniqueId());
         if (owned.isEmpty()) {
             live.messages().send(sender, "mannequin.list.empty");
             return;
@@ -133,8 +139,21 @@ public final class MannequinCommand implements IMannequinCommand {
         void run(MannequinServices services, Player player, Mannequin mannequin);
     }
 
+    /** Loadout, skin, stats — reachable by whoever owns the mannequin or has been trusted with it. */
     private void withMannequin(MannequinServices live, CommandSender sender, String[] args,
                                WithMannequin action) {
+        withAnyMannequin(live, sender, args, (l, p, m) -> {
+            if (!m.mayManage(p.getUniqueId())) {
+                l.messages().send(p, "mannequin.no-permission");
+                return;
+            }
+            action.run(l, p, m);
+        });
+    }
+
+    /** Looks the id up without a permission gate — {@code remove} has its own, wider one. */
+    private void withAnyMannequin(MannequinServices live, CommandSender sender, String[] args,
+                                  WithMannequin action) {
         if (!(sender instanceof Player player)) {
             live.messages().send(sender, "mannequin.only-a-player");
             return;
@@ -169,7 +188,7 @@ public final class MannequinCommand implements IMannequinCommand {
         if (args.length == 2 && List.of("remove", "loadout", "skin", "stats").contains(sub)
                 && source.getSender() instanceof Player player) {
             MannequinServices live = services.get();
-            return live.registry().ownedBy(player.getUniqueId()).stream()
+            return live.registry().accessibleBy(player.getUniqueId()).stream()
                     .map(Mannequin::id)
                     .filter(id -> id.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .toList();

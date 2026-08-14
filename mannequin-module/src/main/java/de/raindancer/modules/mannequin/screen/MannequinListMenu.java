@@ -44,7 +44,7 @@ public final class MannequinListMenu extends PaginatedMenu<Mannequin> implements
 
     @Override
     protected List<Mannequin> entries() {
-        return services.registry().ownedBy(viewer.getUniqueId());
+        return services.registry().accessibleBy(viewer.getUniqueId());
     }
 
     /**
@@ -71,11 +71,13 @@ public final class MannequinListMenu extends PaginatedMenu<Mannequin> implements
 
     @Override
     protected ItemStack icon(Mannequin mannequin) {
-        List<String> lore = List.of(
-                "<dark_gray>" + mannequin.world() + " " + mannequin.x() + " "
-                        + mannequin.y() + " " + mannequin.z(),
-                "",
-                "<gray>Click to open.");
+        boolean owner = mannequin.owner().equals(viewer.getUniqueId());
+        List<String> lore = new java.util.ArrayList<>();
+        lore.add(owner ? "<gold>Yours" : "<aqua>Shared with you");
+        lore.add("<dark_gray>" + mannequin.world() + " " + mannequin.x() + " "
+                + mannequin.y() + " " + mannequin.z());
+        lore.add("");
+        lore.add("<gray>Click to open.");
         if (mannequin.skinSource() != null) {
             return Icons.head(mannequin.skinSource(), "<white>" + mannequin.displayName(), lore);
         }

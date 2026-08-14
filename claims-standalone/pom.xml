@@ -51,7 +51,7 @@
           the three, opening the same three-tier owner/trusted/visitor toggle FlagChooser already
           teaches for narrowing a flag.
         -->
-        <plugin.version>2.2.0</plugin.version>
+        <plugin.version>2.3.0</plugin.version>
     </properties>
 
     <dependencies>

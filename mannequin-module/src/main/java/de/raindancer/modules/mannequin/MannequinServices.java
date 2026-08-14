@@ -6,6 +6,7 @@ import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.actionbar.ActionBars;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.modules.mannequin.claims.ClaimLink;
 import de.raindancer.modules.mannequin.service.MannequinCombatService;
 import de.raindancer.modules.mannequin.service.MannequinEquipService;
 import de.raindancer.modules.mannequin.service.MannequinPotionService;
@@ -39,7 +40,14 @@ public record MannequinServices(
         MannequinRedstoneService redstone,
         MannequinPotionService potion,
         MannequinCombatService combat,
-        IMannequinScreensOpener screens) {
+        IMannequinScreensOpener screens,
+        /**
+         * What this module knows about claims — {@link ClaimLink#NONE} on a server with no claims
+         * plugin installed, a real link when there is one. See {@code
+         * de.raindancer.modules.mannequin.claims.ClaimIntegration} for why a screen reaches this
+         * rather than a {@code ClaimServices} field directly.
+         */
+        ClaimLink claimLink) {
 
     public MannequinSettings config() {
         return settings.get();

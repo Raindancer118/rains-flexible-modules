@@ -94,7 +94,16 @@ public final class MannequinRedstoneService implements IMannequinService {
      * it, and a hit landing after that is not a reason to place one back.
      */
     public void pulse(Block barrel, int desiredSignal, long clearAfterTicks) {
-        if (barrel == null || !(barrel.getState() instanceof Barrel state)) {
+        // getState(false): the real block entity, not getState()'s detached snapshot. A snapshot's
+        // inventory is a private copy — filling it and writing it back with update() changes what
+        // the barrel contains, but skips whatever internal step a vanilla container mutation (a
+        // player's own click, a hopper, a /item command) uses to tell an adjacent comparator to
+        // recompute. That gap was the entire reason a hit's pulse produced the right item count in
+        // its own debug log line and still left every comparator reading 0: confirmed by hand before
+        // this fix by filling the same barrel through a plain vanilla command instead of this
+        // service, which worked immediately. Operating on the live entity directly is what a normal
+        // container interaction does, so it carries that notification the same way.
+        if (barrel == null || !(barrel.getState(false) instanceof Barrel state)) {
             log.debug("[redstone] pulse skipped: block at {} is not a barrel (was it broken?).",
                     barrel == null ? "null" : barrel.getLocation());
             return;
@@ -103,7 +112,6 @@ public final class MannequinRedstoneService implements IMannequinService {
         inventory.clear();
         int items = itemsForSignal(desiredSignal, inventory.getSize());
         fill(inventory, items);
-        state.update();
         refreshAdjacentComparators(barrel);
         log.debug("[redstone] pulse at {}: signal {} -> {} item(s), for {} tick(s).",
                 barrel.getLocation(), desiredSignal, items, clearAfterTicks);
@@ -114,9 +122,8 @@ public final class MannequinRedstoneService implements IMannequinService {
         Scheduling.regionTimer(plugin, barrel.getLocation(), Math.max(1L, clearAfterTicks),
                 Math.max(1L, clearAfterTicks), task -> {
                     try {
-                        if (barrel.getState() instanceof Barrel stillBarrel) {
+                        if (barrel.getState(false) instanceof Barrel stillBarrel) {
                             stillBarrel.getInventory().clear();
-                            stillBarrel.update();
                             refreshAdjacentComparators(barrel);
                         }
                     } finally {

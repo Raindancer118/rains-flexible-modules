@@ -17,13 +17,30 @@ dependencies:
   # Both phases, and bootstrap is not belt-and-braces — see rtp-standalone's own copy of this file for
   # the full reasoning: without it the module fails to link at bootstrap and the plugin reports that
   # it contains no modules.
+  #
+  # RainsExtendedClaims is optional, deliberately — a mannequin does not have to belong to a claim, and
+  # this plugin works exactly as it always has with no claims plugin installed at all. `load: BEFORE`
+  # still matters when it IS present: MannequinModule looks claims-module's ClaimServices up from
+  # Bukkit's own ServicesManager as it enables, and that lookup only finds something if RainsExtendedClaims
+  # has already registered it. `join-classpath: true` matters for the same reason it does for RainsCore:
+  # this module compiles against Claim/ClaimServices as a `provided` dependency, and every reference to
+  # either lives inside de.raindancer.modules.mannequin.claims, touched only after that ServicesManager
+  # lookup already found something real — see ClaimIntegration's own javadoc.
   bootstrap:
     RainsCore:
       load: BEFORE
       required: true
       join-classpath: true
+    RainsExtendedClaims:
+      load: BEFORE
+      required: false
+      join-classpath: true
   server:
     RainsCore:
       load: BEFORE
       required: true
+      join-classpath: true
+    RainsExtendedClaims:
+      load: BEFORE
+      required: false
       join-classpath: true

@@ -20,8 +20,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -76,6 +78,8 @@ public final class MannequinStore {
             yaml.set("max-health-override", mannequin.maxHealthOverride());
             yaml.set("kind", mannequin.kind().name());
             yaml.set("yaw", (double) mannequin.yaw());
+            yaml.set("trusted", mannequin.trusted().stream().map(UUID::toString).toList());
+            yaml.set("claim-id", mannequin.claimId() == null ? null : mannequin.claimId().toString());
             for (Map.Entry<EquipmentSlot, ItemSpec> entry : mannequin.loadout().entrySet()) {
                 String at = "loadout." + entry.getKey().name();
                 yaml.set(at + ".material", entry.getValue().material().name());
@@ -153,6 +157,26 @@ public final class MannequinStore {
         // south" — rather than throwing.
         float yaw = (float) yaml.getDouble("yaw", 0.0);
 
+        Set<UUID> trusted = new LinkedHashSet<>();
+        for (String raw : yaml.getStringList("trusted")) {
+            try {
+                trusted.add(UUID.fromString(raw));
+            } catch (IllegalArgumentException notAUuid) {
+                // Skipped, same discipline as an unreadable enchant entry above.
+            }
+        }
+
+        String claimIdRaw = yaml.getString("claim-id");
+        UUID claimId = null;
+        if (claimIdRaw != null && !claimIdRaw.isBlank()) {
+            try {
+                claimId = UUID.fromString(claimIdRaw);
+            } catch (IllegalArgumentException notAUuid) {
+                // A hand edit gone wrong reads as "belongs to no claim" rather than refusing to load
+                // the whole mannequin over one stray field.
+            }
+        }
+
         Map<EquipmentSlot, ItemSpec> loadout = new LinkedHashMap<>();
         ConfigurationSection loadoutSection = yaml.getConfigurationSection("loadout");
         if (loadoutSection != null) {
@@ -193,7 +217,7 @@ public final class MannequinStore {
         }
 
         return new Mannequin(id, owner, world, x, y, z, displayName, loadout, skinSource,
-                blocksWithShield, emitsRedstoneSignal, maxHealthOverride, kind, yaw);
+                blocksWithShield, emitsRedstoneSignal, maxHealthOverride, kind, yaw, trusted, claimId);
     }
 
     private static String required(String value, String what) {

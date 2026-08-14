@@ -59,7 +59,7 @@ import java.io.UncheckedIOException;
  */
 public final class ClaimsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.3.0")
             .describedAs("Land claims: who owns what, who may do what there, and the screens for it")
             .by("Raindancer118");
 
@@ -202,6 +202,14 @@ public final class ClaimsModule implements FlexModule {
                 this::saveZones, context.core());
         movement = new MovementListener(services);
         ambience.movement(movement);
+
+        // Bukkit's own ServicesManager, not a static field: it is the one lookup that works whether an
+        // outside module is hosted in this same plugin or in a separate one entirely, which a static
+        // registry cannot tell apart from "not running at all". This module never learns who, if anybody,
+        // looked it up — mannequin-module is the first, and nothing here changed to let it.
+        context.plugin().getServer().getServicesManager()
+                .register(ClaimServices.class, services, context.plugin(), org.bukkit.plugin.ServicePriority.Normal);
+        context.closeWith(() -> context.plugin().getServer().getServicesManager().unregister(services));
 
         // Every setting is a snapshot, so a reload hands each service a fresh one. Missing one of these is a
         // subsystem that keeps yesterday's numbers until the next restart, which is the sort of bug that gets

@@ -29,6 +29,27 @@
             <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>
         </dependency>
+        <!--
+          provided, the same reasoning chained-module already has against speedrun-module: a
+          mannequin optionally belongs to a claim, so this module compiles against Claim/ClaimServices
+          to read one when it exists — but never shades claims-module in. A shaded copy alongside an
+          installed claims plugin would be two independent ClaimRegistries, each with its own idea of
+          which claims exist.
+
+          Unlike chained/speedrun, this is a genuinely OPTIONAL dependency: a mannequin does not have
+          to belong to a claim, and this module works exactly as before on a server with no claims
+          plugin at all. Every reference to a claims-module class lives inside the
+          de.raindancer.modules.mannequin.claims package, touched only after a runtime check
+          (ClaimIntegration.tryLink/tryRegisterMenu) confirms the real ClaimServices is actually
+          registered with Bukkit's own ServicesManager — the class is never loaded, so its unresolved
+          symbols never matter, when claims is not installed.
+        -->
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>claims-module</artifactId>
+            <version>${claims-module.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>

@@ -98,7 +98,37 @@
           owner was facing, instead of always due south. Added a "Rename" option to the mannequin's
           edit page.
         -->
-        <plugin.version>1.5.0</plugin.version>
+
+        <!--
+          1.5.1: the redstone signal reportedly still not working traced to two real causes on the
+          live test server, neither one the barrel/comparator mechanics themselves — the specific
+          mannequin under test simply had its own redstone toggle switched off (a fresh mannequin
+          does not inherit an earlier one's settings, correctly), and separately, turning on debug
+          logging to check that was doing nothing at all: RainsCore's own DEBUG level maps to
+          java.util.logging's FINE, which the console's own default threshold silently drops
+          regardless of RainsCore's own "console-level: debug" setting — fixed in RainsCore itself
+          by logging a debug line at INFO with its own [DEBUG] label instead. Also fixed: a
+          mannequin was left setPersistent(true), so a plain server restart produced two of it — the
+          one this module spawns fresh from its own stored record on every enable(), standing on top
+          of the one the world file itself remembered from before the restart, since vanilla was
+          never told not to save and reload this entity on its own. Now non-persistent and tagged
+          with its own id, with a boot-time sweep that removes any already-duplicated copy standing
+          at its anchor from before this fix existed.
+        -->
+
+        <!--
+          1.5.2: the redstone signal reaching the barrel's item count exactly as designed (visible
+          in the pulse's own debug line, once 1.5.1 fixed that line from being invisible) still left
+          every comparator reading 0, confirmed by hand: filling the same barrel through a plain
+          vanilla command instead of this module worked immediately, filling it through the pulse
+          itself did not. Root cause: the pulse filled the barrel's inventory through
+          Block#getState()'s detached snapshot copy, then wrote it back with update() — which changes
+          what the barrel holds but skips whatever a live container mutation (a player's own click, a
+          hopper, that same vanilla command) does to tell an adjacent comparator to recompute. Fixed
+          by operating on Block#getState(false), the real block entity Paper itself documents as "to
+          operate on real block data" — the same live path every other container interaction takes.
+        -->
+        <plugin.version>1.6.0</plugin.version>
     </properties>
 
     <dependencies>

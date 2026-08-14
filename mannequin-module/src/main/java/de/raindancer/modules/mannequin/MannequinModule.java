@@ -47,7 +47,7 @@ import java.util.List;
  */
 public final class MannequinModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("mannequin", "Mannequin", "1.5.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("mannequin", "Mannequin", "1.6.0")
             .describedAs("Training dummies an owner spawns and dresses: real health that can be "
                     + "brought down and respawns identically afterwards, every hit tracked, "
                     + "blocking with a shield, and never leaving anything obtainable behind.")
@@ -130,10 +130,23 @@ public final class MannequinModule implements FlexModule {
         context.listener(new MannequinKnockbackListener(mannequins));
         context.listener(new MannequinTargetListener(mannequins));
 
+        // A real link if a claims plugin happens to be running, ClaimLink.NONE otherwise — see
+        // ClaimIntegration for why this is safe to call unconditionally even when claims-module's
+        // classes are not on the classpath at all.
+        de.raindancer.modules.mannequin.claims.ClaimLink claimLink =
+                de.raindancer.modules.mannequin.claims.ClaimIntegration.tryLink(log);
+
         services = new MannequinServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core().actionBars(), context.core(),
                 settings::current, settings,
-                registry, mannequins, equip, redstone, potions, combat, new LiveScreens());
+                registry, mannequins, equip, redstone, potions, combat, new LiveScreens(), claimLink);
+
+        // The "Mannequins" button on ClaimMenu, only if claims is actually there to show it on.
+        AutoCloseable unregisterClaimMenuButton =
+                de.raindancer.modules.mannequin.claims.ClaimIntegration.tryRegisterMenu(services, log);
+        if (unregisterClaimMenuButton != null) {
+            context.closeWith(unregisterClaimMenuButton);
+        }
 
         MannequinCommands.ready(services);
 

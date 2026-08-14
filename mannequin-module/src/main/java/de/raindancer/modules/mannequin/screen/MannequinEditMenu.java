@@ -136,6 +136,13 @@ public final class MannequinEditMenu extends Menu implements IMannequinScreen {
             refresh();
         });
 
+        band(MenuLayout.RULES, 7, mannequin.owner().equals(viewer.getUniqueId()),
+                Icons.head(viewer.getUniqueId(), "<aqua>Shared with",
+                        "<gray>Who besides you may open and edit it.",
+                        "<dark_gray>" + mannequin.trusted().size() + " trusted"),
+                "The owner's to change",
+                click -> new ShareMenu(services, viewer, mannequin, this).open());
+
         band(MenuLayout.RULES, 3, redstoneIcon(mannequin), click -> {
             boolean nowOn = !mannequin.emitsRedstoneSignal();
             Mannequin updated = mannequin.withEmitsRedstoneSignal(nowOn);
@@ -151,6 +158,16 @@ public final class MannequinEditMenu extends Menu implements IMannequinScreen {
             }
             refresh();
         });
+
+        // Only drawn when this module actually knows about claims — a bare button offering to link a
+        // claim on a server with no claims plugin at all would be a door to nowhere, and this is the
+        // one thing on this page that is hidden rather than greyed for exactly that reason: it is not
+        // that the viewer may not use it, it is that the feature behind it does not exist here.
+        if (services.claimLink() != de.raindancer.modules.mannequin.claims.ClaimLink.NONE) {
+            toolbar(3, mannequin.owner().equals(viewer.getUniqueId()),
+                    claimIcon(mannequin), "The owner's to change",
+                    click -> toggleClaim(mannequin));
+        }
 
         danger(Icons.of(Material.TNT, "<red>Remove this mannequin",
                         "<gray>The entity, its loadout and its file all go.",
@@ -220,6 +237,50 @@ public final class MannequinEditMenu extends Menu implements IMannequinScreen {
                         : "<gray>A shield in its off hand is never raised.",
                 "",
                 "<gray>Click to " + (on ? "turn off" : "turn on") + ".");
+    }
+
+    private ItemStack claimIcon(Mannequin mannequin) {
+        if (mannequin.claimId() == null) {
+            return Icons.of(Material.GRASS_BLOCK, "<gray>Not part of a claim",
+                    "<gray>Stand inside a claim you own and click",
+                    "<gray>this to make the mannequin part of it —",
+                    "<gray>it then shows up on that claim's own page too.");
+        }
+        String name = services.claimLink().nameOf(mannequin.claimId());
+        return Icons.of(Material.GRASS_BLOCK, "<green>Part of " + (name == null ? "a claim" : name),
+                name == null ? "<red>That claim no longer exists." : "<gray>Shown on that claim's own page too.",
+                "",
+                "<gray>Click to take it off that claim.");
+    }
+
+    /**
+     * Links this mannequin to whichever claim the owner is standing in, or takes it off the one it is
+     * on — a click rather than a chooser, the same reason {@code claims-module} itself never asks
+     * "which claim" when "the one you are standing in" is always the answer.
+     */
+    private void toggleClaim(Mannequin mannequin) {
+        if (mannequin.claimId() != null) {
+            Mannequin updated = mannequin.withClaimId(null);
+            services.mannequins().save(updated);
+            services.messages().send(viewer, "mannequin.claim.unlinked", "name", updated.displayName());
+            refresh();
+            return;
+        }
+        var claimAround = services.claimLink().claimAround(viewer);
+        if (claimAround.isEmpty()) {
+            services.messages().send(viewer, "mannequin.claim.not-standing-in-one");
+            return;
+        }
+        java.util.UUID claimId = claimAround.get();
+        if (!services.claimLink().owns(claimId, viewer.getUniqueId())) {
+            services.messages().send(viewer, "mannequin.claim.not-your-claim");
+            return;
+        }
+        Mannequin updated = mannequin.withClaimId(claimId);
+        services.mannequins().save(updated);
+        services.messages().send(viewer, "mannequin.claim.linked",
+                "name", updated.displayName(), "claim", services.claimLink().nameOf(claimId));
+        refresh();
     }
 
     private ItemStack redstoneIcon(Mannequin mannequin) {

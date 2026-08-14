@@ -138,6 +138,61 @@ class MannequinStoreTest {
     }
 
     @Test
+    @DisplayName("trusted players round-trip exactly")
+    void trustedRoundTrips() {
+        MannequinStore store = new MannequinStore(folder);
+        UUID friend = UUID.randomUUID();
+        Mannequin mannequin = Mannequin.freshlyPlaced("MQ1", UUID.randomUUID(), "world", 0, 64, 0)
+                .withTrusted(friend);
+
+        store.save(mannequin);
+
+        assertThat(store.loadAll().getFirst().trusted()).containsExactly(friend);
+    }
+
+    @Test
+    @DisplayName("a mannequin trusted with nobody round-trips as trusted with nobody")
+    void noTrustedStaysEmpty() {
+        MannequinStore store = new MannequinStore(folder);
+        store.save(Mannequin.freshlyPlaced("MQ1", UUID.randomUUID(), "world", 0, 64, 0));
+
+        assertThat(store.loadAll().getFirst().trusted()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the claim it belongs to round-trips exactly")
+    void claimIdRoundTrips() {
+        MannequinStore store = new MannequinStore(folder);
+        UUID claimId = UUID.randomUUID();
+        Mannequin mannequin = Mannequin.freshlyPlaced("MQ1", UUID.randomUUID(), "world", 0, 64, 0)
+                .withClaimId(claimId);
+
+        store.save(mannequin);
+
+        assertThat(store.loadAll().getFirst().claimId()).isEqualTo(claimId);
+    }
+
+    @Test
+    @DisplayName("a mannequin on no claim round-trips as on no claim")
+    void noClaimStaysNull() {
+        MannequinStore store = new MannequinStore(folder);
+        store.save(Mannequin.freshlyPlaced("MQ1", UUID.randomUUID(), "world", 0, 64, 0));
+
+        assertThat(store.loadAll().getFirst().claimId()).isNull();
+    }
+
+    @Test
+    @DisplayName("a garbled claim id round-trips as no claim rather than throwing")
+    void aGarbledClaimIdDefaultsToNone() throws Exception {
+        MannequinStore store = new MannequinStore(folder);
+        Files.writeString(store.folder().resolve("MQ1.yml"),
+                "id: MQ1\nowner: " + UUID.randomUUID()
+                        + "\nworld: world\nx: 0\ny: 64\nz: 0\nclaim-id: not-a-uuid\n");
+
+        assertThat(store.loadAll().getFirst().claimId()).isNull();
+    }
+
+    @Test
     @DisplayName("an unreadable file is skipped, not thrown over every other mannequin")
     void anUnreadableFileIsSkipped() throws Exception {
         MannequinStore store = new MannequinStore(folder);

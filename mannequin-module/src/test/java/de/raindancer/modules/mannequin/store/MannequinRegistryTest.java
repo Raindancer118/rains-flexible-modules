@@ -78,6 +78,31 @@ class MannequinRegistryTest {
 
             assertThat(registry.inWorld("world")).extracting(Mannequin::id).containsExactly("MQ1");
         }
+
+        @Test
+        void accessibleByIncludesOwnedAndTrusted() {
+            UUID owner = UUID.randomUUID();
+            UUID friend = UUID.randomUUID();
+            registry.put(Mannequin.freshlyPlaced("MQ1", owner, "world", 0, 64, 0));
+            registry.put(Mannequin.freshlyPlaced("MQ2", UUID.randomUUID(), "world", 0, 64, 0)
+                    .withTrusted(friend));
+            registry.put(Mannequin.freshlyPlaced("MQ3", UUID.randomUUID(), "world", 0, 64, 0));
+
+            assertThat(registry.accessibleBy(friend)).extracting(Mannequin::id).containsExactly("MQ2");
+            assertThat(registry.accessibleBy(owner)).extracting(Mannequin::id).containsExactly("MQ1");
+        }
+
+        @Test
+        void inClaimFiltersByClaimIdAndIgnoresNoClaim() {
+            UUID claim = UUID.randomUUID();
+            registry.put(Mannequin.freshlyPlaced("MQ1", UUID.randomUUID(), "world", 0, 64, 0)
+                    .withClaimId(claim));
+            registry.put(Mannequin.freshlyPlaced("MQ2", UUID.randomUUID(), "world", 0, 64, 0));
+
+            assertThat(registry.inClaim(claim)).extracting(Mannequin::id).containsExactly("MQ1");
+            assertThat(registry.inClaim(null)).isEmpty();
+            assertThat(registry.inClaim(UUID.randomUUID())).isEmpty();
+        }
     }
 
     @Nested

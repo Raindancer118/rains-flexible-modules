@@ -10,6 +10,7 @@ mannequin:
   missing-id: "<red>Which one? /mannequin <remove|loadout|skin|stats> <id>"
   unknown-id: "<red>There is no mannequin called <white><id></white>."
   busy: "<red>You are already being asked something else."
+  no-permission: "<red>You are neither its owner nor trusted with it."
 
   redstone:
     barrel-at: "<yellow>The barrel is at <white><x> <y> <z></white>. Build a comparator beside it, at that exact height."
@@ -39,3 +40,14 @@ mannequin:
   list:
     empty: "<gray>You have no mannequins."
     entry: "<white><id></white> <gray>— <white><name></white> <gray>in <white><world></white>"
+
+  share:
+    trusted: "<green>Trusted <white><player></white> with <white><name></white>."
+    untrusted: "<yellow>No longer trusted: <white><player></white> on <white><name></white>."
+    notify-trusted: "<green><player></green> trusted you with their mannequin <white><name></white>."
+
+  claim:
+    linked: "<green><name></green> now belongs to <white><claim></white>."
+    unlinked: "<yellow><name></yellow> no longer belongs to a claim."
+    not-standing-in-one: "<red>Stand inside the claim you want to link it to first."
+    not-your-claim: "<red>You do not own the claim you are standing in."

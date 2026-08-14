@@ -78,6 +78,15 @@ public final class MannequinService implements IMannequinService {
         this.settings = settings;
     }
 
+    /**
+     * Tags an entity as the live copy of one stored mannequin — never null when {@link #plugin} is
+     * a real plugin, since only {@link #spawn} ever asks for it, and that path never runs in a
+     * test that hands this class {@code null} in place of a live plugin.
+     */
+    private org.bukkit.NamespacedKey idKey() {
+        return new org.bukkit.NamespacedKey(plugin, "mannequin-id");
+    }
+
     @Override
     public void settings(MannequinSettings settings) {
         this.settings = settings;
@@ -151,6 +160,7 @@ public final class MannequinService implements IMannequinService {
 
         Location at = new Location(world, mannequin.x() + 0.5, mannequin.y(), mannequin.z() + 0.5,
                 mannequin.yaw(), 0f);
+        removeStrayCopiesAt(at, mannequin.id());
         LivingEntity entity = switch (mannequin.kind()) {
             case PLAYER -> world.spawn(at, org.bukkit.entity.Mannequin.class,
                     spawned -> configurePlayer(spawned, mannequin));
@@ -218,7 +228,17 @@ public final class MannequinService implements IMannequinService {
         entity.setCustomNameVisible(true);
         entity.setCanPickupItems(true);
         entity.setRemoveWhenFarAway(false);
-        entity.setPersistent(true);
+        // Not persistent: this module is the one thing that ever creates or removes this entity,
+        // from the stored record in MannequinStore, on every enable() including a plain server
+        // restart. Persistent left it to vanilla's own save/reload as well, so a restart produced
+        // two of it — the one this module just spawned fresh from the store, standing on top of
+        // the one the world file itself remembered from before the restart. A custom name already
+        // keeps a mob from vanishing to ordinary despawn-culling on its own, and
+        // setRemoveWhenFarAway(false) above covers the no-players-nearby case explicitly, so
+        // nothing about staying put while the server runs depended on this flag being true.
+        entity.setPersistent(false);
+        entity.getPersistentDataContainer().set(idKey(), org.bukkit.persistence.PersistentDataType.STRING,
+                mannequin.id());
 
         double health = mannequin.resolvedMaxHealth(settings.maxHealthClamped());
         entity.setMaxHealth(health);
@@ -417,6 +437,24 @@ public final class MannequinService implements IMannequinService {
             return;
         }
         liveEntity(mannequin.id()).ifPresent(entity -> placeBarrel(entity.getWorld(), mannequin));
+    }
+
+    /**
+     * Cleans up anything already left standing at a mannequin's anchor from before this entity was
+     * ever marked non-persistent — {@link #despawn} only knows about a UUID this run's own registry
+     * bound, which right after an enable() is never the copy a previous run's world save carried
+     * across a restart under the old, persistent flag. Matched by {@link #idKey()}'s tag rather than
+     * simply "anything living standing here", so a player's own pet or a real mob that wandered onto
+     * the same block is never touched.
+     */
+    private void removeStrayCopiesAt(Location at, String id) {
+        for (Entity nearby : at.getWorld().getNearbyEntities(at, 0.6, 1.5, 0.6)) {
+            if (nearby instanceof LivingEntity living
+                    && id.equals(living.getPersistentDataContainer()
+                            .get(idKey(), org.bukkit.persistence.PersistentDataType.STRING))) {
+                living.remove();
+            }
+        }
     }
 
     /** Removes the live entity, if there is one, without touching the stored record. */
