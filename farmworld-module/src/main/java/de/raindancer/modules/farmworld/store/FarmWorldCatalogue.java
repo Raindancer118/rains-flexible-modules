@@ -1,10 +1,10 @@
 package de.raindancer.modules.farmworld.store;
 
-import de.raindancer.core.world.farm.FarmWorlds;
-import de.raindancer.core.world.farm.WorldSet;
+import de.raindancer.modules.farmworld.model.WorldSet;
 import de.raindancer.modules.farmworld.model.FarmWorldView;
 import de.raindancer.modules.farmworld.rules.FarmAccessRule;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
@@ -18,17 +18,18 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
- * The module's door to the farm worlds, which are RainsCore's.
+ * The module's door to the farm worlds, which this module now keeps itself.
  *
- * <h2>Why there is no store of its own</h2>
- * Because a farm world is three linked worlds with a schedule, and RainsCore already keeps those:
- * {@code farmworlds.yml} for what an owner wrote, the database for when each was last made, the portal
- * linking, and — the part that matters most — {@code FarmWorldState.mayDelete}, the one pure function
- * standing between a typed command and a deleted server. A second record of which farm worlds exist
- * would be two files to keep in step, and the one that disagreed would be deciding what gets deleted.
+ * <h2>Why {@link FarmWorlds} is not simply inlined here</h2>
+ * Because {@code farmworlds.yml} for what an owner wrote, the database for when each was last made,
+ * the portal linking, and — the part that matters most — {@code FarmWorldState.mayDelete}, the one
+ * pure function standing between a typed command and a deleted server, all need a real server to
+ * act on. Keeping that apart from this class is what lets {@code FarmWorldState}'s rules be tested
+ * without one.
  *
- * <p>So what is here is the two things the module adds: reading a {@link FarmWorldView} — the set plus
- * whether it is loaded and how long it has left — and filtering by who is looking.
+ * <p>So what is here is the two things the module adds on top of {@code FarmWorlds}: reading a
+ * {@link FarmWorldView} — the set plus whether it is loaded and how long it has left — and filtering
+ * by who is looking.
  *
  * <h2>Why every change flushes</h2>
  * Because a farm world's schedule decides when three worlds are deleted. A period changed from a day to
@@ -97,6 +98,16 @@ public final class FarmWorldCatalogue {
     /** The set itself, for the one caller that has to hand it back to Core. */
     public Optional<WorldSet> setOf(String name) {
         return farms.state().byName(name);
+    }
+
+    /** Which farm world owns a given loaded world, by that world's own name — for the portal listener. */
+    public Optional<WorldSet> setOwning(String world) {
+        return farms.state().setOwning(world);
+    }
+
+    /** Where a portal in one of this farm world's worlds should lead — see {@code FarmWorldPortalListener}. */
+    public Optional<Location> portalTarget(Location from, WorldSet.Part to) {
+        return farms.portalTarget(from, to);
     }
 
     /**

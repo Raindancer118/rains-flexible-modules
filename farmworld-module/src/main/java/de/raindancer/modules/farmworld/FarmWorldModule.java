@@ -11,7 +11,11 @@ import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.farmworld.listener.FarmSessionListener;
+import de.raindancer.modules.farmworld.listener.FarmWorldPortalListener;
+import de.raindancer.modules.farmworld.model.WorldSet;
 import de.raindancer.modules.farmworld.rules.FarmAccessRule;
+import de.raindancer.modules.farmworld.store.FarmWorldState;
+import de.raindancer.modules.farmworld.store.FarmWorlds;
 import de.raindancer.modules.farmworld.screen.FarmWorldConfigMenu;
 import de.raindancer.modules.farmworld.screen.FarmWorldListMenu;
 import de.raindancer.modules.farmworld.screen.FarmWorldManageMenu;
@@ -34,34 +38,41 @@ import java.util.Random;
  * <p>Shipped through the standard wrapper this is {@code RainsFarmWorlds}, a plugin of its own. Hosted inside
  * another plugin it is one feature among several, and the code below cannot tell which.
  *
- * <h2>What is deliberately not here</h2>
- * The farm worlds themselves. A farm world is three linked worlds with its own nether and end, and RainsCore
- * owns every part of that: creating them, the portal linking that keeps a farm portal inside the farm world,
- * the schedule, the recorded times, and {@code FarmWorldState.mayDelete} — the one pure function standing
- * between a typed command and a deleted server. The warm-up, the movement cancelling, finding somewhere safe to
- * land and the teleport are Core's {@code Travel}, the same code the warps, the homes and the teleport requests
- * use. The wait between trips is Core's {@code Cooldowns}. The menu, the buttons, the wording, the settings and
- * the confirmation dialog are Core's too.
+ * <h2>What is Core's, and what is this module's</h2>
+ * The warm-up, the movement cancelling, finding somewhere safe to land and the teleport are Core's
+ * {@code Travel}, the same code the warps, the homes and the teleport requests use. The wait between
+ * trips is Core's {@code Cooldowns}. The menu, the buttons, the wording, the settings and the
+ * confirmation dialog are Core's too.
  *
- * <p>What is left, and what this module actually is: <b>how somebody gets in, and what they are told before the
- * ground under them is regenerated.</b>
+ * <p>What a farm world actually <em>is</em> — three linked worlds with its own nether and end, the
+ * portal linking that keeps a farm portal inside the farm world, the schedule, the recorded times,
+ * and {@code FarmWorldState.mayDelete} — is this module's own, in
+ * {@link de.raindancer.modules.farmworld.model} and {@link de.raindancer.modules.farmworld.store}.
+ * It used to live in Core, behind {@code core.farmWorlds()}; moved out because a farm world is a
+ * product concept this module owns, not a mechanism every plugin on the server needs — Core only
+ * ever had one consumer of it, built on Core's still-generic world regeneration and chunk-holding
+ * primitives instead.
+ *
+ * <p>What is left beyond owning the concept itself: <b>how somebody gets in, and what they are told
+ * before the ground under them is regenerated.</b>
  *
  * <h2>The two things that make a farm world work rather than merely exist</h2>
  * <ul>
- *   <li><b>Arrivals are scattered.</b> Core's own {@code /farmworld} puts everybody at the world's spawn. Do
+ *   <li><b>Arrivals are scattered.</b> A plain {@code /farmworld} puts everybody at the world's spawn. Do
  *       that and the first hundred blocks are bare within a day, and from then on every arrival is a five-minute
  *       walk before they can start — so the farm world is a corridor, and the only fix left is to regenerate it
  *       more often, which throws away everybody's work to solve a problem that was never about the far parts of
  *       the map.</li>
- *   <li><b>The server is warned first.</b> Core regenerates on its schedule and tells whoever is standing there
- *       as it happens. Somebody two hours into a trip, with a base and a full set of chests, finds out at the
- *       moment all of it stops existing. Nothing was lost that a farm world did not promise to lose — but a
- *       promise nobody was reminded of is one people report as a bug.</li>
+ *   <li><b>The server is warned first.</b> The regen timer below tells whoever is standing there as it
+ *       happens, before the world it decided was due goes. Somebody two hours into a trip, with a base
+ *       and a full set of chests, finds out at the moment all of it stops existing. Nothing was lost
+ *       that a farm world did not promise to lose — but a promise nobody was reminded of is one people
+ *       report as a bug.</li>
  * </ul>
  *
- * <p>Which is why this module warns and Core deletes, and why the timer here never regenerates anything: two
- * timers both deciding a farm world is due is two regenerations racing, and the loser deletes a folder the
- * winner has already recreated.
+ * <p>Only one timer decides a farm world is due, now that this module owns the whole concept — the
+ * two-timer race this class note used to warn about (a warning timer here, a regen timer in Core)
+ * cannot happen any more because there is only one of either kind left.
  */
 public final class FarmWorldModule implements FlexModule {
 
@@ -82,15 +93,29 @@ public final class FarmWorldModule implements FlexModule {
      */
     private static final long EVERY_SECOND = 20L;
 
+    /** How often a farm world's schedule is checked. Its own, much slower timer: regenerating stops
+     * the server for as long as the disk takes, so it is checked once a minute rather than folded
+     * in with the warning ticker above. */
+    private static final long REGEN_CHECK_TICKS = 20L * 60L;
+
+    /** How often the recorded times reach disk, absent a change that flushed them sooner — a
+     * crash between the two must not lose more than this. Kept in step with what RainsCore used
+     * to save this on, back when it was Core's. */
+    private static final long SAVE_PERIOD_SECONDS = 120L;
+
     private LogChannel log;
     private SettingsStore<FarmWorldSettings> settings;
 
+    private FarmWorldState state;
+    private FarmWorlds farms;
     private FarmWorldCatalogue catalogue;
     private Travel travel;
     private FarmTravelService travelling;
     private FarmAdminService admin;
     private NoticeService notices;
     private ScheduledTask watching;
+    private ScheduledTask regenChecking;
+    private ScheduledTask saving;
 
     private FarmWorldServices services;
 
@@ -120,7 +145,19 @@ public final class FarmWorldModule implements FlexModule {
                 FarmWorldModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
 
-        catalogue = new FarmWorldCatalogue(context.core().farmWorlds());
+        // This module's own database now, not Core's shared one — see FarmWorldState.SCHEMA. A server
+        // that ran an older version of this module kept these same rows in Core's core.db; migrateFrom
+        // copies them across once, and is safe to call on every boot afterwards.
+        de.raindancer.core.data.sql.Database ownDatabase =
+                context.core().databases().of("farmworld", FarmWorldState.SCHEMA);
+        state = new FarmWorldState(context.dataFolder().resolve("farmworlds.yml"), ownDatabase);
+        state.migrateFrom(context.core().databases().core());
+        state.load();
+        farms = new FarmWorlds(context.plugin(), state);
+        for (WorldSet set : state.all()) {
+            farms.ensure(set);
+        }
+        catalogue = new FarmWorldCatalogue(farms);
 
         // Before anything asks, and with one node per farm world that already exists — an unregistered
         // permission resolves to "operators only", which would refuse every farm world to every ordinary
@@ -164,6 +201,7 @@ public final class FarmWorldModule implements FlexModule {
         // a five-second warm-up otherwise has a trip nobody can complete.
         context.listener(new TravelListener(travel, settings.current().hurtCancelsWarmup()));
         context.listener(new FarmSessionListener(services));
+        context.listener(new FarmWorldPortalListener(services));
 
         // The warnings, the bar and the ticking. On the global region scheduler rather than an async timer: it
         // reads world player lists and sends messages, and on Folia the only thread that may do either for every
@@ -177,6 +215,27 @@ public final class FarmWorldModule implements FlexModule {
                     + "farm world is regenerated.");
         } else {
             context.closeWith(watching::cancel);
+        }
+
+        // The only timer left that decides a farm world is due — see the class note on why there is
+        // now exactly one, where there used to be this one plus Core's own.
+        regenChecking = Scheduling.globalTimer(context.plugin(), REGEN_CHECK_TICKS, REGEN_CHECK_TICKS,
+                task -> farms.regenerateWhatIsDue());
+        if (regenChecking != null) {
+            context.closeWith(regenChecking::cancel);
+        }
+
+        // Off the region thread: this writes a file and a database, and the global timer above runs
+        // on the thread that ticks the world. A crash between two of these loses at most this long —
+        // a clean shutdown flushes immediately regardless, see disable().
+        saving = Scheduling.asyncTimer(context.plugin(), SAVE_PERIOD_SECONDS, SAVE_PERIOD_SECONDS,
+                task -> {
+                    if (catalogue.isDirty()) {
+                        catalogue.flush();
+                    }
+                });
+        if (saving != null) {
+            context.closeWith(saving::cancel);
         }
 
         // The command was registered during bootstrap, long before any of this existed, and has been answering

@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.21.0</rainscore.version>
+        <rainscore.version>1.22.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -44,7 +44,7 @@
         <warp-module.version>1.2.0</warp-module.version>
         <homes-module.version>2.3.0</homes-module.version>
         <tpa-module.version>2.1.0</tpa-module.version>
-        <farmworld-module.version>1.0.0</farmworld-module.version>
+        <farmworld-module.version>1.1.0</farmworld-module.version>
         <pack-module.version>1.0.0</pack-module.version>
         <chained-module.version>1.0.0</chained-module.version>
         <rtp-module.version>1.1.0</rtp-module.version>

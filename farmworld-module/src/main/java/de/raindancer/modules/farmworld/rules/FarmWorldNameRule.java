@@ -1,6 +1,6 @@
 package de.raindancer.modules.farmworld.rules;
 
-import de.raindancer.core.world.farm.WorldSet;
+import de.raindancer.modules.farmworld.model.WorldSet;
 
 import java.util.List;
 import java.util.Locale;

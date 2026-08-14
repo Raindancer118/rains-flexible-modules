@@ -1,6 +1,6 @@
 package de.raindancer.modules.farmworld.model;
 
-import de.raindancer.core.world.farm.WorldSet;
+import de.raindancer.modules.farmworld.model.WorldSet;
 
 import java.time.Duration;
 import java.util.List;

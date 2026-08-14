@@ -19,10 +19,12 @@
     <name>Rain's Flexible Modules — Farm Worlds</name>
     <description>
         Somewhere to strip-mine that is thrown away and made again, so the main world is left alone.
-        The worlds themselves are RainsCore's — three linked worlds with their own nether and end,
-        the portal linking between them, the schedule and the one rule that decides what may be
-        deleted. What is here is how somebody gets in: scattered rather than dropped on one spot,
-        warned before the ground under them is thrown away, and waited between trips.
+        This module owns what a farm world actually is — three linked worlds with their own nether
+        and end, the portal linking between them, the schedule and the one rule that decides what
+        may be deleted — built on RainsCore's generic world regeneration and chunk-holding
+        primitives rather than a farm-world concept living in Core itself. What is here besides that:
+        how somebody gets in, scattered rather than dropped on one spot, warned before the ground
+        under them is thrown away, and waited between trips.
     </description>
 
     <dependencies>
@@ -35,6 +37,18 @@
             <artifactId>modules-api</artifactId>
             <type>test-jar</type>
             <version>${modules-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          The same driver Paper ships inside its own jar, at the same version, and only for tests —
+          see RainsCore's own pom.xml for the full reasoning. This module now keeps its own farm-world
+          regen schedule in its own SQLite database instead of RainsCore's, so its storage layer needs
+          the same real-database testing RainsCore's does.
+        -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.49.1.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -1,6 +1,6 @@
 package de.raindancer.modules.farmworld;
 
-import de.raindancer.core.world.farm.WorldSet;
+import de.raindancer.modules.farmworld.model.WorldSet;
 import de.raindancer.modules.farmworld.model.FarmWorldView;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

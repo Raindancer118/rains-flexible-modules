@@ -97,13 +97,22 @@ class MessagesTest {
         }
     }
 
+    /**
+     * A file name that happens to fit the same shape as a message key — {@code farmworlds.yml} reads
+     * to the pattern below exactly like {@code farmworlds.up} would. Message keys never end in a file
+     * extension in this module's convention, so this is the one place that ambiguity is resolved.
+     */
+    private static final Set<String> NOT_ACTUALLY_A_KEY = Set.of("farmworlds.yml");
+
     /** Every key named anywhere in the module, including the ones chosen by a switch or by a rule. */
     private static Set<String> keysNamed() {
         Set<String> keys = new LinkedHashSet<>();
         for (Path file : sources()) {
             Matcher matcher = KEY_LITERAL.matcher(read(file));
             while (matcher.find()) {
-                keys.add(matcher.group(1));
+                if (!NOT_ACTUALLY_A_KEY.contains(matcher.group(1))) {
+                    keys.add(matcher.group(1));
+                }
             }
         }
         return keys;

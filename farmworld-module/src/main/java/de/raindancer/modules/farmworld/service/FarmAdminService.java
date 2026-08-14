@@ -3,7 +3,7 @@ package de.raindancer.modules.farmworld.service;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
-import de.raindancer.core.world.farm.WorldSet;
+import de.raindancer.modules.farmworld.model.WorldSet;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.farmworld.FarmWorldSettings;
 import de.raindancer.modules.farmworld.model.FarmWorldView;

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,14 +82,10 @@ class ReuseTest {
         forbidden.put("reloadConfig()", "SettingsStore.load");
         forbidden.put("getConfig()", "the FarmWorldSettings snapshot");
 
-        // The write-to-a-temporary-then-move dance, and the farm world file itself. Both are Core's, and the
-        // second is the one that matters: farmworlds.yml and the farm_world table are where the schedule and
-        // the recorded times live, and a second copy of either would be a second opinion about when three
-        // worlds get deleted.
+        // The write-to-a-temporary-then-move dance — still Core's, via YamlStore, even though the file it
+        // writes (farmworlds.yml) and the state that owns it (FarmWorldState) are this module's own now.
         forbidden.put("StandardCopyOption.ATOMIC_MOVE", "de.raindancer.core.data.store.YamlStore");
         forbidden.put("Files.createTempFile", "YamlStore, which owns the write-and-move");
-        forbidden.put("farmworlds.yml", "context.core().farmWorlds().state(), which owns that file");
-        forbidden.put("new FarmWorldState", "context.core().farmWorlds(), which already has one");
 
         // The menu framework and the confirmation. The version this replaced had one per plugin, which is why
         // the same server looked like five plugins — and the dialog had been written out three times.
@@ -128,10 +125,6 @@ class ReuseTest {
         // player has three bar slots at most, so who wins is arbitration nobody can do alone.
         forbidden.put("playSound(", "de.raindancer.core.ui.effect.Effects, with a cue from Cues");
         forbidden.put("BossBar.bossBar(", "de.raindancer.core.ui.bossbar.BossBars");
-
-        // The portal linking, which is the entire reason a farm world has its own nether. Core registers this
-        // itself, and a second listener redirecting the same portals is two answers on one event.
-        forbidden.put("PlayerPortalEvent", "Core's FarmWorldPortalListener, which it registers itself");
 
         return forbidden;
     }
@@ -175,63 +168,81 @@ class ReuseTest {
                 .isNotEmpty();
     }
 
+    /**
+     * Files that legitimately touch the farm-world mechanism directly — the doors themselves, not
+     * something reaching past them. Kept as one list so the three tests below agree on what counts
+     * as a door, rather than three copies of the same exemption drifting apart.
+     */
+    private static final Set<String> FARM_WORLD_MECHANISM_FILES = Set.of(
+            "FarmWorldCatalogue.java",   // the door everything else in this module reads/changes through
+            "FarmWorldModule.java",     // the one place FarmWorlds/FarmWorldState are built and scheduled
+            "FarmWorlds.java",          // the mechanism itself
+            "FarmWorldState.java"       // the mechanism's own state and deletion guard
+    );
+
     @Test
-    @DisplayName("the farm worlds themselves stay Core's, and only one class touches them")
+    @DisplayName("the farm worlds themselves are reached through exactly one door")
     void thereIsOneDoorToTheFarmWorlds() {
-        // Everything that reads or changes a farm world goes through FarmWorldCatalogue, so there is one place
-        // where "which farm worlds exist" is answered. The alternative is a screen and a service with two ideas
-        // of what is on the list, and the thing on the end of that list is a folder that gets deleted.
+        // Everything else that reads or changes a farm world goes through FarmWorldCatalogue, so there is one
+        // place where "which farm worlds exist" is answered. The alternative is a screen and a service with two
+        // ideas of what is on the list, and the thing on the end of that list is a folder that gets deleted.
         List<String> reachingPastIt = new ArrayList<>();
         for (Source source : module()) {
-            if (source.name().endsWith("FarmWorldCatalogue.java")
-                    || source.name().endsWith("FarmWorldModule.java")) {
-                continue;   // the door itself, and the one place it is built
+            if (FARM_WORLD_MECHANISM_FILES.contains(source.name().substring(
+                    source.name().lastIndexOf('/') + 1))) {
+                continue;
             }
-            if (source.body().contains("farmWorlds()") || source.body().contains("FarmWorlds ")
+            if (source.body().contains("new FarmWorlds(") || source.body().contains("new FarmWorldState(")
                     || source.body().contains(".state()")) {
                 reachingPastIt.add(source.name());
             }
         }
         assertThat(reachingPastIt)
-                .as("these reach Core's FarmWorlds directly instead of going through FarmWorldCatalogue")
+                .as("these reach the farm world mechanism directly instead of going through FarmWorldCatalogue")
                 .isEmpty();
     }
 
     @Test
-    @DisplayName("nothing in this module regenerates a farm world on a timer")
-    void theModuleNeverDecidesSomethingIsDue() {
-        // The single most dangerous thing this module could grow. RainsCore already has a timer that regenerates
-        // what is due; a second one is two regenerations racing, and the loser deletes a folder the winner has
-        // already recreated. The module warns and Core deletes — see NoticeService, whose whole class note is
-        // about this division.
+    @DisplayName("exactly one place decides a farm world is due — not zero, and not two")
+    void exactlyOnePlaceDecidesSomethingIsDue() {
+        // The single most dangerous thing this module could grow a second copy of. Two places each deciding a
+        // farm world is due is two regenerations racing, and the loser deletes a folder the winner has already
+        // recreated — see FarmWorldModule's own class note on why there is now exactly one timer, where there
+        // used to be this one plus Core's.
         List<String> deciding = new ArrayList<>();
         for (Source source : module()) {
-            if (source.body().contains("regenerateWhatIsDue")
-                    || (source.body().contains(".due(") && !source.name().endsWith("FarmWorldView.java"))) {
+            if (source.name().endsWith("FarmWorlds.java")) {
+                continue;   // where regenerateWhatIsDue is declared, not called
+            }
+            if (source.body().contains("regenerateWhatIsDue")) {
                 deciding.add(source.name());
             }
         }
         assertThat(deciding)
-                .as("Core owns the schedule and the deletion. This module warns and nothing more")
-                .isEmpty();
+                .as("regenerateWhatIsDue must be called from exactly one place — FarmWorldModule's own "
+                        + "regen timer — or a second copy risks racing it")
+                .containsExactly("FarmWorldModule.java");
     }
 
     @Test
-    @DisplayName("the deletion guard is Core's, and is not copied here")
-    void theDeletionGuardIsNotReimplemented() {
+    @DisplayName("the deletion guard exists in exactly one place, not copied anywhere else")
+    void theDeletionGuardIsNotCopiedElsewhere() {
         // FarmWorldState.mayDelete is the one pure function standing between a typed command and a deleted
-        // server. A second copy of it here would be one that could be more permissive than the first — and the
-        // more permissive of two answers is the one that runs.
+        // server. A second copy of it anywhere else in this module would be one that could be more permissive
+        // than the first — and the more permissive of two answers is the one that runs.
         List<String> copying = new ArrayList<>();
         for (Source source : module()) {
+            if (source.name().endsWith("FarmWorldState.java")) {
+                continue;   // the guard itself
+            }
             if (source.body().contains("Files.walk") || source.body().contains("Files.delete")
                     || source.body().contains("deleteIfExists") || source.body().contains("level.dat")) {
                 copying.add(source.name());
             }
         }
         assertThat(copying)
-                .as("nothing in this module may delete a file. Core's mayDelete decides, and Core's FarmWorlds "
-                        + "does it")
+                .as("nothing outside FarmWorldState may delete a file — a second, looser copy of mayDelete "
+                        + "is how a farm world command ends up deleting something it should have refused")
                 .isEmpty();
     }
 }
