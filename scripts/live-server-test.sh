@@ -108,6 +108,10 @@ find "$REACTOR_ROOT/speedrun-standalone/target" -maxdepth 1 -name 'RainsSpeedrun
   ! -name 'original-*' -exec cp {} "$SERVER_DIR/plugins/" \; 2>/dev/null || true
 find "$REACTOR_ROOT/chained-standalone/target" -maxdepth 1 -name 'RainsChained-*.jar' \
   ! -name 'original-*' -exec cp {} "$SERVER_DIR/plugins/" \; 2>/dev/null || true
+find "$REACTOR_ROOT/warp-standalone/target" -maxdepth 1 -name 'RainsWarps-*.jar' \
+  ! -name 'original-*' -exec cp {} "$SERVER_DIR/plugins/" \; 2>/dev/null || true
+find "$REACTOR_ROOT/farmworld-standalone/target" -maxdepth 1 -name 'RainsFarmWorlds-*.jar' \
+  ! -name 'original-*' -exec cp {} "$SERVER_DIR/plugins/" \; 2>/dev/null || true
 
 installed="$(find "$SERVER_DIR/plugins" -maxdepth 1 -name '*.jar' -printf '%f\n' | sort)"
 [ -n "$installed" ] || fail "no plugin jars were staged into plugins/"
