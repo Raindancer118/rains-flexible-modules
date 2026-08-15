@@ -5,11 +5,11 @@ version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
 api-version: '1.21'
-description: 'Claims, teleport requests, warps, moderation, the server pack, coloured names, homes and random teleport — the eight modules this server runs, in one jar.'
+description: 'Claims, teleport requests, warps, moderation, the server pack, coloured names, homes, random teleport, essentials and training mannequins — the ten modules this server runs, in one jar.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
-# Deliberately absent, not forgotten. Six of the eight declare folia-supported: true on their own, and
+# Deliberately absent, not forgotten. Most of the ten declare folia-supported: true on their own, and
 # claims and moderation do not — and a jar is as Folia-safe as the least safe thing in it. Claiming it
 # here would be claiming it on their behalf, which is the kind of statement that is only found to be
 # wrong by a region thread touching something it does not own.
