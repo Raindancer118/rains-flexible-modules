@@ -24,7 +24,15 @@
         <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsEssentials</plugin.name>
-        <plugin.version>1.0.0</plugin.version>
+        <!--
+          1.1.0: /unignore, a one-way undo beside the existing toggling /ignore. And a blocklist for
+          /nick — two configurable lists of names nobody may wear as a nickname, one refused and
+          reported to staff automatically, the other refused, reported, and banning the player for a
+          day on top. The ban goes through moderation-module's own PunishmentService when that
+          plugin is installed (see its own 2.18.0 history), falling back to Core's bare Punishments
+          when it is not.
+        -->
+        <plugin.version>1.1.0</plugin.version>
     </properties>
 
     <dependencies>

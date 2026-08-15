@@ -39,7 +39,7 @@
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
         <claims-module.version>2.3.0</claims-module.version>
-        <moderation-module.version>2.17.0</moderation-module.version>
+        <moderation-module.version>2.18.0</moderation-module.version>
         <names-module.version>2.1.0</names-module.version>
         <warp-module.version>1.2.1</warp-module.version>
         <homes-module.version>2.3.1</homes-module.version>
@@ -48,7 +48,7 @@
         <pack-module.version>1.0.0</pack-module.version>
         <chained-module.version>1.0.0</chained-module.version>
         <rtp-module.version>1.1.1</rtp-module.version>
-        <essentials-module.version>1.0.0</essentials-module.version>
+        <essentials-module.version>1.1.0</essentials-module.version>
         <worldgate-module.version>1.0.0</worldgate-module.version>
         <mannequin-module.version>1.6.0</mannequin-module.version>
         <hungergames-module.version>2.8.1</hungergames-module.version>

@@ -8,6 +8,10 @@ import de.raindancer.core.data.settings.Title;
 import de.raindancer.core.data.settings.Topic;
 import org.bukkit.Material;
 
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
 /**
  * What an owner can decide about the everyday stuff: spawn, AFK, and the words around joining,
  * leaving and being called something.
@@ -56,12 +60,63 @@ public record EssentialsSettings(
         @In("essentials/social") @Title("Longest a nickname may be") @Range(min = 2, max = 32)
         @Describe("Characters, after colour and formatting are stripped away — what actually "
                 + "appears in chat and the player list.")
-        int nicknameMaxLength
+        int nicknameMaxLength,
+
+        @In("essentials/social") @Title("Blocked nicknames — reported")
+        @Describe("Names nobody may wear as a nickname. Trying one is refused and reported to "
+                + "staff automatically. Case-insensitive, colour and formatting ignored. Add "
+                + "real-world names your server cares about here — the shipped list is a starting "
+                + "point, not a complete one.")
+        List<String> blockedNicknamesReported,
+
+        @In("essentials/social") @Title("Blocked nicknames — reported and banned")
+        @Describe("The same, and trying one also bans the player for a day, automatically — for "
+                + "names severe enough that a report alone is not the right answer.")
+        List<String> blockedNicknamesBanned
 
 ) {
 
+    /**
+     * A handful of common ways to spell the one name everybody agrees belongs on the severe list —
+     * not exhaustive, and not the only name that could ever go here. A server adds its own through
+     * this same setting; these ship only so the feature is not delivered empty.
+     */
+    private static final List<String> DEFAULT_BANNED = List.of(
+            "hitler", "adolf hitler", "adolfhitler", "adolf_hitler", "a.hitler", "adolph hitler");
+
+    /**
+     * A couple of real people, named as the worked example for what this list is for — impersonating
+     * a real, identifiable person. Deliberately not a long roster: a server adds whichever real names
+     * it actually cares about through this same setting.
+     */
+    private static final List<String> DEFAULT_REPORTED = List.of("donald trump", "tom holland");
+
     public static final EssentialsSettings DEFAULTS =
-            new EssentialsSettings(3, true, 300, true, true, true, true, 16);
+            new EssentialsSettings(3, true, 300, true, true, true, true, 16, DEFAULT_REPORTED,
+                    DEFAULT_BANNED);
+
+    /** The reported-only blocklist, lower-cased once rather than on every {@code /nick}. */
+    public Set<String> blockedReported() {
+        return normalized(blockedNicknamesReported);
+    }
+
+    /** The report-and-ban blocklist, lower-cased once rather than on every {@code /nick}. */
+    public Set<String> blockedBanned() {
+        return normalized(blockedNicknamesBanned);
+    }
+
+    private static Set<String> normalized(List<String> names) {
+        if (names == null || names.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> lowered = new java.util.LinkedHashSet<>();
+        for (String name : names) {
+            if (name != null && !name.isBlank()) {
+                lowered.add(name.trim().toLowerCase(Locale.ROOT));
+            }
+        }
+        return lowered;
+    }
 
     /** Clamped, so a hand-built settings record cannot make {@code /spawn} instant against its wish. */
     public int spawnWarmup() {

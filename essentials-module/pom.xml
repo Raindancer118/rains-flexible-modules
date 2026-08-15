@@ -28,6 +28,26 @@
             <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>
         </dependency>
+        <!--
+          provided, the same shape mannequin-module already has against claims-module: a blocked
+          nickname bans through moderation-module's own PunishmentService when it is installed — the
+          same path a moderator's own /ban takes, mirroring the vanilla ban list, kicking somebody
+          already online, and announcing itself by that module's own settings — but this module never
+          shades moderation-module in, and works exactly as before (banning through Core's bare
+          Punishments instead) on a server with no moderation plugin at all.
+
+          Every reference to a moderation-module class lives inside the
+          de.raindancer.modules.essentials.moderation package, touched only after a runtime check
+          (ModerationIntegration) confirms the real PunishmentService is actually registered with
+          Bukkit's own ServicesManager — the class is never loaded, so its unresolved symbols never
+          matter, when moderation is not installed.
+        -->
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>moderation-module</artifactId>
+            <version>${moderation-module.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>

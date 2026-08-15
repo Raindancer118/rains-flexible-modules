@@ -72,7 +72,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.16.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.18.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -184,6 +184,17 @@ public final class ModerationModule implements FlexModule {
                 context.core().punishments(), context.core().punishmentGuard(),
                 context.core().banBridge(), context.core().audit(), context.core().messages(),
                 context.chat(), pending, announcements, escalation, settings.current());
+
+        // Bukkit's own ServicesManager, not a static field: the one lookup that works whether an
+        // outside module is hosted in this same plugin or in a separate one entirely. This module
+        // never learns who, if anybody, looks it up — essentials-module's blocked-nickname handling
+        // is the first, and nothing here changed to let it: a punishment handed out this way still
+        // mirrors to the vanilla ban list, kicks somebody already online, and announces itself
+        // exactly like a moderator's own /ban, because it is the same PunishmentService doing it.
+        context.plugin().getServer().getServicesManager().register(PunishmentService.class,
+                punishmentService, context.plugin(), org.bukkit.plugin.ServicePriority.Normal);
+        context.closeWith(() -> context.plugin().getServer().getServicesManager()
+                .unregister(punishmentService));
         reportService = new ReportService(context.plugin(), server, reports, reportStorage,
                 context.core().audit(), context.core().messages(), context.chat(), pending,
                 this::filingRule, settings.current());

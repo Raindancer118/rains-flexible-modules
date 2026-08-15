@@ -92,8 +92,24 @@
           them) and the screen showed the whole list unfiltered. It now only offers a node Bukkit has
           actually registered as a permission, which is true exactly when the owning module ran its
           own enable().
+
+          2.17.0: /audit — an in-game window onto Core's audit journal, merging what a player did
+          (as actor) and what was done to them (as subject), newest first. Core itself now also
+          writes to that journal for joins, quits, gamemode changes and refused attempts at a
+          protected container, none of which had any trace anywhere before this. moderation's own
+          power tools with no other record — vanish, invsee, promote, demote, heal/feed/hurt/starve,
+          fly/god, instakill/instabreak, the world tools — are marked audited too; bans, mutes, kicks
+          and warns already have their own record through Punishments and /history, so those were
+          left alone.
+
+          2.18.0: PunishmentService is now registered with Bukkit's own ServicesManager on enable
+          (and unregistered on disable), the same seam claims-module already exposes ClaimServices
+          through. The first consumer is essentials-module's blocklisted-nickname handling: a banned
+          attempt now bans through this module's real punishment pipeline when it is installed —
+          mirrored to the vanilla ban list, kicking somebody already online, announced by this
+          module's own settings — rather than a second, thinner idea of what banning does.
         -->
-        <plugin.version>2.16.1</plugin.version>
+        <plugin.version>2.18.0</plugin.version>
     </properties>
 
     <dependencies>

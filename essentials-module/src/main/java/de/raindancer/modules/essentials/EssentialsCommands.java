@@ -9,6 +9,7 @@ import de.raindancer.modules.essentials.command.ReplyCommand;
 import de.raindancer.modules.essentials.command.SeenCommand;
 import de.raindancer.modules.essentials.command.SetSpawnCommand;
 import de.raindancer.modules.essentials.command.SpawnCommand;
+import de.raindancer.modules.essentials.command.UnignoreCommand;
 
 import java.util.List;
 
@@ -45,6 +46,9 @@ public final class EssentialsCommands {
                 ModuleCommand.of("ignore", "Blocks or unblocks somebody's private messages",
                                 new IgnoreCommand(EssentialsCommands::require))
                         .taking("<player> — toggles", "list — who you have blocked"),
+                ModuleCommand.of("unignore", "Lets somebody message you again, if you had blocked them",
+                                new UnignoreCommand(EssentialsCommands::require))
+                        .taking("<player>"),
 
                 ModuleCommand.of("seen", "When somebody was last here, and for how long they have played",
                                 new SeenCommand(EssentialsCommands::require))

@@ -36,6 +36,7 @@ essentials:
   ignore:
     started: "<green>You will no longer see messages from <white><player></white>."
     stopped: "<green>You can hear from <white><player></white> again."
+    not-ignoring: "<gray>You were not ignoring <white><player></white>."
     none: "<gray>You are not ignoring anybody."
     list: "<gray>Ignoring: <white><players>"
 
@@ -53,6 +54,11 @@ essentials:
     blank: "<red>A nickname cannot be blank."
     too-long: "<red>That is too long — <white><detail></white> characters at most, not counting colour."
     taken: "<red><white><detail></white> is somebody's real name. Pick another."
+    blocked: "<red>That name is not allowed here. Pick another."
+    # What staff see, at once, when somebody tries one — never shown to the player themselves, who
+    # only ever gets the plain "blocked" refusal above.
+    blocked-report: "<red>⚑ <white><player></white> <gray>tried the blocked nickname <white><attempted></white>."
+    blocked-report-banned: "<red>⚑ <white><player></white> <gray>tried the blocked nickname <white><attempted></white> <red>and has been banned for a day."
 
   # ── AFK ───────────────────────────────────────────────────────────────────
   afk:

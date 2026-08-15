@@ -23,6 +23,9 @@ public final class PermissionNodes {
     public static final String NICK = "essentials.nick";
     public static final String AFK = "essentials.afk";
 
+    /** Who is told automatically when somebody tries a blocklisted nickname. */
+    public static final String STAFF_NOTIFY = "essentials.staff.notify";
+
     private PermissionNodes() {
     }
 
@@ -35,7 +38,10 @@ public final class PermissionNodes {
                 new Permission(IGNORE, "Block private messages from somebody", PermissionDefault.TRUE),
                 new Permission(SEEN, "Look up when somebody was last here", PermissionDefault.TRUE),
                 new Permission(NICK, "Set your own nickname", PermissionDefault.TRUE),
-                new Permission(AFK, "Mark yourself away from the keyboard", PermissionDefault.TRUE));
+                new Permission(AFK, "Mark yourself away from the keyboard", PermissionDefault.TRUE),
+                new Permission(STAFF_NOTIFY,
+                        "See automatic reports for blocked nicknames and other flagged attempts",
+                        PermissionDefault.OP));
     }
 
     /** @return how many were added, for the line in the log */
