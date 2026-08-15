@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>essentials-module</artifactId>
+    <!-- Own version, independent of the reactor's: this module is published to the registry on its own
+         schedule under its own tag (essentials-module-vX.Y.Z), not tied to any other module's release. -->
+    <version>${essentials-module.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Essentials</name>
+    <description>
+        The boring stuff players immediately expect: /spawn, AFK, private messages, /seen, join and
+        quit lines, and a nickname. Homes, warps, teleport requests, random teleport and going back
+        are their own modules already — this is what is left once those are taken out.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${modules-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

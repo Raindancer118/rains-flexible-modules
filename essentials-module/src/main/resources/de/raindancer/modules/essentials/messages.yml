@@ -1,0 +1,68 @@
+
+essentials:
+
+  # ── general ──────────────────────────────────────────────────────────────
+  only-a-player: "<red>Only a player can do that."
+  usage: "<gray>Usage: <white><usage>"
+  no-such-player: "<red>The server has never seen anybody called <white><player></white>."
+  already-travelling: "<red>You are already on your way somewhere."
+  could-not-check: "<red>Could not check whether that is safe. Nothing has happened."
+  teleport-refused: "<red>Something stopped that teleport. Nothing has happened."
+  cannot-schedule: "<red>Could not start that. Try again in a moment."
+
+  # ── /spawn and /setspawn ─────────────────────────────────────────────────
+  spawn:
+    not-set: "<red>Nobody has set a spawn point yet."
+    world-gone: "<red>Spawn's world is not loaded right now."
+    warming-up: "<gray>Heading to spawn in <white><seconds></white>…"
+    arrived: "<green>You have arrived at spawn."
+    set: "<green>Spawn is now here."
+    cancelled:
+      moved: "<yellow>You moved, so the trip to spawn was cancelled."
+      hurt: "<yellow>You were hurt, so the trip to spawn was cancelled."
+    nowhere-safe: "<red>Nowhere safe was found near spawn. Nothing has happened."
+
+  # ── private messages ─────────────────────────────────────────────────────
+  msg:
+    not-yourself: "<red>You cannot message yourself."
+    # The same wording whether they are offline or have blocked you — see MessagingService's own
+    # note on why telling somebody they have been blocked turns a quiet decision into a confrontation.
+    unreachable: "<red><white><player></white> cannot be reached right now."
+    sent: "<gray>[me → <white><player></white>] <text>"
+    received: "<gray>[<white><player></white> → me] <text>"
+    nobody-to-reply-to: "<red>Nobody has messaged you yet."
+
+  # ── ignoring ──────────────────────────────────────────────────────────────
+  ignore:
+    started: "<green>You will no longer see messages from <white><player></white>."
+    stopped: "<green>You can hear from <white><player></white> again."
+    none: "<gray>You are not ignoring anybody."
+    list: "<gray>Ignoring: <white><players>"
+
+  # ── /seen ─────────────────────────────────────────────────────────────────
+  seen:
+    never: "<gray>The server has never seen <white><player></white>."
+    online: "<white><player></white> <green>is online right now. <gray>(<playtime> played)"
+    offline: "<white><player></white> <gray>was last seen <white><ago></white> ago. (<playtime> played)"
+
+  # ── nicknames ─────────────────────────────────────────────────────────────
+  nick:
+    switched-off: "<red>Nicknames are switched off on this server."
+    set: "<green>You are now known as <nickname>."
+    cleared: "<green>Back to your own name."
+    blank: "<red>A nickname cannot be blank."
+    too-long: "<red>That is too long — <white><detail></white> characters at most, not counting colour."
+    taken: "<red><white><detail></white> is somebody's real name. Pick another."
+
+  # ── AFK ───────────────────────────────────────────────────────────────────
+  afk:
+    went: "<gray>* <white><player></white> is now AFK."
+    back: "<gray>* <white><player></white> is back."
+    went-quiet: "<gray>You are now marked AFK."
+    back-quiet: "<gray>Welcome back."
+
+  # ── joining and leaving ───────────────────────────────────────────────────
+  welcome:
+    first-join: "<gold>Welcome <white><player></white> to the server for the first time!"
+    joined: "<gray>+ <white><player></white> joined."
+    quit: "<gray>- <white><player></white> left."

@@ -48,6 +48,7 @@
         <pack-module.version>1.0.0</pack-module.version>
         <chained-module.version>1.0.0</chained-module.version>
         <rtp-module.version>1.1.1</rtp-module.version>
+        <essentials-module.version>1.0.0</essentials-module.version>
         <worldgate-module.version>1.0.0</worldgate-module.version>
         <mannequin-module.version>1.6.0</mannequin-module.version>
         <hungergames-module.version>2.8.1</hungergames-module.version>
@@ -72,6 +73,8 @@
         <module>homes-standalone</module>
         <module>tpa-module</module>
         <module>tpa-standalone</module>
+        <module>essentials-module</module>
+        <module>essentials-standalone</module>
         <module>farmworld-module</module>
         <module>farmworld-standalone</module>
         <module>pack-module</module>
@@ -161,6 +164,11 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>tpa-module</artifactId>
                 <version>${tpa-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>essentials-module</artifactId>
+                <version>${essentials-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
