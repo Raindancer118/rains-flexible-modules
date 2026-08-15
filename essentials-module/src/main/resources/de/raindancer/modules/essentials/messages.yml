@@ -3,6 +3,7 @@ essentials:
 
   # ── general ──────────────────────────────────────────────────────────────
   only-a-player: "<red>Only a player can do that."
+  no-permission: "<red>You may not do that."
   usage: "<gray>Usage: <white><usage>"
   no-such-player: "<red>The server has never seen anybody called <white><player></white>."
   already-travelling: "<red>You are already on your way somewhere."

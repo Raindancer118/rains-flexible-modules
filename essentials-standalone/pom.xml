@@ -48,8 +48,13 @@
           the menu and a text editor are two ways into the exact same file, never two copies of it.
           The starting set is also a great deal bigger now: two dozen more names each across
           hate-and-extremist-figures, political-figures and celebrities.
+
+          1.3.1: the blocklist editor moved from its own /blocklist command to /nick blocklist — a
+          player never opens it, and whoever may manage it already knows /nick is where nicknames
+          are decided, so it is a subcommand of the one command they already know rather than a
+          second top-level one to remember.
         -->
-        <plugin.version>1.3.0</plugin.version>
+        <plugin.version>1.3.1</plugin.version>
     </properties>
 
     <dependencies>
