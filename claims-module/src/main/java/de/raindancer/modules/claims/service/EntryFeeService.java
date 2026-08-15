@@ -140,10 +140,10 @@ public final class EntryFeeService implements IClaimService {
                         destination == null ? null : destination.clone(), teleport));
 
         Component price = costs.describe(fee.type(), fee.amount(), fee.item());
-        player.sendMessage(messages.prefixed("entry-fee.offer", 
+        messages.send(player, "entry-fee.offer",
                 "claim", claim.name(),
                 "price", net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(price),
-                "seconds", String.valueOf(settings.entryFeePromptTimeoutSeconds())));
+                "seconds", String.valueOf(settings.entryFeePromptTimeoutSeconds()));
         player.sendMessage(Component.text("   ")
                 .append(button("entry-fee.accept-button", "/claim accept", NamedTextColor.GREEN))
                 .append(Component.text("   "))
