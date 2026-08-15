@@ -31,8 +31,17 @@
           day on top. The ban goes through moderation-module's own PunishmentService when that
           plugin is installed (see its own 2.18.0 history), falling back to Core's bare Punishments
           when it is not.
+
+          1.2.0: the nickname blocklist moved out of /settings and into its own hand-editable file,
+          plugins/RainsEssentials/blocklist.yml (or the module's own data folder, hosted) — a list
+          edited constantly reads and edits far better as a plain YAML file than as one comma-joined
+          settings line, and it is now organised into named sections (e.g. "political-figures",
+          "hate-and-extremist-figures") each with its own enabled switch, so a server can turn a
+          whole category off — political names, say — by flipping one line, without touching the
+          names themselves. Ships with a starting set in three sections; add or remove names, or
+          whole sections, freely.
         -->
-        <plugin.version>1.1.0</plugin.version>
+        <plugin.version>1.2.0</plugin.version>
     </properties>
 
     <dependencies>

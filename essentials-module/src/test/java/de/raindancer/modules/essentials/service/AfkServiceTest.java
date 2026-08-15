@@ -127,8 +127,7 @@ class AfkServiceTest {
     @Test
     @DisplayName("a switched-off sweep marks nobody")
     void disabledSweepDoesNothing() {
-        EssentialsSettings off = new EssentialsSettings(3, false, 300, true, true, true, true, 16,
-                java.util.List.of(), java.util.List.of());
+        EssentialsSettings off = new EssentialsSettings(3, false, 300, true, true, true, true, 16);
         AfkService disabled = new AfkService(identities, messages, chat, clock::get, off);
         Player who = player(UUID.randomUUID(), "Tom");
         disabled.activity(who);

@@ -15,6 +15,7 @@ import de.raindancer.modules.essentials.service.NicknameService;
 import de.raindancer.modules.essentials.service.SpawnService;
 import de.raindancer.modules.essentials.service.WelcomeService;
 import de.raindancer.modules.essentials.store.EssentialsStore;
+import de.raindancer.modules.essentials.store.NicknameBlocklist;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Server;
 
@@ -35,7 +36,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.2.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, and a nickname")
             .by("Raindancer118");
@@ -44,6 +45,7 @@ public final class EssentialsModule implements FlexModule {
     private SettingsStore<EssentialsSettings> settings;
 
     private EssentialsStore store;
+    private NicknameBlocklist blocklist;
     private Travel travel;
     private AfkService afk;
     private ScheduledTask afkSweeper;
@@ -75,6 +77,10 @@ public final class EssentialsModule implements FlexModule {
         store = new EssentialsStore(context.dataFolder());
         store.load();
 
+        blocklist = new NicknameBlocklist(context.dataFolder().resolve("blocklist.yml"),
+                () -> EssentialsModule.class.getResourceAsStream("blocklist.yml"));
+        blocklist.load();
+
         travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
 
         SpawnService spawn = new SpawnService(context.core().places(), travel,
@@ -83,9 +89,9 @@ public final class EssentialsModule implements FlexModule {
                 context.chat(), settings.current());
         MessagingService messaging = new MessagingService(store, context.core().messages(),
                 context.chat(), settings.current());
-        NicknameService nicknames = new NicknameService(store, context.core().identities(),
-                context.core().messages(), context.chat(), server, context.core().punishments(),
-                context.core().audit(), settings.current());
+        NicknameService nicknames = new NicknameService(store, blocklist,
+                context.core().identities(), context.core().messages(), context.chat(), server,
+                context.core().punishments(), context.core().audit(), settings.current());
         WelcomeService welcome = new WelcomeService(context.core().messages(), context.chat(),
                 settings.current());
 
@@ -112,9 +118,10 @@ public final class EssentialsModule implements FlexModule {
         // been answering "not started yet" until now. See EssentialsCommands.
         EssentialsCommands.ready(services);
 
-        log.info("Essentials are up: {}s to /spawn, AFK after {}s, {} player(s) nicknamed.",
+        log.info("Essentials are up: {}s to /spawn, AFK after {}s, {} player(s) nicknamed, "
+                        + "{} name(s) blocklisted.",
                 settings.current().spawnWarmup(), settings.current().afkTimeout(),
-                store == null ? 0 : store.nicknameCount());
+                store == null ? 0 : store.nicknameCount(), blocklist.enabledNameCount());
     }
 
     @Override

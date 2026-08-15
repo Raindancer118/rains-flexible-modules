@@ -119,6 +119,19 @@ class StandaloneJarTest {
     }
 
     @Test
+    @DisplayName("the bundled nickname blocklist is in the jar, beside its classes")
+    void theBlocklistIsThere() {
+        String blocklist = "de/raindancer/modules/essentials/blocklist.yml";
+        assertThat(entries())
+                .as("without this a fresh install starts with no blocklist file at all until one "
+                        + "is written some other way")
+                .contains(blocklist);
+        assertThat(read(blocklist))
+                .contains("action: ban")
+                .contains("action: report");
+    }
+
+    @Test
     @DisplayName("the descriptor says what Paper needs and nothing it ignores")
     void theDescriptorIsRight() {
         String yaml = read("paper-plugin.yml");

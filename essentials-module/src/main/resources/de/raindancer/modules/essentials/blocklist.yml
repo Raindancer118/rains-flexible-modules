@@ -1,0 +1,54 @@
+# Rain's Essentials — the nickname blocklist.
+#
+# Names nobody may wear as a nickname, grouped into sections you can switch off independently —
+# set a section's own `enabled: false` and nothing else needs to change. Add or remove names, or
+# whole sections, freely; this file is a starting point, not a complete one, and is yours to edit
+# by hand. It is read once when the server (re)starts.
+#
+# What `action` does:
+#   report   — refused, and reported to staff automatically (anyone holding essentials.staff.notify)
+#   ban      — refused, reported to staff, AND bans the player for a day automatically
+#
+# Matching is case-insensitive and ignores colour/formatting — "<red>HITLER</red>" matches "hitler".
+# A name on more than one enabled section is judged by the most severe action that matches (ban
+# beats report).
+
+hate-and-extremist-figures:
+  enabled: true
+  action: ban
+  names:
+    - hitler
+    - adolf hitler
+    - adolfhitler
+    - adolf_hitler
+    - a.hitler
+    - adolph hitler
+
+political-figures:
+  enabled: true
+  action: report
+  names:
+    - donald trump
+    - joe biden
+    - barack obama
+    - vladimir putin
+    - xi jinping
+    - kim jong un
+    - volodymyr zelenskyy
+    - emmanuel macron
+    - olaf scholz
+    - angela merkel
+    - boris johnson
+
+celebrities:
+  enabled: true
+  action: report
+  names:
+    - tom holland
+    - tom cruise
+    - dwayne johnson
+    - taylor swift
+    - cristiano ronaldo
+    - lionel messi
+    - kim kardashian
+    - elon musk

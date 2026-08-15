@@ -8,13 +8,17 @@ import de.raindancer.core.ui.identity.Identities;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.essentials.EssentialsSettings;
 import de.raindancer.modules.essentials.store.EssentialsStore;
+import de.raindancer.modules.essentials.store.NicknameBlocklist;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -48,9 +52,25 @@ class NicknameServiceTest {
     private final Punishments punishments = mock(Punishments.class);
     private final Audit audit = mock(Audit.class);
 
-    private NicknameService serviceWith(EssentialsSettings settings) {
-        return new NicknameService(store, identities, messages, chat, server, punishments, audit,
-                settings);
+    private NicknameBlocklist blocklistOf(Path folder, String yaml) {
+        try {
+            Path file = folder.resolve("blocklist.yml");
+            Files.writeString(file, yaml);
+            NicknameBlocklist blocklist = new NicknameBlocklist(file, () -> null);
+            blocklist.load();
+            return blocklist;
+        } catch (IOException failure) {
+            throw new AssertionError("could not write a test blocklist", failure);
+        }
+    }
+
+    private NicknameService serviceWith(NicknameBlocklist blocklist) {
+        return serviceWith(blocklist, EssentialsSettings.DEFAULTS);
+    }
+
+    private NicknameService serviceWith(NicknameBlocklist blocklist, EssentialsSettings settings) {
+        return new NicknameService(store, blocklist, identities, messages, chat, server,
+                punishments, audit, settings);
     }
 
     private Player player(String name) {
@@ -63,15 +83,20 @@ class NicknameServiceTest {
     }
 
     @Nested
-    @DisplayName("a reported-only blocklist match")
+    @DisplayName("a reported-only section match")
     class ReportedOnly {
 
         @Test
         @DisplayName("is refused, and never bans")
-        void refusedButNotBanned() {
-            EssentialsSettings settings = new EssentialsSettings(3, true, 300, true, true, true,
-                    true, 16, List.of("forbidden name"), List.of());
-            NicknameService service = serviceWith(settings);
+        void refusedButNotBanned(@TempDir Path folder) {
+            NicknameBlocklist blocklist = blocklistOf(folder, """
+                    politicians:
+                      enabled: true
+                      action: report
+                      names:
+                        - forbidden name
+                    """);
+            NicknameService service = serviceWith(blocklist);
             Player who = player("Tom");
             when(server.getOnlinePlayers()).thenReturn(List.of());
 
@@ -84,10 +109,15 @@ class NicknameServiceTest {
 
         @Test
         @DisplayName("still writes down an audit entry")
-        void stillAudited() {
-            EssentialsSettings settings = new EssentialsSettings(3, true, 300, true, true, true,
-                    true, 16, List.of("forbidden name"), List.of());
-            NicknameService service = serviceWith(settings);
+        void stillAudited(@TempDir Path folder) {
+            NicknameBlocklist blocklist = blocklistOf(folder, """
+                    politicians:
+                      enabled: true
+                      action: report
+                      names:
+                        - forbidden name
+                    """);
+            NicknameService service = serviceWith(blocklist);
             Player who = player("Tom");
             when(server.getOnlinePlayers()).thenReturn(List.of());
 
@@ -96,18 +126,41 @@ class NicknameServiceTest {
             verify(audit).record(org.mockito.ArgumentMatchers
                     .<de.raindancer.core.moderation.audit.AuditEntry.Builder>any());
         }
+
+        @Test
+        @DisplayName("a section switched off in the file blocks nothing")
+        void disabledSectionBlocksNothing(@TempDir Path folder) {
+            NicknameBlocklist blocklist = blocklistOf(folder, """
+                    politicians:
+                      enabled: false
+                      action: report
+                      names:
+                        - forbidden name
+                    """);
+            NicknameService service = serviceWith(blocklist);
+            Player who = player("Tom");
+
+            boolean set = service.set(who, "Forbidden Name", false);
+
+            assertThat(set).isTrue();
+        }
     }
 
     @Nested
-    @DisplayName("a report-and-ban blocklist match")
+    @DisplayName("a report-and-ban section match")
     class ReportAndBan {
 
         @Test
         @DisplayName("is refused and bans for exactly one day")
-        void refusedAndBanned() {
-            EssentialsSettings settings = new EssentialsSettings(3, true, 300, true, true, true,
-                    true, 16, List.of(), List.of("severe name"));
-            NicknameService service = serviceWith(settings);
+        void refusedAndBanned(@TempDir Path folder) {
+            NicknameBlocklist blocklist = blocklistOf(folder, """
+                    hate-figures:
+                      enabled: true
+                      action: ban
+                      names:
+                        - severe name
+                    """);
+            NicknameService service = serviceWith(blocklist);
             Player who = player("Tom");
             when(server.getOnlinePlayers()).thenReturn(List.of());
 
@@ -120,10 +173,15 @@ class NicknameServiceTest {
 
         @Test
         @DisplayName("matches case-insensitively and ignores colour markup")
-        void matchesRegardlessOfCaseOrColour() {
-            EssentialsSettings settings = new EssentialsSettings(3, true, 300, true, true, true,
-                    true, 16, List.of(), List.of("blocked"));
-            NicknameService service = serviceWith(settings);
+        void matchesRegardlessOfCaseOrColour(@TempDir Path folder) {
+            NicknameBlocklist blocklist = blocklistOf(folder, """
+                    hate-figures:
+                      enabled: true
+                      action: ban
+                      names:
+                        - blocked
+                    """);
+            NicknameService service = serviceWith(blocklist);
             Player who = player("Tom");
             when(server.getOnlinePlayers()).thenReturn(List.of());
 
@@ -132,12 +190,43 @@ class NicknameServiceTest {
             assertThat(set).isFalse();
             verify(punishments).punish(any(), eq(PunishmentKind.BAN), any(), any(), any());
         }
+
+        @Test
+        @DisplayName("beats a report match on a different section for the same name")
+        void banBeatsReport(@TempDir Path folder) {
+            NicknameBlocklist blocklist = blocklistOf(folder, """
+                    politicians:
+                      enabled: true
+                      action: report
+                      names:
+                        - both
+                    hate-figures:
+                      enabled: true
+                      action: ban
+                      names:
+                        - both
+                    """);
+            NicknameService service = serviceWith(blocklist);
+            Player who = player("Tom");
+            when(server.getOnlinePlayers()).thenReturn(List.of());
+
+            service.set(who, "both", false);
+
+            verify(punishments).punish(any(), eq(PunishmentKind.BAN), any(), any(), any());
+        }
     }
 
     @Test
-    @DisplayName("a name on neither blocklist is never reported or banned")
-    void unblockedNameIsLeftAlone() {
-        NicknameService service = serviceWith(EssentialsSettings.DEFAULTS);
+    @DisplayName("a name in no section is never reported or banned")
+    void unblockedNameIsLeftAlone(@TempDir Path folder) {
+        NicknameBlocklist blocklist = blocklistOf(folder, """
+                politicians:
+                  enabled: true
+                  action: report
+                  names:
+                    - somebody else
+                """);
+        NicknameService service = serviceWith(blocklist);
         Player who = player("Tom");
 
         boolean set = service.set(who, "Foxy", false);
@@ -149,10 +238,17 @@ class NicknameServiceTest {
 
     @Test
     @DisplayName("blocked takes priority over the length limit — still banned even though it is also too long")
-    void blockedBeatsTooLong() {
-        EssentialsSettings settings = new EssentialsSettings(3, true, 300, true, true, true, true,
-                4, List.of(), List.of("waytoolongname"));
-        NicknameService service = serviceWith(settings);
+    void blockedBeatsTooLong(@TempDir Path folder) {
+        NicknameBlocklist blocklist = blocklistOf(folder, """
+                hate-figures:
+                  enabled: true
+                  action: ban
+                  names:
+                    - waytoolongname
+                """);
+        EssentialsSettings shortLimit = new EssentialsSettings(3, true, 300, true, true, true,
+                true, 4);
+        NicknameService service = serviceWith(blocklist, shortLimit);
         Player who = player("Tom");
         when(server.getOnlinePlayers()).thenReturn(List.of());
 

@@ -12,13 +12,13 @@ import de.raindancer.modules.essentials.model.Nickname;
 import de.raindancer.modules.essentials.moderation.ModerationIntegration;
 import de.raindancer.modules.essentials.rules.NicknameRule;
 import de.raindancer.modules.essentials.store.EssentialsStore;
+import de.raindancer.modules.essentials.store.NicknameBlocklist;
 import de.raindancer.modules.essentials.util.PermissionNodes;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,6 +46,7 @@ import java.util.UUID;
 public final class NicknameService implements IEssentialsService {
 
     private final EssentialsStore store;
+    private final NicknameBlocklist blocklist;
     private final Identities identities;
     private final Messages messages;
     private final Chat chat;
@@ -56,10 +57,11 @@ public final class NicknameService implements IEssentialsService {
 
     private volatile EssentialsSettings settings;
 
-    public NicknameService(EssentialsStore store, Identities identities, Messages messages,
-                           Chat chat, Server server, Punishments punishments, Audit audit,
-                           EssentialsSettings settings) {
+    public NicknameService(EssentialsStore store, NicknameBlocklist blocklist,
+                           Identities identities, Messages messages, Chat chat, Server server,
+                           Punishments punishments, Audit audit, EssentialsSettings settings) {
         this.store = store;
+        this.blocklist = blocklist;
         this.identities = identities;
         this.messages = messages;
         this.chat = chat;
@@ -96,7 +98,7 @@ public final class NicknameService implements IEssentialsService {
      */
     public boolean set(Player who, String typed, boolean nameInUse) {
         Nickname nickname = Nickname.of(typed);
-        NicknameRule.BlockMatch match = matchOf(nickname.plain());
+        NicknameRule.BlockMatch match = blocklist.matchOf(nickname.plain());
         Verdict verdict = rule.judge(
                 new NicknameRule.Request(nickname, settings.nicknameLimit(), nameInUse, match));
         if (verdict.isRefused()) {
@@ -126,18 +128,6 @@ public final class NicknameService implements IEssentialsService {
         String display = displayNameOf(who);
         who.playerListName(identities.nametag(who.getUniqueId(), display));
         who.displayName(identities.chatName(who.getUniqueId(), display));
-    }
-
-    /** Which blocklist, if any, this plain-text nickname matches. Case-insensitive, exact match. */
-    private NicknameRule.BlockMatch matchOf(String plain) {
-        String lowered = plain.toLowerCase(Locale.ROOT);
-        if (settings.blockedBanned().contains(lowered)) {
-            return NicknameRule.BlockMatch.BANNED;
-        }
-        if (settings.blockedReported().contains(lowered)) {
-            return NicknameRule.BlockMatch.REPORTED;
-        }
-        return NicknameRule.BlockMatch.NONE;
     }
 
     /**
