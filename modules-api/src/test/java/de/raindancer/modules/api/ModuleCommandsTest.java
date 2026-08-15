@@ -91,4 +91,41 @@ class ModuleCommandsTest {
         assertThat(guarded.description()).isEqualTo("Moderation tools");
         assertThat(guarded.handler()).isNotSameAs(original.handler());
     }
+
+    @Test
+    void aCommandIsNotAuditedUnlessItAsksToBe() {
+        assertThat(ModuleCommand.of("mod", "Moderation tools", NOTHING).audited()).isFalse();
+    }
+
+    @Test
+    void guardingKeepsWhetherItIsAudited() {
+        ModuleRegistry registry = new ModuleRegistry();
+        ModuleCommand original =
+                ModuleCommand.of("mod", "Moderation tools", NOTHING).auditUsage();
+        ModuleCommand guarded = ModuleCommands.guarded(registry, "moderation", original);
+
+        assertThat(guarded.audited()).isTrue();
+    }
+
+    /**
+     * Running an audited command never fails just because RainsCore is not up — the fake
+     * {@link ModuleRegistry} in these tests has none, which is exactly the shape a unit test for a
+     * module has, and the command's own work must not be held hostage by that.
+     */
+    @Test
+    void anAuditedCommandStillRunsWithoutRainsCore() {
+        ModuleRegistry registry = new ModuleRegistry();
+        registry.add(FakeModule.named("moderation", journal));
+        registry.enableAll(module -> new FakeSession(module.info().id(), journal));
+
+        List<String> ran = new ArrayList<>();
+        ModuleCommand original = ModuleCommand
+                .of("mod", "Moderation tools", (source, args) -> ran.add("ran"))
+                .auditUsage();
+        ModuleCommand guarded = ModuleCommands.guarded(registry, "moderation", original);
+
+        guarded.handler().execute(new FakeSource().stack(), new String[0]);
+
+        assertThat(ran).containsExactly("ran");
+    }
 }

@@ -110,7 +110,7 @@ public final class WarpModule implements FlexModule {
         registry = new de.raindancer.modules.warp.store.WarpRegistry(context.core().places(),
                 System::currentTimeMillis);
         catalogue = new WarpCatalogue(registry, context.core().places()::flush);
-        travel = new Travel(context.plugin(), context.core().safety());
+        travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         travelling = new TravelService(catalogue, registry, travel, access,
                 context.core().messages(), settings.current());
         admin = new WarpAdminService(catalogue, access, context.core().messages(),

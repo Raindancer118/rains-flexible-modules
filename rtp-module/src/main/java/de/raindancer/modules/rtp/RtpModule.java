@@ -111,7 +111,7 @@ public final class RtpModule implements FlexModule {
         }
 
         RtpRule rule = new RtpRule();
-        travel = new Travel(context.plugin(), context.core().safety());
+        travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         rtp = new RtpService(context.plugin(), travel, context.core().safety(), pool, rule,
                 context.core().messages(), context.core().effects(), context.core().actionBars(),
                 log, settings.current(), new Random());

@@ -2,6 +2,7 @@ package de.raindancer.modules.moderation;
 
 import de.raindancer.core.moderation.punishment.PunishmentKind;
 import de.raindancer.modules.api.ModuleCommand;
+import de.raindancer.modules.moderation.command.AuditCommand;
 import de.raindancer.modules.moderation.command.HistoryCommand;
 import de.raindancer.modules.moderation.command.InvseeCommand;
 import de.raindancer.modules.moderation.command.KickCommand;
@@ -112,15 +113,25 @@ public final class ModerationCommands {
                                 new HistoryCommand(ModerationCommands::require))
                         .taking("<player>")
                         .needing(ModerationPermission.HISTORY.node()),
+                ModuleCommand.of("audit", "The audit journal — joins, teleports, gamemode, moderation",
+                                new AuditCommand(ModerationCommands::require))
+                        .taking("[player] [feature] — nothing shows the newest across the server")
+                        .needing(ModerationPermission.HISTORY.node()),
 
+                // Audited from here down: none of these leaves a trace anywhere else. A ban or a mute
+                // is already in Punishments and readable through /history; these are not, and an
+                // invisible moderator or an opened inventory is exactly the kind of thing somebody
+                // asks about after the fact.
                 ModuleCommand.of("vanish", "Makes you invisible to players",
                                 new VanishCommand(ModerationCommands::require))
                         .taking("[player] — somebody else, if you may")
-                        .needing(ModerationPermission.VANISH.node()),
+                        .needing(ModerationPermission.VANISH.node())
+                        .auditUsage(),
                 ModuleCommand.of("invsee", "Opens somebody's inventory, online or not",
                                 new InvseeCommand(ModerationCommands::require))
                         .taking("<player>")
-                        .needing(ModerationPermission.INVSEE.node()),
+                        .needing(ModerationPermission.INVSEE.node())
+                        .auditUsage(),
 
                 ModuleCommand.of("report", "Tells the staff about somebody",
                                 new ReportCommand(ModerationCommands::require))
@@ -139,19 +150,22 @@ public final class ModerationCommands {
                 ModuleCommand.of("vein", "Bury a vein of ore where you are looking",
                                 new WorldToolCommands.Vein(ModerationCommands::require))
                         .taking("[ore] [size] — iron_ore 12 by default")
-                        .needing(ModerationPermission.SPAWN_ORE.node()),
+                        .needing(ModerationPermission.SPAWN_ORE.node())
+                        .auditUsage(),
                 ModuleCommand.of("mob", "Call up a pack or a wave where you are looking",
                                 new WorldToolCommands.Mob(ModerationCommands::require))
                         .taking("pack <creature> [how many]",
                                 "wave <creature> [how many] [packs] [seconds]",
                                 "stop — ends your wave")
-                        .needing(ModerationPermission.SPAWN_MOBS.node()),
+                        .needing(ModerationPermission.SPAWN_MOBS.node())
+                        .auditUsage(),
 
                 ModuleCommand.of("worldtools",
                                 "Bury ore, or call up creatures, where you are looking",
                                 new WorldToolsCommand(ModerationCommands::require))
                         .aliased("wtools")
-                        .needing(ModerationPermission.SPAWN_ORE.node()),
+                        .needing(ModerationPermission.SPAWN_ORE.node())
+                        .auditUsage(),
 
                 // The console's own pair. Not grantable, not in a menu, not a permission: the shield
                 // that stops one moderator acting on another must not be handed out by the people it
@@ -177,11 +191,13 @@ public final class ModerationCommands {
                         // A node nothing registers and nothing grants, which is exactly the filter
                         // wanted: hasPermission answers true for an operator and false for everybody
                         // else, so the book shows these two to the people who can actually run them.
-                        .needing("rainsmoderation.promote"),
+                        .needing("rainsmoderation.promote")
+                        .auditUsage(),
                 ModuleCommand.of("demote", "Takes somebody down a rank, or off the staff",
                                 new DemoteCommand(ModerationCommands::require))
                         .taking("<player>")
-                        .needing("rainsmoderation.promote"),
+                        .needing("rainsmoderation.promote")
+                        .auditUsage(),
 
                 // The tools a moderator points at themselves, or at somebody else by naming them.
                 // /god toggles and /ungod switches off: "make sure this is off" is a thing somebody
@@ -190,47 +206,56 @@ public final class ModerationCommands {
                 ModuleCommand.of("heal", "Restores somebody to full health",
                         new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.HEAL))
                         .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.HEAL.node()),
+                        .needing(ModerationPermission.HEAL.node())
+                        .auditUsage(),
                 ModuleCommand.of("feed", "Fills somebody's hunger bar",
                         new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.FEED))
                         .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.FEED.node()),
+                        .needing(ModerationPermission.FEED.node())
+                        .auditUsage(),
                 ModuleCommand.of("hurt", "Takes half of somebody's health",
                         new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.HURT))
                         .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.HURT.node()),
+                        .needing(ModerationPermission.HURT.node())
+                        .auditUsage(),
                 ModuleCommand.of("starve", "Empties most of somebody's hunger bar",
                         new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.STARVE))
                         .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.STARVE.node()),
+                        .needing(ModerationPermission.STARVE.node())
+                        .auditUsage(),
                 ModuleCommand.of("fly", "Lets somebody fly",
                         new SelfToolCommand(ModerationCommands::require,
                                 SelfToolCommand.Tool.FLY, null))
                         .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.FLY.node()),
+                        .needing(ModerationPermission.FLY.node())
+                        .auditUsage(),
                 ModuleCommand.of("god", "Makes somebody invulnerable",
                                 new SelfToolCommand(ModerationCommands::require,
                                         SelfToolCommand.Tool.GOD, null))
                         .aliased("godmode")
                         .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.GOD.node()),
+                        .needing(ModerationPermission.GOD.node())
+                        .auditUsage(),
                 ModuleCommand.of("ungod", "Makes them mortal again",
                         new SelfToolCommand(ModerationCommands::require,
                                 SelfToolCommand.Tool.GOD, false))
                         .taking("[player]")
-                        .needing(ModerationPermission.GOD.node()),
+                        .needing(ModerationPermission.GOD.node())
+                        .auditUsage(),
                 ModuleCommand.of("instakill", "Everything they hit dies in one hit",
                                 new SelfToolCommand(ModerationCommands::require,
                                         SelfToolCommand.Tool.INSTAKILL, null))
                         .aliased("oneshot")
                         .taking("[player]")
-                        .needing(ModerationPermission.INSTAKILL.node()),
+                        .needing(ModerationPermission.INSTAKILL.node())
+                        .auditUsage(),
                 ModuleCommand.of("instabreak", "Every block breaks the moment they hit it",
                                 new SelfToolCommand(ModerationCommands::require,
                                         SelfToolCommand.Tool.INSTABREAK, null))
                         .aliased("fastbreak")
                         .taking("[player]")
-                        .needing(ModerationPermission.INSTABREAK.node()));
+                        .needing(ModerationPermission.INSTABREAK.node())
+                        .auditUsage());
     }
 
     /** Called when the module enables, after which the commands work. */

@@ -168,7 +168,7 @@ public final class FarmWorldModule implements FlexModule {
         }
 
         FarmAccessRule access = new FarmAccessRule();
-        travel = new Travel(context.plugin(), context.core().safety());
+        travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         travelling = new FarmTravelService(catalogue, travel, access, context.core().messages(),
                 context.core().effects(), settings.current(), new Random());
         admin = new FarmAdminService(context.plugin(), server, catalogue, access,

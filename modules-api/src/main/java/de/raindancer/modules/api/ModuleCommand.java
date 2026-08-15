@@ -21,7 +21,8 @@ import java.util.Objects;
  * out not to be there.
  */
 public record ModuleCommand(String name, String description, List<String> aliases,
-                            BasicCommand handler, List<String> options, String permission) {
+                            BasicCommand handler, List<String> options, String permission,
+                            boolean audited) {
 
     public ModuleCommand {
         name = Ids.checkCommandName(name);
@@ -33,7 +34,7 @@ public record ModuleCommand(String name, String description, List<String> aliase
     }
 
     public static ModuleCommand of(String name, String description, BasicCommand handler) {
-        return new ModuleCommand(name, description, List.of(), handler, List.of(), null);
+        return new ModuleCommand(name, description, List.of(), handler, List.of(), null, false);
     }
 
     /** Other names for the same command. Accumulates, so it may be called more than once. */
@@ -42,7 +43,7 @@ public record ModuleCommand(String name, String description, List<String> aliase
         if (more != null) {
             all.addAll(List.of(more));
         }
-        return new ModuleCommand(name, description, all, handler, options, permission);
+        return new ModuleCommand(name, description, all, handler, options, permission, audited);
     }
 
     /**
@@ -59,7 +60,7 @@ public record ModuleCommand(String name, String description, List<String> aliase
         if (more != null) {
             all.addAll(List.of(more));
         }
-        return new ModuleCommand(name, description, aliases, handler, all, permission);
+        return new ModuleCommand(name, description, aliases, handler, all, permission, audited);
     }
 
     /**
@@ -69,7 +70,20 @@ public record ModuleCommand(String name, String description, List<String> aliase
      * moderation vocabulary to somebody who can run none of it.
      */
     public ModuleCommand needing(String node) {
-        return new ModuleCommand(name, description, aliases, handler, options, node);
+        return new ModuleCommand(name, description, aliases, handler, options, node, audited);
+    }
+
+    /**
+     * Marks this command as one worth a line in Core's audit journal every time it runs.
+     *
+     * <p>Opt-in, not the default: a journal that logged every {@code /home} would drown the handful
+     * of lines somebody actually goes looking for — a moderator's tools, not a player's everyday ones.
+     * The recording itself is the host's job ({@link ModuleCommands#guarded}), which is the one place
+     * every command already passes through; this is only the flag that tells it to, read back through
+     * {@link #audited()}.
+     */
+    public ModuleCommand auditUsage() {
+        return new ModuleCommand(name, description, aliases, handler, options, permission, true);
     }
 
     /** The name first, then the aliases — every word this command answers to. */

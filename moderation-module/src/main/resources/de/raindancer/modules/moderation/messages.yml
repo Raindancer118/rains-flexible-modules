@@ -163,6 +163,17 @@ moderation:
   note-written: "<green>Written down about <white><player></white>."
   note-removed: "<yellow>The note has been removed. <dark_gray>The removal is on the record."
 
+  # ── the audit journal ────────────────────────────────────────────────────
+  # /audit — Core's journal, read rather than kept twice. <saying> carries no colour of its own, which
+  # is why it goes through Chat.formatted rather than arg(): it is built by AuditEntry.saying() out of
+  # words this plugin does not choose, and arg() would escape it into literal markup.
+  audit-empty: "<gray>Nothing in the audit journal yet."
+  audit-empty-for: "<gray>Nothing on record for <white><player></white>."
+  audit-heading: "<gray><white><count></white> entr(ies) in the audit journal:"
+  audit-heading-for: "<gray>Audit for <white><player></white> — <white><count></white> entr(ies):"
+  audit-line: "<dark_gray>(<when>)</dark_gray> <white><feature></white> <gray>— <saying>"
+  audit-more: "<gray>…and <white><count></white> more."
+
   # ── inventories ──────────────────────────────────────────────────────────
   invsee:
     refused: "<red>That inventory could not be opened: <gray><reason>"

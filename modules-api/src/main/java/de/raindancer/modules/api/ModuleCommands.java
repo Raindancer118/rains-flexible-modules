@@ -1,14 +1,18 @@
 package de.raindancer.modules.api;
 
+import de.raindancer.core.RainsCore;
+import de.raindancer.core.moderation.audit.AuditEntry;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Wraps a module's command so it says something sensible when the module is not running.
@@ -48,6 +52,9 @@ public final class ModuleCommands {
                     return;
                 }
                 real.execute(source, args);
+                if (command.audited()) {
+                    auditRun(command, source);
+                }
             }
 
             @Override
@@ -97,7 +104,33 @@ public final class ModuleCommands {
             }
         };
         return new ModuleCommand(command.name(), command.description(), command.aliases(), guarded,
-                command.options(), command.permission());
+                command.options(), command.permission(), command.audited());
+    }
+
+    /**
+     * One line in Core's audit journal: this command ran, and who ran it.
+     *
+     * <p>Only for a command its module marked {@link ModuleCommand#audited()} — the admin and
+     * moderation tools, not every {@code /home}. Resolved lazily rather than held, because the
+     * command is wrapped at bootstrap, long before Core has necessarily enabled; by the time anybody
+     * has actually run a command, it always has.
+     *
+     * <p>Never lets the journal's own trouble be the command's: a database that will not write is
+     * something for the audit journal's own log to say, not a reason a working command should look
+     * broken.
+     */
+    private static void auditRun(ModuleCommand command, CommandSourceStack source) {
+        try {
+            CommandSender sender = source.getSender();
+            UUID who = sender instanceof Player player ? player.getUniqueId() : null;
+            String name = sender instanceof Player player ? player.getName() : "the console";
+            RainsCore.get().audit().record(AuditEntry.of("command", "ran")
+                    .by(who, name)
+                    .saying("/" + command.name()));
+        } catch (RuntimeException notReady) {
+            // RainsCore not enabled, or its audit journal not reachable for some other reason. The
+            // command already ran; only the line about it is missing, and that is the smaller loss.
+        }
     }
 
     /**

@@ -154,7 +154,7 @@ public final class HomeModule implements FlexModule {
         SetHomePluginFile.locate(pluginsFolder, context.dataFolder())
                 .ifPresent(setHomeFile -> homes.importSetHomePlugin(setHomeFile, log));
 
-        travel = new Travel(context.plugin(), context.core().safety());
+        travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         travelling = new HomeTravelService(travel, context.core().messages(), context.core().effects(),
                 settings.current());
         keeping = new HomeKeepingService(homes, limits, names, context.core().messages(),
