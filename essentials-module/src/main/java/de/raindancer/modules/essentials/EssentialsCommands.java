@@ -2,6 +2,7 @@ package de.raindancer.modules.essentials;
 
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.essentials.command.AfkCommand;
+import de.raindancer.modules.essentials.command.BlocklistCommand;
 import de.raindancer.modules.essentials.command.IgnoreCommand;
 import de.raindancer.modules.essentials.command.MsgCommand;
 import de.raindancer.modules.essentials.command.NickCommand;
@@ -57,6 +58,9 @@ public final class EssentialsCommands {
                 ModuleCommand.of("nick", "Sets, or removes, what you are called instead of your own name",
                                 new NickCommand(EssentialsCommands::require))
                         .taking("<name> — colour allowed", "off — back to your own name"),
+                ModuleCommand.of("blocklist", "Opens the nickname blocklist editor",
+                                new BlocklistCommand(EssentialsCommands::require))
+                        .auditUsage(),
 
                 ModuleCommand.of("afk", "Marks you away from the keyboard, or back, right now",
                         new AfkCommand(EssentialsCommands::require)));

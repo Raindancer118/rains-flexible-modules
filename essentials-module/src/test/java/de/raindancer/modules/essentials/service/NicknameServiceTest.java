@@ -172,6 +172,33 @@ class NicknameServiceTest {
         }
 
         @Test
+        @DisplayName("a ban is never issued quietly — it is audited and told to staff exactly like a plain report")
+        void aBanIsAlwaysAlsoAReport(@TempDir Path folder) {
+            NicknameBlocklist blocklist = blocklistOf(folder, """
+                    hate-figures:
+                      enabled: true
+                      action: ban
+                      names:
+                        - severe name
+                    """);
+            NicknameService service = serviceWith(blocklist);
+            Player who = player("Tom");
+            Player staff = player("Staffer");
+            when(staff.hasPermission(de.raindancer.modules.essentials.util.PermissionNodes.STAFF_NOTIFY))
+                    .thenReturn(true);
+            org.mockito.Mockito.doReturn(List.of(staff)).when(server).getOnlinePlayers();
+
+            service.set(who, "Severe Name", false);
+
+            verify(audit).record(org.mockito.ArgumentMatchers
+                    .<de.raindancer.core.moderation.audit.AuditEntry.Builder>any());
+            verify(chat).broadcast(org.mockito.ArgumentMatchers.eq(List.of(staff)),
+                    org.mockito.ArgumentMatchers.any(),
+                    org.mockito.ArgumentMatchers.<net.kyori.adventure.text.minimessage.tag.resolver.TagResolver>any(),
+                    org.mockito.ArgumentMatchers.<net.kyori.adventure.text.minimessage.tag.resolver.TagResolver>any());
+        }
+
+        @Test
         @DisplayName("matches case-insensitively and ignores colour markup")
         void matchesRegardlessOfCaseOrColour(@TempDir Path folder) {
             NicknameBlocklist blocklist = blocklistOf(folder, """

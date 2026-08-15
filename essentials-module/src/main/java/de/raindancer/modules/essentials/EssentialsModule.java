@@ -36,7 +36,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.3.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, and a nickname")
             .by("Raindancer118");
@@ -97,7 +97,7 @@ public final class EssentialsModule implements FlexModule {
 
         services = new EssentialsServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
-                settings::current, store, spawn, afk, messaging, nicknames, welcome);
+                settings::current, store, blocklist, spawn, afk, messaging, nicknames, welcome);
 
         settings.onChange(fresh -> {
             spawn.settings(fresh);

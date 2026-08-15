@@ -60,6 +60,13 @@ essentials:
     blocked-report: "<red>⚑ <white><player></white> <gray>tried the blocked nickname <white><attempted></white>."
     blocked-report-banned: "<red>⚑ <white><player></white> <gray>tried the blocked nickname <white><attempted></white> <red>and has been banned for a day."
 
+  # ── the in-game blocklist editor, /blocklist ─────────────────────────────
+  blocklist:
+    type-a-name: "<gray>Type the name to add. <dark_gray>You have thirty seconds."
+    already-asking: "<red>You are already being asked something else."
+    added: "<green>Added <white><name></white> to <white><category></white>."
+    removed: "<yellow>Removed <white><name></white> from <white><category></white>."
+
   # ── AFK ───────────────────────────────────────────────────────────────────
   afk:
     went: "<gray>* <white><player></white> is now AFK."

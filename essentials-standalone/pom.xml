@@ -40,8 +40,16 @@
           whole category off — political names, say — by flipping one line, without touching the
           names themselves. Ships with a starting set in three sections; add or remove names, or
           whole sections, freely.
+
+          1.3.0: /blocklist opens an in-game editor for the same file — a scrollable page listing
+          every section (its status, its action, how many names), click to switch a section on or
+          off, shift-click to open its own page of names, click one there to remove it, or type a
+          new one in with the "Add a name" button. Every change writes straight to blocklist.yml, so
+          the menu and a text editor are two ways into the exact same file, never two copies of it.
+          The starting set is also a great deal bigger now: two dozen more names each across
+          hate-and-extremist-figures, political-figures and celebrities.
         -->
-        <plugin.version>1.2.0</plugin.version>
+        <plugin.version>1.3.0</plugin.version>
     </properties>
 
     <dependencies>

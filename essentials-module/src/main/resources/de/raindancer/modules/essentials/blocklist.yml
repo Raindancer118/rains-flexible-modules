@@ -3,11 +3,15 @@
 # Names nobody may wear as a nickname, grouped into sections you can switch off independently —
 # set a section's own `enabled: false` and nothing else needs to change. Add or remove names, or
 # whole sections, freely; this file is a starting point, not a complete one, and is yours to edit
-# by hand. It is read once when the server (re)starts.
+# by hand — or in-game, with /blocklist. It is read once when the server (re)starts; an in-game
+# edit rewrites the whole file, so a hand edit made while the server is running and then overwritten
+# by an in-game one will be lost — edit one way or the other, not both at once.
 #
 # What `action` does:
 #   report   — refused, and reported to staff automatically (anyone holding essentials.staff.notify)
-#   ban      — refused, reported to staff, AND bans the player for a day automatically
+#   ban      — refused, reported to staff exactly the same way, AND bans the player for a day
+#              automatically. A ban always includes everything a report does; it is never one or
+#              the other.
 #
 # Matching is case-insensitive and ignores colour/formatting — "<red>HITLER</red>" matches "hitler".
 # A name on more than one enabled section is judged by the most severe action that matches (ban
@@ -23,6 +27,24 @@ hate-and-extremist-figures:
     - adolf_hitler
     - a.hitler
     - adolph hitler
+    - joseph stalin
+    - stalin
+    - benito mussolini
+    - mussolini
+    - pol pot
+    - joseph goebbels
+    - goebbels
+    - heinrich himmler
+    - himmler
+    - adolf eichmann
+    - osama bin laden
+    - saddam hussein
+    - ayman al-zawahiri
+    - anders breivik
+    - charles manson
+    - ted bundy
+    - jeffrey dahmer
+    - pablo escobar
 
 political-figures:
   enabled: true
@@ -31,14 +53,43 @@ political-figures:
     - donald trump
     - joe biden
     - barack obama
+    - bill clinton
+    - george w bush
+    - george bush
+    - kamala harris
+    - mike pence
+    - ron desantis
+    - nancy pelosi
+    - bernie sanders
     - vladimir putin
+    - volodymyr zelenskyy
+    - dmitry medvedev
+    - alexander lukashenko
     - xi jinping
     - kim jong un
-    - volodymyr zelenskyy
+    - narendra modi
+    - shinzo abe
+    - fumio kishida
+    - recep tayyip erdogan
+    - benjamin netanyahu
+    - bashar al-assad
+    - mohammed bin salman
     - emmanuel macron
     - olaf scholz
     - angela merkel
     - boris johnson
+    - rishi sunak
+    - keir starmer
+    - giorgia meloni
+    - pedro sanchez
+    - viktor orban
+    - justin trudeau
+    - jair bolsonaro
+    - luiz inacio lula da silva
+    - nicolas maduro
+    - javier milei
+    - cyril ramaphosa
+    - anthony albanese
 
 celebrities:
   enabled: true
@@ -47,8 +98,41 @@ celebrities:
     - tom holland
     - tom cruise
     - dwayne johnson
+    - leonardo dicaprio
+    - brad pitt
+    - johnny depp
+    - robert downey jr
+    - chris hemsworth
+    - scarlett johansson
+    - jennifer lawrence
+    - will smith
+    - keanu reeves
+    - ryan reynolds
+    - margot robbie
     - taylor swift
+    - ed sheeran
+    - drake
+    - beyonce
+    - rihanna
+    - justin bieber
+    - ariana grande
+    - kanye west
+    - billie eilish
+    - the weeknd
     - cristiano ronaldo
     - lionel messi
-    - kim kardashian
+    - lebron james
+    - neymar
+    - serena williams
+    - michael jordan
+    - usain bolt
     - elon musk
+    - jeff bezos
+    - bill gates
+    - mark zuckerberg
+    - tim cook
+    - steve jobs
+    - kim kardashian
+    - kylie jenner
+    - mrbeast
+    - pewdiepie

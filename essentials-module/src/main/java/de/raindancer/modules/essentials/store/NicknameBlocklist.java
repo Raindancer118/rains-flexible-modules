@@ -12,7 +12,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,6 +50,12 @@ public final class NicknameBlocklist {
     private final Supplier<InputStream> defaultResource;
 
     private volatile Map<String, Category> categories = Map.of();
+    /**
+     * The file's own leading comment block, captured at load and written back on every save — the
+     * one piece of hand-written explanation worth keeping through an in-game edit, even though a
+     * rewritten YAML file cannot keep comments anywhere else in it.
+     */
+    private volatile String header = "";
 
     public NicknameBlocklist(Path file, Supplier<InputStream> defaultResource) {
         this.file = file;
@@ -91,6 +99,7 @@ public final class NicknameBlocklist {
             log.error(unreadable, "Could not read {}; nothing is blocked until it can be.", file);
             return Map.of();
         }
+        header = leadingComment(text);
         YamlConfiguration yaml = new YamlConfiguration();
         try {
             yaml.loadFromString(text);
@@ -117,6 +126,20 @@ public final class NicknameBlocklist {
             found.put(id, new Category(id, enabled, action, names));
         }
         return found;
+    }
+
+    /** Every {@code #}-commented or blank line the file opens with, kept verbatim. */
+    private static String leadingComment(String text) {
+        StringBuilder header = new StringBuilder();
+        for (String line : text.split("\n", -1)) {
+            String trimmed = line.strip();
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+                header.append(line).append('\n');
+            } else {
+                break;
+            }
+        }
+        return header.toString();
     }
 
     private static NicknameRule.BlockMatch actionOf(String text, String categoryId) {
@@ -166,5 +189,93 @@ public final class NicknameBlocklist {
             }
         }
         return total;
+    }
+
+    // ---------------------------------------------------------------------------- editing, in-game
+
+    /**
+     * Switches one section on or off, and writes the change straight to disk.
+     *
+     * @return whether there was such a section to switch
+     */
+    public boolean setEnabled(String categoryId, boolean enabled) {
+        Category current = categories.get(categoryId);
+        if (current == null) {
+            return false;
+        }
+        replace(new Category(current.id(), enabled, current.action(), current.names()));
+        save();
+        return true;
+    }
+
+    /**
+     * Adds a name to a section, lower-cased the same way a hand-written one would be.
+     *
+     * @return whether this changed anything — false for a blank name or one already there
+     */
+    public boolean addName(String categoryId, String name) {
+        Category current = categories.get(categoryId);
+        if (current == null || name == null || name.isBlank()) {
+            return false;
+        }
+        String lowered = name.trim().toLowerCase(Locale.ROOT);
+        if (current.names().contains(lowered)) {
+            return false;
+        }
+        Set<String> names = new LinkedHashSet<>(current.names());
+        names.add(lowered);
+        replace(new Category(current.id(), current.enabled(), current.action(), names));
+        save();
+        return true;
+    }
+
+    /** @return whether the name was there to remove */
+    public boolean removeName(String categoryId, String name) {
+        Category current = categories.get(categoryId);
+        if (current == null || name == null) {
+            return false;
+        }
+        String lowered = name.trim().toLowerCase(Locale.ROOT);
+        if (!current.names().contains(lowered)) {
+            return false;
+        }
+        Set<String> names = new LinkedHashSet<>(current.names());
+        names.remove(lowered);
+        replace(new Category(current.id(), current.enabled(), current.action(), names));
+        save();
+        return true;
+    }
+
+    private void replace(Category updated) {
+        Map<String, Category> next = new LinkedHashMap<>(categories);
+        next.put(updated.id(), updated);
+        categories = next;
+    }
+
+    /**
+     * Writes every section back to {@link #file}, with the header comment this file opened with
+     * still above them — the one piece of hand-written explanation worth carrying through an
+     * in-game edit, even though nothing else about the file's own formatting survives a rewrite.
+     */
+    private void save() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        for (Category category : categories.values()) {
+            String path = category.id();
+            yaml.set(path + ".enabled", category.enabled());
+            yaml.set(path + ".action",
+                    category.action() == NicknameRule.BlockMatch.BANNED ? "ban" : "report");
+            yaml.set(path + ".names", new ArrayList<>(category.names()));
+        }
+        String body = yaml.saveToString();
+        try {
+            Path parent = file.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.writeString(file, header + body, StandardCharsets.UTF_8);
+        } catch (IOException failure) {
+            log.error(failure, "Could not write {}; the change has not reached disk and will be "
+                    + "lost on the next restart.", file);
+        }
     }
 }

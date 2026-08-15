@@ -26,6 +26,9 @@ public final class PermissionNodes {
     /** Who is told automatically when somebody tries a blocklisted nickname. */
     public static final String STAFF_NOTIFY = "essentials.staff.notify";
 
+    /** Opening the in-game blocklist editor. */
+    public static final String BLOCKLIST_MANAGE = "essentials.blocklist.manage";
+
     private PermissionNodes() {
     }
 
@@ -41,6 +44,9 @@ public final class PermissionNodes {
                 new Permission(AFK, "Mark yourself away from the keyboard", PermissionDefault.TRUE),
                 new Permission(STAFF_NOTIFY,
                         "See automatic reports for blocked nicknames and other flagged attempts",
+                        PermissionDefault.OP),
+                new Permission(BLOCKLIST_MANAGE,
+                        "Open the in-game nickname blocklist editor",
                         PermissionDefault.OP));
     }
 

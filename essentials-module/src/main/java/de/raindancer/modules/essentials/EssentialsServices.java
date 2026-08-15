@@ -11,6 +11,7 @@ import de.raindancer.modules.essentials.service.NicknameService;
 import de.raindancer.modules.essentials.service.SpawnService;
 import de.raindancer.modules.essentials.service.WelcomeService;
 import de.raindancer.modules.essentials.store.EssentialsStore;
+import de.raindancer.modules.essentials.store.NicknameBlocklist;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
 
@@ -37,6 +38,7 @@ public record EssentialsServices(
         Supplier<EssentialsSettings> settings,
 
         EssentialsStore store,
+        NicknameBlocklist blocklist,
         SpawnService spawn,
         AfkService afk,
         MessagingService messaging,

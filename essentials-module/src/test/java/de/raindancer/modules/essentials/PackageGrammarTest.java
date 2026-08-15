@@ -48,7 +48,8 @@ class PackageGrammarTest {
     @Test
     @DisplayName("the scan found the packages, so a rename cannot quietly empty it")
     void theScanIsNotVacuous() {
-        for (String pkg : List.of("model", "rules", "store", "service", "listener", "command", "util")) {
+        for (String pkg : List.of("model", "rules", "store", "service", "listener", "command",
+                "screen", "util")) {
             assertThat(in(pkg)).as("the %s package is empty", pkg).isNotEmpty();
         }
     }

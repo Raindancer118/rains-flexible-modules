@@ -126,6 +126,120 @@ class NicknameBlocklistTest {
         }
     }
 
+    @Nested
+    @DisplayName("editing, in-game")
+    class Editing {
+
+        @Test
+        @DisplayName("toggling a section's enabled state survives a reload")
+        void toggleSurvivesReload(@TempDir Path folder) {
+            NicknameBlocklist blocklist = writtenAs(folder, """
+                    politicians:
+                      enabled: true
+                      action: report
+                      names:
+                        - donald trump
+                    """);
+
+            assertThat(blocklist.setEnabled("politicians", false)).isTrue();
+            assertThat(blocklist.matchOf("donald trump")).isEqualTo(NicknameRule.BlockMatch.NONE);
+
+            NicknameBlocklist reloaded = new NicknameBlocklist(folder.resolve("blocklist.yml"),
+                    () -> null);
+            reloaded.load();
+            assertThat(reloaded.matchOf("donald trump")).isEqualTo(NicknameRule.BlockMatch.NONE);
+        }
+
+        @Test
+        @DisplayName("toggling a section that does not exist changes nothing")
+        void toggleUnknownSection(@TempDir Path folder) {
+            NicknameBlocklist blocklist = writtenAs(folder, """
+                    politicians:
+                      enabled: true
+                      action: report
+                      names:
+                        - donald trump
+                    """);
+
+            assertThat(blocklist.setEnabled("nonexistent", false)).isFalse();
+        }
+
+        @Test
+        @DisplayName("adding a name survives a reload, lower-cased")
+        void addNameSurvivesReload(@TempDir Path folder) {
+            NicknameBlocklist blocklist = writtenAs(folder, """
+                    politicians:
+                      enabled: true
+                      action: report
+                      names:
+                        - donald trump
+                    """);
+
+            assertThat(blocklist.addName("politicians", "New Name")).isTrue();
+
+            NicknameBlocklist reloaded = new NicknameBlocklist(folder.resolve("blocklist.yml"),
+                    () -> null);
+            reloaded.load();
+            assertThat(reloaded.matchOf("NEW NAME")).isEqualTo(NicknameRule.BlockMatch.REPORTED);
+        }
+
+        @Test
+        @DisplayName("adding a name already there changes nothing")
+        void addingTwiceIsNotAChange(@TempDir Path folder) {
+            NicknameBlocklist blocklist = writtenAs(folder, """
+                    politicians:
+                      enabled: true
+                      action: report
+                      names:
+                        - donald trump
+                    """);
+
+            assertThat(blocklist.addName("politicians", "Donald Trump")).isFalse();
+        }
+
+        @Test
+        @DisplayName("removing a name survives a reload")
+        void removeNameSurvivesReload(@TempDir Path folder) {
+            NicknameBlocklist blocklist = writtenAs(folder, """
+                    politicians:
+                      enabled: true
+                      action: report
+                      names:
+                        - donald trump
+                        - joe biden
+                    """);
+
+            assertThat(blocklist.removeName("politicians", "donald trump")).isTrue();
+
+            NicknameBlocklist reloaded = new NicknameBlocklist(folder.resolve("blocklist.yml"),
+                    () -> null);
+            reloaded.load();
+            assertThat(reloaded.matchOf("donald trump")).isEqualTo(NicknameRule.BlockMatch.NONE);
+            assertThat(reloaded.matchOf("joe biden")).isEqualTo(NicknameRule.BlockMatch.REPORTED);
+        }
+
+        @Test
+        @DisplayName("the file's own header comment survives an in-game edit")
+        void headerSurvivesAnEdit(@TempDir Path folder) throws IOException {
+            Path file = folder.resolve("blocklist.yml");
+            Files.writeString(file, """
+                    # a hand-written explanation at the top of the file
+                    politicians:
+                      enabled: true
+                      action: report
+                      names:
+                        - donald trump
+                    """);
+            NicknameBlocklist blocklist = new NicknameBlocklist(file, () -> null);
+            blocklist.load();
+
+            blocklist.setEnabled("politicians", false);
+
+            assertThat(Files.readString(file))
+                    .contains("a hand-written explanation at the top of the file");
+        }
+    }
+
     @Test
     @DisplayName("an unreadable action defaults to report rather than refusing to load")
     void unknownActionDefaultsToReport(@TempDir Path folder) {
