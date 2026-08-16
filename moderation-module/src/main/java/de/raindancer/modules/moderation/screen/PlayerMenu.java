@@ -109,6 +109,14 @@ public final class PlayerMenu extends ModerationScreen {
                 "For whoever may read a record",
                 click -> new HistoryMenu(services(), viewer, this, subject, subjectName).open());
 
+        band(MenuLayout.LAND, 3, may(ModerationPermission.HISTORY),
+                Icons.of(Material.OAK_SIGN, "<yellow>Audit trail",
+                        "<gray>Joins, teleports, gamemode changes,",
+                        "<gray>and every moderation action — both directions.",
+                        "<dark_gray>Newest first."),
+                "For whoever may read a record",
+                click -> new AuditMenu(services(), viewer, this, subject, subjectName).open());
+
         band(MenuLayout.LAND, 5, may(ModerationPermission.REPORTS),
                 Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Mining history",
                         "<gray>" + services().xrayDetection().approachesFor(subject).size()

@@ -12,6 +12,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -40,7 +41,9 @@ import java.util.function.Supplier;
  *
  * <h2>Why chat rather than a screen</h2>
  * The same reason as {@link HistoryCommand}: a record is a thing people quote, and a chest menu is the
- * one shape you cannot copy from.
+ * one shape you cannot copy from. The screen — {@link de.raindancer.modules.moderation.screen.AuditMenu}
+ * — is one click away, the same way {@link HistoryMenu} sits next to {@code /history}: for scrolling
+ * back through the journal a page at a time, not for the line somebody is about to paste into a reply.
  */
 public final class AuditCommand extends StaffCommand {
 
@@ -108,6 +111,15 @@ public final class AuditCommand extends StaffCommand {
         if (found.size() > MOST_LINES) {
             moderation.messages().send(sender, "moderation.audit-more",
                     "count", found.size() - MOST_LINES);
+        }
+        // The screen, one click away — for browsing rather than quoting. See AuditMenu's javadoc for
+        // why that split does not undo the reason this command answers in chat.
+        if (sender instanceof Player reader) {
+            if (player == null) {
+                moderation.messages().send(reader, "moderation.audit-see-screen");
+            } else {
+                moderation.messages().send(reader, "moderation.audit-see-screen-for", "player", player);
+            }
         }
     }
 

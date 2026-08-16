@@ -173,6 +173,14 @@ moderation:
   audit-heading-for: "<gray>Audit for <white><player></white> — <white><count></white> entr(ies):"
   audit-line: "<dark_gray>(<when>)</dark_gray> <white><feature></white> <gray>— <saying>"
   audit-more: "<gray>…and <white><count></white> more."
+  # Clickable, the same shape as record-see-screen and for the same reason: the screen is one click
+  # away for browsing, the command stays the answer for quoting. /mod audit is the whole journal;
+  # /mod <player> already carries its own audit door, so a lookup by player is pointed there instead.
+  audit-see-screen: "<dark_gray>Or browse it a page at a time: <click:run_command:'/mod audit'><hover:show_text:'<gray>Open the audit journal'><white>/mod audit</white></hover></click>"
+  audit-see-screen-for: "<dark_gray>Or browse it a page at a time: <click:run_command:'/mod <player>'><hover:show_text:'<gray>Open the moderation page for <white><player>'><white>/mod <player></white></hover></click>"
+  # A single entry, read back in chat from the screen — plain rather than coloured, since <saying> is
+  # built from a player's own name and goes through the ordinary escaping every value here gets.
+  audit-line-chat: "<dark_gray>(<when>)</dark_gray> <white><feature></white> <gray>— <saying>"
 
   # ── inventories ──────────────────────────────────────────────────────────
   invsee:

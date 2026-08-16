@@ -417,6 +417,17 @@ public final class ModerationModule implements FlexModule {
             new de.raindancer.modules.moderation.screen.XraySuspicionMenu(services, viewer, null)
                     .open();
         }
+
+        @Override
+        public void audit(Player viewer) {
+            new de.raindancer.modules.moderation.screen.AuditMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void audit(Player viewer, UUID subject, String subjectName) {
+            new de.raindancer.modules.moderation.screen.AuditMenu(services, viewer, null, subject,
+                    subjectName).open();
+        }
     }
 
     /**

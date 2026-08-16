@@ -59,4 +59,10 @@ public interface ModerationScreensOpener {
 
     /** Everybody this server has learnt anything about, ranked by how worth checking they look. */
     void xraySuspicion(Player viewer);
+
+    /** The audit journal, whole and newest first — the screen next to {@code /audit}. */
+    void audit(Player viewer);
+
+    /** One player's part of the audit journal, both directions merged. */
+    void audit(Player viewer, UUID subject, String subjectName);
 }

@@ -32,8 +32,9 @@ import java.util.function.Supplier;
  * <h2>What earns a subcommand here</h2>
  * The same rule as everywhere in this repository: typing it is faster than clicking, or it takes an
  * argument a menu cannot ask for. {@code note} earns its place — a sentence is the argument a menu is
- * worst at — and {@code reports} and {@code staff} earn theirs because they are the two pages somebody
- * opens without having a player in mind. Nothing else does; every other action is a click on a page.
+ * worst at — and {@code reports}, {@code staff} and {@code audit} earn theirs because they are pages
+ * somebody opens without having a player in mind. Nothing else does; every other action is a click on
+ * a page.
  *
  * <h2>Its permission</h2>
  * {@code HISTORY}, rather than a node of its own. Everything this opens either shows a record or leads
@@ -43,7 +44,7 @@ import java.util.function.Supplier;
 public final class ModerationCommand extends StaffCommand {
 
     private static final List<String> SUBCOMMANDS =
-            List.of("info", "config", "reports", "staff", "note", "notes", "xray");
+            List.of("info", "config", "reports", "staff", "note", "notes", "xray", "audit");
 
     public ModerationCommand(Supplier<ModerationServices> services) {
         super(services, ModerationPermission.HISTORY);
@@ -75,6 +76,7 @@ public final class ModerationCommand extends StaffCommand {
             case "reports" -> moderation.screens().reports(viewer);
             case "staff" -> moderation.screens().staff(viewer);
             case "xray" -> moderation.screens().xraySuspicion(viewer);
+            case "audit" -> moderation.screens().audit(viewer);
             case "note" -> writeANote(viewer, args);
             case "notes" -> openNotes(viewer, args);
             default -> openPlayer(viewer, args[0]);
