@@ -325,8 +325,14 @@
           coincidence.
 
           1.9.0: added inventory snapshots (/invsnap) — the eleventh module.
+
+          1.10.0: essentials-module 1.4.0 (bare /nick opens a menu instead of clearing your
+          nickname; AFK activity now comes from input rather than movement, so being pushed,
+          knocked back or /tp'd no longer clears it) and invsnap-module 1.1.0 (bare /invsnap opens
+          a picker of every tracked player; picking a snapshot opens Inspect/Compare/Restore
+          instead of restoring on the spot).
         -->
-        <plugin.version>1.9.0</plugin.version>
+        <plugin.version>1.10.0</plugin.version>
     </properties>
 
     <dependencies>
