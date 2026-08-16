@@ -5,14 +5,15 @@ version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
 api-version: '1.21'
-description: 'Claims, teleport requests, warps, moderation, the server pack, coloured names, homes, random teleport, essentials and training mannequins — the ten modules this server runs, in one jar.'
+description: 'Claims, teleport requests, warps, moderation, the server pack, coloured names, homes, random teleport, essentials, training mannequins and inventory snapshots — the eleven modules this server runs, in one jar.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
-# Deliberately absent, not forgotten. Most of the ten declare folia-supported: true on their own, and
-# claims and moderation do not — and a jar is as Folia-safe as the least safe thing in it. Claiming it
-# here would be claiming it on their behalf, which is the kind of statement that is only found to be
-# wrong by a region thread touching something it does not own.
+# Every one of the eleven now declares folia-supported: true on its own — claims and moderation had
+# simply never said so, not because either used a raw Bukkit scheduler; both were already routing
+# everything through Core's Scheduling. A jar is as Folia-safe as the least safe thing in it, so this
+# is only true because all eleven individually are.
+folia-supported: true
 
 dependencies:
   # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and

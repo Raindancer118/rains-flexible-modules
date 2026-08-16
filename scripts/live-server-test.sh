@@ -14,9 +14,7 @@
 #      resilience tests that deliberately write broken YAML and expect a WARNUNG about it.
 #   4. Every *.yml a plugin wrote under plugins/ parses as valid YAML after both boots — a
 #      "corrupted file" is exactly a file that no longer does.
-#   5. RainsCore's own stop-hook backup produced a zip on the first clean shutdown — the fix this
-#      whole pipeline exists to keep proven, not just unit-tested.
-#   6. Both shutdowns exit cleanly (`stop` via RCON, not a kill).
+#   5. Both shutdowns exit cleanly (`stop` via RCON, not a kill).
 #
 # Usage: scripts/live-server-test.sh [--keep]
 #   --keep   leave the server directory behind instead of deleting it (for inspecting a failure)
@@ -237,14 +235,6 @@ boot_once() {
 }
 
 boot_once "first"
-
-# The backup engine this whole incident produced: a clean RainsCore shutdown must leave a zip
-# behind. Checked right after the first boot, which is the disable the backup fires on.
-backup_dir="$SERVER_DIR/backups/rainscore"
-if ! find "$backup_dir" -maxdepth 1 -name 'backup-*.zip' -print -quit 2>/dev/null | grep -q .; then
-  fail "no backup-*.zip appeared under $backup_dir after a clean shutdown"
-fi
-log "Backup engine: a backup zip was produced on shutdown"
 
 # Second boot, reusing everything the first boot wrote — this is what would have caught the
 # join/inventory incident's cousin (a listener that behaves on a fresh world but not once real

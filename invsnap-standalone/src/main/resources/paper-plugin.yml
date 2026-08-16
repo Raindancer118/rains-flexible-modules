@@ -1,0 +1,29 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see rtp-standalone's own copy for
+# why every line here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Periodic inventory snapshots for every online player, with an admin screen to browse and restore one.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Nothing in the module touches Bukkit.getScheduler() — the periodic snapshot timer goes through Core's
+# Scheduling, using the global region scheduler, which is the same call regionised on Folia.
+folia-supported: true
+
+dependencies:
+  # Both phases, and bootstrap is not belt-and-braces — see rtp-standalone's own copy of this file for the
+  # full reasoning: without it the module fails to link at bootstrap and the plugin reports that it contains
+  # no modules.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

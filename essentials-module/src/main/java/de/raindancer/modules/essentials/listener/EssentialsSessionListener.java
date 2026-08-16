@@ -2,10 +2,11 @@ package de.raindancer.modules.essentials.listener;
 
 import de.raindancer.modules.essentials.EssentialsServices;
 import io.papermc.paper.event.player.AsyncChatEvent;
+import org.bukkit.Input;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.UUID;
@@ -49,21 +50,21 @@ public final class EssentialsSessionListener implements IEssentialsListener {
     }
 
     /**
-     * Leaving the block you were on counts as activity; turning your head does not — the same
-     * distinction Core's own teleport warm-up draws, for the same reason: somebody reading a book
+     * Pressing a movement key counts as activity; being moved counts for nothing on its own — a
+     * piston, an explosion, a knockback, a boat drifting on current, or {@code /tp} all move a
+     * player without them touching anything, and {@code PlayerMoveEvent} cannot tell any of those
+     * apart from walking. {@code PlayerInputEvent} can: it fires only from the client's own input
+     * packet, which an outside force never sends. Turning your head does not count either, for the
+     * same old reason — Core's own teleport warm-up draws the same line: somebody reading a book
      * while standing still should not be shaken out of being AFK by nothing at all.
      */
     @EventHandler(ignoreCancelled = true)
-    public void onMove(PlayerMoveEvent event) {
-        if (event.getTo() == null) {
-            return;
+    public void onInput(PlayerInputEvent event) {
+        Input input = event.getInput();
+        if (input.isForward() || input.isBackward() || input.isLeft() || input.isRight()
+                || input.isJump() || input.isSneak() || input.isSprint()) {
+            services.afk().activity(event.getPlayer());
         }
-        if (event.getFrom().getBlockX() == event.getTo().getBlockX()
-                && event.getFrom().getBlockY() == event.getTo().getBlockY()
-                && event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
-            return;
-        }
-        services.afk().activity(event.getPlayer());
     }
 
     @EventHandler(ignoreCancelled = true)

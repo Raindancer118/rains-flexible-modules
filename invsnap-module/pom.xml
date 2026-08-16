@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>invsnap-module</artifactId>
+    <!-- Own version, independent of the reactor's: this module is published to the registry on its own
+         schedule under its own tag (invsnap-module-vX.Y.Z), not tied to any other module's release. -->
+    <version>${invsnap-module.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Inventory Snapshots</name>
+    <description>
+        Takes a snapshot of every online player's inventory on a timer, keeps the newest few per
+        player, and lets an admin browse and restore one back into a live inventory.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${modules-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

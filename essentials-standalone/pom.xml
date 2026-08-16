@@ -53,8 +53,13 @@
           player never opens it, and whoever may manage it already knows /nick is where nicknames
           are decided, so it is a subcommand of the one command they already know rather than a
           second top-level one to remember.
+
+          1.4.0: bare /nick opens a menu instead of clearing your nickname — your current one (if
+          any), a button to set a new one (typed in chat, through the same validation and blocklist
+          checks /nick <name> always had), a button to remove it, and, for whoever may manage it,
+          a shortcut straight into the blocklist editor. /nick <name> and /nick off are unchanged.
         -->
-        <plugin.version>1.3.1</plugin.version>
+        <plugin.version>1.4.0</plugin.version>
     </properties>
 
     <dependencies>

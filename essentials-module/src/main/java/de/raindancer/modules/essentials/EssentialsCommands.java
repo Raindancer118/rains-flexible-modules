@@ -56,7 +56,9 @@ public final class EssentialsCommands {
 
                 ModuleCommand.of("nick", "Sets, or removes, what you are called instead of your own name",
                                 new NickCommand(EssentialsCommands::require))
-                        .taking("<name> — colour allowed", "off — back to your own name",
+                        .taking("(nothing) — opens the nickname menu",
+                                "set <name> — colour allowed", "<name> — the same, directly",
+                                "clear — back to your own name", "off — the same",
                                 "blocklist — the blocklist editor, for whoever may manage it"),
 
                 ModuleCommand.of("afk", "Marks you away from the keyboard, or back, right now",

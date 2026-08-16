@@ -48,9 +48,10 @@
         <pack-module.version>1.0.0</pack-module.version>
         <chained-module.version>1.0.0</chained-module.version>
         <rtp-module.version>1.1.1</rtp-module.version>
-        <essentials-module.version>1.3.1</essentials-module.version>
+        <essentials-module.version>1.4.0</essentials-module.version>
         <worldgate-module.version>1.0.0</worldgate-module.version>
         <mannequin-module.version>1.6.0</mannequin-module.version>
+        <invsnap-module.version>1.1.0</invsnap-module.version>
         <hungergames-module.version>2.8.1</hungergames-module.version>
         <!-- Split out of RainsCore 13.08.2026, after a join handler there cleared a player's
              inventory on every join anywhere on the server — see speedrun-module's own README/javadoc
@@ -85,6 +86,8 @@
         <module>mannequin-standalone</module>
         <module>worldgate-module</module>
         <module>worldgate-standalone</module>
+        <module>invsnap-module</module>
+        <module>invsnap-standalone</module>
         <!-- Before chained-module: chained-module depends on speedrun-module's engine classes, and a
              reactor builds in the order it is given. -->
         <module>speedrun-module</module>
@@ -199,6 +202,11 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>worldgate-module</artifactId>
                 <version>${worldgate-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>invsnap-module</artifactId>
+                <version>${invsnap-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>

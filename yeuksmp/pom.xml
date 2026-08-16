@@ -15,14 +15,14 @@
 
     <name>YeukSMP</name>
     <description>
-        One plugin carrying ten modules — claims, teleport requests, warps, moderation, the server
-        pack, coloured names, homes, random teleport, essentials and training mannequins — for a
-        server that wants all of them and would otherwise install ten jars that each have to be
-        updated separately.
+        One plugin carrying eleven modules — claims, teleport requests, warps, moderation, the
+        server pack, coloured names, homes, random teleport, essentials, training mannequins and
+        inventory snapshots — for a server that wants all of them and would otherwise install
+        eleven jars that each have to be updated separately.
 
         Nothing here but a build file and a descriptor. The wrapper already knows what to do with a
         jar holding more than one module: ModuleHosts.standalone reads the module count and gives
-        each one a subfolder rather than letting ten fight over one config.yml.
+        each one a subfolder rather than letting eleven fight over one config.yml.
     </description>
 
     <properties>
@@ -323,13 +323,15 @@
           installed (a mannequin can belong to a claim, through the same optional ServicesManager
           seam this bundle already relies on elsewhere), so the two arriving together is not a
           coincidence.
+
+          1.9.0: added inventory snapshots (/invsnap) — the eleventh module.
         -->
-        <plugin.version>1.8.0</plugin.version>
+        <plugin.version>1.9.0</plugin.version>
     </properties>
 
     <dependencies>
         <!--
-          The ten the server asked for, and deliberately not farm worlds: a bundle is a decision
+          The eleven the server asked for, and deliberately not farm worlds: a bundle is a decision
           about what this server runs, not a shortcut for "everything in the repository". Adding one
           later is adding a dependency here — ServiceLoader finds it, the shade merges the service
           files, and no list anywhere else has to be edited.
@@ -373,6 +375,10 @@
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>mannequin-module</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>invsnap-module</artifactId>
         </dependency>
 
         <dependency>

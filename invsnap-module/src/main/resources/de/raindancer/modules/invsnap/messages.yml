@@ -1,0 +1,14 @@
+# Rain's Inventory Snapshots — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins. See
+# Messages.defineFrom. Every placeholder a line asks for is supplied where it is sent, and nothing
+# here is YAML's idea of a truth value.
+invsnap:
+
+  usage: "<gray>/invsnap [player]"
+  only-a-player: "<red>Only a player standing in the world can do that."
+  unknown-player: "<red>The server has never seen anybody called <white><player></white>."
+
+  restore:
+    no-permission: "<red>You may browse this, but not restore from it."
+    offline: "<red><player> is not online right now — a restore is written into a live inventory."
