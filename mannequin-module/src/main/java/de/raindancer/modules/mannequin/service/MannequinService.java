@@ -130,10 +130,27 @@ public final class MannequinService implements IMannequinService {
 
     // ---------------------------------------------------------------------------- (re)spawning
 
-    /** Every mannequin belonging to this world, spawned fresh — called when the world loads. */
+    /**
+     * Every mannequin belonging to this world, spawned fresh — called when the world loads.
+     *
+     * <p>Each one gets its own attempt. A single mannequin whose spawn throws — a loadout entry
+     * this server no longer resolves, an anchor above a build height that shrank since it was
+     * saved — used to take every mannequin after it in the same world down with it, since one
+     * uncaught exception aborted the whole loop right here. That is exactly the "some of them are
+     * just gone after a restart" report: which ones survived depended on where in the registry's
+     * iteration order the broken one happened to fall, not on anything a server owner could see or
+     * fix from the outside.
+     */
     public void spawnAllIn(World world) {
         for (Mannequin mannequin : registry.inWorld(world.getName())) {
-            spawn(mannequin);
+            try {
+                spawn(mannequin);
+            } catch (RuntimeException failed) {
+                if (log != null) {
+                    log.warn(failed, "{} could not be spawned in {} and was skipped.",
+                            mannequin.id(), world.getName());
+                }
+            }
         }
     }
 
@@ -160,7 +177,7 @@ public final class MannequinService implements IMannequinService {
 
         Location at = new Location(world, mannequin.x() + 0.5, mannequin.y(), mannequin.z() + 0.5,
                 mannequin.yaw(), 0f);
-        removeStrayCopiesAt(at, mannequin.id());
+        removeAllCopiesIn(world, mannequin.id());
         LivingEntity entity = switch (mannequin.kind()) {
             case PLAYER -> world.spawn(at, org.bukkit.entity.Mannequin.class,
                     spawned -> configurePlayer(spawned, mannequin));
@@ -440,16 +457,22 @@ public final class MannequinService implements IMannequinService {
     }
 
     /**
-     * Cleans up anything already left standing at a mannequin's anchor from before this entity was
-     * ever marked non-persistent — {@link #despawn} only knows about a UUID this run's own registry
-     * bound, which right after an enable() is never the copy a previous run's world save carried
-     * across a restart under the old, persistent flag. Matched by {@link #idKey()}'s tag rather than
-     * simply "anything living standing here", so a player's own pet or a real mob that wandered onto
-     * the same block is never touched.
+     * Cleans up every live entity anywhere in {@code world} still tagged as this mannequin, before
+     * the replacement is placed — {@link #despawn} only knows about a UUID this run's own registry
+     * bound, which right after an {@code enable()} is never the copy left over from before. Matched
+     * by {@link #idKey()}'s tag rather than simply "anything living standing here", so a player's own
+     * pet or a real mob that wandered onto the same block is never touched.
+     *
+     * <p>Searched across the whole world rather than a box around the anchor: a leftover that has
+     * drifted — pushed before {@code setGravity(false)} caught up with it, or standing where an
+     * anchor used to be before it was moved — is exactly as much a duplicate as one sitting on top of
+     * the new copy, and a tight radius around today's anchor can never find yesterday's. This is what
+     * "spawn exactly one, and kill whatever old one might still be around" means in practice: not
+     * "near where it should be" but "wearing this id, wherever it is".
      */
-    private void removeStrayCopiesAt(Location at, String id) {
-        for (Entity nearby : at.getWorld().getNearbyEntities(at, 0.6, 1.5, 0.6)) {
-            if (nearby instanceof LivingEntity living
+    private void removeAllCopiesIn(World world, String id) {
+        for (Entity found : world.getEntities()) {
+            if (found instanceof LivingEntity living
                     && id.equals(living.getPersistentDataContainer()
                             .get(idKey(), org.bukkit.persistence.PersistentDataType.STRING))) {
                 living.remove();
