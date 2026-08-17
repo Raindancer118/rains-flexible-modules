@@ -30,6 +30,9 @@ public final class PermissionNodes {
     /** {@code /chathistory}. */
     public static final String HISTORY = "chat.history";
 
+    /** {@code /chatstyle} — picking a colour and decorations for your own messages. */
+    public static final String STYLE = "chat.style";
+
     private PermissionNodes() {
     }
 
@@ -44,7 +47,9 @@ public final class PermissionNodes {
                 new Permission(ANNOUNCE, "Broadcast a banner every online player sees and hears",
                         PermissionDefault.OP),
                 new Permission(HISTORY, "See chat that happened while you were away",
-                        PermissionDefault.TRUE));
+                        PermissionDefault.TRUE),
+                new Permission(STYLE, "Pick a colour and decorations for your own chat messages",
+                        PermissionDefault.OP));
     }
 
     /** @return how many were added, for the line in the log */

@@ -4,6 +4,7 @@ import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.chat.command.AnnounceCommand;
 import de.raindancer.modules.chat.command.ChatCommand;
 import de.raindancer.modules.chat.command.ChatHistoryCommand;
+import de.raindancer.modules.chat.command.ChatStyleCommand;
 
 import java.util.List;
 
@@ -39,7 +40,10 @@ public final class ChatCommands {
                                 new ChatHistoryCommand(ChatCommands::require))
                         .aliased("chatlog")
                         .taking("(nothing) — what you missed since you last left",
-                                "<count> — the last count lines, regardless of when you left"));
+                                "<count> — the last count lines, regardless of when you left"),
+
+                ModuleCommand.of("chatstyle", "Picks a colour and decorations for your own chat messages",
+                        new ChatStyleCommand(ChatCommands::require)));
     }
 
     /** Called when the module enables, after which the commands work. */

@@ -342,8 +342,11 @@
           1.13.0: essentials-module 1.6.0 (/player <name>; /players and bare /seen now open Core's
           new player-profile page instead of only a seen report; a "Message" button on it) and
           tpa-module 2.1.1 ("Request a teleport" on that same profile page).
+
+          1.14.0: chat-module 1.1.0 (/chatstyle — a colour and decorations for your own messages,
+          behind chat.style, which defaults to operators only).
         -->
-        <plugin.version>1.13.0</plugin.version>
+        <plugin.version>1.14.0</plugin.version>
     </properties>
 
     <dependencies>

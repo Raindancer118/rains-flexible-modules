@@ -9,10 +9,12 @@ import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.chat.listener.ChatListener;
 import de.raindancer.modules.chat.service.ChatHistoryService;
 import de.raindancer.modules.chat.service.ChatQualityService;
+import de.raindancer.modules.chat.service.ChatStyleService;
 import de.raindancer.modules.chat.service.FormatService;
 import de.raindancer.modules.chat.service.FreezeService;
 import de.raindancer.modules.chat.service.MentionService;
 import de.raindancer.modules.chat.store.ChatHistoryStore;
+import de.raindancer.modules.chat.store.ChatStyleStore;
 import de.raindancer.modules.chat.util.PermissionNodes;
 import org.bukkit.Server;
 
@@ -35,7 +37,7 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.1.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -44,6 +46,7 @@ public final class ChatModule implements FlexModule {
     private SettingsStore<ChatSettings> settings;
 
     private ChatHistoryStore history;
+    private ChatStyleStore styles;
     private ChatServices services;
 
     @Override
@@ -68,8 +71,12 @@ public final class ChatModule implements FlexModule {
             log.info("{} permission(s) registered.", registered);
         }
 
+        styles = new ChatStyleStore(context.dataFolder());
+        styles.load();
+        ChatStyleService styleService = new ChatStyleService(styles);
+
         FormatService format = new FormatService(context.chat(), context.core().identities(),
-                settings.current());
+                styleService, settings.current());
         MentionService mentions = new MentionService(server, context.core().vanish(),
                 context.core().messages(), settings.current());
         ChatQualityService quality = new ChatQualityService(settings.current());
@@ -81,7 +88,7 @@ public final class ChatModule implements FlexModule {
 
         services = new ChatServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
-                settings::current, format, mentions, quality, freeze, chatHistory);
+                settings::current, format, mentions, quality, freeze, chatHistory, styleService);
 
         settings.onChange(fresh -> {
             format.settings(fresh);
@@ -89,6 +96,7 @@ public final class ChatModule implements FlexModule {
             quality.settings(fresh);
             freeze.settings(fresh);
             chatHistory.settings(fresh);
+            styleService.settings(fresh);
         });
 
         context.listener(new ChatListener(services));

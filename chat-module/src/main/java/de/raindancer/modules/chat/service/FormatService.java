@@ -3,6 +3,7 @@ package de.raindancer.modules.chat.service;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.identity.Identities;
 import de.raindancer.modules.chat.ChatSettings;
+import de.raindancer.modules.chat.model.ChatStyle;
 import de.raindancer.modules.chat.util.Links;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -36,12 +37,15 @@ public final class FormatService implements IChatService {
 
     private final Chat chat;
     private final Identities identities;
+    private final ChatStyleService styles;
 
     private volatile ChatSettings settings;
 
-    public FormatService(Chat chat, Identities identities, ChatSettings settings) {
+    public FormatService(Chat chat, Identities identities, ChatStyleService styles,
+                         ChatSettings settings) {
         this.chat = chat;
         this.identities = identities;
+        this.styles = styles;
         settings(settings);
     }
 
@@ -50,11 +54,20 @@ public final class FormatService implements IChatService {
         this.settings = fresh;
     }
 
-    /** The finished line: the format template, the speaker's identity, and their message. */
+    /**
+     * The finished line: the format template, the speaker's identity, and their message.
+     *
+     * <p>The sender's own chosen colour and decorations — see {@link ChatStyleService} — are set on
+     * the message as a whole rather than substituted per character, so a highlighted @-mention or a
+     * linkified URL inside it keeps its own explicit colour: Adventure only ever fills in a style a
+     * child left unset, never overrides one it set for itself. See {@link ChatStyle#asStyle()}.
+     */
     public Component render(Player sender, String plainText, List<Player> mentioned) {
+        ChatStyle style = styles == null ? ChatStyle.DEFAULT : styles.styleOf(sender.getUniqueId());
+        Component message = messageOf(plainText, mentioned).style(style.asStyle());
         return chat.mm(settings.format(),
                 Chat.formatted("name", nameOf(sender)),
-                Chat.formatted("message", messageOf(plainText, mentioned)));
+                Chat.formatted("message", message));
     }
 
     private Component nameOf(Player sender) {

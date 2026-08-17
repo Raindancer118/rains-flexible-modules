@@ -6,6 +6,8 @@ import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.identity.Identities;
 import de.raindancer.modules.chat.ChatSettings;
+import de.raindancer.modules.chat.model.ChatStyle;
+import de.raindancer.modules.chat.store.ChatStyleStore;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -14,7 +16,9 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,9 +30,13 @@ class FormatServiceTest {
 
     private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
 
+    @TempDir
+    static Path tempDir;
+
     private final Chat chat = new Chat(new Brand("Rain"), mock(Audiences.class));
     private final Identities identities = new Identities(mock(Database.class));
-    private final FormatService service = new FormatService(chat, identities, ChatSettings.DEFAULTS);
+    private final ChatStyleService styles = new ChatStyleService(new ChatStyleStore(tempDir));
+    private final FormatService service = new FormatService(chat, identities, styles, ChatSettings.DEFAULTS);
 
     private Player player(String name) {
         Player who = mock(Player.class);
@@ -50,7 +58,7 @@ class FormatServiceTest {
     void usesConfiguredFormat() {
         ChatSettings custom =
                 new ChatSettings("<name> » <message>", true, true, true, true, 70, 8, true, 0, 0, true, 200, true);
-        FormatService withCustomFormat = new FormatService(chat, identities, custom);
+        FormatService withCustomFormat = new FormatService(chat, identities, styles, custom);
 
         Component rendered = withCustomFormat.render(player("Tom"), "hello there", List.of());
 
@@ -104,12 +112,58 @@ class FormatServiceTest {
         void skipsLinkifyingWhenDisabled() {
             ChatSettings noLinks =
                     new ChatSettings("<name>: <message>", false, false, true, true, 70, 8, true, 0, 0, true, 200, true);
-            FormatService withoutLinks = new FormatService(chat, identities, noLinks);
+            FormatService withoutLinks = new FormatService(chat, identities, styles, noLinks);
 
             Component rendered =
                     withoutLinks.render(player("Tom"), "see https://example.com now", List.of());
 
             assertThat(findChild(rendered, child -> child.clickEvent() != null)).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("a personal chat style")
+    class PersonalStyle {
+
+        @Test
+        @DisplayName("colours the plain part of the message")
+        void coloursPlainText() {
+            Player tom = player("Tom");
+            styles.set(tom.getUniqueId(), ChatStyle.DEFAULT.withColor(NamedTextColor.GOLD));
+
+            Component rendered = service.render(tom, "hello there", List.of());
+
+            assertThat(PLAIN.serialize(rendered)).isEqualTo("Tom: hello there");
+            assertThat(findChild(rendered,
+                    child -> child.color() == NamedTextColor.GOLD
+                            && PLAIN.serialize(child).contains("hello there")))
+                    .as("the message text should carry the chosen colour")
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("a highlighted @-mention keeps its own colour rather than the sender's")
+        void mentionColourWinsOverSenderColour() {
+            Player tom = player("Tom");
+            Player alex = player("Alex");
+            styles.set(tom.getUniqueId(), ChatStyle.DEFAULT.withColor(NamedTextColor.GOLD));
+
+            Component rendered = service.render(tom, "hey @Alex look", List.of(alex));
+
+            assertThat(findChild(rendered, child -> child.decoration(TextDecoration.BOLD)
+                    == TextDecoration.State.TRUE && child.color() == NamedTextColor.YELLOW))
+                    .as("the mention should still be yellow and bold, not the sender's gold")
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("nobody has chosen anything by default, so no chosen colour appears")
+        void defaultsToNoStyle() {
+            Component rendered = service.render(player("Tom"), "hello there", List.of());
+
+            assertThat(findChild(rendered, child -> child.color() == NamedTextColor.GOLD))
+                    .as("nothing here chose gold, so it should not appear anywhere")
+                    .isFalse();
         }
     }
 

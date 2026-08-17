@@ -26,8 +26,11 @@
         <!--
           1.0.0: format, @-mentions, a caps and repeat filter, a per-player message cooldown, and
           the staff tools — /chat clear, /chat freeze and /chat slowmode.
+
+          1.1.0: /chatstyle — a colour and decorations for your own messages, picked from a swatch
+          grid with a live preview. Behind chat.style, which defaults to operators only.
         -->
-        <plugin.version>1.0.0</plugin.version>
+        <plugin.version>1.1.0</plugin.version>
     </properties>
 
     <dependencies>

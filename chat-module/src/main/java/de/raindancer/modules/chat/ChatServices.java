@@ -7,6 +7,7 @@ import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.chat.service.ChatHistoryService;
 import de.raindancer.modules.chat.service.ChatQualityService;
+import de.raindancer.modules.chat.service.ChatStyleService;
 import de.raindancer.modules.chat.service.FormatService;
 import de.raindancer.modules.chat.service.FreezeService;
 import de.raindancer.modules.chat.service.MentionService;
@@ -39,7 +40,8 @@ public record ChatServices(
         MentionService mentions,
         ChatQualityService quality,
         FreezeService freeze,
-        ChatHistoryService history) {
+        ChatHistoryService history,
+        ChatStyleService styles) {
 
     /** The settings as they are right now. */
     public ChatSettings config() {
