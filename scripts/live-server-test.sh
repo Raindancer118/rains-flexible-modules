@@ -77,8 +77,22 @@ log "Building RainsCore …"
 log "Building RainsCoreTestPlugin …"
 ( cd "$TESTPLUGIN_ROOT" && mvn -o -q clean package ) || fail "RainsCoreTestPlugin did not build"
 
-log "Building the reactor (speedrun-module/standalone, chained-module/standalone, …) …"
-( cd "$REACTOR_ROOT" && mvn -o -q clean install ) || fail "the reactor did not build"
+# Every target/ wiped by hand first, not left to `mvn clean`: a module whose reactor dependency
+# fails is marked SKIPPED and never runs its own clean, so its target/ would otherwise still hold
+# whatever jar an earlier, unrelated build session left there — stale, and staged below as if it
+# were current. That is exactly the bug wallsroads-standalone once produced here: Core's classes
+# it needs had moved to a feature branch, wallsroads-module failed to compile, wallsroads-standalone
+# was skipped, and its last-good jar sat in target/ looking exactly like a fresh, passing build.
+find "$REACTOR_ROOT" -maxdepth 2 -type d -name target -exec rm -rf {} +
+
+log "Building the reactor (every module and standalone) — one module failing to build (mid-" \
+    "refactor, waiting on an upstream Core change that has not landed yet, …) is logged and left" \
+    "out of the server below rather than aborting the run and testing nothing at all …"
+( cd "$REACTOR_ROOT" && mvn -o -fae install ) > "$WORKDIR/reactor-build.log" 2>&1 || true
+if grep -qE '^\[INFO\] .* \.\.\. (FAILURE|SKIPPED)$' "$WORKDIR/reactor-build.log"; then
+  log "── these modules did not build this run and will not be on the test server: ──"
+  grep -E '^\[INFO\] .* \.\.\. (FAILURE|SKIPPED)$' "$WORKDIR/reactor-build.log" | sed 's/^/  /'
+fi
 
 # ── lay out the server directory ─────────────────────────────────────────────────────────────
 SERVER_DIR="$WORKDIR/server"
@@ -102,16 +116,21 @@ find "$RAINSCORE_ROOT/target" -maxdepth 1 -name 'RainsCore-*.jar' \
   ! -name '*-shaded.jar' ! -name 'original-*' -exec cp {} "$SERVER_DIR/plugins/" \;
 find "$TESTPLUGIN_ROOT/target" -maxdepth 1 -name 'RainsCoreTestPlugin-*.jar' \
   -exec cp {} "$SERVER_DIR/plugins/" \;
-find "$REACTOR_ROOT/speedrun-standalone/target" -maxdepth 1 -name 'RainsSpeedrun-*.jar' \
-  ! -name 'original-*' -exec cp {} "$SERVER_DIR/plugins/" \; 2>/dev/null || true
-find "$REACTOR_ROOT/chained-standalone/target" -maxdepth 1 -name 'RainsChained-*.jar' \
-  ! -name 'original-*' -exec cp {} "$SERVER_DIR/plugins/" \; 2>/dev/null || true
-find "$REACTOR_ROOT/warp-standalone/target" -maxdepth 1 -name 'RainsWarps-*.jar' \
-  ! -name 'original-*' -exec cp {} "$SERVER_DIR/plugins/" \; 2>/dev/null || true
-find "$REACTOR_ROOT/farmworld-standalone/target" -maxdepth 1 -name 'RainsFarmWorlds-*.jar' \
-  ! -name 'original-*' -exec cp {} "$SERVER_DIR/plugins/" \; 2>/dev/null || true
-find "$REACTOR_ROOT/essentials-standalone/target" -maxdepth 1 -name 'RainsEssentials-*.jar' \
-  ! -name 'original-*' -exec cp {} "$SERVER_DIR/plugins/" \; 2>/dev/null || true
+
+# Every *-standalone module's shaded jar, generically — every module the reactor above actually
+# built, one plugin jar each, rather than a fixed list here that quietly stops covering a module
+# the moment somebody adds one and forgets to also add it to this script. A standalone whose
+# target/ has no jar simply did not build this run (see the FAILURE/SKIPPED log above) and is
+# left out rather than guessed at.
+while IFS= read -r -d '' standalone_dir; do
+  if [ -d "$standalone_dir/target" ]; then
+    find "$standalone_dir/target" -maxdepth 1 -name '*.jar' \
+      ! -name 'original-*' ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+      -exec cp {} "$SERVER_DIR/plugins/" \;
+  else
+    log "  (no jar for $(basename "$standalone_dir") — it did not build this run)"
+  fi
+done < <(find "$REACTOR_ROOT" -maxdepth 1 -type d -name '*-standalone' -print0 | sort -z)
 
 installed="$(find "$SERVER_DIR/plugins" -maxdepth 1 -name '*.jar' -printf '%f\n' | sort)"
 [ -n "$installed" ] || fail "no plugin jars were staged into plugins/"
