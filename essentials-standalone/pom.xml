@@ -63,8 +63,13 @@
           a browsable list. Bare /seen (no name given) opens the same list instead of a usage line;
           picking somebody reports exactly what /seen <name> already would, vanished players shown
           as though already logged off rather than leaked or dropped.
+
+          1.6.0: /player <name> — straight to one profile rather than browsing for it; picking
+          somebody in /players or bare /seen now opens Core's ProfileMenu instead of only the seen
+          report, with a "Message" button of this module's own; and /seen <name>'s own report now
+          prints the name as a click-to-open-profile link instead of plain text.
         -->
-        <plugin.version>1.5.0</plugin.version>
+        <plugin.version>1.6.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -2,6 +2,8 @@ package de.raindancer.modules.tpa;
 
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.ui.profile.ProfileExtension;
+import de.raindancer.core.ui.profile.ProfileExtensions;
 import de.raindancer.core.world.teleport.Travel;
 import de.raindancer.core.world.teleport.TravelListener;
 import de.raindancer.modules.api.FlexModule;
@@ -10,6 +12,7 @@ import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.tpa.listener.TpaSessionListener;
 import de.raindancer.modules.tpa.model.TpaKind;
+import de.raindancer.modules.tpa.profile.RequestTeleportProfileExtension;
 import de.raindancer.modules.tpa.rules.TpaAskingRule;
 import de.raindancer.modules.tpa.screen.BlockedMenu;
 import de.raindancer.modules.tpa.screen.RequestsMenu;
@@ -48,7 +51,7 @@ import java.util.List;
  */
 public final class TpaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.1.1")
             .describedAs("Ask somebody whether you may come to them, or whether they will come to "
                     + "you — and go back to where you were")
             .by("Raindancer118");
@@ -64,6 +67,7 @@ public final class TpaModule implements FlexModule {
     private BackService back;
 
     private TpaServices services;
+    private ProfileExtension teleportProfileExtension;
 
     @Override
     public ModuleInfo info() {
@@ -141,6 +145,11 @@ public final class TpaModule implements FlexModule {
         context.listener(new TravelListener(travel, settings.current().cancelOnDamage()));
         context.listener(new TpaSessionListener(services));
 
+        // "Request a teleport" on Core's ProfileMenu — direct call, not a ServicesManager lookup:
+        // this module already depends on Core, unlike the claims/mannequin pairing that pattern is for.
+        teleportProfileExtension = new RequestTeleportProfileExtension(services);
+        ProfileExtensions.register(teleportProfileExtension);
+
         // The commands were registered during bootstrap, long before any of this existed, and have been
         // answering "not started yet" until now. See TpaCommands.
         TpaCommands.ready(services);
@@ -189,6 +198,9 @@ public final class TpaModule implements FlexModule {
     @Override
     public void disable() {
         TpaCommands.stopped();
+        if (teleportProfileExtension != null) {
+            ProfileExtensions.unregister(teleportProfileExtension);
+        }
 
         // Somebody mid-wait when the module stops must not be left standing still for a teleport that
         // will never come, and the countdown tasks must not outlive the plugin that scheduled them.

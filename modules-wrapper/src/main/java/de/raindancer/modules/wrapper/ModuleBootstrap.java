@@ -48,6 +48,10 @@ public final class ModuleBootstrap implements PluginBootstrap {
             // happens to want a button first, because a claim fee's [Accept] and a tpa request's are
             // the same mechanism and should not depend on load order to be wired up.
             de.raindancer.core.platform.command.CoreCommands.clickCallback(event.registrar());
+            // The same reasoning, for a clicked player name: opening ProfileMenu is a command by
+            // necessity too, and it has to exist before the first module offers a clickable name —
+            // see ProfileLink and ProfileCommand for the mechanism itself.
+            de.raindancer.core.platform.command.CoreCommands.profile(event.registrar());
             // Core deliberately registers nothing of its own — see CoreCommands' own class comment on
             // why — which means /settings does not exist on any server running these plugins unless
             // something registers it. Nothing here ever did: every module-standalone plugin, and the

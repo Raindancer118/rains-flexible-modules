@@ -338,8 +338,12 @@
 
           1.12.0: added chat-module (RainsChat) — the twelfth module: chat formatting, mentions, a
           message-quality filter, chat history and staff tools.
+
+          1.13.0: essentials-module 1.6.0 (/player <name>; /players and bare /seen now open Core's
+          new player-profile page instead of only a seen report; a "Message" button on it) and
+          tpa-module 2.1.1 ("Request a teleport" on that same profile page).
         -->
-        <plugin.version>1.12.0</plugin.version>
+        <plugin.version>1.13.0</plugin.version>
     </properties>
 
     <dependencies>

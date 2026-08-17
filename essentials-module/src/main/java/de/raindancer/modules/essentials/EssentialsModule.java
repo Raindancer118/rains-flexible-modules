@@ -3,12 +3,15 @@ package de.raindancer.modules.essentials;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.platform.util.Scheduling;
+import de.raindancer.core.ui.profile.ProfileExtension;
+import de.raindancer.core.ui.profile.ProfileExtensions;
 import de.raindancer.core.world.teleport.Travel;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.essentials.listener.EssentialsSessionListener;
+import de.raindancer.modules.essentials.profile.MessageProfileExtension;
 import de.raindancer.modules.essentials.service.AfkService;
 import de.raindancer.modules.essentials.service.MessagingService;
 import de.raindancer.modules.essentials.service.NicknameService;
@@ -36,7 +39,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.5.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.6.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, and a nickname")
             .by("Raindancer118");
@@ -51,6 +54,7 @@ public final class EssentialsModule implements FlexModule {
     private ScheduledTask afkSweeper;
 
     private EssentialsServices services;
+    private ProfileExtension messageProfileExtension;
 
     @Override
     public ModuleInfo info() {
@@ -109,6 +113,11 @@ public final class EssentialsModule implements FlexModule {
 
         context.listener(new EssentialsSessionListener(services));
 
+        // "Message" on Core's ProfileMenu — no ServicesManager dance needed, unlike claims/mannequin's
+        // pairing: this module already depends on Core directly, so registering is a direct call.
+        messageProfileExtension = new MessageProfileExtension(services);
+        ProfileExtensions.register(messageProfileExtension);
+
         // Once a second: frequent enough that nobody stays AFK for long after they come back without
         // anything else noticing, cheap enough that it costs nothing on a server with hundreds online.
         afkSweeper = Scheduling.globalTimer(context.plugin(), 20L, 20L,
@@ -132,6 +141,9 @@ public final class EssentialsModule implements FlexModule {
     @Override
     public void disable() {
         EssentialsCommands.stopped();
+        if (messageProfileExtension != null) {
+            ProfileExtensions.unregister(messageProfileExtension);
+        }
         if (afkSweeper != null) {
             afkSweeper.cancel();
         }

@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.25.0</rainscore.version>
+        <rainscore.version>1.26.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -35,7 +35,7 @@
              <version> and of each other. Bumping one of these is what a <module>-vX.Y.Z release tag
              is checked against; nothing else in this file ties a module's version to another's. -->
         <modules-api.version>1.1.0</modules-api.version>
-        <modules-wrapper.version>1.0.0</modules-wrapper.version>
+        <modules-wrapper.version>1.1.0</modules-wrapper.version>
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
         <claims-module.version>2.3.0</claims-module.version>
@@ -43,12 +43,12 @@
         <names-module.version>2.1.0</names-module.version>
         <warp-module.version>1.2.1</warp-module.version>
         <homes-module.version>2.3.1</homes-module.version>
-        <tpa-module.version>2.1.1</tpa-module.version>
+        <tpa-module.version>2.1.2</tpa-module.version>
         <farmworld-module.version>1.1.2</farmworld-module.version>
         <pack-module.version>1.0.0</pack-module.version>
         <chained-module.version>1.0.0</chained-module.version>
         <rtp-module.version>1.1.1</rtp-module.version>
-        <essentials-module.version>1.5.0</essentials-module.version>
+        <essentials-module.version>1.6.0</essentials-module.version>
         <worldgate-module.version>1.0.0</worldgate-module.version>
         <mannequin-module.version>1.6.0</mannequin-module.version>
         <invsnap-module.version>1.1.0</invsnap-module.version>

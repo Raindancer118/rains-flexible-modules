@@ -1,12 +1,16 @@
 package de.raindancer.modules.essentials.command;
 
+import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.choose.PlayerChooser;
+import de.raindancer.core.ui.profile.ProfileLink;
+import de.raindancer.core.ui.profile.ProfileMenu;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.essentials.EssentialsServices;
 import de.raindancer.modules.essentials.util.PermissionNodes;
 import de.raindancer.modules.essentials.util.Players;
 import de.raindancer.modules.essentials.util.SeenService;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -60,19 +64,27 @@ public final class SeenCommand implements IEssentialsCommand {
     /**
      * A full, browsable list of everybody the server has ever seen — online first, offline included
      * — rather than a name that has to be spelled correctly. Shared with {@link PlayersCommand}: the
-     * list is the same list either command asks for, so it is built once, here.
+     * list is the same list either command asks for, so it is built once, here. Picking somebody
+     * opens Core's {@link ProfileMenu} — /msg, /tpa and whatever else is installed, one click away —
+     * rather than only the seen line {@code /seen <name>} gives, which is the whole reason this and
+     * {@code /players} are the same door: a list to browse is more useful than a report either way.
      */
     static void openChooser(EssentialsServices live, Player viewer, String heading) {
         new PlayerChooser(viewer, live.brand(), null, heading,
                 Players.directory(live.server(), live.core().vanish(), viewer.getUniqueId()),
-                List.of(), entry -> report(live, viewer,
-                        live.server().getOfflinePlayer(entry.id())))
+                List.of(), entry -> new ProfileMenu(viewer, live.brand(), null, entry.id(), entry.name())
+                        .open())
                 .open();
     }
 
-    /** What {@code /seen <player>} says about somebody, wherever the pick came from. */
+    /**
+     * What {@code /seen <player>} says about somebody, wherever the pick came from. The name is
+     * clickable — see {@link ProfileLink} — the same door {@code /players} opens by picking rather
+     * than typing.
+     */
     static void report(EssentialsServices live, CommandSender sender, OfflinePlayer them) {
-        String name = Players.nameOf(them);
+        Chat chat = live.chat();
+        Component name = ProfileLink.of(Players.nameOf(them), them.getUniqueId());
         SeenService.Seen seen = SeenService.of(them);
 
         boolean hiddenFromSender = seen.online()
@@ -87,18 +99,18 @@ public final class SeenCommand implements IEssentialsCommand {
         }
 
         if (!seen.everJoined()) {
-            live.messages().send(sender, "essentials.seen.never", "player", name);
+            chat.tell(sender, live.messages().raw("essentials.seen.never"), Chat.formatted("player", name));
             return;
         }
         if (seen.online()) {
-            live.messages().send(sender, "essentials.seen.online", "player", name,
-                    "playtime", Times.describe(seen.playtime()));
+            chat.tell(sender, live.messages().raw("essentials.seen.online"), Chat.formatted("player", name),
+                    Chat.arg("playtime", Times.describe(seen.playtime())));
             return;
         }
         Instant lastSeen = seen.lastSeen().orElse(Instant.EPOCH);
         String ago = Times.describe(Duration.between(lastSeen, Instant.now()));
-        live.messages().send(sender, "essentials.seen.offline", "player", name,
-                "ago", ago, "playtime", Times.describe(seen.playtime()));
+        chat.tell(sender, live.messages().raw("essentials.seen.offline"), Chat.formatted("player", name),
+                Chat.arg("ago", ago), Chat.arg("playtime", Times.describe(seen.playtime())));
     }
 
     @Override

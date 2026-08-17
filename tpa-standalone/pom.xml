@@ -36,8 +36,11 @@
           warm-up, the safe arrival, the teleport, the settings and the wording are all RainsCore's
           now, and what is left is what a request is. Nothing an owner configured is lost, but a
           major number is what says "read the notes first".
+
+          2.1.1: "Request a teleport" on Core's ProfileMenu — /tpa in one click from a player's
+          profile, wherever it was opened from.
         -->
-        <plugin.version>2.1.0</plugin.version>
+        <plugin.version>2.1.1</plugin.version>
     </properties>
 
     <dependencies>
