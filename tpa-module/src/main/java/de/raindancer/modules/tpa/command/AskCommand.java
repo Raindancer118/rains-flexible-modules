@@ -69,8 +69,10 @@ public final class AskCommand implements ITpaCommand {
             return List.of();
         }
         String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
-        return services.get().server().getOnlinePlayers().stream()
+        TpaServices live = services.get();
+        return live.server().getOnlinePlayers().stream()
                 .filter(other -> !other.equals(player))
+                .filter(other -> live.core().vanish().canSee(player.getUniqueId(), other.getUniqueId()))
                 .map(Player::getName)
                 .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(typed))
                 .limit(50)

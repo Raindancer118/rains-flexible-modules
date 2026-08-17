@@ -1,6 +1,7 @@
 package de.raindancer.modules.tpa.service;
 
 import de.raindancer.core.moderation.punishment.Durations;
+import de.raindancer.core.moderation.vanish.Vanish;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.chat.ChatButtons;
@@ -54,6 +55,7 @@ public final class TpaRequestService implements ITpaService {
     private final Travel travel;
     private final Messages messages;
     private final ChatButtons buttons;
+    private final Vanish vanish;
 
     /** The wait between one player's requests. Core's, so two clicks in a millisecond cannot both pass. */
     private final Cooldowns<UUID> waits = new Cooldowns<>();
@@ -62,7 +64,7 @@ public final class TpaRequestService implements ITpaService {
 
     public TpaRequestService(Plugin plugin, TpaRequests requests, TpaPrefsService prefs,
                              TpaAskingRule asking, Travel travel, Messages messages,
-                             ChatButtons buttons, TpaSettings settings) {
+                             ChatButtons buttons, Vanish vanish, TpaSettings settings) {
         this.plugin = plugin;
         this.requests = requests;
         this.prefs = prefs;
@@ -70,6 +72,7 @@ public final class TpaRequestService implements ITpaService {
         this.travel = travel;
         this.messages = messages;
         this.buttons = buttons;
+        this.vanish = vanish;
         settings(settings);
     }
 
@@ -88,6 +91,13 @@ public final class TpaRequestService implements ITpaService {
      * @return whether the request was made
      */
     public boolean ask(Player from, Player to, TpaKind kind) {
+        if (!vanish.canSee(from.getUniqueId(), to.getUniqueId())) {
+            // Reported exactly as if nobody by that name were here at all — the same message the
+            // command already sends for somebody who is not online — so asking is not a second way
+            // to find out a moderator is vanished.
+            messages.send(from, "tpa.no-such-player", "player", to.getName());
+            return false;
+        }
         TpaSettings now = settings;
         boolean reachable = now.allowCrossWorld() || from.getWorld().equals(to.getWorld());
         boolean mayBypass = from.hasPermission(PermissionNodes.BYPASS_TOGGLE);

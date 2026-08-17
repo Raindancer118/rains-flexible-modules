@@ -1,5 +1,7 @@
 package de.raindancer.modules.essentials.service;
 
+import de.raindancer.core.moderation.vanish.Vanish;
+import de.raindancer.core.moderation.vanish.VanishSink;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.essentials.EssentialsSettings;
@@ -21,8 +23,9 @@ class MessagingServiceTest {
     private final EssentialsStore store = new EssentialsStore(Path.of("target", "test-essentials"));
     private final Messages messages = mock(Messages.class);
     private final Chat chat = mock(Chat.class);
+    private final Vanish vanish = new Vanish(mock(VanishSink.class));
     private final MessagingService service =
-            new MessagingService(store, messages, chat, EssentialsSettings.DEFAULTS);
+            new MessagingService(store, messages, chat, vanish, EssentialsSettings.DEFAULTS);
 
     private Player player(String name) {
         Player who = mock(Player.class);
@@ -68,6 +71,43 @@ class MessagingServiceTest {
             boolean sent = service.send(from, to, "hi");
 
             assertThat(sent).isFalse();
+        }
+
+        @Test
+        @DisplayName("a vanished target never receives it, and never gives away that they are hidden")
+        void vanishedNeverArrives() {
+            Player from = player("Tom");
+            Player to = player("Alex");
+            vanish.vanish(to.getUniqueId());
+
+            boolean sent = service.send(from, to, "hi");
+
+            assertThat(sent).isFalse();
+        }
+
+        @Test
+        @DisplayName("staff who may see vanished players can still message one")
+        void staffCanReachAVanishedTarget() {
+            Player from = player("Mod");
+            Player to = player("Alex");
+            vanish.vanish(to.getUniqueId());
+            vanish.maySeeVanished(from.getUniqueId(), true);
+
+            boolean sent = service.send(from, to, "hi");
+
+            assertThat(sent).isTrue();
+        }
+
+        @Test
+        @DisplayName("a vanished sender may still message somebody who cannot see them")
+        void vanishedSenderCanStillWrite() {
+            Player from = player("Mod");
+            Player to = player("Alex");
+            vanish.vanish(from.getUniqueId());
+
+            boolean sent = service.send(from, to, "hi");
+
+            assertThat(sent).isTrue();
         }
     }
 

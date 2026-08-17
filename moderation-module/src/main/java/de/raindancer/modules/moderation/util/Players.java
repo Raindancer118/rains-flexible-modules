@@ -1,5 +1,6 @@
 package de.raindancer.modules.moderation.util;
 
+import de.raindancer.core.moderation.vanish.Vanish;
 import de.raindancer.core.ui.choose.PlayerEntry;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
@@ -120,6 +121,27 @@ public final class Players {
             return names;
         }
         for (Player who : server.getOnlinePlayers()) {
+            if (who.getName().toLowerCase(Locale.ROOT).startsWith(wanted)) {
+                names.add(who.getName());
+            }
+        }
+        return names.size() > 50 ? names.subList(0, 50) : names;
+    }
+
+    /**
+     * The same, for a caller who is not staff and so must not be handed a vanished name to complete —
+     * {@code /report}'s tab-complete is the one place in this module a plain player reaches this list.
+     */
+    public static List<String> suggestions(Server server, String typed, Vanish vanish, UUID viewer) {
+        String wanted = typed == null ? "" : typed.toLowerCase(Locale.ROOT);
+        List<String> names = new ArrayList<>();
+        if (server == null) {
+            return names;
+        }
+        for (Player who : server.getOnlinePlayers()) {
+            if (!vanish.canSee(viewer, who.getUniqueId())) {
+                continue;
+            }
             if (who.getName().toLowerCase(Locale.ROOT).startsWith(wanted)) {
                 names.add(who.getName());
             }

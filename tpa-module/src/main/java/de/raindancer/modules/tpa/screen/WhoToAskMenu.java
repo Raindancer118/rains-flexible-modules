@@ -65,6 +65,7 @@ public final class WhoToAskMenu extends PaginatedMenu<Player> implements ITpaScr
     protected List<Player> entries() {
         List<Player> others = new ArrayList<>(services.server().getOnlinePlayers());
         others.remove(viewer);
+        others.removeIf(other -> !services.core().vanish().canSee(viewer.getUniqueId(), other.getUniqueId()));
         others.sort(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER));
         return others;
     }

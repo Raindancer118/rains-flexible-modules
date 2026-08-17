@@ -1,5 +1,6 @@
 package de.raindancer.modules.essentials.service;
 
+import de.raindancer.core.moderation.vanish.Vanish;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.essentials.EssentialsSettings;
@@ -24,16 +25,18 @@ public final class MessagingService implements IEssentialsService {
     private final EssentialsStore store;
     private final Messages messages;
     private final Chat chat;
+    private final Vanish vanish;
 
     private final java.util.Map<UUID, UUID> lastPartner = new ConcurrentHashMap<>();
 
     private volatile EssentialsSettings settings;
 
-    public MessagingService(EssentialsStore store, Messages messages, Chat chat,
+    public MessagingService(EssentialsStore store, Messages messages, Chat chat, Vanish vanish,
                             EssentialsSettings settings) {
         this.store = store;
         this.messages = messages;
         this.chat = chat;
+        this.vanish = vanish;
         settings(settings);
     }
 
@@ -52,9 +55,11 @@ public final class MessagingService implements IEssentialsService {
             messages.send(from, "essentials.msg.not-yourself");
             return false;
         }
-        if (store.isIgnoring(to.getUniqueId(), from.getUniqueId())) {
-            // The same wording as "they are not here" — see the class note on why that is right
-            // rather than telling the sender they have been blocked.
+        if (store.isIgnoring(to.getUniqueId(), from.getUniqueId())
+                || !vanish.canSee(from.getUniqueId(), to.getUniqueId())) {
+            // The same wording — and the same refusal — as "they are not here". A vanished
+            // moderator who can be messaged, or who replies with "you have been ignored" instead
+            // of the ordinary "not here", has been given away exactly as much as one who is seen.
             messages.send(from, "essentials.msg.unreachable", "player", to.getName());
             return false;
         }

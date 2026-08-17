@@ -109,7 +109,13 @@ public final class ReportCommand implements IModerationCommand {
     @Override
     public java.util.Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
-            return Players.suggestions(services.get().server(), args.length == 1 ? args[0] : "");
+            ModerationServices moderation = services.get();
+            String typed = args.length == 1 ? args[0] : "";
+            CommandSender sender = source.getSender();
+            return sender instanceof Player viewer
+                    ? Players.suggestions(moderation.server(), typed, moderation.vanish(),
+                            viewer.getUniqueId())
+                    : Players.suggestions(moderation.server(), typed);
         }
         return java.util.List.of();
     }

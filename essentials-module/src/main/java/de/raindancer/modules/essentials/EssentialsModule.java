@@ -88,7 +88,7 @@ public final class EssentialsModule implements FlexModule {
         afk = new AfkService(context.core().identities(), context.core().messages(),
                 context.chat(), settings.current());
         MessagingService messaging = new MessagingService(store, context.core().messages(),
-                context.chat(), settings.current());
+                context.chat(), context.core().vanish(), settings.current());
         NicknameService nicknames = new NicknameService(store, blocklist,
                 context.core().identities(), context.core().messages(), context.chat(), server,
                 context.core().punishments(), context.core().audit(), settings.current());

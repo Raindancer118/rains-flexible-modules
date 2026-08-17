@@ -49,7 +49,12 @@ public final class MsgCommand implements IEssentialsCommand {
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
-            return Players.suggestions(services.get().server(), args.length == 1 ? args[0] : "");
+            EssentialsServices live = services.get();
+            String typed = args.length == 1 ? args[0] : "";
+            CommandSender sender = source.getSender();
+            return sender instanceof Player viewer
+                    ? Players.suggestions(live.server(), typed, live.core().vanish(), viewer.getUniqueId())
+                    : Players.suggestions(live.server(), typed, live.core().vanish());
         }
         return List.of();
     }

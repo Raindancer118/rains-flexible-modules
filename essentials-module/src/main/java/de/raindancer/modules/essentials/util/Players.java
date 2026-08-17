@@ -1,5 +1,6 @@
 package de.raindancer.modules.essentials.util;
 
+import de.raindancer.core.moderation.vanish.Vanish;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -8,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Turning what somebody typed into somebody.
@@ -42,19 +44,37 @@ public final class Players {
         return name == null || name.isBlank() ? who.getUniqueId().toString() : name;
     }
 
-    /** Names to complete, online first. Capped, because a four-year-old server has thousands. */
-    public static List<String> suggestions(Server server, String typed) {
+    /**
+     * Names to complete, online first, whoever asked can actually see. Capped, because a
+     * four-year-old server has thousands.
+     *
+     * <p>Filters out a vanished player from anybody who is not allowed to see them — a moderator's
+     * name completing in a tab-complete list is exactly as much of a giveaway as one appearing in
+     * {@code /list}, and easier to miss reviewing for.
+     */
+    public static List<String> suggestions(Server server, String typed, Vanish vanish, UUID viewer) {
         String wanted = typed == null ? "" : typed.toLowerCase(Locale.ROOT);
         List<String> names = new ArrayList<>();
         if (server == null) {
             return names;
         }
         for (Player who : server.getOnlinePlayers()) {
+            if (viewer != null && !vanish.canSee(viewer, who.getUniqueId())) {
+                continue;
+            }
             if (who.getName().toLowerCase(Locale.ROOT).startsWith(wanted)) {
                 names.add(who.getName());
             }
         }
         return names.size() > 50 ? names.subList(0, 50) : names;
+    }
+
+    /**
+     * The same, for whoever is not a player and so has nobody to hide from — the console, which
+     * already sees everything the server does.
+     */
+    public static List<String> suggestions(Server server, String typed, Vanish vanish) {
+        return suggestions(server, typed, vanish, null);
     }
 
     /** Whether a real player, online or previously seen, already answers to this exact name. */

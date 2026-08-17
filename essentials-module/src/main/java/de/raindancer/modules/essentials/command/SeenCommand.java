@@ -8,6 +8,7 @@ import de.raindancer.modules.essentials.util.SeenService;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -47,6 +48,17 @@ public final class SeenCommand implements IEssentialsCommand {
         String name = Players.nameOf(them);
         SeenService.Seen seen = SeenService.of(them);
 
+        boolean hiddenFromSender = seen.online()
+                && (!(sender instanceof Player viewer)
+                        || !live.core().vanish().canSee(viewer.getUniqueId(), them.getUniqueId()));
+        if (hiddenFromSender) {
+            // Vanished, and this sender may not know it. "Online" is exactly the fact vanish
+            // exists to hide, so this reports the same thing it would if they really had logged
+            // off a moment ago — same as anybody else who is not currently here.
+            seen = new SeenService.Seen(seen.everJoined(), seen.playtime(), seen.firstJoined(), false,
+                    Optional.of(Instant.ofEpochMilli(them.getLastLogin())));
+        }
+
         if (!seen.everJoined()) {
             live.messages().send(sender, "essentials.seen.never", "player", name);
             return;
@@ -65,7 +77,12 @@ public final class SeenCommand implements IEssentialsCommand {
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
-            return Players.suggestions(services.get().server(), args.length == 1 ? args[0] : "");
+            EssentialsServices live = services.get();
+            String typed = args.length == 1 ? args[0] : "";
+            CommandSender sender = source.getSender();
+            return sender instanceof Player viewer
+                    ? Players.suggestions(live.server(), typed, live.core().vanish(), viewer.getUniqueId())
+                    : Players.suggestions(live.server(), typed, live.core().vanish());
         }
         return List.of();
     }

@@ -80,8 +80,13 @@ public final class IgnoreCommand implements IEssentialsCommand {
         if (args.length > 1) {
             return List.of();
         }
+        EssentialsServices live = services.get();
         String typed = args.length == 1 ? args[0] : "";
-        List<String> options = new ArrayList<>(Players.suggestions(services.get().server(), typed));
+        CommandSender sender = source.getSender();
+        List<String> suggestions = sender instanceof Player viewer
+                ? Players.suggestions(live.server(), typed, live.core().vanish(), viewer.getUniqueId())
+                : Players.suggestions(live.server(), typed, live.core().vanish());
+        List<String> options = new ArrayList<>(suggestions);
         if ("list".startsWith(typed.toLowerCase(Locale.ROOT))) {
             options.addFirst("list");
         }

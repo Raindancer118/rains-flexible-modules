@@ -367,9 +367,11 @@ public final class ClaimCommand implements IClaimCommand {
             return;
         }
         Player online = claims.server().getPlayer(who);
-        if (online == null) {
+        if (online == null || !claims.core().vanish().canSee(player.getUniqueId(), who)) {
             // Kicking is walking somebody who is here out; somebody who has already left needs a ban,
-            // not a kick, so this is refused rather than silently doing nothing.
+            // not a kick, so this is refused rather than silently doing nothing. A vanished moderator
+            // gets the same refusal as somebody genuinely offline — otherwise the outcome of this
+            // command is a second way to find out they are actually here.
             claims.messages().send(player, "error.player-offline", "player", args[1]);
             return;
         }
@@ -584,14 +586,7 @@ public final class ClaimCommand implements IClaimCommand {
         }
         if (args.length == 2 && List.of("trust", "untrust", "kick", "ban", "unban", "timeout", "mute", "transfer")
                 .contains(args[0].toLowerCase(Locale.ROOT))) {
-            String prefix = args[1].toLowerCase(Locale.ROOT);
-            List<String> names = new ArrayList<>();
-            services.get().server().getOnlinePlayers().forEach(who -> {
-                if (who.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
-                    names.add(who.getName());
-                }
-            });
-            return names;
+            return nameSuggestions(source, args[1]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("owner")) {
             String prefix = args[1].toLowerCase(Locale.ROOT);
@@ -600,16 +595,27 @@ public final class ClaimCommand implements IClaimCommand {
             return sub;
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("owner")) {
-            String prefix = args[2].toLowerCase(Locale.ROOT);
-            List<String> names = new ArrayList<>();
-            services.get().server().getOnlinePlayers().forEach(who -> {
-                if (who.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
-                    names.add(who.getName());
-                }
-            });
-            return names;
+            return nameSuggestions(source, args[2]);
         }
         return List.of();
+    }
+
+    /**
+     * Names to complete, whoever asked can actually see — a vanished moderator's name completing
+     * here is the same giveaway it would be anywhere else.
+     */
+    private List<String> nameSuggestions(CommandSourceStack source, String typed) {
+        String prefix = typed.toLowerCase(Locale.ROOT);
+        ClaimServices claims = services.get();
+        UUID viewer = source.getSender() instanceof Player player ? player.getUniqueId() : null;
+        List<String> names = new ArrayList<>();
+        claims.server().getOnlinePlayers().forEach(who -> {
+            if ((viewer == null || claims.core().vanish().canSee(viewer, who.getUniqueId()))
+                    && who.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                names.add(who.getName());
+            }
+        });
+        return names;
     }
 
     @Override

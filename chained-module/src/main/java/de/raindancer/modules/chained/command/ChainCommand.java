@@ -176,11 +176,9 @@ public final class ChainCommand implements IChainedCommand {
             live.messages().send(sender, "chained.usage.reset");
             return;
         }
-        if (!live.chain().resetWorld(seed)) {
-            live.messages().send(sender, "chained.reset-refused");
-            return;
-        }
-        live.messages().send(sender, "chained.reset-done");
+        SpeedrunSeed resolvedSeed = seed;
+        live.chain().resetWorld(resolvedSeed, done ->
+                live.messages().send(sender, done ? "chained.reset-done" : "chained.reset-refused"));
     }
 
     private static SpeedrunSeed parseSeed(String text) {
@@ -202,9 +200,14 @@ public final class ChainCommand implements IChainedCommand {
                     List.of("pair", "unpair", "start", "stop", "reset", "status", "admin"), typed);
         }
         if (args.length >= 2 && (args[0].equalsIgnoreCase("pair") || args[0].equalsIgnoreCase("unpair"))) {
+            de.raindancer.core.moderation.vanish.Vanish vanish = services.get().core().vanish();
+            java.util.UUID viewer = source.getSender() instanceof Player asking
+                    ? asking.getUniqueId() : null;
             List<String> names = new ArrayList<>();
             for (Player online : Bukkit.getOnlinePlayers()) {
-                names.add(online.getName());
+                if (viewer == null || vanish.canSee(viewer, online.getUniqueId())) {
+                    names.add(online.getName());
+                }
             }
             return startingWith(names, args[args.length - 1].toLowerCase(Locale.ROOT));
         }
