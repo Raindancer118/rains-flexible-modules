@@ -58,8 +58,13 @@
           any), a button to set a new one (typed in chat, through the same validation and blocklist
           checks /nick <name> always had), a button to remove it, and, for whoever may manage it,
           a shortcut straight into the blocklist editor. /nick <name> and /nick off are unchanged.
+
+          1.5.0: /players — everybody the server has ever seen, online first, offline included, as
+          a browsable list. Bare /seen (no name given) opens the same list instead of a usage line;
+          picking somebody reports exactly what /seen <name> already would, vanished players shown
+          as though already logged off rather than leaked or dropped.
         -->
-        <plugin.version>1.4.0</plugin.version>
+        <plugin.version>1.5.0</plugin.version>
     </properties>
 
     <dependencies>

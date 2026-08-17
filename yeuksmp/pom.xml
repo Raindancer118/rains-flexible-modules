@@ -331,8 +331,12 @@
           knocked back or /tp'd no longer clears it) and invsnap-module 1.1.0 (bare /invsnap opens
           a picker of every tracked player; picking a snapshot opens Inspect/Compare/Restore
           instead of restoring on the spot).
+
+          1.11.0: essentials-module 1.5.0 — /players, everybody the server has ever seen online
+          first offline included, as a browsable list; bare /seen (no name given) opens the same
+          list instead of a usage line.
         -->
-        <plugin.version>1.10.0</plugin.version>
+        <plugin.version>1.11.0</plugin.version>
     </properties>
 
     <dependencies>
