@@ -47,6 +47,11 @@ essentials:
     online: "<white><player></white> <green>is online right now. <gray>(<playtime> played)"
     offline: "<white><player></white> <gray>was last seen <white><ago></white> ago. (<playtime> played)"
 
+  # ── /players ──────────────────────────────────────────────────────────────
+  players:
+    header: "<gray>Everybody this server has seen (<count>):"
+    none: "<gray>This server has not seen anybody yet."
+
   # ── nicknames ─────────────────────────────────────────────────────────────
   nick:
     switched-off: "<red>Nicknames are switched off on this server."

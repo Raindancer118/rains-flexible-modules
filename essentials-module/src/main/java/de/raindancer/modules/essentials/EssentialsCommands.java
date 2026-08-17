@@ -5,6 +5,7 @@ import de.raindancer.modules.essentials.command.AfkCommand;
 import de.raindancer.modules.essentials.command.IgnoreCommand;
 import de.raindancer.modules.essentials.command.MsgCommand;
 import de.raindancer.modules.essentials.command.NickCommand;
+import de.raindancer.modules.essentials.command.PlayersCommand;
 import de.raindancer.modules.essentials.command.ReplyCommand;
 import de.raindancer.modules.essentials.command.SeenCommand;
 import de.raindancer.modules.essentials.command.SetSpawnCommand;
@@ -52,7 +53,9 @@ public final class EssentialsCommands {
 
                 ModuleCommand.of("seen", "When somebody was last here, and for how long they have played",
                                 new SeenCommand(EssentialsCommands::require))
-                        .taking("<player>"),
+                        .taking("<player>", "(nothing) — opens a list to pick from"),
+                ModuleCommand.of("players", "Everybody the server has ever seen, online or not",
+                        new PlayersCommand(EssentialsCommands::require)),
 
                 ModuleCommand.of("nick", "Sets, or removes, what you are called instead of your own name",
                                 new NickCommand(EssentialsCommands::require))

@@ -20,6 +20,7 @@ public final class PermissionNodes {
     public static final String MSG = "essentials.msg";
     public static final String IGNORE = "essentials.ignore";
     public static final String SEEN = "essentials.seen";
+    public static final String PLAYERS = "essentials.players";
     public static final String NICK = "essentials.nick";
     public static final String AFK = "essentials.afk";
 
@@ -40,6 +41,8 @@ public final class PermissionNodes {
                 new Permission(MSG, "Send and receive private messages", PermissionDefault.TRUE),
                 new Permission(IGNORE, "Block private messages from somebody", PermissionDefault.TRUE),
                 new Permission(SEEN, "Look up when somebody was last here", PermissionDefault.TRUE),
+                new Permission(PLAYERS, "Browse everybody the server has seen, online or not",
+                        PermissionDefault.TRUE),
                 new Permission(NICK, "Set your own nickname", PermissionDefault.TRUE),
                 new Permission(AFK, "Mark yourself away from the keyboard", PermissionDefault.TRUE),
                 new Permission(STAFF_NOTIFY,

@@ -1,6 +1,8 @@
 package de.raindancer.modules.essentials.util;
 
 import de.raindancer.core.moderation.vanish.Vanish;
+import de.raindancer.core.ui.choose.PlayerDirectory;
+import de.raindancer.core.ui.choose.PlayerEntry;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -75,6 +77,43 @@ public final class Players {
      */
     public static List<String> suggestions(Server server, String typed, Vanish vanish) {
         return suggestions(server, typed, vanish, null);
+    }
+
+    /**
+     * Everybody the server has ever seen, for {@code /players} and bare {@code /seen} — a directory
+     * to browse rather than a name to type.
+     *
+     * <p>A player vanished from {@code viewer} is shown exactly as {@link SeenService} already shows
+     * one to {@code /seen <name>}: present, but as though they had already logged off at their last
+     * real login, rather than dropped from the list entirely. Leaving them out would be a second,
+     * unrelated feature riding along on vanish; showing them as online right now would be the leak
+     * this whole change is closing.
+     */
+    public static PlayerDirectory directory(Server server, Vanish vanish, UUID viewer) {
+        return new PlayerDirectory(() -> {
+            List<PlayerEntry> people = new ArrayList<>();
+            if (server == null) {
+                return people;
+            }
+            for (OfflinePlayer person : server.getOfflinePlayers()) {
+                String name = person.getName();
+                if (name == null) {
+                    continue;   // a data file with no name attached is nothing anybody can pick
+                }
+                boolean visible = viewer == null || vanish.canSee(viewer, person.getUniqueId());
+                people.add(new PlayerEntry(person.getUniqueId(), name,
+                        person.isOnline() && visible, person.getLastSeen()));
+            }
+            for (Player who : server.getOnlinePlayers()) {
+                // Somebody who has joined but not yet been written to disk is missing above.
+                if (people.stream().noneMatch(known -> known.id().equals(who.getUniqueId()))) {
+                    boolean visible = viewer == null || vanish.canSee(viewer, who.getUniqueId());
+                    people.add(new PlayerEntry(who.getUniqueId(), who.getName(), visible,
+                            System.currentTimeMillis()));
+                }
+            }
+            return people;
+        }, System::currentTimeMillis);
     }
 
     /** Whether a real player, online or previously seen, already answers to this exact name. */
