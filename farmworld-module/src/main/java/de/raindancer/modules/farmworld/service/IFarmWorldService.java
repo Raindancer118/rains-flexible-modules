@@ -17,8 +17,8 @@ import de.raindancer.modules.farmworld.FarmWorldSettings;
  *   <li><b>It asks rather than decides.</b> A second answer to "may they enter this farm world" is the
  *       one that opens the donor world to everybody.</li>
  *   <li><b>It runs on the thread that owns what it touches, or it schedules onto it.</b> A teleport
- *       belongs to the destination's region; creating and deleting a world belongs to the main thread
- *       and nowhere else.</li>
+ *       belongs to the destination's region; creating and deleting a world belongs to the global
+ *       region (Scheduling.global) and nowhere else.</li>
  * </ul>
  */
 public interface IFarmWorldService {

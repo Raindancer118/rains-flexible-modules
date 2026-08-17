@@ -1,0 +1,31 @@
+# Rain's Walls and Roads — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins. See
+# Messages.defineFrom.
+wallsroads:
+
+  usage: "<gray>/wallsroads wall|road new|<name>, cancel, list"
+  only-a-player: "<red>Only a player standing in the world can do that."
+  unknown-wall: "<red>There is no wall called <white><name></white>."
+  unknown-road: "<red>There is no road called <white><name></white>."
+
+  create:
+    no-permission: "<red>You may not mark out a new wall or road here."
+
+  selection:
+    started: "<gray>Marking a new <white><purpose></white>. Right-click to add a corner, shift-right-click to finish."
+    point-added: "<gray>Corner <white><count></white> added."
+    point-removed: "<gray>Corner removed — <white><count></white> left."
+    incomplete: "<red>Needs at least <white><needed></white> points, you have <white><have></white>."
+    cancelled: "<gray>Selection cancelled."
+    none: "<gray>You are not marking anything out right now."
+
+  wall:
+    created: "<green>Wall <white><name></white> created and being built."
+    ask-name: "<gray>Type a new name for this wall, or 'cancel'."
+    removed: "<green>Wall <white><name></white> removed."
+
+  road:
+    created: "<green>Road <white><name></white> created and being built."
+    ask-name: "<gray>Type a new name for this road, or 'cancel'."
+    removed: "<green>Road <white><name></white> removed."

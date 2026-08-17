@@ -40,10 +40,15 @@ public final class ChainDistanceRule implements IChainedRule {
         Objects.requireNonNull(to, "to");
         Objects.requireNonNull(otherPartyLocation, "otherPartyLocation");
 
-        double currentFlat = Proximity.flat(from, otherPartyLocation);
+        // nextFlat first, and returned on early — checked on every move of a chained pair, and the
+        // pair is within range on the overwhelming majority of them, so the second Proximity.flat call
+        // (and its sqrt) is worth skipping whenever the first already settles the answer.
         double nextFlat = Proximity.flat(to, otherPartyLocation);
-
-        return nextFlat > maxDistance && nextFlat > currentFlat;
+        if (nextFlat <= maxDistance) {
+            return false;
+        }
+        double currentFlat = Proximity.flat(from, otherPartyLocation);
+        return nextFlat > currentFlat;
     }
 
     @Override

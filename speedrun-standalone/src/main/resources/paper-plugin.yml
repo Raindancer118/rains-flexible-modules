@@ -9,13 +9,12 @@ description: 'A speedrun lobby: pick an advancement goal or a death policy from 
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
-# NOT Folia-safe, for the same reason RainsChained is not. SpeedrunReset.regenerate is documented
-# main-thread-only: it calls Bukkit.unloadWorld and WorldCreator#createWorld directly, the way
-# FarmWorlds does, and neither is a regionised operation Folia can run from just anywhere.
-# SpeedrunLobby.resetIfAbandoned calls it directly from PlayerQuitEvent — a player's own region thread
-# on Folia, not the single "main" thread Paper guarantees — rather than hopping onto the global region
-# scheduler first. Honest about that rather than silently corrupting a world reset on a Folia server.
-folia-supported: false
+# SpeedrunReset.regenerate is main-thread-only, the same as FarmWorlds — Bukkit.unloadWorld and
+# WorldCreator#createWorld are global-region operations, not something Folia can run from just any
+# thread. SpeedrunLobby.resetIfAbandoned used to call it directly from PlayerQuitEvent — a player's
+# own region thread on Folia — which would have corrupted the reset. It now hops onto the global
+# region scheduler first (Scheduling.global) before calling regenerate.
+folia-supported: true
 
 dependencies:
   # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and

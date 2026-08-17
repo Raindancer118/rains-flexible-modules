@@ -310,11 +310,13 @@ public final class BorderVisualizer {
             if (!settings.visualShowVerticalPillars()) {
                 return;
             }
+            List<Integer> pillarHeights = OutlineGeometry.pillarHeights(shape, viewerY, radius / 2,
+                    settings.visualSpacing());
             for (ClaimPoint corner : corners) {
                 if (corner.distanceSquared(eye.getBlockX(), eye.getBlockZ()) > radiusSquared) {
                     continue;
                 }
-                for (int y : OutlineGeometry.pillarHeights(shape, viewerY, radius / 2, settings.visualSpacing())) {
+                for (int y : pillarHeights) {
                     if (drawn++ > budget) {
                         return;
                     }

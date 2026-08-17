@@ -16,7 +16,6 @@ import org.bukkit.event.vehicle.VehicleMoveEvent;
 import org.bukkit.util.Vector;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -84,10 +83,8 @@ public final class ChainMovementListener implements IChainedListener {
                 && from.getBlockZ() == to.getBlockZ()) {
             return;
         }
-        List<Player> riders = event.getVehicle().getPassengers().stream()
-                .filter(Player.class::isInstance).map(Player.class::cast).toList();
-        for (Player rider : riders) {
-            if (wouldExceed(rider, from, to)) {
+        for (org.bukkit.entity.Entity passenger : event.getVehicle().getPassengers()) {
+            if (passenger instanceof Player rider && wouldExceed(rider, from, to)) {
                 event.getVehicle().teleport(from);
                 event.getVehicle().setVelocity(new Vector(0, 0, 0));
                 return;
@@ -108,7 +105,7 @@ public final class ChainMovementListener implements IChainedListener {
         if (pair == null) {
             return false;
         }
-        Optional<SpeedrunSession> session = services.chain().sessionOf(id);
+        Optional<SpeedrunSession> session = services.chain().sessionOf(pair);
         if (session.isEmpty() || session.get().state() != SpeedrunState.RUNNING) {
             return false;
         }

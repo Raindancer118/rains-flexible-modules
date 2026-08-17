@@ -351,8 +351,12 @@ public final class MovementListener implements IClaimListener {
                 && from.getBlockZ() == to.getBlockZ()) {
             return;
         }
-        java.util.List<Player> riders = event.getVehicle().getPassengers().stream()
-                .filter(Player.class::isInstance).map(Player.class::cast).toList();
+        java.util.List<Player> riders = new java.util.ArrayList<>(2);
+        for (org.bukkit.entity.Entity passenger : event.getVehicle().getPassengers()) {
+            if (passenger instanceof Player player) {
+                riders.add(player);
+            }
+        }
         if (riders.isEmpty()) {
             return;
         }

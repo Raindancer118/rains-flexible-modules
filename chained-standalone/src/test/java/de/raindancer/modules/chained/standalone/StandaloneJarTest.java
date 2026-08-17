@@ -173,10 +173,10 @@ class StandaloneJarTest {
                 .as("depend: is plugin.yml syntax and is silently ignored here")
                 .doesNotContain("depend:");
         assertThat(yaml)
-                .as("SpeedrunReset.regenerate is documented main-thread-only, and this module calls "
-                        + "it directly rather than hopping onto the global region scheduler first — "
-                        + "so, unlike this reactor's other modules, it is honestly not Folia-safe yet")
-                .contains("folia-supported: false");
+                .as("SpeedrunReset.regenerate is main-thread-only, but ChainService.resetWorld now hops "
+                        + "onto the global region scheduler (Scheduling.global) before calling it, so "
+                        + "the module can honestly claim Folia support")
+                .contains("folia-supported: true");
 
         // Hand-written rather than produced by StandaloneDescriptor, so it can drift from it — and the
         // claims plugin did exactly that once, shipping with RainsCore declared for the server phase

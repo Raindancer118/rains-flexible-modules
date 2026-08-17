@@ -11,6 +11,7 @@ import de.raindancer.modules.speedrun.conditions.DeathEndCondition;
 import de.raindancer.modules.chained.ChainedSettings;
 import de.raindancer.modules.chained.model.ChainPair;
 import de.raindancer.modules.chained.store.ChainPairStore;
+import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.event.Listener;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
@@ -33,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -229,7 +232,10 @@ class ChainServiceTest {
             ChainService service = service(settings);
             service.pair(first, second, 20);
 
-            service.start(first);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                stubGlobalScheduler(bukkit);
+                service.start(first);
+            }
 
             ArgumentCaptor<SpeedrunSeed> seedCaptor = ArgumentCaptor.forClass(SpeedrunSeed.class);
             verify(reset).regenerate(eq(world), seedCaptor.capture(), eq(Set.of(first, second)));
@@ -249,11 +255,25 @@ class ChainServiceTest {
             ChainService service = service(settings);
             service.pair(first, second, 20);
 
-            service.start(first);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                stubGlobalScheduler(bukkit);
+                service.start(first);
+            }
 
             ArgumentCaptor<SpeedrunSeed> seedCaptor = ArgumentCaptor.forClass(SpeedrunSeed.class);
             verify(reset).regenerate(eq(world), seedCaptor.capture(), eq(Set.of(first, second)));
             assertThat(seedCaptor.getValue()).isEqualTo(SpeedrunSeed.random());
+        }
+
+        /** Runs whatever {@code Scheduling.global} hands the global region scheduler immediately. */
+        private void stubGlobalScheduler(MockedStatic<Bukkit> bukkit) {
+            io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler scheduler =
+                    mock(io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler.class);
+            bukkit.when(Bukkit::getGlobalRegionScheduler).thenReturn(scheduler);
+            org.mockito.Mockito.doAnswer(invocation -> {
+                ((Runnable) invocation.getArgument(1)).run();
+                return null;
+            }).when(scheduler).execute(eq(plugin), any(Runnable.class));
         }
 
         @Test

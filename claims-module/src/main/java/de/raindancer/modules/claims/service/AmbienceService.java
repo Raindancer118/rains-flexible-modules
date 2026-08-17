@@ -362,16 +362,21 @@ public final class AmbienceService implements IClaimService {
         }
     }
 
-    /** Everybody currently standing in the claim. */
+    /**
+     * Everybody currently standing in the claim.
+     * <p>
+     * By the border tracker's own claim, the same one {@link #resolve} trusts — not a fresh shape
+     * intersection per online player. The tracker already keeps this up to date for every player it is
+     * following, so re-deriving it here with polygon math would be the same answer, computed the slow
+     * way, for a server-wide scan a thunder tick runs.
+     */
     private List<Player> playersInside(Claim claim) {
         List<Player> inside = new ArrayList<>();
+        if (movement == null) {
+            return inside;
+        }
         for (Player online : plugin.getServer().getOnlinePlayers()) {
-            if (!online.getWorld().getUID().equals(claim.worldId())) {
-                continue;
-            }
-            var location = online.getLocation();
-            if (claim.shape().containsBlock(location.getBlockX(), location.getBlockY(),
-                    location.getBlockZ())) {
+            if (movement.claimOf(online).map(Claim::id).filter(id -> id.equals(claim.id())).isPresent()) {
                 inside.add(online);
             }
         }

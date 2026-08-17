@@ -9,6 +9,10 @@ description: 'Land claims: who owns what, who may do what there, and the screens
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
+# No scheduler of its own anywhere in the module — teleports, timers and delayed work all go through
+# Core's Scheduling / Travel, exactly like every other module here.
+folia-supported: true
+
 dependencies:
   # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and
   # its own classpath, and the bootstrapper is where the modules are first discovered — it has to look, since

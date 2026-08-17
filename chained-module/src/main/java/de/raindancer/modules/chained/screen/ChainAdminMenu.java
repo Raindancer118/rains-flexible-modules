@@ -89,10 +89,9 @@ public final class ChainAdminMenu extends Menu implements IChainedScreen {
                 List.of("The configured world is deleted and made again.",
                         "Anybody currently paired is moved out first.",
                         "This cannot be undone."),
-                () -> {
-                    boolean done = services.chain().resetWorld(null);
-                    services.messages().send(viewer, done ? "chained.reset-done" : "chained.reset-refused");
-                }).open();
+                () -> services.chain().resetWorld(null, done ->
+                        services.messages().send(viewer, done ? "chained.reset-done" : "chained.reset-refused"))
+                ).open();
     }
 
     private void pickFirst() {

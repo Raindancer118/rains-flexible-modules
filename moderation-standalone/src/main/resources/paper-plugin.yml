@@ -9,6 +9,10 @@ description: 'Moderation: bans, mutes, reports, staff notes, vanish and the scre
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
+# No scheduler of its own anywhere in the module — timers and delayed work all go through Core's
+# Scheduling, exactly like every other module here.
+folia-supported: true
+
 dependencies:
   # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and
   # its own classpath, and the bootstrapper is where the modules are first discovered — it has to look, since

@@ -136,14 +136,20 @@ public final class NoticeService implements IFarmWorldService {
      * three worlds are deleted arriving up to twenty seconds late is the difference between useful and cruel.
      */
     public void check() {
-        for (FarmWorldView farm : catalogue.all()) {
+        List<FarmWorldView> all = catalogue.all();
+        java.util.Set<String> stillHere = new java.util.HashSet<>(all.size());
+        for (FarmWorldView farm : all) {
             look(farm);
+            stillHere.add(farm.name());
         }
         // Farm worlds that have been forgotten since the last look. Left behind, the map grows by an entry
         // for every farm world that has ever existed — small, but it is also a stale "I already warned
         // about this" waiting for somebody to create a farm world with the same name again.
-        announced.keySet().removeIf(name -> catalogue.byName(name).isEmpty());
-        lastSeen.keySet().removeIf(name -> catalogue.byName(name).isEmpty());
+        //
+        // Against the names just read from catalogue.all() above, not a fresh catalogue.byName() per
+        // entry — this runs every second, and byName() builds a whole FarmWorldView per lookup.
+        announced.keySet().retainAll(stillHere);
+        lastSeen.keySet().retainAll(stillHere);
     }
 
     private void look(FarmWorldView farm) {

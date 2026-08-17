@@ -4,6 +4,7 @@ import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.moderation.players.PlayerAdmin;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.actionbar.ActionBars;
 import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.effect.Effects;
@@ -342,7 +343,11 @@ public final class SpeedrunLobby {
                     config().worldName());
             return;
         }
-        reset.regenerate(target, SpeedrunSeed.random(), Set.of());
+        // Folia: unloading, deleting and recreating a world are global-region operations — see
+        // SpeedrunReset's own threading note. resetIfAbandoned itself runs on whatever region thread
+        // fired the quit event, so the reset has to hop onto the global region scheduler first rather
+        // than run there directly.
+        Scheduling.global(plugin, () -> reset.regenerate(target, SpeedrunSeed.random(), Set.of()));
     }
 
     private Optional<World> world() {

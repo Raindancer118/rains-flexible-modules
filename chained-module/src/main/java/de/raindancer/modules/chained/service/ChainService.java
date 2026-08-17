@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Pairing players, running a speedrun clock for a pair, and resetting the map between attempts.
@@ -140,7 +141,7 @@ public final class ChainService implements IChainedService {
         ChainedSettings config = settings;
 
         if (config.resetOnStart()) {
-            resetWorld(defaultSeed(config), Set.of(pair.a(), pair.b()));
+            resetWorld(defaultSeed(config), Set.of(pair.a(), pair.b()), done -> { });
         }
 
         SpeedrunSession session = new SpeedrunSession(Set.of(pair.a(), pair.b()));
@@ -196,6 +197,11 @@ public final class ChainService implements IChainedService {
         if (pair == null) {
             return Optional.empty();
         }
+        return sessionOf(pair);
+    }
+
+    /** The same, for a caller that has already resolved the pair — skips a second {@code pairOf} lookup. */
+    public Optional<SpeedrunSession> sessionOf(ChainPair pair) {
         return Optional.ofNullable(runs.get(pair)).map(Run::session);
     }
 
@@ -242,23 +248,37 @@ public final class ChainService implements IChainedService {
     // ------------------------------------------------------------------------ resetting
 
     /**
+     * Resets the configured world, without waiting to know whether it came back.
+     *
+     * @param seedOverride the seed to use, or {@code null} to use the settings' own seed policy
+     */
+    public void resetWorld(SpeedrunSeed seedOverride) {
+        resetWorld(seedOverride, done -> { });
+    }
+
+    /**
      * Resets the configured world.
      *
      * @param seedOverride the seed to use, or {@code null} to use the settings' own seed policy
-     * @return whether the world came back
+     * @param onDone       told whether the world came back, on the global region thread — the same
+     *                     thread {@code regenerate} itself runs on
      */
-    public boolean resetWorld(SpeedrunSeed seedOverride) {
-        return resetWorld(seedOverride, everyoneCurrentlyPaired());
+    public void resetWorld(SpeedrunSeed seedOverride, Consumer<Boolean> onDone) {
+        resetWorld(seedOverride, everyoneCurrentlyPaired(), onDone);
     }
 
-    private boolean resetWorld(SpeedrunSeed seedOverride, Set<UUID> evacuate) {
+    private void resetWorld(SpeedrunSeed seedOverride, Set<UUID> evacuate, Consumer<Boolean> onDone) {
         ChainedSettings config = settings;
         World world = plugin.getServer().getWorld(config.worldName());
         if (world == null) {
-            return false;
+            onDone.accept(false);
+            return;
         }
         SpeedrunSeed seed = seedOverride != null ? seedOverride : defaultSeed(config);
-        return reset.regenerate(world, seed, evacuate);
+        // Folia: unloading, deleting and recreating a world are global-region operations — see
+        // SpeedrunReset's own threading note. resetWorld can be called from a command or a menu click,
+        // neither of which runs on that thread, so the hop has to happen here rather than in the caller.
+        Scheduling.global(plugin, () -> onDone.accept(reset.regenerate(world, seed, evacuate)));
     }
 
     private static SpeedrunSeed defaultSeed(ChainedSettings config) {

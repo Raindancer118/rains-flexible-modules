@@ -187,11 +187,12 @@ public final class MannequinModule implements FlexModule {
      * uses. Works the same for every {@link org.bukkit.entity.LivingEntity} kind this module spawns.
      */
     private void consumeNearbyConsumables(org.bukkit.entity.LivingEntity entity) {
-        for (org.bukkit.entity.Entity nearby
-                : entity.getNearbyEntities(CONSUMABLE_RANGE, CONSUMABLE_RANGE, CONSUMABLE_RANGE)) {
-            if (nearby instanceof org.bukkit.entity.Item item) {
-                potions.tryConsume(entity, item);
-            }
+        // Filtered at the source (getNearbyEntitiesByType) rather than collecting every entity type in
+        // range and discarding the non-Items — this runs twice a second for every loaded mannequin.
+        for (org.bukkit.entity.Item item : entity.getWorld().getNearbyEntitiesByType(
+                org.bukkit.entity.Item.class, entity.getLocation(),
+                CONSUMABLE_RANGE, CONSUMABLE_RANGE, CONSUMABLE_RANGE)) {
+            potions.tryConsume(entity, item);
         }
     }
 
@@ -199,11 +200,10 @@ public final class MannequinModule implements FlexModule {
         ItemStack offHand = entity.getEquipment().getItemInOffHand();
         boolean hasShield = offHand != null && offHand.getType() == org.bukkit.Material.SHIELD;
         boolean alreadyBlocking = entity.isHandRaised();
-        boolean attackerNearby = entity.getWorld()
-                .getNearbyEntities(entity.getLocation(), current.shieldRange(), current.shieldRange(),
-                        current.shieldRange())
-                .stream()
-                .anyMatch(Player.class::isInstance);
+        boolean attackerNearby = !entity.getWorld()
+                .getNearbyEntitiesByType(Player.class, entity.getLocation(), current.shieldRange(),
+                        current.shieldRange(), current.shieldRange())
+                .isEmpty();
 
         if (shieldBlockRule.shouldRaiseShield(hasShield, current.blockingEnabled(), alreadyBlocking,
                 attackerNearby)) {

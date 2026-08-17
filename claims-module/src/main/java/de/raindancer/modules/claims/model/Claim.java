@@ -191,6 +191,46 @@ public final class Claim {
         markDirty();
     }
 
+    /**
+     * Where visitors are meant to arrive — a claim's front door, set by its owner standing there and
+     * pressing the button. {@code null} means unset, which is a claim's default: nothing about a
+     * claim requires one.
+     */
+    private ClaimPoint entrance;
+    private int entranceY;
+
+    public Optional<ClaimPoint> entrance() {
+        return Optional.ofNullable(entrance);
+    }
+
+    public int entranceY() {
+        return entranceY;
+    }
+
+    /**
+     * Sets the entrance, refusing a column outside this claim's own shape — the invariant lives here,
+     * at the one place that changes it, rather than in whichever screen or command happens to call
+     * this first. See {@code ClaimAreaRule}/{@code Claim.ban()} for the same rule elsewhere in this
+     * class.
+     *
+     * @return false when the column is not inside this claim; the entrance is left unchanged
+     */
+    public boolean entrance(ClaimPoint point, int y) {
+        if (point != null && !shape.containsColumn(point.x(), point.z())) {
+            return false;
+        }
+        this.entrance = point;
+        this.entranceY = y;
+        markDirty();
+        return true;
+    }
+
+    public void clearEntrance() {
+        this.entrance = null;
+        this.entranceY = 0;
+        markDirty();
+    }
+
     public Set<UUID> owners() {
         return Collections.unmodifiableSet(owners);
     }

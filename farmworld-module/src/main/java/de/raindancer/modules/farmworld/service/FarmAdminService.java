@@ -309,9 +309,11 @@ public final class FarmAdminService implements IFarmWorldService {
      * module that is written to the log at a level an owner will see afterwards, because "who regenerated
      * the farm world an hour early" is a question that gets asked.
      *
-     * <p>On the caller's thread deliberately, and that thread has to be the main one: creating, unloading
-     * and deleting a world are main-thread operations in Paper and are not safe anywhere else. A command
-     * and a menu click are both already there.
+     * <p>Creating, unloading and deleting a world are global-region operations, not something Folia can
+     * run from just any thread — a command and a menu click both land on the caller's own region thread,
+     * not that one. So the actual regeneration hops onto {@link Scheduling#global} first; everything
+     * before that hop (the permission check, the "are you sure" messages) runs on the caller's thread as
+     * before, since none of it touches a world.
      */
     public boolean regenerate(CommandSender asker, String name) {
         if (!mayManage(asker)) {
@@ -324,18 +326,20 @@ public final class FarmAdminService implements IFarmWorldService {
         }
         log.warn("{} is making the farm world '{}' again by hand.", nameOf(asker), set.name());
         messages.send(asker, "farmworlds.regenerating", "name", set.name());
-        boolean ok = catalogue.regenerate(set);
-        if (ok) {
-            // The world is fresh terrain, so whatever was built is gone with it — including the platform.
-            buildPlatform(set.name());
-            messages.send(asker, "farmworlds.regenerated", "name", set.name());
-        } else {
-            // Core has already said what went wrong, at the level that names the file. This is the half
-            // the person who pressed the button can see, and it deliberately does not guess: a
-            // half-regenerated farm world is recoverable and a wrong guess about which half is not.
-            messages.send(asker, "farmworlds.regeneration-failed", "name", set.name());
-        }
-        return ok;
+        Scheduling.global(plugin, () -> {
+            boolean ok = catalogue.regenerate(set);
+            if (ok) {
+                // The world is fresh terrain, so whatever was built is gone with it — including the platform.
+                buildPlatform(set.name());
+                messages.send(asker, "farmworlds.regenerated", "name", set.name());
+            } else {
+                // Core has already said what went wrong, at the level that names the file. This is the half
+                // the person who pressed the button can see, and it deliberately does not guess: a
+                // half-regenerated farm world is recoverable and a wrong guess about which half is not.
+                messages.send(asker, "farmworlds.regeneration-failed", "name", set.name());
+            }
+        });
+        return true;
     }
 
     // ------------------------------------------------------------------------ the small print

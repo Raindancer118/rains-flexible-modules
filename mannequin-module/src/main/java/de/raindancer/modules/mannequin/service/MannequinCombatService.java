@@ -103,9 +103,10 @@ public final class MannequinCombatService implements IMannequinService {
             }
         }
 
+        // Not weapon.clone(): WeaponTally's own compact constructor already clones whatever sample it
+        // is given, so a caller-side clone was a second full ItemStack copy on every hit for nothing.
         ItemStack weapon = attacker.getInventory().getItemInMainHand();
-        registry.recordLeaderboardHit(id, attacker.getUniqueId(), weapon.getType(), weapon.clone(),
-                finalDamage);
+        registry.recordLeaderboardHit(id, attacker.getUniqueId(), weapon.getType(), weapon, finalDamage);
 
         showFeedback(attacker, updated, finalDamage);
     }

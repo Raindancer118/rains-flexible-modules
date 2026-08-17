@@ -56,6 +56,10 @@ public final class XrayDetectionService implements IModerationService {
     private final Cooldowns<UUID> between = new Cooldowns<>();
 
     private volatile ModerationSettings settings;
+    /** {@code xrayOres()} upper-cased into a lookup set, rebuilt only when {@link #settings} is
+     * replaced — {@link #mined} runs on every block broken and used to scan the configured list
+     * linearly for each one. */
+    private volatile Set<String> watchedOresUpper = Set.of();
 
     public XrayDetectionService(ReportService reports, XrayRule rule, PlayerMiningProfiles profiles,
                                 PersistedFindings findings, ModerationSettings settings) {
@@ -70,6 +74,13 @@ public final class XrayDetectionService implements IModerationService {
     public void settings(ModerationSettings fresh) {
         this.settings = fresh == null ? ModerationSettings.DEFAULTS : fresh;
         between.every(this.settings.xrayCooldown());
+        Set<String> upper = new java.util.HashSet<>(this.settings.xrayOres().size());
+        for (String name : this.settings.xrayOres()) {
+            if (name != null) {
+                upper.add(name.toUpperCase(java.util.Locale.ROOT));
+            }
+        }
+        this.watchedOresUpper = upper;
     }
 
     /**
@@ -87,7 +98,7 @@ public final class XrayDetectionService implements IModerationService {
             return;
         }
         ModerationSettings now = settings;
-        boolean isValuableOre = isWatched(block.material(), now.xrayOres());
+        boolean isValuableOre = watchedOresUpper.contains(block.material().toUpperCase(java.util.Locale.ROOT));
         baseline.record(isValuableOre);
         if (!now.xrayDetectionEnabled()) {
             return;
@@ -196,15 +207,6 @@ public final class XrayDetectionService implements IModerationService {
     /** What the server has learnt is normal here, for a diagnostic. */
     public double learnedRatio() {
         return baseline.ratio();
-    }
-
-    private static boolean isWatched(String material, List<String> oreNames) {
-        for (String name : oreNames) {
-            if (name != null && name.equalsIgnoreCase(material)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @Override

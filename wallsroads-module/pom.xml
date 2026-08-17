@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>wallsroads-module</artifactId>
+    <!-- Own version, independent of the reactor's — published under its own wallsroads-module-vX.Y.Z tag. -->
+    <version>${wallsroads-module.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Walls and Roads</name>
+    <description>
+        Huge polygonal town walls (rectangle or rounded-corner, configurable height/material/thickness)
+        and polygonal roads (configurable width/material) that cut a real gate opening wherever a road
+        crosses a wall — found by geometric intersection, never marked by hand — with renamable signs
+        placed automatically. Every build action has a real inverse: a wall, a road, a gate or a sign
+        can be taken back down exactly as it was before, never assumed to be air.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+        <!--
+          provided, the same reasoning mannequin-module already has against claims-module: a road can
+          optionally route to a claim's entrance, so this module compiles against
+          Claim/ClaimServices to read one when it exists — but never shades claims-module in.
+
+          Genuinely OPTIONAL: this module works exactly the same on a server with no claims plugin
+          installed at all. Every reference to a claims-module class lives inside the
+          de.raindancer.modules.wallsroads.claims package, touched only after a runtime check
+          (ClaimIntegration.tryFindEntrance) confirms the real ClaimServices is actually registered
+          with Bukkit's own ServicesManager.
+        -->
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>claims-module</artifactId>
+            <version>${claims-module.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${modules-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

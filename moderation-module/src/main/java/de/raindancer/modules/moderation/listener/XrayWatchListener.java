@@ -14,6 +14,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -96,7 +97,7 @@ public final class XrayWatchListener implements IModerationListener {
     private final ModerationServices services;
 
     /** Where a player has placed one of the watched ores, keyed by world and coordinates. */
-    private final Set<String> placedOre = ConcurrentHashMap.newKeySet();
+    private final Set<BlockKey> placedOre = ConcurrentHashMap.newKeySet();
 
     /**
      * Per player, the material and moment of the last watched-ore break actually credited — what
@@ -105,9 +106,15 @@ public final class XrayWatchListener implements IModerationListener {
     private final Map<UUID, VeinCredit> lastCredited = new ConcurrentHashMap<>();
 
     /** Per player, the positions of their own last {@link #RECENT_BREAK_MEMORY} breaks, oldest first. */
-    private final Map<UUID, Deque<String>> recentBreaks = new ConcurrentHashMap<>();
+    private final Map<UUID, Deque<BlockKey>> recentBreaks = new ConcurrentHashMap<>();
 
     private record VeinCredit(String material, long atEpochMillis) {
+    }
+
+    /** A block position, cheap to hash and compare — replaces a concatenated String key that
+     * {@link #onBreak} and {@link #openFacesNotDugByPlayer} would otherwise allocate several times
+     * per ore block broken, once per neighbouring face checked. */
+    private record BlockKey(UUID world, int x, int y, int z) {
     }
 
     public XrayWatchListener(ModerationServices services) {
@@ -125,7 +132,7 @@ public final class XrayWatchListener implements IModerationListener {
     public void onBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         Block block = event.getBlock();
-        String key = keyOf(block.getLocation());
+        BlockKey key = keyOf(block.getLocation());
 
         if (placedOre.remove(key)) {
             // Their own placement, coming back out. Not mining, in either direction.
@@ -171,13 +178,27 @@ public final class XrayWatchListener implements IModerationListener {
                 && System.currentTimeMillis() - last.atEpochMillis() <= VEIN_WINDOW_MILLIS;
     }
 
+    /** {@link #isWatchedOre} is on {@code BlockBreakEvent}/{@code BlockPlaceEvent}, so the ore list is
+     * kept as an upper-cased lookup set rather than scanned linearly on every block. Rebuilt only when
+     * the settings' own list is replaced — {@code xrayOres()} is an immutable list swapped wholesale on
+     * reload, never mutated in place, so comparing the reference is enough to know it changed. */
+    private volatile List<String> watchedOresSource = List.of();
+    private volatile Set<String> watchedOresUpper = Set.of();
+
     private boolean isWatchedOre(Material material) {
-        for (String name : services.config().xrayOres()) {
-            if (name != null && name.equalsIgnoreCase(material.name())) {
-                return true;
+        List<String> configured = services.config().xrayOres();
+        Set<String> upper = watchedOresUpper;
+        if (configured != watchedOresSource) {
+            upper = new java.util.HashSet<>(configured.size());
+            for (String name : configured) {
+                if (name != null) {
+                    upper.add(name.toUpperCase(java.util.Locale.ROOT));
+                }
             }
+            watchedOresUpper = upper;
+            watchedOresSource = configured;
         }
-        return false;
+        return upper.contains(material.name());
     }
 
     /**
@@ -201,7 +222,7 @@ public final class XrayWatchListener implements IModerationListener {
     }
 
     private void rememberBreak(UUID player, Block block) {
-        Deque<String> recent = recentBreaks.computeIfAbsent(player, ignored -> new ArrayDeque<>());
+        Deque<BlockKey> recent = recentBreaks.computeIfAbsent(player, ignored -> new ArrayDeque<>());
         recent.addLast(keyOf(block.getLocation()));
         while (recent.size() > RECENT_BREAK_MEMORY) {
             recent.removeFirst();
@@ -209,13 +230,13 @@ public final class XrayWatchListener implements IModerationListener {
     }
 
     private boolean dugByPlayer(UUID player, Block block) {
-        Deque<String> recent = recentBreaks.get(player);
+        Deque<BlockKey> recent = recentBreaks.get(player);
         return recent != null && recent.contains(keyOf(block.getLocation()));
     }
 
-    private static String keyOf(Location location) {
-        return location.getWorld().getUID() + ":" + location.getBlockX() + ","
-                + location.getBlockY() + "," + location.getBlockZ();
+    private static BlockKey keyOf(Location location) {
+        return new BlockKey(location.getWorld().getUID(), location.getBlockX(),
+                location.getBlockY(), location.getBlockZ());
     }
 
     @Override

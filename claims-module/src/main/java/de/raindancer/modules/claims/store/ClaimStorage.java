@@ -166,6 +166,12 @@ public final class ClaimStorage {
             claim.addOwner(UUID.fromString(ownerList.get(index)));
         }
         claim.createdAt(yaml.getLong("created-at", System.currentTimeMillis()));
+        // Absent on every file written before this existed — Optional.empty() is exactly the right
+        // default, and containsColumn is trivially true for a point already inside a loaded shape.
+        String entranceRaw = yaml.getString("entrance.point");
+        if (entranceRaw != null) {
+            claim.entrance(ClaimPoint.deserialize(entranceRaw), yaml.getInt("entrance.y"));
+        }
         // Newer files store the whole item so a potion keeps its brew; older ones held a material name.
         ItemStack icon = ItemText.decode(yaml.getString("icon-item"));
         if (icon == null) {
@@ -414,6 +420,15 @@ public final class ClaimStorage {
         yaml.set("shape.vertices", vertices);
         yaml.set("shape.min-y", claim.shape().minY());
         yaml.set("shape.max-y", claim.shape().maxY());
+        claim.entrance().ifPresentOrElse(
+                point -> {
+                    yaml.set("entrance.point", point.serialize());
+                    yaml.set("entrance.y", claim.entranceY());
+                },
+                () -> {
+                    yaml.set("entrance.point", null);
+                    yaml.set("entrance.y", null);
+                });
 
         List<String> owners = new ArrayList<>();
         claim.owners().forEach(owner -> owners.add(owner.toString()));

@@ -9,15 +9,13 @@ description: 'Two players, mechanically chained together — get too far apart a
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
-# NOT Folia-safe, unlike this reactor's other modules. RainsCore's own SpeedrunReset.regenerate is documented
-# main-thread-only: it calls Bukkit.unloadWorld and WorldCreator#createWorld directly, the way FarmWorlds does,
-# and neither of those is a regionised operation Folia can run from just anywhere. This module's admin screen
-# and /chain reset call SpeedrunReset.regenerate directly from whatever thread the click or the command landed
-# on — a player's own region thread on Folia, not the single "main" thread Paper guarantees — rather than
-# hopping onto the global region scheduler first. Doing that hop correctly (and testing that it actually
-# happens) was out of scope for this pass; until it is added, this module is honest about not being Folia-safe
-# rather than silently corrupting a world reset on a Folia server.
-folia-supported: false
+# SpeedrunReset.regenerate is main-thread-only: it calls Bukkit.unloadWorld and WorldCreator#createWorld
+# directly, the way FarmWorlds does, and neither is a regionised operation Folia can run from just anywhere.
+# ChainService.resetWorld used to call it directly from whatever thread the admin screen click or the
+# /chain reset command landed on — a player's own region thread on Folia. It now hops onto the global
+# region scheduler first (Scheduling.global) and reports the result back through a callback instead of a
+# synchronous return value.
+folia-supported: true
 
 dependencies:
   # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and

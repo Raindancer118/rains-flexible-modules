@@ -120,4 +120,19 @@ public record ClaimServices(
     public java.util.Optional<Claim> claimAround(Player player) {
         return provider.around(player).map(area -> ((ClaimAreaRule) area).claim());
     }
+
+    /**
+     * A claim's entrance, as a world location — what a road wants when it routes toward a claim's
+     * front door. Empty when the claim does not exist, its world is not loaded, or nobody has set
+     * one; the caller decides what to do without it, the same as everywhere else this module hands
+     * back a location.
+     */
+    public java.util.Optional<org.bukkit.Location> entranceOf(String claimName) {
+        return claims.byName(claimName).flatMap(claim -> claim.entrance().flatMap(point -> {
+            org.bukkit.World world = server.getWorld(claim.worldId());
+            return world == null ? java.util.Optional.empty()
+                    : java.util.Optional.of(new org.bukkit.Location(world, point.x() + 0.5,
+                            claim.entranceY(), point.z() + 0.5));
+        }));
+    }
 }

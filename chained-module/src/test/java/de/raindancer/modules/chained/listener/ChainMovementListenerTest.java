@@ -56,7 +56,7 @@ class ChainMovementListenerTest {
         when(session.state()).thenReturn(SpeedrunState.RUNNING);
 
         ChainService chain = mock(ChainService.class);
-        when(chain.sessionOf(playerId)).thenReturn(Optional.of(session));
+        when(chain.sessionOf(pair)).thenReturn(Optional.of(session));
 
         return FakeServices.builder().pairs(pairs).chain(chain).build();
     }

@@ -26,6 +26,10 @@ public final class MannequinRegistry {
 
     private final Map<String, Mannequin> byId = new LinkedHashMap<>();
     private final Map<String, UUID> liveEntities = new LinkedHashMap<>();
+    /** {@code liveEntities}, reversed — kept in step by every method that mutates it, so {@link
+     * #idFor} answers global mob-event traffic (target, damage, knockback, pickup listeners) in
+     * O(1) rather than scanning every live mannequin per event. */
+    private final Map<UUID, String> liveEntitiesReverse = new java.util.HashMap<>();
     private final Map<String, TrainingSession> sessions = new LinkedHashMap<>();
     private final Map<String, Leaderboard> leaderboards = new LinkedHashMap<>();
     private long highest;
@@ -46,7 +50,10 @@ public final class MannequinRegistry {
         if (id == null) {
             return false;
         }
-        liveEntities.remove(id);
+        UUID entityId = liveEntities.remove(id);
+        if (entityId != null) {
+            liveEntitiesReverse.remove(entityId);
+        }
         sessions.remove(id);
         leaderboards.remove(id);
         return byId.remove(id) != null;
@@ -134,27 +141,23 @@ public final class MannequinRegistry {
     public synchronized void bindEntity(String id, UUID entityId) {
         if (id != null && entityId != null) {
             liveEntities.put(id, entityId);
+            liveEntitiesReverse.put(entityId, id);
         }
     }
 
     /** The world was unloaded, or the entity was otherwise removed. The stored record stays. */
     public synchronized void unbindEntity(String id) {
         if (id != null) {
-            liveEntities.remove(id);
+            UUID entityId = liveEntities.remove(id);
+            if (entityId != null) {
+                liveEntitiesReverse.remove(entityId);
+            }
         }
     }
 
     /** The mannequin id that this live entity represents, if any. */
     public synchronized Optional<String> idFor(UUID entityId) {
-        if (entityId == null) {
-            return Optional.empty();
-        }
-        for (Map.Entry<String, UUID> entry : liveEntities.entrySet()) {
-            if (entry.getValue().equals(entityId)) {
-                return Optional.of(entry.getKey());
-            }
-        }
-        return Optional.empty();
+        return Optional.ofNullable(entityId == null ? null : liveEntitiesReverse.get(entityId));
     }
 
     // ---------------------------------------------------------------------------- the training session

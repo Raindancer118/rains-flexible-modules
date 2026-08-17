@@ -398,6 +398,14 @@ class SpeedrunLobbyTest {
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
                 bukkit.when(Bukkit::getWorlds).thenReturn(List.of(mainWorld));
                 bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(true);
+                io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler globalScheduler =
+                        mock(io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler.class);
+                bukkit.when(Bukkit::getGlobalRegionScheduler).thenReturn(globalScheduler);
+                org.mockito.stubbing.Answer<Void> runImmediately = invocation -> {
+                    ((Runnable) invocation.getArgument(1)).run();
+                    return null;
+                };
+                org.mockito.Mockito.doAnswer(runImmediately).when(globalScheduler).execute(eq(plugin), any(Runnable.class));
 
                 SpeedrunLobby lobby = lobby();
                 lobby.start(Set.of(ALICE));
