@@ -323,18 +323,18 @@ public final class ClaimsModule implements FlexModule {
      *
      * <p>Not batched behind a save timer: this is what a claim may do at all, and one that is in force
      * now but gone after the next restart is the kind of thing an admin only discovers weeks later.
+     * {@link FeaturePolicyStore} never throws — the write goes through Core's {@code YamlStore}, which
+     * reports failure as {@code false} rather than an exception.
      */
     private boolean saveFeaturePolicies() {
-        try {
-            featurePolicyStore.save(featurePolicies);
-            return true;
-        } catch (IOException cannot) {
+        boolean saved = featurePolicyStore.save(featurePolicies);
+        if (!saved) {
             // The change is already live, so this is not worth refusing over — but an admin who is told
             // nothing will find their decision gone after the next restart and have no idea when it went.
-            log.error(cannot, "Could not write feature-policies.yml; the change is in force now but will "
-                    + "be forgotten on the next restart.");
-            return false;
+            log.error("Could not write feature-policies.yml; the change is in force now but will be "
+                    + "forgotten on the next restart.");
         }
+        return saved;
     }
 
     /**

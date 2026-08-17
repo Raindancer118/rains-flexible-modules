@@ -33,7 +33,7 @@ class FeaturePolicyStoreTest {
 
     @Test
     @DisplayName("an untouched policy writes no file at all")
-    void nothingChangedIsNoFile() throws IOException {
+    void nothingChangedIsNoFile() {
         new FeaturePolicyStore(folder).save(FeaturePolicies.builtIn());
 
         assertThat(file())
@@ -43,7 +43,7 @@ class FeaturePolicyStoreTest {
 
     @Test
     @DisplayName("a policy survives a restart")
-    void whatWasSetComesBack() throws IOException {
+    void whatWasSetComesBack() {
         FeaturePolicies policies = FeaturePolicies.builtIn();
         policies.policy(ClaimFeature.PANTRY, FeaturePolicy.FORCED_OFF);
 
@@ -55,7 +55,7 @@ class FeaturePolicyStoreTest {
 
     @Test
     @DisplayName("a feature nobody touched still answers with its built-in policy")
-    void theRestIsUntouched() throws IOException {
+    void theRestIsUntouched() {
         FeaturePolicies policies = FeaturePolicies.builtIn();
         policies.policy(ClaimFeature.PANTRY, FeaturePolicy.FORCED_OFF);
         new FeaturePolicyStore(folder).save(policies);
@@ -101,7 +101,7 @@ class FeaturePolicyStoreTest {
 
     @Test
     @DisplayName("setting a feature back to its built-in policy removes it from the file")
-    void undoingAChangeShrinksTheFile() throws IOException {
+    void undoingAChangeShrinksTheFile() {
         FeaturePolicies policies = FeaturePolicies.builtIn();
         policies.policy(ClaimFeature.PANTRY, FeaturePolicy.FORCED_OFF);
         FeaturePolicyStore store = new FeaturePolicyStore(folder);
