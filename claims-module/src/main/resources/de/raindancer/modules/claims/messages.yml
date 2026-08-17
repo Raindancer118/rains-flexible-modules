@@ -225,6 +225,7 @@ admin:
   claim-transferred: "<green>Transferred <white><claim></white> to <white><player></white>."
   claim-transferred-to-you: "<green>You have been given <white><claim></white>."
   feature-changed: "<green><white><feature></white> is now <white><policy></white>."
+  feature-not-saved: "<red>Changed for now, but it could not be written down — check the console. It will be back as it was after a restart."
   zone-removed: "<yellow>Removed the no-claim area <white><zone></white>."
   zone-shift-to-remove: "<gray>Shift + click to remove <white><zone></white>."
 

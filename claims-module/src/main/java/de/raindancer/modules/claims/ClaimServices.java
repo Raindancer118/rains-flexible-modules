@@ -91,6 +91,14 @@ public record ClaimServices(
          */
         Runnable saveZones,
         /**
+         * Writes the feature policies out, returning whether it reached disk.
+         *
+         * <p>A {@code BooleanSupplier} for the same reason Core's {@code saveLandPolicies()} returns one:
+         * the change is already live in memory by the time this is called, so a failed write is
+         * something to tell the admin about, not to refuse the change over.
+         */
+        java.util.function.BooleanSupplier saveFeaturePolicies,
+        /**
          * Core itself, for the few things that are the server's rather than this claim's.
          *
          * <p>Deliberately last and deliberately narrow: the flags belong to Core, so the screen that sets

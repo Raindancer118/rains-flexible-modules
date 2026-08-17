@@ -38,7 +38,7 @@
         <modules-wrapper.version>1.1.0</modules-wrapper.version>
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
-        <claims-module.version>2.3.0</claims-module.version>
+        <claims-module.version>2.3.1</claims-module.version>
         <moderation-module.version>2.18.0</moderation-module.version>
         <names-module.version>2.1.0</names-module.version>
         <warp-module.version>1.2.1</warp-module.version>

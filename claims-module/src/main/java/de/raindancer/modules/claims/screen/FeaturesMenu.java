@@ -81,8 +81,21 @@ public final class FeaturesMenu extends PaginatedMenu<ClaimFeature> implements I
         }
         FeaturePolicy next = services.features().policy(feature).next(feature.ownerSwitchable());
         services.features().policy(feature, next);
+        persist();
         services.messages().send(viewer, "admin.feature-changed",
                 "feature", feature.displayName(), "policy", next.displayName());
         refresh();
+    }
+
+    /**
+     * Straight to disk, on the click.
+     *
+     * <p>Not batched behind a save timer: this is what a claim may do at all, and one that is in force
+     * now but gone after the next restart is the kind of thing an admin only discovers weeks later.
+     */
+    private void persist() {
+        if (!services.saveFeaturePolicies().getAsBoolean()) {
+            services.messages().send(viewer, "admin.feature-not-saved");
+        }
     }
 }

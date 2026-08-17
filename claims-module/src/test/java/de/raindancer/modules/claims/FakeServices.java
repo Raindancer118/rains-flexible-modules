@@ -145,7 +145,7 @@ final class FakeServices {
                     mock(AmbienceService.class), mock(EntryFeeService.class), eviction,
                     mock(EquipService.class), mock(BroadcastService.class), () -> settings,
                     mock(ClaimScreensOpener.class), () -> movement[0], () -> {
-            }, mock(RainsCore.class));
+            }, () -> true, mock(RainsCore.class));
             movement[0] = new de.raindancer.modules.claims.listener.MovementListener(services);
             return services;
         }

@@ -9,6 +9,7 @@ import de.raindancer.modules.claims.store.ClaimLandProvider;
 import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.rules.ClaimRightsRule;
 import de.raindancer.modules.claims.store.FeaturePolicies;
+import de.raindancer.modules.claims.store.FeaturePolicyStore;
 import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.modules.claims.selection.SelectionFlow;
 import de.raindancer.modules.claims.selection.SelectionService;
@@ -59,13 +60,14 @@ import java.io.UncheckedIOException;
  */
 public final class ClaimsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.3.1")
             .describedAs("Land claims: who owns what, who may do what there, and the screens for it")
             .by("Raindancer118");
 
     private ClaimRegistry claims;
     private ClaimStorage storage;
     private ClaimLandProvider provider;
+    private FeaturePolicyStore featurePolicyStore;
     private FeaturePolicies featurePolicies;
     private FeatureRules features;
     private ClaimNames names;
@@ -127,7 +129,10 @@ public final class ClaimsModule implements FlexModule {
             log.info("{} permission(s) registered.", registered);
         }
 
-        featurePolicies = FeaturePolicies.builtIn();
+        // Loaded rather than built fresh: an admin's decisions in the "What this claim can do" screen
+        // used to live in memory only and vanish on every restart. See FeaturePolicyStore.
+        featurePolicyStore = new FeaturePolicyStore(context.dataFolder());
+        featurePolicies = featurePolicyStore.load();
         features = new FeatureRules(featurePolicies);
 
         claims = new ClaimRegistry();
@@ -199,7 +204,7 @@ public final class ClaimsModule implements FlexModule {
                 land.flags(), features, claims, storage, zones, claimService, names, rights, provider,
                 costs, selections, stick, selectionFlow, visualizer, fences, ambience, entryFees,
                 eviction, equipment, broadcasts, settings::current, new LiveScreens(), () -> movement,
-                this::saveZones, context.core());
+                this::saveZones, this::saveFeaturePolicies, context.core());
         movement = new MovementListener(services);
         ambience.movement(movement);
 
@@ -310,6 +315,25 @@ public final class ClaimsModule implements FlexModule {
             zoneStorage.saveAll(zones.all());
         } catch (IOException cannot) {
             log.error(cannot, "Could not write the no-claim zones");
+        }
+    }
+
+    /**
+     * Writes the feature policies, straight to disk on the click that changed one.
+     *
+     * <p>Not batched behind a save timer: this is what a claim may do at all, and one that is in force
+     * now but gone after the next restart is the kind of thing an admin only discovers weeks later.
+     */
+    private boolean saveFeaturePolicies() {
+        try {
+            featurePolicyStore.save(featurePolicies);
+            return true;
+        } catch (IOException cannot) {
+            // The change is already live, so this is not worth refusing over — but an admin who is told
+            // nothing will find their decision gone after the next restart and have no idea when it went.
+            log.error(cannot, "Could not write feature-policies.yml; the change is in force now but will "
+                    + "be forgotten on the next restart.");
+            return false;
         }
     }
 
