@@ -95,7 +95,17 @@ public final class HomeEditMenu extends Menu implements IHomeScreen {
                         refresh();
                         return;
                     }
-                    new HomeIconMenu(services, viewer, this, name).open();
+                    // Core's chooser, the same one claims-module points a claim's own icon at: every
+                    // block the server has, browsed the way the creative inventory already sorts them,
+                    // rather than a shortlist this module picked for everybody in advance.
+                    new de.raindancer.core.ui.choose.ItemChooser(viewer, services.brand(), this,
+                            "A block for " + name,
+                            chosen -> {
+                                services.keeping().setIcon(viewer, name, chosen.name());
+                                services.messages().send(viewer, "homes.icon-set",
+                                        "name", name, "icon", HomeIcons.readable(chosen));
+                                new HomeEditMenu(services, viewer, parent(), name).open();
+                            }).open();
                 });
 
         // The danger slot, and the only irreversible thing on the page — so it asks first.

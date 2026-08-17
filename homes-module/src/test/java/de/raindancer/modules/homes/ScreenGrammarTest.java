@@ -51,7 +51,7 @@ class ScreenGrammarTest {
     @DisplayName("the scan found the screens, so a rename cannot quietly empty it")
     void theScanIsNotVacuous() {
         assertThat(screens()).extracting(Screen::name).contains(
-                "ConfirmScreen", "HomeEditMenu", "HomeIconMenu", "HomeListMenu", "IHomeScreen");
+                "ConfirmScreen", "HomeEditMenu", "HomeListMenu", "IHomeScreen");
         assertThat(drawnScreens()).isNotEmpty();
     }
 

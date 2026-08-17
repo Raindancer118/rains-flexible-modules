@@ -5,7 +5,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
 
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -22,23 +21,6 @@ import java.util.Locale;
  * actually scanning the page for.
  */
 public final class HomeIcons {
-
-    /**
-     * What an icon may be chosen from.
-     *
-     * <p>Curated rather than "every block on the server": a page of every material is a page nobody
-     * finds anything on, and these are the ones that mean something about a place. Kept in the old
-     * plugin's order, so somebody who knew where the bed was still does.
-     */
-    public static final List<Material> CHOICES = List.of(
-            Material.RED_BED, Material.OAK_DOOR, Material.CRAFTING_TABLE, Material.FURNACE,
-            Material.CHEST, Material.ENDER_CHEST, Material.ANVIL, Material.ENCHANTING_TABLE,
-            Material.BREWING_STAND, Material.CAMPFIRE, Material.TORCH, Material.LANTERN,
-            Material.BOOKSHELF, Material.JUKEBOX, Material.NOTE_BLOCK, Material.BEACON,
-            Material.GRASS_BLOCK, Material.OAK_SAPLING, Material.WHEAT, Material.SUNFLOWER,
-            Material.WATER_BUCKET, Material.NETHERRACK, Material.END_STONE, Material.OBSIDIAN,
-            Material.DIAMOND, Material.EMERALD, Material.GOLD_INGOT, Material.IRON_INGOT,
-            Material.SKELETON_SKULL, Material.CAKE, Material.SHIELD, Material.COMPASS);
 
     private HomeIcons() {
     }

@@ -13,7 +13,6 @@ import de.raindancer.modules.homes.model.Home;
 import de.raindancer.modules.homes.rules.HomeLimitRule;
 import de.raindancer.modules.homes.rules.HomeNameRule;
 import de.raindancer.modules.homes.screen.HomeEditMenu;
-import de.raindancer.modules.homes.screen.HomeIconMenu;
 import de.raindancer.modules.homes.screen.HomeListMenu;
 import de.raindancer.modules.homes.service.HomeKeepingService;
 import de.raindancer.modules.homes.service.HomeTravelService;
@@ -21,6 +20,7 @@ import de.raindancer.modules.homes.store.HomeCatalogue;
 import de.raindancer.modules.homes.store.LegacyHomesFile;
 import de.raindancer.modules.homes.store.SetHomeConfigFile;
 import de.raindancer.modules.homes.store.SetHomePluginFile;
+import de.raindancer.modules.homes.util.HomeIcons;
 import de.raindancer.modules.homes.util.PermissionNodes;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -209,7 +209,13 @@ public final class HomeModule implements FlexModule {
 
         @Override
         public void icon(Player viewer, Home home) {
-            new HomeIconMenu(services, viewer, null, home.name()).open();
+            new de.raindancer.core.ui.choose.ItemChooser(viewer, services.brand(), null,
+                    "A block for " + home.name(),
+                    chosen -> {
+                        services.keeping().setIcon(viewer, home.name(), chosen.name());
+                        services.messages().send(viewer, "homes.icon-set",
+                                "name", home.name(), "icon", HomeIcons.readable(chosen));
+                    }).open();
         }
     }
 
