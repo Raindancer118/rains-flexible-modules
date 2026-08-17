@@ -1,0 +1,45 @@
+
+chat:
+
+  # ── general ──────────────────────────────────────────────────────────────
+  usage: "<gray>Usage: <white><usage>"
+  only-a-player: "<red>Only a player can do that."
+
+  # ── /announce ─────────────────────────────────────────────────────────────
+  announce:
+    banner: |-
+      <gold>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
+      <yellow><bold>Announcement</bold>
+      <white><text>
+      <gold>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
+
+  # ── @-mentions ────────────────────────────────────────────────────────────
+  mention:
+    pinged: "<yellow>⚡ <white><player></white> <yellow>mentioned you: <gray><text>"
+
+  # ── message quality ─────────────────────────────────────────────────────
+  quality:
+    caps: "<red>Try that again without shouting."
+    repeat: "<red>You already said that."
+    cooldown: "<red>Wait <white><seconds></white>s before your next message."
+    slowmode: "<red>Chat is in slowmode — wait <white><seconds></white>s."
+
+  # ── frozen chat ───────────────────────────────────────────────────────────
+  frozen: "<red>Chat is frozen right now."
+
+  # ── /chathistory ──────────────────────────────────────────────────────────
+  history:
+    disabled: "<red>Chat history is switched off on this server."
+    none: "<gray>Nothing happened while you were away."
+    missed: "<yellow>You missed <white><count></white> message(s) — /chathistory to catch up."
+    header: "<gray>── <white><count></white> message(s) ──"
+    line: "<dark_gray>[<white><time></white>] <gray><player>: <text>"
+
+  # ── staff tools, /chat ────────────────────────────────────────────────────
+  admin:
+    cleared: "<gray>Chat was cleared by <white><player></white>."
+    frozen: "<red>Chat has been frozen by <white><player></white>."
+    unfrozen: "<green>Chat has been unfrozen by <white><player></white>."
+    slowmode-set: "<yellow>Slowmode set to <white><seconds></white>s by <white><player></white>."
+    slowmode-off: "<green>Slowmode switched off by <white><player></white>."
+    slowmode-range: "<red>Slowmode has to be between 0 and 60 seconds."
