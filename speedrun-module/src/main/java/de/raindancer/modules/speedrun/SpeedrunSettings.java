@@ -2,6 +2,7 @@ package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.data.settings.Describe;
 import de.raindancer.core.data.settings.In;
+import de.raindancer.core.data.settings.Range;
 import de.raindancer.core.data.settings.Settings;
 import de.raindancer.core.data.settings.Title;
 import de.raindancer.core.data.settings.Topic;
@@ -38,7 +39,16 @@ public record SpeedrunSettings(
                 + "the first half — a run does not end until a participant then steps into the exit "
                 + "portal, the way an actual dragon-kill speedrun is judged. Has no effect on any other "
                 + "advancement goal, or when death alone ends the run.")
-        boolean requireExitPortalAfterDragon
+        boolean requireExitPortalAfterDragon,
+
+        @In("config/speedrun") @Title("Creeper on block break")
+        @Describe("Whether a racer breaking a block during a run spawns a creeper right where it broke.")
+        boolean creeperOnBlockBreak,
+
+        @In("config/speedrun") @Title("Charged creeper chance") @Range(min = 0, max = 100)
+        @Describe("Chance, in percent, that a creeper spawned this way is charged (powered) instead "
+                + "of an ordinary one.")
+        int chargedCreeperChancePercent
 
 ) {
 
@@ -59,7 +69,7 @@ public record SpeedrunSettings(
      * which is indistinguishable from broken.
      */
     public static final SpeedrunSettings DEFAULTS = new SpeedrunSettings(
-            "world", DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true);
+            "world", DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, true, 0);
 
     /** Whether the configured goal is specifically the vanilla dragon kill — the only goal
      *  {@link #requireExitPortalAfterDragon} means anything for. */

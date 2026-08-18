@@ -1,6 +1,7 @@
 package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.ui.chat.Brand;
+import de.raindancer.core.ui.choose.AmountChooser;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -75,6 +76,23 @@ public final class SpeedrunLobbyMenu extends Menu {
                     lobby.settings().cycle("death-policy");
                     refresh();
                 });
+        band(MenuLayout.RULES, 3,
+                Icons.of(config.creeperOnBlockBreak() ? Material.CREEPER_HEAD : Material.BARRIER,
+                        "<white>Creeper on block break: " + (config.creeperOnBlockBreak() ? "On" : "Off"),
+                        creeperToggleLore(config)),
+                click -> {
+                    lobby.settings().cycle("creeper-on-block-break");
+                    refresh();
+                });
+        band(MenuLayout.RULES, 5,
+                Icons.of(Material.TNT, "<white>Charged creeper chance: " + config.chargedCreeperChancePercent() + "%",
+                        "<gray>How often a spawned creeper is charged.", "<dark_gray>Click to change."),
+                click -> new AmountChooser(viewer, brand(), this, "Charged creeper chance %",
+                        config.chargedCreeperChancePercent(), 0, 100,
+                        value -> {
+                            lobby.settings().set("charged-creeper-chance-percent", String.valueOf(value));
+                            refresh();
+                        }).open());
     }
 
     private void renderInProgress(String label) {
@@ -135,5 +153,11 @@ public final class SpeedrunLobbyMenu extends Menu {
 
     private static List<String> deathLore(SpeedrunSettings config) {
         return deathLore(config.deathPolicy());
+    }
+
+    private static List<String> creeperToggleLore(SpeedrunSettings config) {
+        return config.creeperOnBlockBreak()
+                ? List.of("<gray>Breaking a block spawns a creeper on it.", "<gray>Click to turn off.")
+                : List.of("<gray>Breaking a block does nothing extra.", "<gray>Click to turn on.");
     }
 }
