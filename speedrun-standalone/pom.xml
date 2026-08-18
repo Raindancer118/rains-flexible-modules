@@ -44,8 +44,15 @@
              primary one, which can never be regenerated at all.
              1.4.0: /speedrun — the one way into the lobby world at all, until now. Every other entry
              point (the compass, the start block, /lemmemove, /starthere) assumed a player was already
-             standing in it; nothing ever explained how they got there in the first place. -->
-        <plugin.version>1.4.0</plugin.version>
+             standing in it; nothing ever explained how they got there in the first place.
+             1.5.0: every join lands in the lobby world, and the items come back the moment a reset
+             finishes rather than only on the next join; each racer's respawn point is set to where
+             their run began. And the fix behind the bug report: a dragon-kill run's clock is armed by
+             the dragon actually dying, not by the kill advancement — an advancement is granted once
+             per player, ever, so on a repeat racer's second run the exit portal ended nothing at all.
+             The chosen goal is now also revoked as a run arms, so the plain advancement goals can be
+             earned a second time too. -->
+        <plugin.version>1.5.0</plugin.version>
     </properties>
 
     <dependencies>

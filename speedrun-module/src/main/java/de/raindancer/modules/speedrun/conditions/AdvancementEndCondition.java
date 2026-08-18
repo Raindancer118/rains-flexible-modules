@@ -33,6 +33,8 @@ public final class AdvancementEndCondition implements SpeedrunEndCondition, List
     @Override
     public void arm(SpeedrunSession session) {
         this.session = Objects.requireNonNull(session, "session");
+        // Otherwise a racer who already has it is never granted it again, and this waits forever.
+        GoalAdvancement.revokeFor(plugin, advancement, session.participants());
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 

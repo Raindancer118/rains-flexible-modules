@@ -57,7 +57,7 @@
         <!-- Split out of RainsCore 13.08.2026, after a join handler there cleared a player's
              inventory on every join anywhere on the server — see speedrun-module's own README/javadoc
              for the incident. chained-module depends on this directly for the engine underneath it. -->
-        <speedrun-module.version>1.4.0</speedrun-module.version>
+        <speedrun-module.version>1.5.0</speedrun-module.version>
         <chat-module.version>1.2.0</chat-module.version>
     </properties>
 

@@ -136,7 +136,12 @@ class ChainServiceTest {
             ChainService service = service(settings);
             service.pair(first, second, 20);
 
-            Optional<SpeedrunSession> session = service.start(first);
+            Optional<SpeedrunSession> session;
+            // Arming the condition revokes the goal so it can be earned again — see the speedrun
+            // module's GoalAdvancement; there is no server here to ask for the advancement.
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                session = service.start(first);
+            }
 
             assertThat(session).isPresent();
             // Two listeners register on a real start: the end condition, and the occupancy watcher

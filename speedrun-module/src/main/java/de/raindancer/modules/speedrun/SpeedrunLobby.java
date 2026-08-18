@@ -23,10 +23,12 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * The one speedrun world: its configuration, its current {@link SpeedrunSession} if it has one, and
@@ -103,6 +105,8 @@ public final class SpeedrunLobby {
      *  Thread-safe because the command that grants this may run on a different region thread under Folia
      *  than the move event checking it. */
     private final Set<UUID> released = ConcurrentHashMap.newKeySet();
+    /** Told once the world has actually come back from a reset — see {@link #onReady}. */
+    private final List<Runnable> readyListeners = new CopyOnWriteArrayList<>();
     /** Who {@code /speedrunspectate} has marked as not racing — excluded from a start block's sweep of
      *  "everybody in the lobby world" until they toggle it off again. Same thread-safety reasoning as
      *  {@link #released}. */
@@ -286,6 +290,29 @@ public final class SpeedrunLobby {
     }
 
     /**
+     * Told once, every time a reset actually completes and the world is back — never told about a
+     * reset that failed, since nothing usable came of it. Registered by whoever hands out the lobby
+     * items, so anybody already standing in the fresh world (having joined or teleported in while the
+     * old one was still finishing up) gets them the moment there is something to do with them, rather
+     * than waiting for a join or a teleport that may never come again.
+     */
+    public void onReady(Runnable listener) {
+        if (listener != null) {
+            readyListeners.add(listener);
+        }
+    }
+
+    private void announceReady() {
+        for (Runnable listener : readyListeners) {
+            try {
+                listener.run();
+            } catch (RuntimeException broken) {
+                log.error(broken, "A speedrun onReady listener threw.");
+            }
+        }
+    }
+
+    /**
      * Records where {@code /starthere} was typed as the point every participant is teleported to when
      * a countdown begins — see {@link #beginCountdown}. Through the settings store, the same as every
      * other value the lobby menu writes, so a click and a hand-edited {@code speedrun.yml} can never
@@ -328,7 +355,11 @@ public final class SpeedrunLobby {
             return ResetOutcome.RESET;
         }
         // Folia: world creation/deletion is a global-region operation — see resetIfAbandoned's own note.
-        Scheduling.global(plugin, () -> worldRegenerator.regenerate(target, ok -> { }));
+        Scheduling.global(plugin, () -> worldRegenerator.regenerate(target, ok -> {
+            if (ok) {
+                announceReady();
+            }
+        }));
         return ResetOutcome.RESET;
     }
 
@@ -381,6 +412,22 @@ public final class SpeedrunLobby {
         fresh.onFinish(outcome -> announceFinish(fresh, outcome));
         if (preparation != null) {
             preparation.prepare(world().orElse(null), fresh.participants());
+        }
+        // Wherever each of them actually is the moment the run begins — the configured /starthere
+        // point if one was set (teleportToStartPoint already moved them there before the countdown),
+        // or simply where they happened to be standing if not — becomes where they respawn, so a death
+        // that does not end the run (or one being fixed up manually) puts them back at their own start,
+        // never the server's own spawn or an old bed miles from the race.
+        //
+        // Folia: a countdown reaching zero runs on whatever thread its timer owns, which is not the
+        // one owning each racer — reading a player's location and writing their respawn point from
+        // anywhere else throws. Each hop lands on the racer's own thread.
+        for (UUID id : fresh.participants()) {
+            Player player = Bukkit.getPlayer(id);
+            if (player != null) {
+                Scheduling.entity(plugin, player,
+                        () -> player.setRespawnLocation(player.getLocation(), true));
+            }
         }
         if (timerDisplay != null) {
             timerDisplay.start(fresh);
@@ -486,7 +533,11 @@ public final class SpeedrunLobby {
         // Folia: unloading, deleting and recreating a world are global-region operations.
         // resetIfAbandoned itself runs on whatever region thread fired the quit event, so the reset has
         // to hop onto the global region scheduler first rather than run there directly.
-        Scheduling.global(plugin, () -> worldRegenerator.regenerate(target, ok -> { }));
+        Scheduling.global(plugin, () -> worldRegenerator.regenerate(target, ok -> {
+            if (ok) {
+                announceReady();
+            }
+        }));
     }
 
     /** Unregisters every session-scoped listener and forgets the session — shared by

@@ -5,6 +5,7 @@ import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.ui.actionbar.ActionBarSink;
 import de.raindancer.core.ui.actionbar.ActionBars;
 import de.raindancer.core.ui.messages.Messages;
+import io.papermc.paper.threadedregions.scheduler.EntityScheduler;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -50,6 +52,20 @@ class SpeedrunLobbyTest {
     private JavaPlugin plugin;
     private PluginManager pluginManager;
     private SettingsStore<SpeedrunSettings> settings;
+
+    /**
+     * Makes a mocked player's own scheduler run what it is handed, straight away. Anything the lobby
+     * does to a specific player goes through {@code Scheduling.entity} so it lands on that player's
+     * thread under Folia; without this the task would simply be dropped into a mock and never run.
+     */
+    private static void runsItsOwnTasksImmediately(Player player) {
+        EntityScheduler scheduler = mock(EntityScheduler.class);
+        when(scheduler.run(any(), any(), any())).thenAnswer(invocation -> {
+            invocation.getArgument(1, Consumer.class).accept(null);
+            return null;
+        });
+        when(player.getScheduler()).thenReturn(scheduler);
+    }
 
     @BeforeEach
     void setUp() {
@@ -232,6 +248,24 @@ class SpeedrunLobbyTest {
         }
 
         @Test
+        @DisplayName("sets every participant's respawn point to wherever they are the moment the run begins")
+        void setsRespawnPointToWhereTheRunBegan() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                Player alice = mock(Player.class);
+                Location aliceAt = mock(Location.class);
+                when(alice.getLocation()).thenReturn(aliceAt);
+                runsItsOwnTasksImmediately(alice);
+                bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+                SpeedrunLobby lobby = lobby();
+
+                lobby.start(Set.of(ALICE));
+
+                verify(alice).setRespawnLocation(aliceAt, true);
+            }
+        }
+
+        @Test
         @DisplayName("arms a DragonExitEndCondition for the default dragon-kill goal, not a plain advancement one")
         void wiresTheExitPortalConditionForTheDragonKillGoal() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
@@ -337,6 +371,7 @@ class SpeedrunLobbyTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
                 Player alice = mock(Player.class);
+                runsItsOwnTasksImmediately(alice);
                 bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
                 bukkit.when(() -> Bukkit.getPlayer(BOB)).thenReturn(null);   // Bob already left
                 Messages messages = mock(Messages.class);

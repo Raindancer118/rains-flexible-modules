@@ -2,6 +2,7 @@ package de.raindancer.modules.speedrun.conditions;
 
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import de.raindancer.modules.speedrun.SpeedrunState;
+import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.entity.Player;
@@ -11,12 +12,14 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.Server;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
@@ -43,8 +46,13 @@ class AdvancementEndConditionTest {
 
         session = new SpeedrunSession(Set.of(ALICE));
         condition = new AdvancementEndCondition(plugin, KEY);
-        session.addEndCondition(condition);
-        session.start();
+        // Arming revokes the goal so it can be granted again — see GoalAdvancement; there is no
+        // server here to ask for it, and these tests are about what happens once the run is under way.
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getAdvancement(KEY)).thenReturn(null);
+            session.addEndCondition(condition);
+            session.start();
+        }
     }
 
     private static Player playerWithId(UUID id) {

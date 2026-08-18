@@ -23,7 +23,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.4.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.5.0")
             .describedAs("A speedrun lobby: pick an advancement goal or a death policy from the "
                     + "compass's menu, then press the green block to race. A countdown freezes "
                     + "everyone first, and the lobby world resets once the last racer has left.")
@@ -53,8 +53,13 @@ public final class SpeedrunModule implements FlexModule {
         // Main thread only, same as everything else here in enable() — creating a world is a
         // main-thread operation in Paper, and nobody is on yet for it to visibly stall.
         lobby.ensureWorldExists();
-        context.listener(new SpeedrunLobbyListener(lobby, new SpeedrunLobbyItems(context.plugin()),
-                context.chat().brand(), context.core().messages()));
+        SpeedrunLobbyListener listener = new SpeedrunLobbyListener(context.plugin(), lobby,
+                new SpeedrunLobbyItems(context.plugin()), context.chat().brand(), context.core().messages());
+        context.listener(listener);
+        // Whoever stayed in the lobby world while a run finished and it reset around them gets the
+        // items the moment there is something to do with them again, rather than needing to leave and
+        // come back — neither onJoin nor onWorldChange fires for somebody who never actually moved.
+        lobby.onReady(listener::giveItemsToEveryoneInLobby);
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse /lemmemove and /speedrunspectate — both meant for anybody racing — to ordinary players.

@@ -1,26 +1,35 @@
 package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.ui.messages.Messages;
+import io.papermc.paper.threadedregions.scheduler.EntityScheduler;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,13 +48,27 @@ class SpeedrunLobbyListenerTest {
         lobby = mock(SpeedrunLobby.class);
         items = mock(SpeedrunLobbyItems.class);
         messages = mock(Messages.class);
-        listener = new SpeedrunLobbyListener(lobby, items, null, messages);
+        listener = new SpeedrunLobbyListener(mock(Plugin.class), lobby, items, null, messages);
     }
 
     private Player playerWithId(UUID id) {
         Player player = mock(Player.class);
         when(player.getUniqueId()).thenReturn(id);
         return player;
+    }
+
+    /**
+     * Makes a mocked player's own scheduler run what it is handed, straight away — the lobby sweep
+     * hops onto each player's thread through {@code Scheduling.entity} so it is Folia-safe, and
+     * without this the task would be dropped into a mock and never run.
+     */
+    private static void runsItsOwnTasksImmediately(Player player) {
+        EntityScheduler scheduler = mock(EntityScheduler.class);
+        when(scheduler.run(any(), any(), any())).thenAnswer(invocation -> {
+            invocation.getArgument(1, Consumer.class).accept(null);
+            return null;
+        });
+        when(player.getScheduler()).thenReturn(scheduler);
     }
 
     @Nested
@@ -80,7 +103,8 @@ class SpeedrunLobbyListenerTest {
          * into. Real gear was lost this way before this check existed.
          */
         @Test
-        @DisplayName("does NOT touch a player joining into a different world, even while READY")
+        @DisplayName("does NOT touch a player joining into a different world, even while READY — "
+                + "it sends them to the lobby world instead")
         void leavesInventoryAloneOutsideTheLobbyWorld() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
@@ -88,7 +112,14 @@ class SpeedrunLobbyListenerTest {
                             SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
             Player player = playerInWorld("world");   // the server's real, shared world — not the lobby
 
-            listener.onJoin(new PlayerJoinEvent(player, "hi"));
+            try (MockedStatic<Bukkit> bukkit =
+                         mockStatic(Bukkit.class)) {
+                // Not loaded, in this test — the point is only that nothing here ever touches the
+                // player's own inventory outside the lobby world, whether or not a teleport follows.
+                bukkit.when(() -> Bukkit.getWorld("speedrun-lobby")).thenReturn(null);
+
+                listener.onJoin(new PlayerJoinEvent(player, "hi"));
+            }
 
             verify(items, never()).give(any());
         }
@@ -97,7 +128,10 @@ class SpeedrunLobbyListenerTest {
         @DisplayName("leaves the inventory alone while a run is in progress")
         void leavesInventoryAloneWhileRunning() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
-            Player player = playerWithId(ALICE);
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+            Player player = playerInWorld("world");   // already in the lobby world — no teleport needed
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
 
@@ -108,9 +142,138 @@ class SpeedrunLobbyListenerTest {
         @DisplayName("leaves the inventory alone while a finished run waits to reset")
         void leavesInventoryAloneWhileFinished() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.FINISHED);
-            Player player = playerWithId(ALICE);
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+            Player player = playerInWorld("world");   // already in the lobby world — no teleport needed
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
+
+            verify(items, never()).give(any());
+        }
+
+        @Test
+        @DisplayName("teleports a player joining outside the lobby world straight to it")
+        void teleportsToTheLobbyWorldOnJoin() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+            Player player = playerInWorld("world");
+            World lobbyWorld = mock(World.class);
+            Location lobbySpawn = mock(Location.class);
+            when(lobbyWorld.getSpawnLocation()).thenReturn(lobbySpawn);
+
+            try (MockedStatic<Bukkit> bukkit =
+                         mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("speedrun")).thenReturn(lobbyWorld);
+
+                listener.onJoin(new PlayerJoinEvent(player, "hi"));
+            }
+
+            verify(player).teleportAsync(lobbySpawn);
+        }
+
+        @Test
+        @DisplayName("does not try to teleport when the lobby world is not loaded")
+        void doesNotTeleportWhenLobbyWorldMissing() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+            Player player = playerInWorld("world");
+
+            try (MockedStatic<Bukkit> bukkit =
+                         mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("speedrun")).thenReturn(null);
+
+                listener.onJoin(new PlayerJoinEvent(player, "hi"));
+            }
+
+            verify(player, never()).teleportAsync(any(Location.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("world change")
+    class WorldChange {
+
+        @Test
+        @DisplayName("gives the kit once a player lands in the lobby world while READY")
+        void givesKitOnArrivalWhileReady() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+            Player player = playerWithId(ALICE);
+            World lobbyWorld = mock(World.class);
+            when(lobbyWorld.getName()).thenReturn("speedrun");
+            when(player.getWorld()).thenReturn(lobbyWorld);
+            World from = mock(World.class);
+
+            listener.onWorldChange(new PlayerChangedWorldEvent(player, from));
+
+            verify(items).give(player);
+        }
+
+        @Test
+        @DisplayName("does nothing while a run is under way")
+        void doesNothingWhileRunning() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
+            Player player = playerWithId(ALICE);
+            World from = mock(World.class);
+
+            listener.onWorldChange(new PlayerChangedWorldEvent(player, from));
+
+            verify(items, never()).give(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("giveItemsToEveryoneInLobby — the onReady hook's own target")
+    class SweepingTheLobby {
+
+        @Test
+        @DisplayName("hands the items to everybody already standing in the lobby world")
+        void givesItemsToEverybodyPresent() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+            World lobbyWorld = mock(World.class);
+            when(lobbyWorld.getName()).thenReturn("speedrun");
+            Player alice = playerWithId(ALICE);
+            when(alice.getWorld()).thenReturn(lobbyWorld);
+            runsItsOwnTasksImmediately(alice);
+            Player bob = playerWithId(UUID.nameUUIDFromBytes("bob".getBytes()));
+            when(bob.getWorld()).thenReturn(lobbyWorld);
+            runsItsOwnTasksImmediately(bob);
+            when(lobbyWorld.getPlayers()).thenReturn(List.of(alice, bob));
+
+            try (MockedStatic<Bukkit> bukkit =
+                         mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("speedrun")).thenReturn(lobbyWorld);
+
+                listener.giveItemsToEveryoneInLobby();
+            }
+
+            verify(items).give(alice);
+            verify(items).give(bob);
+        }
+
+        @Test
+        @DisplayName("does nothing when the lobby world is not loaded")
+        void doesNothingWhenWorldMissing() {
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+
+            try (MockedStatic<Bukkit> bukkit =
+                         mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("speedrun")).thenReturn(null);
+
+                assertThatCode(() -> listener.giveItemsToEveryoneInLobby()).doesNotThrowAnyException();
+            }
 
             verify(items, never()).give(any());
         }
@@ -146,8 +309,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
             Player player = playerInWorld("world");
             World world = player.getWorld();
-            org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10, 90f, 0f);
-            org.bukkit.Location walked = new org.bukkit.Location(world, 11, 64, 10);
+            Location from = new Location(world, 10, 64, 10, 90f, 0f);
+            Location walked = new Location(world, 11, 64, 10);
 
             org.bukkit.event.player.PlayerMoveEvent event =
                     new org.bukkit.event.player.PlayerMoveEvent(player, from, walked);
@@ -164,8 +327,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
             Player player = playerInWorld("world");
             World world = player.getWorld();
-            org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10, 90f, 0f);
-            org.bukkit.Location lookedAround = new org.bukkit.Location(world, 10, 64, 10, 180f, 0f);
+            Location from = new Location(world, 10, 64, 10, 90f, 0f);
+            Location lookedAround = new Location(world, 10, 64, 10, 180f, 0f);
 
             org.bukkit.event.player.PlayerMoveEvent event =
                     new org.bukkit.event.player.PlayerMoveEvent(player, from, lookedAround);
@@ -180,8 +343,8 @@ class SpeedrunLobbyListenerTest {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
             Player player = playerInWorld("world");
             World world = player.getWorld();
-            org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10);
-            org.bukkit.Location walked = new org.bukkit.Location(world, 11, 64, 10);
+            Location from = new Location(world, 10, 64, 10);
+            Location walked = new Location(world, 11, 64, 10);
 
             org.bukkit.event.player.PlayerMoveEvent event =
                     new org.bukkit.event.player.PlayerMoveEvent(player, from, walked);
@@ -199,8 +362,8 @@ class SpeedrunLobbyListenerTest {
                             SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
             Player player = playerInWorld("world");
             World world = player.getWorld();
-            org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10);
-            org.bukkit.Location walked = new org.bukkit.Location(world, 11, 64, 10);
+            Location from = new Location(world, 10, 64, 10);
+            Location walked = new Location(world, 11, 64, 10);
 
             org.bukkit.event.player.PlayerMoveEvent event =
                     new org.bukkit.event.player.PlayerMoveEvent(player, from, walked);

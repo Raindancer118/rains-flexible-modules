@@ -4,7 +4,9 @@ import de.raindancer.modules.speedrun.SpeedrunEndCondition;
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.entity.EnderDragon;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
@@ -24,8 +26,14 @@ import java.util.Objects;
  * participant happens to be standing — some runners are still crossing the platform to the portal
  * when it does. Timing the run to that advancement, the way plain {@link AdvancementEndCondition}
  * does for every other goal, would stop the clock before the run everybody actually agrees on is over.
- * So this arms two handlers: the advancement only raises a flag, and {@link #onExitPortal} is the one
- * that calls {@link SpeedrunSession#finish}.
+ * So the kill only raises a flag, and {@link #onExitPortal} is the one that calls
+ * {@link SpeedrunSession#finish}.
+ *
+ * <p>The flag is raised by the dragon actually dying ({@link #onDragonDeath}), not by the advancement
+ * — an advancement is granted once per player and never again, so on the second run of anybody who
+ * has killed a dragon here before, the flag never rose and the portal ended nothing.
+ * {@link #onAdvancement} is kept as a second way in, and {@link GoalAdvancement} clears the goal as
+ * the run arms so it can be granted at all.
  *
  * <h2>Why the flag is shared across all participants, not kept per player</h2>
  * The dragon-kill advancement is granted to whoever is credited with the kill, not to the whole party,
@@ -56,6 +64,9 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
     @Override
     public void arm(SpeedrunSession session) {
         this.session = Objects.requireNonNull(session, "session");
+        // So the advancement half can still fire for a racer who has killed the dragon before — the
+        // kill itself is watched directly either way, see onDragonDeath.
+        GoalAdvancement.revokeFor(plugin, dragonKill, session.participants());
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
@@ -73,6 +84,24 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
             return;
         }
         dragonKilled = true;
+    }
+
+    /**
+     * The dragon dying, watched directly rather than only through {@link #onAdvancement}.
+     *
+     * <p>Advancements belong to the player and outlive any world reset: a racer who has ever killed
+     * the dragon on this server before is simply never granted {@code end/kill_dragon} again, so the
+     * advancement event never fires, the flag never rises, and stepping into the exit portal ended
+     * nothing at all. That was a real run that never stopped its clock. The kill itself is the fact
+     * the rule is actually about, and it happens exactly once per run, so this is what arms the portal;
+     * {@link #onAdvancement} stays as the second way in for a modified dragon that somehow grants it
+     * without a vanilla death.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onDragonDeath(EntityDeathEvent event) {
+        if (event.getEntity() instanceof EnderDragon) {
+            dragonKilled = true;
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

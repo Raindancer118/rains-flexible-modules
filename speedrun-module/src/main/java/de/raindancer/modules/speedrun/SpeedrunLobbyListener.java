@@ -1,18 +1,22 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.plugin.Plugin;
 
 import java.util.Set;
 import java.util.UUID;
@@ -21,15 +25,21 @@ import java.util.stream.Collectors;
 /**
  * Joins, clicks and quits, for the one speedrun lobby.
  *
- * <h2>What a join does, and when</h2>
+ * <h2>Why every join lands in the lobby world</h2>
+ * This module is only ever installed on a dedicated event server built around one thing — asked for
+ * explicitly, and the opposite of the incident that split this module out of RainsCore in the first
+ * place (see {@link SpeedrunModule}'s own javadoc): there, a join handler cleared everyone's inventory
+ * server-wide, on a plugin every install carries, because it never checked where a player actually was.
+ * Here the whole point of the server is this lobby, so {@link #onJoin} sends anybody who joins anywhere
+ * else there — {@link #onWorldChange} is what actually hands out the two lobby items once they land,
+ * the same check {@link #onJoin} used to do inline for somebody who logged out already standing there.
+ *
+ * <h2>What handing out the items does, and when</h2>
  * Only when both are true: {@link SpeedrunLobby#state()} is {@link SpeedrunLobbyState#READY}, <em>and</em>
- * the player is joining into the configured lobby world. Checking only the first was a real incident, not
- * a hypothetical one: on a shared server the lobby is READY almost all the time, and without the world
- * check every single join — into whatever world the server actually spawns people in — was cleared and
- * handed the two lobby items. Ordinary players lost their own gear simply by logging in. A player arriving
- * mid-run, mid-countdown, mid-pause, or into a finished round waiting to reset keeps whatever they were
- * carrying regardless, for the original reason: clearing a spectator's inventory to hand them a compass
- * and a block that does nothing useful yet would be a worse surprise than leaving them alone.
+ * the player is standing in the configured lobby world. A player arriving mid-run, mid-countdown,
+ * mid-pause, or into a finished round waiting to reset keeps whatever they were carrying regardless, for
+ * the original reason: clearing a spectator's inventory to hand them a compass and a block that does
+ * nothing useful yet would be a worse surprise than leaving them alone.
  *
  * <h2>Why the start block does not fix its own participant list</h2>
  * "Everybody currently in the lobby world" is read at the moment of the click, not kept as a
@@ -51,29 +61,75 @@ import java.util.stream.Collectors;
  */
 public final class SpeedrunLobbyListener implements Listener {
 
+    private final Plugin plugin;
     private final SpeedrunLobby lobby;
     private final SpeedrunLobbyItems items;
     private final Brand brand;
     private final Messages messages;
 
-    public SpeedrunLobbyListener(SpeedrunLobby lobby, SpeedrunLobbyItems items, Brand brand,
-                                 Messages messages) {
+    public SpeedrunLobbyListener(Plugin plugin, SpeedrunLobby lobby, SpeedrunLobbyItems items,
+                                 Brand brand, Messages messages) {
+        this.plugin = plugin;
         this.lobby = lobby;
         this.items = items;
         this.brand = brand;
         this.messages = messages;
     }
 
+    /**
+     * Sends anybody who joins into some other world straight to the lobby's — see the class javadoc
+     * for why this server-wide reach is deliberate here and was exactly the mistake elsewhere. A
+     * player who logged out already standing in the lobby world needs no teleport; this only hands out
+     * the items for that case; {@link #onWorldChange} does it for everyone the teleport actually moves.
+     */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        if (player.getWorld().getName().equals(lobby.config().worldName())) {
+            giveItemsIfReady(player);
+            return;
+        }
+        World lobbyWorld = Bukkit.getWorld(lobby.config().worldName());
+        if (lobbyWorld != null) {
+            player.teleportAsync(lobbyWorld.getSpawnLocation());
+        }
+    }
+
+    /** What {@link #onJoin}'s teleport lands on, and what {@code /speedrun} lands on too. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        giveItemsIfReady(event.getPlayer());
+    }
+
+    private void giveItemsIfReady(Player player) {
         if (lobby.state() != SpeedrunLobbyState.READY) {
             return;
         }
-        Player player = event.getPlayer();
         if (!player.getWorld().getName().equals(lobby.config().worldName())) {
             return;   // anywhere else on the server is not this feature's business
         }
         items.give(player);
+    }
+
+    /**
+     * Hands the items to everybody already standing in the lobby world the moment it becomes usable
+     * again — registered with {@link SpeedrunLobby#onReady}. Neither {@link #onJoin} nor
+     * {@link #onWorldChange} fires for somebody who arrived earlier and simply stayed while a run
+     * finished and the world reset around them; without this they would be stuck with empty hands
+     * until they left and came back.
+     *
+     * <p>Folia: a reset finishes on the global region thread, and clearing somebody's inventory from
+     * there throws — unlike {@link #onJoin} and {@link #onWorldChange}, which already arrive on the
+     * thread owning the player they are about. Hence the hop per player.
+     */
+    void giveItemsToEveryoneInLobby() {
+        World lobbyWorld = Bukkit.getWorld(lobby.config().worldName());
+        if (lobbyWorld == null) {
+            return;
+        }
+        for (Player player : lobbyWorld.getPlayers()) {
+            Scheduling.entity(plugin, player, () -> giveItemsIfReady(player));
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

@@ -2,12 +2,17 @@ package de.raindancer.modules.speedrun.conditions;
 
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import de.raindancer.modules.speedrun.SpeedrunState;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.advancement.Advancement;
+import org.bukkit.entity.EnderDragon;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Zombie;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -15,12 +20,14 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
@@ -47,8 +54,13 @@ class DragonExitEndConditionTest {
 
         session = new SpeedrunSession(Set.of(ALICE));
         condition = new DragonExitEndCondition(plugin, KEY);
-        session.addEndCondition(condition);
-        session.start();
+        // Arming revokes the goal so it can be granted again — see GoalAdvancement; there is no
+        // server here to ask for it, and these tests are about what happens once the run is under way.
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getAdvancement(KEY)).thenReturn(null);
+            session.addEndCondition(condition);
+            session.start();
+        }
     }
 
     private static Player playerWithId(UUID id) {
@@ -61,6 +73,12 @@ class DragonExitEndConditionTest {
         Advancement advancement = mock(Advancement.class);
         when(advancement.getKey()).thenReturn(key);
         return advancement;
+    }
+
+    private static EntityDeathEvent deathOf(LivingEntity entity) {
+        EntityDeathEvent event = mock(EntityDeathEvent.class);
+        when(event.getEntity()).thenReturn(entity);
+        return event;
     }
 
     private static Location in(World.Environment environment) {
@@ -114,6 +132,30 @@ class DragonExitEndConditionTest {
         condition.onAdvancement(
                 new PlayerAdvancementDoneEvent(playerWithId(ALICE), advancementWithKey(KEY)));
         condition.onExitPortal(new PlayerPortalEvent(playerWithId(BOB), in(World.Environment.THE_END),
+                in(World.Environment.NORMAL), PlayerTeleportEvent.TeleportCause.END_PORTAL));
+
+        assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
+    }
+
+    /**
+     * The real failure this guards: advancements are per player and survive a world reset, so a racer
+     * who has ever killed the dragon before is never granted {@code end/kill_dragon} again — no event,
+     * no flag, and the exit portal then ended nothing at all. The dragon dying is the fact the run
+     * actually turns on, so that is what arms the portal.
+     */
+    @Test
+    void theDragonDyingArmsThePortalEvenWithoutTheAdvancement() {
+        condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
+        condition.onExitPortal(new PlayerPortalEvent(playerWithId(ALICE), in(World.Environment.THE_END),
+                in(World.Environment.NORMAL), PlayerTeleportEvent.TeleportCause.END_PORTAL));
+
+        assertThat(session.state()).isEqualTo(SpeedrunState.FINISHED);
+    }
+
+    @Test
+    void someOtherMobDyingDoesNotArmThePortal() {
+        condition.onDragonDeath(deathOf(mock(Zombie.class)));
+        condition.onExitPortal(new PlayerPortalEvent(playerWithId(ALICE), in(World.Environment.THE_END),
                 in(World.Environment.NORMAL), PlayerTeleportEvent.TeleportCause.END_PORTAL));
 
         assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
