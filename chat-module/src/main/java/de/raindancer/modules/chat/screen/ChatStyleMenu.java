@@ -1,5 +1,6 @@
 package de.raindancer.modules.chat.screen;
 
+import de.raindancer.core.ui.choose.ColorSwatches;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -110,8 +111,8 @@ public final class ChatStyleMenu extends Menu {
     /** One swatch — its own colour, named, with a check mark on whichever is chosen right now. */
     private ItemStack colorIcon(NamedTextColor color, ChatStyle current) {
         boolean chosen = color.equals(current.color());
-        String name = "<" + NamedTextColor.NAMES.key(color) + ">" + readable(color);
-        return Icons.of(materialFor(color), chosen ? name + " <green>✔" : name,
+        String name = "<" + NamedTextColor.NAMES.key(color) + ">" + ColorSwatches.readable(color);
+        return Icons.of(ColorSwatches.materialFor(color), chosen ? name + " <green>✔" : name,
                 chosen ? "<green>Your colour right now." : "<gray>Click to choose.");
     }
 
@@ -138,68 +139,8 @@ public final class ChatStyleMenu extends Menu {
         return tags + plain;
     }
 
-    private static String readable(NamedTextColor color) {
-        String key = NamedTextColor.NAMES.key(color).replace('_', ' ');
-        return Character.toUpperCase(key.charAt(0)) + key.substring(1);
-    }
-
     private static String readable(TextDecoration decoration) {
         String key = TextDecoration.NAMES.key(decoration);
         return Character.toUpperCase(key.charAt(0)) + key.substring(1);
-    }
-
-    /**
-     * A block that actually looks like the colour it stands for — a list of names is a list nobody
-     * reads and a grid of matching swatches is one people recognise instantly, the same reasoning
-     * {@code SoundChooser} draws the thing that makes the sound rather than a note block for every
-     * entry.
-     */
-    private static Material materialFor(NamedTextColor color) {
-        if (color.equals(NamedTextColor.BLACK)) {
-            return Material.BLACK_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.DARK_BLUE)) {
-            return Material.BLUE_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.DARK_GREEN)) {
-            return Material.GREEN_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.DARK_AQUA)) {
-            return Material.CYAN_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.DARK_RED)) {
-            return Material.RED_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.DARK_PURPLE)) {
-            return Material.PURPLE_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.GOLD)) {
-            return Material.ORANGE_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.GRAY)) {
-            return Material.LIGHT_GRAY_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.DARK_GRAY)) {
-            return Material.GRAY_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.BLUE)) {
-            return Material.LIGHT_BLUE_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.GREEN)) {
-            return Material.LIME_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.AQUA)) {
-            return Material.CYAN_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.RED)) {
-            return Material.RED_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.LIGHT_PURPLE)) {
-            return Material.MAGENTA_CONCRETE;
-        }
-        if (color.equals(NamedTextColor.YELLOW)) {
-            return Material.YELLOW_CONCRETE;
-        }
-        return Material.WHITE_CONCRETE;   // NamedTextColor.WHITE, and anything future-added
     }
 }

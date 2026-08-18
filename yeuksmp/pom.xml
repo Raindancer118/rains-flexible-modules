@@ -350,8 +350,14 @@
           colour is white instead of the gray it used to inherit from the separator. Vanilla's own
           angle brackets around the name are available too, via the chat format setting, for anybody
           who wants them.
+
+          1.16.0: chat-module 1.2.0's default message colour, default name colour and
+          brackets-around-the-name are now their own settings — a real swatch-grid colour picker in
+          /settings (RainsCore 1.28.0's ColorChooser), not typed in chat or cycled one click at a
+          time. (1.15.0's jar was built from a stale target/classes and never actually carried these
+          three; this is the first build that does.)
         -->
-        <plugin.version>1.15.0</plugin.version>
+        <plugin.version>1.16.0</plugin.version>
     </properties>
 
     <dependencies>
