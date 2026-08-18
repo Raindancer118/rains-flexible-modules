@@ -39,8 +39,10 @@
 
           2.1.1: "Request a teleport" on Core's ProfileMenu — /tpa in one click from a player's
           profile, wherever it was opened from.
+
+          2.1.2: kept in step with tpa-module's own version.
         -->
-        <plugin.version>2.1.1</plugin.version>
+        <plugin.version>2.1.2</plugin.version>
     </properties>
 
     <dependencies>

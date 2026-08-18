@@ -37,8 +37,11 @@
           places, the going, the settings, the wording and the menu are all RainsCore's now, and
           what is left is what a home means. Nothing an owner configured is lost and every home
           anybody set is still theirs — but a major number is what says "read the notes first".
+
+          2.3.1: kept in step with homes-module's own version — picking a home icon from Core's full
+          item chooser, the same way claims already does.
         -->
-        <plugin.version>2.3.0</plugin.version>
+        <plugin.version>2.3.1</plugin.version>
     </properties>
 
     <dependencies>

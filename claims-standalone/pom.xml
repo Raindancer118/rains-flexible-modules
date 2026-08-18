@@ -50,8 +50,12 @@
           alike with no way to narrow it. PerksMenu's perk buttons now take a right click for any of
           the three, opening the same three-tier owner/trusted/visitor toggle FlagChooser already
           teaches for narrowing a flag.
+
+          2.3.1: the feature policies set from the "What this claim can do" screen are now persisted
+          (FeaturePolicyStore, on top of Core's own YamlStore) — they used to be rebuilt from
+          FeatureRules' defaults on every enable(), so a change made there never survived a restart.
         -->
-        <plugin.version>2.3.0</plugin.version>
+        <plugin.version>2.3.1</plugin.version>
     </properties>
 
     <dependencies>

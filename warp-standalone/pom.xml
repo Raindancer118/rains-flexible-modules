@@ -30,8 +30,11 @@
           — there was none — so there is no earlier version line to continue and nothing on an
           upgrading server to preserve. The warps themselves live in RainsCore's place store, which
           means a server that was already using Core's own /warp keeps every warp it had.
+
+          1.2.1: kept in step with warp-module's own version, which had drifted two bumps ahead of
+          this file.
         -->
-        <plugin.version>1.1.0</plugin.version>
+        <plugin.version>1.2.1</plugin.version>
     </properties>
 
     <dependencies>

@@ -76,7 +76,7 @@ import java.util.Random;
  */
 public final class FarmWorldModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("farmworlds", "Farm Worlds", "1.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("farmworlds", "Farm Worlds", "1.1.2")
             .describedAs("Somewhere to strip-mine that is regenerated — arrived at "
                     + "somewhere different every time, and announced before it goes")
             .by("Raindancer118");

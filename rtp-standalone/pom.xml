@@ -40,8 +40,10 @@
           -break. And the location pool tops itself up by one more after every trip that uses it, not
           only once a day, so a server busy enough to empty it stays ahead rather than falling back to
           a live search until the next day's job runs.
+
+          1.1.1: kept in step with rtp-module's own version.
         -->
-        <plugin.version>1.1.0</plugin.version>
+        <plugin.version>1.1.1</plugin.version>
     </properties>
 
     <dependencies>

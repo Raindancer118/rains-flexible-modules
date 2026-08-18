@@ -31,8 +31,12 @@
           to preserve. The farm worlds themselves live in RainsCore's own farmworlds.yml and its database,
           which means a server that was already using Core's plain /farmworld keeps every one it had, with
           its schedule and the time it was last made.
+
+          1.1.2: kept in step with farmworld-module's own version, which had drifted three bumps
+          ahead of this file — the module's admin service, notices and legacy-database handling all
+          moved on without this plugin.version (and the code's own ModuleInfo string) following.
         -->
-        <plugin.version>1.0.0</plugin.version>
+        <plugin.version>1.1.2</plugin.version>
     </properties>
 
     <dependencies>
