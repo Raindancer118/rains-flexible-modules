@@ -2,6 +2,7 @@ package de.raindancer.modules.chat.service;
 
 import de.raindancer.core.platform.rule.Verdict;
 import de.raindancer.modules.chat.ChatSettings;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,7 @@ class ChatQualityServiceTest {
         @Test
         @DisplayName("is never blocked by cooldown or repeat — there is nothing to compare against")
         void alwaysAllowed() {
-            ChatSettings strict = new ChatSettings("<name>: <message>", true, true, true, true, 70,
+            ChatSettings strict = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70,
                     8, true, 10, 0, true, 200, true);
             ChatQualityService service = service(strict);
 
@@ -55,7 +56,7 @@ class ChatQualityServiceTest {
         @Test
         @DisplayName("allows shouting when the filter is off")
         void allowsWhenDisabled() {
-            ChatSettings off = new ChatSettings("<name>: <message>", true, true, true, false, 70, 8,
+            ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, false, 70, 8,
                     false, 0, 0, true, 200, true);
             ChatQualityService service = service(off);
 
@@ -101,7 +102,7 @@ class ChatQualityServiceTest {
         @Test
         @DisplayName("refuses a second message inside the window")
         void refusesTooSoon() {
-            ChatSettings withCooldown = new ChatSettings("<name>: <message>", true, true, false,
+            ChatSettings withCooldown = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, false,
                     false, 70, 8, false, 5, 0, true, 200, true);
             ChatQualityService service = service(withCooldown);
             service.recordSent(player, "first");
@@ -116,7 +117,7 @@ class ChatQualityServiceTest {
         @Test
         @DisplayName("allows once the window has passed")
         void allowsAfterWindow() {
-            ChatSettings withCooldown = new ChatSettings("<name>: <message>", true, true, false,
+            ChatSettings withCooldown = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, false,
                     false, 70, 8, false, 5, 0, true, 200, true);
             ChatQualityService service = service(withCooldown);
             service.recordSent(player, "first");
@@ -151,7 +152,7 @@ class ChatQualityServiceTest {
         @Test
         @DisplayName("uses the settings default until /chat slowmode overrides it")
         void defaultsFromSettings() {
-            ChatSettings withDefault = new ChatSettings("<name>: <message>", true, true, false,
+            ChatSettings withDefault = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, false,
                     false, 70, 8, false, 0, 15, true, 200, true);
             ChatQualityService service = service(withDefault);
 
@@ -195,7 +196,7 @@ class ChatQualityServiceTest {
         @Test
         @DisplayName("drops the remembered last message, so the next one starts fresh")
         void forgetDropsState() {
-            ChatSettings withCooldown = new ChatSettings("<name>: <message>", true, true, false,
+            ChatSettings withCooldown = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, false,
                     false, 70, 8, false, 5, 0, true, 200, true);
             ChatQualityService service = service(withCooldown);
             service.recordSent(player, "first");

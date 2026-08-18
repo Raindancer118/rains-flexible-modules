@@ -9,6 +9,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.player.PlayerChatTabCompleteEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -65,6 +66,25 @@ public final class ChatListener implements IChatListener {
         event.renderer(ChatRenderer.viewerUnaware((source, sourceDisplayName, message) ->
                 services.format().render(sender, text, mentioned)));
         services.mentions().notifyMentioned(sender, text, mentioned);
+    }
+
+    /**
+     * Offers {@code @Name} completions once the last word being typed starts with {@code @} —
+     * everything else about the request is left untouched, so plain-word completion still works
+     * however the server would otherwise have answered it.
+     */
+    @EventHandler
+    public void onTabComplete(PlayerChatTabCompleteEvent event) {
+        String token = event.getLastToken();
+        if (token.isEmpty() || token.charAt(0) != '@') {
+            return;
+        }
+        List<String> candidates = services.mentions().candidatesFor(event.getPlayer(), token.substring(1));
+        if (candidates.isEmpty()) {
+            return;
+        }
+        event.getTabCompletions().clear();
+        event.getTabCompletions().addAll(candidates);
     }
 
     /**

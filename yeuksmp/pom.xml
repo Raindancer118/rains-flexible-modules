@@ -345,8 +345,13 @@
 
           1.14.0: chat-module 1.1.0 (/chatstyle — a colour and decorations for your own messages,
           behind chat.style, which defaults to operators only).
+
+          1.15.0: chat-module 1.2.0 — tab-complete for @-mentions, and the default chat message
+          colour is white instead of the gray it used to inherit from the separator. Vanilla's own
+          angle brackets around the name are available too, via the chat format setting, for anybody
+          who wants them.
         -->
-        <plugin.version>1.14.0</plugin.version>
+        <plugin.version>1.15.0</plugin.version>
     </properties>
 
     <dependencies>

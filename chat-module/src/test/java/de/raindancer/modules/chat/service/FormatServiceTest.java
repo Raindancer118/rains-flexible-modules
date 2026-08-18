@@ -57,12 +57,91 @@ class FormatServiceTest {
     @DisplayName("an owner's own template is used instead")
     void usesConfiguredFormat() {
         ChatSettings custom =
-                new ChatSettings("<name> » <message>", true, true, true, true, 70, 8, true, 0, 0, true, 200, true);
+                new ChatSettings("<name> » <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8, true, 0, 0, true, 200, true);
         FormatService withCustomFormat = new FormatService(chat, identities, styles, custom);
 
         Component rendered = withCustomFormat.render(player("Tom"), "hello there", List.of());
 
         assertThat(PLAIN.serialize(rendered)).isEqualTo("Tom » hello there");
+    }
+
+    @Nested
+    @DisplayName("default colours and brackets")
+    class DefaultColoursAndBrackets {
+
+        @Test
+        @DisplayName("the default message colour applies when nobody chose their own")
+        void defaultMessageColourApplies() {
+            ChatSettings coloured = new ChatSettings("<name>: <message>", true, true,
+                    NamedTextColor.AQUA, NamedTextColor.WHITE, false, true, true, 70, 8, true, 0, 0,
+                    true, 200, true);
+            FormatService withColour = new FormatService(chat, identities, styles, coloured);
+
+            Component rendered = withColour.render(player("Tom"), "hello there", List.of());
+
+            assertThat(findChild(rendered,
+                    child -> child.color() == NamedTextColor.AQUA
+                            && PLAIN.serialize(child).contains("hello there")))
+                    .as("the message text should carry the default colour")
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("the default message colour never overrides a colour the sender chose")
+        void defaultMessageColourYieldsToPersonalStyle() {
+            ChatSettings coloured = new ChatSettings("<name>: <message>", true, true,
+                    NamedTextColor.AQUA, NamedTextColor.WHITE, false, true, true, 70, 8, true, 0, 0,
+                    true, 200, true);
+            FormatService withColour = new FormatService(chat, identities, styles, coloured);
+            Player tom = player("Tom");
+            styles.set(tom.getUniqueId(), ChatStyle.DEFAULT.withColor(NamedTextColor.GOLD));
+
+            Component rendered = withColour.render(tom, "hello there", List.of());
+
+            assertThat(findChild(rendered, child -> child.color() == NamedTextColor.AQUA)).isFalse();
+            assertThat(findChild(rendered,
+                    child -> child.color() == NamedTextColor.GOLD
+                            && PLAIN.serialize(child).contains("hello there")))
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("the default name colour applies when nothing else already coloured the name")
+        void defaultNameColourApplies() {
+            ChatSettings coloured = new ChatSettings("<name>: <message>", true, true,
+                    NamedTextColor.WHITE, NamedTextColor.GREEN, false, true, true, 70, 8, true, 0, 0,
+                    true, 200, true);
+            FormatService withColour = new FormatService(chat, identities, styles, coloured);
+
+            Component rendered = withColour.render(player("Tom"), "hello there", List.of());
+
+            assertThat(findChild(rendered,
+                    child -> child.color() == NamedTextColor.GREEN
+                            && PLAIN.serialize(child).contains("Tom")))
+                    .as("the name should carry the default name colour")
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("brackets go around the name when the setting is on")
+        void bracketsWrapTheName() {
+            ChatSettings bracketed = new ChatSettings("<name>: <message>", true, true,
+                    NamedTextColor.WHITE, NamedTextColor.WHITE, true, true, true, 70, 8, true, 0, 0,
+                    true, 200, true);
+            FormatService withBrackets = new FormatService(chat, identities, styles, bracketed);
+
+            Component rendered = withBrackets.render(player("Tom"), "hello there", List.of());
+
+            assertThat(PLAIN.serialize(rendered)).isEqualTo("<Tom>: hello there");
+        }
+
+        @Test
+        @DisplayName("no brackets by default")
+        void noBracketsByDefault() {
+            Component rendered = service.render(player("Tom"), "hello there", List.of());
+
+            assertThat(PLAIN.serialize(rendered)).doesNotContain("<Tom>");
+        }
     }
 
     @Nested
@@ -111,7 +190,7 @@ class FormatServiceTest {
         @DisplayName("links are left plain when the setting is off")
         void skipsLinkifyingWhenDisabled() {
             ChatSettings noLinks =
-                    new ChatSettings("<name>: <message>", false, false, true, true, 70, 8, true, 0, 0, true, 200, true);
+                    new ChatSettings("<name>: <message>", false, false, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8, true, 0, 0, true, 200, true);
             FormatService withoutLinks = new FormatService(chat, identities, styles, noLinks);
 
             Component rendered =

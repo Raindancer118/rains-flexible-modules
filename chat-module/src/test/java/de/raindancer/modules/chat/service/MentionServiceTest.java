@@ -4,6 +4,7 @@ import de.raindancer.core.moderation.vanish.Vanish;
 import de.raindancer.core.moderation.vanish.VanishSink;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.chat.ChatSettings;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.DisplayName;
@@ -11,10 +12,12 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -122,12 +125,82 @@ class MentionServiceTest {
         @Test
         @DisplayName("nothing is found once the feature is switched off")
         void nothingWhenDisabled() {
-            ChatSettings off = new ChatSettings("<name>: <message>", true, true, false, true, 70, 8,
+            ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, false, true, 70, 8,
                     true, 0, 0, true, 200, true);
             MentionService disabled = new MentionService(server, vanish, messages, off);
             player("Alex");
 
             List<Player> found = disabled.mentionsIn(player("Tom"), "@Alex");
+
+            assertThat(found).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("tab-completing")
+    class TabCompleting {
+
+        @Test
+        @DisplayName("suggests online players whose name starts with the partial, as @Name")
+        void suggestsMatchingPrefix() {
+            Player sender = player("Tom");
+            Player alex = player("Alex");
+            Player alice = player("Alice");
+            Player bo = player("Bo");
+            doReturn(Set.of(sender, alex, alice, bo)).when(server).getOnlinePlayers();
+
+            List<String> found = service.candidatesFor(sender, "Al");
+
+            assertThat(found).containsExactlyInAnyOrder("@Alex", "@Alice");
+        }
+
+        @Test
+        @DisplayName("matching is case-insensitive")
+        void caseInsensitive() {
+            Player sender = player("Tom");
+            Player alex = player("Alex");
+            doReturn(Set.of(sender, alex)).when(server).getOnlinePlayers();
+
+            List<String> found = service.candidatesFor(sender, "al");
+
+            assertThat(found).containsExactly("@Alex");
+        }
+
+        @Test
+        @DisplayName("never suggests the sender's own name")
+        void skipsSelf() {
+            Player sender = player("Tom");
+            doReturn(Set.of(sender)).when(server).getOnlinePlayers();
+
+            List<String> found = service.candidatesFor(sender, "T");
+
+            assertThat(found).isEmpty();
+        }
+
+        @Test
+        @DisplayName("never suggests a vanished player staff can't see")
+        void skipsVanished() {
+            Player sender = player("Tom");
+            Player hidden = player("Mod");
+            vanish.vanish(hidden.getUniqueId());
+            doReturn(Set.of(sender, hidden)).when(server).getOnlinePlayers();
+
+            List<String> found = service.candidatesFor(sender, "M");
+
+            assertThat(found).isEmpty();
+        }
+
+        @Test
+        @DisplayName("no suggestions once the feature is switched off")
+        void nothingWhenDisabled() {
+            ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, false, true, 70, 8,
+                    true, 0, 0, true, 200, true);
+            MentionService disabled = new MentionService(server, vanish, messages, off);
+            Player sender = player("Tom");
+            player("Alex");
+            doReturn(Set.of(sender)).when(server).getOnlinePlayers();
+
+            List<String> found = disabled.candidatesFor(sender, "Al");
 
             assertThat(found).isEmpty();
         }

@@ -29,8 +29,13 @@
 
           1.1.0: /chatstyle — a colour and decorations for your own messages, picked from a swatch
           grid with a live preview. Behind chat.style, which defaults to operators only.
+
+          1.2.0: tab-complete for @-mentions; the default message colour is white instead of the
+          gray it used to inherit from the "<name>: " separator. The chat format setting's own
+          description now shows how to add vanilla's angle brackets back around the name, for
+          anybody who wants them — that was never the default and still isn't.
         -->
-        <plugin.version>1.1.0</plugin.version>
+        <plugin.version>1.2.0</plugin.version>
     </properties>
 
     <dependencies>

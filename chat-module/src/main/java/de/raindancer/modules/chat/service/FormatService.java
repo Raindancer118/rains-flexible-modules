@@ -64,14 +64,25 @@ public final class FormatService implements IChatService {
      */
     public Component render(Player sender, String plainText, List<Player> mentioned) {
         ChatStyle style = styles == null ? ChatStyle.DEFAULT : styles.styleOf(sender.getUniqueId());
-        Component message = messageOf(plainText, mentioned).style(style.asStyle());
+        Component message = messageOf(plainText, mentioned).style(style.asStyle())
+                .colorIfAbsent(settings.defaultMessageColor());
         return chat.mm(settings.format(),
                 Chat.formatted("name", nameOf(sender)),
                 Chat.formatted("message", message));
     }
 
+    /**
+     * The speaker's identity, styled — Core's own coloured name if it has one, the module's default
+     * name colour if it does not ({@link net.kyori.adventure.text.Component#colorIfAbsent} never
+     * overrides a colour {@link de.raindancer.core.ui.identity.Identities#chatName} already set),
+     * bracketed if the owner asked for vanilla's own look, clickable if they turned that on.
+     */
     private Component nameOf(Player sender) {
-        Component name = identities.chatName(sender.getUniqueId(), sender.getName());
+        Component name = identities.chatName(sender.getUniqueId(), sender.getName())
+                .colorIfAbsent(settings.defaultNameColor());
+        if (settings.bracketsAroundName()) {
+            name = Component.text("<").append(name).append(Component.text(">"));
+        }
         if (!settings.clickToMessage()) {
             return name;
         }

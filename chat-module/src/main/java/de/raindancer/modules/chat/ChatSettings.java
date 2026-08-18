@@ -6,6 +6,7 @@ import de.raindancer.core.data.settings.Range;
 import de.raindancer.core.data.settings.Settings;
 import de.raindancer.core.data.settings.Title;
 import de.raindancer.core.data.settings.Topic;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 
 /**
@@ -30,7 +31,10 @@ public record ChatSettings(
 
         @In("chat/format") @Title("Chat format")
         @Describe("How a line is laid out. <name> is the player's coloured name with their prefix "
-                + "and suffix; <message> is what they typed.")
+                + "and suffix; <message> is what they typed. The default colour, the name colour and "
+                + "the brackets around the name are their own settings below, applied to whatever "
+                + "this template places <name> and <message> in — this is only for changing the "
+                + "layout itself, a different separator or order.")
         String format,
 
         @In("chat/format") @Title("Click a name to message them")
@@ -42,6 +46,21 @@ public record ChatSettings(
         @Describe("Whether a web address typed in chat is coloured and made clickable, rather than "
                 + "shown as plain text.")
         boolean linkifyUrls,
+
+        @In("chat/format") @Title("Default message colour")
+        @Describe("The colour a message renders in when its sender has not picked their own with "
+                + "/chatstyle — never overrides a colour they did pick.")
+        NamedTextColor defaultMessageColor,
+
+        @In("chat/format") @Title("Default name colour")
+        @Describe("The colour a player's name renders in when nothing else has already coloured it "
+                + "— a nickname colour set elsewhere always wins over this.")
+        NamedTextColor defaultNameColor,
+
+        @In("chat/format") @Title("Brackets around the name")
+        @Describe("Wraps the name in <angle brackets>, the way vanilla chat always has, on top of "
+                + "whatever this module's own format template already does with <name>.")
+        boolean bracketsAroundName,
 
         @In("chat/mentions") @Title("@-mentions")
         @Describe("Whether typing @name in chat pings whoever is online and answers to it — a "
@@ -96,7 +115,8 @@ public record ChatSettings(
 ) {
 
     public static final ChatSettings DEFAULTS = new ChatSettings(
-            "<name><gray>: <message>", true, true, true, true, 70, 8, true, 0, 0, true, 200, true);
+            "<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false,
+            true, true, 70, 8, true, 0, 0, true, 200, true);
 
     /** Clamped, so a hand-built settings record cannot ask for an impossible threshold. */
     public int capsThreshold() {

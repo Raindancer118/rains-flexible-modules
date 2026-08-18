@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -87,6 +88,29 @@ public final class MentionService implements IChatService {
             if (seen.add(mentioned.getUniqueId())) {
                 found.add(mentioned);
             }
+        }
+        return found;
+    }
+
+    /**
+     * Tab-complete candidates for {@code @partial} — every online player the sender can see whose
+     * name starts with it, as {@code @Name}, sender excluded. Same visibility rule as
+     * {@link #mentionsIn}: a name nobody could actually ping is not worth suggesting either.
+     */
+    public List<String> candidatesFor(Player sender, String partial) {
+        List<String> found = new ArrayList<>();
+        if (!settings.mentionsEnabled() || sender == null || partial == null) {
+            return found;
+        }
+        String prefix = partial.toLowerCase(Locale.ROOT);
+        for (Player online : server.getOnlinePlayers()) {
+            if (online.equals(sender) || !online.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                continue;
+            }
+            if (!vanish.canSee(sender.getUniqueId(), online.getUniqueId())) {
+                continue;
+            }
+            found.add("@" + online.getName());
         }
         return found;
     }

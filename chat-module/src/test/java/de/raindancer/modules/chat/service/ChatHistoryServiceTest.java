@@ -2,6 +2,7 @@ package de.raindancer.modules.chat.service;
 
 import de.raindancer.modules.chat.ChatSettings;
 import de.raindancer.modules.chat.store.ChatHistoryStore;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -55,7 +56,7 @@ class ChatHistoryServiceTest {
         @Test
         @DisplayName("does nothing when history is switched off")
         void recordsNothingWhenDisabled() {
-            ChatSettings off = new ChatSettings("<name>: <message>", true, true, true, true, 70, 8,
+            ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8,
                     true, 0, 0, false, 200, true);
             ChatHistoryService service = service(off);
 
@@ -111,7 +112,7 @@ class ChatHistoryServiceTest {
         @Test
         @DisplayName("is empty when history is switched off, even with a recorded quit")
         void emptyWhenDisabled() {
-            ChatSettings off = new ChatSettings("<name>: <message>", true, true, true, true, 70, 8,
+            ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8,
                     true, 0, 0, false, 200, true);
             ChatHistoryService service = service(off);
             UUID tom = UUID.randomUUID();
@@ -128,7 +129,7 @@ class ChatHistoryServiceTest {
         @Test
         @DisplayName("follows the setting when history is on")
         void followsSetting() {
-            ChatSettings notified = new ChatSettings("<name>: <message>", true, true, true, true, 70,
+            ChatSettings notified = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70,
                     8, true, 0, 0, true, 200, false);
 
             assertThat(service(ChatSettings.DEFAULTS).notifyOnJoin()).isTrue();
@@ -138,7 +139,7 @@ class ChatHistoryServiceTest {
         @Test
         @DisplayName("is always false when history itself is off")
         void offWhenHistoryOff() {
-            ChatSettings off = new ChatSettings("<name>: <message>", true, true, true, true, 70, 8,
+            ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8,
                     true, 0, 0, false, 200, true);
 
             assertThat(service(off).notifyOnJoin()).isFalse();
