@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
@@ -79,6 +80,12 @@ class DragonExitEndConditionTest {
         EntityDeathEvent event = mock(EntityDeathEvent.class);
         when(event.getEntity()).thenReturn(entity);
         return event;
+    }
+
+    private static World worldIn(World.Environment environment) {
+        World world = mock(World.class);
+        when(world.getEnvironment()).thenReturn(environment);
+        return world;
     }
 
     private static Location in(World.Environment environment) {
@@ -157,6 +164,49 @@ class DragonExitEndConditionTest {
         condition.onDragonDeath(deathOf(mock(Zombie.class)));
         condition.onExitPortal(new PlayerPortalEvent(playerWithId(ALICE), in(World.Environment.THE_END),
                 in(World.Environment.NORMAL), PlayerTeleportEvent.TeleportCause.END_PORTAL));
+
+        assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
+    }
+
+    /**
+     * The exit portal is not an ordinary portal trip — the server runs the credits and sends the
+     * player to their respawn point — and the portal event we were waiting for did not arrive. Having
+     * been in the End a moment ago and being somewhere else now is the same fact, caught later.
+     */
+    @Test
+    void finishesWhenAParticipantLeavesTheEndAfterTheKill() {
+        condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
+
+        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(playerWithId(ALICE),
+                worldIn(World.Environment.THE_END)));
+
+        assertThat(session.state()).isEqualTo(SpeedrunState.FINISHED);
+    }
+
+    @Test
+    void leavingTheEndBeforeTheKillEndsNothing() {
+        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(playerWithId(ALICE),
+                worldIn(World.Environment.THE_END)));
+
+        assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
+    }
+
+    @Test
+    void leavingTheNetherAfterTheKillEndsNothing() {
+        condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
+
+        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(playerWithId(ALICE),
+                worldIn(World.Environment.NETHER)));
+
+        assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
+    }
+
+    @Test
+    void aNonParticipantLeavingTheEndEndsNothing() {
+        condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
+
+        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(playerWithId(BOB),
+                worldIn(World.Environment.THE_END)));
 
         assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
     }

@@ -674,27 +674,59 @@ class SpeedrunLobbyTest {
     @DisplayName("ensureWorldExists — making sure there is a world to race in at all")
     class EnsureWorldExists {
 
+        private MockedConstruction<WorldCreator> creatorsMakingWorlds() {
+            return mockConstruction(WorldCreator.class, (creator, context) -> {
+                when(creator.environment(any())).thenReturn(creator);
+                when(creator.createWorld()).thenReturn(mock(World.class));
+            });
+        }
+
+        /**
+         * All three, not just the one: a world made at runtime has no dimensions of its own, and
+         * without them a nether portal drops the racer into the server's nether — and walking back
+         * out of that put them in the server's overworld, outside the race.
+         */
         @Test
-        @DisplayName("creates the configured world when nothing by that name is loaded")
-        void createsTheWorldWhenMissing() {
+        @DisplayName("creates the configured world and both of its dimensions when none are loaded")
+        void createsTheWholeGroupWhenMissing() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
-                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
-                         (mockCreator, context) -> when(mockCreator.createWorld())
-                                 .thenReturn(mock(World.class)))) {
+                 MockedConstruction<WorldCreator> creators = creatorsMakingWorlds()) {
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(null);
+                bukkit.when(() -> Bukkit.getWorld("world_nether")).thenReturn(null);
+                bukkit.when(() -> Bukkit.getWorld("world_the_end")).thenReturn(null);
 
                 lobby().ensureWorldExists();
 
-                assertThat(creators.constructed()).hasSize(1);
+                assertThat(creators.constructed()).hasSize(3);
+                verify(creators.constructed().get(1)).environment(World.Environment.NETHER);
+                verify(creators.constructed().get(2)).environment(World.Environment.THE_END);
             }
         }
 
         @Test
-        @DisplayName("does nothing when the configured world is already loaded")
+        @DisplayName("creates only the dimensions that are missing beside an already-loaded world")
+        void fillsInWhatIsMissing() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                 MockedConstruction<WorldCreator> creators = creatorsMakingWorlds()) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                bukkit.when(() -> Bukkit.getWorld("world_nether")).thenReturn(mock(World.class));
+                bukkit.when(() -> Bukkit.getWorld("world_the_end")).thenReturn(null);
+
+                lobby().ensureWorldExists();
+
+                assertThat(creators.constructed()).hasSize(1);
+                verify(creators.constructed().getFirst()).environment(World.Environment.THE_END);
+            }
+        }
+
+        @Test
+        @DisplayName("does nothing at all when the world and both its dimensions are loaded")
         void doesNothingWhenAlreadyLoaded() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
                  MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class)) {
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                bukkit.when(() -> Bukkit.getWorld("world_nether")).thenReturn(mock(World.class));
+                bukkit.when(() -> Bukkit.getWorld("world_the_end")).thenReturn(mock(World.class));
 
                 lobby().ensureWorldExists();
 
@@ -709,6 +741,8 @@ class SpeedrunLobbyTest {
                  MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class)) {
                 World primary = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(primary);
+                bukkit.when(() -> Bukkit.getWorld("world_nether")).thenReturn(mock(World.class));
+                bukkit.when(() -> Bukkit.getWorld("world_the_end")).thenReturn(mock(World.class));
                 bukkit.when(Bukkit::getWorlds).thenReturn(List.of(primary));
 
                 assertThatCode(() -> lobby().ensureWorldExists()).doesNotThrowAnyException();

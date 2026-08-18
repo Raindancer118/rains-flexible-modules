@@ -354,13 +354,47 @@ public final class SpeedrunLobby {
             log.warn("The speedrun world '{}' is not loaded; nothing to regenerate.", config().worldName());
             return ResetOutcome.RESET;
         }
-        // Folia: world creation/deletion is a global-region operation — see resetIfAbandoned's own note.
-        Scheduling.global(plugin, () -> worldRegenerator.regenerate(target, ok -> {
-            if (ok) {
-                announceReady();
-            }
-        }));
+        regenerateTheWholeRun(target);
         return ResetOutcome.RESET;
+    }
+
+    /**
+     * Wipes all three worlds a run is played across — the lobby world and the {@code _nether} and
+     * {@code _the_end} beside it — and tells {@link #onReady} listeners once they are back.
+     *
+     * <p>Resetting only the overworld would leave a finished run's nether and end standing: the
+     * chests looted, the portal already lit, the dragon already dead. The next race would start
+     * against somebody else's leftovers. A companion that is not loaded is simply skipped, and one
+     * that refuses to come back is logged rather than stopping the rest — the overworld is the world
+     * a run cannot do without, and it is already back by then.
+     *
+     * <p>Folia: unloading, deleting and recreating a world are global-region operations, and callers
+     * reach this from whatever thread a command or a quit event ran on.
+     */
+    private void regenerateTheWholeRun(World target) {
+        SpeedrunWorlds worlds = SpeedrunWorlds.around(config().worldName());
+        Scheduling.global(plugin, () -> worldRegenerator.regenerate(target, ok -> {
+            if (!ok) {
+                return;
+            }
+            regenerateCompanion(worlds.nether(),
+                    () -> regenerateCompanion(worlds.theEnd(), this::announceReady));
+        }));
+    }
+
+    private void regenerateCompanion(String name, Runnable next) {
+        World companion = Bukkit.getWorld(name);
+        if (companion == null) {
+            next.run();
+            return;
+        }
+        worldRegenerator.regenerate(companion, ok -> {
+            if (!ok) {
+                log.warn("'{}' could not be regenerated; the run's overworld is fresh but that "
+                        + "dimension still holds whatever the last run left in it.", name);
+            }
+            next.run();
+        });
     }
 
     /**
@@ -530,14 +564,7 @@ public final class SpeedrunLobby {
                     config().worldName());
             return;
         }
-        // Folia: unloading, deleting and recreating a world are global-region operations.
-        // resetIfAbandoned itself runs on whatever region thread fired the quit event, so the reset has
-        // to hop onto the global region scheduler first rather than run there directly.
-        Scheduling.global(plugin, () -> worldRegenerator.regenerate(target, ok -> {
-            if (ok) {
-                announceReady();
-            }
-        }));
+        regenerateTheWholeRun(target);
     }
 
     /** Unregisters every session-scoped listener and forgets the session — shared by
@@ -585,8 +612,19 @@ public final class SpeedrunLobby {
                         + "never be unloaded, so /speedrunreset and the automatic reset after a run "
                         + "will always fail on it — set world-name to a dedicated world instead.", name);
             }
-            return;
+        } else {
+            worldRegenerator.create(name);
         }
-        worldRegenerator.create(name);
+        // The other two dimensions of the same run. Minecraft only links these for the primary level's
+        // own folder layout, never for a world made at runtime, so without them a nether portal in the
+        // speedrun world drops the racer into the server's nether — and walking back out of that put
+        // them in the server's overworld, outside the race entirely. See SpeedrunPortalListener.
+        SpeedrunWorlds worlds = SpeedrunWorlds.around(name);
+        if (Bukkit.getWorld(worlds.nether()) == null) {
+            worldRegenerator.create(worlds.nether(), World.Environment.NETHER);
+        }
+        if (Bukkit.getWorld(worlds.theEnd()) == null) {
+            worldRegenerator.create(worlds.theEnd(), World.Environment.THE_END);
+        }
     }
 }

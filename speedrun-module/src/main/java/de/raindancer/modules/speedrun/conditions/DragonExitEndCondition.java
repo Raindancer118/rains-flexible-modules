@@ -11,6 +11,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
@@ -102,6 +103,34 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
         if (event.getEntity() instanceof EnderDragon) {
             dragonKilled = true;
         }
+    }
+
+    /**
+     * Leaving the End at all, once the dragon is dead — the same finish as {@link #onExitPortal},
+     * caught one step later.
+     *
+     * <h2>Why this is not redundant</h2>
+     * Stepping into the exit portal is not an ordinary portal trip: the server runs the credits and
+     * sends the player to their respawn point, and which event that arrives as has never been
+     * something to rely on — a {@link PlayerPortalEvent} that never fired is a run whose clock never
+     * stopped, which is exactly what happened. A player standing in the overworld who was in the End
+     * a moment ago has left through the only exit there is, and {@link PlayerChangedWorldEvent}
+     * always fires for that, whatever moved them.
+     *
+     * <p>Harmless when both fire: {@link SpeedrunSession#finish} only counts the first.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onLeavingTheEnd(PlayerChangedWorldEvent event) {
+        if (!dragonKilled) {
+            return;
+        }
+        if (event.getFrom().getEnvironment() != World.Environment.THE_END) {
+            return;
+        }
+        if (!session.participants().contains(event.getPlayer().getUniqueId())) {
+            return;
+        }
+        session.finish("advancement:" + dragonKill);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

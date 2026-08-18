@@ -23,7 +23,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.5.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.6.0")
             .describedAs("A speedrun lobby: pick an advancement goal or a death policy from the "
                     + "compass's menu, then press the green block to race. A countdown freezes "
                     + "everyone first, and the lobby world resets once the last racer has left.")
@@ -56,6 +56,9 @@ public final class SpeedrunModule implements FlexModule {
         SpeedrunLobbyListener listener = new SpeedrunLobbyListener(context.plugin(), lobby,
                 new SpeedrunLobbyItems(context.plugin()), context.chat().brand(), context.core().messages());
         context.listener(listener);
+        // Portal travel out of a runtime-made world falls back to the server's own dimensions, which
+        // is how a racer walked out of a nether portal into the server's overworld mid-run.
+        context.listener(new SpeedrunPortalListener(lobby));
         // Whoever stayed in the lobby world while a run finished and it reset around them gets the
         // items the moment there is something to do with them again, rather than needing to leave and
         // come back — neither onJoin nor onWorldChange fires for somebody who never actually moved.

@@ -51,8 +51,14 @@
              the dragon actually dying, not by the kill advancement — an advancement is granted once
              per player, ever, so on a repeat racer's second run the exit portal ended nothing at all.
              The chosen goal is now also revoked as a run arms, so the plain advancement goals can be
-             earned a second time too. -->
-        <plugin.version>1.5.0</plugin.version>
+             earned a second time too.
+             1.6.0: a run is played across its own three worlds — <name>, <name>_nether and
+             <name>_the_end are created together, portal travel is kept inside them, and a reset
+             wipes all three. A nether portal used to drop a racer into the server's own nether, and
+             walking back out of that left them in the server's overworld, outside the race. The
+             dragon run also ends when a racer leaves the End at all, not only when the exit portal
+             happens to arrive as a portal event — it did not, and the clock kept running. -->
+        <plugin.version>1.6.0</plugin.version>
     </properties>
 
     <dependencies>
