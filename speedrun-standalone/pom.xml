@@ -35,8 +35,14 @@
              the lobby menu shows can now be reached mid-run where it actually applies live.
              1.2.1: /speedrunreset now deletes and remakes the world from scratch even while READY
              with nothing running, instead of refusing — "regenerate" always meant a full wipe, not a
-             revert, whatever state the world happened to be in. -->
-        <plugin.version>1.2.1</plugin.version>
+             revert, whatever state the world happened to be in.
+             1.3.0: the lobby's own world reset/create/delete now runs on RainsCore's generic
+             WorldRegenerator (requires RainsCore 1.29.1+) instead of a copy of the same logic —
+             occupants are evacuated to wherever they actually were before entering the world, not a
+             generic spawn. The lobby world is also created automatically on first enable if it does
+             not exist yet, defaulting to a dedicated "speedrun" world rather than the server's own
+             primary one, which can never be regenerated at all. -->
+        <plugin.version>1.3.0</plugin.version>
     </properties>
 
     <dependencies>

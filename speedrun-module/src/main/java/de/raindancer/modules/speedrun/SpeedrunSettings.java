@@ -94,20 +94,28 @@ public record SpeedrunSettings(
     public static final String DRAGON_KILL_ADVANCEMENT = "minecraft:end/kill_dragon";
 
     /**
-     * What a fresh install ships with: the vanilla dragon kill, nobody's death ends it, the server's
-     * own primary world — {@code "world"}, Paper's own {@code level-name} default — and the portal
+     * The world name a fresh install ships with — {@code SpeedrunModule.enable} creates it itself if
+     * nothing by this name is loaded yet, which is exactly what makes this a dedicated name rather than
+     * the server's own primary world.
+     *
+     * <p><b>Found the hard way:</b> the previous default was the primary world itself, {@code "world"}
+     * — chosen because nothing here ever created a world, so a placeholder name nobody had made yet
+     * meant {@link SpeedrunLobby#start} answered {@code WORLD_MISSING} for a reason nobody saw, and
+     * the compass simply did nothing. Fixing the missing-world problem this way, instead, uncovered a
+     * second one: the primary world can never actually be unloaded, at all, ever — Bukkit refuses
+     * unconditionally — so every reset on an install that had not renamed it away from the default
+     * failed too, just later and with a less obvious cause. A dedicated name the module creates itself
+     * has neither problem.
+     */
+    public static final String DEFAULT_WORLD_NAME = "speedrun";
+
+    /**
+     * What a fresh install ships with: the vanilla dragon kill, nobody's death ends it, and the portal
      * requirement on, since a run that stops timing the instant the dragon dies is not how anybody
      * actually races this goal.
-     *
-     * <p><b>Found the hard way:</b> shipping a placeholder like {@code "speedrun"} here means a
-     * server that never renamed anything, and never will, has a lobby bound to a world that does not
-     * exist — {@link SpeedrunLobby#start} then answers {@code WORLD_MISSING} for a reason nobody sees,
-     * because the block was clicked in a world whose name does not even match, so
-     * {@code SpeedrunLobbyListener} never gets that far. The compass and the block simply do nothing,
-     * which is indistinguishable from broken.
      */
     public static final SpeedrunSettings DEFAULTS = new SpeedrunSettings(
-            "world", DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, 100, 0, 100, 0,
+            DEFAULT_WORLD_NAME, DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, 100, 0, 100, 0,
             false, 0, 0, 0, 0, 0);
 
     /** Whether the configured goal is specifically the vanilla dragon kill — the only goal

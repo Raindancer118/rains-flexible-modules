@@ -63,6 +63,10 @@ class SpeedrunLobbyTest {
                 SettingsSchema.of(SpeedrunSettings.class, SpeedrunSettings.DEFAULTS),
                 dataFolder.resolve("speedrun.yml"));
         settings.load();
+        // Every test in this file stubs Bukkit.getWorld("world") — kept as an explicit fixture value
+        // rather than DEFAULT_WORLD_NAME, so a change to the shipped default does not ripple through
+        // every test here.
+        settings.set("world-name", "world");
     }
 
     private SpeedrunLobby lobby() {
@@ -70,13 +74,13 @@ class SpeedrunLobbyTest {
     }
 
     private SpeedrunLobby lobbyWithCountdown(SpeedrunCountdownLauncher launcher) {
-        return new SpeedrunLobby(plugin, settings, new SpeedrunReset(), launcher);
+        return new SpeedrunLobby(plugin, settings, launcher);
     }
 
     private SpeedrunLobby lobbyWithMessages(Messages messages) {
         // A launcher that finishes immediately, as if the countdown had reached zero — start() is
         // what actually wires up the onFinish announcement this is testing.
-        return new SpeedrunLobby(plugin, settings, new SpeedrunReset(),
+        return new SpeedrunLobby(plugin, settings,
                 (participants, onComplete) -> onComplete.run(), messages);
     }
 
@@ -278,7 +282,7 @@ class SpeedrunLobbyTest {
                 SpeedrunTimerDisplay.Ticker noopTicker = task -> () -> { };
                 SpeedrunTimerDisplay display = new SpeedrunTimerDisplay(
                         new ActionBars(sink, () -> 0L), noopTicker);
-                SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings, new SpeedrunReset(),
+                SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings,
                         (participants, onComplete) -> onComplete.run(), display);
 
                 lobby.start(Set.of(ALICE));
@@ -297,7 +301,7 @@ class SpeedrunLobbyTest {
                 de.raindancer.core.moderation.players.PlayerAdmin players =
                         mock(de.raindancer.core.moderation.players.PlayerAdmin.class);
                 SpeedrunPreparation preparation = new SpeedrunPreparation(players);
-                SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings, new SpeedrunReset(),
+                SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings,
                         (participants, onComplete) -> onComplete.run(), preparation);
 
                 lobby.start(Set.of(ALICE));
@@ -627,6 +631,54 @@ class SpeedrunLobbyTest {
                 assertThat(outcome).isEqualTo(SpeedrunLobby.ResetOutcome.RESET);
                 assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.READY);
                 assertThat(lobby.session()).isEmpty();
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("ensureWorldExists — making sure there is a world to race in at all")
+    class EnsureWorldExists {
+
+        @Test
+        @DisplayName("creates the configured world when nothing by that name is loaded")
+        void createsTheWorldWhenMissing() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         (mockCreator, context) -> when(mockCreator.createWorld())
+                                 .thenReturn(mock(World.class)))) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(null);
+
+                lobby().ensureWorldExists();
+
+                assertThat(creators.constructed()).hasSize(1);
+            }
+        }
+
+        @Test
+        @DisplayName("does nothing when the configured world is already loaded")
+        void doesNothingWhenAlreadyLoaded() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+
+                lobby().ensureWorldExists();
+
+                assertThat(creators.constructed()).isEmpty();
+            }
+        }
+
+        @Test
+        @DisplayName("does not try to create the world when it is already loaded as the primary world")
+        void doesNotTryToCreateAnAlreadyLoadedPrimaryWorld() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class)) {
+                World primary = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(primary);
+                bukkit.when(Bukkit::getWorlds).thenReturn(List.of(primary));
+
+                assertThatCode(() -> lobby().ensureWorldExists()).doesNotThrowAnyException();
+
+                assertThat(creators.constructed()).isEmpty();
             }
         }
     }

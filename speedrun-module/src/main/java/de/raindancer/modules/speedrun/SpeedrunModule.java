@@ -23,7 +23,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.2.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.3.0")
             .describedAs("A speedrun lobby: pick an advancement goal or a death policy from the "
                     + "compass's menu, then press the green block to race. A countdown freezes "
                     + "everyone first, and the lobby world resets once the last racer has left.")
@@ -50,6 +50,9 @@ public final class SpeedrunModule implements FlexModule {
         lobby = new SpeedrunLobby(context.plugin(), settings, context.core().bossBars(),
                 context.core().effects(), context.core().messages(), context.core().actionBars(),
                 context.core().players());
+        // Main thread only, same as everything else here in enable() — creating a world is a
+        // main-thread operation in Paper, and nobody is on yet for it to visibly stall.
+        lobby.ensureWorldExists();
         context.listener(new SpeedrunLobbyListener(lobby, new SpeedrunLobbyItems(context.plugin()),
                 context.chat().brand(), context.core().messages()));
 

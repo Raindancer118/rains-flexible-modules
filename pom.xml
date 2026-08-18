@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.28.0</rainscore.version>
+        <rainscore.version>1.29.1</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -57,7 +57,7 @@
         <!-- Split out of RainsCore 13.08.2026, after a join handler there cleared a player's
              inventory on every join anywhere on the server — see speedrun-module's own README/javadoc
              for the incident. chained-module depends on this directly for the engine underneath it. -->
-        <speedrun-module.version>1.2.1</speedrun-module.version>
+        <speedrun-module.version>1.3.0</speedrun-module.version>
         <chat-module.version>1.2.0</chat-module.version>
     </properties>
 

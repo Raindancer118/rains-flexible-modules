@@ -9,6 +9,7 @@ import de.raindancer.core.ui.actionbar.ActionBars;
 import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.world.manage.WorldRegenerator;
 import de.raindancer.modules.speedrun.conditions.AdvancementEndCondition;
 import de.raindancer.modules.speedrun.conditions.DeathEndCondition;
 import de.raindancer.modules.speedrun.conditions.DragonExitEndCondition;
@@ -32,10 +33,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * the auto-reset that happens once a finished run's last participant has left.
  *
  * <h2>Why one world, not a set of them</h2>
- * {@link SpeedrunReset} already treats "the speedrun map" as a single world with no bookkeeping of
- * its own — see its javadoc for why it does not reuse {@code FarmWorlds}' {@code WorldSet} machinery.
- * This class is the same shape one level up: a lobby has a configuration and, at most, one live
- * session, never a roster of named worlds.
+ * The speedrun map is a single world with no bookkeeping of its own — {@link WorldRegenerator} (Core's
+ * generic create/delete/regenerate) has no notion of a set either, unlike {@code FarmWorlds}' own
+ * {@code WorldSet} machinery. This class is the same shape one level up: a lobby has a configuration
+ * and, at most, one live session, never a roster of named worlds.
  *
  * <h2>Why the world state is not stored anywhere</h2>
  * It is derived: no session means {@link SpeedrunLobbyState#READY}, and otherwise it mirrors the
@@ -78,7 +79,7 @@ public final class SpeedrunLobby {
 
     private final Plugin plugin;
     private final SettingsStore<SpeedrunSettings> settings;
-    private final SpeedrunReset reset;
+    private final WorldRegenerator worldRegenerator = new WorldRegenerator();
     /** Not final: the public constructor below sets this itself, after delegating to the private one,
      *  because the lambda it builds reads {@link #released} — an instance field it may not reach from
      *  inside a {@code this(...)} call's own argument list. */
@@ -110,12 +111,12 @@ public final class SpeedrunLobby {
     /** No countdown, no finish announcement, no action-bar clock, no start-of-run reset —
      *  {@link #beginCountdown} is not usable from this alone. */
     public SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings) {
-        this(plugin, settings, new SpeedrunReset(), null, null, null, null);
+        this(plugin, settings, null, null, null, null);
     }
 
     public SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, BossBars bossBars,
                          Effects effects, Messages messages, ActionBars actionBars, PlayerAdmin players) {
-        this(plugin, settings, new SpeedrunReset(), null, messages,
+        this(plugin, settings, null, messages,
                 actionBars == null ? null
                         : new SpeedrunTimerDisplay(actionBars, SpeedrunTimerDisplay.viaScheduling(plugin)),
                 players == null ? null : new SpeedrunPreparation(players));
@@ -124,35 +125,34 @@ public final class SpeedrunLobby {
     }
 
     /** For tests: a fake {@link SpeedrunCountdownLauncher} that never touches a live server. */
-    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, SpeedrunReset reset,
+    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings,
                  SpeedrunCountdownLauncher countdownLauncher) {
-        this(plugin, settings, reset, countdownLauncher, null, null, null);
+        this(plugin, settings, countdownLauncher, null, null, null);
     }
 
     /** For tests: exercises the finish announcement without a live server. */
-    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, SpeedrunReset reset,
+    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings,
                  SpeedrunCountdownLauncher countdownLauncher, Messages messages) {
-        this(plugin, settings, reset, countdownLauncher, messages, null, null);
+        this(plugin, settings, countdownLauncher, messages, null, null);
     }
 
     /** For tests: also exercises the action-bar clock without a live server or scheduler. */
-    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, SpeedrunReset reset,
+    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings,
                  SpeedrunCountdownLauncher countdownLauncher, SpeedrunTimerDisplay timerDisplay) {
-        this(plugin, settings, reset, countdownLauncher, null, timerDisplay, null);
+        this(plugin, settings, countdownLauncher, null, timerDisplay, null);
     }
 
     /** For tests: also exercises the start-of-run reset without a live server. */
-    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, SpeedrunReset reset,
+    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings,
                  SpeedrunCountdownLauncher countdownLauncher, SpeedrunPreparation preparation) {
-        this(plugin, settings, reset, countdownLauncher, null, null, preparation);
+        this(plugin, settings, countdownLauncher, null, null, preparation);
     }
 
-    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings, SpeedrunReset reset,
+    SpeedrunLobby(Plugin plugin, SettingsStore<SpeedrunSettings> settings,
                  SpeedrunCountdownLauncher countdownLauncher, Messages messages,
                  SpeedrunTimerDisplay timerDisplay, SpeedrunPreparation preparation) {
         this.plugin = plugin;
         this.settings = settings;
-        this.reset = reset;
         this.countdownLauncher = countdownLauncher;
         this.preparation = preparation;
         this.messages = messages;
@@ -303,9 +303,10 @@ public final class SpeedrunLobby {
     /**
      * An admin's own escape hatch: whatever the speedrun world currently is — mid-run, freshly
      * regenerated and untouched, half-built by somebody poking around in it while READY — this ends
-     * any run under way, evacuates everybody standing in the world, deletes every one of its files, and
-     * makes a brand new one from scratch with a fresh random seed. Not "revert to some earlier state":
-     * the old world is gone, the same way {@link SpeedrunReset#regenerate} always works.
+     * any run under way and hands the world to {@link WorldRegenerator#regenerate}: everybody standing
+     * in it is evacuated (back to wherever they were before they arrived, not a generic spawn — see
+     * {@code WorldEntryPoints}), every one of its files is deleted, and a brand new world is made from
+     * scratch. Not "revert to some earlier state": the old world is gone.
      *
      * <p>Refuses only during {@link SpeedrunLobbyState#COUNTDOWN}, rather than racing it:
      * {@link #beginCountdown} has already scheduled a callback that will call {@link #start} once it
@@ -318,8 +319,6 @@ public final class SpeedrunLobby {
             return ResetOutcome.COUNTDOWN_IN_PROGRESS;
         }
         World target = world().orElse(null);
-        Set<UUID> evacuate = target == null ? Set.of() : target.getPlayers().stream()
-                .map(Player::getUniqueId).collect(java.util.stream.Collectors.toUnmodifiableSet());
         if (session != null && session.state() != SpeedrunState.FINISHED) {
             session.finish("admin-reset");
         }
@@ -328,8 +327,8 @@ public final class SpeedrunLobby {
             log.warn("The speedrun world '{}' is not loaded; nothing to regenerate.", config().worldName());
             return ResetOutcome.RESET;
         }
-        // Folia: see resetIfAbandoned's own note — world creation/deletion is a global-region operation.
-        Scheduling.global(plugin, () -> reset.regenerate(target, SpeedrunSeed.random(), evacuate));
+        // Folia: world creation/deletion is a global-region operation — see resetIfAbandoned's own note.
+        Scheduling.global(plugin, () -> worldRegenerator.regenerate(target, ok -> { }));
         return ResetOutcome.RESET;
     }
 
@@ -484,11 +483,10 @@ public final class SpeedrunLobby {
                     config().worldName());
             return;
         }
-        // Folia: unloading, deleting and recreating a world are global-region operations — see
-        // SpeedrunReset's own threading note. resetIfAbandoned itself runs on whatever region thread
-        // fired the quit event, so the reset has to hop onto the global region scheduler first rather
-        // than run there directly.
-        Scheduling.global(plugin, () -> reset.regenerate(target, SpeedrunSeed.random(), Set.of()));
+        // Folia: unloading, deleting and recreating a world are global-region operations.
+        // resetIfAbandoned itself runs on whatever region thread fired the quit event, so the reset has
+        // to hop onto the global region scheduler first rather than run there directly.
+        Scheduling.global(plugin, () -> worldRegenerator.regenerate(target, ok -> { }));
     }
 
     /** Unregisters every session-scoped listener and forgets the session — shared by
@@ -511,5 +509,33 @@ public final class SpeedrunLobby {
 
     private Optional<World> world() {
         return Optional.ofNullable(Bukkit.getWorld(config().worldName()));
+    }
+
+    /**
+     * Called once, from {@code SpeedrunModule.enable}: makes sure the configured world actually
+     * exists, since nothing else here ever creates one — {@link #start}/{@link #beginCountdown} only
+     * ever check whether it is already loaded. A server that never touched {@code world-name} gets
+     * {@link SpeedrunSettings#DEFAULT_WORLD_NAME} for free this way, instead of a lobby that silently
+     * does nothing until somebody makes that world by hand.
+     *
+     * <p>Never touches an already-loaded world, even the server's own primary one — creating it again
+     * makes no sense, and overriding a name somebody actually configured is not this method's
+     * decision to make. It only warns, once, when that configured name happens to already be the
+     * primary world: every reset on it will fail, for a reason {@link WorldRegenerator} explains
+     * clearly enough when it actually happens, but a warning up front is easier to notice than a log
+     * line during a race.
+     */
+    public void ensureWorldExists() {
+        String name = config().worldName();
+        World existing = Bukkit.getWorld(name);
+        if (existing != null) {
+            if (WorldRegenerator.isPrimaryWorld(existing)) {
+                log.warn("The speedrun world is set to '{}', this server's primary world. It can "
+                        + "never be unloaded, so /speedrunreset and the automatic reset after a run "
+                        + "will always fail on it — set world-name to a dedicated world instead.", name);
+            }
+            return;
+        }
+        worldRegenerator.create(name);
     }
 }
