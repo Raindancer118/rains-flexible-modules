@@ -80,6 +80,8 @@ public final class SpeedrunLobby {
     private SpeedrunOccupancyListener occupancy;
     /** Registered alongside {@link #occupancy}, for the same reason and on the same lifecycle. */
     private SpeedrunCreeperOnBreakListener creeperOnBreak;
+    /** Registered alongside {@link #occupancy}, for the same reason and on the same lifecycle. */
+    private SpeedrunCreeperOnContainerOpenListener creeperOnContainerOpen;
     /** Set the moment {@link #beginCountdown} launches one, cleared the moment it completes. */
     private boolean countingDown;
 
@@ -238,6 +240,8 @@ public final class SpeedrunLobby {
         plugin.getServer().getPluginManager().registerEvents(occupancy, plugin);
         creeperOnBreak = new SpeedrunCreeperOnBreakListener(fresh, settings);
         plugin.getServer().getPluginManager().registerEvents(creeperOnBreak, plugin);
+        creeperOnContainerOpen = new SpeedrunCreeperOnContainerOpenListener(fresh, settings);
+        plugin.getServer().getPluginManager().registerEvents(creeperOnContainerOpen, plugin);
         fresh.onFinish(outcome -> announceFinish(fresh, outcome));
         if (preparation != null) {
             preparation.prepare(world().orElse(null), fresh.participants());
@@ -344,6 +348,10 @@ public final class SpeedrunLobby {
         if (creeperOnBreak != null) {
             HandlerList.unregisterAll(creeperOnBreak);
             creeperOnBreak = null;
+        }
+        if (creeperOnContainerOpen != null) {
+            HandlerList.unregisterAll(creeperOnContainerOpen);
+            creeperOnContainerOpen = null;
         }
         session = null;
         if (target == null) {

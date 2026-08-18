@@ -65,7 +65,7 @@ class SpeedrunLobbyListenerTest {
         void givesKitWhenReadyInLobbyWorld() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, true, 0));
+                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, true, 0, true, 0));
             Player player = playerInWorld("world");
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
@@ -85,7 +85,7 @@ class SpeedrunLobbyListenerTest {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
                     new SpeedrunSettings("speedrun-lobby", "minecraft:end/kill_dragon",
-                            SpeedrunDeathPolicy.OFF, false, true, 0));
+                            SpeedrunDeathPolicy.OFF, false, true, 0, true, 0));
             Player player = playerInWorld("world");   // the server's real, shared world — not the lobby
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
@@ -143,7 +143,7 @@ class SpeedrunLobbyListenerTest {
         void cancelsStepsWhileReady() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, true, 0));
+                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, true, 0, true, 0));
             Player player = playerInWorld("world");
             World world = player.getWorld();
             org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10, 90f, 0f);
@@ -161,7 +161,7 @@ class SpeedrunLobbyListenerTest {
         void allowsLookingAround() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, true, 0));
+                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, true, 0, true, 0));
             Player player = playerInWorld("world");
             World world = player.getWorld();
             org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10, 90f, 0f);
@@ -196,7 +196,7 @@ class SpeedrunLobbyListenerTest {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
                     new SpeedrunSettings("speedrun-lobby", "minecraft:end/kill_dragon",
-                            SpeedrunDeathPolicy.OFF, false, true, 0));
+                            SpeedrunDeathPolicy.OFF, false, true, 0, true, 0));
             Player player = playerInWorld("world");
             World world = player.getWorld();
             org.bukkit.Location from = new org.bukkit.Location(world, 10, 64, 10);
@@ -232,7 +232,7 @@ class SpeedrunLobbyListenerTest {
             when(items.isMenu(startBlock)).thenReturn(false);
 
             SpeedrunSettings config = new SpeedrunSettings("world", "minecraft:end/kill_dragon",
-                    SpeedrunDeathPolicy.OFF, false, true, 0);
+                    SpeedrunDeathPolicy.OFF, false, true, 0, true, 0);
             when(lobby.config()).thenReturn(config);
         }
 

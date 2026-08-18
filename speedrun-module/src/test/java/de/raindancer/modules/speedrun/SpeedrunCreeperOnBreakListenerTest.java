@@ -145,7 +145,7 @@ class SpeedrunCreeperOnBreakListenerTest {
     @Test
     @DisplayName("a 100% charged-creeper chance always powers the creeper")
     void alwaysPowersAtFullChance() {
-        settings.set("charged-creeper-chance-percent", "100");
+        settings.set("charged-creeper-chance-on-break-percent", "100");
         SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
         session.start();
         SpeedrunCreeperOnBreakListener listener = new SpeedrunCreeperOnBreakListener(session, settings);
@@ -161,7 +161,7 @@ class SpeedrunCreeperOnBreakListenerTest {
     @Test
     @DisplayName("a 0% charged-creeper chance never powers the creeper")
     void neverPowersAtZeroChance() {
-        settings.set("charged-creeper-chance-percent", "0");
+        settings.set("charged-creeper-chance-on-break-percent", "0");
         SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
         session.start();
         SpeedrunCreeperOnBreakListener listener = new SpeedrunCreeperOnBreakListener(session, settings);

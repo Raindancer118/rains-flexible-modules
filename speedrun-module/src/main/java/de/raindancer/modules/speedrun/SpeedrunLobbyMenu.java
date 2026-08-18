@@ -79,18 +79,38 @@ public final class SpeedrunLobbyMenu extends Menu {
         band(MenuLayout.RULES, 3,
                 Icons.of(config.creeperOnBlockBreak() ? Material.CREEPER_HEAD : Material.BARRIER,
                         "<white>Creeper on block break: " + (config.creeperOnBlockBreak() ? "On" : "Off"),
-                        creeperToggleLore(config)),
+                        creeperToggleLore(config.creeperOnBlockBreak(), "Breaking a block")),
                 click -> {
                     lobby.settings().cycle("creeper-on-block-break");
                     refresh();
                 });
         band(MenuLayout.RULES, 5,
-                Icons.of(Material.TNT, "<white>Charged creeper chance: " + config.chargedCreeperChancePercent() + "%",
-                        "<gray>How often a spawned creeper is charged.", "<dark_gray>Click to change."),
-                click -> new AmountChooser(viewer, brand(), this, "Charged creeper chance %",
-                        config.chargedCreeperChancePercent(), 0, 100,
+                Icons.of(Material.TNT,
+                        "<white>Charged chance (break): " + config.chargedCreeperChanceOnBreakPercent() + "%",
+                        "<gray>How often a block-break creeper is charged.", "<dark_gray>Click to change."),
+                click -> new AmountChooser(viewer, brand(), this, "Charged chance on block break %",
+                        config.chargedCreeperChanceOnBreakPercent(), 0, 100,
                         value -> {
-                            lobby.settings().set("charged-creeper-chance-percent", String.valueOf(value));
+                            lobby.settings().set("charged-creeper-chance-on-break-percent", String.valueOf(value));
+                            refresh();
+                        }).open());
+        band(MenuLayout.LAND, 3,
+                Icons.of(config.creeperOnContainerOpen() ? Material.CREEPER_HEAD : Material.BARRIER,
+                        "<white>Creeper on container open: " + (config.creeperOnContainerOpen() ? "On" : "Off"),
+                        creeperToggleLore(config.creeperOnContainerOpen(), "Opening a chest or container")),
+                click -> {
+                    lobby.settings().cycle("creeper-on-container-open");
+                    refresh();
+                });
+        band(MenuLayout.LAND, 5,
+                Icons.of(Material.TNT,
+                        "<white>Charged chance (container): " + config.chargedCreeperChanceOnContainerPercent() + "%",
+                        "<gray>How often a container creeper is charged.", "<dark_gray>Click to change."),
+                click -> new AmountChooser(viewer, brand(), this, "Charged chance on container open %",
+                        config.chargedCreeperChanceOnContainerPercent(), 0, 100,
+                        value -> {
+                            lobby.settings().set("charged-creeper-chance-on-container-percent",
+                                    String.valueOf(value));
                             refresh();
                         }).open());
     }
@@ -155,9 +175,9 @@ public final class SpeedrunLobbyMenu extends Menu {
         return deathLore(config.deathPolicy());
     }
 
-    private static List<String> creeperToggleLore(SpeedrunSettings config) {
-        return config.creeperOnBlockBreak()
-                ? List.of("<gray>Breaking a block spawns a creeper on it.", "<gray>Click to turn off.")
-                : List.of("<gray>Breaking a block does nothing extra.", "<gray>Click to turn on.");
+    private static List<String> creeperToggleLore(boolean enabled, String trigger) {
+        return enabled
+                ? List.of("<gray>" + trigger + " spawns a creeper.", "<gray>Click to turn off.")
+                : List.of("<gray>" + trigger + " does nothing extra.", "<gray>Click to turn on.");
     }
 }

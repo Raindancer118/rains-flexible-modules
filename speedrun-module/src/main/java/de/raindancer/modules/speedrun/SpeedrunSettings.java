@@ -45,10 +45,21 @@ public record SpeedrunSettings(
         @Describe("Whether a racer breaking a block during a run spawns a creeper right where it broke.")
         boolean creeperOnBlockBreak,
 
-        @In("config/speedrun") @Title("Charged creeper chance") @Range(min = 0, max = 100)
-        @Describe("Chance, in percent, that a creeper spawned this way is charged (powered) instead "
-                + "of an ordinary one.")
-        int chargedCreeperChancePercent
+        @In("config/speedrun") @Title("Charged creeper chance (block break)") @Range(min = 0, max = 100)
+        @Describe("Chance, in percent, that a creeper spawned by breaking a block is charged (powered) "
+                + "instead of an ordinary one.")
+        int chargedCreeperChanceOnBreakPercent,
+
+        @In("config/speedrun") @Title("Creeper on container open")
+        @Describe("Whether a racer opening a chest or other container during a run spawns a creeper "
+                + "right where it stands.")
+        boolean creeperOnContainerOpen,
+
+        @In("config/speedrun") @Title("Charged creeper chance (container open)") @Range(min = 0, max = 100)
+        @Describe("Chance, in percent, that a creeper spawned by opening a container is charged "
+                + "(powered) instead of an ordinary one — set separately from the block-break chance, "
+                + "since opening loot chests is a very different risk than mining.")
+        int chargedCreeperChanceOnContainerPercent
 
 ) {
 
@@ -69,7 +80,7 @@ public record SpeedrunSettings(
      * which is indistinguishable from broken.
      */
     public static final SpeedrunSettings DEFAULTS = new SpeedrunSettings(
-            "world", DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, true, 0);
+            "world", DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, true, 0, true, 0);
 
     /** Whether the configured goal is specifically the vanilla dragon kill — the only goal
      *  {@link #requireExitPortalAfterDragon} means anything for. */

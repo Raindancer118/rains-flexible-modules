@@ -3,20 +3,17 @@ package de.raindancer.modules.speedrun;
 import de.raindancer.core.data.settings.SettingsStore;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Creeper;
-import org.bukkit.entity.EntityType;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 
-import java.util.concurrent.ThreadLocalRandom;
-
 /**
  * A run's own hazard: every block a participant breaks while the race is actually
- * {@link SpeedrunState#RUNNING} spawns a creeper right where it broke — occasionally a charged one,
- * at {@link SpeedrunSettings#chargedCreeperChancePercent()}, when {@link SpeedrunSettings#creeperOnBlockBreak()}
- * is on.
+ * {@link SpeedrunState#RUNNING} spawns a creeper right where it broke — occasionally a charged one, at
+ * {@link SpeedrunSettings#chargedCreeperChanceOnBreakPercent()}, when
+ * {@link SpeedrunSettings#creeperOnBlockBreak()} is on. See {@link SpeedrunCreeperOnContainerOpenListener}
+ * for the same hazard on opening a container instead, with its own toggle and its own chance.
  *
  * <h2>Why session-scoped, not lobby-wide</h2>
  * Same reasoning as {@link SpeedrunOccupancyListener}: registered fresh in {@link SpeedrunLobby#start}
@@ -57,9 +54,6 @@ public final class SpeedrunCreeperOnBreakListener implements Listener {
         }
         Block block = event.getBlock();
         Location spawnAt = block.getLocation().add(0.5, 0, 0.5);
-        Creeper creeper = (Creeper) block.getWorld().spawnEntity(spawnAt, EntityType.CREEPER);
-        if (ThreadLocalRandom.current().nextInt(100) < current.chargedCreeperChancePercent()) {
-            creeper.setPowered(true);
-        }
+        SpeedrunCreeperHazard.spawn(spawnAt, current.chargedCreeperChanceOnBreakPercent());
     }
 }
