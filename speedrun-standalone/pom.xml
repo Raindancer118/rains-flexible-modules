@@ -29,8 +29,11 @@
              briefly lived built in, after a join handler there cleared a player's inventory on every
              join anywhere on the server. Not a rebuild of an earlier standalone speedrun plugin.
              1.1.0: a run hazard — breaking a block, or opening a chest/container, spawns a creeper,
-             occasionally charged, each with its own toggle and its own chance from the lobby menu. -->
-        <plugin.version>1.1.0</plugin.version>
+             occasionally charged, each with its own toggle and its own chance from the lobby menu.
+             1.2.0: the on/off hazard toggles became spawn-chance percentages; /lemmemove, /starthere,
+             /speedrunreset and /speedrunspectate; and every setting (not only the goal/death policy)
+             the lobby menu shows can now be reached mid-run where it actually applies live. -->
+        <plugin.version>1.2.0</plugin.version>
     </properties>
 
     <dependencies>

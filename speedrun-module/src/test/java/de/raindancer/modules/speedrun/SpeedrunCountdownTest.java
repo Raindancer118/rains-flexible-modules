@@ -82,7 +82,7 @@ class SpeedrunCountdownTest {
             Consumer<ScheduledTask> tick = captureTicker(bukkit);
             AtomicInteger completions = new AtomicInteger();
             SpeedrunCountdown countdown = new SpeedrunCountdown(plugin, bossBars, effects,
-                    Set.of(ALICE), completions::incrementAndGet);
+                    Set.of(ALICE), completions::incrementAndGet, Set.of());
 
             countdown.begin();
             verify(pluginManager).registerEvents(countdown, plugin);
@@ -113,7 +113,7 @@ class SpeedrunCountdownTest {
         try (MockedStatic<Bukkit> bukkit = mockStatic()) {
             captureTicker(bukkit);
             SpeedrunCountdown countdown = new SpeedrunCountdown(plugin, bossBars, effects,
-                    Set.of(ALICE), () -> { });
+                    Set.of(ALICE), () -> { }, Set.of());
             countdown.begin();
 
             World world = mock(World.class);
@@ -137,6 +137,33 @@ class SpeedrunCountdownTest {
             PlayerMoveEvent bobWalks = new PlayerMoveEvent(bob, from, walked);
             countdown.onMove(bobWalks);
             assertThat(bobWalks.isCancelled()).isFalse();
+        }
+    }
+
+    @Test
+    @DisplayName("does not freeze a participant /lemmemove has released, even mid-countdown")
+    void doesNotFreezeAReleasedParticipant() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic()) {
+            captureTicker(bukkit);
+            Set<UUID> released = java.util.concurrent.ConcurrentHashMap.newKeySet();
+            SpeedrunCountdown countdown = new SpeedrunCountdown(plugin, bossBars, effects,
+                    Set.of(ALICE), () -> { }, released);
+            countdown.begin();
+
+            World world = mock(World.class);
+            Player alice = mock(Player.class);
+            when(alice.getUniqueId()).thenReturn(ALICE);
+            Location from = new Location(world, 10, 64, 10);
+            Location walked = new Location(world, 11, 64, 10);
+
+            // Released after the countdown has already begun — the live set, not a snapshot, is
+            // what onMove has to consult, since /lemmemove runs after beginCountdown, never before it.
+            released.add(ALICE);
+
+            PlayerMoveEvent aliceWalks = new PlayerMoveEvent(alice, from, walked);
+            countdown.onMove(aliceWalks);
+
+            assertThat(aliceWalks.isCancelled()).isFalse();
         }
     }
 

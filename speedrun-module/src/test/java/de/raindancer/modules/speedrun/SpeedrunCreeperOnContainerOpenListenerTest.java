@@ -148,9 +148,9 @@ class SpeedrunCreeperOnContainerOpenListenerTest {
     }
 
     @Test
-    @DisplayName("the feature can be turned off entirely, separately from the block-break one")
-    void respectsItsOwnToggle() {
-        settings.set("creeper-on-container-open", "false");
+    @DisplayName("a 0% spawn chance never spawns a creeper, separately from the block-break one")
+    void respectsAZeroSpawnChance() {
+        settings.set("creeper-spawn-chance-on-container-percent", "0");
         SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
         session.start();
         SpeedrunCreeperOnContainerOpenListener listener =
@@ -159,6 +159,21 @@ class SpeedrunCreeperOnContainerOpenListenerTest {
         listener.onOpen(openEventBy(ALICE, container));
 
         verify(world, never()).spawnEntity(any(Location.class), any(EntityType.class));
+    }
+
+    @Test
+    @DisplayName("a 100% spawn chance always spawns a creeper")
+    void respectsAFullSpawnChance() {
+        settings.set("creeper-spawn-chance-on-container-percent", "100");
+        SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
+        session.start();
+        SpeedrunCreeperOnContainerOpenListener listener =
+                new SpeedrunCreeperOnContainerOpenListener(session, settings);
+        when(world.spawnEntity(any(Location.class), eq(EntityType.CREEPER))).thenReturn(mock(Creeper.class));
+
+        listener.onOpen(openEventBy(ALICE, container));
+
+        verify(world).spawnEntity(any(Location.class), eq(EntityType.CREEPER));
     }
 
     @Test

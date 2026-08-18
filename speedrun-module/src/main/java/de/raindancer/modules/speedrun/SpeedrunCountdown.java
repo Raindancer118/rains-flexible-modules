@@ -45,16 +45,20 @@ final class SpeedrunCountdown implements Listener {
     private final Effects effects;
     private final Set<UUID> participants;
     private final Runnable onComplete;
+    /** Live view of {@code SpeedrunLobby}'s own set — {@code /lemmemove} adds to it after this
+     *  countdown has already begun, so a snapshot taken here would miss a release granted mid-freeze. */
+    private final Set<UUID> released;
 
     private int secondsLeft;
 
     SpeedrunCountdown(Plugin plugin, BossBars bossBars, Effects effects, Set<UUID> participants,
-                      Runnable onComplete) {
+                      Runnable onComplete, Set<UUID> released) {
         this.plugin = plugin;
         this.bossBars = bossBars;
         this.effects = effects;
         this.participants = participants;
         this.onComplete = onComplete;
+        this.released = released;
     }
 
     /** Starts the countdown. Called exactly once, by {@link SpeedrunLobby#beginCountdown}. */
@@ -95,7 +99,8 @@ final class SpeedrunCountdown implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
-        if (!participants.contains(event.getPlayer().getUniqueId())) {
+        UUID id = event.getPlayer().getUniqueId();
+        if (!participants.contains(id) || released.contains(id)) {
             return;
         }
         if (event.getTo() == null || sameBlock(event.getFrom(), event.getTo())) {

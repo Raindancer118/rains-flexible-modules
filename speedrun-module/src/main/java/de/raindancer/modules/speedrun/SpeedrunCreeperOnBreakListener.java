@@ -9,11 +9,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 
 /**
- * A run's own hazard: every block a participant breaks while the race is actually
- * {@link SpeedrunState#RUNNING} spawns a creeper right where it broke — occasionally a charged one, at
- * {@link SpeedrunSettings#chargedCreeperChanceOnBreakPercent()}, when
- * {@link SpeedrunSettings#creeperOnBlockBreak()} is on. See {@link SpeedrunCreeperOnContainerOpenListener}
- * for the same hazard on opening a container instead, with its own toggle and its own chance.
+ * A run's own hazard: a block a participant breaks while the race is actually {@link SpeedrunState#RUNNING}
+ * spawns a creeper right where it broke with probability {@link SpeedrunSettings#creeperSpawnChanceOnBreakPercent()}
+ * — occasionally a charged one, at {@link SpeedrunSettings#chargedCreeperChanceOnBreakPercent()}. See
+ * {@link SpeedrunCreeperOnContainerOpenListener} for the same hazard on opening a container instead,
+ * with its own pair of chances.
  *
  * <h2>Why session-scoped, not lobby-wide</h2>
  * Same reasoning as {@link SpeedrunOccupancyListener}: registered fresh in {@link SpeedrunLobby#start}
@@ -49,11 +49,9 @@ public final class SpeedrunCreeperOnBreakListener implements Listener {
             return;
         }
         SpeedrunSettings current = settings.current();
-        if (!current.creeperOnBlockBreak()) {
-            return;
-        }
         Block block = event.getBlock();
         Location spawnAt = block.getLocation().add(0.5, 0, 0.5);
-        SpeedrunCreeperHazard.spawn(spawnAt, current.chargedCreeperChanceOnBreakPercent());
+        SpeedrunCreeperHazard.maybeSpawn(spawnAt, current.creeperSpawnChanceOnBreakPercent(),
+                current.chargedCreeperChanceOnBreakPercent());
     }
 }

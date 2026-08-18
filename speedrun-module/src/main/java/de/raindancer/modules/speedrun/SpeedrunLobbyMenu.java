@@ -19,10 +19,16 @@ import java.util.List;
  * {@link SpeedrunLobbyState#READY}, and a status page otherwise.
  *
  * <h2>Who may change what, and when</h2>
- * Any participant, but only while {@link SpeedrunLobbyState#READY} — the edit buttons only exist on
- * that branch of {@link #render()}. There is nothing to grey during a run: a page with no editable
- * buttons on it is a stronger guarantee than one whose buttons refuse a click, and it means a player
- * who opens this mid-race sees the race, not a form they cannot submit.
+ * The goal and the death policy only while {@link SpeedrunLobbyState#READY} — those are read once,
+ * when {@link SpeedrunLobby#start} arms a session's end conditions, so changing them mid-run would
+ * silently do nothing to the run already in progress and only confuse whoever clicked. There is
+ * nothing to grey for those two: a page with no editable buttons on it is a stronger guarantee than
+ * one whose buttons refuse a click.
+ *
+ * <p>The creeper hazard — {@link #renderCreeperSettings()} — is the opposite: both listeners read
+ * {@link SpeedrunSettings} fresh on every triggering event, so a change reaches a run already under
+ * way immediately. Asked for explicitly, so an admin can turn the hazard down (or up) without waiting
+ * for the race to end. Shown on every page regardless of {@link SpeedrunLobbyState} for that reason.
  */
 public final class SpeedrunLobbyMenu extends Menu {
 
@@ -57,6 +63,7 @@ public final class SpeedrunLobbyMenu extends Menu {
             case PAUSED -> renderInProgress("Paused — nobody is here");
             case FINISHED -> renderFinished();
         }
+        renderCreeperSettings();
     }
 
     private void renderCountdown() {
@@ -76,14 +83,26 @@ public final class SpeedrunLobbyMenu extends Menu {
                     lobby.settings().cycle("death-policy");
                     refresh();
                 });
+    }
+
+    /**
+     * The one part of this screen that is never lobby-only — see the class javadoc. Laid out in
+     * {@link MenuLayout#RULES} and {@link MenuLayout#LAND}, which every other branch of {@link #render()}
+     * leaves empty, so there is no collision with {@link #renderCountdown()}, {@link #renderInProgress}
+     * or {@link #renderFinished()}.
+     */
+    private void renderCreeperSettings() {
+        SpeedrunSettings config = lobby.config();
         band(MenuLayout.RULES, 3,
-                Icons.of(config.creeperOnBlockBreak() ? Material.CREEPER_HEAD : Material.BARRIER,
-                        "<white>Creeper on block break: " + (config.creeperOnBlockBreak() ? "On" : "Off"),
-                        creeperToggleLore(config.creeperOnBlockBreak(), "Breaking a block")),
-                click -> {
-                    lobby.settings().cycle("creeper-on-block-break");
-                    refresh();
-                });
+                Icons.of(config.creeperSpawnChanceOnBreakPercent() > 0 ? Material.CREEPER_HEAD : Material.BARRIER,
+                        "<white>Creeper chance (break): " + config.creeperSpawnChanceOnBreakPercent() + "%",
+                        "<gray>How often breaking a block spawns one.", "<dark_gray>Click to change."),
+                click -> new AmountChooser(viewer, brand(), this, "Creeper chance on block break %",
+                        config.creeperSpawnChanceOnBreakPercent(), 0, 100,
+                        value -> {
+                            lobby.settings().set("creeper-spawn-chance-on-break-percent", String.valueOf(value));
+                            refresh();
+                        }).open());
         band(MenuLayout.RULES, 5,
                 Icons.of(Material.TNT,
                         "<white>Charged chance (break): " + config.chargedCreeperChanceOnBreakPercent() + "%",
@@ -95,13 +114,16 @@ public final class SpeedrunLobbyMenu extends Menu {
                             refresh();
                         }).open());
         band(MenuLayout.LAND, 3,
-                Icons.of(config.creeperOnContainerOpen() ? Material.CREEPER_HEAD : Material.BARRIER,
-                        "<white>Creeper on container open: " + (config.creeperOnContainerOpen() ? "On" : "Off"),
-                        creeperToggleLore(config.creeperOnContainerOpen(), "Opening a chest or container")),
-                click -> {
-                    lobby.settings().cycle("creeper-on-container-open");
-                    refresh();
-                });
+                Icons.of(config.creeperSpawnChanceOnContainerPercent() > 0 ? Material.CREEPER_HEAD : Material.BARRIER,
+                        "<white>Creeper chance (container): " + config.creeperSpawnChanceOnContainerPercent() + "%",
+                        "<gray>How often opening one spawns a creeper.", "<dark_gray>Click to change."),
+                click -> new AmountChooser(viewer, brand(), this, "Creeper chance on container open %",
+                        config.creeperSpawnChanceOnContainerPercent(), 0, 100,
+                        value -> {
+                            lobby.settings().set("creeper-spawn-chance-on-container-percent",
+                                    String.valueOf(value));
+                            refresh();
+                        }).open());
         band(MenuLayout.LAND, 5,
                 Icons.of(Material.TNT,
                         "<white>Charged chance (container): " + config.chargedCreeperChanceOnContainerPercent() + "%",
@@ -173,11 +195,5 @@ public final class SpeedrunLobbyMenu extends Menu {
 
     private static List<String> deathLore(SpeedrunSettings config) {
         return deathLore(config.deathPolicy());
-    }
-
-    private static List<String> creeperToggleLore(boolean enabled, String trigger) {
-        return enabled
-                ? List.of("<gray>" + trigger + " spawns a creeper.", "<gray>Click to turn off.")
-                : List.of("<gray>" + trigger + " does nothing extra.", "<gray>Click to turn on.");
     }
 }

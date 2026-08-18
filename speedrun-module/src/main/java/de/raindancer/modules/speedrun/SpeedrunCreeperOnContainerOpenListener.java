@@ -13,14 +13,14 @@ import org.bukkit.inventory.InventoryHolder;
 
 /**
  * The same hazard as {@link SpeedrunCreeperOnBreakListener}, one trigger over: a participant opening a
- * chest or other container during a run spawns a creeper right where it stands — occasionally a
- * charged one, at {@link SpeedrunSettings#chargedCreeperChanceOnContainerPercent()}, when
- * {@link SpeedrunSettings#creeperOnContainerOpen()} is on.
+ * chest or other container during a run spawns a creeper right where it stands with probability
+ * {@link SpeedrunSettings#creeperSpawnChanceOnContainerPercent()} — occasionally a charged one, at
+ * {@link SpeedrunSettings#chargedCreeperChanceOnContainerPercent()}.
  *
- * <h2>Why its own toggle and its own chance</h2>
- * Opening a loot chest is a very different risk from mining — a server owner may want one hazard on
- * and not the other, or a gentler charged-creeper chance on chests than on ordinary block breaks. Both
- * settings are asked separately rather than sharing {@link SpeedrunCreeperOnBreakListener}'s.
+ * <h2>Why its own pair of chances</h2>
+ * Opening a loot chest is a very different risk from mining — a server owner may want one hazard turned
+ * down and not the other, or a gentler charged-creeper chance on chests than on ordinary block breaks.
+ * Both settings are asked separately rather than sharing {@link SpeedrunCreeperOnBreakListener}'s.
  *
  * <h2>Why a container's location, not the event's</h2>
  * {@link InventoryOpenEvent} carries no location of its own — it is about an inventory, which may
@@ -48,14 +48,12 @@ public final class SpeedrunCreeperOnContainerOpenListener implements Listener {
             return;
         }
         SpeedrunSettings current = settings.current();
-        if (!current.creeperOnContainerOpen()) {
-            return;
-        }
         Location spawnAt = locationOf(event.getInventory().getHolder());
         if (spawnAt == null) {
             return;
         }
-        SpeedrunCreeperHazard.spawn(spawnAt.add(0.5, 0, 0.5), current.chargedCreeperChanceOnContainerPercent());
+        SpeedrunCreeperHazard.maybeSpawn(spawnAt.add(0.5, 0, 0.5), current.creeperSpawnChanceOnContainerPercent(),
+                current.chargedCreeperChanceOnContainerPercent());
     }
 
     /** Where to spawn, for the holders that are actually a placed block; {@code null} for anything else. */

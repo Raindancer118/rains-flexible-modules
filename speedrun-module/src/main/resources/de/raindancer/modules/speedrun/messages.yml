@@ -22,3 +22,20 @@ speedrun:
   # Sent to every participant still online the moment a run ends, so they hear what settled it and
   # how long it took even if they were not looking at a boss bar or a scoreboard.
   finished: "<gold>Run finished! <white><reason></white> — <white><time></white>."
+  lemmemove:
+    done: "<green>Released <white><player></white> from the movement freeze."
+    no-permission-for-others: "<red>You may only release yourself — not somebody else."
+    player-not-found: "<red>No online player named <white><player></white>."
+    console-needs-a-player: "<red>Console must name a player: /lemmemove <player>."
+  starthere:
+    only-a-player: "<red>Only a player standing in the lobby world can set the start point."
+    wrong-world: "<yellow>This only sets a start point in <white><world></white>."
+    done: "<green>Start point set — every racer will be teleported here when a countdown begins."
+  reset:
+    done: "<green>The run has been ended and the world is regenerating."
+    nothing-to-reset: "<yellow>Nothing is running right now — there is nothing to reset."
+    countdown-in-progress: "<yellow>A countdown is already under way; let it finish, or let it start, then reset."
+  spectate:
+    only-a-player: "<red>Only a player can register as not racing."
+    on: "<yellow>You are now registered as not racing — pressing the start block will skip you."
+    off: "<green>You are racing again — pressing the start block will include you."

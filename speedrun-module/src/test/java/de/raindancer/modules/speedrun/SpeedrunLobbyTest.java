@@ -433,4 +433,174 @@ class SpeedrunLobbyTest {
             }
         }
     }
+
+    @Nested
+    @DisplayName("/lemmemove releasing a player from the movement freeze")
+    class Release {
+
+        @Test
+        @DisplayName("nobody is released by default")
+        void nobodyIsReleasedByDefault() {
+            assertThat(lobby().isReleased(ALICE)).isFalse();
+        }
+
+        @Test
+        @DisplayName("release() exempts exactly the player named")
+        void releaseExemptsOnlyThatPlayer() {
+            SpeedrunLobby lobby = lobby();
+
+            lobby.release(ALICE);
+
+            assertThat(lobby.isReleased(ALICE)).isTrue();
+            assertThat(lobby.isReleased(BOB)).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("/speedrunspectate toggling non-runner status")
+    class Spectators {
+
+        @Test
+        @DisplayName("nobody is a spectator by default")
+        void nobodyIsASpectatorByDefault() {
+            assertThat(lobby().isSpectator(ALICE)).isFalse();
+        }
+
+        @Test
+        @DisplayName("toggling flips the state and returns the new one")
+        void togglingFlipsState() {
+            SpeedrunLobby lobby = lobby();
+
+            boolean firstToggle = lobby.toggleSpectator(ALICE);
+            assertThat(firstToggle).isTrue();
+            assertThat(lobby.isSpectator(ALICE)).isTrue();
+
+            boolean secondToggle = lobby.toggleSpectator(ALICE);
+            assertThat(secondToggle).isFalse();
+            assertThat(lobby.isSpectator(ALICE)).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("/starthere and teleporting to it")
+    class StartPoint {
+
+        @Test
+        @DisplayName("setStartPoint writes every field and turns the flag on")
+        void setStartPointWritesEveryField() {
+            SpeedrunLobby lobby = lobby();
+            World world = mock(World.class);
+            Location point = new Location(world, 12.5, 70, -3.5, 90f, 15f);
+
+            lobby.setStartPoint(point);
+
+            SpeedrunSettings config = lobby.config();
+            assertThat(config.startPointSet()).isTrue();
+            assertThat(config.startX()).isEqualTo(12.5);
+            assertThat(config.startY()).isEqualTo(70);
+            assertThat(config.startZ()).isEqualTo(-3.5);
+            assertThat(config.startYaw()).isEqualTo(90);
+            assertThat(config.startPitch()).isEqualTo(15);
+        }
+
+        @Test
+        @DisplayName("beginCountdown teleports every participant there once a point is set")
+        void teleportsParticipantsOnceSet() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                settings.set("start-point-set", "true");
+                settings.set("start-x", "5");
+                settings.set("start-y", "70");
+                settings.set("start-z", "5");
+                Player alice = mock(Player.class);
+                bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+                SpeedrunLobby lobby = lobbyWithCountdown((participants, onComplete) -> { });
+
+                lobby.beginCountdown(Set.of(ALICE));
+
+                org.mockito.ArgumentCaptor<Location> captor = org.mockito.ArgumentCaptor.forClass(Location.class);
+                verify(alice).teleportAsync(captor.capture());
+                assertThat(captor.getValue().getX()).isEqualTo(5.0);
+                assertThat(captor.getValue().getY()).isEqualTo(70.0);
+                assertThat(captor.getValue().getZ()).isEqualTo(5.0);
+            }
+        }
+
+        @Test
+        @DisplayName("does not teleport anybody when no start point is set")
+        void doesNotTeleportWithoutAPoint() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                Player alice = mock(Player.class);
+                bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+                SpeedrunLobby lobby = lobbyWithCountdown((participants, onComplete) -> { });
+
+                lobby.beginCountdown(Set.of(ALICE));
+
+                verify(alice, org.mockito.Mockito.never()).teleportAsync(any(Location.class));
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("forceReset — the admin escape hatch")
+    class ForceReset {
+
+        @Test
+        @DisplayName("nothing to reset while READY")
+        void nothingToResetWhileReady() {
+            assertThat(lobby().forceReset()).isEqualTo(SpeedrunLobby.ResetOutcome.NOTHING_TO_RESET);
+        }
+
+        @Test
+        @DisplayName("refuses mid-countdown rather than racing the launcher's own callback")
+        void refusesMidCountdown() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                SpeedrunLobby lobby = lobbyWithCountdown((participants, onComplete) -> { });
+                lobby.beginCountdown(Set.of(ALICE));
+
+                assertThat(lobby.forceReset()).isEqualTo(SpeedrunLobby.ResetOutcome.COUNTDOWN_IN_PROGRESS);
+                assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.COUNTDOWN);
+            }
+        }
+
+        @Test
+        @DisplayName("ends a running session and regenerates the world, evacuating whoever is standing in it")
+        void resetsARunningSession() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         (mockCreator, context) -> when(mockCreator.createWorld())
+                                 .thenReturn(mock(World.class)))) {
+                World world = mock(World.class);
+                World mainWorld = mock(World.class);
+                Location spawn = mock(Location.class);
+                when(mainWorld.getSpawnLocation()).thenReturn(spawn);
+                when(world.getName()).thenReturn("world");
+                when(world.getWorldFolder()).thenReturn(dataFolder.resolve("speedrun").toFile());
+                when(world.getPlayers()).thenReturn(List.of());
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                bukkit.when(Bukkit::getWorlds).thenReturn(List.of(mainWorld));
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(true);
+                io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler globalScheduler =
+                        mock(io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler.class);
+                bukkit.when(Bukkit::getGlobalRegionScheduler).thenReturn(globalScheduler);
+                org.mockito.stubbing.Answer<Void> runImmediately = invocation -> {
+                    ((Runnable) invocation.getArgument(1)).run();
+                    return null;
+                };
+                org.mockito.Mockito.doAnswer(runImmediately).when(globalScheduler).execute(eq(plugin), any(Runnable.class));
+
+                SpeedrunLobby lobby = lobby();
+                lobby.start(Set.of(ALICE));
+
+                SpeedrunLobby.ResetOutcome outcome = lobby.forceReset();
+
+                assertThat(outcome).isEqualTo(SpeedrunLobby.ResetOutcome.RESET);
+                assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.READY);
+                assertThat(lobby.session()).isEmpty();
+            }
+        }
+    }
 }

@@ -130,9 +130,9 @@ class SpeedrunCreeperOnBreakListenerTest {
     }
 
     @Test
-    @DisplayName("the feature can be turned off entirely")
-    void respectsTheToggle() {
-        settings.set("creeper-on-block-break", "false");
+    @DisplayName("a 0% spawn chance never spawns a creeper")
+    void respectsAZeroSpawnChance() {
+        settings.set("creeper-spawn-chance-on-break-percent", "0");
         SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
         session.start();
         SpeedrunCreeperOnBreakListener listener = new SpeedrunCreeperOnBreakListener(session, settings);
@@ -140,6 +140,21 @@ class SpeedrunCreeperOnBreakListenerTest {
         listener.onBreak(breakEventBy(ALICE));
 
         verify(world, never()).spawnEntity(any(Location.class), any(EntityType.class));
+    }
+
+    @Test
+    @DisplayName("a 100% spawn chance always spawns a creeper")
+    void respectsAFullSpawnChance() {
+        settings.set("creeper-spawn-chance-on-break-percent", "100");
+        SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
+        session.start();
+        SpeedrunCreeperOnBreakListener listener = new SpeedrunCreeperOnBreakListener(session, settings);
+        when(world.spawnEntity(any(Location.class), org.mockito.ArgumentMatchers.eq(EntityType.CREEPER)))
+                .thenReturn(mock(Creeper.class));
+
+        listener.onBreak(breakEventBy(ALICE));
+
+        verify(world).spawnEntity(any(Location.class), org.mockito.ArgumentMatchers.eq(EntityType.CREEPER));
     }
 
     @Test

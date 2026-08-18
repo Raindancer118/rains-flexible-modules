@@ -102,6 +102,9 @@ public final class SpeedrunLobbyListener implements Listener {
         if (!player.getWorld().getName().equals(lobby.config().worldName())) {
             return;
         }
+        if (lobby.isReleased(player.getUniqueId())) {
+            return;
+        }
         if (event.getTo() == null || sameBlock(event.getFrom(), event.getTo())) {
             return;
         }
@@ -142,11 +145,14 @@ public final class SpeedrunLobbyListener implements Listener {
         }
         Set<UUID> present = lobbyWorld.getPlayers().stream()
                 .map(Player::getUniqueId)
+                .filter(id -> !lobby.isSpectator(id))
                 .collect(Collectors.toUnmodifiableSet());
         SpeedrunLobby.StartOutcome outcome = lobby.beginCountdown(present);
         if (outcome == SpeedrunLobby.StartOutcome.STARTED) {
             for (Player racer : lobbyWorld.getPlayers()) {
-                racer.getInventory().clear();
+                if (present.contains(racer.getUniqueId())) {
+                    racer.getInventory().clear();
+                }
             }
             return;
         }

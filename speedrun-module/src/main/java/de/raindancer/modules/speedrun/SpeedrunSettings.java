@@ -41,25 +41,52 @@ public record SpeedrunSettings(
                 + "advancement goal, or when death alone ends the run.")
         boolean requireExitPortalAfterDragon,
 
-        @In("config/speedrun") @Title("Creeper on block break")
-        @Describe("Whether a racer breaking a block during a run spawns a creeper right where it broke.")
-        boolean creeperOnBlockBreak,
+        @In("config/speedrun") @Title("Creeper chance (block break)") @Range(min = 0, max = 100)
+        @Describe("Chance, in percent, that a racer breaking a block during a run spawns a creeper "
+                + "right where it broke. 0 turns the hazard off; 100 is the old plain on/off toggle's "
+                + "'on'.")
+        int creeperSpawnChanceOnBreakPercent,
 
         @In("config/speedrun") @Title("Charged creeper chance (block break)") @Range(min = 0, max = 100)
-        @Describe("Chance, in percent, that a creeper spawned by breaking a block is charged (powered) "
-                + "instead of an ordinary one.")
+        @Describe("Of a creeper spawned by breaking a block, the chance in percent that it is charged "
+                + "(powered) instead of an ordinary one.")
         int chargedCreeperChanceOnBreakPercent,
 
-        @In("config/speedrun") @Title("Creeper on container open")
-        @Describe("Whether a racer opening a chest or other container during a run spawns a creeper "
-                + "right where it stands.")
-        boolean creeperOnContainerOpen,
+        @In("config/speedrun") @Title("Creeper chance (container open)") @Range(min = 0, max = 100)
+        @Describe("Chance, in percent, that a racer opening a chest or other container during a run "
+                + "spawns a creeper right where it stands — set separately from the block-break chance, "
+                + "since opening loot chests is a very different risk than mining.")
+        int creeperSpawnChanceOnContainerPercent,
 
         @In("config/speedrun") @Title("Charged creeper chance (container open)") @Range(min = 0, max = 100)
-        @Describe("Chance, in percent, that a creeper spawned by opening a container is charged "
-                + "(powered) instead of an ordinary one — set separately from the block-break chance, "
-                + "since opening loot chests is a very different risk than mining.")
-        int chargedCreeperChanceOnContainerPercent
+        @Describe("Of a creeper spawned by opening a container, the chance in percent that it is "
+                + "charged (powered) instead of an ordinary one.")
+        int chargedCreeperChanceOnContainerPercent,
+
+        @In("config/speedrun") @Title("Start point set")
+        @Describe("Whether /starthere has set a start point. Off means nobody is teleported when a "
+                + "countdown begins — racers start wherever they were standing when it caught them.")
+        boolean startPointSet,
+
+        @In("config/speedrun") @Title("Start X")
+        @Describe("Set by /starthere, not meant to be hand-edited.")
+        double startX,
+
+        @In("config/speedrun") @Title("Start Y")
+        @Describe("Set by /starthere, not meant to be hand-edited.")
+        double startY,
+
+        @In("config/speedrun") @Title("Start Z")
+        @Describe("Set by /starthere, not meant to be hand-edited.")
+        double startZ,
+
+        @In("config/speedrun") @Title("Start yaw")
+        @Describe("Set by /starthere, not meant to be hand-edited.")
+        double startYaw,
+
+        @In("config/speedrun") @Title("Start pitch")
+        @Describe("Set by /starthere, not meant to be hand-edited.")
+        double startPitch
 
 ) {
 
@@ -80,7 +107,8 @@ public record SpeedrunSettings(
      * which is indistinguishable from broken.
      */
     public static final SpeedrunSettings DEFAULTS = new SpeedrunSettings(
-            "world", DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, true, 0, true, 0);
+            "world", DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, 100, 0, 100, 0,
+            false, 0, 0, 0, 0, 0);
 
     /** Whether the configured goal is specifically the vanilla dragon kill — the only goal
      *  {@link #requireExitPortalAfterDragon} means anything for. */

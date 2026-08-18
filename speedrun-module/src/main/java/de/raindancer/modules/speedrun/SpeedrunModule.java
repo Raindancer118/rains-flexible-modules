@@ -2,9 +2,12 @@ package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.modules.api.FlexModule;
+import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
+import de.raindancer.modules.speedrun.util.PermissionNodes;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -20,7 +23,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.2.0")
             .describedAs("A speedrun lobby: pick an advancement goal or a death policy from the "
                     + "compass's menu, then press the green block to race. A countdown freezes "
                     + "everyone first, and the lobby world resets once the last racer has left.")
@@ -50,17 +53,33 @@ public final class SpeedrunModule implements FlexModule {
         context.listener(new SpeedrunLobbyListener(lobby, new SpeedrunLobbyItems(context.plugin()),
                 context.chat().brand(), context.core().messages()));
 
+        // Before anything asks. An unregistered permission resolves to "operators only", which would
+        // refuse /lemmemove and /speedrunspectate — both meant for anybody racing — to ordinary players.
+        int registered = PermissionNodes.register(context.plugin().getServer());
+        if (registered > 0) {
+            context.log().info("{} permission(s) registered.", registered);
+        }
+        // The commands were registered during bootstrap, long before any of this existed, and have
+        // been answering "not running yet" until now. See SpeedrunCommands.
+        SpeedrunCommands.ready(new SpeedrunAdminServices(lobby, context.core().messages()));
+
         context.log().info("Speedrun lobby is up: {}.",
                 lobby.state().name().toLowerCase(Locale.ROOT));
     }
 
     @Override
     public void disable() {
+        SpeedrunCommands.stopped();
         // Nothing to flush: the configuration is already on disk through its own settings store, and
         // a run in progress does not survive a restart either way — see SpeedrunLobby's own class
         // javadoc for why that is unchanged, deliberate scope rather than an oversight.
         //
         // The listener is unregistered by the context, in the reverse order it was registered.
+    }
+
+    @Override
+    public List<ModuleCommand> commands() {
+        return SpeedrunCommands.declared();
     }
 
     /** The lobby on this server, for a host that wants to show its state. */
