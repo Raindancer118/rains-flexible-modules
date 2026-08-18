@@ -6,8 +6,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Supplier;
 
-/** {@code /speedrunreset} — force-ends whatever is happening and regenerates the world. See
- *  {@link SpeedrunLobby#forceReset} for what this does and does not touch. */
+/** {@code /speedrunreset} — force-ends whatever is happening and deletes and remakes the world from
+ *  scratch. See {@link SpeedrunLobby#forceReset} for exactly what this does. */
 public final class SpeedrunResetCommand implements ISpeedrunCommand {
 
     private final Supplier<SpeedrunAdminServices> services;
@@ -22,7 +22,6 @@ public final class SpeedrunResetCommand implements ISpeedrunCommand {
         SpeedrunLobby.ResetOutcome outcome = live.lobby().forceReset();
         live.messages().send(source.getSender(), switch (outcome) {
             case RESET -> "speedrun.reset.done";
-            case NOTHING_TO_RESET -> "speedrun.reset.nothing-to-reset";
             case COUNTDOWN_IN_PROGRESS -> "speedrun.reset.countdown-in-progress";
         });
     }

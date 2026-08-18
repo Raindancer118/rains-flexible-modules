@@ -23,7 +23,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.2.1")
             .describedAs("A speedrun lobby: pick an advancement goal or a death policy from the "
                     + "compass's menu, then press the green block to race. A countdown freezes "
                     + "everyone first, and the lobby world resets once the last racer has left.")

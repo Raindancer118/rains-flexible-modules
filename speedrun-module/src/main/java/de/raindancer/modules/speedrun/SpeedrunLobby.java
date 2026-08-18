@@ -69,10 +69,8 @@ public final class SpeedrunLobby {
 
     /** What {@link #forceReset} answered. */
     public enum ResetOutcome {
-        /** The run, if any, was ended and the world is regenerating. */
+        /** Whatever run there was is ended, and the world is being deleted and remade. */
         RESET,
-        /** Nothing was running — a fresh map has no reason to be thrown away. */
-        NOTHING_TO_RESET,
         /** A countdown is in flight; see {@link #forceReset}'s own note on why this refuses rather
          *  than racing it. */
         COUNTDOWN_IN_PROGRESS
@@ -303,27 +301,26 @@ public final class SpeedrunLobby {
     }
 
     /**
-     * An admin's own escape hatch: ends whatever is happening and regenerates the world with a fresh
-     * random seed, evacuating everybody currently standing in it first. For a run stuck some other way
-     * than {@link #resetIfAbandoned}'s everyday path — a crashed end condition, a server owner testing
-     * configuration, a run nobody can actually finish — not a substitute for it.
+     * An admin's own escape hatch: whatever the speedrun world currently is — mid-run, freshly
+     * regenerated and untouched, half-built by somebody poking around in it while READY — this ends
+     * any run under way, evacuates everybody standing in the world, deletes every one of its files, and
+     * makes a brand new one from scratch with a fresh random seed. Not "revert to some earlier state":
+     * the old world is gone, the same way {@link SpeedrunReset#regenerate} always works.
      *
-     * <p>Refuses during {@link SpeedrunLobbyState#COUNTDOWN} rather than racing it: {@link #beginCountdown}
-     * has already scheduled a callback that will call {@link #start} once it fires, and nothing here can
-     * reach into {@link SpeedrunCountdownLauncher} to cancel that. Ending the session it has not created
-     * yet would do nothing, and it would still start seconds later as if this had never been called.
+     * <p>Refuses only during {@link SpeedrunLobbyState#COUNTDOWN}, rather than racing it:
+     * {@link #beginCountdown} has already scheduled a callback that will call {@link #start} once it
+     * fires, and nothing here can reach into {@link SpeedrunCountdownLauncher} to cancel that. Deleting
+     * the world out from under a countdown that is about to start a session in it would not stop that
+     * session from starting seconds later, in a world that may not have finished being created yet.
      */
     public ResetOutcome forceReset() {
         if (countingDown) {
             return ResetOutcome.COUNTDOWN_IN_PROGRESS;
         }
-        if (session == null) {
-            return ResetOutcome.NOTHING_TO_RESET;
-        }
         World target = world().orElse(null);
         Set<UUID> evacuate = target == null ? Set.of() : target.getPlayers().stream()
                 .map(Player::getUniqueId).collect(java.util.stream.Collectors.toUnmodifiableSet());
-        if (session.state() != SpeedrunState.FINISHED) {
+        if (session != null && session.state() != SpeedrunState.FINISHED) {
             session.finish("admin-reset");
         }
         disarmSession();

@@ -32,8 +32,7 @@ speedrun:
     wrong-world: "<yellow>This only sets a start point in <white><world></white>."
     done: "<green>Start point set — every racer will be teleported here when a countdown begins."
   reset:
-    done: "<green>The run has been ended and the world is regenerating."
-    nothing-to-reset: "<yellow>Nothing is running right now — there is nothing to reset."
+    done: "<green>The run has been ended and the world is being deleted and remade."
     countdown-in-progress: "<yellow>A countdown is already under way; let it finish, or let it start, then reset."
   spectate:
     only-a-player: "<red>Only a player can register as not racing."

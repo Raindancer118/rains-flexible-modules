@@ -548,9 +548,36 @@ class SpeedrunLobbyTest {
     class ForceReset {
 
         @Test
-        @DisplayName("nothing to reset while READY")
-        void nothingToResetWhileReady() {
-            assertThat(lobby().forceReset()).isEqualTo(SpeedrunLobby.ResetOutcome.NOTHING_TO_RESET);
+        @DisplayName("wipes and remakes the world even while READY, with nothing running")
+        void resetsAnUntouchedReadyWorld() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         (mockCreator, context) -> when(mockCreator.createWorld())
+                                 .thenReturn(mock(World.class)))) {
+                World world = mock(World.class);
+                World mainWorld = mock(World.class);
+                Location spawn = mock(Location.class);
+                when(mainWorld.getSpawnLocation()).thenReturn(spawn);
+                when(world.getName()).thenReturn("world");
+                when(world.getWorldFolder()).thenReturn(dataFolder.resolve("speedrun").toFile());
+                when(world.getPlayers()).thenReturn(List.of());
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                bukkit.when(Bukkit::getWorlds).thenReturn(List.of(mainWorld));
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(true);
+                io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler globalScheduler =
+                        mock(io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler.class);
+                bukkit.when(Bukkit::getGlobalRegionScheduler).thenReturn(globalScheduler);
+                org.mockito.stubbing.Answer<Void> runImmediately = invocation -> {
+                    ((Runnable) invocation.getArgument(1)).run();
+                    return null;
+                };
+                org.mockito.Mockito.doAnswer(runImmediately).when(globalScheduler).execute(eq(plugin), any(Runnable.class));
+
+                SpeedrunLobby.ResetOutcome outcome = lobby().forceReset();
+
+                assertThat(outcome).isEqualTo(SpeedrunLobby.ResetOutcome.RESET);
+                bukkit.verify(() -> Bukkit.unloadWorld(world, false));
+            }
         }
 
         @Test

@@ -32,8 +32,11 @@
              occasionally charged, each with its own toggle and its own chance from the lobby menu.
              1.2.0: the on/off hazard toggles became spawn-chance percentages; /lemmemove, /starthere,
              /speedrunreset and /speedrunspectate; and every setting (not only the goal/death policy)
-             the lobby menu shows can now be reached mid-run where it actually applies live. -->
-        <plugin.version>1.2.0</plugin.version>
+             the lobby menu shows can now be reached mid-run where it actually applies live.
+             1.2.1: /speedrunreset now deletes and remakes the world from scratch even while READY
+             with nothing running, instead of refusing — "regenerate" always meant a full wipe, not a
+             revert, whatever state the world happened to be in. -->
+        <plugin.version>1.2.1</plugin.version>
     </properties>
 
     <dependencies>
