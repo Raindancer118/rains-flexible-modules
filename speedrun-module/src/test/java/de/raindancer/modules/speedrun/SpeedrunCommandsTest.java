@@ -22,13 +22,19 @@ class SpeedrunCommandsTest {
     class Declaring {
 
         @Test
-        @DisplayName("there are exactly four commands, with the names asked for")
-        void fourCommands() {
+        @DisplayName("there are exactly five commands, with the names asked for")
+        void fiveCommands() {
             List<ModuleCommand> declared = SpeedrunCommands.declared();
 
-            assertThat(declared).hasSize(4);
+            assertThat(declared).hasSize(5);
             assertThat(declared.stream().map(ModuleCommand::name)).containsExactlyInAnyOrder(
-                    "lemmemove", "starthere", "speedrunreset", "speedrunspectate");
+                    "speedrun", "lemmemove", "starthere", "speedrunreset", "speedrunspectate");
+        }
+
+        @Test
+        @DisplayName("speedrun needs the join permission")
+        void joinNeedsItsOwnPermission() {
+            assertThat(byName("speedrun").permission()).isEqualTo(PermissionNodes.JOIN);
         }
 
         @Test
@@ -77,9 +83,10 @@ class SpeedrunCommandsTest {
         }
 
         @Test
-        @DisplayName("speedrunreset is audited; the other three are not")
+        @DisplayName("speedrunreset is audited; the other four are not")
         void onlyResetIsAudited() {
             assertThat(byName("speedrunreset").audited()).isTrue();
+            assertThat(byName("speedrun").audited()).isFalse();
             assertThat(byName("lemmemove").audited()).isFalse();
             assertThat(byName("starthere").audited()).isFalse();
             assertThat(byName("speedrunspectate").audited()).isFalse();

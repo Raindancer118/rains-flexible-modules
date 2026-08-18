@@ -38,3 +38,6 @@ speedrun:
     only-a-player: "<red>Only a player can register as not racing."
     on: "<yellow>You are now registered as not racing — pressing the start block will skip you."
     off: "<green>You are racing again — pressing the start block will include you."
+  join:
+    only-a-player: "<red>Only a player can go to the speedrun lobby."
+    world-missing: "<red>The lobby world <white><world></white> is not loaded. Somebody should look at speedrun.yml."

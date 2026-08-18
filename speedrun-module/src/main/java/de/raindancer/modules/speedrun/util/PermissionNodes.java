@@ -30,6 +30,10 @@ public final class PermissionNodes {
     /** Registering as not racing. On by default, the same reasoning as {@link #LEMMEMOVE_SELF}. */
     public static final String SPECTATE = "rainsspeedrun.spectate";
 
+    /** Teleporting yourself to the lobby world. On by default: this is the only way there at all —
+     *  nothing else gets a player into the lobby world in the first place. */
+    public static final String JOIN = "rainsspeedrun.join";
+
     private PermissionNodes() {
     }
 
@@ -42,6 +46,8 @@ public final class PermissionNodes {
                 new Permission(ADMIN, "Set the speedrun start point, and force-reset a run",
                         PermissionDefault.OP),
                 new Permission(SPECTATE, "Register as not racing the next speedrun",
+                        PermissionDefault.TRUE),
+                new Permission(JOIN, "Teleport to the speedrun lobby world",
                         PermissionDefault.TRUE));
     }
 
