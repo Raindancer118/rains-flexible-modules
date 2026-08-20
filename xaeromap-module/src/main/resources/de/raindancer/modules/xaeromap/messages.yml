@@ -1,0 +1,20 @@
+# Rain's Xaero's Map support — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins. See
+# Messages.defineFrom. Every placeholder a line asks for is supplied where it is sent, and nothing
+# here is YAML's idea of a truth value.
+xaeromap:
+
+  usage: "<gray>/xaeromap [refresh|status|resync]"
+  only-a-player: "<red>Only a player with a map open can refresh one."
+  no-permission: "<red>That part of this is for staff."
+
+  refresh:
+    done: "<green>Sent again. Your map will fill back in over the next few seconds."
+    no-mod: "<yellow>Nothing on your client answered. Claims are drawn by Xaero's Minimap or World Map <white>together with Open Parties and Claims</white> — without those there is nothing here to refresh. Your per-world map has been sent again anyway."
+
+  resync:
+    done: "<green>Sent again to <white><players></white> player(s)."
+
+  status:
+    line: "<gray>Map support: per-world maps <white><worlds></white>, claims <white><claims></white> (<source>), shown to <white><shown></white>. <white><mapped></white> claim(s) over <white><chunks></white> chunk(s); <white><listening></white> of <white><online></white> online player(s) are running a map mod that reads them."

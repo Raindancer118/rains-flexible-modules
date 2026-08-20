@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>xaeromap-module</artifactId>
+    <!-- Own version, independent of the reactor's: this module is published to the registry on its own
+         schedule under its own tag (xaeromap-module-vX.Y.Z), not tied to any other module's release. -->
+    <version>${xaeromap-module.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Xaero's Map support</name>
+    <description>
+        Server-side support for Xaero's Minimap and Xaero's World Map: every world gets its own map
+        cache instead of one shared with every other world, and claims are drawn on the client's own
+        map — over Open Parties and Claims' wire format, which is what those two mods read claims out
+        of, so that half needs OPAC installed client-side beside the minimap.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+        <!--
+          Compiled against, never shaded, and only ever touched from de.raindancer.modules.xaeromap.claims
+          behind ClaimIntegration's runtime check — the same arrangement mannequin-module uses, and for the
+          same reason: showing claims is what this module is *for*, but a server can install it purely for
+          the per-world map fix and never have a claims plugin at all. A shaded copy would be a second
+          ClaimRegistry beside the live one, with its own idea of which claims exist.
+        -->
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>claims-module</artifactId>
+            <version>${claims-module.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${modules-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

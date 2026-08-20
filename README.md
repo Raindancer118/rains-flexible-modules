@@ -21,6 +21,7 @@ and never shaded in.
 | `tpa-module` | asking somebody if you may come to them, and being asked |
 | `farmworld-module` | somewhere to strip-mine that is thrown away and made again — scattered arrivals, and the whole server warned before it goes |
 | `pack-module` | the one resource pack the server wears, hosted elsewhere and applied to everybody |
+| `xaeromap-module` | Xaero's Minimap and World Map, told what they cannot work out for themselves: which world a player is in (everybody), and where the claims are (for clients that also have Open Parties and Claims, whose protocol both mods read) |
 | `<x>-standalone` | a thin shade shell: module + wrapper = one loadable jar |
 | `yeuksmp` | the bundle: claims, tpa, warps, moderation, the server pack and coloured names in one jar |
 

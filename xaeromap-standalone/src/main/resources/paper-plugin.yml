@@ -1,0 +1,37 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see rtp-standalone's own copy for
+# why every line here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'A map per world on Xaero''s Minimap and World Map, and this server''s claims drawn on both for clients that also run Open Parties and Claims.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Nothing in the module touches Bukkit.getScheduler() — the refresh clock goes through Core's Scheduling
+# on the global region scheduler, and every packet is sent from the player's own thread via Wire.through.
+folia-supported: true
+
+dependencies:
+  # Both phases, and bootstrap is not belt-and-braces — see rtp-standalone's own copy of this file for the
+  # full reasoning: without it the module fails to link at bootstrap and the plugin reports that it contains
+  # no modules.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    # Genuinely optional, and required: false says so. With a claims plugin installed this draws its
+    # claims; without one it still gives every world its own map, which is the half of this that needs
+    # nothing else. load: BEFORE only orders the two when both are present — the lookup itself is done
+    # lazily through Bukkit's ServicesManager, so a claims plugin that enables later is still found.
+    RainsExtendedClaims:
+      load: BEFORE
+      required: false
+      join-classpath: true
