@@ -15,14 +15,14 @@
 
     <name>YeukSMP</name>
     <description>
-        One plugin carrying twelve modules — claims, teleport requests, warps, moderation, the
-        server pack, coloured names, homes, random teleport, essentials, chat, training mannequins
-        and inventory snapshots — for a server that wants all of them and would otherwise install
-        twelve jars that each have to be updated separately.
+        One plugin carrying thirteen modules — claims, teleport requests, warps, moderation, the
+        server pack, coloured names, homes, random teleport, essentials, chat, training mannequins,
+        inventory snapshots and Xaero's map support — for a server that wants all of them and would
+        otherwise install thirteen jars that each have to be updated separately.
 
         Nothing here but a build file and a descriptor. The wrapper already knows what to do with a
         jar holding more than one module: ModuleHosts.standalone reads the module count and gives
-        each one a subfolder rather than letting eleven fight over one config.yml.
+        each one a subfolder rather than letting thirteen fight over one config.yml.
     </description>
 
     <properties>
@@ -351,18 +351,25 @@
           angle brackets around the name are available too, via the chat format setting, for anybody
           who wants them.
 
+          1.17.0: xaeromap-module 1.0.0 — server-side support for Xaero's Minimap and World Map.
+          Every world gets its own map instead of all of them drawing over one shared cache;
+          /xaeromap homes and /xaeromap warps hand a player their own places as waypoints to add,
+          one click each; and this server's claims are drawn on the map for clients that also run
+          Open Parties and Claims. Nothing is sent to a client that has not answered, so a player
+          with no map mod sees nothing at all.
+
           1.16.0: chat-module 1.2.0's default message colour, default name colour and
           brackets-around-the-name are now their own settings — a real swatch-grid colour picker in
           /settings (RainsCore 1.28.0's ColorChooser), not typed in chat or cycled one click at a
           time. (1.15.0's jar was built from a stale target/classes and never actually carried these
           three; this is the first build that does.)
         -->
-        <plugin.version>1.16.0</plugin.version>
+        <plugin.version>1.17.0</plugin.version>
     </properties>
 
     <dependencies>
         <!--
-          The twelve the server asked for, and deliberately not farm worlds: a bundle is a decision
+          The thirteen the server asked for, and deliberately not farm worlds: a bundle is a decision
           about what this server runs, not a shortcut for "everything in the repository". Adding one
           later is adding a dependency here — ServiceLoader finds it, the shade merges the service
           files, and no list anywhere else has to be edited.
@@ -414,6 +421,10 @@
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>invsnap-module</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>xaeromap-module</artifactId>
         </dependency>
 
         <dependency>

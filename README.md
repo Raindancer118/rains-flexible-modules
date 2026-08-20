@@ -23,7 +23,7 @@ and never shaded in.
 | `pack-module` | the one resource pack the server wears, hosted elsewhere and applied to everybody |
 | `xaeromap-module` | Xaero's Minimap and World Map, told what they cannot work out for themselves: which world a player is in, their homes and warps as waypoints to add, and where the claims are (that last one for clients that also have Open Parties and Claims, whose protocol both mods read) |
 | `<x>-standalone` | a thin shade shell: module + wrapper = one loadable jar |
-| `yeuksmp` | the bundle: claims, tpa, warps, moderation, the server pack and coloured names in one jar |
+| `yeuksmp` | the bundle: thirteen modules in one jar, for the server that runs all of them |
 
 Two ways to consume a module, and **the module cannot tell which one it is in**:
 
