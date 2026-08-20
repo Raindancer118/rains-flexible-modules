@@ -2,6 +2,7 @@ package de.raindancer.modules.xaeromap.command;
 
 import de.raindancer.modules.xaeromap.XaeroMapServices;
 import de.raindancer.modules.xaeromap.model.ClaimMapSnapshot;
+import de.raindancer.modules.xaeromap.model.Waypoint;
 import de.raindancer.modules.xaeromap.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
@@ -24,9 +25,13 @@ import java.util.function.Supplier;
  * running a map mod that reads this protocol, which is the one fact that separates "broken" from
  * "nobody has the mod".
  *
- * <p>Three subcommands and no menu, deliberately. Nothing here is a setting — the settings are Core's
- * own {@code /settings} pages, off the {@code @Settings} record — and a menu of three buttons that each
- * do one thing immediately is a slower way to type three words.
+ * <p>No menu, deliberately. Nothing here is a setting — the settings are Core's own {@code /settings}
+ * pages, off the {@code @Settings} record — and a menu of buttons that each do one thing immediately is
+ * a slower way to type one word.
+ *
+ * <p>{@code homes} and {@code warps} are the exception to "a subcommand has to earn its place": they
+ * take no argument and a menu could show them, but what they produce is chat — a row of buttons in the
+ * client's own chat window — so a menu would be a window you open in order to close it.
  */
 public final class XaeroMapCommand implements IXaeroMapCommand {
 
@@ -46,6 +51,8 @@ public final class XaeroMapCommand implements IXaeroMapCommand {
             case "refresh" -> refresh(live, sender);
             case "status" -> status(live, sender);
             case "resync" -> resyncEverybody(live, sender);
+            case "homes" -> offer(live, sender, "homes");
+            case "warps" -> offer(live, sender, "warps");
             default -> live.messages().send(sender, "xaeromap.usage");
         }
     }
@@ -73,6 +80,44 @@ public final class XaeroMapCommand implements IXaeroMapCommand {
         live.messages().send(sender, "xaeromap.refresh.done");
     }
 
+    /**
+     * Hands the player their places as waypoints to add.
+     *
+     * <p>Refused rather than half-done in three cases, each with its own wording: the feature is off,
+     * the player has no map mod at all (the offer would arrive as raw text they cannot read), or they
+     * have no places of that kind. A silent nothing would read as the command being broken.
+     */
+    private void offer(XaeroMapServices live, CommandSender sender, String which) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "xaeromap.only-a-player");
+            return;
+        }
+        if (!live.waypoints().enabled()) {
+            live.messages().send(sender, "xaeromap.waypoints.off");
+            return;
+        }
+        if (!live.waypoints().canReceive(player)) {
+            live.messages().send(sender, "xaeromap.waypoints.no-mod");
+            return;
+        }
+        List<Waypoint> places = "homes".equals(which)
+                ? live.waypoints().homesOf(player)
+                : live.waypoints().warpsFor(player);
+        if (places.isEmpty()) {
+            live.messages().send(sender, "xaeromap.waypoints.none", "kind", which);
+            return;
+        }
+        // The heading first, then the offers: each of those is a bare share line the client turns into
+        // a button, so anything said after them would look like part of the last one.
+        live.messages().send(sender, "xaeromap.waypoints.offering",
+                "count", String.valueOf(places.size()), "kind", which);
+        int sent = live.waypoints().offer(player, places);
+        if (sent < places.size()) {
+            live.messages().send(sender, "xaeromap.waypoints.partial",
+                    "sent", String.valueOf(sent), "count", String.valueOf(places.size()));
+        }
+    }
+
     private void status(XaeroMapServices live, CommandSender sender) {
         if (!sender.hasPermission(PermissionNodes.ADMIN)) {
             live.messages().send(sender, "xaeromap.no-permission");
@@ -88,6 +133,7 @@ public final class XaeroMapCommand implements IXaeroMapCommand {
                 "mapped", String.valueOf(picture.claims().size()),
                 "chunks", String.valueOf(picture.chunkCount()),
                 "listening", String.valueOf(live.sync().readyCount()),
+                "mapmods", String.valueOf(live.clients().count()),
                 "online", String.valueOf(live.server().getOnlinePlayers().size()));
     }
 
@@ -113,7 +159,7 @@ public final class XaeroMapCommand implements IXaeroMapCommand {
         if (args.length != 1) {
             return List.of();
         }
-        List<String> offered = new ArrayList<>(List.of("refresh"));
+        List<String> offered = new ArrayList<>(List.of("refresh", "homes", "warps"));
         if (source.getSender().hasPermission(PermissionNodes.ADMIN)) {
             offered.add("status");
             offered.add("resync");
@@ -125,6 +171,7 @@ public final class XaeroMapCommand implements IXaeroMapCommand {
 
     @Override
     public String describe() {
-        return "what this server is telling Xaero's map mods, and sending it again";
+        return "what this server is telling Xaero's map mods, sending it again, and handing a player "
+                + "their places as waypoints";
     }
 }

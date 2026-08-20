@@ -5,7 +5,7 @@
 # here is YAML's idea of a truth value.
 xaeromap:
 
-  usage: "<gray>/xaeromap [refresh|status|resync]"
+  usage: "<gray>/xaeromap [refresh|homes|warps|status|resync]"
   only-a-player: "<red>Only a player with a map open can refresh one."
   no-permission: "<red>That part of this is for staff."
 
@@ -16,5 +16,12 @@ xaeromap:
   resync:
     done: "<green>Sent again to <white><players></white> player(s)."
 
+  waypoints:
+    off: "<red>Places as waypoints are switched off on this server."
+    no-mod: "<yellow>Nothing on your client answered, so there is nowhere to put a waypoint — Xaero's Minimap or World Map is what draws them."
+    none: "<yellow>You have no <kind> to put on your map."
+    offering: "<green>Your <white><count></white> <kind>, one click each to add to your map:"
+    partial: "<yellow>Only <white><sent></white> of <white><count></white> could be offered — the rest have names your map cannot take."
+
   status:
-    line: "<gray>Map support: per-world maps <white><worlds></white>, claims <white><claims></white> (<source>), shown to <white><shown></white>. <white><mapped></white> claim(s) over <white><chunks></white> chunk(s); <white><listening></white> of <white><online></white> online player(s) are running a map mod that reads them."
+    line: "<gray>Map support: per-world maps <white><worlds></white>, claims <white><claims></white> (<source>), shown to <white><shown></white>. <white><mapped></white> claim(s) over <white><chunks></white> chunk(s). Of <white><online></white> online player(s), <white><mapmods></white> have a Xaero map mod and <white><listening></white> of those also read claims."

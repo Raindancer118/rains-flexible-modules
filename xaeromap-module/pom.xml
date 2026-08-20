@@ -19,9 +19,10 @@
     <name>Rain's Flexible Modules — Xaero's Map support</name>
     <description>
         Server-side support for Xaero's Minimap and Xaero's World Map: every world gets its own map
-        cache instead of one shared with every other world, and claims are drawn on the client's own
-        map — over Open Parties and Claims' wire format, which is what those two mods read claims out
-        of, so that half needs OPAC installed client-side beside the minimap.
+        cache instead of one shared with every other world, a player's homes and warps can be handed
+        over as waypoints to add, and claims are drawn on the client's own map — that last one over
+        Open Parties and Claims' wire format, which is what those two mods read claims out of, so it
+        needs OPAC installed client-side beside the minimap.
     </description>
 
     <dependencies>

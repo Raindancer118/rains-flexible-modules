@@ -26,12 +26,12 @@ public final class XaeroMapCommands {
     public static List<ModuleCommand> declared() {
         return List.of(
                 ModuleCommand.of("xaeromap",
-                                "What this server tells Xaero's map mods, and sending it again",
+                                "Your places on your own map, and what this server tells Xaero's map mods",
                                 new XaeroMapCommand(XaeroMapCommands::require))
                         // The command itself is open, because its bare form is a player refreshing
                         // their own map; status and resync check the admin node themselves.
                         .needing(PermissionNodes.REFRESH)
-                        .taking("[refresh|status|resync]")
+                        .taking("[refresh|homes|warps|status|resync]")
                         .auditUsage());
     }
 

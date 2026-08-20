@@ -25,7 +25,7 @@ class XaeroMapSettingsTest {
     class Defaults {
 
         @Test
-        @DisplayName("both halves on, everybody, one percent, five seconds, 512 chunks")
+        @DisplayName("everything on, everybody, one percent, five seconds, 512 chunks")
         void eachOneByName() {
             assertThat(defaults.worldIds()).isTrue();
             assertThat(defaults.claims()).isTrue();
@@ -35,6 +35,9 @@ class XaeroMapSettingsTest {
             assertThat(defaults.chunksPerRefresh()).isEqualTo(512);
             assertThat(defaults.ownColour()).isEqualTo(NamedTextColor.GREEN);
             assertThat(defaults.sharedColour()).isEqualTo(NamedTextColor.AQUA);
+            assertThat(defaults.waypoints()).isTrue();
+            assertThat(defaults.homeColour()).isEqualTo(NamedTextColor.YELLOW);
+            assertThat(defaults.warpColour()).isEqualTo(NamedTextColor.LIGHT_PURPLE);
         }
 
         @Test
@@ -105,7 +108,10 @@ class XaeroMapSettingsTest {
                     .withRefreshSeconds(60)
                     .withChunksPerRefresh(64)
                     .withOwnColour(NamedTextColor.GOLD)
-                    .withSharedColour(NamedTextColor.LIGHT_PURPLE);
+                    .withSharedColour(NamedTextColor.LIGHT_PURPLE)
+                    .withWaypoints(false)
+                    .withHomeColour(NamedTextColor.DARK_AQUA)
+                    .withWarpColour(NamedTextColor.DARK_RED);
 
             assertThat(changed.worldIds()).isFalse();
             assertThat(changed.claims()).isFalse();
@@ -118,6 +124,9 @@ class XaeroMapSettingsTest {
                     .as("two ints or two colours next to each other in a positional constructor "
                             + "swap silently and compile perfectly")
                     .isEqualTo(NamedTextColor.LIGHT_PURPLE);
+            assertThat(changed.waypoints()).isFalse();
+            assertThat(changed.homeColour()).isEqualTo(NamedTextColor.DARK_AQUA);
+            assertThat(changed.warpColour()).isEqualTo(NamedTextColor.DARK_RED);
         }
     }
 }

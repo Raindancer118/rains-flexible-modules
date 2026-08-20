@@ -54,6 +54,14 @@ class XaeroMapCommandsTest {
     }
 
     @Test
+    @DisplayName("it offers its subcommands as usage, so /xaeromap ? is not the only way to find them")
+    void theUsageNamesTheSubcommands() {
+        assertThat(XaeroMapCommands.declared().getFirst().options())
+                .anyMatch(option -> option.contains("homes") && option.contains("warps")
+                        && option.contains("status"));
+    }
+
+    @Test
     @DisplayName("it is worth a line in the audit journal")
     void isAudited() {
         assertThat(XaeroMapCommands.declared().getFirst().audited()).isTrue();

@@ -22,6 +22,7 @@ import java.time.Duration;
 @Settings(id = "xaeromap", topics = {
         @Topic(path = "xaeromap", title = "Xaero's Map support", icon = Material.FILLED_MAP),
         @Topic(path = "xaeromap.claims", title = "Claims on the map", icon = Material.GRASS_BLOCK),
+        @Topic(path = "xaeromap.waypoints", title = "Places as waypoints", icon = Material.LODESTONE),
 })
 public record XaeroMapSettings(
 
@@ -74,11 +75,30 @@ public record XaeroMapSettings(
         @Describe("The colour of claims a player is trusted on. Everybody else's take a colour from "
                 + "the owner, so two neighbours are never one blob.")
         @Key("claims.colour.shared")
-        NamedTextColor sharedColour) {
+        NamedTextColor sharedColour,
+
+        @In("xaeromap.waypoints") @Title("Offer places as waypoints")
+        @Describe("Lets /xaeromap homes and /xaeromap warps hand a player their places as waypoints "
+                + "to add to their own map, one click each. Xaero's own share format, so it needs "
+                + "nothing on the client but the minimap itself.")
+        @Key("waypoints.enabled")
+        boolean waypoints,
+
+        @In("xaeromap.waypoints") @Title("Homes")
+        @Describe("The colour a home is added in. Xaero draws waypoints in sixteen colours, so "
+                + "anything else is matched to the nearest of them.")
+        @Key("waypoints.colour.home")
+        NamedTextColor homeColour,
+
+        @In("xaeromap.waypoints") @Title("Warps")
+        @Describe("The colour a warp is added in.")
+        @Key("waypoints.colour.warp")
+        NamedTextColor warpColour) {
 
     public static final XaeroMapSettings DEFAULTS = new XaeroMapSettings(
             true, true, MapAudience.EVERYBODY, 1, 5, 512,
-            NamedTextColor.GREEN, NamedTextColor.AQUA);
+            NamedTextColor.GREEN, NamedTextColor.AQUA,
+            true, NamedTextColor.YELLOW, NamedTextColor.LIGHT_PURPLE);
 
     /** {@link #refreshSeconds}, clamped, as a real duration. */
     public Duration refresh() {
@@ -102,41 +122,56 @@ public record XaeroMapSettings(
 
     public XaeroMapSettings withWorldIds(boolean send) {
         return new XaeroMapSettings(send, claims, shownTo, chunkCoveragePercent, refreshSeconds,
-                chunksPerRefresh, ownColour, sharedColour);
+                chunksPerRefresh, ownColour, sharedColour, waypoints, homeColour, warpColour);
     }
 
     public XaeroMapSettings withClaims(boolean draw) {
         return new XaeroMapSettings(worldIds, draw, shownTo, chunkCoveragePercent, refreshSeconds,
-                chunksPerRefresh, ownColour, sharedColour);
+                chunksPerRefresh, ownColour, sharedColour, waypoints, homeColour, warpColour);
     }
 
     public XaeroMapSettings withShownTo(MapAudience audience) {
         return new XaeroMapSettings(worldIds, claims, audience, chunkCoveragePercent, refreshSeconds,
-                chunksPerRefresh, ownColour, sharedColour);
+                chunksPerRefresh, ownColour, sharedColour, waypoints, homeColour, warpColour);
     }
 
     public XaeroMapSettings withChunkCoveragePercent(int percent) {
         return new XaeroMapSettings(worldIds, claims, shownTo, percent, refreshSeconds,
-                chunksPerRefresh, ownColour, sharedColour);
+                chunksPerRefresh, ownColour, sharedColour, waypoints, homeColour, warpColour);
     }
 
     public XaeroMapSettings withRefreshSeconds(int seconds) {
         return new XaeroMapSettings(worldIds, claims, shownTo, chunkCoveragePercent, seconds,
-                chunksPerRefresh, ownColour, sharedColour);
+                chunksPerRefresh, ownColour, sharedColour, waypoints, homeColour, warpColour);
     }
 
     public XaeroMapSettings withChunksPerRefresh(int chunks) {
         return new XaeroMapSettings(worldIds, claims, shownTo, chunkCoveragePercent, refreshSeconds,
-                chunks, ownColour, sharedColour);
+                chunks, ownColour, sharedColour, waypoints, homeColour, warpColour);
     }
 
     public XaeroMapSettings withOwnColour(NamedTextColor colour) {
         return new XaeroMapSettings(worldIds, claims, shownTo, chunkCoveragePercent, refreshSeconds,
-                chunksPerRefresh, colour, sharedColour);
+                chunksPerRefresh, colour, sharedColour, waypoints, homeColour, warpColour);
     }
 
     public XaeroMapSettings withSharedColour(NamedTextColor colour) {
         return new XaeroMapSettings(worldIds, claims, shownTo, chunkCoveragePercent, refreshSeconds,
-                chunksPerRefresh, ownColour, colour);
+                chunksPerRefresh, ownColour, colour, waypoints, homeColour, warpColour);
+    }
+
+    public XaeroMapSettings withWaypoints(boolean offer) {
+        return new XaeroMapSettings(worldIds, claims, shownTo, chunkCoveragePercent, refreshSeconds,
+                chunksPerRefresh, ownColour, sharedColour, offer, homeColour, warpColour);
+    }
+
+    public XaeroMapSettings withHomeColour(NamedTextColor colour) {
+        return new XaeroMapSettings(worldIds, claims, shownTo, chunkCoveragePercent, refreshSeconds,
+                chunksPerRefresh, ownColour, sharedColour, waypoints, colour, warpColour);
+    }
+
+    public XaeroMapSettings withWarpColour(NamedTextColor colour) {
+        return new XaeroMapSettings(worldIds, claims, shownTo, chunkCoveragePercent, refreshSeconds,
+                chunksPerRefresh, ownColour, sharedColour, waypoints, homeColour, colour);
     }
 }

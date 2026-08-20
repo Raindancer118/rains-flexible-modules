@@ -1,6 +1,7 @@
 package de.raindancer.modules.xaeromap.listener;
 
 import de.raindancer.modules.xaeromap.service.ClaimSyncService;
+import de.raindancer.modules.xaeromap.store.MapClients;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -16,9 +17,11 @@ import java.util.UUID;
 public final class PlayerLeaveListener implements IXaeroMapListener {
 
     private final ClaimSyncService claims;
+    private final MapClients clients;
 
-    public PlayerLeaveListener(ClaimSyncService claims) {
+    public PlayerLeaveListener(ClaimSyncService claims, MapClients clients) {
         this.claims = claims;
+        this.clients = clients;
     }
 
     @EventHandler
@@ -29,5 +32,6 @@ public final class PlayerLeaveListener implements IXaeroMapListener {
     @Override
     public void forget(UUID player) {
         claims.forget(player);
+        clients.forget(player);
     }
 }

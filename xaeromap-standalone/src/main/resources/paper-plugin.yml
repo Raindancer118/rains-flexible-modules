@@ -5,7 +5,7 @@ version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
 api-version: '1.21'
-description: 'A map per world on Xaero''s Minimap and World Map, and this server''s claims drawn on both for clients that also run Open Parties and Claims.'
+description: 'A map per world on Xaero''s Minimap and World Map, homes and warps offered as waypoints, and this server''s claims drawn for clients that also run Open Parties and Claims.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 

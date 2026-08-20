@@ -18,8 +18,11 @@ import de.raindancer.modules.xaeromap.model.XaeroWorldId;
 import de.raindancer.modules.xaeromap.rules.RefreshDueRule;
 import de.raindancer.modules.xaeromap.service.ClaimSyncService;
 import de.raindancer.modules.xaeromap.service.RefreshService;
+import de.raindancer.modules.xaeromap.service.WaypointService;
 import de.raindancer.modules.xaeromap.service.WorldIdService;
 import de.raindancer.modules.xaeromap.store.ClaimMirror;
+import de.raindancer.modules.xaeromap.store.MapClients;
+import de.raindancer.modules.xaeromap.store.PlaceLookup;
 import de.raindancer.modules.xaeromap.store.SyncIndexTable;
 import de.raindancer.modules.xaeromap.util.PermissionNodes;
 import de.raindancer.modules.xaeromap.util.Wire;
@@ -40,6 +43,11 @@ import java.util.List;
  *       shared map keyed on the server address — so the nether is drawn over the overworld and a farm
  *       world overwrites the survival map. One packet per world change fixes it, and it is the half of
  *       this module that needs no claims plugin at all.</li>
+ *   <li><b>Places as waypoints.</b> Homes and warps are both {@code Poi}s in RainsCore's own store, so
+ *       {@code /xaeromap homes} and {@code /xaeromap warps} can hand a player their places in Xaero's
+ *       own chat-share format — one click each to put on their map, and no dependency on
+ *       {@code homes-module} or {@code warp-module} to read them. See {@code WaypointService} for why
+ *       this is an offer rather than something that simply appears.</li>
  *   <li><b>Claims on the map.</b> Neither mod has any way for a server to hand it a coloured region;
  *       what both of them <em>do</em> have is a reader for Open Parties and Claims' claim protocol. So
  *       this server's claims are sent in that format, and appear on the client's own map with their
@@ -58,8 +66,8 @@ import java.util.List;
 public final class XaeroMapModule implements FlexModule {
 
     private static final ModuleInfo INFO = ModuleInfo.of("xaeromap", "Xaero's Map support", "1.0.0")
-            .describedAs("Gives every world its own map on Xaero's Minimap and World Map, and draws "
-                    + "this server's claims on them.")
+            .describedAs("Gives every world its own map on Xaero's Minimap and World Map, offers a "
+                    + "player their homes and warps as waypoints, and draws this server's claims.")
             .by("Raindancer118");
 
     /** The refresh clock is asked once a second; {@code RefreshDueRule} decides whether it does work. */
@@ -112,15 +120,34 @@ public final class XaeroMapModule implements FlexModule {
         Wire wire = Wire.through(plugin);
         SyncIndexTable indices = new SyncIndexTable();
         ClaimMirror mirror = new ClaimMirror();
+        MapClients clients = new MapClients();
 
         WorldIdService worldIds = new WorldIdService(wire, settings.current());
         ClaimSyncService sync = new ClaimSyncService(wire, this::claims, indices, mirror, log,
                 settings.current());
         RefreshService refresh = new RefreshService(sync, new RefreshDueRule(), settings.current());
+        // Core's own place store, read through the two questions this module asks — homes and warps are
+        // both Pois there, which is what keeps this free of any dependency on the plugins that made them.
+        PlaceLookup places = new PlaceLookup() {
+
+            @Override
+            public java.util.List<de.raindancer.core.world.poi.Poi> ofKind(String kind) {
+                return context.core().places().ofKind(kind);
+            }
+
+            @Override
+            public java.util.List<de.raindancer.core.world.poi.Poi> owned(java.util.UUID owner,
+                                                                          String kind) {
+                return context.core().places().owned(owner, kind);
+            }
+        };
+        WaypointService waypoints = new WaypointService(() -> places, clients, server,
+                settings.current());
 
         settings.onChange(worldIds::settings);
         settings.onChange(sync::settings);
         settings.onChange(refresh::settings);
+        settings.onChange(waypoints::settings);
         // A changed audience or a changed coverage threshold makes every client's picture wrong in a way
         // a difference cannot express — a claim that was visible and now is not was never "changed", it
         // simply stops appearing in the diff. So a reload drops every mirror, and the next refresh sends
@@ -130,13 +157,14 @@ public final class XaeroMapModule implements FlexModule {
         incoming = new ClaimChannelListener(sync);
         server.getMessenger().registerIncomingPluginChannel(plugin, OpacPackets.CHANNEL, incoming);
 
-        context.listener(new ChannelListener(worldIds, sync));
+        context.listener(new ChannelListener(worldIds, sync, clients));
         context.listener(new WorldChangeListener(worldIds));
-        context.listener(new PlayerLeaveListener(sync));
+        context.listener(new PlayerLeaveListener(sync, clients));
 
         XaeroMapCommands.ready(new XaeroMapServices(plugin, server, log,
                 context.core().messages(), context.chat().brand(), context.core(),
-                settings::current, settings, this::claims, indices, worldIds, sync));
+                settings::current, settings, this::claims, indices, clients, worldIds, sync,
+                waypoints));
 
         var timer = Scheduling.globalTimer(plugin, TICK_PERIOD_TICKS, TICK_PERIOD_TICKS,
                 task -> refresh.tick(server.getOnlinePlayers(), Instant.now()));
@@ -144,10 +172,11 @@ public final class XaeroMapModule implements FlexModule {
             context.closeWith(timer::cancel);
         }
 
-        log.info("Map support is up: per-world maps {}, claims {}.",
+        log.info("Map support is up: per-world maps {}, claims {}, places as waypoints {}.",
                 settings.current().worldIds() ? "on" : "off",
                 settings.current().claims() ? "on, refreshed every "
-                        + settings.current().refresh().toSeconds() + "s" : "off");
+                        + settings.current().refresh().toSeconds() + "s" : "off",
+                settings.current().waypoints() ? "on" : "off");
     }
 
     /** The claim source, resolving it the first time anything asks. */

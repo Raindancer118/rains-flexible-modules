@@ -7,7 +7,9 @@ import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.xaeromap.claims.ClaimSource;
 import de.raindancer.modules.xaeromap.service.ClaimSyncService;
+import de.raindancer.modules.xaeromap.service.WaypointService;
 import de.raindancer.modules.xaeromap.service.WorldIdService;
+import de.raindancer.modules.xaeromap.store.MapClients;
 import de.raindancer.modules.xaeromap.store.SyncIndexTable;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
@@ -34,8 +36,10 @@ public record XaeroMapServices(
 
         Supplier<ClaimSource> claims,
         SyncIndexTable indices,
+        MapClients clients,
         WorldIdService worldIds,
-        ClaimSyncService sync) {
+        ClaimSyncService sync,
+        WaypointService waypoints) {
 
     public XaeroMapSettings config() {
         return settings.get();

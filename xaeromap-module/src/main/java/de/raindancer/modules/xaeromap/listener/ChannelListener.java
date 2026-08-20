@@ -4,6 +4,7 @@ import de.raindancer.modules.xaeromap.model.OpacPackets;
 import de.raindancer.modules.xaeromap.model.XaeroWorldId;
 import de.raindancer.modules.xaeromap.service.ClaimSyncService;
 import de.raindancer.modules.xaeromap.service.WorldIdService;
+import de.raindancer.modules.xaeromap.store.MapClients;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerRegisterChannelEvent;
@@ -28,10 +29,12 @@ public final class ChannelListener implements IXaeroMapListener {
 
     private final WorldIdService worldIds;
     private final ClaimSyncService claims;
+    private final MapClients clients;
 
-    public ChannelListener(WorldIdService worldIds, ClaimSyncService claims) {
+    public ChannelListener(WorldIdService worldIds, ClaimSyncService claims, MapClients clients) {
         this.worldIds = worldIds;
         this.claims = claims;
+        this.clients = clients;
     }
 
     @EventHandler
@@ -39,6 +42,9 @@ public final class ChannelListener implements IXaeroMapListener {
         Player player = event.getPlayer();
         String channel = event.getChannel();
         if (XaeroWorldId.MINIMAP_CHANNEL.equals(channel) || XaeroWorldId.WORLDMAP_CHANNEL.equals(channel)) {
+            // Remembered, not only answered: this is the one signal that the player has a map mod at
+            // all, and a waypoint offer sent to somebody without one arrives as raw text.
+            clients.found(player.getUniqueId());
             worldIds.send(player, channel);
             return;
         }
