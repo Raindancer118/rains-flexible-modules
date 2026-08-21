@@ -41,7 +41,7 @@ public final class HomeSessionListener implements IHomeListener {
 
     @Override
     public void forget(UUID player) {
-        services.travelling().forget(player);
+        services.travelling().leaves(player);
     }
 
     @Override

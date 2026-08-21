@@ -28,6 +28,7 @@ import org.bukkit.plugin.Plugin;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import java.util.function.LongSupplier;
 
 /**
  * Sending somebody somewhere random in their own world.
@@ -111,7 +112,7 @@ public final class RtpService implements IRtpService {
      * version of that had been written five times across this repository already, and every copy could
      * let two clicks in the same millisecond both through.
      */
-    private final Cooldowns<UUID> between = new Cooldowns<>();
+    private final Cooldowns<UUID> between;
 
     private volatile RtpSettings settings;
 
@@ -125,6 +126,21 @@ public final class RtpService implements IRtpService {
     public RtpService(Plugin plugin, Travel travel, Safety safety, RtpLocationPoolService pool,
                       RtpRule rule, Messages messages, Effects effects, ActionBars actionBars,
                       LogChannel log, RtpSettings settings, Random random) {
+        this(plugin, travel, safety, pool, rule, messages, effects, actionBars, log, settings,
+                random, null);
+    }
+
+    /**
+     * The same, with the clock the wait between goes is measured against handed in.
+     *
+     * @param clock milliseconds, and only ever read — null takes the system clock, which is what a
+     *              running server wants. A test hands in one it can move itself, so checking what a
+     *              wait does an hour later costs nothing rather than an hour
+     */
+    public RtpService(Plugin plugin, Travel travel, Safety safety, RtpLocationPoolService pool,
+                      RtpRule rule, Messages messages, Effects effects, ActionBars actionBars,
+                      LogChannel log, RtpSettings settings, Random random, LongSupplier clock) {
+        this.between = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
         this.plugin = plugin;
         this.travel = travel;
         this.safety = safety;
@@ -151,9 +167,25 @@ public final class RtpService implements IRtpService {
         return between;
     }
 
-    /** Lets go of a player's wait. Called when they leave — see {@code RtpSessionListener}. */
-    public void forget(UUID who) {
-        between.forget(who);
+    /**
+     * Lets go of a player who has left, without letting go of what they still owe.
+     *
+     * <p>Called from {@code RtpSessionListener} on quit. It used to drop this player's entry
+     * outright, which made reconnecting a way straight past the wait: {@code /rtp}, log out, log
+     * back in, {@code /rtp} again. The entry only exists to say "not yet", so throwing it away is
+     * exactly the same thing as saying yes.
+     *
+     * <p>What the quit handler was actually for is keeping the map from growing by an entry per
+     * player forever, and {@link Cooldowns#sweep()} does that without touching anybody: it drops
+     * every wait already over — this player's included, when it is — and leaves the running ones
+     * alone. A wait still running is at most a few dozen bytes for at most as long as the cooldown
+     * itself, which is a bound, not a leak.
+     *
+     * @param who whose quit prompted this. Deliberately not singled out: the sweep is what bounds
+     *            the map, and one player leaving is only when it is worth doing
+     */
+    public void leaves(UUID who) {
+        between.sweep();
     }
 
     /** Whether this player's own choice is even asked for, under the settings right now. */

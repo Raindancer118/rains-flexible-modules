@@ -18,6 +18,7 @@ import org.bukkit.entity.Player;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.LongSupplier;
 
 /**
  * Going back to where you were, or where you died.
@@ -40,11 +41,22 @@ public final class BackService implements ITpaService {
     private final Messages messages;
 
     /** The wait between one player's returns, kept apart from the wait between requests. */
-    private final Cooldowns<UUID> waits = new Cooldowns<>();
+    private final Cooldowns<UUID> waits;
 
     private volatile TpaSettings settings;
 
     public BackService(Travel travel, Messages messages, TpaSettings settings) {
+        this(travel, messages, settings, null);
+    }
+
+    /**
+     * The same, with the clock the wait is measured against handed in.
+     *
+     * @param clock milliseconds, and only ever read — null takes the system clock, which is what a
+     *              running server wants. A test hands in one it can move itself
+     */
+    public BackService(Travel travel, Messages messages, TpaSettings settings, LongSupplier clock) {
+        this.waits = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
         this.travel = travel;
         this.returns = travel.cameFrom();
         this.messages = messages;
@@ -140,9 +152,27 @@ public final class BackService implements ITpaService {
         return waits.remaining(who).map(Durations::describe).orElse("a moment");
     }
 
-    /** Forgets a player's wait. Called when they log out. */
-    public void forget(UUID who) {
-        waits.forget(who);
+    /**
+     * Lets go of a player who has left, without letting go of what they still owe.
+     *
+     * <p>Called on quit. It used to drop this player's entry outright, which made reconnecting a
+     * way straight past the wait: go, log out, log back in, go again. The entry only exists to say
+     * "not yet", so throwing it away is the same thing as saying yes.
+     *
+     * <p>What the quit handler was for is keeping the map from growing by an entry per player
+     * forever, and {@link Cooldowns#sweep()} does that without touching anybody: it drops every
+     * wait already over — this player's included, when it is — and leaves the running ones alone.
+     *
+     * @param who whose quit prompted this. Deliberately not singled out: the sweep is what bounds
+     *            the map, and one player leaving is only when it is worth doing
+     */
+    public void leaves(UUID who) {
+        waits.sweep();
+    }
+
+    /** The wait itself, for the tests in this package. */
+    Cooldowns<UUID> waits() {
+        return waits;
     }
 
     /** What the traveller is told on the way. */

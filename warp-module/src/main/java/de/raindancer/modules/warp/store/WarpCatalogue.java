@@ -45,9 +45,12 @@ public final class WarpCatalogue {
         } : flush;
     }
 
-    /** Forgets a player's cooldown. Called when they log out — see {@code WarpSessionListener}. */
-    public void forget(java.util.UUID player) {
-        warps.forget(player);
+    /**
+     * Lets go of a player who has left. Called on quit — see {@code WarpSessionListener} and
+     * {@link WarpRegistry#leaves}: what is over is dropped, what is still running is not.
+     */
+    public void leaves(java.util.UUID who) {
+        warps.leaves(who);
     }
 
     // ------------------------------------------------------------------------ looking

@@ -253,4 +253,66 @@ class HomeTravelServiceTest {
             assertThat(warmupOf(HomeSettings.DEFAULTS, nobody)).isEqualTo(HomeSettings.DEFAULTS.warmup());
         }
     }
+
+    /**
+     * That logging out is not a way past the wait between trips home.
+     *
+     * <p>The hole {@code /rtp} had, and this module had the same one: the quit handler dropped the
+     * player's entry outright, so {@code /home}, disconnect, reconnect, {@code /home} again cost
+     * nothing. See {@link HomeTravelService#leaves(java.util.UUID)}.
+     */
+    @Nested
+    @DisplayName("the wait across a logout")
+    class TheWaitAcrossALogout {
+
+        private final java.util.concurrent.atomic.AtomicLong now =
+                new java.util.concurrent.atomic.AtomicLong(1_000_000L);
+
+        /** Sends somebody home and lets them arrive, which is where the wait is charged. */
+        private HomeTravelService serviceWithAnArrival(Player traveller) {
+            Travel travel = mock(Travel.class);
+            HomeTravelService service = new HomeTravelService(travel, mock(Messages.class), effects(),
+                    HomeSettings.DEFAULTS.withCooldownSeconds(60), now::get);
+
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            when(traveller.getWorld()).thenReturn(world);
+
+            TravelWatcher watcher = watcherFrom(service, travel, traveller, homeAt(world));
+            watcher.arrived(traveller, new Location(world, 1, 2, 3),
+                    de.raindancer.core.world.teleport.Trip.to("home"));
+            return service;
+        }
+
+        private Player somebody() {
+            Player traveller = mock(Player.class);
+            when(traveller.getUniqueId()).thenReturn(UUID.randomUUID());
+            return traveller;
+        }
+
+        @Test
+        @DisplayName("a wait still running survives the player logging out")
+        void relogDoesNotClearARunningWait() {
+            Player traveller = somebody();
+            HomeTravelService service = serviceWithAnArrival(traveller);
+
+            service.leaves(traveller.getUniqueId());
+
+            assertThat(service.isReady(traveller))
+                    .as("reconnecting would otherwise be a free /home")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("a wait that has run out is dropped when they leave")
+        void quittingDropsAWaitThatIsOver() {
+            Player traveller = somebody();
+            HomeTravelService service = serviceWithAnArrival(traveller);
+
+            now.addAndGet(61_000L);
+            service.leaves(traveller.getUniqueId());
+
+            assertThat(service.isReady(traveller)).isTrue();
+        }
+    }
 }

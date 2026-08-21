@@ -21,6 +21,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Random;
 import java.util.UUID;
+import java.util.function.LongSupplier;
 
 /**
  * Sending somebody into a farm world.
@@ -76,7 +77,7 @@ public final class FarmTravelService implements IFarmWorldService {
      * version of that had been written five times in this repository and every copy could let two clicks
      * in the same millisecond both through.
      */
-    private final Cooldowns<UUID> between = new Cooldowns<>();
+    private final Cooldowns<UUID> between;
 
     /**
      * Where the next arrival lands.
@@ -92,6 +93,19 @@ public final class FarmTravelService implements IFarmWorldService {
     public FarmTravelService(FarmWorldCatalogue catalogue, Travel travel, FarmAccessRule access,
                              Messages messages, Effects effects, FarmWorldSettings settings,
                              Random random) {
+        this(catalogue, travel, access, messages, effects, settings, random, null);
+    }
+
+    /**
+     * The same, with the clock the wait between trips is measured against handed in.
+     *
+     * @param clock milliseconds, and only ever read — null takes the system clock, which is what a
+     *              running server wants. A test hands in one it can move itself
+     */
+    public FarmTravelService(FarmWorldCatalogue catalogue, Travel travel, FarmAccessRule access,
+                             Messages messages, Effects effects, FarmWorldSettings settings,
+                             Random random, LongSupplier clock) {
+        this.between = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
         this.catalogue = catalogue;
         this.travel = travel;
         this.access = access;
@@ -114,9 +128,22 @@ public final class FarmTravelService implements IFarmWorldService {
         return between;
     }
 
-    /** Lets go of a player's wait. Called when they leave — see {@code FarmSessionListener}. */
-    public void forget(UUID who) {
-        between.forget(who);
+    /**
+     * Lets go of a player who has left, without letting go of what they still owe.
+     *
+     * <p>Called on quit. It used to drop this player's entry outright, which made reconnecting a
+     * way straight past the wait: go, log out, log back in, go again. The entry only exists to say
+     * "not yet", so throwing it away is the same thing as saying yes.
+     *
+     * <p>What the quit handler was for is keeping the map from growing by an entry per player
+     * forever, and {@link Cooldowns#sweep()} does that without touching anybody: it drops every
+     * wait already over — this player's included, when it is — and leaves the running ones alone.
+     *
+     * @param who whose quit prompted this. Deliberately not singled out: the sweep is what bounds
+     *            the map, and one player leaving is only when it is worth doing
+     */
+    public void leaves(UUID who) {
+        between.sweep();
     }
 
     // ------------------------------------------------------------------------ going

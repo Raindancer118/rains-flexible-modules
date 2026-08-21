@@ -73,8 +73,8 @@ public final class TpaSessionListener implements ITpaListener {
 
     @Override
     public void forget(UUID player) {
-        services.asking().forget(player);
-        services.back().forget(player);
+        services.asking().leaves(player);
+        services.back().leaves(player);
     }
 
     @Override

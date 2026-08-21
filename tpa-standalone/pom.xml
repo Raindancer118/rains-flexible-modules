@@ -41,8 +41,11 @@
           profile, wherever it was opened from.
 
           2.1.2: kept in step with tpa-module's own version.
+
+          2.1.3: logging out no longer clears the wait between requests or between /back — the same
+          hole /rtp had, fixed the same way: quitting sweeps the waits that are over.
         -->
-        <plugin.version>2.1.2</plugin.version>
+        <plugin.version>2.1.3</plugin.version>
     </properties>
 
     <dependencies>

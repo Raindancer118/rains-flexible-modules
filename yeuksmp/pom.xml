@@ -351,6 +351,12 @@
           angle brackets around the name are available too, via the chat format setting, for anybody
           who wants them.
 
+          1.17.1: a relog is no longer a way past a cooldown. rtp-module 1.1.2, warp-module 1.2.2,
+          homes-module 2.3.2, tpa-module 2.1.3 and farmworld-module 1.1.3 all dropped a player's
+          wait outright when they quit, so /rtp, /warp, /home, /tpa, /back and /farmworld could each
+          be used again straight away by disconnecting and coming back. Quitting now sweeps the waits
+          that have already run out and leaves the running ones where they are.
+
           1.17.0: xaeromap-module 1.0.0 — server-side support for Xaero's Minimap and World Map.
           Every world gets its own map instead of all of them drawing over one shared cache;
           /xaeromap homes and /xaeromap warps hand a player their own places as waypoints to add,
@@ -364,7 +370,7 @@
           time. (1.15.0's jar was built from a stale target/classes and never actually carried these
           three; this is the first build that does.)
         -->
-        <plugin.version>1.17.0</plugin.version>
+        <plugin.version>1.17.1</plugin.version>
     </properties>
 
     <dependencies>

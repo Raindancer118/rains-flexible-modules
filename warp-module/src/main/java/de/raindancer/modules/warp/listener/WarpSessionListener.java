@@ -43,7 +43,7 @@ public final class WarpSessionListener implements IWarpListener {
 
     @Override
     public void forget(UUID player) {
-        services.catalogue().forget(player);
+        services.catalogue().leaves(player);
     }
 
     @Override

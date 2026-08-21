@@ -35,8 +35,11 @@
           1.1.2: kept in step with farmworld-module's own version, which had drifted three bumps
           ahead of this file — the module's admin service, notices and legacy-database handling all
           moved on without this plugin.version (and the code's own ModuleInfo string) following.
+
+          1.1.3: logging out no longer clears the wait between farm world trips — the same hole /rtp
+          had, fixed the same way: quitting sweeps the waits that are over.
         -->
-        <plugin.version>1.1.2</plugin.version>
+        <plugin.version>1.1.3</plugin.version>
     </properties>
 
     <dependencies>

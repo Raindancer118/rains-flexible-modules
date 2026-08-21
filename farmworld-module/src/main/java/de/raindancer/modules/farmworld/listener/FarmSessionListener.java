@@ -47,7 +47,7 @@ public final class FarmSessionListener implements IFarmWorldListener {
 
     @Override
     public void forget(UUID player) {
-        services.travelling().forget(player);
+        services.travelling().leaves(player);
     }
 
     @Override

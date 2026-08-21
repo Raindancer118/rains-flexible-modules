@@ -18,6 +18,7 @@ import org.bukkit.entity.Player;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.function.LongSupplier;
 
 /**
  * Sending somebody home.
@@ -49,11 +50,23 @@ public final class HomeTravelService implements IHomeService {
      * <p>Charged on arrival rather than up front — see {@link Arriving}. Core's, because the
      * check-then-record version this plugin had could let two clicks in one millisecond both through.
      */
-    private final Cooldowns<UUID> waits = new Cooldowns<>();
+    private final Cooldowns<UUID> waits;
 
     private volatile HomeSettings settings;
 
     public HomeTravelService(Travel travel, Messages messages, Effects effects, HomeSettings settings) {
+        this(travel, messages, effects, settings, null);
+    }
+
+    /**
+     * The same, with the clock the wait is measured against handed in.
+     *
+     * @param clock milliseconds, and only ever read — null takes the system clock, which is what a
+     *              running server wants. A test hands in one it can move itself
+     */
+    public HomeTravelService(Travel travel, Messages messages, Effects effects, HomeSettings settings,
+                             LongSupplier clock) {
+        this.waits = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
         this.travel = travel;
         this.messages = messages;
         this.effects = effects;
@@ -200,9 +213,22 @@ public final class HomeTravelService implements IHomeService {
         };
     }
 
-    /** Forgets a player's wait. Called when they log out. */
-    public void forget(UUID player) {
-        waits.forget(player);
+    /**
+     * Lets go of a player who has left, without letting go of what they still owe.
+     *
+     * <p>Called on quit. It used to drop this player's entry outright, which made reconnecting a
+     * way straight past the wait: go, log out, log back in, go again. The entry only exists to say
+     * "not yet", so throwing it away is the same thing as saying yes.
+     *
+     * <p>What the quit handler was for is keeping the map from growing by an entry per player
+     * forever, and {@link Cooldowns#sweep()} does that without touching anybody: it drops every
+     * wait already over — this player's included, when it is — and leaves the running ones alone.
+     *
+     * @param who whose quit prompted this. Deliberately not singled out: the sweep is what bounds
+     *            the map, and one player leaving is only when it is worth doing
+     */
+    public void leaves(UUID who) {
+        waits.sweep();
     }
 
     @Override

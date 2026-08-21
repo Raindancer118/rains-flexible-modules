@@ -350,8 +350,21 @@ public final class WarpRegistry {
         return byName(name).flatMap(warp -> warp.poi().location());
     }
 
-    /** Forgets a player's cooldown. Called when they log out. */
-    public void forget(UUID player) {
-        waits.forget(player);
+    /**
+     * Lets go of a player who has left, without letting go of what they still owe.
+     *
+     * <p>Called on quit. It used to drop this player's entry outright, which made reconnecting a
+     * way straight past the wait: go, log out, log back in, go again. The entry only exists to say
+     * "not yet", so throwing it away is the same thing as saying yes.
+     *
+     * <p>What the quit handler was for is keeping the map from growing by an entry per player
+     * forever, and {@link Cooldowns#sweep()} does that without touching anybody: it drops every
+     * wait already over — this player's included, when it is — and leaves the running ones alone.
+     *
+     * @param who whose quit prompted this. Deliberately not singled out: the sweep is what bounds
+     *            the map, and one player leaving is only when it is worth doing
+     */
+    public void leaves(UUID who) {
+        waits.sweep();
     }
 }

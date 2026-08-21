@@ -40,8 +40,11 @@
 
           2.3.1: kept in step with homes-module's own version — picking a home icon from Core's full
           item chooser, the same way claims already does.
+
+          2.3.2: logging out no longer clears the wait between trips home — the same hole /rtp had,
+          fixed the same way: quitting sweeps the waits that are over, not the running ones.
         -->
-        <plugin.version>2.3.1</plugin.version>
+        <plugin.version>2.3.2</plugin.version>
     </properties>
 
     <dependencies>
