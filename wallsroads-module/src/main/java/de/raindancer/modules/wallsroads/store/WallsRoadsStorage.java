@@ -225,10 +225,15 @@ public final class WallsRoadsStorage {
         return serialized;
     }
 
+    /**
+     * A damaged line is dropped rather than defaulted. A column that will not parse read as 0/0
+     * would put a corner of somebody's wall at the world origin, and the wall would only be visibly
+     * wrong once it had been built across the map.
+     */
     private static List<ColumnPolygon.Column> deserializeColumns(List<String> raw) {
         List<ColumnPolygon.Column> columns = new ArrayList<>(raw.size());
         for (String entry : raw) {
-            columns.add(ColumnPolygon.Column.deserialize(entry));
+            ColumnPolygon.Column.deserialize(entry).ifPresent(columns::add);
         }
         return columns;
     }
