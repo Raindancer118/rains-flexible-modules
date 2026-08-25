@@ -9,6 +9,7 @@ import de.raindancer.modules.wallsroads.model.CornerStyle;
 import de.raindancer.modules.wallsroads.model.ElevationMode;
 import de.raindancer.modules.wallsroads.model.Gate;
 import de.raindancer.modules.wallsroads.model.RoadPath;
+import de.raindancer.modules.wallsroads.model.RoadProfile;
 import de.raindancer.modules.wallsroads.model.RoadSign;
 import de.raindancer.modules.wallsroads.model.Wall;
 import org.bukkit.Material;
@@ -140,6 +141,7 @@ public final class WallsRoadsStorage {
         yaml.set("width", road.width());
         yaml.set("material", road.material().name());
         yaml.set("elevation-mode", road.elevationMode().name());
+        writeProfile(yaml.createSection("profile"), road.profile());
         yaml.set("fixed-y", road.fixedY());
         yaml.set("built", road.isBuilt());
         yaml.set("snapshot", serializeSnapshot(road.snapshot()));
@@ -148,8 +150,9 @@ public final class WallsRoadsStorage {
         for (RoadSign sign : road.signs()) {
             ConfigurationSection signSection = signsSection.createSection(sign.id());
             signSection.set("spot", spotToString(sign.spot()));
-            signSection.set("facing", sign.facing());
+            signSection.set("rotation", sign.rotation());
             signSection.set("lines", sign.lines());
+            signSection.set("replaced", sign.replaced());
         }
     }
 
@@ -166,7 +169,8 @@ public final class WallsRoadsStorage {
         int fixedY = yaml.getInt("fixed-y", 64);
 
         RoadPath road = new RoadPath(id, name, owner, world, path, width,
-                material == null ? Material.GRAVEL : material, mode, fixedY);
+                material == null ? Material.GRAVEL : material, mode, fixedY,
+                readProfile(yaml.getConfigurationSection("profile")));
 
         if (yaml.getBoolean("built", false)) {
             road.markBuilt(deserializeSnapshot(yaml.getStringList("snapshot")));
@@ -180,10 +184,62 @@ public final class WallsRoadsStorage {
                     continue;
                 }
                 road.putSign(new RoadSign(signId, id, stringToSpot(signSection.getString("spot", "")),
-                        signSection.getString("facing", "SOUTH"), signSection.getStringList("lines")));
+                        signSection.getInt("rotation", 0), signSection.getStringList("lines"),
+                        signSection.getString("replaced", "AIR")));
             }
         }
         return road;
+    }
+
+    // ---------------------------------------------------------------------------------- profiles
+
+    private static void writeProfile(ConfigurationSection section, RoadProfile profile) {
+        section.set("kerb", nameOf(profile.kerb()));
+        section.set("lamp", nameOf(profile.lamp()));
+        section.set("lamp-post", nameOf(profile.lampPost()));
+        section.set("lamp-spacing", profile.lampSpacing());
+        section.set("railing", nameOf(profile.railing()));
+        section.set("support", nameOf(profile.support()));
+        section.set("tunnel-lining", nameOf(profile.tunnelLining()));
+        section.set("tunnel-light", nameOf(profile.tunnelLight()));
+        section.set("glass", nameOf(profile.glass()));
+        section.set("headroom", profile.headroom());
+    }
+
+    /**
+     * A missing section is the plain profile — that is what every road written before profiles
+     * existed had, and reading one as "no materials at all" would build a road with no railings on
+     * its bridges.
+     */
+    private static RoadProfile readProfile(ConfigurationSection section) {
+        RoadProfile plain = RoadProfile.plain();
+        if (section == null) {
+            return plain;
+        }
+        return new RoadProfile(
+                material(section.getString("kerb"), plain.kerb()),
+                material(section.getString("lamp"), plain.lamp()),
+                material(section.getString("lamp-post"), plain.lampPost()),
+                section.getInt("lamp-spacing", plain.lampSpacing()),
+                material(section.getString("railing"), plain.railing()),
+                material(section.getString("support"), plain.support()),
+                material(section.getString("tunnel-lining"), plain.tunnelLining()),
+                material(section.getString("tunnel-light"), plain.tunnelLight()),
+                material(section.getString("glass"), plain.glass()),
+                section.getInt("headroom", plain.headroom()));
+    }
+
+    private static String nameOf(Material material) {
+        return material == null ? "" : material.name();
+    }
+
+    /** An unknown or blank material falls back rather than becoming null halfway through a build. */
+    private static Material material(String name, Material fallback) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        Material found = Material.matchMaterial(name);
+        return found == null ? fallback : found;
     }
 
     // ------------------------------------------------------------------------------------ shared

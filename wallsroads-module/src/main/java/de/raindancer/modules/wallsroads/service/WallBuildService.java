@@ -66,6 +66,32 @@ public final class WallBuildService {
     }
 
     /** Rebuilds only the columns of one specific opening — a gate's "seal" action. */
+    public List<BatchBuilder.Placement> sealPlacements(Wall wall, Set<ColumnPolygon.Column> opening) {
+        List<BatchBuilder.Placement> placements = new ArrayList<>();
+        String materialName = wall.material().name();
+        for (ColumnPolygon.Column column : opening) {
+            for (int y = wall.minY(); y < wall.minY() + wall.height(); y++) {
+                placements.add(new BatchBuilder.Placement(new Spot(wall.world(), column.x(), y, column.z()),
+                        materialName));
+            }
+        }
+        return placements;
+    }
+
+    /** The blocks a fresh opening removes from a wall that is already standing. */
+    public List<BatchBuilder.Placement> cutPlacements(Wall wall, Set<ColumnPolygon.Column> opening,
+                                                      int gateHeight) {
+        List<BatchBuilder.Placement> placements = new ArrayList<>();
+        int cutTo = wall.minY() + Math.min(gateHeight, wall.height());
+        for (ColumnPolygon.Column column : opening) {
+            for (int y = wall.minY(); y < cutTo; y++) {
+                placements.add(new BatchBuilder.Placement(new Spot(wall.world(), column.x(), y, column.z()),
+                        "AIR"));
+            }
+        }
+        return placements;
+    }
+
     public BatchBuilder newSeal(Ground ground, Wall wall, Set<ColumnPolygon.Column> opening) {
         List<BatchBuilder.Placement> placements = new ArrayList<>();
         String materialName = wall.material().name();

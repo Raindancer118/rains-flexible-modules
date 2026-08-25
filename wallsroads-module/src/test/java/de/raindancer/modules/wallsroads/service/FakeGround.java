@@ -33,6 +33,10 @@ final class FakeGround implements Ground {
         return true;
     }
 
+    Map<Spot, String> copyOfBlocks() {
+        return new HashMap<>(blocks);
+    }
+
     long countOf(String material) {
         return blocks.values().stream().filter(material::equals).count();
     }

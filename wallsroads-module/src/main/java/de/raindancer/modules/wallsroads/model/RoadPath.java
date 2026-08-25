@@ -22,12 +22,19 @@ public final class RoadPath {
     private Material material;
     private ElevationMode elevationMode;
     private int fixedY;
+    private RoadProfile profile;
     private boolean built;
     private BuildSnapshot snapshot = BuildSnapshot.empty();
     private final Map<String, RoadSign> signs = new LinkedHashMap<>();
 
     public RoadPath(String id, String name, UUID owner, String world, Polyline path, double width,
                     Material material, ElevationMode elevationMode, int fixedY) {
+        this(id, name, owner, world, path, width, material, elevationMode, fixedY, RoadProfile.plain());
+    }
+
+    public RoadPath(String id, String name, UUID owner, String world, Polyline path, double width,
+                    Material material, ElevationMode elevationMode, int fixedY, RoadProfile profile) {
+        this.profile = profile == null ? RoadProfile.plain() : profile;
         this.id = id;
         this.name = name;
         this.owner = owner;
@@ -97,6 +104,14 @@ public final class RoadPath {
 
     public void fixedY(int value) {
         this.fixedY = value;
+    }
+
+    public RoadProfile profile() {
+        return profile;
+    }
+
+    public void profile(RoadProfile value) {
+        this.profile = value == null ? RoadProfile.plain() : value;
     }
 
     public boolean isBuilt() {

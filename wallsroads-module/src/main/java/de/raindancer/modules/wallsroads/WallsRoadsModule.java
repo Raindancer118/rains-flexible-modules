@@ -19,6 +19,7 @@ import de.raindancer.modules.wallsroads.screen.WallEditMenu;
 import de.raindancer.modules.wallsroads.screen.WallsRoadsListMenu;
 import de.raindancer.modules.wallsroads.selection.WallsRoadsSelectionFlow;
 import de.raindancer.modules.wallsroads.service.WallsRoadsService;
+import de.raindancer.modules.wallsroads.store.Occupancy;
 import de.raindancer.modules.wallsroads.store.WallsRoadsRegistry;
 import de.raindancer.modules.wallsroads.store.WallsRoadsStorage;
 import de.raindancer.modules.wallsroads.util.PermissionNodes;
@@ -82,8 +83,22 @@ public final class WallsRoadsModule implements FlexModule {
             registry.putRoad(road);
         }
 
+        // Rebuilt from what each structure's snapshot says it covered, rather than kept in a file of
+        // its own that could fall out of step with the structures themselves.
+        Occupancy occupancy = new Occupancy();
+        for (Wall wall : registry.allWalls()) {
+            if (wall.isBuilt()) {
+                occupancy.claim(wall.id(), wall.snapshot());
+            }
+        }
+        for (RoadPath road : registry.allRoads()) {
+            if (road.isBuilt()) {
+                occupancy.claim(road.id(), road.snapshot());
+            }
+        }
+
         WallsRoadsService service = new WallsRoadsService(context.plugin(), log, registry, storage,
-                settings.current());
+                occupancy, settings.current());
         settings.onChange(service::settings);
 
         MarkingTool markingTool = new MarkingTool(context.plugin());

@@ -9,8 +9,10 @@ import de.raindancer.core.world.geometry.ColumnPolygon;
 import de.raindancer.modules.wallsroads.WallsRoadsSettings;
 import de.raindancer.modules.wallsroads.model.Gate;
 import de.raindancer.modules.wallsroads.model.RoadPath;
+import de.raindancer.modules.wallsroads.model.RoadSegment;
 import de.raindancer.modules.wallsroads.model.RoadSign;
 import de.raindancer.modules.wallsroads.model.Wall;
+import de.raindancer.modules.wallsroads.store.Occupancy;
 import de.raindancer.modules.wallsroads.store.WallsRoadsRegistry;
 import de.raindancer.modules.wallsroads.store.WallsRoadsStorage;
 import org.bukkit.Bukkit;
@@ -21,14 +23,21 @@ import org.bukkit.plugin.Plugin;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
- * What actually happens when a wall or road is built, torn down, reshaped or removed — the
- * orchestration the plan's "every action has an opposite" table describes, wired to the world
- * through {@link WallBuildService}/{@link RoadBuildService}/{@link GateService}/{@link SignService}
- * and paced through Core's own {@link Scheduling}.
+ * What actually happens when a wall or road is built, torn down, reshaped or removed.
+ *
+ * <p>Every path through here obeys two rules that were each learned from a real failure:
+ *
+ * <ul>
+ *   <li><b>Nothing is placed in one tick.</b> Sealing a gate used to run its whole queue at once,
+ *       which on a tall wall crossed by several roads is exactly the freeze the rest of this module
+ *       is carefully paced to avoid.</li>
+ *   <li><b>Nothing builds over somebody else's structure.</b> {@link Occupancy} filters the queue,
+ *       so a crossing belongs to whichever road got there first and tearing up the second cannot
+ *       punch a hole through the first.</li>
+ * </ul>
  */
 public final class WallsRoadsService {
 
@@ -36,18 +45,21 @@ public final class WallsRoadsService {
     private final LogChannel log;
     private final WallsRoadsRegistry registry;
     private final WallsRoadsStorage storage;
+    private final Occupancy occupancy;
     private final WallBuildService wallBuild = new WallBuildService();
-    private final RoadBuildService roadBuild = new RoadBuildService();
+    private final RouteProfiler profiler = new RouteProfiler();
+    private final RoadBuilder roadBuilder = new RoadBuilder();
     private final GateService gates = new GateService();
     private final SignService signs = new SignService();
     private volatile WallsRoadsSettings settings;
 
     public WallsRoadsService(Plugin plugin, LogChannel log, WallsRoadsRegistry registry,
-                             WallsRoadsStorage storage, WallsRoadsSettings settings) {
+                             WallsRoadsStorage storage, Occupancy occupancy, WallsRoadsSettings settings) {
         this.plugin = plugin;
         this.log = log;
         this.registry = registry;
         this.storage = storage;
+        this.occupancy = occupancy;
         this.settings = settings;
     }
 
@@ -57,6 +69,20 @@ public final class WallsRoadsService {
 
     public WallsRoadsRegistry registry() {
         return registry;
+    }
+
+    public Occupancy occupancy() {
+        return occupancy;
+    }
+
+    public RouteProfiler.Rules routeRules() {
+        return settings.routeRules();
+    }
+
+    /** The route as it would be built right now — what a preview and a material estimate both ask for. */
+    public List<RoadSegment> profile(RoadPath road) {
+        Ground ground = BukkitGround.of(road.world());
+        return ground == null ? List.of() : profiler.profile(road, ground, routeRules());
     }
 
     // ------------------------------------------------------------------------------------ walls
@@ -76,9 +102,11 @@ public final class WallsRoadsService {
             }
         }
         Set<ColumnPolygon.Column> openings = wallBuild.openGateColumns(wall);
-        BatchBuilder builder = wallBuild.newBuild(ground, wall, openings);
+        BatchBuilder builder = new BatchBuilder(ground,
+                occupancy.filter(wallBuild.buildPlacements(wall, openings), wall.id()));
         paced(wall.world(), builder, () -> {
             wall.markBuilt(builder.snapshotSoFar());
+            occupancy.claim(wall.id(), wall.snapshot());
             storage.saveWall(wall);
             onDone.run();
         });
@@ -93,6 +121,7 @@ public final class WallsRoadsService {
         BatchBuilder teardown = wallBuild.newTeardown(ground, wall);
         paced(wall.world(), teardown, () -> {
             wall.markTornDown();
+            occupancy.release(wall.id());
             storage.saveWall(wall);
             onDone.run();
         });
@@ -101,6 +130,7 @@ public final class WallsRoadsService {
     public void deleteWall(Wall wall, Runnable onDone) {
         Runnable finish = () -> {
             registry.removeWall(wall.id());
+            occupancy.release(wall.id());
             storage.deleteWall(wall.id());
             onDone.run();
         };
@@ -114,12 +144,11 @@ public final class WallsRoadsService {
     /** Sharp-to-rounded or back, the reshape doing a real teardown-then-rebuild when it was standing. */
     public void reshapeWall(Wall wall, Runnable onDone) {
         boolean wasBuilt = wall.isBuilt();
-        Runnable rebuild = wasBuilt ? () -> buildWall(wall, onDone) : onDone;
         if (wasBuilt) {
-            teardownWall(wall, rebuild);
+            teardownWall(wall, () -> buildWall(wall, onDone));
         } else {
             storage.saveWall(wall);
-            rebuild.run();
+            onDone.run();
         }
     }
 
@@ -130,11 +159,13 @@ public final class WallsRoadsService {
                 onDone.run();
                 return;
             }
-            BatchBuilder seal = wallBuild.newSeal(ground, wall, new LinkedHashSet<>(gate.openingColumns()));
-            seal.advance(seal.total());
-            wall.replaceGate(gate.asSealed(true));
-            storage.saveWall(wall);
-            onDone.run();
+            BatchBuilder seal = new BatchBuilder(ground, occupancy.filter(
+                    wallBuild.sealPlacements(wall, new LinkedHashSet<>(gate.openingColumns())), wall.id()));
+            paced(wall.world(), seal, () -> {
+                wall.replaceGate(gate.asSealed(true));
+                storage.saveWall(wall);
+                onDone.run();
+            });
         }, onDone);
     }
 
@@ -145,11 +176,13 @@ public final class WallsRoadsService {
                 onDone.run();
                 return;
             }
-            BatchBuilder cut = wallBuild.newCut(ground, wall, new LinkedHashSet<>(gate.openingColumns()), gate.height());
-            cut.advance(cut.total());
-            wall.replaceGate(gate.asSealed(false));
-            storage.saveWall(wall);
-            onDone.run();
+            BatchBuilder cut = new BatchBuilder(ground, wallBuild.cutPlacements(wall,
+                    new LinkedHashSet<>(gate.openingColumns()), gate.height()));
+            paced(wall.world(), cut, () -> {
+                wall.replaceGate(gate.asSealed(false));
+                storage.saveWall(wall);
+                onDone.run();
+            });
         }, onDone);
     }
 
@@ -161,16 +194,15 @@ public final class WallsRoadsService {
             onDone.run();
             return;
         }
-        Map<ColumnPolygon.Column, Integer> heights = roadBuild.surfaceHeights(road, ground);
-        BatchBuilder builder = new BatchBuilder(ground, roadBuild.buildPlacements(road, heights));
+        List<RoadSegment> plan = profiler.profile(road, ground, routeRules());
+        BatchBuilder builder = new BatchBuilder(ground,
+                occupancy.filter(roadBuilder.placements(road, plan, ground), road.id()));
         paced(road.world(), builder, () -> {
             road.markBuilt(builder.snapshotSoFar());
-            List<Gate> gatesOnThisRoad = cutThroughStandingWalls(road, ground);
+            occupancy.claim(road.id(), road.snapshot());
+            cutThroughStandingWalls(road, ground);
             if (settings.autoPlaceSigns()) {
-                for (RoadSign sign : signs.defaultSigns(road, heights, gatesOnThisRoad)) {
-                    road.putSign(sign);
-                    signs.applyToWorld(sign);
-                }
+                placeSignsFor(road, plan, ground);
             }
             storage.saveRoad(road);
             onDone.run();
@@ -178,21 +210,21 @@ public final class WallsRoadsService {
     }
 
     /** For every wall already standing, cuts the opening this road creates through it. */
-    private List<Gate> cutThroughStandingWalls(RoadPath road, Ground ground) {
-        List<Gate> found = new ArrayList<>();
+    private void cutThroughStandingWalls(RoadPath road, Ground ground) {
         for (Wall wall : registry.wallsIn(road.world())) {
-            for (Gate gate : gates.detect(wall, road, settings.gateHeight())) {
+            List<Gate> found = gates.detect(wall, road, settings.gateHeight());
+            for (Gate gate : found) {
                 wall.putGate(gate);
-                found.add(gate);
                 if (wall.isBuilt()) {
-                    BatchBuilder cut = wallBuild.newCut(ground, wall, new LinkedHashSet<>(gate.openingColumns()),
-                            gate.height());
-                    cut.advance(cut.total());
+                    BatchBuilder cut = new BatchBuilder(ground, wallBuild.cutPlacements(wall,
+                            new LinkedHashSet<>(gate.openingColumns()), gate.height()));
+                    paced(wall.world(), cut, () -> { });
                 }
             }
-            storage.saveWall(wall);
+            if (!found.isEmpty()) {
+                storage.saveWall(wall);
+            }
         }
-        return found;
     }
 
     public void teardownRoad(RoadPath road, Runnable onDone) {
@@ -205,18 +237,23 @@ public final class WallsRoadsService {
             List<Gate> mine = wall.gates().stream().filter(gate -> gate.roadId().equals(road.id())).toList();
             for (Gate gate : mine) {
                 if (wall.isBuilt() && !gate.sealed()) {
-                    BatchBuilder seal = wallBuild.newSeal(ground, wall, new LinkedHashSet<>(gate.openingColumns()));
-                    seal.advance(seal.total());
+                    BatchBuilder seal = new BatchBuilder(ground, occupancy.filter(
+                            wallBuild.sealPlacements(wall, new LinkedHashSet<>(gate.openingColumns())),
+                            wall.id()));
+                    paced(wall.world(), seal, () -> { });
                 }
             }
-            wall.removeGatesForRoad(road.id());
-            storage.saveWall(wall);
+            if (!mine.isEmpty()) {
+                wall.removeGatesForRoad(road.id());
+                storage.saveWall(wall);
+            }
         }
         removeSigns(road);
 
-        BatchBuilder teardown = roadBuild.newTeardown(ground, road);
+        BatchBuilder teardown = new BatchBuilder(ground, road.snapshot().asRestorePlacements());
         paced(road.world(), teardown, () -> {
             road.markTornDown();
+            occupancy.release(road.id());
             storage.saveRoad(road);
             onDone.run();
         });
@@ -225,6 +262,7 @@ public final class WallsRoadsService {
     public void deleteRoad(RoadPath road, Runnable onDone) {
         Runnable finish = () -> {
             registry.removeRoad(road.id());
+            occupancy.release(road.id());
             storage.deleteRoad(road.id());
             onDone.run();
         };
@@ -255,23 +293,30 @@ public final class WallsRoadsService {
         }
     }
 
-    /** The opposite of {@link #removeSigns}: places this road's default signs again. */
+    /** The opposite of {@link #removeSigns}: places this road's default and junction signs again. */
     public void placeSigns(RoadPath road) {
         Ground ground = BukkitGround.of(road.world());
         if (ground == null) {
             return;
         }
-        Map<ColumnPolygon.Column, Integer> heights = roadBuild.surfaceHeights(road, ground);
+        placeSignsFor(road, profiler.profile(road, ground, routeRules()), ground);
+        storage.saveRoad(road);
+    }
+
+    private void placeSignsFor(RoadPath road, List<RoadSegment> plan, Ground ground) {
         List<Gate> gatesOnThisRoad = new ArrayList<>();
         for (Wall wall : registry.wallsIn(road.world())) {
             gatesOnThisRoad.addAll(wall.gates().stream()
                     .filter(gate -> gate.roadId().equals(road.id())).toList());
         }
-        for (RoadSign sign : signs.defaultSigns(road, heights, gatesOnThisRoad)) {
+        List<RoadPath> built = registry.roadsIn(road.world()).stream().filter(RoadPath::isBuilt).toList();
+
+        List<RoadSign> wanted = new ArrayList<>(signs.defaultSigns(road, plan, gatesOnThisRoad, ground));
+        wanted.addAll(signs.junctionSigns(road, plan, built, ground));
+        for (RoadSign sign : wanted) {
             road.putSign(sign);
             signs.applyToWorld(sign);
         }
-        storage.saveRoad(road);
     }
 
     public void renameWall(Wall wall, String newName) {
@@ -284,6 +329,13 @@ public final class WallsRoadsService {
         storage.saveRoad(road);
     }
 
+    /**
+     * Runs a queue a batch per tick.
+     *
+     * <p>On the region that owns the world's spawn rather than on a global thread: on Folia a build
+     * touching blocks belongs to the region owning them, and the spawn is the one anchor every world
+     * is guaranteed to have.
+     */
     private void paced(String world, BatchBuilder builder, Runnable onDone) {
         int perBatch = settings.blocksPerBatchClamped();
         if (builder.total() == 0) {

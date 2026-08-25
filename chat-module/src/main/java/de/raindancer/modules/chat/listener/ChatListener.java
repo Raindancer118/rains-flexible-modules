@@ -1,15 +1,16 @@
 package de.raindancer.modules.chat.listener;
 
+import com.destroystokyo.paper.event.server.AsyncTabCompleteEvent;
 import de.raindancer.core.platform.rule.Verdict;
 import de.raindancer.modules.chat.ChatServices;
 import de.raindancer.modules.chat.util.PermissionNodes;
 import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.player.PlayerChatTabCompleteEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -72,19 +73,34 @@ public final class ChatListener implements IChatListener {
      * Offers {@code @Name} completions once the last word being typed starts with {@code @} —
      * everything else about the request is left untouched, so plain-word completion still works
      * however the server would otherwise have answered it.
+     *
+     * <h2>Why this event and not {@code PlayerChatTabCompleteEvent}</h2>
+     * {@code PlayerChatTabCompleteEvent} has been dead since 1.13 — Bukkit's own javadoc says so
+     * ("no longer fired due to client changes") — because the client stopped asking the server for
+     * chat-text completions over that packet. {@link AsyncTabCompleteEvent} is what actually still
+     * fires for both commands and plain chat; {@link AsyncTabCompleteEvent#isCommand()} is how the
+     * two are told apart here.
      */
     @EventHandler
-    public void onTabComplete(PlayerChatTabCompleteEvent event) {
-        String token = event.getLastToken();
+    public void onTabComplete(AsyncTabCompleteEvent event) {
+        if (event.isCommand()) {
+            return;
+        }
+        CommandSender sender = event.getSender();
+        if (!(sender instanceof Player player)) {
+            return;
+        }
+        String buffer = event.getBuffer();
+        int lastSpace = buffer.lastIndexOf(' ');
+        String token = lastSpace >= 0 ? buffer.substring(lastSpace + 1) : buffer;
         if (token.isEmpty() || token.charAt(0) != '@') {
             return;
         }
-        List<String> candidates = services.mentions().candidatesFor(event.getPlayer(), token.substring(1));
+        List<String> candidates = services.mentions().candidatesFor(player, token.substring(1));
         if (candidates.isEmpty()) {
             return;
         }
-        event.getTabCompletions().clear();
-        event.getTabCompletions().addAll(candidates);
+        event.setCompletions(candidates);
     }
 
     /**

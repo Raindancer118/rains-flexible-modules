@@ -123,6 +123,95 @@ told; a second to the *same* person is refused.
 wording, because two would drift the first time somebody edited one. Telling an asker they have been
 blocked turns a quiet decision into a confrontation.
 
+## Training mannequins — `mannequin-module` / `mannequin-standalone` (RainsMannequins 1.0.0)
+
+The newest module, and the first built on a Paper 26.2 entity type — `org.bukkit.entity.Mannequin` —
+that did not exist when any other module here was written. Nothing in RainsCore wraps it yet; this module
+owns the entity outright rather than asking Core for a piece that isn't there.
+
+**Dressed without ever being obtainable.** The whole loadout — armor, weapons, arbitrary enchants beyond
+vanilla limits — is written straight into `Mannequin.getEquipment()` and never once touches a `Player`
+inventory, a drop, or anything else that could hand it to someone. `MannequinEquipService`'s own test
+pins this with Mockito: it scans every call any mock ever receives and fails if `addItem`, `getInventory`,
+or any `drop*`-shaped method is invoked at all. The original loadout spec (material + enchants, exactly as
+chosen in the GUI) is kept separately from the live `ItemStack` for one reason: durability. A hit that
+would break a piece instead rebuilds an identical fresh copy from that spec and re-equips it the same
+never-obtainable way — the dummy visibly loses a helmet and gets a new one in the same tick, never a bare
+head.
+
+**Killable now — reversed mid-build, on request.** The first design made it flatly invincible
+(`setInvulnerable` plus an unconditional `EntityDamageEvent` cancel). Told directly that it should die
+like a normal target instead, that became: real health (`MannequinSettings.maxHealth`, default 20 — a
+bare player's own max — configurable per server and, via `Mannequin.maxHealthOverride` /
+`util.HealthPresets`, per dummy, so one can be set to a boss's pool without a code change for every mob
+that gets added later), death clears its drops and dropped exp unconditionally
+(`MannequinDeathListener`), and `MannequinService.scheduleRespawn` brings back an identical dummy — same
+block, same loadout, same skin — after `MannequinSettings.respawnDelaySeconds` (default one). The stored
+record is never deleted on death, only the live entity.
+
+**A real redstone signal, not a light show.** An owner can wire a mannequin to a barrel so a comparator
+reads how hard the last hit landed, 0–15, using vanilla's own container-fullness formula rather than an
+invented scale — `MannequinRedstoneService` computes exactly how many filler items produce a given
+signal level and the reverse, both pinned against known vanilla reference points. A first version of that
+formula used the wrong divisor (15 instead of vanilla's 14 steps between the 16 signal levels) and was
+caught by its own test before this was ever built against a server. It pulses rather than holding state,
+because a barrel still full from one hard hit would read as still-hard after three weak ones that
+followed it. `SignalStrengthRule` scales a hit's damage onto that 0–15 range linearly against a
+configurable one-shot threshold (default 20, the same bare-player baseline); the worked example given for
+this feature — a hit that would one-shot an unarmored player but not one in maxed netherite should read
+about 12 — falls straight out of that plain linear scale without needing a curve.
+
+**Bound to its block.** `setImmovable(true)` on every spawn, and the stored location is what gets
+re-placed on every world load — not wherever physics would otherwise have left it. No piston, no water,
+no explosion moves it.
+
+**Blocks with a shield it's given, drinks a potion dropped on it.** The shield check
+(`ShieldBlockRule`) is a pure function over has-shield, cooldown state and attacker range, wired through
+Core's `Scheduling.globalTimer` rather than reacting only after a hit already landed — blocking has to be
+up before the swing connects to matter. A dropped potion is never picked up in the inventory sense: the
+pickup event is cancelled and its effects are read straight off the `ItemStack` and applied directly, so
+a harmful potion behaves exactly like any other damage source now that the dummy can actually be hurt.
+
+**What could not be verified without a live server:** the parts of `MannequinEquipService` and
+`model.ItemSpec` that construct real `ItemStack`s / `Enchantment` constants, which lazily reach for
+`io.papermc.paper.registry.RegistryAccess` — unavailable to any unit test in this reactor, for any
+module. Verified by code review and a clean compile against the real API instead; the pure decision logic
+each of those depends on (durability accumulation, the break threshold, the redstone math) is fully
+unit-tested on its own.
+
+**Shared like a claim, without borrowing claims-module's model.** `Mannequin.trusted` is a plain
+`Set<UUID>` alongside `owner` — no roles, no permission grid, because a dummy has exactly one thing
+worth delegating (open its own edit page) rather than a claim's fourteen. `Mannequin.mayManage(uuid)`
+is the one check both the command layer (`MannequinCommand.withMannequin`/`withAnyMannequin`) and every
+screen route through, and `MannequinRegistry.accessibleBy` is what `/mannequin` and its own list menu
+show — owned and shared mannequins together, badged "Yours" / "Shared with you" the same way
+`ClaimListMenu` badges trusted claims. `ShareMenu` is the trust screen itself, owner-only to change,
+mirroring `claims-module`'s `MembersMenu` down to the `PlayerChooser` exclude-list pattern.
+
+**A mannequin can belong to one claim — genuinely optional, resolved through Bukkit's own
+`ServicesManager`, never a hard dependency.** `mannequin-module` declares `claims-module` as a
+`provided` Maven dependency (compiles against `Claim`/`ClaimServices`, never shades a copy in), but
+every reference to a claims-module type lives inside `de.raindancer.modules.mannequin.claims` and only
+behind `ClaimIntegration.tryLink`/`tryRegisterMenu`, which catch `Throwable` broadly and hand back
+`ClaimLink.NONE` (a no-op) when no claims plugin is actually registered. The rest of this module —
+`MannequinServices.claimLink()`, the "part of a claim" toggle on `MannequinEditMenu`, the whole
+`claims` package — never imports a claims-module class directly. This is deliberately *not* the
+`chained-module`→`speedrun-module` shape (a real, required dependency between two modules that are
+always installed together): a training dummy has never needed a claim, and still does not on a
+server running mannequins with no claims plugin at all.
+
+**The submenu runs the other way, through claims-module's own extension point.** `claims-module`
+gained `extension.ClaimMenuExtension` / `ClaimMenuButton` / `ClaimMenuExtensions` — a small, static,
+process-wide registry any module can add a button to (`ClaimMenu`'s RULES band asks it fresh on every
+render, same as everything else on that page), and `claims-module` never learns who registered.
+Symmetric to `ClaimLink`: one seam lets mannequin ask "what claim is this", the other lets claims ask
+"does anybody else have something to show here" — together they let two modules integrate with
+neither one depending on the other in both directions at once. `ClaimServices` itself is registered
+with Bukkit's `ServicesManager` in `ClaimsModule.enable()` and unregistered through `context.closeWith`,
+which is what makes the lookup work whether the two modules are hosted in the same plugin jar or two
+entirely separate ones (`RainsMannequins.jar` beside `RainsExtendedClaims.jar`) — `ModuleContext`'s own
+`module(String)` lookup only ever sees modules sharing a host, and this had to work for both.
+
 ## Farm worlds — `farmworld-module` / `farmworld-standalone` (RainsFarmWorlds 1.0.0)
 
 The newest module, and the one where Core already had the whole engine. `core.world.farm` owns the three
@@ -183,6 +272,10 @@ dialog in. A guard on one of two entrances is not a guard.
 > mutating the fix and watching it fail.
 
 ## The Hunger Games — `hungergames-module` / `hungergames-standalone` (TheHungerGames 2.0.0)
+
+**ARCHIVED — do not work on this module.** Explicitly parked by the user (2026-08-15); left as-is,
+excluded from any repo-wide sweep (Folia work, refactors, audits) unless the user asks for it by name.
+The notes below are kept for reference only.
 
 **In progress.** Ported from the standalone Gradle project at `~/Projekte/SE Projects/TheHungerGames`
 (205 files, ~32k lines). Version 2.0.0 continues the old plugin's line rather than starting a new one:
@@ -310,6 +403,210 @@ commands, selection, fences, atmosphere, effects, entry fees, eviction, equipmen
 broadcasts. Towns are **out of scope entirely**.
 
 Counter-example worth keeping: the pantry, the bank and the fence are what a claim *is*. They are not Core's.
+
+## Chat — `chat-module` / `chat-standalone` (RainsChat 1.0.0)
+
+Everything that happens to a line typed into public chat: the format template, @-mentions, a caps and
+repeat filter, a per-player cooldown, `/chathistory` for catching up after being away, the staff tools —
+`/chat clear`, `/chat freeze`, `/chat slowmode` — and `/announce`, a banner every online player sees and
+hears. Added 2026-08-17, and @-mentions moved here from `essentials-module` the same day — it had only
+just landed there before the user asked for a chat module to own "all the chat messages and formatting",
+and a mention is exactly that.
+
+**`/chathistory` is the one thing here with its own file on disk** — `ChatHistoryStore`, a capped rolling
+window of recent lines (default 200, server-wide) plus one "last seen leaving" timestamp per player,
+written through Core's `YamlStore` the same write-to-a-temporary-then-move way every other store in this
+reactor does. Flushed on a quit rather than on every message — a quit is already far rarer than a chat
+line, and piggybacking the write on it avoids turning a busy chat into a write storm. A hint on join
+("you missed 12 messages") is as far as this goes unprompted; the actual catch-up is one command away,
+deliberately, rather than a wall of scrollback dumped into a fresh join alongside the MOTD and everything
+else already competing for it. Personal-data note: this **is** a small, capped chat log — names beside
+what people said, kept until the cap rolls it off — bounded on purpose rather than kept forever, the same
+shape as scrolling back in any chat client.
+
+**`/announce` plays `Cues.NOTIFY`, Core's own "a message that should not be scrolled past", rather than
+choosing a sound.** The same "module holds the logic, Core holds the handling" rule below applies here too
+— a plugin picking its own notification sound is a second, competing idea of what an announcement sounds
+like the moment another plugin also has one, and `effects.playForAll(...)` already exists for exactly this.
+
+**The rule the user set for this one specifically: the module holds the logic, Core holds the handling.**
+Concretely — nothing here reinvents a player's prefix, suffix or name colour (`Identities`, already Core's,
+set once by essentials-module's `NicknameService`), how a message reaches an `Audience` (`Chat`), who is
+allowed to see whom (`Vanish`), or how wording is stored and filled (`Messages`). What is actually new code
+in this module is decision logic with no Bukkit in it — `ChatQualityRules` (caps/repeat/cooldown/slowmode,
+pure functions over a string and a `long`), `ChatQualityService` (the same, with per-player state and an
+injectable clock for tests), `MentionService` (who a line names, respecting vanish) and `FormatService`
+(the rendered `Component`, built from `Identities.chatName` plus this module's own template). `ChatListener`
+is deliberately thin: it reads the event, asks the services in order, and turns a refusal or a render into
+what `AsyncChatEvent` wants back — nothing in it decides anything a test can't already prove without a
+server.
+
+**Renderer, not `event.message()`.** The raw message is left untouched; `event.renderer(...)` replaces only
+how it is *shown*. A cancel-and-resend (`ChatChannelListener`'s pattern for a private channel) would have
+meant reimplementing whatever else on a server formats chat instead of composing with it — and there is
+nothing else here to compose with today, which is the point: a renderer degrades to "no other plugin
+touched this" instead of silently winning a fight nobody knew was happening.
+
+**Mention matching and rendering both run synchronously on the async chat thread**, on purpose. Paper's
+renderer has no later tick to defer to — it has to be set before the handler returns — so `Server#getPlayerExact`
+is called right there rather than bounced through `Scheduling.global` the way `ChatChannelListener` bounces
+its own (heavier) audience lookup. Justified by `Chat`'s own javadoc: building and sending a component needs
+no region thread, and a single online-player lookup is not the world-touching work Folia-safety is about.
+
+**Format is a MiniMessage template an owner edits (`<name>` / `<message>`), not a fixed layout** — the same
+"words live in `messages.yml`, code never hardcodes wording" rule the rest of this reactor already follows,
+applied to the one string that decides how every line on the server looks.
+
+**A message is never re-parsed as markup**, in three places: `Links.linkify` builds a URL's styled component
+with `Component.text`, never `MiniMessage.deserialize`; `FormatService` highlights a mention token the same
+way; and the format template itself receives the name and the message through `Chat.formatted` (component
+insertion) rather than string concatenation into the template. All three are the same trap `WordingContract`
+polices for `messages.yml` itself, aimed instead at a player's own typed text.
+
+**`/chat freeze` and `/chat slowmode <seconds>` are runtime-only, not settings.** A freeze or a raised
+slowmode is a reaction to a specific moment; surviving a restart would mean a server that comes back with
+chat still frozen for a reason nobody online remembers, fixed by a command nobody thought to run. The
+*default* slowmode is a setting — `/chat slowmode` overrides it until `/chat slowmode off` or a restart puts
+it back.
+
+## Client maps — `xaeromap-module` / `xaeromap-standalone` (RainsXaeroMap 1.0.0)
+
+The newest module, and the only one whose entire output goes to a client this repository does not
+write. Two features, either switchable off, and a server can want one without the other.
+
+**A map per world.** Xaero's Minimap and Xaero's World Map file their cached map data under an id the
+server tells them; told nothing, they fall back on the server address, so every world on a Bukkit
+server is the *same* world as far as the map is concerned — the nether's tunnels drawn over the
+overworld's coastline, a farm world overwriting the survival map, and a portal showing a map of
+somewhere else. Nothing on the player's side can fix it. `XaeroWorldId` is five bytes on
+`xaerominimap:main` and `xaeroworldmap:main`, keyed on the **world's uuid, not its name** — a farm
+world that is deleted and generated again comes back with a new uuid and therefore a fresh, empty map,
+which is the honest answer since the old map is of terrain that no longer exists.
+
+**Claims on that map, over somebody else's protocol.** Neither Xaero mod has any way for a server to
+hand it a coloured region. What both of them *do* have is an implementation of Open Parties and Claims'
+client API — that is how a modded server draws chunk claims on a minimap, and it is the only route onto
+that map that does not need a client mod written and shipped for this plugin. So `model.OpacPackets`
+speaks OPAC at network version 6: a plugin message on `openpartiesandclaims:main`, one byte naming the
+packet, then a **nameless** NBT tag. Every claim on this server arrives with its own name and its own
+colour.
+
+**What a player needs for that half is Open Parties and Claims installed beside their minimap** — it is
+the mod that reads this protocol, and the one Xaero's maps draw claims out of. Worth being straight
+about rather than implying a bare minimap is enough: a player without it is never sent a claim at all,
+which costs them nothing and is the same silence as having no map mod. The per-world map needs neither
+and works for everybody.
+
+> **The packet deliberately never sent is OPAC's own packet 0**, a version handshake whose *client*
+> handler disconnects the player outright on a mismatch. A server guessing that number wrong kicks
+> everybody running the mod, over a mod they may not know they have. `regionsStart` is the probe
+> instead: the mod's handler for it simply echoes it back, which is how the server learns it is talking
+> to a real claims-capable client — and it costs a player nothing when it is not. Nothing is sent to
+> anybody who has not answered it. `OpacPacketsTest` fails the build if any packet this module can
+> produce has index 0.
+
+**Three things about this protocol are unforgiving, and each one fails silently.** The tag must be
+nameless (`util.NbtOut` — Bukkit exposes no NBT writer, and every library that does either drags NMS in
+or still writes the pre-1.20.2 named form, which decodes as a compound with none of the fields in it);
+a uuid must be four ints or `getUUID` throws and the packet is discarded; and a region's 1024 palette
+indices must be packed exactly the way `SimpleBitStorage` unpacks them — values never straddling a
+`long`, an array of exactly the right length, and a bit width from OPAC's own set of 1, the even
+numbers, and 11. A client rejecting any of that logs nothing on either side and simply draws nothing.
+There is no live test that would notice, which is why `NbtOutTest` reads the bytes back with a
+**second, independently written** decoder rather than the writer's own.
+
+**Homes and warps arrive as an offer, not a push.** Neither Xaero mod has any way for a server to put
+a waypoint on a client's map — the only thing that exists is the mod's own chat-share feature, where a
+message consisting of *nothing but* `xaero-waypoint:…` is caught by the client and turned into a
+button. So `/xaeromap homes` and `/xaeromap warps` hand a player their places one clickable line each
+(`model.XaeroShare`), and two things follow that are visible in the design rather than hidden:
+
+- **Only to clients that have the mod.** Without it, the raw line is shown to the player exactly as
+  written. `store.MapClients` remembers who registered one of the Xaero channels — the same signal the
+  per-world map already waits for — and nothing goes to anybody else. That is also a *different*
+  question from the claims one: a player with the minimap but no OPAC gets waypoints and no claims,
+  which is exactly right.
+- **One click per place, so it is a command rather than a join handler.** Ten homes is ten buttons, and
+  a wall of eleven lines on every login is worse than a command typed once a month.
+
+**Neither `homes-module` nor `warp-module` is a dependency of any of that**, because a home and a warp
+are both a `Poi` in RainsCore's own store (kinds `home` and `warp`). One `PlaceLookup` over
+`core.places()` serves both — and any other plugin that files its places there. Who may be offered what
+is `rules.WaypointVisibilityRule`, and it asks *the permission stored on the place*, which is where
+`warp-module` keeps all three of its access kinds: a second copy of that rule could be more generous
+than the first, and a waypoint is coordinates. Handing the staff warp's coordinates to somebody who may
+not use it is not undone by refusing the teleport afterwards.
+
+> The share line is built defensively because its one failure mode is ugly rather than silent: the
+> client counts the ten colon-separated fields *before* anything else, so a place named `base:2` would
+> produce an eleven-field line, be ignored, and appear in the player's chat as raw text. Colons and
+> newlines come out of a name, and the name is cut to the 32 characters the client draws.
+
+**A map draws chunks; a claim is a polygon.** `rules.ChunkCoverageRule` decides which claim owns a
+shared chunk — most of it wins, ties go to the older claim, and the last resort is the claim id, purely
+so two syncs of an unchanged server cannot disagree with each other and make the map flicker. A claim
+clipping one column of a chunk still paints all 256 of them, so the threshold is the server's
+(`claims.chunk-coverage-percent`, default 1). `claims.ClaimsModuleSource` measures the coverage:
+exactly for a rectangle, and on a 4 × 4 grid per chunk otherwise — with the corners checked as a
+fallback, because a two-block corridor is a real shape somebody draws and it slips between the sampled
+columns entirely.
+
+**Colour is per viewer, not per claim.** Yours and the ones you are trusted on are the server's two
+configured colours; everybody else's takes a hue derived from the owner's uuid, because on a map where
+every stranger's claim is the same shade four neighbours read as one enormous claim — which loses the
+one thing the map is for. The uuid is mixed before the modulo: two players who joined seconds apart
+differ in a handful of bits, and taken straight they land on neighbouring hues. Saturation and value are
+fixed, so nothing is ever the black that vanishes against a cave or the white that vanishes against
+snow. The HSB conversion is six lines rather than `java.awt`, which is `java.desktop` dragged into a
+headless server; `ReuseTest` fails the build if anything here imports it, and the rule's own test checks
+the arithmetic against the standard library's from the test side, where it is allowed.
+
+**Only the difference is sent.** `store.ClaimMirror` holds, per player, which claims and which chunks
+that client has been told about; a refresh sends what changed and nothing else, so a quiet server costs
+nothing per tick and a claim being made costs a handful of packets. Two deliberate splits in that:
+asking for the difference records nothing, and the *sender* records what actually went out chunk by
+chunk — so a send cut short by the budget, or by somebody disconnecting mid-sync, leaves that client
+behind by exactly the part that did not arrive rather than by nothing at all. A change too large to
+send that way goes out as whole regions instead, built from the **whole** picture of every region it
+touches rather than from the difference, because a region packet replaces all 1024 of its chunks at
+once and one built from the difference would blank every unchanged claim sharing it. The budget is
+therefore spent a region at a time: a region cannot be sent in halves.
+
+**`store.SyncIndexTable` never reuses a handle**, even after a claim is deleted. Hand out an index some
+other claim used to have and every chunk a client still holds from the old palette is relabelled with
+the new claim's name — a working-looking map, in somebody else's living room. A *transferred* claim gets
+a fresh identity for the same reason: the mod keys a claim's name and colour on (owner, sub-index), so a
+claim that keeps its pair is drawn under its previous owner's name.
+
+**The map is read-only, and that is a decision rather than an omission.** The mod's own claim key sends
+a serverbound request; answering it would be a second way to claim land on this server, one that knows
+nothing about who may claim, what it costs or how large a claim may be. Claim limits are never sent
+either, which leaves the mod's claiming UI with nothing to offer. `ReuseTest` fails the build if
+anything here touches claims-module's mutating surface.
+
+**Claims are genuinely optional**, the same shape `mannequin-module` uses and for the same reason: every
+claims-module type lives behind `claims.ClaimIntegration`, reached through Bukkit's `ServicesManager`
+(not `ModuleContext#module`, which only sees modules sharing a host), resolved **lazily** so a claims
+plugin that enables after this one is still found, and `PackageGrammarTest` fails if a claims-module
+class is named anywhere outside that package. Without a claims plugin the module still gives every world
+its own map.
+
+**Two listeners, and neither one is the join event.** A client's mods register their plugin-message
+channels *after* the join event fires, and a packet sent to a channel the client has not registered is
+dropped with no error anywhere — the classic version of this bug is a plugin that sends on join, looks
+correct, and does nothing. `PlayerRegisterChannelEvent` is the client saying it is listening.
+`PlayerRespawnEvent` is there beside `PlayerChangedWorldEvent` because dying in the nether and
+respawning at a bed in the overworld is not always reported as a world change, and a client that missed
+one writes the wrong world's map into its own cache permanently.
+
+**`/xaeromap` exists because everything else here is invisible from the server.** The packets either
+arrive and draw something no admin can see, or are dropped by a client with no mod installed — and
+nothing distinguishes those two. `status` reports how many connected players are running a map mod that
+answered the probe, which is the one fact separating "broken" from "nobody has the mod". Bare
+`/xaeromap` is a player resyncing their own map and defaults to everyone, as do `homes` and `warps`;
+`status` and `resync` are staff.
+
+---
 
 ---
 
@@ -554,15 +851,33 @@ which is whatever plugin called `prefixFrom` last — so `nether is set, here.` 
 
 ---
 
-## Deployment — the claims testserver
+## Deployment — the Fachschaft testserver
 
-Pelican server `RainsSMPCore-Test`, uuid `4e01e711-d8fd-4cd0-ae10-b8c7803ab706`, on node2/VM121.
-Public: **`mc-test.nak-inf.de:25568`** (allocation `10.0.0.121:25571`).
+**Superseded 12.08.2026:** the old `RainsSMPCore-Test` (uuid `4e01e711-…`) no longer exists — its volume
+is gone from node2. The current testserver is Pelican server id **2**, name **`26.2-Testserver`**, uuid
+**`0242f025-cb63-4389-b1b3-3b288c26de16`**, still on node2/VM121. Found by tinkering
+`App\Models\Server::all()` on the panel VM (`ssh pelican`) when the documented uuid 404'd — worth doing
+again first if this drifts, rather than trusting this file blindly.
 
 ```
 ssh mango → ssh root@10.0.0.121
-volume: /var/lib/pelican/volumes/4e01e711-d8fd-4cd0-ae10-b8c7803ab706
+volume: /var/lib/pelican/volumes/0242f025-cb63-4389-b1b3-3b288c26de16
+plugins dir also has: YeukSMP (unrelated, leave alone), bStats, spark
 ```
+
+Owner uid/gid on that node is **988:988** (`pelican` user) — same as before.
+
+**Wings power API auth**: `Authorization: Bearer <token>` using only the bare `token:` value from
+`/etc/pelican/config.yml` (top level, not `api:`) — **not** `token_id.token`, that 403s.
+`POST http://127.0.0.1:8080/api/servers/<uuid>/power` with `{"action":"restart"}`, answers **202**.
+
+**12.08.2026 deploy** (RainsCore 1.16.0 + RainsChained 1.0.0, first install of the chained module here):
+built both with `mvn -o clean install` (no skipped tests), verified the shaded `RainsChained-1.0.0.jar`
+has zero `de/raindancer/core/` classes and both `dependencies.bootstrap`/`server` entries for RainsCore
+in its `paper-plugin.yml`, old `RainsCore-1.10.0.jar` moved aside (not deleted) to
+`deploy-backup-20260812-201618/`, sha256 verified node==local, restarted, **Done (36.005s), zero
+exceptions/warnings** in the fresh boot log. RainsCore's own built-in modules (claims, homes, moderation,
+names, rtp, tpa, warps) came up too — that's expected, RainsCore ships those itself; only chained was new.
 
 **Both jars are needed.** REC has RainsCore as a *required* dependency and SMPCore is self-contained (zero
 `de/raindancer/core/` classes in its jar), so RainsCore was not on that server before.
@@ -586,9 +901,91 @@ The procedure, in order, because skipping any of it has produced a wrong deploy:
 5. **Confirm the sha256 on the node matches local**, then read the *new* boot log — check the timestamp, or
    you are reading the previous boot.
 
+**13.08.2026, fifth deploy — RainsCore 1.18.0 + RainsSpeedrun 1.0.0, same version numbers, new content:**
+Four speedrun features landed in one deploy: (1) a live `m:ss` clock on every racer's action bar
+(`SpeedrunTimerDisplay`, low priority so it never fights a claim/home message for the slot); (2) the
+dragon-kill goal now only ends the run once a participant actually steps into the exit portal
+afterward, not the instant the advancement fires (`DragonExitEndCondition`, toggled by the new
+`requireExitPortalAfterDragon` setting, on by default); (3) movement is frozen in the lobby world the
+whole time it is `READY`, not only during the five-second countdown, so nobody can wander off with the
+compass and block before pressing start; (4) every run now starts from standard conditions —
+full health, full hunger, no leftover potion effects or fire, the world set to morning, every hostile
+mob and dropped item cleared (`SpeedrunPreparation`, via Core's `PlayerAdmin`) — regardless of whether
+the map was freshly regenerated or just resumed. Also in this RainsCore build: a `/world switch|regen`
+building block (`CoreCommands.worlds`, `rainscore.world.switch`/`.regen`, op-only like every other
+undeclared Core permission) and a fix so a module's settings are forgotten when its session unwinds —
+found from a real screenshot of "Homes" still listed in `/settings` on a server that never installs it;
+root cause was `SettingsRegistry.add` never having a matching `remove` on enable-failure or disable.
+**`/world` is not reachable on this server** — Core registers no commands itself by design, and no
+installed plugin's bootstrapper (YeukSMP is foreign, not to be touched) opts into the new building
+block yet; it exists and is unit-tested, not live-wired here.
+
+Built with `mvn -o clean install` in both repos (1995 RainsCore tests, 104 speedrun-module tests, all
+green), jars verified with `javap`/`jar tf` before shipping (zero embedded `de/raindancer/core/` classes
+in `RainsSpeedrun-1.0.0.jar`, both `paper-plugin.yml` dependency phases present), old jars moved to
+`deploy-backup-20260813-*/` rather than deleted, sha256 confirmed node==local for both jars, Wings
+restart answered 202, fresh boot log: `Done (40.063s)`, zero exceptions, only the three already-known
+`death-policy`/`world-name`/`advancement-key` collision warnings between `speedrun` and `chained`.
+
+A fifth fix — `moderation-module`'s staff-permissions screen listing every module's permission nodes
+even when the owning module is not installed (`StaffRank.grantableNodesOn(Server)`, filtering to nodes
+Bukkit actually has registered) — is code-complete and unit-tested but **not deployed here**:
+`RainsModeration` is not installed on this test server at all (it runs YeukSMP's own bundled
+"Moderation 2.11.0" instead, an unrelated codebase) — nothing to verify live against.
+
 ---
 
 ## Known issues
+
+- **FIXED — auto-equip (and effects, and the pantry) had no way for an owner to say who they serve,
+  despite the data model already supporting it.** Raised directly: "I don't want to just gift every
+  visitor a totem." `ClaimFeature.AUTO_EQUIP` was already `audienceAware = true`, `Claim.featureServes`/
+  `setFeatureAudience` already existed, and `EquipService`/`AmbienceService` already checked
+  `FeatureRules.appliesTo` before doing anything — the whole enforcement chain was real. What was
+  missing was any menu or command that ever called `setFeatureAudience`: `PerksMenu`'s perk buttons only
+  toggled the on/off switch, so a fresh claim's auto-equip (and effects, and the pantry) served
+  **everyone, owner through visitor, with no way to narrow it** — the exact opposite of "opt in."
+  Fixed by giving `PerksMenu.perk()` a right click for any `audienceAware()` feature, opening a new
+  `AudiencePage` that is `FlagChooser.TierPage`'s three-tier toggle (owner/trusted/visitor) applied to
+  perks instead of flags — the same mechanism the owner already knows from narrowing a flag, not a
+  second one to learn. 28 new tests in `PerksMenuTest` (mirroring `EffectsMenuTest`'s click-type
+  parameterisation) pin which clicks open it; `claims-module`'s full suite (335 tests) and the shaded
+  `RainsExtendedClaims-2.1.0.jar` build stayed green.
+
+  **Deployed 13.08.2026, sixth deploy.** Released as `claims-standalone` 2.1.0 → **2.2.0** and
+  `moderation-standalone` 2.16.0 → **2.16.1** (the second fix rode along: `StaffRank`'s per-player
+  permission-grant screen listing every module's nodes regardless of whether that module was
+  installed — same class of bug, different screen, see `StaffRank.grantableNodesOn(Server)`).
+  RainsCore bumped 1.18.0 → **1.19.0** for the settings-unwind fix and `/world switch|regen` from
+  earlier the same day. Neither `RainsExtendedClaims` nor `RainsModeration` is installed on the
+  26.2-Testserver standalone — both fixes shipped inside **YeukSMP 1.6.0 → 1.7.8**, the bundle that
+  already depends on both modules, avoiding the two-claims-systems conflict a standalone
+  `RainsExtendedClaims` install would have created alongside YeukSMP's own bundled claims. CI now
+  auto-publishes and auto-tags any module whose version property has no matching tag yet (root
+  `pom.xml`), the same fix RainsCore's own workflow already had for its single version — bumping a
+  property and pushing is now the entire release step, nothing to tag by hand except `yeuksmp` itself
+  (`maven.deploy.skip=true`, a terminal jar with no Maven coordinate anything depends on — tagged
+  `yeuk-v1.7.8` for its GitHub release only). Also: the reactor now resolves RainsCore from
+  `packages.tstieh.de` (`<repository>` id `packages-releases` in the root pom) instead of a sibling
+  checkout built by hand in CI on every run — that workaround only existed because nothing was
+  publishing RainsCore anywhere the modules repo could read it from, and RainsCore's own workflow
+  already had been. Old jars backed up to `deploy-backup-20260813-*/` rather than deleted, sha256
+  confirmed node==local for both jars, Wings restart 202, fresh boot log: `Done (35.673s)`, zero
+  exceptions, only the three already-known settings-name collisions.
+
+- **FIXED, but a real incident — the speedrun lobby's join handler cleared any player's inventory
+  anywhere on the server.** `SpeedrunLobbyListener.onJoin` (introduced 12.08.2026 in 1.17.0) checked
+  only `lobby.state() == READY` before clearing a joining player's inventory and handing them the
+  lobby's two items — it never checked that the player was actually joining *into* the configured
+  lobby world. `READY` is true almost all the time on a server that never runs the feature, so this
+  fired on every ordinary join, into whatever world the server actually spawns people in. A player
+  lost real gear (full netherite kit) to this before it was caught, on a server outside this
+  project's own infrastructure — reported 13.08.2026. Fixed the same day in 1.17.3 by also checking
+  `player.getWorld().getName().equals(lobby.config().worldName())`, with a regression test
+  (`SpeedrunLobbyListenerTest.leavesInventoryAloneOutsideTheLobbyWorld`) that reproduces exactly this
+  scenario. No backup of the lost items existed on the affected server; nothing could be restored.
+  **Lesson, worth generalising:** any feature that acts on "every player who joins" needs its
+  activation condition to include *where*, not just *whether* — a state check alone is not scoping.
 
 - **RainsCore's farm-world regeneration deletes nothing, and reports success.** Found 04.08.2026 by
   running it on the test server. `/farm regen testmine confirm` said *"testmine is new"* twice, and
@@ -620,6 +1017,15 @@ The procedure, in order, because skipping any of it has produced a wrong deploy:
   times on boot and resolves a bare name to whichever plugin registered first. `farmworlds:warmup-seconds`
   works. Renaming the keys would make each module's own file read worse to fix a clash in a different
   namespace, so this is Core's arbitration to improve rather than the modules' names to mangle.
+
+- **Three more settings names collide, this time between RainsCore's own new built-in speedrun lobby
+  and the `chained` module** — `death-policy`, `advancement-key`, `world-name`. Found 12.08.2026 on the
+  first boot after deploying RainsCore 1.17.0's speedrun lobby: `chained-module` had already built its
+  own "what ends a run" (advancement/death) and "which world to reset" settings for its two-player race,
+  independently of Core's brand-new general-purpose lobby, and both happened to name the concept the
+  same way. Same shape as the warps collision above and the same verdict: each has its own file
+  (`speedrun.yml` vs `chained`'s own config), nothing is actually shared, and `speedrun:death-policy` /
+  `chained:death-policy` both work. Not renamed for the same reason as above.
 
 - ~~RainsTPA and RainsHomes still have their own copy of the warm-up.~~ Fixed: both are modules now and
   both use Core's `Travel`, so there is one implementation of "stand still or it is cancelled" rather
