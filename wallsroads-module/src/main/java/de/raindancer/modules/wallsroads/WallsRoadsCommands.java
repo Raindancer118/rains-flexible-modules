@@ -1,7 +1,9 @@
 package de.raindancer.modules.wallsroads;
 
 import de.raindancer.modules.api.ModuleCommand;
+import de.raindancer.modules.wallsroads.command.ShortcutCommand;
 import de.raindancer.modules.wallsroads.command.WallsRoadsCommand;
+import de.raindancer.modules.wallsroads.screen.WallsRoadsListMenu;
 import de.raindancer.modules.wallsroads.util.PermissionNodes;
 
 import java.util.List;
@@ -21,7 +23,25 @@ public final class WallsRoadsCommands {
                         .aliased("wr")
                         .needing(PermissionNodes.USE)
                         .taking("wall new", "wall <name>", "road new", "road <name>", "map", "manual",
-                                "config", "cancel", "list"));
+                                "config", "cancel", "list"),
+
+                // Two more commands rather than two more aliases: Paper hands a command its arguments
+                // and not the word that was typed, so one handler cannot tell /walls from /roads —
+                // and an alias that opens the same page as /wallsroads is a second name for the front
+                // page rather than a way to the walls.
+                ModuleCommand.of("walls", "Your walls, or one by name",
+                                new ShortcutCommand(WallsRoadsCommands::require,
+                                        WallsRoadsListMenu.Filter.WALLS))
+                        .aliased("wall")
+                        .needing(PermissionNodes.USE)
+                        .taking("<name>"),
+
+                ModuleCommand.of("roads", "Your roads, or one by name",
+                                new ShortcutCommand(WallsRoadsCommands::require,
+                                        WallsRoadsListMenu.Filter.ROADS))
+                        .aliased("road")
+                        .needing(PermissionNodes.USE)
+                        .taking("<name>"));
     }
 
     static void ready(WallsRoadsServices live) {

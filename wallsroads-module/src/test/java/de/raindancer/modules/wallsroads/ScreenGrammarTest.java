@@ -121,7 +121,14 @@ class ScreenGrammarTest {
                 continue;
             }
             boolean asksAboutPermission = screen.body().contains("hasPermission(");
-            boolean greysThroughLayout = screen.body().contains("mayManage,")
+            // The greyed form is Menu's six-argument overload —
+            //     band(band, column, allowed, item, reason, handler)
+            // — so the permission reaches the *layout* rather than an `if` around the button. Detected
+            // by the shape of the call rather than by the name of the variable in it: a screen is free
+            // to hoist the answer into a local first, and every one of them names it differently.
+            boolean greysThroughLayout = java.util.regex.Pattern
+                    .compile("band\\(MenuLayout\\.[A-Z_]+, \\d+, [a-z]")
+                    .matcher(screen.body()).find()
                     || screen.body().contains("Icons.locked(");
             if (asksAboutPermission && !greysThroughLayout) {
                 hiding.add(screen.name());

@@ -22,7 +22,7 @@ import de.raindancer.modules.wallsroads.model.Wall;
 import de.raindancer.modules.wallsroads.screen.RoadEditMenu;
 import de.raindancer.modules.wallsroads.screen.WallEditMenu;
 import de.raindancer.modules.wallsroads.screen.WallsRoadsConfigMenu;
-import de.raindancer.modules.wallsroads.screen.WallsRoadsListMenu;
+import de.raindancer.modules.wallsroads.screen.WallsRoadsMenu;
 import de.raindancer.modules.wallsroads.util.ManualBook;
 import de.raindancer.modules.wallsroads.selection.WallsRoadsSelectionFlow;
 import de.raindancer.modules.wallsroads.service.WallsRoadsService;
@@ -175,7 +175,7 @@ public final class WallsRoadsModule implements FlexModule {
 
         @Override
         public void list(Player viewer) {
-            new WallsRoadsListMenu(services, viewer, null).open();
+            new WallsRoadsMenu(services, viewer, null).open();
         }
 
         @Override
