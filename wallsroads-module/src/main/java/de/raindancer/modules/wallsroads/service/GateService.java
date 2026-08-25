@@ -80,29 +80,93 @@ public final class GateService {
         return runs;
     }
 
-    /** The blocks that close this gate: its doors, filling the opening to its own height. */
-    public List<BatchBuilder.Placement> shutPlacements(Wall wall, Gate gate) {
-        List<BatchBuilder.Placement> placements = new ArrayList<>();
-        String material = gate.doorMaterial().name();
-        int top = wall.minY() + Math.min(gate.height(), wall.height());
-        for (ColumnPolygon.Column column : gate.openingColumns()) {
-            for (int y = wall.minY(); y < top; y++) {
-                placements.add(new BatchBuilder.Placement(
-                        new Spot(wall.world(), column.x(), y, column.z()), material));
+    /**
+     * Every block of the opening, as an arch.
+     *
+     * <h2>Why an arch and not a rectangle</h2>
+     * A rectangular hole is what this used to cut, and it looked like exactly that: a gap punched
+     * through a wall, with the courses above it left hanging over nothing. An arch is what carries a
+     * wall over a gap in real building, and it is the one shape that makes an opening read as a gate
+     * rather than as damage.
+     *
+     * <p>The shape is a semicircle sitting on straight jambs: a column {@code d} away from the middle
+     * loses {@code radius - √(radius² - d²)} courses off the top, which is the circle. The passage
+     * goes through the wall's whole thickness rather than only its face — the opening columns are the
+     * road's own crossing, and the wall is as thick as it is.
+     *
+     * @param depth how far either side of the opening columns to reach, so the passage clears a wall
+     *              thicker than the road that cut it
+     */
+    public List<Spot> archSpots(Wall wall, Gate gate, int depth) {
+        List<ColumnPolygon.Column> columns = gate.openingColumns();
+        if (columns.isEmpty()) {
+            return List.of();
+        }
+        // The middle of the opening, and how far the furthest column is from it.
+        double centreX = columns.stream().mapToInt(ColumnPolygon.Column::x).average().orElse(0);
+        double centreZ = columns.stream().mapToInt(ColumnPolygon.Column::z).average().orElse(0);
+        double radius = 0;
+        for (ColumnPolygon.Column column : columns) {
+            radius = Math.max(radius, Math.hypot(column.x() - centreX, column.z() - centreZ));
+        }
+
+        int wallTop = wall.minY() + wall.height();
+        int crown = Math.min(wall.minY() + gate.height(), wallTop);
+
+        List<Spot> spots = new ArrayList<>();
+        for (ColumnPolygon.Column column : columns) {
+            double distance = Math.hypot(column.x() - centreX, column.z() - centreZ);
+            // How much this column's top is pulled down by the curve.
+            int fall = radius <= 0 ? 0
+                    : (int) Math.round(radius - Math.sqrt(Math.max(0, radius * radius - distance * distance)));
+            int top = Math.max(wall.minY() + 1, crown - fall);
+
+            for (int step = -depth; step <= depth; step++) {
+                for (int y = wall.minY(); y < top; y++) {
+                    spots.add(new Spot(wall.world(), column.x() + acrossX(columns) * step, y,
+                            column.z() + acrossZ(columns) * step));
+                }
             }
+        }
+        return spots;
+    }
+
+    /**
+     * Which way the passage runs — across the line of the opening.
+     *
+     * <p>The opening's own columns lie along the wall, so the passage is at right angles to them.
+     * A one-column gate has no line of its own, and is treated as running north-south, which is the
+     * same guess the cross-section maths makes elsewhere.
+     */
+    private static int acrossX(List<ColumnPolygon.Column> columns) {
+        if (columns.size() < 2) {
+            return 0;
+        }
+        return columns.get(0).z() == columns.get(columns.size() - 1).z() ? 0 : 1;
+    }
+
+    private static int acrossZ(List<ColumnPolygon.Column> columns) {
+        if (columns.size() < 2) {
+            return 1;
+        }
+        return columns.get(0).z() == columns.get(columns.size() - 1).z() ? 1 : 0;
+    }
+
+    /** The blocks that close this gate: its doors, filling exactly the arch it cut. */
+    public List<BatchBuilder.Placement> shutPlacements(Wall wall, Gate gate) {
+        String material = gate.doorMaterial().name();
+        List<BatchBuilder.Placement> placements = new ArrayList<>();
+        for (Spot spot : archSpots(wall, gate, wall.thickness() / 2)) {
+            placements.add(new BatchBuilder.Placement(spot, material));
         }
         return placements;
     }
 
-    /** And the blocks that open it again: the same opening, cleared. */
+    /** And the blocks that open it again: the same arch, cleared. */
     public List<BatchBuilder.Placement> openPlacements(Wall wall, Gate gate) {
         List<BatchBuilder.Placement> placements = new ArrayList<>();
-        int top = wall.minY() + Math.min(gate.height(), wall.height());
-        for (ColumnPolygon.Column column : gate.openingColumns()) {
-            for (int y = wall.minY(); y < top; y++) {
-                placements.add(new BatchBuilder.Placement(
-                        new Spot(wall.world(), column.x(), y, column.z()), "AIR"));
-            }
+        for (Spot spot : archSpots(wall, gate, wall.thickness() / 2)) {
+            placements.add(new BatchBuilder.Placement(spot, "AIR"));
         }
         return placements;
     }

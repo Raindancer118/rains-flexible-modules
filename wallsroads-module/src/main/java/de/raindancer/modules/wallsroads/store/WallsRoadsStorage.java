@@ -212,10 +212,18 @@ public final class WallsRoadsStorage {
         section.set("walkway", profile.walkway());
         section.set("walkway-material", nameOf(profile.walkwayMaterial()));
         section.set("foundation", profile.foundation());
+        section.set("buttress-material", nameOf(profile.buttressMaterial()));
+        section.set("buttress-spacing", profile.buttressSpacing());
+        section.set("ladder-spacing", profile.ladderSpacing());
         section.set("tower-material", nameOf(profile.towerMaterial()));
         section.set("tower-spacing", profile.towerSpacing());
         section.set("tower-rise", profile.towerRise());
         section.set("tower-width", profile.towerWidth());
+        section.set("plinth", profile.plinth());
+        section.set("cornice", profile.cornice());
+        section.set("lantern", nameOf(profile.lantern()));
+        section.set("lantern-spacing", profile.lanternSpacing());
+        section.set("arches", profile.arches());
     }
 
     /** A wall written before profiles existed is a plain one — that is exactly what it was. */
@@ -230,10 +238,18 @@ public final class WallsRoadsStorage {
                 section.getBoolean("walkway", simple.walkway()),
                 material(section.getString("walkway-material"), simple.walkwayMaterial()),
                 section.getBoolean("foundation", simple.foundation()),
+                material(section.getString("buttress-material"), null),
+                section.getInt("buttress-spacing", simple.buttressSpacing()),
+                section.getInt("ladder-spacing", simple.ladderSpacing()),
                 material(section.getString("tower-material"), null),
                 section.getInt("tower-spacing", simple.towerSpacing()),
                 section.getInt("tower-rise", simple.towerRise()),
-                section.getInt("tower-width", simple.towerWidth()));
+                section.getInt("tower-width", simple.towerWidth()),
+                section.getBoolean("plinth", simple.plinth()),
+                section.getBoolean("cornice", simple.cornice()),
+                material(section.getString("lantern"), null),
+                section.getInt("lantern-spacing", simple.lanternSpacing()),
+                section.getBoolean("arches", simple.arches()));
     }
 
     private static void writeProfile(ConfigurationSection section, RoadProfile profile) {
@@ -247,6 +263,8 @@ public final class WallsRoadsStorage {
         section.set("tunnel-light", nameOf(profile.tunnelLight()));
         section.set("glass", nameOf(profile.glass()));
         section.set("headroom", profile.headroom());
+        section.set("tunnel-floor", nameOf(profile.tunnelFloor()));
+        section.set("wooden-supports", profile.woodenSupports());
     }
 
     /**
@@ -269,7 +287,9 @@ public final class WallsRoadsStorage {
                 material(section.getString("tunnel-lining"), plain.tunnelLining()),
                 material(section.getString("tunnel-light"), plain.tunnelLight()),
                 material(section.getString("glass"), plain.glass()),
-                section.getInt("headroom", plain.headroom()));
+                section.getInt("headroom", plain.headroom()),
+                material(section.getString("tunnel-floor"), plain.tunnelFloor()),
+                section.getBoolean("wooden-supports", plain.woodenSupports()));
     }
 
     private static String nameOf(Material material) {

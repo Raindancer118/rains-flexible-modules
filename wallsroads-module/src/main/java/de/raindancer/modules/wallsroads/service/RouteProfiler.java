@@ -36,11 +36,21 @@ public final class RouteProfiler {
      * @param maxBridgeSpan     the widest gap a road will span rather than descend into
      * @param seaTunnelMinLength how long a water crossing must be before it goes under instead of over
      * @param seaTunnelMinDepth how deep that water must be for a tunnel to be worth it
+     * @param seaTunnelBelowSurface how much water there has to be over the tunnel's roof before going
+     *                              under is worth it at all — it is not worth tunnelling ten blocks
      */
     public record Rules(int maxGrade, int smoothing, int bridgeMinGap, int tunnelMinCover,
-                        int maxBridgeSpan, int seaTunnelMinLength, int seaTunnelMinDepth) {
+                        int maxBridgeSpan, int seaTunnelMinLength, int seaTunnelMinDepth,
+                        int seaTunnelBelowSurface) {
 
-        public static final Rules DEFAULTS = new Rules(1, 3, 2, 2, 64, 24, 6);
+        public static final Rules DEFAULTS = new Rules(1, 3, 2, 2, 64, 24, 6, 10);
+
+        /** The old six-value form, for callers that predate the depth. */
+        public Rules(int maxGrade, int smoothing, int bridgeMinGap, int tunnelMinCover,
+                     int maxBridgeSpan, int seaTunnelMinLength, int seaTunnelMinDepth) {
+            this(maxGrade, smoothing, bridgeMinGap, tunnelMinCover, maxBridgeSpan,
+                    seaTunnelMinLength, seaTunnelMinDepth, 8);
+        }
 
         public Rules {
             maxGrade = Math.max(1, maxGrade);
@@ -50,6 +60,7 @@ public final class RouteProfiler {
             maxBridgeSpan = Math.max(4, maxBridgeSpan);
             seaTunnelMinLength = Math.max(4, seaTunnelMinLength);
             seaTunnelMinDepth = Math.max(2, seaTunnelMinDepth);
+            seaTunnelBelowSurface = Math.max(2, Math.min(64, seaTunnelBelowSurface));
         }
     }
 
@@ -95,9 +106,10 @@ public final class RouteProfiler {
      * would then span the dive rather than the ravine.
      */
     private int[] follow(List<TerrainReader.Reading> readings, Rules rules) {
-        int[] wanted = waterAwareBase(readings, rules);
+        boolean[] submerged = new boolean[readings.size()];
+        int[] wanted = waterAwareBase(readings, rules, submerged);
         int[] smoothed = smooth(wanted, rules.smoothing());
-        int[] spanned = fillDips(smoothed, rules);
+        int[] spanned = fillDips(smoothed, rules, submerged);
         return capGrade(spanned, rules.maxGrade());
     }
 
@@ -108,7 +120,7 @@ public final class RouteProfiler {
      * Everything else aims for just above the water, which is a bridge. Deciding this per run rather
      * than per column is what stops a road diving under a brook.
      */
-    private int[] waterAwareBase(List<TerrainReader.Reading> readings, Rules rules) {
+    private int[] waterAwareBase(List<TerrainReader.Reading> readings, Rules rules, boolean[] submerged) {
         int[] base = new int[readings.size()];
         for (int i = 0; i < readings.size(); i++) {
             base[i] = readings.get(i).groundY();
@@ -123,11 +135,25 @@ public final class RouteProfiler {
                 deepest = Math.max(deepest, readings.get(i).waterDepth());
                 highestSurface = Math.max(highestSurface, readings.get(i).waterSurfaceY());
             }
-            boolean goesUnder = length >= rules.seaTunnelMinLength() && deepest >= rules.seaTunnelMinDepth();
+            // Deep enough is not "there is water": the tunnel's own roof has to end up well under the
+            // surface, or the result is a glass box sitting in a lagoon — which is exactly what a
+            // six-deep crossing produced. Its roof stands `roofClearance` above the bed, so that much
+            // water plus a margin is what the crossing actually has to have.
+            int roofClearance = rules.seaTunnelBelowSurface();
+            boolean deepEnough = deepest >= Math.max(rules.seaTunnelMinDepth(), roofClearance);
+            boolean goesUnder = length >= rules.seaTunnelMinLength() && deepEnough;
             for (int i = from; i <= to; i++) {
-                // Under: rest on the bed. Over: one block clear of the water, level across the whole
-                // crossing — a bridge that follows a choppy surface is a staircase.
-                base[i] = goesUnder ? readings.get(i).groundY() : highestSurface + 1;
+                if (!goesUnder) {
+                    // Over: one block clear of the water, level across the whole crossing — a bridge
+                    // that follows a choppy surface is a staircase.
+                    base[i] = highestSurface + 1;
+                    continue;
+                }
+                // Under: on the sea bed, which is where a road under the sea belongs — the glass is
+                // there so the water is the view, and a tube hung in mid-water has the bed as a
+                // distant floor rather than as the ground the road is laid on.
+                base[i] = readings.get(i).groundY();
+                submerged[i] = true;
             }
         }
         return base;
@@ -177,13 +203,19 @@ public final class RouteProfiler {
      * wider than the span is left alone deliberately: a road does not fly across a whole valley, it
      * goes down into it, and a bridge with no visible end is not a bridge.
      */
-    private static int[] fillDips(int[] values, Rules rules) {
+    private static int[] fillDips(int[] values, Rules rules, boolean[] deliberate) {
         int[] filled = values.clone();
         for (int from = 0; from < values.length; from++) {
             int to = Math.min(values.length - 1, from + rules.maxBridgeSpan());
             for (int end = to; end > from + 1; end--) {
                 int span = end - from;
                 for (int i = from + 1; i < end; i++) {
+                    // A sea tunnel is not a dip to be spanned — it is where the road is meant to be.
+                    // Without this the span-filling lifts the tunnel back towards the surface until it
+                    // is a glass box floating in a lagoon, which is what the first one looked like.
+                    if (deliberate[i]) {
+                        continue;
+                    }
                     double t = (i - from) / (double) span;
                     int line = (int) Math.round(values[from] + (values[end] - values[from]) * t);
                     if (line > filled[i]) {

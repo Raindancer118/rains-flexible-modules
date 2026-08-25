@@ -112,9 +112,10 @@ public final class WallsRoadsService {
                 wall.putGate(gate);
             }
         }
-        Set<ColumnPolygon.Column> openings = wallBuild.openGateColumns(wall);
+        // Nothing passed: a gate cuts its own arch out of the finished wall now, and handing its
+        // columns over as well would clear them full height and put the ragged rectangular hole back.
         List<BatchBuilder.Placement> wanted =
-                occupancy.filter(wallBuild.buildPlacements(wall, openings, ground), wall.id());
+                occupancy.filter(wallBuild.buildPlacements(wall, Set.of(), ground), wall.id());
         List<BatchBuilder.Placement> affordable = charge(payer, wanted);
         BatchBuilder builder = new BatchBuilder(ground, affordable);
         paced(wall.world(), builder, () -> {

@@ -150,6 +150,36 @@ public final class WallEditMenu extends Menu {
                     refresh();
                 });
 
+        band(MenuLayout.LAND, 2, mayManage,
+                Icons.of(Material.BRICKS, "<white>How thick",
+                        "<gray>" + wall.thickness() + " blocks across",
+                        "<dark_gray>The wall-walk on top is as wide as this,",
+                        "<dark_gray>so one block is a fence and three is a wall.",
+                        "",
+                        "<yellow>Click <gray>to add one, <yellow>right click <gray>to take one away",
+                        "<gray>A standing wall is rebuilt to match."),
+                "The owner's to change",
+                click -> {
+                    int wanted = click.isRightClick() ? wall.thickness() - 1 : wall.thickness() + 1;
+                    wall.thickness(Math.max(1, Math.min(9, wanted)));
+                    services.storage().saveWall(wall);
+                    services.service().reshapeWall(wall, this::refresh);
+                });
+
+        band(MenuLayout.LAND, 4, mayManage,
+                Icons.of(Material.LADDER, "<white>How tall",
+                        "<gray>" + wall.height() + " blocks, before the parapet",
+                        "",
+                        "<yellow>Click <gray>to add one, <yellow>right click <gray>to take one away",
+                        "<gray>A standing wall is rebuilt to match."),
+                "The owner's to change",
+                click -> {
+                    int wanted = click.isRightClick() ? wall.height() - 1 : wall.height() + 1;
+                    wall.bounds(wall.minY(), Math.max(2, Math.min(64, wanted)));
+                    services.storage().saveWall(wall);
+                    services.service().reshapeWall(wall, this::refresh);
+                });
+
         toolbar(2, Icons.of(Material.NAME_TAG, "<white>Rename",
                         "<gray>Current: " + wall.name(),
                         "",

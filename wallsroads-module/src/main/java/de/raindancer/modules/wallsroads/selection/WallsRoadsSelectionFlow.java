@@ -9,6 +9,7 @@ import de.raindancer.core.world.selection.MarkingSession;
 import de.raindancer.core.world.selection.MarkingSessions;
 import de.raindancer.core.world.selection.MarkingTool;
 import de.raindancer.core.world.visual.OutlineRenderer;
+import de.raindancer.core.world.visual.SelectionMarkers;
 import de.raindancer.modules.wallsroads.WallsRoadsSettings;
 import de.raindancer.modules.wallsroads.model.CornerStyle;
 import de.raindancer.modules.wallsroads.model.ElevationMode;
@@ -41,6 +42,7 @@ public final class WallsRoadsSelectionFlow implements MarkingListener.Callback {
     private final MarkingTool tool;
     private final MarkingSessions sessions;
     private final OutlineRenderer outline;
+    private final SelectionMarkers markers;
     private final WallsRoadsRegistry registry;
     private final WallsRoadsService service;
     private final Messages messages;
@@ -49,11 +51,13 @@ public final class WallsRoadsSelectionFlow implements MarkingListener.Callback {
     private final Map<UUID, Purpose> purposeByPlayer = new ConcurrentHashMap<>();
 
     public WallsRoadsSelectionFlow(MarkingTool tool, MarkingSessions sessions, OutlineRenderer outline,
-                                   WallsRoadsRegistry registry, WallsRoadsService service, Messages messages,
+                                   SelectionMarkers markers, WallsRoadsRegistry registry,
+                                   WallsRoadsService service, Messages messages,
                                    LogChannel log, Supplier<WallsRoadsSettings> settings) {
         this.tool = tool;
         this.sessions = sessions;
         this.outline = outline;
+        this.markers = markers;
         this.registry = registry;
         this.service = service;
         this.messages = messages;
@@ -77,6 +81,9 @@ public final class WallsRoadsSelectionFlow implements MarkingListener.Callback {
                 "<yellow>Shift + left-click air <gray>cancel");
         var stick = tool.create(current.selectionStickMaterial(), purpose.name(), label, lore);
         tool.give(player, stick);
+        // The live outline starts now rather than on the first click: an empty preview costs nothing,
+        // and starting it here means there is exactly one place it is ever switched on.
+        showLivePreview(player);
         messages.send(player, "wallsroads.selection.started", "purpose", purpose.name().toLowerCase());
     }
 
@@ -90,15 +97,18 @@ public final class WallsRoadsSelectionFlow implements MarkingListener.Callback {
         sessions.clear(player.getUniqueId());
         purposeByPlayer.remove(player.getUniqueId());
         outline.stop(player);
+        markers.clear(player);
     }
 
     @Override
     public void onVertexAdded(Player player, MarkingSession session) {
+        showMarkers(player, session);
         messages.send(player, "wallsroads.selection.point-added", "count", String.valueOf(session.pointCount()));
     }
 
     @Override
     public void onVertexRemoved(Player player, MarkingSession session) {
+        showMarkers(player, session);
         messages.send(player, "wallsroads.selection.point-removed", "count", String.valueOf(session.pointCount()));
     }
 
@@ -157,10 +167,37 @@ public final class WallsRoadsSelectionFlow implements MarkingListener.Callback {
         stop(player);
     }
 
+    /**
+     * The line between the corners, redrawn as they are added.
+     *
+     * <p>Drawn at the height of the <em>first</em> corner rather than at the player's own: an outline
+     * that follows you up a hill is an outline that never stands still, and the shape is flat anyway.
+     */
     public void showLivePreview(Player player) {
-        outline.showLive(player, player.getWorld(), () -> {
-            var maybeSession = sessions.sessionOf(player.getUniqueId());
-            return maybeSession.map(MarkingSession::vertices).orElse(List.of());
-        }, () -> player.getLocation().getBlockY(), new Particle.DustOptions(org.bukkit.Color.YELLOW, 1.0f));
+        outline.showLive(player, player.getWorld(), () ->
+                        sessions.sessionOf(player.getUniqueId())
+                                .map(MarkingSession::vertices).orElse(List.of()),
+                () -> sessions.sessionOf(player.getUniqueId())
+                        .flatMap(session -> session.clickedYAt(0))
+                        .orElseGet(() -> player.getLocation().getBlockY()),
+                new Particle.DustOptions(colourFor(player), 1.0f));
+    }
+
+    /**
+     * The clicked blocks themselves, lit on the client and beaconed so their order is readable.
+     *
+     * <p>Redrawn whole after every click rather than added to: a marking that is undone has to lose a
+     * marker, and replacing the set is the only version of that with no bookkeeping to get wrong.
+     */
+    private void showMarkers(Player player, MarkingSession session) {
+        markers.show(player, player.getWorld(), session.vertices(),
+                index -> session.clickedYAt(index).orElseGet(() -> player.getLocation().getBlockY()),
+                settings.get().selectionMarkerMaterial(), colourFor(player));
+    }
+
+    /** Walls in stone-grey, roads in amber — the same two colours their list rows use. */
+    private org.bukkit.Color colourFor(Player player) {
+        return purposeByPlayer.get(player.getUniqueId()) == Purpose.WALL
+                ? org.bukkit.Color.SILVER : org.bukkit.Color.ORANGE;
     }
 }

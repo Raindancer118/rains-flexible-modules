@@ -5,13 +5,16 @@ import de.raindancer.core.world.build.Ground;
 import de.raindancer.core.world.geometry.ColumnPolygon.Column;
 import de.raindancer.core.world.safety.Spot;
 import de.raindancer.modules.wallsroads.model.RoadPath;
+import de.raindancer.modules.wallsroads.model.PavingPalette;
 import de.raindancer.modules.wallsroads.model.RoadProfile;
 import de.raindancer.modules.wallsroads.model.RoadSegment;
 import de.raindancer.modules.wallsroads.model.SegmentKind;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -28,6 +31,8 @@ import java.util.Set;
  */
 public final class RoadBuilder {
 
+    private final TerrainReader terrain = new TerrainReader();
+
     /** Blocks between a bridge's piers. Closer looks like a wall, further looks unsupported. */
     private static final int PIER_SPACING = 8;
 
@@ -37,16 +42,35 @@ public final class RoadBuilder {
     public List<BatchBuilder.Placement> placements(RoadPath road, List<RoadSegment> plan, Ground ground) {
         List<BatchBuilder.Placement> placements = new ArrayList<>();
         RoadProfile profile = road.profile();
-        String paving = road.material().name();
+        // A family of related blocks rather than one repeated forever: a road of a single material
+        // reads as a texture stretched over the ground, which is what the first one looked like.
+        PavingPalette palette = PavingPalette.forMaterial(road.material());
 
         // Worked out over the whole route before anything is placed, because a shell is only sound if
         // it is built against every face of the *finished* space. Segment by segment, the join between
         // two cross-sections on a bend is a face nobody lined — and one missing block under the sea is
         // a tunnel that floods on the next tick.
-        Set<Spot> interior = interiorOf(road, plan);
-        // And the whole road surface, for the same reason: a bend's lining would otherwise wall in
-        // the paving laid by the segment before it, because that block is not in *this* cross-section.
+        //
+        // Cleared, not enclosed: the road clears head height along its whole length, and the mouth of
+        // a tunnel opens into the cleared space of the ordinary road beyond it. Sealing against the
+        // enclosed part alone glazes that mouth shut — which is exactly what the first sea tunnel did,
+        // a glass box you could see the road through and not walk onto it.
+        Set<Spot> cleared = clearedOf(road, plan);
         Set<Spot> surface = surfaceOf(road, plan);
+
+        // Paved and cleared over every column the road covers, in one pass, before anything is built
+        // on top of it. Per-step cross-sections leave gaps on a diagonal, and a gap in the floor of a
+        // sea tunnel is a hole the shell then has to fill — which is where the glass lattice came from.
+        for (Map.Entry<Column, RoadSegment> entry : columnsAlong(road, plan).entrySet()) {
+            Column column = entry.getKey();
+            RoadSegment segment = entry.getValue();
+            String floor = segment.kind().isEnclosed() && profile.tunnelFloor() != null
+                    ? profile.tunnelFloor().name() : palette.at(column);
+            placements.add(place(road.world(), column, segment.surfaceY(), floor));
+            for (int y = segment.surfaceY() + 1; y <= segment.surfaceY() + profile.headroom(); y++) {
+                placements.add(place(road.world(), column, y, "AIR"));
+            }
+        }
 
         for (int index = 0; index < plan.size(); index++) {
             RoadSegment segment = plan.get(index);
@@ -59,35 +83,76 @@ public final class RoadBuilder {
             int surfaceY = segment.surfaceY();
             int headroom = profile.headroom();
 
-            clear(placements, road.world(), cross, surfaceY, headroom, segment.kind());
-
-            for (Column column : cross) {
-                placements.add(place(road.world(), column, surfaceY, paving));
-            }
 
             switch (segment.kind()) {
                 case BRIDGE -> {
                     edge(placements, road.world(), leftEdge, rightEdge, surfaceY + 1, profile.railing());
                     if (index % PIER_SPACING == 0) {
-                        pier(placements, road.world(), segment, profile);
+                        pier(placements, road, segment, profile, ground);
                     }
                 }
-                case TUNNEL, GLASS_TUNNEL -> line(placements, road.world(), interior, surface, cross,
-                        surfaceY, headroom,
-                        segment.kind() == SegmentKind.TUNNEL
-                                ? profile.tunnelLining().name() : profile.glass().name());
+                case TUNNEL, GLASS_TUNNEL -> {
+                    // The shell is built in one pass below, over the whole cleared volume.
+                }
                 case GROUND -> {
                     if (profile.hasKerb()) {
-                        edge(placements, road.world(), leftEdge, rightEdge, surfaceY + 1, profile.kerb());
+                        // On the surface, not above it: a kerb is the edge of the road, and a course
+                        // standing on top of it is a wall along a footpath.
+                        placements.add(place(road.world(), leftEdge, surfaceY, palette.slab()));
+                        placements.add(place(road.world(), rightEdge, surfaceY, palette.slab()));
                     }
                 }
                 default -> {
                 }
             }
 
-            lamps(placements, road, segment, index, leftEdge, rightEdge, surfaceY, profile);
+            lamps(placements, road, segment, index, leftEdge, rightEdge, surfaceY, profile, ground);
         }
+
+        shell(placements, road, plan, cleared, surface, ground, profile);
         return placements;
+    }
+
+    /**
+     * The shell around every enclosed stretch, in one pass over the whole cleared volume.
+     *
+     * <p>One pass, and over the same set the clearing used, because those are the two halves of one
+     * statement: a shell is sound exactly when every face of the cleared space is either more cleared
+     * space, road surface, or something solid. Built per step instead — which is how it was — the
+     * shell only ever looks at that step's own cross-section, and every column the footprint covers
+     * beyond it is a face nobody checked. Under the sea each of those is a hole.
+     */
+    private void shell(List<BatchBuilder.Placement> placements, RoadPath road, List<RoadSegment> plan,
+                       Set<Spot> cleared, Set<Spot> surface, Ground ground, RoadProfile profile) {
+        Map<Column, RoadSegment> byColumn = columnsAlong(road, plan);
+        int headroom = profile.headroom();
+
+        for (Map.Entry<Column, RoadSegment> entry : byColumn.entrySet()) {
+            RoadSegment segment = entry.getValue();
+            if (!segment.kind().isEnclosed()) {
+                continue;
+            }
+            boolean glazed = segment.kind() == SegmentKind.GLASS_TUNNEL;
+            String material = glazed ? profile.glass().name() : profile.tunnelLining().name();
+            Column column = entry.getKey();
+
+            for (int y = segment.surfaceY() + 1; y <= segment.surfaceY() + headroom; y++) {
+                Spot inside = new Spot(road.world(), column.x(), y, column.z());
+                for (Spot face : faces(inside)) {
+                    if (cleared.contains(face) || surface.contains(face)) {
+                        continue;
+                    }
+                    // A bored tunnel is lined all round — that is what makes it a tunnel rather than
+                    // a hole in a hill. A glass one is sealed only where something has to be held
+                    // back, so the sea bed stays the sea bed rather than being walled off behind
+                    // panes nobody asked for.
+                    if (glazed && ground != null && !needsSealing(ground, face)) {
+                        continue;
+                    }
+                    placements.add(new BatchBuilder.Placement(face, material));
+                }
+            }
+        }
     }
 
     /**
@@ -145,23 +210,70 @@ public final class RoadBuilder {
      * Every space an enclosed stretch of this route hollows out.
      *
      * <p>Public because it is the thing worth asserting about: a shell is sound exactly when every
-     * face of this set is either more of the set or a block that was placed.
+     * face of this set is either road that carries on or a block that was placed.
      */
     public Set<Spot> interiorOf(RoadPath road, List<RoadSegment> plan) {
-        Set<Spot> interior = new LinkedHashSet<>();
+        return clearedAlong(road, plan, true);
+    }
+
+    /**
+     * Every space the road clears above itself, enclosed or not.
+     *
+     * <p>This is what a shell is built <em>against</em>: a tunnel's mouth opens into the ordinary road
+     * beyond it, and that road's own head height is not something to glaze over.
+     */
+    public Set<Spot> clearedOf(RoadPath road, List<RoadSegment> plan) {
+        return clearedAlong(road, plan, false);
+    }
+
+    private Set<Spot> clearedAlong(RoadPath road, List<RoadSegment> plan, boolean enclosedOnly) {
+        Set<Spot> spaces = new LinkedHashSet<>();
         int headroom = road.profile().headroom();
-        for (int index = 0; index < plan.size(); index++) {
-            RoadSegment segment = plan.get(index);
-            if (!segment.kind().isEnclosed()) {
+        for (Map.Entry<Column, RoadSegment> entry : columnsAlong(road, plan).entrySet()) {
+            RoadSegment segment = entry.getValue();
+            if (enclosedOnly && !segment.kind().isEnclosed()) {
                 continue;
             }
-            for (Column column : crossSection(plan, index, road.width())) {
-                for (int y = segment.surfaceY() + 1; y <= segment.surfaceY() + headroom; y++) {
-                    interior.add(new Spot(road.world(), column.x(), y, column.z()));
-                }
+            for (int y = segment.surfaceY() + 1; y <= segment.surfaceY() + headroom; y++) {
+                spaces.add(new Spot(road.world(), entry.getKey().x(), y, entry.getKey().z()));
             }
         }
-        return interior;
+        return spaces;
+    }
+
+    /**
+     * Every column the road actually covers, and which step of it each belongs to.
+     *
+     * <p><strong>From the footprint, not from the cross-sections.</strong> A cross-section is a line
+     * of columns at right angles to one step; two consecutive ones on a diagonal do not touch, and
+     * every gap between them is a column that is inside the road and not in any cross-section. Under
+     * the sea that is not cosmetic: the shell is built against every face of the cleared space, so
+     * each of those gaps became a pane of glass standing across the passage — a lattice through the
+     * middle of the tunnel, which is exactly what it looked like.
+     *
+     * <p>{@code Polyline#footprint} is contiguous by construction, so built from that the cleared
+     * space has no holes in it and the shell has nothing to fill.
+     */
+    private Map<Column, RoadSegment> columnsAlong(RoadPath road, List<RoadSegment> plan) {
+        Map<Column, RoadSegment> byColumn = new LinkedHashMap<>();
+        if (plan.isEmpty()) {
+            return byColumn;
+        }
+        for (Column column : road.path().footprint(road.width())) {
+            RoadSegment nearest = plan.get(0);
+            long closest = Long.MAX_VALUE;
+            for (RoadSegment segment : plan) {
+                long dx = segment.column().x() - column.x();
+                long dz = segment.column().z() - column.z();
+                long distance = dx * dx + dz * dz;
+                if (distance < closest) {
+                    closest = distance;
+                    nearest = segment;
+                }
+            }
+            byColumn.put(column, nearest);
+        }
+        return byColumn;
     }
 
     /**
@@ -175,30 +287,21 @@ public final class RoadBuilder {
      * <p>The road surface is not in the interior, so the floor is sealed by its own paving — except
      * where a cross-section is wider than the one before it, which this catches like any other face.
      */
-    private void line(List<BatchBuilder.Placement> placements, String world, Set<Spot> interior,
-                      Set<Spot> surface, List<Column> cross, int surfaceY, int headroom,
-                      String material) {
-        for (Column column : cross) {
-            for (int y = surfaceY + 1; y <= surfaceY + headroom; y++) {
-                Spot inside = new Spot(world, column.x(), y, column.z());
-                for (Spot face : faces(inside)) {
-                    if (interior.contains(face) || surface.contains(face)) {
-                        continue;
-                    }
-                    placements.add(new BatchBuilder.Placement(face, material));
-                }
-            }
+    /** Whether this face would let water or air in if it were left as it is. */
+    private boolean needsSealing(Ground ground, Spot face) {
+        String there = ground.materialAt(face);
+        if (there == null) {
+            return false;
         }
+        return terrain.isClearable(there);
     }
 
     /** Every block of road surface along the route — a solid floor already, and not to be walled over. */
     public Set<Spot> surfaceOf(RoadPath road, List<RoadSegment> plan) {
         Set<Spot> surface = new LinkedHashSet<>();
-        for (int index = 0; index < plan.size(); index++) {
-            RoadSegment segment = plan.get(index);
-            for (Column column : crossSection(plan, index, road.width())) {
-                surface.add(new Spot(road.world(), column.x(), segment.surfaceY(), column.z()));
-            }
+        for (Map.Entry<Column, RoadSegment> entry : columnsAlong(road, plan).entrySet()) {
+            surface.add(new Spot(road.world(), entry.getKey().x(),
+                    entry.getValue().surfaceY(), entry.getKey().z()));
         }
         return surface;
     }
@@ -219,15 +322,31 @@ public final class RoadBuilder {
         placements.add(place(world, right, y, material.name()));
     }
 
-    /** A pier from under the deck down to whatever is below it. */
-    private void pier(List<BatchBuilder.Placement> placements, String world, RoadSegment segment,
-                      RoadProfile profile) {
+    /**
+     * A pier from under the deck down to whatever is below it.
+     *
+     * <p>Built from the wood growing in that biome when the profile asks for it: a trestle over a
+     * mangrove swamp made of oak looks imported, and one made of mangrove looks like something the
+     * people who live there put up.
+     */
+    private void pier(List<BatchBuilder.Placement> placements, RoadPath road, RoadSegment segment,
+                      RoadProfile profile, Ground ground) {
         int from = segment.surfaceY() - 1;
         int to = Math.max(segment.reading().groundY() - 1, from - MAX_PIER_DEPTH);
-        String material = profile.support().name();
+        String material = supportMaterial(road, segment, profile, ground);
         for (int y = from; y >= to; y--) {
-            placements.add(place(world, segment.column(), y, material));
+            placements.add(place(road.world(), segment.column(), y, material));
         }
+    }
+
+    /** What a pier or a lamp post is made of here. */
+    private String supportMaterial(RoadPath road, RoadSegment segment, RoadProfile profile, Ground ground) {
+        if (!profile.woodenSupports() || ground == null) {
+            return profile.support().name();
+        }
+        String biome = ground.biomeAt(new Spot(road.world(), segment.column().x(),
+                segment.surfaceY(), segment.column().z()));
+        return BiomeWood.logFor(biome);
     }
 
     /**
@@ -238,7 +357,8 @@ public final class RoadBuilder {
      * sides so a narrow road is not walled in by its own lighting.
      */
     private void lamps(List<BatchBuilder.Placement> placements, RoadPath road, RoadSegment segment,
-                       int index, Column left, Column right, int surfaceY, RoadProfile profile) {
+                       int index, Column left, Column right, int surfaceY, RoadProfile profile,
+                       Ground ground) {
         boolean enclosed = segment.kind().isEnclosed();
         if (!enclosed && !profile.isLit()) {
             return;
@@ -255,9 +375,13 @@ public final class RoadBuilder {
         int dx = Integer.signum(side.x() - segment.column().x());
         int dz = Integer.signum(side.z() - segment.column().z());
         Column beside = side.offset(dx, dz);
-        placements.add(place(road.world(), beside, surfaceY, road.material().name()));
-        placements.add(place(road.world(), beside, surfaceY + 1, profile.lampPost().name()));
-        placements.add(place(road.world(), beside, surfaceY + 2, profile.lampPost().name()));
+        String post = profile.woodenSupports() && ground != null
+                ? BiomeWood.logFor(ground.biomeAt(new Spot(road.world(), beside.x(), surfaceY, beside.z())))
+                : profile.lampPost().name();
+        placements.add(place(road.world(), beside, surfaceY,
+                PavingPalette.forMaterial(road.material()).at(beside)));
+        placements.add(place(road.world(), beside, surfaceY + 1, post));
+        placements.add(place(road.world(), beside, surfaceY + 2, post));
         placements.add(place(road.world(), beside, surfaceY + 3, profile.lamp().name()));
     }
 

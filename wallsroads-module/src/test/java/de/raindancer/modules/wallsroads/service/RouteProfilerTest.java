@@ -118,8 +118,17 @@ class RouteProfilerTest {
         assertThat(midOcean).isNotEmpty();
         assertThat(midOcean).allSatisfy(segment -> {
             assertThat(segment.kind()).isEqualTo(SegmentKind.GLASS_TUNNEL);
-            // On the bed, well under the surface — this is a tunnel, not a bridge that got wet.
-            assertThat(segment.surfaceY()).isLessThan(50);
+            // Deep enough that its roof is well under the water and clear of the bed beneath it:
+            // a tube resting on the bed in shallow water surfaces, and one at the surface is a glass
+            // box floating in a lagoon rather than a tunnel.
+            // On the sea bed — that is where a road under the sea belongs, and the glass is there so
+            // the water above and around it is the view.
+            assertThat(segment.surfaceY())
+                    .as("the tunnel is not running along the bed")
+                    .isEqualTo(segment.reading().groundY());
+            assertThat(segment.reading().waterDepth())
+                    .as("this crossing was too shallow to be worth going under at all")
+                    .isGreaterThanOrEqualTo(rules.seaTunnelBelowSurface());
         });
     }
 

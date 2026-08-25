@@ -87,8 +87,11 @@ class RoadBuilderTest {
 
         Map<Spot, String> result = resultOf(builder.placements(path, plan, ground));
 
+        // Paved with the gravel family rather than with gravel: a road of one block reads as a
+        // texture stretched over the ground.
         for (int z = -2; z <= 2; z++) {
-            assertThat(result.get(new Spot(WORLD, 10, 71, z))).isEqualTo("GRAVEL");
+            assertThat(result.get(new Spot(WORLD, 10, 71, z)))
+                    .isIn("GRAVEL", "COBBLESTONE", "STONE", "ANDESITE");
         }
         assertThat(result.get(new Spot(WORLD, 10, 71, 3))).isNull();
     }
@@ -115,8 +118,10 @@ class RoadBuilderTest {
 
         Map<Spot, String> result = resultOf(builder.placements(path, plan, ground));
 
-        assertThat(result.get(new Spot(WORLD, 10, 72, -2))).isEqualTo("STONE_BRICK_SLAB");
-        assertThat(result.get(new Spot(WORLD, 10, 72, 2))).isEqualTo("STONE_BRICK_SLAB");
+        // On the surface, not standing on it: a kerb is the edge of the road, and a course above it
+        // is a wall along a footpath.
+        assertThat(result.get(new Spot(WORLD, 10, 71, -2))).isEqualTo("COBBLESTONE_SLAB");
+        assertThat(result.get(new Spot(WORLD, 10, 71, 2))).isEqualTo("COBBLESTONE_SLAB");
         assertThat(result.get(new Spot(WORLD, 10, 72, 0))).isEqualTo("AIR");
     }
 
@@ -144,7 +149,8 @@ class RoadBuilderTest {
 
         long lamps = result.values().stream().filter("LANTERN"::equals).count();
         assertThat(lamps).isBetween(4L, 14L);
-        assertThat(result.values()).contains("OAK_FENCE");
+        // The post is the wood of the biome it stands in; a world that cannot say is oak.
+        assertThat(result.values()).contains("OAK_LOG");
     }
 
     @Test
@@ -169,15 +175,16 @@ class RoadBuilderTest {
 
         Map<Spot, String> result = resultOf(builder.placements(path, plan, ground));
 
+        // Timber trestles: the wood growing in that biome, which for a world that cannot say is oak.
         long pierBlocks = result.entrySet().stream()
-                .filter(entry -> "COBBLESTONE".equals(entry.getValue()))
+                .filter(entry -> "OAK_LOG".equals(entry.getValue()))
                 .filter(entry -> entry.getKey().y() < 70 && entry.getKey().y() > 40)
                 .count();
         assertThat(pierBlocks).isPositive();
 
         // A pier reaches the ground it stands on rather than stopping in mid-air.
         int lowestPier = result.entrySet().stream()
-                .filter(entry -> "COBBLESTONE".equals(entry.getValue()))
+                .filter(entry -> "OAK_LOG".equals(entry.getValue()))
                 .mapToInt(entry -> entry.getKey().y()).min().orElseThrow();
         assertThat(lowestPier).isLessThanOrEqualTo(42);
     }
@@ -192,7 +199,8 @@ class RoadBuilderTest {
 
         Map<Spot, String> result = resultOf(builder.placements(path, plan, ground));
 
-        assertThat(result.get(new Spot(WORLD, 15, tunnelY, 0))).isEqualTo("GRAVEL");
+        // Floored in something you can see past, not in the road's own gravel.
+        assertThat(result.get(new Spot(WORLD, 15, tunnelY, 0))).isEqualTo("SMOOTH_STONE");
         assertThat(result.get(new Spot(WORLD, 15, tunnelY + 1, 0))).isEqualTo("AIR");
         assertThat(result.get(new Spot(WORLD, 15, tunnelY + 2, 0))).isEqualTo("AIR");
         // Lined overhead, so the hill above does not fall into it.
@@ -320,12 +328,16 @@ class RoadBuilderTest {
                 if (interior.contains(neighbour)) {
                     continue;
                 }
-                assertThat(result.get(neighbour))
-                        .as("nothing was placed at %s, which is a hole in the tunnel wall", neighbour)
-                        .isNotNull();
-                assertThat(result.get(neighbour))
-                        .as("%s was left as air, which is a hole in the tunnel wall", neighbour)
-                        .isNotEqualTo("AIR");
+                // Either the shell put a block there, or the world already had something solid —
+                // a face against the sea bed is rock, and glazing it walls the tunnel off from the
+                // one thing worth looking at through glass.
+                String placed = result.get(neighbour);
+                boolean sealed = placed != null && !placed.equals("AIR");
+                boolean alreadySolid = !new de.raindancer.modules.wallsroads.service.TerrainReader()
+                        .isClearable(ground.materialAt(neighbour));
+                assertThat(sealed || alreadySolid)
+                        .as("%s lets the sea into the tunnel", neighbour)
+                        .isTrue();
             }
         }
     }

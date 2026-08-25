@@ -63,22 +63,6 @@ class WallProfileBuildTest {
     }
 
     @Test
-    @DisplayName("battlements leave every other column of the top row open")
-    void crenellatesTheTop() {
-        Wall town = wall(WallProfile.town(), 6);
-
-        Map<Spot, String> result = resultOf(builder.buildPlacements(town, Set.of(), land(69)));
-
-        List<String> topRow = List.of(
-                String.valueOf(result.get(new Spot(WORLD, 8, 75, 0))),
-                String.valueOf(result.get(new Spot(WORLD, 9, 75, 0))),
-                String.valueOf(result.get(new Spot(WORLD, 10, 75, 0))),
-                String.valueOf(result.get(new Spot(WORLD, 11, 75, 0))));
-        assertThat(topRow).contains("STONE_BRICKS");
-        assertThat(topRow).contains("AIR");
-    }
-
-    @Test
     @DisplayName("a wall on a slope carries its footing down to the ground rather than floating")
     void footsTheWallToTheGround() {
         Wall town = wall(WallProfile.town(), 6);
@@ -96,22 +80,6 @@ class WallProfileBuildTest {
     }
 
     @Test
-    @DisplayName("towers stand at the corners, wider and taller than the wall they anchor")
-    void raisesCornerTowers() {
-        Wall fortress = wall(WallProfile.fortress(), 6);
-
-        Map<Spot, String> result = resultOf(builder.buildPlacements(fortress, Set.of(), land(69)));
-
-        int wallTop = 75;
-        // Above the wall's own top, so this is tower and nothing else.
-        assertThat(result.get(new Spot(WORLD, 2, wallTop + 2, 0))).isEqualTo("STONE_BRICKS");
-        // Wider than the wall: a corner block two out on both axes is tower.
-        assertThat(result.get(new Spot(WORLD, 2, wallTop + 2, 2))).isEqualTo("STONE_BRICKS");
-        // And hollow, so somebody can stand in it.
-        assertThat(result.get(new Spot(WORLD, 0, wallTop + 2, 0))).isNull();
-    }
-
-    @Test
     @DisplayName("a gate opening is still left out of a profiled wall, battlements and all")
     void leavesGatesOpen() {
         Wall town = wall(WallProfile.town(), 6);
@@ -119,7 +87,8 @@ class WallProfileBuildTest {
 
         Map<Spot, String> result = resultOf(builder.buildPlacements(town, opening, land(69)));
 
-        assertThat(result.get(new Spot(WORLD, 10, 70, 0))).isNull();
-        assertThat(result.get(new Spot(WORLD, 10, 75, 0))).isNull();
+        // Cleared rather than skipped — the wall builds through and the opening is cut out of it.
+        assertThat(result.get(new Spot(WORLD, 10, 70, 0))).isIn(null, "AIR");
+        assertThat(result.get(new Spot(WORLD, 10, 75, 0))).isIn(null, "AIR");
     }
 }

@@ -6,6 +6,7 @@ import de.raindancer.core.world.selection.MarkingListener;
 import de.raindancer.core.world.selection.MarkingSessions;
 import de.raindancer.core.world.selection.MarkingTool;
 import de.raindancer.core.world.visual.OutlineRenderer;
+import de.raindancer.core.world.visual.SelectionMarkers;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
@@ -56,6 +57,7 @@ public final class WallsRoadsModule implements FlexModule {
     private WallsRoadsServices services;
     private ModuleContext context;
     private io.papermc.paper.threadedregions.scheduler.ScheduledTask curfewTask;
+    private SelectionMarkers selectionMarkers = new SelectionMarkers(null);
 
     @Override
     public ModuleInfo info() {
@@ -114,12 +116,14 @@ public final class WallsRoadsModule implements FlexModule {
         MarkingTool markingTool = new MarkingTool(context.plugin());
         MarkingSessions sessions = new MarkingSessions();
         OutlineRenderer outline = new OutlineRenderer(context.plugin());
+        SelectionMarkers markers = new SelectionMarkers(context.plugin());
+        selectionMarkers = markers;
 
         ClaimLink claimLink = ClaimIntegration.tryLink(log);
         MapLink mapLink = MapIntegration.tryLink(log);
 
         WallsRoadsSelectionFlow selectionFlow = new WallsRoadsSelectionFlow(markingTool, sessions, outline,
-                registry, service, context.core().messages(), log, settings::current);
+                markers, registry, service, context.core().messages(), log, settings::current);
         context.listener(new MarkingListener(markingTool, sessions, selectionFlow));
 
         services = new WallsRoadsServices(context.plugin(), server, log, context.core().messages(),
@@ -222,6 +226,12 @@ public final class WallsRoadsModule implements FlexModule {
             curfewTask.cancel();
             curfewTask = null;
         }
+        // Markers are client-side only, so leaving them behind would show somebody blocks that are
+        // not there until they walk far enough for the server to resend the chunk.
+        if (services != null) {
+            services.outline().stopAll();
+        }
+        selectionMarkers.clearAll();
         WallsRoadsCommands.stopped();
         // Standing walls and roads are simply left in the world — a module stopping does not mean
         // the town should vanish. The stored records are what re-populates the registry on the next

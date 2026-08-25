@@ -45,8 +45,9 @@ public record WallsRoadsSettings(
         @Key("default-wall-height")
         int defaultWallHeight,
 
-        @In("wallsroads/wall") @Title("Default wall thickness") @Range(min = 1, max = 5)
-        @Describe("Blocks, measured outward from the marked outline.")
+        @In("wallsroads/wall") @Title("Default wall thickness") @Range(min = 1, max = 9)
+        @Describe("Blocks, measured across the marked line. One is a fence; a castle wall is three or "
+                + "more, and the wall-walk on top is as wide as this.")
         @Key("default-wall-thickness")
         int defaultWallThickness,
 
@@ -155,19 +156,26 @@ public record WallsRoadsSettings(
         @Key("night-curfew-allowed")
         boolean nightCurfewAllowed,
 
+        @In("wallsroads/build") @Title("Marking marker block")
+        @Describe("What a clicked corner is shown as while you are marking something out. Shown to "
+                + "you alone and never placed in the world — a light-emitting block reads best.")
+        @Key("selection-marker-material")
+        Material selectionMarkerMaterial,
+
         @In("wallsroads/build") @Title("Marking stick material")
         @Describe("The item handed out to mark a wall or road's outline.")
         @Key("selection-stick-material")
         Material selectionStickMaterial) {
 
     public static final WallsRoadsSettings DEFAULTS = new WallsRoadsSettings(
-            true, Material.STONE_BRICKS, 6, 1, 0,
+            true, Material.STONE_BRICKS, 8, 3, 0,
             Material.GRAVEL, 5,
             4, true,
             512, 200,
             3, false,
             1, 3, 2, 2, 64, 24, 6,
             true, true,
+            Material.SEA_LANTERN,
             Material.STICK);
 
     /** What {@link de.raindancer.modules.wallsroads.service.RouteProfiler} needs, from what an owner set. */
@@ -306,6 +314,7 @@ public record WallsRoadsSettings(
         private int seaTunnelMinDepth;
         private boolean roadSpeedBonus;
         private boolean nightCurfewAllowed;
+        private Material selectionMarkerMaterial;
         private int defaultGateHeight;
         private boolean autoPlaceSigns;
         private int blocksPerBatch;
@@ -331,6 +340,7 @@ public record WallsRoadsSettings(
             seaTunnelMinDepth = from.seaTunnelMinDepth();
             roadSpeedBonus = from.roadSpeedBonus();
             nightCurfewAllowed = from.nightCurfewAllowed();
+            selectionMarkerMaterial = from.selectionMarkerMaterial();
             defaultGateHeight = from.defaultGateHeight();
             autoPlaceSigns = from.autoPlaceSigns();
             blocksPerBatch = from.blocksPerBatch();
@@ -344,7 +354,8 @@ public record WallsRoadsSettings(
                     defaultGateHeight, autoPlaceSigns, blocksPerBatch, maxVertices,
                     roadCurviness, chargeMaterials, maxGrade, terrainSmoothing, bridgeMinGap,
                     tunnelMinCover, maxBridgeSpan, seaTunnelMinLength, seaTunnelMinDepth,
-                    roadSpeedBonus, nightCurfewAllowed, selectionStickMaterial);
+                    roadSpeedBonus, nightCurfewAllowed, selectionMarkerMaterial,
+                    selectionStickMaterial);
         }
     }
 }
