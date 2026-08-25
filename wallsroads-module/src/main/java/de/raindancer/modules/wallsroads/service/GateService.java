@@ -12,6 +12,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import de.raindancer.core.world.build.BatchBuilder;
+import de.raindancer.core.world.safety.Spot;
+import de.raindancer.modules.wallsroads.model.Wall;
 
 /**
  * Where a road cuts a wall open — decided by plain geometric intersection between the two shapes
@@ -75,5 +78,42 @@ public final class GateService {
             runs.add(run);
         }
         return runs;
+    }
+
+    /** The blocks that close this gate: its doors, filling the opening to its own height. */
+    public List<BatchBuilder.Placement> shutPlacements(Wall wall, Gate gate) {
+        List<BatchBuilder.Placement> placements = new ArrayList<>();
+        String material = gate.doorMaterial().name();
+        int top = wall.minY() + Math.min(gate.height(), wall.height());
+        for (ColumnPolygon.Column column : gate.openingColumns()) {
+            for (int y = wall.minY(); y < top; y++) {
+                placements.add(new BatchBuilder.Placement(
+                        new Spot(wall.world(), column.x(), y, column.z()), material));
+            }
+        }
+        return placements;
+    }
+
+    /** And the blocks that open it again: the same opening, cleared. */
+    public List<BatchBuilder.Placement> openPlacements(Wall wall, Gate gate) {
+        List<BatchBuilder.Placement> placements = new ArrayList<>();
+        int top = wall.minY() + Math.min(gate.height(), wall.height());
+        for (ColumnPolygon.Column column : gate.openingColumns()) {
+            for (int y = wall.minY(); y < top; y++) {
+                placements.add(new BatchBuilder.Placement(
+                        new Spot(wall.world(), column.x(), y, column.z()), "AIR"));
+            }
+        }
+        return placements;
+    }
+
+    /** Which gate on this wall, if any, has a block at this position. */
+    public java.util.Optional<Gate> gateAt(Wall wall, Spot spot) {
+        int top = wall.minY() + wall.height();
+        if (spot.y() < wall.minY() || spot.y() >= top) {
+            return java.util.Optional.empty();
+        }
+        ColumnPolygon.Column column = new ColumnPolygon.Column(spot.x(), spot.z());
+        return wall.gates().stream().filter(gate -> gate.openingColumns().contains(column)).findFirst();
     }
 }

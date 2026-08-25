@@ -12,6 +12,7 @@ import de.raindancer.modules.wallsroads.model.RoadPath;
 import de.raindancer.modules.wallsroads.model.RoadProfile;
 import de.raindancer.modules.wallsroads.model.RoadSign;
 import de.raindancer.modules.wallsroads.model.Wall;
+import de.raindancer.modules.wallsroads.model.WallProfile;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -69,6 +70,9 @@ public final class WallsRoadsStorage {
         yaml.set("material", wall.material().name());
         yaml.set("thickness", wall.thickness());
         yaml.set("corner-radius", wall.cornerStyle().radius());
+        yaml.set("closes-at-night", wall.closesAtNight());
+        yaml.set("gates-open-to-everyone", wall.gatesOpenToEveryone());
+        writeWallProfile(yaml.createSection("profile"), wall.profile());
         yaml.set("built", wall.isBuilt());
         yaml.set("snapshot", serializeSnapshot(wall.snapshot()));
 
@@ -79,6 +83,8 @@ public final class WallsRoadsStorage {
             gateSection.set("columns", serializeColumns(gate.openingColumns()));
             gateSection.set("height", gate.height());
             gateSection.set("sealed", gate.sealed());
+            gateSection.set("shut", gate.shut());
+            gateSection.set("door", gate.doorMaterial().name());
         }
     }
 
@@ -99,6 +105,10 @@ public final class WallsRoadsStorage {
                 material == null ? Material.STONE_BRICKS : material, thickness,
                 radius > 0 ? CornerStyle.rounded(radius) : CornerStyle.SHARP);
 
+        wall.closesAtNight(yaml.getBoolean("closes-at-night", false));
+        wall.gatesOpenToEveryone(yaml.getBoolean("gates-open-to-everyone", true));
+        wall.profile(readWallProfile(yaml.getConfigurationSection("profile")));
+
         if (yaml.getBoolean("built", false)) {
             wall.markBuilt(deserializeSnapshot(yaml.getStringList("snapshot")));
         }
@@ -110,9 +120,12 @@ public final class WallsRoadsStorage {
                 if (gateSection == null) {
                     continue;
                 }
+                Material door = Material.matchMaterial(gateSection.getString("door", "OAK_FENCE"));
                 wall.putGate(new Gate(gateId, id, gateSection.getString("road-id", ""),
                         deserializeColumns(gateSection.getStringList("columns")),
-                        gateSection.getInt("height", 4), gateSection.getBoolean("sealed", false)));
+                        gateSection.getInt("height", 4), gateSection.getBoolean("sealed", false),
+                        gateSection.getBoolean("shut", false),
+                        door == null ? Material.OAK_FENCE : door));
             }
         }
         return wall;
@@ -192,6 +205,36 @@ public final class WallsRoadsStorage {
     }
 
     // ---------------------------------------------------------------------------------- profiles
+
+    private static void writeWallProfile(ConfigurationSection section, WallProfile profile) {
+        section.set("battlements", profile.battlements());
+        section.set("merlon-period", profile.merlonPeriod());
+        section.set("walkway", profile.walkway());
+        section.set("walkway-material", nameOf(profile.walkwayMaterial()));
+        section.set("foundation", profile.foundation());
+        section.set("tower-material", nameOf(profile.towerMaterial()));
+        section.set("tower-spacing", profile.towerSpacing());
+        section.set("tower-rise", profile.towerRise());
+        section.set("tower-width", profile.towerWidth());
+    }
+
+    /** A wall written before profiles existed is a plain one — that is exactly what it was. */
+    private static WallProfile readWallProfile(ConfigurationSection section) {
+        WallProfile simple = WallProfile.simple();
+        if (section == null) {
+            return simple;
+        }
+        return new WallProfile(
+                section.getBoolean("battlements", simple.battlements()),
+                section.getInt("merlon-period", simple.merlonPeriod()),
+                section.getBoolean("walkway", simple.walkway()),
+                material(section.getString("walkway-material"), simple.walkwayMaterial()),
+                section.getBoolean("foundation", simple.foundation()),
+                material(section.getString("tower-material"), null),
+                section.getInt("tower-spacing", simple.towerSpacing()),
+                section.getInt("tower-rise", simple.towerRise()),
+                section.getInt("tower-width", simple.towerWidth()));
+    }
 
     private static void writeProfile(ConfigurationSection section, RoadProfile profile) {
         section.set("kerb", nameOf(profile.kerb()));

@@ -31,6 +31,9 @@ public final class Wall {
     private Material material;
     private int thickness;
     private CornerStyle cornerStyle;
+    private WallProfile profile = WallProfile.simple();
+    private boolean closesAtNight;
+    private boolean gatesOpenToEveryone = true;
     private boolean built;
     private BuildSnapshot snapshot = BuildSnapshot.empty();
     private final Map<String, Gate> gates = new LinkedHashMap<>();
@@ -112,6 +115,37 @@ public final class Wall {
 
     public void cornerStyle(CornerStyle value) {
         this.cornerStyle = value == null ? CornerStyle.SHARP : value;
+    }
+
+    public WallProfile profile() {
+        return profile;
+    }
+
+    public void profile(WallProfile value) {
+        this.profile = value == null ? WallProfile.simple() : value;
+    }
+
+    /** Whether this wall's gates shut themselves at nightfall. */
+    public boolean closesAtNight() {
+        return closesAtNight;
+    }
+
+    public void closesAtNight(boolean value) {
+        this.closesAtNight = value;
+    }
+
+    /**
+     * Whether anybody may work this wall's gates.
+     *
+     * <p>True by default: a town gate people cannot open is a wall, and somebody who marked out a
+     * wall around a village has not thereby said the village is closed.
+     */
+    public boolean gatesOpenToEveryone() {
+        return gatesOpenToEveryone;
+    }
+
+    public void gatesOpenToEveryone(boolean value) {
+        this.gatesOpenToEveryone = value;
     }
 
     public boolean isBuilt() {

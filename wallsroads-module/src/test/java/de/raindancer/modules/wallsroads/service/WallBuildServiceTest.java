@@ -82,7 +82,7 @@ class WallBuildServiceTest {
         build.advance(build.total());
         assertThat(ground.materialAt(new Spot("world", 0, 64, 0))).isEqualTo("GRASS_BLOCK");
 
-        BatchBuilder seal = service.newSeal(ground, wall, opening);
+        BatchBuilder seal = new BatchBuilder(ground, service.sealPlacements(wall, opening));
         seal.advance(seal.total());
         assertThat(ground.materialAt(new Spot("world", 0, 64, 0))).isEqualTo("STONE_BRICKS");
     }

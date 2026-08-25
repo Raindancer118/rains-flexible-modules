@@ -139,6 +139,18 @@ public record WallsRoadsSettings(
         @Key("sea-tunnel-min-depth")
         int seaTunnelMinDepth,
 
+        @In("wallsroads/road") @Title("Built roads are quicker to walk")
+        @Describe("On gives a small speed bonus to anybody walking on a road this module built. It "
+                + "is what makes a road network worth extending rather than only worth looking at.")
+        @Key("road-speed-bonus")
+        boolean roadSpeedBonus,
+
+        @In("wallsroads/gate") @Title("Gates may shut at night")
+        @Describe("On lets a wall's owner have its gates close themselves at dusk and open at dawn. "
+                + "Off keeps every gate as it was left, on every wall.")
+        @Key("night-curfew-allowed")
+        boolean nightCurfewAllowed,
+
         @In("wallsroads/build") @Title("Marking stick material")
         @Describe("The item handed out to mark a wall or road's outline.")
         @Key("selection-stick-material")
@@ -151,6 +163,7 @@ public record WallsRoadsSettings(
             512, 200,
             3, false,
             1, 3, 2, 2, 64, 24, 6,
+            true, true,
             Material.STICK);
 
     /** What {@link de.raindancer.modules.wallsroads.service.RouteProfiler} needs, from what an owner set. */
@@ -255,6 +268,14 @@ public record WallsRoadsSettings(
         return copy(b -> b.maxBridgeSpan = span);
     }
 
+    public WallsRoadsSettings withRoadSpeedBonus(boolean bonus) {
+        return copy(b -> b.roadSpeedBonus = bonus);
+    }
+
+    public WallsRoadsSettings withNightCurfewAllowed(boolean allowed) {
+        return copy(b -> b.nightCurfewAllowed = allowed);
+    }
+
     private WallsRoadsSettings copy(java.util.function.Consumer<Draft> change) {
         Draft draft = new Draft(this);
         change.accept(draft);
@@ -279,6 +300,8 @@ public record WallsRoadsSettings(
         private int maxBridgeSpan;
         private int seaTunnelMinLength;
         private int seaTunnelMinDepth;
+        private boolean roadSpeedBonus;
+        private boolean nightCurfewAllowed;
         private int defaultGateHeight;
         private boolean autoPlaceSigns;
         private int blocksPerBatch;
@@ -302,6 +325,8 @@ public record WallsRoadsSettings(
             maxBridgeSpan = from.maxBridgeSpan();
             seaTunnelMinLength = from.seaTunnelMinLength();
             seaTunnelMinDepth = from.seaTunnelMinDepth();
+            roadSpeedBonus = from.roadSpeedBonus();
+            nightCurfewAllowed = from.nightCurfewAllowed();
             defaultGateHeight = from.defaultGateHeight();
             autoPlaceSigns = from.autoPlaceSigns();
             blocksPerBatch = from.blocksPerBatch();
@@ -315,7 +340,7 @@ public record WallsRoadsSettings(
                     defaultGateHeight, autoPlaceSigns, blocksPerBatch, maxVertices,
                     roadCurviness, chargeMaterials, maxGrade, terrainSmoothing, bridgeMinGap,
                     tunnelMinCover, maxBridgeSpan, seaTunnelMinLength, seaTunnelMinDepth,
-                    selectionStickMaterial);
+                    roadSpeedBonus, nightCurfewAllowed, selectionStickMaterial);
         }
     }
 }

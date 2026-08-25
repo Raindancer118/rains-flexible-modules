@@ -29,3 +29,14 @@ wallsroads:
     created: "<green>Road <white><name></white> created and being built."
     ask-name: "<gray>Type a new name for this road, or 'cancel'."
     removed: "<green>Road <white><name></white> removed."
+
+  protected: "<red>That is part of a wall or a road somebody else built."
+
+  gate:
+    opened: "<gray>The gates of <white><wall></white> swing open."
+    shut: "<gray>The gates of <white><wall></white> close."
+    not-yours: "<red>The gates of <white><wall></white> are not yours to work."
+
+  cost:
+    short: "<yellow>You ran out of blocks — <white><built></white> of <white><wanted></white> placed."
+    estimate: "<gray>That would take <white><blocks></white> blocks."

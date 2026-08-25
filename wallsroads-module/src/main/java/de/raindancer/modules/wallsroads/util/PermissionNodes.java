@@ -21,6 +21,9 @@ public final class PermissionNodes {
     /** Editing or removing any wall/road, not only your own. */
     public static final String MANAGE_ANY = "rainswallsandroads.manage.any";
 
+    /** Building without the blocks being taken out of your inventory. */
+    public static final String BUILD_FREE = "rainswallsandroads.build.free";
+
     private PermissionNodes() {
     }
 
@@ -28,7 +31,8 @@ public final class PermissionNodes {
         return List.of(
                 new Permission(USE, "Use /wallsroads", PermissionDefault.TRUE),
                 new Permission(CREATE, "Mark out a new wall or road", PermissionDefault.OP),
-                new Permission(MANAGE_ANY, "Edit or remove any wall or road", PermissionDefault.OP));
+                new Permission(MANAGE_ANY, "Edit or remove any wall or road", PermissionDefault.OP),
+                new Permission(BUILD_FREE, "Build without paying for the blocks", PermissionDefault.OP));
     }
 
     public static int register(Server server) {

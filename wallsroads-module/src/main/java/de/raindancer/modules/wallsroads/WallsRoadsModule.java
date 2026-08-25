@@ -11,6 +11,9 @@ import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.wallsroads.claims.ClaimIntegration;
+import de.raindancer.modules.wallsroads.listener.GateListener;
+import de.raindancer.modules.wallsroads.listener.RoadTravelListener;
+import de.raindancer.modules.wallsroads.listener.StructureProtectionListener;
 import de.raindancer.modules.wallsroads.claims.ClaimLink;
 import de.raindancer.modules.wallsroads.model.RoadPath;
 import de.raindancer.modules.wallsroads.model.Wall;
@@ -47,6 +50,8 @@ public final class WallsRoadsModule implements FlexModule {
 
     private LogChannel log;
     private WallsRoadsServices services;
+    private ModuleContext context;
+    private io.papermc.paper.threadedregions.scheduler.ScheduledTask curfewTask;
 
     @Override
     public ModuleInfo info() {
@@ -55,6 +60,7 @@ public final class WallsRoadsModule implements FlexModule {
 
     @Override
     public void enable(ModuleContext context) {
+        this.context = context;
         log = context.log();
         Server server = context.plugin().getServer();
         SettingsStore<WallsRoadsSettings> settings =
@@ -117,8 +123,46 @@ public final class WallsRoadsModule implements FlexModule {
 
         WallsRoadsCommands.ready(services);
 
+        context.listener(new StructureProtectionListener(services));
+        context.listener(new GateListener(services));
+        context.listener(new RoadTravelListener(services));
+        startCurfewWatch(settings::current, service, server);
+
         log.info("Walls and Roads are up: {} wall(s), {} road(s) loaded.",
                 registry.wallCount(), registry.roadCount());
+    }
+
+    /**
+     * Watches for the change of day, and tells the service when it turns.
+     *
+     * <p>On the change rather than on a timer that re-applies the current state: a gate somebody
+     * deliberately opened at midnight would otherwise be shut again on the next tick of the timer,
+     * and a gate that will not stay open is worse than one that never closes.
+     */
+    private void startCurfewWatch(java.util.function.Supplier<WallsRoadsSettings> settings,
+                                  WallsRoadsService service, Server server) {
+        final boolean[] wasNight = {isNight(server)};
+        curfewTask = de.raindancer.core.platform.util.Scheduling.globalTimer(
+                context.plugin(), 200L, 200L, task -> {
+                    if (!settings.get().nightCurfewAllowed()) {
+                        return;
+                    }
+                    boolean night = isNight(server);
+                    if (night != wasNight[0]) {
+                        wasNight[0] = night;
+                        service.applyCurfew(night);
+                    }
+                });
+    }
+
+    /** Night as the mobs reckon it: from dusk, when a gate would actually be worth closing. */
+    private static boolean isNight(Server server) {
+        return server.getWorlds().stream().findFirst()
+                .map(world -> {
+                    long time = world.getTime();
+                    return time >= 13000 && time < 23000;
+                })
+                .orElse(false);
     }
 
     private final class LiveScreens implements IWallsRoadsScreensOpener {
@@ -146,6 +190,10 @@ public final class WallsRoadsModule implements FlexModule {
 
     @Override
     public void disable() {
+        if (curfewTask != null) {
+            curfewTask.cancel();
+            curfewTask = null;
+        }
         WallsRoadsCommands.stopped();
         // Standing walls and roads are simply left in the world — a module stopping does not mean
         // the town should vanish. The stored records are what re-populates the registry on the next

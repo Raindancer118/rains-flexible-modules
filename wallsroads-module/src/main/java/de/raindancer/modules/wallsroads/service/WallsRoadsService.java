@@ -51,6 +51,7 @@ public final class WallsRoadsService {
     private final RoadBuilder roadBuilder = new RoadBuilder();
     private final GateService gates = new GateService();
     private final SignService signs = new SignService();
+    private final MaterialBill bill = new MaterialBill();
     private volatile WallsRoadsSettings settings;
 
     public WallsRoadsService(Plugin plugin, LogChannel log, WallsRoadsRegistry registry,
@@ -88,6 +89,16 @@ public final class WallsRoadsService {
     // ------------------------------------------------------------------------------------ walls
 
     public void buildWall(Wall wall, Runnable onDone) {
+        buildWall(wall, null, onDone);
+    }
+
+    /**
+     * Builds a wall, charging the blocks to {@code payer} when the server asks for that.
+     *
+     * @param payer whoever is paying, or {@code null} for a build nobody is standing behind — a
+     *              rebuild after a reshape, or a server that does not charge at all
+     */
+    public void buildWall(Wall wall, org.bukkit.entity.Player payer, Runnable onDone) {
         Ground ground = BukkitGround.of(wall.world());
         if (ground == null) {
             onDone.run();
@@ -102,8 +113,10 @@ public final class WallsRoadsService {
             }
         }
         Set<ColumnPolygon.Column> openings = wallBuild.openGateColumns(wall);
-        BatchBuilder builder = new BatchBuilder(ground,
-                occupancy.filter(wallBuild.buildPlacements(wall, openings), wall.id()));
+        List<BatchBuilder.Placement> wanted =
+                occupancy.filter(wallBuild.buildPlacements(wall, openings, ground), wall.id());
+        List<BatchBuilder.Placement> affordable = charge(payer, wanted);
+        BatchBuilder builder = new BatchBuilder(ground, affordable);
         paced(wall.world(), builder, () -> {
             wall.markBuilt(builder.snapshotSoFar());
             occupancy.claim(wall.id(), wall.snapshot());
@@ -186,17 +199,84 @@ public final class WallsRoadsService {
         }, onDone);
     }
 
+    /** Closes a gate's doors. Paced like everything else — a wide gate is a lot of blocks. */
+    public void shutGate(Wall wall, String gateId, Runnable onDone) {
+        wall.gate(gateId).ifPresentOrElse(gate -> {
+            Ground ground = BukkitGround.of(wall.world());
+            if (ground == null || gate.shut() || gate.sealed()) {
+                onDone.run();
+                return;
+            }
+            BatchBuilder shut = new BatchBuilder(ground, gates.shutPlacements(wall, gate));
+            paced(wall.world(), shut, () -> {
+                wall.replaceGate(gate.asShut(true));
+                storage.saveWall(wall);
+                onDone.run();
+            });
+        }, onDone);
+    }
+
+    public void openGate(Wall wall, String gateId, Runnable onDone) {
+        wall.gate(gateId).ifPresentOrElse(gate -> {
+            Ground ground = BukkitGround.of(wall.world());
+            if (ground == null || !gate.shut()) {
+                onDone.run();
+                return;
+            }
+            BatchBuilder open = new BatchBuilder(ground, gates.openPlacements(wall, gate));
+            paced(wall.world(), open, () -> {
+                wall.replaceGate(gate.asShut(false));
+                storage.saveWall(wall);
+                onDone.run();
+            });
+        }, onDone);
+    }
+
+    /**
+     * Shuts every gate on every wall set to close at night, and opens them again at dawn.
+     *
+     * <p>Only gates that are neither sealed nor already in the state being asked for are touched, so
+     * a gate somebody deliberately opened at midnight is not slammed shut a tick later — it is left
+     * until the next change of day.
+     */
+    public void applyCurfew(boolean night) {
+        for (Wall wall : registry.allWalls()) {
+            if (!wall.isBuilt() || !wall.closesAtNight()) {
+                continue;
+            }
+            for (Gate gate : wall.gates()) {
+                if (gate.sealed() || gate.shut() == night) {
+                    continue;
+                }
+                if (night) {
+                    shutGate(wall, gate.id(), () -> { });
+                } else {
+                    openGate(wall, gate.id(), () -> { });
+                }
+            }
+        }
+    }
+
+    public GateService gates() {
+        return gates;
+    }
+
     // ------------------------------------------------------------------------------------ roads
 
     public void buildRoad(RoadPath road, Runnable onDone) {
+        buildRoad(road, null, onDone);
+    }
+
+    public void buildRoad(RoadPath road, org.bukkit.entity.Player payer, Runnable onDone) {
         Ground ground = BukkitGround.of(road.world());
         if (ground == null) {
             onDone.run();
             return;
         }
         List<RoadSegment> plan = profiler.profile(road, ground, routeRules());
-        BatchBuilder builder = new BatchBuilder(ground,
-                occupancy.filter(roadBuilder.placements(road, plan, ground), road.id()));
+        List<BatchBuilder.Placement> wanted =
+                occupancy.filter(roadBuilder.placements(road, plan, ground), road.id());
+        BatchBuilder builder = new BatchBuilder(ground, charge(payer, wanted));
         paced(road.world(), builder, () -> {
             road.markBuilt(builder.snapshotSoFar());
             occupancy.claim(road.id(), road.snapshot());
@@ -327,6 +407,46 @@ public final class WallsRoadsService {
     public void renameRoad(RoadPath road, String newName) {
         road.name(newName);
         storage.saveRoad(road);
+    }
+
+    /**
+     * Takes the blocks out of the builder's inventory, and hands back the part of the queue those
+     * blocks stretch to.
+     *
+     * <p>Charged up front rather than block by block: a build runs over many ticks, and somebody who
+     * walked away halfway through would otherwise have paid for a road that stopped where they did.
+     */
+    private List<BatchBuilder.Placement> charge(org.bukkit.entity.Player payer,
+                                                List<BatchBuilder.Placement> wanted) {
+        if (payer == null || !settings.chargeMaterials()
+                || payer.hasPermission(de.raindancer.modules.wallsroads.util.PermissionNodes.BUILD_FREE)) {
+            return wanted;
+        }
+        List<BatchBuilder.Placement> affordable = bill.affordable(wanted, bill.carriedBy(payer));
+        bill.charge(payer, bill.costOf(affordable));
+        if (affordable.size() < wanted.size()) {
+            log.info("{} could pay for {} of {} blocks.", payer.getName(), affordable.size(), wanted.size());
+        }
+        return affordable;
+    }
+
+    /** What this wall would cost to build right now, by material. */
+    public java.util.Map<String, Integer> estimateWall(Wall wall) {
+        Ground ground = BukkitGround.of(wall.world());
+        return bill.costOf(wallBuild.buildPlacements(wall, wallBuild.openGateColumns(wall), ground));
+    }
+
+    /** And this road. */
+    public java.util.Map<String, Integer> estimateRoad(RoadPath road) {
+        Ground ground = BukkitGround.of(road.world());
+        if (ground == null) {
+            return java.util.Map.of();
+        }
+        return bill.costOf(roadBuilder.placements(road, profiler.profile(road, ground, routeRules()), ground));
+    }
+
+    public MaterialBill bill() {
+        return bill;
     }
 
     /**

@@ -143,7 +143,10 @@ public final class WallsRoadsSelectionFlow implements MarkingListener.Callback {
                         String.valueOf(vertices.size()));
                 return;
             }
-            Polyline path = new Polyline(vertices);
+            // Smoothed at creation rather than at build time: the shape is what the owner then sees,
+            // edits and tears down, and a road whose stored path is not the one standing in the world
+            // restores the wrong blocks.
+            Polyline path = new Polyline(vertices).smoothed(current.curvinessClamped());
             String name = "Road " + (registry.roadCount() + 1);
             RoadPath road = new RoadPath(UUID.randomUUID().toString(), name, player.getUniqueId(),
                     player.getWorld().getName(), path, current.roadWidth(), current.defaultRoadMaterial(),
