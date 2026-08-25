@@ -28,7 +28,11 @@ public record WallsRoadsSettings(
         @In("wallsroads/access") @Title("Anybody may mark out a wall or road")
         @Describe("On lets any player use /wallsroads wall new or /wallsroads road new. Off gates "
                 + "it behind the create permission, for a server that wants only builders placing them.")
-        @Key("open-creation")
+        // Not "open-creation": mannequin-module already declares a setting by that name, and Core
+        // warns at boot that a command using the bare name reaches whichever plugin it finds first.
+        // Renamed rather than left colliding because this module has never shipped — nobody has a
+        // config with the old key in it, and a colliding name is only ever a problem later.
+        @Key("open-marking")
         boolean openCreation,
 
         @In("wallsroads/wall") @Title("Default wall material")
