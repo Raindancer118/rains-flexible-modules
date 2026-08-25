@@ -39,6 +39,15 @@ public final class RoadBuilder {
         RoadProfile profile = road.profile();
         String paving = road.material().name();
 
+        // Worked out over the whole route before anything is placed, because a shell is only sound if
+        // it is built against every face of the *finished* space. Segment by segment, the join between
+        // two cross-sections on a bend is a face nobody lined — and one missing block under the sea is
+        // a tunnel that floods on the next tick.
+        Set<Spot> interior = interiorOf(road, plan);
+        // And the whole road surface, for the same reason: a bend's lining would otherwise wall in
+        // the paving laid by the segment before it, because that block is not in *this* cross-section.
+        Set<Spot> surface = surfaceOf(road, plan);
+
         for (int index = 0; index < plan.size(); index++) {
             RoadSegment segment = plan.get(index);
             List<Column> cross = crossSection(plan, index, road.width());
@@ -63,10 +72,10 @@ public final class RoadBuilder {
                         pier(placements, road.world(), segment, profile);
                     }
                 }
-                case TUNNEL -> line(placements, road.world(), cross, surfaceY, headroom,
-                        profile.tunnelLining().name());
-                case GLASS_TUNNEL -> line(placements, road.world(), cross, surfaceY, headroom,
-                        profile.glass().name());
+                case TUNNEL, GLASS_TUNNEL -> line(placements, road.world(), interior, surface, cross,
+                        surfaceY, headroom,
+                        segment.kind() == SegmentKind.TUNNEL
+                                ? profile.tunnelLining().name() : profile.glass().name());
                 case GROUND -> {
                     if (profile.hasKerb()) {
                         edge(placements, road.world(), leftEdge, rightEdge, surfaceY + 1, profile.kerb());
@@ -133,35 +142,73 @@ public final class RoadBuilder {
     }
 
     /**
-     * The shell around an enclosed stretch: walls either side, and a ceiling over it.
+     * Every space an enclosed stretch of this route hollows out.
      *
-     * <p>Placed after the bore is cleared, and only <em>outside</em> the cleared columns, so the
-     * lining never lands in the space somebody is supposed to ride through.
+     * <p>Public because it is the thing worth asserting about: a shell is sound exactly when every
+     * face of this set is either more of the set or a block that was placed.
      */
-    private void line(List<BatchBuilder.Placement> placements, String world, List<Column> cross,
-                      int surfaceY, int headroom, String material) {
-        Column left = cross.get(0);
-        Column right = cross.get(cross.size() - 1);
-        int dx = Integer.signum(right.x() - left.x());
-        int dz = Integer.signum(right.z() - left.z());
-        Column outsideLeft = left.offset(-dx, -dz);
-        Column outsideRight = right.offset(dx, dz);
+    public Set<Spot> interiorOf(RoadPath road, List<RoadSegment> plan) {
+        Set<Spot> interior = new LinkedHashSet<>();
+        int headroom = road.profile().headroom();
+        for (int index = 0; index < plan.size(); index++) {
+            RoadSegment segment = plan.get(index);
+            if (!segment.kind().isEnclosed()) {
+                continue;
+            }
+            for (Column column : crossSection(plan, index, road.width())) {
+                for (int y = segment.surfaceY() + 1; y <= segment.surfaceY() + headroom; y++) {
+                    interior.add(new Spot(road.world(), column.x(), y, column.z()));
+                }
+            }
+        }
+        return interior;
+    }
 
-        for (int y = surfaceY; y <= surfaceY + headroom; y++) {
-            placements.add(place(world, outsideLeft, y, material));
-            placements.add(place(world, outsideRight, y, material));
-        }
-        int ceilingY = surfaceY + headroom + 1;
+    /**
+     * The shell around an enclosed stretch: every face of the hollow that is not more hollow.
+     *
+     * <p>Derived from the interior rather than drawn as walls-and-a-ceiling, which is the difference
+     * between a tube that holds the sea back and one that holds it back on the straights. A bend
+     * joins two cross-sections at an angle, and the outside of that join is a face a wall-and-ceiling
+     * rule never sees.
+     *
+     * <p>The road surface is not in the interior, so the floor is sealed by its own paving — except
+     * where a cross-section is wider than the one before it, which this catches like any other face.
+     */
+    private void line(List<BatchBuilder.Placement> placements, String world, Set<Spot> interior,
+                      Set<Spot> surface, List<Column> cross, int surfaceY, int headroom,
+                      String material) {
         for (Column column : cross) {
-            placements.add(place(world, column, ceilingY, material));
-        }
-        placements.add(place(world, outsideLeft, ceilingY, material));
-        placements.add(place(world, outsideRight, ceilingY, material));
-        // The floor under an underwater tube: the sea bed is not a floor anybody would trust.
-        for (Column column : List.of(outsideLeft, outsideRight)) {
-            placements.add(place(world, column, surfaceY - 1, material));
+            for (int y = surfaceY + 1; y <= surfaceY + headroom; y++) {
+                Spot inside = new Spot(world, column.x(), y, column.z());
+                for (Spot face : faces(inside)) {
+                    if (interior.contains(face) || surface.contains(face)) {
+                        continue;
+                    }
+                    placements.add(new BatchBuilder.Placement(face, material));
+                }
+            }
         }
     }
+
+    /** Every block of road surface along the route — a solid floor already, and not to be walled over. */
+    public Set<Spot> surfaceOf(RoadPath road, List<RoadSegment> plan) {
+        Set<Spot> surface = new LinkedHashSet<>();
+        for (int index = 0; index < plan.size(); index++) {
+            RoadSegment segment = plan.get(index);
+            for (Column column : crossSection(plan, index, road.width())) {
+                surface.add(new Spot(road.world(), column.x(), segment.surfaceY(), column.z()));
+            }
+        }
+        return surface;
+    }
+
+    private static List<Spot> faces(Spot spot) {
+        return List.of(spot.offset(1, 0, 0), spot.offset(-1, 0, 0), spot.offset(0, 1, 0),
+                spot.offset(0, -1, 0), spot.offset(0, 0, 1), spot.offset(0, 0, -1));
+    }
+
+
 
     private void edge(List<BatchBuilder.Placement> placements, String world, Column left, Column right,
                       int y, org.bukkit.Material material) {

@@ -238,6 +238,99 @@ class RoadBuilderTest {
     }
 
     @Test
+    @DisplayName("a sea tunnel that runs diagonally is watertight too")
+    void leavesNoWaterInADiagonalTunnel() {
+        RoadPath path = new RoadPath("road-d", "Diagonal", UUID.randomUUID(), WORLD,
+                new Polyline(List.of(new Column(0, 0), new Column(160, 160))),
+                5, Material.GRAVEL, ElevationMode.FOLLOW_TERRAIN, 64, RoadProfile.plain());
+
+        FakeGround ground = new FakeGround().fillWith("AIR");
+        for (int x = -10; x <= 170; x++) {
+            for (int z = -10; z <= 170; z++) {
+                boolean atSea = x >= 20 && x <= 140;
+                int top = atSea ? 35 : 70;
+                for (int y = -64; y <= top; y++) {
+                    ground.put(new Spot(WORLD, x, y, z), "STONE");
+                }
+                if (atSea) {
+                    for (int y = 36; y <= 62; y++) {
+                        ground.put(new Spot(WORLD, x, y, z), "WATER");
+                    }
+                }
+            }
+        }
+
+        List<RoadSegment> plan = profiler.profile(path, ground, rules);
+        for (BatchBuilder.Placement placement : builder.placements(path, plan, ground)) {
+            ground.set(placement.spot(), placement.material());
+        }
+
+        // Every enclosed step: the air a player would be standing in must have stayed air.
+        for (RoadSegment segment : plan) {
+            if (segment.kind() != de.raindancer.modules.wallsroads.model.SegmentKind.GLASS_TUNNEL) {
+                continue;
+            }
+            int index = plan.indexOf(segment);
+            for (Column across : builder.crossSection(plan, index, path.width())) {
+                for (int y = segment.surfaceY() + 1; y <= segment.surfaceY() + 3; y++) {
+                    Spot inside = new Spot(WORLD, across.x(), y, across.z());
+                    assertThat(ground.materialAt(inside))
+                            .as("water reached %s, which is a tunnel that drowns whoever is in it", inside)
+                            .isNotEqualTo("WATER");
+                }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("every face of an enclosed stretch is either more tunnel or a placed block")
+    void theShellHasNoHolesInIt() {
+        RoadPath path = new RoadPath("road-d", "Diagonal", UUID.randomUUID(), WORLD,
+                new Polyline(List.of(new Column(0, 0), new Column(160, 160))),
+                5, Material.GRAVEL, ElevationMode.FOLLOW_TERRAIN, 64, RoadProfile.plain());
+
+        FakeGround ground = new FakeGround().fillWith("AIR");
+        for (int x = -10; x <= 170; x++) {
+            for (int z = -10; z <= 170; z++) {
+                boolean atSea = x >= 20 && x <= 140;
+                int top = atSea ? 35 : 70;
+                for (int y = -64; y <= top; y++) {
+                    ground.put(new Spot(WORLD, x, y, z), "STONE");
+                }
+                if (atSea) {
+                    for (int y = 36; y <= 62; y++) {
+                        ground.put(new Spot(WORLD, x, y, z), "WATER");
+                    }
+                }
+            }
+        }
+
+        List<RoadSegment> plan = profiler.profile(path, ground, rules);
+        List<BatchBuilder.Placement> placements = builder.placements(path, plan, ground);
+        Map<Spot, String> result = resultOf(placements);
+
+        // The property a static test can check and a running server cannot be asked politely about:
+        // water flows on the next tick, so a shell with one hole in it floods overnight.
+        java.util.Set<Spot> interior = builder.interiorOf(path, plan);
+        assertThat(interior).isNotEmpty();
+        for (Spot inside : interior) {
+            for (Spot neighbour : List.of(inside.offset(1, 0, 0), inside.offset(-1, 0, 0),
+                    inside.offset(0, 1, 0), inside.offset(0, -1, 0),
+                    inside.offset(0, 0, 1), inside.offset(0, 0, -1))) {
+                if (interior.contains(neighbour)) {
+                    continue;
+                }
+                assertThat(result.get(neighbour))
+                        .as("nothing was placed at %s, which is a hole in the tunnel wall", neighbour)
+                        .isNotNull();
+                assertThat(result.get(neighbour))
+                        .as("%s was left as air, which is a hole in the tunnel wall", neighbour)
+                        .isNotEqualTo("AIR");
+            }
+        }
+    }
+
+    @Test
     @DisplayName("building then tearing down leaves the world exactly as it was found")
     void teardownRestoresEverything() {
         RoadPath path = road(30, 5, RoadProfile.lit());
