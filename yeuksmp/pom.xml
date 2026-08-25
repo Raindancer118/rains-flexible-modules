@@ -377,7 +377,7 @@
           as commands. Pinging on send was never affected by this; a self-mention still pings
           nobody, on purpose, unchanged since 1.0.0.
         -->
-        <plugin.version>1.18.0</plugin.version>
+        <plugin.version>1.17.2</plugin.version>
     </properties>
 
     <dependencies>
@@ -438,12 +438,6 @@
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>xaeromap-module</artifactId>
-        </dependency>
-        <!-- After xaeromap-module: wallsroads-module compiles against it (provided there, shaded here)
-             for the seam that offers gates and road ends as waypoints. -->
-        <dependency>
-            <groupId>de.raindancer.modules</groupId>
-            <artifactId>wallsroads-module</artifactId>
         </dependency>
 
         <dependency>

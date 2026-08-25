@@ -24,10 +24,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>The single-module standalones each have a test of this shape, and everything they check applies
  * here too — a second RainsCore, a dropped service file, wording at the wrong path, a stale shade.
- * What is different, and what this file exists for, is that fourteen modules are in one jar:
+ * What is different, and what this file exists for, is that thirteen modules are in one jar:
  *
  * <ul>
- *   <li><b>The service files have to be merged, not chosen.</b> Fourteen modules mean fourteen copies of
+ *   <li><b>The service files have to be merged, not chosen.</b> Thirteen modules mean thirteen copies of
  *       {@code META-INF/services/de.raindancer.modules.api.FlexModule}. Without the shade plugin's
  *       {@code ServicesResourceTransformer} one of them wins outright and the other twelve are
  *       simply not in the plugin: no error, no log line, twelve features missing from a server that
@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *       namespacing the loser and an operator noticing. In one plugin the second registration of a
  *       name replaces the first inside the same namespace, and the module that lost the race answers
  *       nothing while looking perfectly healthy in the boot log.</li>
- *   <li><b>Only the fourteen.</b> A bundle is a statement about what this server runs. Farm worlds are
+ *   <li><b>Only the thirteen.</b> A bundle is a statement about what this server runs. Farm worlds are
  *       in the reactor and deliberately not in here, and a dependency added by reflex would ship it
  *       without anybody deciding to.</li>
  * </ul>
@@ -49,7 +49,7 @@ class BundleJarTest {
     private static final Path TARGET = Path.of("target");
 
     /**
-     * The fourteen, as: module id · source directory · package · service class · a settings class that
+     * The thirteen, as: module id · source directory · package · service class · a settings class that
      * proves the shade took this build's output.
      *
      * <p>One list, used by every test below, so adding a seventh module to the bundle is one line
@@ -88,9 +88,7 @@ class BundleJarTest {
             new Bundled("chat", "chat-module", "chat", "ChatModule", "ChatSettings"),
             new Bundled("mannequin", "mannequin-module", "mannequin", "MannequinModule", "MannequinSettings"),
             new Bundled("invsnap", "invsnap-module", "invsnap", "InvSnapModule", "InvSnapSettings"),
-            new Bundled("xaeromap", "xaeromap-module", "xaeromap", "XaeroMapModule", "XaeroMapSettings"),
-            new Bundled("wallsroads", "wallsroads-module", "wallsroads", "WallsRoadsModule",
-                    "WallsRoadsSettings"));
+            new Bundled("xaeromap", "xaeromap-module", "xaeromap", "XaeroMapModule", "XaeroMapSettings"));
 
     private static Path theJar() {
         try (var files = Files.list(TARGET)) {
@@ -145,7 +143,7 @@ class BundleJarTest {
     }
 
     @Test
-    @DisplayName("all fourteen modules and the wrapper are in the jar")
+    @DisplayName("all thirteen modules and the wrapper are in the jar")
     void itContainsWhatItShould() {
         List<String> entries = entries();
 
@@ -174,13 +172,13 @@ class BundleJarTest {
     }
 
     @Test
-    @DisplayName("only the fourteen — the bundle has not quietly grown")
+    @DisplayName("only the thirteen — the bundle has not quietly grown")
     void nothingElseCameAlong() {
         List<String> entries = entries();
 
         for (String notBundled : List.of("de/raindancer/modules/farmworld/")) {
             assertThat(entries)
-                    .as("%s is not one of the fourteen this bundle is for. Shipping it means a server "
+                    .as("%s is not one of the thirteen this bundle is for. Shipping it means a server "
                             + "running a feature nobody chose, with its own commands and its own "
                             + "data folder", notBundled)
                     .noneMatch(name -> name.startsWith(notBundled));
@@ -225,7 +223,7 @@ class BundleJarTest {
                 .as("nothing may sit at the jar root: RainsCore ships a messages.yml at its own root "
                         + "and join-classpath puts it on this plugin's classpath, so a root lookup "
                         + "is a race between files with one name — and here it would be a race "
-                        + "between fourteen of them")
+                        + "between thirteen of them")
                 .doesNotContain("messages.yml");
     }
 
@@ -240,7 +238,7 @@ class BundleJarTest {
     void theJarIsNotStale() throws IOException {
         // A stale shade is the worst kind of build mistake: the jar is newer than the source, it
         // loads, it enables, and it runs last week's code. Compared by class size rather than by
-        // timestamp, because the timestamp is the thing that lies. Fourteen modules mean fourteen chances of
+        // timestamp, because the timestamp is the thing that lies. Thirteen modules mean thirteen chances of
         // it, and one stale artifact among five fresh ones is the version nobody would suspect.
         for (Bundled module : BUNDLE) {
             Path justBuilt = Path.of("..", module.directory(), "target", "classes")
@@ -408,7 +406,7 @@ class BundleJarTest {
     }
 
     @Test
-    @DisplayName("the bundle's own pom asks for exactly the fourteen")
+    @DisplayName("the bundle's own pom asks for exactly the thirteen")
     void thePomAndThisTestAgree() {
         String pom;
         try {
