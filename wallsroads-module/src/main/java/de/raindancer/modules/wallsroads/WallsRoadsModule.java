@@ -21,7 +21,9 @@ import de.raindancer.modules.wallsroads.model.RoadPath;
 import de.raindancer.modules.wallsroads.model.Wall;
 import de.raindancer.modules.wallsroads.screen.RoadEditMenu;
 import de.raindancer.modules.wallsroads.screen.WallEditMenu;
+import de.raindancer.modules.wallsroads.screen.WallsRoadsConfigMenu;
 import de.raindancer.modules.wallsroads.screen.WallsRoadsListMenu;
+import de.raindancer.modules.wallsroads.util.ManualBook;
 import de.raindancer.modules.wallsroads.selection.WallsRoadsSelectionFlow;
 import de.raindancer.modules.wallsroads.service.WallsRoadsService;
 import de.raindancer.modules.wallsroads.store.Occupancy;
@@ -184,6 +186,28 @@ public final class WallsRoadsModule implements FlexModule {
         @Override
         public void road(Player viewer, RoadPath road) {
             new RoadEditMenu(services, viewer, road, null).open();
+        }
+
+        @Override
+        public void manual(Player viewer) {
+            ManualBook manual = new ManualBook(services.config());
+            // Opened every time, given once: the contents depend on what this server allows, so a
+            // copy somebody kept from last month can be out of date — and handing out a second one
+            // every time somebody reads it fills their inventory with books.
+            viewer.openBook(manual.asBook());
+            boolean alreadyHasOne = java.util.Arrays.stream(viewer.getInventory().getContents())
+                    .filter(java.util.Objects::nonNull)
+                    .anyMatch(stack -> stack.getItemMeta() instanceof org.bukkit.inventory.meta.BookMeta book
+                            && book.hasTitle()
+                            && ManualBook.plain(book.title()).contains(ManualBook.title()));
+            if (!alreadyHasOne) {
+                de.raindancer.core.content.items.ToolGift.give(viewer, manual.asItem());
+            }
+        }
+
+        @Override
+        public void config(Player viewer) {
+            new WallsRoadsConfigMenu(services, viewer, null).open();
         }
     }
 

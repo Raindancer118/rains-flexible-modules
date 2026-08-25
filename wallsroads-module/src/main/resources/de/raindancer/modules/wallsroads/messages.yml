@@ -50,3 +50,11 @@ wallsroads:
   map:
     sent: "<gray>Sent <white><count></white> gates and road ends to your map."
     unavailable: "<red>This server has no client-map support running."
+
+  config:
+    at-the-limit: "<gray>That is as far as it goes — between <white><least></white> and <white><most></white>."
+    refused: "<red>The setting <white><setting></white> would not take that value."
+    not-yours: "<red>Only staff may change how this server builds walls and roads."
+
+  outline-shown: "<gray>Showing the outline of <white><name></white>."
+  outline-elsewhere: "<gray><white><name></white> is in <white><world></white>, not here."

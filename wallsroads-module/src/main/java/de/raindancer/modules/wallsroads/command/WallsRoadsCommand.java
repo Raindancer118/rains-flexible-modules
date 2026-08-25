@@ -25,7 +25,8 @@ import java.util.function.Supplier;
  */
 public final class WallsRoadsCommand implements IWallsRoadsCommand {
 
-    private static final List<String> SUBCOMMANDS = List.of("wall", "road", "map", "cancel", "list");
+    private static final List<String> SUBCOMMANDS =
+            List.of("wall", "road", "map", "manual", "config", "cancel", "list");
 
     private final Supplier<WallsRoadsServices> services;
     private final CreateRule createRule = new CreateRule();
@@ -53,6 +54,22 @@ public final class WallsRoadsCommand implements IWallsRoadsCommand {
             case "wall" -> wallSub(live, sender, args);
             case "road" -> roadSub(live, sender, args);
             case "map" -> map(live, sender);
+            case "manual" -> {
+                if (sender instanceof Player player) {
+                    live.screens().manual(player);
+                } else {
+                    live.messages().send(sender, "wallsroads.only-a-player");
+                }
+            }
+            case "config" -> {
+                if (!(sender instanceof Player player)) {
+                    live.messages().send(sender, "wallsroads.only-a-player");
+                } else if (!player.hasPermission(PermissionNodes.MANAGE_ANY)) {
+                    live.messages().send(player, "wallsroads.config.not-yours");
+                } else {
+                    live.screens().config(player);
+                }
+            }
             case "cancel" -> cancel(live, sender);
             case "list" -> {
                 if (sender instanceof Player player) {

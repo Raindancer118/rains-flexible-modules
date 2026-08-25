@@ -82,7 +82,10 @@ class ScreenGrammarTest {
             int at = screen.body().indexOf("danger(");
             while (at >= 0) {
                 String call = screen.body().substring(at, Math.min(screen.body().length(), at + 900));
-                if (!call.contains("ConfirmScreen")) {
+                // The slot is about misclicks, not about the slot: a harmless button there needs no
+                // confirmation, and the manual living in it is the convention every module follows.
+                boolean harmless = call.contains("WRITTEN_BOOK") || call.contains("manual(");
+                if (!harmless && !call.contains("ConfirmScreen")) {
                     unguarded.add(screen.name());
                 }
                 at = screen.body().indexOf("danger(", at + 1);

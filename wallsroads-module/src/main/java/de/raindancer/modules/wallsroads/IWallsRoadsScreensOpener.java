@@ -18,4 +18,10 @@ public interface IWallsRoadsScreensOpener {
 
     /** One road's page: material, width, elevation mode, its signs, build/teardown. */
     void road(Player viewer, RoadPath road);
+
+    /** The manual, opened as a book and given once — the same shape claims-module's has. */
+    void manual(Player viewer);
+
+    /** How this server builds them. */
+    void config(Player viewer);
 }

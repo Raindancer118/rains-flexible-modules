@@ -20,8 +20,8 @@ public final class WallsRoadsCommands {
                                 new WallsRoadsCommand(WallsRoadsCommands::require))
                         .aliased("wr")
                         .needing(PermissionNodes.USE)
-                        .taking("wall new", "wall <name>", "road new", "road <name>", "map", "cancel",
-                                "list"));
+                        .taking("wall new", "wall <name>", "road new", "road <name>", "map", "manual",
+                                "config", "cancel", "list"));
     }
 
     static void ready(WallsRoadsServices live) {
