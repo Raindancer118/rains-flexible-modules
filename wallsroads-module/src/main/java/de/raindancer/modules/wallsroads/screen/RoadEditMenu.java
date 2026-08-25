@@ -26,7 +26,7 @@ public final class RoadEditMenu extends Menu {
     private final RoadPath road;
 
     public RoadEditMenu(WallsRoadsServices services, Player viewer, RoadPath road, Menu parent) {
-        super(viewer, services.brand(), parent, 4);
+        super(viewer, services.brand(), parent, 5);
         this.services = services;
         this.road = road;
     }
@@ -54,7 +54,7 @@ public final class RoadEditMenu extends Menu {
                     if (built) {
                         services.service().teardownRoad(road, this::refresh);
                     } else {
-                        services.service().buildRoad(road, this::refresh);
+                        services.service().buildRoad(road, viewer, this::refresh);
                     }
                 });
 
@@ -95,18 +95,46 @@ public final class RoadEditMenu extends Menu {
                     reopenPage();
                 });
 
+        // What the road is made of besides its paving — the difference between a track and a highway.
+        band(MenuLayout.RULES, 2, mayManage,
+                Icons.of(Material.LANTERN, "<white>Kind of road",
+                        "<gray>" + describe(road.profile()),
+                        "",
+                        "<yellow>Click <gray>to cycle: plain, lit, grand",
+                        "<gray>A built road is relaid to match."),
+                "The owner's to change",
+                click -> {
+                    road.profile(nextProfile(road.profile()));
+                    services.storage().saveRoad(road);
+                    if (road.isBuilt()) {
+                        services.service().teardownRoad(road, () ->
+                                services.service().buildRoad(road, viewer, this::refresh));
+                    } else {
+                        refresh();
+                    }
+                });
+
         boolean hasSigns = !road.signs().isEmpty();
-        toolbar(2, Icons.of(hasSigns ? Material.OAK_SIGN : Material.BARRIER,
+        band(MenuLayout.RULES, 4, mayManage,
+                Icons.of(hasSigns ? Material.OAK_SIGN : Material.BARRIER,
                         hasSigns ? "<white>Signs — " + road.signs().size() + " placed" : "<gray>No signs",
                         "",
-                        "<yellow>Click <gray>to " + (hasSigns ? "remove them" : "place them")),
+                        hasSigns ? "<yellow>Click <gray>to read and reword them"
+                                : "<yellow>Click <gray>to put them up",
+                        hasSigns ? "<yellow>Right click <gray>to take them all down" : ""),
+                "The owner's to change",
                 click -> {
-                    if (hasSigns) {
-                        services.service().removeSigns(road);
-                    } else {
+                    if (!hasSigns) {
                         services.service().placeSigns(road);
+                        refresh();
+                        return;
                     }
-                    refresh();
+                    if (click.isRightClick()) {
+                        services.service().removeSigns(road);
+                        refresh();
+                        return;
+                    }
+                    new SignListMenu(services, viewer, road, this).open();
                 });
 
         toolbar(6, Icons.of(Material.NAME_TAG, "<white>Rename",
@@ -128,6 +156,31 @@ public final class RoadEditMenu extends Menu {
                         () -> services.service().deleteRoad(road, () ->
                                 services.messages().send(viewer, "wallsroads.road.removed", "name", road.name())))
                         .open());
+    }
+
+    /** Plain → lit → grand → plain. Three named kinds, not nine materials to pick one at a time. */
+    private static de.raindancer.modules.wallsroads.model.RoadProfile nextProfile(
+            de.raindancer.modules.wallsroads.model.RoadProfile current) {
+        if (!current.isLit()) {
+            return de.raindancer.modules.wallsroads.model.RoadProfile.lit();
+        }
+        return current.lamp() == Material.SEA_LANTERN
+                ? de.raindancer.modules.wallsroads.model.RoadProfile.plain()
+                : de.raindancer.modules.wallsroads.model.RoadProfile.grand();
+    }
+
+    private static String describe(de.raindancer.modules.wallsroads.model.RoadProfile profile) {
+        if (!profile.isLit()) {
+            return "A track — paving, and nothing else";
+        }
+        return profile.lamp() == Material.SEA_LANTERN
+                ? "A highway — stone kerbs, sea lanterns, stone railings"
+                : "A made road — kerbs and lanterns";
+    }
+
+    private String estimate() {
+        return String.valueOf(services.service().estimateRoad(road).values().stream()
+                .mapToInt(Integer::intValue).sum());
     }
 
     private void askRename() {

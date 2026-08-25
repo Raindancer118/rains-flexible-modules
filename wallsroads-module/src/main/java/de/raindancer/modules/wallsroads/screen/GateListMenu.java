@@ -5,6 +5,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.modules.wallsroads.WallsRoadsServices;
 import de.raindancer.modules.wallsroads.model.Gate;
+import de.raindancer.modules.wallsroads.model.RoadPath;
 import de.raindancer.modules.wallsroads.model.Wall;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -15,8 +16,11 @@ import org.bukkit.inventory.ItemStack;
 import java.util.List;
 
 /**
- * Every gate a road has ever cut through this wall — sealed and open both shown, each with the one
- * button that does the opposite of whatever it currently is.
+ * Every opening a road has cut through this wall.
+ *
+ * <p>Two different decisions on one row, which is why they are two different clicks: <b>left</b>
+ * works the gate (open or shut, the thing a gate does), <b>right</b> seals or unseals the opening
+ * (bricking it up in the wall's own material, a decision about the wall).
  */
 public final class GateListMenu extends PaginatedMenu<Gate> {
 
@@ -41,21 +45,40 @@ public final class GateListMenu extends PaginatedMenu<Gate> {
 
     @Override
     protected ItemStack icon(Gate gate) {
-        boolean sealed = gate.sealed();
-        return Icons.of(sealed ? Material.OAK_FENCE_GATE : Material.AIR,
-                (sealed ? "<red>Sealed" : "<green>Open") + " — " + gate.openingColumns().size() + " wide",
-                "<gray>Cut by road id " + gate.roadId(),
+        String roadName = services.registry().road(gate.roadId())
+                .map(RoadPath::name).orElse("a road that is gone");
+        String state = gate.sealed() ? "<red>Sealed" : gate.shut() ? "<gold>Shut" : "<green>Open";
+        Material icon = gate.sealed() ? wall.material()
+                : gate.shut() ? Material.IRON_BARS : Material.OAK_FENCE_GATE;
+
+        return Icons.of(icon, state + " — " + gate.width() + " wide",
+                "<gray>Where " + roadName + " crosses",
                 "<gray>Passage height " + gate.height(),
                 "",
-                "<yellow>Click <gray>to " + (sealed ? "reopen it" : "seal it"));
+                gate.sealed()
+                        ? "<yellow>Right click <gray>to open the wall here again"
+                        : "<yellow>Left click <gray>to " + (gate.shut() ? "open" : "shut") + " the gates",
+                gate.sealed() ? "" : "<yellow>Right click <gray>to seal it up in " + wall.material().name()
+                        .toLowerCase(java.util.Locale.ROOT).replace('_', ' '));
     }
 
     @Override
     protected void onClick(Gate gate, InventoryClickEvent event) {
+        if (event.isRightClick()) {
+            if (gate.sealed()) {
+                services.service().reopenGate(wall, gate.id(), this::refresh);
+            } else {
+                services.service().sealGate(wall, gate.id(), this::refresh);
+            }
+            return;
+        }
         if (gate.sealed()) {
-            services.service().reopenGate(wall, gate.id(), this::refresh);
+            return;
+        }
+        if (gate.shut()) {
+            services.service().openGate(wall, gate.id(), this::refresh);
         } else {
-            services.service().sealGate(wall, gate.id(), this::refresh);
+            services.service().shutGate(wall, gate.id(), this::refresh);
         }
     }
 }

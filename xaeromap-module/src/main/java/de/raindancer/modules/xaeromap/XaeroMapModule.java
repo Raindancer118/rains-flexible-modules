@@ -161,10 +161,19 @@ public final class XaeroMapModule implements FlexModule {
         context.listener(new WorldChangeListener(worldIds));
         context.listener(new PlayerLeaveListener(sync, clients));
 
-        XaeroMapCommands.ready(new XaeroMapServices(plugin, server, log,
+        XaeroMapServices services = new XaeroMapServices(plugin, server, log,
                 context.core().messages(), context.chat().brand(), context.core(),
                 settings::current, settings, this::claims, indices, clients, worldIds, sync,
-                waypoints));
+                waypoints);
+        XaeroMapCommands.ready(services);
+
+        // Bukkit's own ServicesManager, for the same reason claims-module uses it: it is the one
+        // lookup that works whether the module asking is hosted in this same plugin or in a separate
+        // one, which a static registry cannot tell apart from "not running at all".
+        // wallsroads-module is the first to ask, and nothing here changed to let it.
+        server.getServicesManager().register(XaeroMapServices.class, services, plugin,
+                org.bukkit.plugin.ServicePriority.Normal);
+        context.closeWith(() -> server.getServicesManager().unregister(services));
 
         var timer = Scheduling.globalTimer(plugin, TICK_PERIOD_TICKS, TICK_PERIOD_TICKS,
                 task -> refresh.tick(server.getOnlinePlayers(), Instant.now()));

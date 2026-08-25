@@ -8,6 +8,7 @@ import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.selection.MarkingTool;
 import de.raindancer.core.world.visual.OutlineRenderer;
 import de.raindancer.modules.wallsroads.claims.ClaimLink;
+import de.raindancer.modules.wallsroads.map.MapLink;
 import de.raindancer.modules.wallsroads.selection.WallsRoadsSelectionFlow;
 import de.raindancer.modules.wallsroads.service.WallsRoadsService;
 import de.raindancer.modules.wallsroads.store.WallsRoadsRegistry;
@@ -40,7 +41,8 @@ public record WallsRoadsServices(
         OutlineRenderer outline,
         WallsRoadsSelectionFlow selectionFlow,
         IWallsRoadsScreensOpener screens,
-        ClaimLink claimLink) {
+        ClaimLink claimLink,
+        MapLink mapLink) {
 
     public WallsRoadsSettings config() {
         return settings.get();

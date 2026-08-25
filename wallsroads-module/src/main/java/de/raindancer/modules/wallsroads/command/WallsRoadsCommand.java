@@ -25,7 +25,7 @@ import java.util.function.Supplier;
  */
 public final class WallsRoadsCommand implements IWallsRoadsCommand {
 
-    private static final List<String> SUBCOMMANDS = List.of("wall", "road", "cancel", "list");
+    private static final List<String> SUBCOMMANDS = List.of("wall", "road", "map", "cancel", "list");
 
     private final Supplier<WallsRoadsServices> services;
     private final CreateRule createRule = new CreateRule();
@@ -52,6 +52,7 @@ public final class WallsRoadsCommand implements IWallsRoadsCommand {
         switch (sub) {
             case "wall" -> wallSub(live, sender, args);
             case "road" -> roadSub(live, sender, args);
+            case "map" -> map(live, sender);
             case "cancel" -> cancel(live, sender);
             case "list" -> {
                 if (sender instanceof Player player) {
@@ -120,6 +121,55 @@ public final class WallsRoadsCommand implements IWallsRoadsCommand {
             return;
         }
         live.screens().road(player, road.get());
+    }
+
+    /**
+     * Sends the gates and road ends around the player to their own client map.
+     *
+     * <p>A subcommand rather than a button, under the rule that typing earns its place when nothing
+     * else reaches it: what this does happens in the player's client, not on a screen, and there is
+     * nothing for a menu to show afterwards.
+     */
+    private void map(WallsRoadsServices live, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "wallsroads.only-a-player");
+            return;
+        }
+        if (!live.mapLink().available()) {
+            live.messages().send(player, "wallsroads.map.unavailable");
+            return;
+        }
+        List<de.raindancer.modules.wallsroads.map.MapLink.Marker> markers = new java.util.ArrayList<>();
+        String world = player.getWorld().getName();
+
+        for (Wall wall : live.registry().wallsIn(world)) {
+            for (var gate : wall.gates()) {
+                if (gate.openingColumns().isEmpty()) {
+                    continue;
+                }
+                var at = gate.openingColumns().get(gate.openingColumns().size() / 2);
+                markers.add(new de.raindancer.modules.wallsroads.map.MapLink.Marker(
+                        wall.name() + " gate", "gate",
+                        new de.raindancer.core.world.safety.Spot(world, at.x(), wall.minY(), at.z())));
+            }
+        }
+        for (RoadPath road : live.registry().roadsIn(world)) {
+            if (!road.isBuilt()) {
+                continue;
+            }
+            var points = road.path().points();
+            var first = points.get(0);
+            var last = points.get(points.size() - 1);
+            markers.add(new de.raindancer.modules.wallsroads.map.MapLink.Marker(
+                    road.name() + " (start)", "road",
+                    new de.raindancer.core.world.safety.Spot(world, first.x(), road.fixedY(), first.z())));
+            markers.add(new de.raindancer.modules.wallsroads.map.MapLink.Marker(
+                    road.name() + " (end)", "road",
+                    new de.raindancer.core.world.safety.Spot(world, last.x(), road.fixedY(), last.z())));
+        }
+
+        int sent = live.mapLink().offer(player, markers);
+        live.messages().send(player, "wallsroads.map.sent", "count", String.valueOf(sent));
     }
 
     private void cancel(WallsRoadsServices live, CommandSender sender) {

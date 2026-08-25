@@ -6,19 +6,24 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.core.ui.prompt.ChatPrompts;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.wallsroads.WallsRoadsServices;
 import de.raindancer.modules.wallsroads.model.CornerStyle;
 import de.raindancer.modules.wallsroads.model.Wall;
+import de.raindancer.modules.wallsroads.model.WallProfile;
+import de.raindancer.modules.wallsroads.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
- * One wall's page — every action from the plan's table, and its exact opposite, reachable from a
- * button: build/teardown, sharp/rounded corners, its gates, rename, delete.
+ * One wall's page — every action, and its exact opposite, one click away: build/teardown, its
+ * material, sharp or rounded corners, what kind of wall it is, its gates, who may work them.
  */
 public final class WallEditMenu extends Menu {
 
@@ -26,7 +31,7 @@ public final class WallEditMenu extends Menu {
     private final Wall wall;
 
     public WallEditMenu(WallsRoadsServices services, Player viewer, Wall wall, Menu parent) {
-        super(viewer, services.brand(), parent, 4);
+        super(viewer, services.brand(), parent, 5);
         this.services = services;
         this.wall = wall;
     }
@@ -39,7 +44,7 @@ public final class WallEditMenu extends Menu {
     @Override
     protected void render() {
         boolean mayManage = wall.owner().equals(viewer.getUniqueId())
-                || viewer.hasPermission(de.raindancer.modules.wallsroads.util.PermissionNodes.MANAGE_ANY);
+                || viewer.hasPermission(PermissionNodes.MANAGE_ANY);
         boolean built = wall.isBuilt();
 
         band(MenuLayout.WHO, 1, mayManage,
@@ -47,6 +52,8 @@ public final class WallEditMenu extends Menu {
                         built ? "<green>Standing" : "<gray>Not built",
                         "<gray>" + wall.outline().vertices().size() + " corners, "
                                 + wall.height() + " tall, " + wall.thickness() + " thick",
+                        built ? "<gray>Taking it down puts back what was underneath."
+                                : "<gray>About " + estimate() + " blocks of material.",
                         "",
                         "<yellow>Click <gray>to " + (built ? "take it down" : "build it")),
                 "The owner's to change",
@@ -54,13 +61,13 @@ public final class WallEditMenu extends Menu {
                     if (built) {
                         services.service().teardownWall(wall, this::refresh);
                     } else {
-                        services.service().buildWall(wall, this::refresh);
+                        services.service().buildWall(wall, viewer, this::refresh);
                     }
                 });
 
         band(MenuLayout.WHO, 3, mayManage,
                 Icons.of(wall.material(), "<white>Material",
-                        "<gray>" + wall.material().name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '),
+                        "<gray>" + pretty(wall.material().name()),
                         "",
                         "<yellow>Click <gray>to choose another"),
                 "The owner's to change",
@@ -96,9 +103,52 @@ public final class WallEditMenu extends Menu {
                 Icons.of(Material.OAK_FENCE_GATE, "<white>Gates",
                         "<gray>" + wall.gates().size() + " cut so far",
                         "",
-                        "<yellow>Click <gray>to open, seal or reopen one"),
+                        "<yellow>Click <gray>to open, shut, seal or reopen one"),
                 "The owner's to change",
                 click -> new GateListMenu(services, viewer, wall, this).open());
+
+        // What kind of wall it is, and who its gates answer to.
+        band(MenuLayout.RULES, 2, mayManage,
+                Icons.of(Material.STONE_BRICK_WALL, "<white>Kind of wall",
+                        "<gray>" + describe(wall.profile()),
+                        "",
+                        "<yellow>Click <gray>to cycle: plain, town, fortress",
+                        "<gray>A standing wall is rebuilt to match."),
+                "The owner's to change",
+                click -> {
+                    wall.profile(nextProfile(wall.profile()));
+                    services.storage().saveWall(wall);
+                    services.service().reshapeWall(wall, this::refresh);
+                });
+
+        band(MenuLayout.RULES, 4, mayManage,
+                Icons.of(wall.gatesOpenToEveryone() ? Material.OAK_DOOR : Material.IRON_DOOR,
+                        wall.gatesOpenToEveryone()
+                                ? "<white>Anybody may work the gates"
+                                : "<white>Only you may work the gates",
+                        "",
+                        "<yellow>Click <gray>to switch"),
+                "The owner's to change",
+                click -> {
+                    wall.gatesOpenToEveryone(!wall.gatesOpenToEveryone());
+                    services.storage().saveWall(wall);
+                    refresh();
+                });
+
+        boolean curfewAllowed = services.config().nightCurfewAllowed();
+        band(MenuLayout.RULES, 6, mayManage && curfewAllowed,
+                Icons.of(wall.closesAtNight() ? Material.CLOCK : Material.LIGHT_GRAY_DYE,
+                        wall.closesAtNight() ? "<white>Gates shut at dusk" : "<gray>Gates stay as they are left",
+                        curfewAllowed ? "<gray>They open again at dawn."
+                                : "<red>The server has turned this off.",
+                        "",
+                        "<yellow>Click <gray>to switch"),
+                curfewAllowed ? "The owner's to change" : "The server has turned this off",
+                click -> {
+                    wall.closesAtNight(!wall.closesAtNight());
+                    services.storage().saveWall(wall);
+                    refresh();
+                });
 
         toolbar(2, Icons.of(Material.NAME_TAG, "<white>Rename",
                         "<gray>Current: " + wall.name(),
@@ -121,12 +171,35 @@ public final class WallEditMenu extends Menu {
                         .open());
     }
 
-    /** A rename prompt, chat-typed — the same pattern claims-module's own naming prompt already uses. */
+    /** Plain → town → fortress → plain: three named kinds beat eight materials to choose. */
+    private static WallProfile nextProfile(WallProfile current) {
+        if (!current.battlements()) {
+            return WallProfile.town();
+        }
+        return current.hasTowers() ? WallProfile.simple() : WallProfile.fortress();
+    }
+
+    private static String describe(WallProfile profile) {
+        if (profile.hasTowers()) {
+            return "A fortress — footed, crenellated, with towers";
+        }
+        return profile.battlements() ? "A town wall — footed, crenellated, with a walkway" : "A plain wall";
+    }
+
+    private String estimate() {
+        Map<String, Integer> cost = services.service().estimateWall(wall);
+        return String.valueOf(cost.values().stream().mapToInt(Integer::intValue).sum());
+    }
+
+    private static String pretty(String material) {
+        return material.toLowerCase(Locale.ROOT).replace('_', ' ');
+    }
+
     private void askRename() {
         ChatPrompts prompts = services.core().prompts();
         services.messages().send(viewer, "wallsroads.wall.ask-name");
         prompts.ask(viewer.getUniqueId(), "WallsRoads", Duration.ofSeconds(30), typed ->
-                de.raindancer.core.platform.util.Scheduling.entity(services.plugin(), viewer, () -> {
+                Scheduling.entity(services.plugin(), viewer, () -> {
                     services.service().renameWall(wall, typed);
                     new WallEditMenu(services, viewer, wall, parent()).open();
                 }), () -> { });

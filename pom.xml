@@ -98,9 +98,12 @@
         <module>xaeromap-module</module>
         <module>xaeromap-standalone</module>
         <!-- Back in the reactor 25.08.2026: the RainsCore API this was written against landed in
-             RainsCore 1.31.0 (world.geometry, world.build, world.selection, world.visual). -->
+             RainsCore 1.31.0 (world.geometry, world.build, world.selection, world.visual). After
+             claims-module and xaeromap-module: it compiles against both (provided, never shaded)
+             for the seams in .claims and .map, and a reactor builds in the order it is given. -->
         <module>wallsroads-module</module>
         <module>wallsroads-standalone</module>
+
         <!-- Before chained-module: chained-module depends on speedrun-module's engine classes, and a
              reactor builds in the order it is given. -->
         <module>speedrun-module</module>

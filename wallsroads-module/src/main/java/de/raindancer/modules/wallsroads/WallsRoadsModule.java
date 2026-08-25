@@ -12,6 +12,8 @@ import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.wallsroads.claims.ClaimIntegration;
 import de.raindancer.modules.wallsroads.listener.GateListener;
+import de.raindancer.modules.wallsroads.map.MapIntegration;
+import de.raindancer.modules.wallsroads.map.MapLink;
 import de.raindancer.modules.wallsroads.listener.RoadTravelListener;
 import de.raindancer.modules.wallsroads.listener.StructureProtectionListener;
 import de.raindancer.modules.wallsroads.claims.ClaimLink;
@@ -112,6 +114,7 @@ public final class WallsRoadsModule implements FlexModule {
         OutlineRenderer outline = new OutlineRenderer(context.plugin());
 
         ClaimLink claimLink = ClaimIntegration.tryLink(log);
+        MapLink mapLink = MapIntegration.tryLink(log);
 
         WallsRoadsSelectionFlow selectionFlow = new WallsRoadsSelectionFlow(markingTool, sessions, outline,
                 registry, service, context.core().messages(), log, settings::current);
@@ -119,7 +122,8 @@ public final class WallsRoadsModule implements FlexModule {
 
         services = new WallsRoadsServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core(), settings::current, settings,
-                registry, storage, service, markingTool, outline, selectionFlow, new LiveScreens(), claimLink);
+                registry, storage, service, markingTool, outline, selectionFlow, new LiveScreens(),
+                claimLink, mapLink);
 
         WallsRoadsCommands.ready(services);
 

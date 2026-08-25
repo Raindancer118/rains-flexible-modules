@@ -46,6 +46,17 @@
             <version>${claims-module.version}</version>
             <scope>provided</scope>
         </dependency>
+        <!--
+          The same arrangement for the client-map module: compiled against, never shaded, and every
+          reference to one of its classes lives inside de.raindancer.modules.wallsroads.map, reached
+          only after MapIntegration has confirmed XaeroMapServices is actually registered.
+        -->
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>xaeromap-module</artifactId>
+            <version>${xaeromap-module.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>

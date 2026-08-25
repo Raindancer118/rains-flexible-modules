@@ -5,7 +5,7 @@ version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
 api-version: '1.21'
-description: 'Huge polygonal town walls and roads that cut a real gate where they cross.'
+description: 'Town walls and roads that bridge, tunnel and cut their own gates, with every build reversible.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
@@ -36,12 +36,23 @@ dependencies:
       load: BEFORE
       required: false
       join-classpath: true
+    # Optional for the same reasons, and for the same one lookup: MapIntegration asks Bukkit's
+    # ServicesManager for XaeroMapServices as this module enables, so the map plugin has to have
+    # registered it by then. With none installed, /wallsroads map says so and nothing else changes.
+    RainsXaeroMap:
+      load: BEFORE
+      required: false
+      join-classpath: true
   server:
     RainsCore:
       load: BEFORE
       required: true
       join-classpath: true
     RainsExtendedClaims:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    RainsXaeroMap:
       load: BEFORE
       required: false
       join-classpath: true

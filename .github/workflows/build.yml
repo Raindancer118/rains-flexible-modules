@@ -43,6 +43,7 @@ on:
       - 'worldgate-module-v*'
       - 'invsnap-module-v*'
       - 'xaeromap-module-v*'
+      - 'wallsroads-module-v*'
     branches:
       - '**'
   pull_request:
@@ -293,7 +294,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           set -euo pipefail
-          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module essentials-module chat-module farmworld-module pack-module chained-module rtp-module speedrun-module mannequin-module worldgate-module invsnap-module xaeromap-module"
+          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module essentials-module chat-module farmworld-module pack-module chained-module rtp-module speedrun-module mannequin-module worldgate-module invsnap-module xaeromap-module wallsroads-module"
           new=""
           for module in $modules; do
             version="$(grep -oPm1 "(?<=<${module}\.version>)[^<]+" pom.xml)"
@@ -426,7 +427,7 @@ jobs:
           module="${tag%-v*}"
           wanted="${tag##*-v}"
           case "$module" in
-            modules-api|modules-wrapper|claims-module|moderation-module|names-module|warp-module|homes-module|tpa-module|essentials-module|chat-module|farmworld-module|pack-module|chained-module|rtp-module|speedrun-module|mannequin-module|worldgate-module|invsnap-module|xaeromap-module) ;;
+            modules-api|modules-wrapper|claims-module|moderation-module|names-module|warp-module|homes-module|tpa-module|essentials-module|chat-module|farmworld-module|pack-module|chained-module|rtp-module|speedrun-module|mannequin-module|worldgate-module|invsnap-module|xaeromap-module|wallsroads-module) ;;
             *) echo "::error::$tag names no library module I know about"; exit 1 ;;
           esac
           echo "module=$module" >> "$GITHUB_OUTPUT"

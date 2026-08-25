@@ -40,3 +40,13 @@ wallsroads:
   cost:
     short: "<yellow>You ran out of blocks — <white><built></white> of <white><wanted></white> placed."
     estimate: "<gray>That would take <white><blocks></white> blocks."
+
+  sign:
+    ask-lines: "<gray>Type the new wording, separating the four lines with | — or 'cancel'."
+    ask-destination: "<gray>Type the name of the place this sign should point at, or 'cancel'."
+    pointed: "<green>The sign now points at <white><place></white>, <white><blocks></white> blocks away."
+    no-such-place: "<red>There is no place called <white><place></white> to point at."
+
+  map:
+    sent: "<gray>Sent <white><count></white> gates and road ends to your map."
+    unavailable: "<red>This server has no client-map support running."
