@@ -19,6 +19,8 @@ import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
 import de.raindancer.modules.manhunt.service.ManhuntService;
 import de.raindancer.modules.manhunt.service.ManhuntDeathListener;
 import de.raindancer.modules.manhunt.service.ManhuntEndOfRun;
+import de.raindancer.modules.manhunt.service.ManhuntNarrationListener;
+import de.raindancer.modules.manhunt.service.ManhuntNarrator;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
 import de.raindancer.modules.manhunt.service.PortalMemory;
 import de.raindancer.modules.manhunt.service.TrackerCompass;
@@ -116,6 +118,14 @@ public final class ManhuntModule implements FlexModule {
                 settings.current());
         settings.onChange(endOfRun::settings);
 
+        // What the hunt says out loud. Its own one-second timer, armed with the hunt — see the
+        // narrator's own note on why that beats a third hook on ManhuntService.
+        ManhuntNarrator narrator = new ManhuntNarrator(context.plugin(), liveManhunt,
+                context.core().messages(), settings.current());
+        settings.onChange(narrator::settings);
+        server.getPluginManager().registerEvents(
+                new ManhuntNarrationListener(liveManhunt, liveManhunt.lives(), narrator), context.plugin());
+
         ManhuntAchievements manhuntAchievements = new ManhuntAchievements(context.core().achievements());
         manhuntAchievements.defineAll();
         // Both hooks take exactly one caller each (see ManhuntService.onStart) — stacking two concerns
@@ -123,10 +133,12 @@ public final class ManhuntModule implements FlexModule {
         liveManhunt.onStart(roster -> {
             manhuntAchievements.awardFirstHunt(roster);
             deaths.reset();
+            narrator.arm();
             tracker.armFor(roster);
         });
         liveManhunt.onFinished((everybody, outcome) -> {
             manhuntAchievements.awardWin(everybody, teams, outcome.reason());
+            narrator.disarm();
             tracker.disarm();
             endOfRun.finish(everybody);
         });

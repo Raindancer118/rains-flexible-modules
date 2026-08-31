@@ -37,6 +37,7 @@ import org.bukkit.Material;
         @Topic(path = "manhunt/tracker", title = "The tracking compass", icon = Material.COMPASS),
         @Topic(path = "manhunt/death", title = "Dying", icon = Material.SKELETON_SKULL),
         @Topic(path = "manhunt/finish", title = "When it is over", icon = Material.GOLDEN_APPLE),
+        @Topic(path = "manhunt/narration", title = "What is said out loud", icon = Material.BELL),
 })
 public record ManhuntSettings(
 
@@ -237,7 +238,32 @@ public record ManhuntSettings(
         @Describe("On: the two rosters survive the end of a hunt, so the next one starts with the "
                 + "same sides. Off: everybody is taken off their side and has to join again.")
         @Key("keep-roster-on-finish")
-        boolean keepRosterOnFinish) {
+        boolean keepRosterOnFinish,
+
+        @In("manhunt/narration") @Title("Say when a Runner changes dimension")
+        @Describe("Everybody hears it when a Runner steps into the Nether or the End, and when they "
+                + "come back. The single loudest moment of a Manhunt, and the one the Hunters "
+                + "cannot see for themselves.")
+        @Key("narrate-dimensions")
+        boolean narrateDimensions,
+
+        @In("manhunt/narration") @Title("Say when somebody dies")
+        @Describe("Deaths, lives spent and eliminations are announced to both sides rather than "
+                + "only to whoever they happened to.")
+        @Key("narrate-deaths")
+        boolean narrateDeaths,
+
+        @In("manhunt/narration") @Title("Call out the clock running down")
+        @Describe("Only means anything with a TIMEOUT hunter win condition: five minutes, one "
+                + "minute and ten seconds left are each said once.")
+        @Key("narrate-time-left")
+        boolean narrateTimeLeft,
+
+        @In("manhunt/narration") @Title("Call out the dragon's health")
+        @Describe("Half and a quarter left are each said once, so the Hunters know how close the "
+                + "Runners are to winning without having to be in the End to see it.")
+        @Key("narrate-dragon")
+        boolean narrateDragon) {
 
     /** How a Runner side wins. */
     public enum RunnerWinCondition { PORTAL_EXIT, ADVANCEMENT }
@@ -268,7 +294,8 @@ public record ManhuntSettings(
             false, "", 0, 0, 0, 0, 15,
             true, 10, TrackerTargets.CHOSEN, CrossWorldTracking.LAST_PORTAL, true, true,
             5, RunnerDeathRule.ELIMINATE, 3, true, 0,
-            true, true);
+            true, true,
+            true, true, true, true);
 
     // ------------------------------------------------------------------ read back safely
 
@@ -302,368 +329,472 @@ public record ManhuntSettings(
 
     // ------------------------------------------------------------------ one component at a time
 
-    public ManhuntSettings withRunnerWin(RunnerWinCondition condition) {
-        return new ManhuntSettings(condition, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withRunnerAdvancementKey(String key) {
-        return new ManhuntSettings(runnerWin, key, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withHunterWin(HunterWinCondition condition) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, condition, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withHunterTimeoutMinutes(int minutes) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, minutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withHunterReleaseDelaySeconds(int seconds) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                seconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withResetOnStart(boolean reset) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, reset, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withWorldName(String world) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, world, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withSeedChoice(SeedChoice choice) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, choice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withSeedValue(long seed) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seed,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withCloseWhitelistOnStart(boolean close) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                close, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withChaosCooldownSeconds(int seconds) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, seconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withRunnerSelfJoinEnabled(boolean enabled) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                enabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withLobbySpawnSet(boolean set) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, set, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withLobbyWorldName(String world) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, world, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withLobbyX(double x) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, x, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withLobbyY(double y) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, y, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withLobbyZ(double z) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, z, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withLobbyYaw(double yaw) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, yaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withTrackerCompassEnabled(boolean enabled) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
-                lobbyYaw, lobbyRadius,
-                enabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withTrackerRefreshTicks(int ticks) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
-                lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, ticks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withTrackerTargets(TrackerTargets targets) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
-                lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, targets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withTrackerCrossWorld(CrossWorldTracking crossWorld) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
-                lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, crossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withTrackerShowDistance(boolean shown) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
-                lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                shown, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withTrackerGiveOnRespawn(boolean given) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
-                lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, given,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withCountdownSeconds(int value) {
+    public ManhuntSettings withRunnerWin(RunnerWinCondition runnerWin) {
         return new ManhuntSettings(
                 runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
-                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn, value, runnerDeathRule, runnerLives,
-                eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
-                keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withRunnerDeathRule(RunnerDeathRule value) {
-        return new ManhuntSettings(
-                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
-                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
-                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, value, runnerLives,
-                eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
-                keepRosterOnFinish);
-    }
-
-    public ManhuntSettings withRunnerLives(int value) {
-        return new ManhuntSettings(
-                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
-                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
-                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
-                value, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
-                keepRosterOnFinish);
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
     }
 
-    public ManhuntSettings withEliminatedSpectate(boolean value) {
+    public ManhuntSettings withRunnerAdvancementKey(String runnerAdvancementKey) {
         return new ManhuntSettings(
                 runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
-                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
-                runnerLives, value, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
-                keepRosterOnFinish);
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
     }
 
-    public ManhuntSettings withHunterRespawnDelaySeconds(int value) {
+    public ManhuntSettings withHunterWin(HunterWinCondition hunterWin) {
         return new ManhuntSettings(
                 runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
-                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
-                runnerLives, eliminatedSpectate, value, returnToLobbyOnFinish,
-                keepRosterOnFinish);
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
     }
 
-    public ManhuntSettings withReturnToLobbyOnFinish(boolean value) {
+    public ManhuntSettings withHunterTimeoutMinutes(int hunterTimeoutMinutes) {
         return new ManhuntSettings(
                 runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
-                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
-                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, value,
-                keepRosterOnFinish);
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
     }
 
-    public ManhuntSettings withKeepRosterOnFinish(boolean value) {
+    public ManhuntSettings withHunterReleaseDelaySeconds(int hunterReleaseDelaySeconds) {
         return new ManhuntSettings(
                 runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
-                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
-                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds,
-                returnToLobbyOnFinish, value);
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
     }
 
-    public ManhuntSettings withLobbyRadius(int radius) {
-        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+    public ManhuntSettings withResetOnStart(boolean resetOnStart) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds,
-                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, radius,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn,
-                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
-                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
     }
+
+    public ManhuntSettings withWorldName(String worldName) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withSeedChoice(SeedChoice seedChoice) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withSeedValue(long seedValue) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withCloseWhitelistOnStart(boolean closeWhitelistOnStart) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withChaosCooldownSeconds(int chaosCooldownSeconds) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withRunnerSelfJoinEnabled(boolean runnerSelfJoinEnabled) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withLobbySpawnSet(boolean lobbySpawnSet) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withLobbyWorldName(String lobbyWorldName) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withLobbyX(double lobbyX) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withLobbyY(double lobbyY) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withLobbyZ(double lobbyZ) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withLobbyYaw(double lobbyYaw) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withLobbyRadius(int lobbyRadius) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withTrackerCompassEnabled(boolean trackerCompassEnabled) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withTrackerRefreshTicks(int trackerRefreshTicks) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withTrackerTargets(TrackerTargets trackerTargets) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withTrackerCrossWorld(CrossWorldTracking trackerCrossWorld) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withTrackerShowDistance(boolean trackerShowDistance) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withTrackerGiveOnRespawn(boolean trackerGiveOnRespawn) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withCountdownSeconds(int countdownSeconds) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withRunnerDeathRule(RunnerDeathRule runnerDeathRule) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withRunnerLives(int runnerLives) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withEliminatedSpectate(boolean eliminatedSpectate) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withHunterRespawnDelaySeconds(int hunterRespawnDelaySeconds) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withReturnToLobbyOnFinish(boolean returnToLobbyOnFinish) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withKeepRosterOnFinish(boolean keepRosterOnFinish) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withNarrateDimensions(boolean narrateDimensions) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withNarrateDeaths(boolean narrateDeaths) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withNarrateTimeLeft(boolean narrateTimeLeft) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
+    public ManhuntSettings withNarrateDragon(boolean narrateDragon) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon);
+    }
+
 }

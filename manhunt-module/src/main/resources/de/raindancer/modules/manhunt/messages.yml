@@ -57,6 +57,15 @@ manhunt:
     hunter-waiting: "<gray>Back in <white><seconds></white> second(s)."
     hunter-back: "<green>Back in the hunt."
 
+  # ---------------------------------------------------------------- what a hunt says out loud
+  narrate:
+    dimension: "<gold><runner></gold> <gray>has reached <white><where></white><gray>."
+    runner-died: "<red><runner></red> <gray>died — <white><lives></white> live(s) left."
+    runner-out: "<dark_red><runner></dark_red> <gray>is out of the hunt. <white><left></white> Runner(s) still in."
+    hunter-died: "<gray><hunter> died."
+    time-left: "<yellow><time></yellow> <gray>left on the clock."
+    dragon: "<gold>The dragon is down to <white><percent>%</white><gold>."
+
   # ---------------------------------------------------------------- the tracking compass
   tracker:
     given: "<gold>You have been handed a tracking compass."
