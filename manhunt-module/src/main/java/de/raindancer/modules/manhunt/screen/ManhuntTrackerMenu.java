@@ -76,6 +76,10 @@ public final class ManhuntTrackerMenu extends Menu {
                         "Off: a direction, and never how far away they are."),
                 click -> cycle("tracker-show-distance"));
 
+        band(MenuLayout.RULES, 3, flagIcon(config.trackerSharedTarget(), "One pack, one needle",
+                        "A Hunter's pick turns every Hunter's compass, not only their own."),
+                click -> cycle("tracker-shared-target"));
+
         band(MenuLayout.RULES, 1, flagIcon(config.trackerGiveOnRespawn(), "Replace it on respawn",
                         "A Hunter who died drops their compass with everything else."),
                 click -> cycle("tracker-give-on-respawn"));

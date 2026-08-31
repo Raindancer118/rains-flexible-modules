@@ -349,10 +349,23 @@ public final class TrackerCompassService {
             say(hunter, "manhunt.tracker.no-runners");
             return;
         }
-        picks.put(hunter.getUniqueId(), next.get());
         Player runner = plugin.getServer().getPlayer(next.get());
-        say(hunter, "manhunt.tracker.now-following", "runner",
-                runner != null ? runner.getName() : "a Runner");
+        String name = runner != null ? runner.getName() : "a Runner";
+        if (settings.trackerSharedTarget()) {
+            // One pack, one needle: everybody's compass turns, and everybody is told why — a Hunter
+            // whose own view swung without explanation would reasonably think it had broken.
+            for (UUID id : manhunt.teams().hunters()) {
+                picks.put(id, next.get());
+                Player other = plugin.getServer().getPlayer(id);
+                if (other != null && !other.equals(hunter)) {
+                    say(other, "manhunt.tracker.pack-following", "runner", name,
+                            "hunter", hunter.getName());
+                }
+            }
+        } else {
+            picks.put(hunter.getUniqueId(), next.get());
+        }
+        say(hunter, "manhunt.tracker.now-following", "runner", name);
         Aim aim = compass.aim(pointOf(hunter), runners, next.get());
         Map<UUID, String> names = namesOf(runners);
         applyTo(hunter, aim, names);

@@ -38,6 +38,8 @@ import org.bukkit.Material;
         @Topic(path = "manhunt/death", title = "Dying", icon = Material.SKELETON_SKULL),
         @Topic(path = "manhunt/finish", title = "When it is over", icon = Material.GOLDEN_APPLE),
         @Topic(path = "manhunt/narration", title = "What is said out loud", icon = Material.BELL),
+        @Topic(path = "manhunt/sides", title = "Talking to your side", icon = Material.OAK_SIGN),
+        @Topic(path = "manhunt/rules", title = "Rules while a hunt runs", icon = Material.IRON_SWORD),
 })
 public record ManhuntSettings(
 
@@ -263,7 +265,61 @@ public record ManhuntSettings(
         @Describe("Half and a quarter left are each said once, so the Hunters know how close the "
                 + "Runners are to winning without having to be in the End to see it.")
         @Key("narrate-dragon")
-        boolean narrateDragon) {
+        boolean narrateDragon,
+
+        @In("manhunt/sides") @Title("Chat goes to your own side")
+        @Describe("While a hunt is running, what a Runner or a Hunter types is heard only by their "
+                + "own side — the Hunters can plan out loud without the Runners reading it.")
+        @Key("side-chat")
+        boolean sideChat,
+
+        @In("manhunt/sides") @Title("Prefix that breaks out of side chat")
+        @Describe("A message starting with this is heard by everybody, side chat or not. Leave it "
+                + "empty to take the way out away entirely.")
+        @Key("side-chat-global-prefix")
+        String sideChatGlobalPrefix,
+
+        @In("manhunt/sides") @Title("Sharing your position with your side")
+        @Describe("Whether /manhunt here tells your own side where you are standing. The one way "
+                + "for a pack of Hunters to converge without voice chat.")
+        @Key("coordinate-sharing")
+        boolean coordinateSharing,
+
+        @In("manhunt/sides") @Title("A Hunter's pick moves every Hunter's compass")
+        @Describe("On: one Hunter right-clicking to follow a Runner turns the whole pack's needle "
+                + "with them, so they hunt as one. Off: every Hunter picks their own.")
+        @Key("tracker-shared-target")
+        boolean trackerSharedTarget,
+
+        @In("manhunt/rules") @Title("A side may hurt its own")
+        @Describe("Off: a Runner cannot hit a Runner and a Hunter cannot hit a Hunter while a hunt "
+                + "is running. Nothing outside a hunt is affected.")
+        @Key("friendly-fire")
+        boolean friendlyFire,
+
+        @In("manhunt/rules") @Title("Keep inventory while a hunt runs")
+        @Describe("UNCHANGED leaves the world's own rule alone. ON or OFF sets it for the length of "
+                + "a hunt and puts it back exactly as it was afterwards.")
+        @Key("keep-inventory-during-hunt")
+        RuleOverride keepInventoryDuringHunt,
+
+        @In("manhunt/rules") @Title("Natural regeneration while a hunt runs")
+        @Describe("The same three choices. Off makes food and healing a real decision, which is the "
+                + "classic Manhunt setting.")
+        @Key("natural-regeneration-during-hunt")
+        RuleOverride naturalRegenerationDuringHunt,
+
+        @In("manhunt/rules") @Title("Difficulty while a hunt runs")
+        @Describe("UNCHANGED leaves the world's difficulty alone; anything else sets it for the "
+                + "length of a hunt and puts it back afterwards.")
+        @Key("difficulty-during-hunt")
+        DifficultyOverride difficultyDuringHunt,
+
+        @In("manhunt/sides") @Title("Anybody may watch as a spectator")
+        @Describe("Whether /manhunt spectate lets somebody on neither side watch a running hunt "
+                + "from Spectator, and be put back afterwards.")
+        @Key("spectators-allowed")
+        boolean spectatorsAllowed) {
 
     /** How a Runner side wins. */
     public enum RunnerWinCondition { PORTAL_EXIT, ADVANCEMENT }
@@ -273,6 +329,12 @@ public record ManhuntSettings(
 
     /** How a reset world's terrain is chosen. */
     public enum SeedChoice { FIXED, RANDOM }
+
+    /** A rule this module may take over for the length of a hunt, and hand back afterwards. */
+    public enum RuleOverride { UNCHANGED, ON, OFF }
+
+    /** The same, for the world's difficulty. */
+    public enum DifficultyOverride { UNCHANGED, PEACEFUL, EASY, NORMAL, HARD }
 
     /** What a Runner's death costs them. */
     public enum RunnerDeathRule { RESPAWN, ELIMINATE, LIVES }
@@ -295,7 +357,10 @@ public record ManhuntSettings(
             true, 10, TrackerTargets.CHOSEN, CrossWorldTracking.LAST_PORTAL, true, true,
             5, RunnerDeathRule.ELIMINATE, 3, true, 0,
             true, true,
-            true, true, true, true);
+            true, true, true, true,
+            true, "!", true, false,
+            false, RuleOverride.UNCHANGED, RuleOverride.UNCHANGED,
+            DifficultyOverride.UNCHANGED, true);
 
     // ------------------------------------------------------------------ read back safely
 
@@ -339,7 +404,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withRunnerAdvancementKey(String runnerAdvancementKey) {
@@ -352,7 +419,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withHunterWin(HunterWinCondition hunterWin) {
@@ -365,7 +434,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withHunterTimeoutMinutes(int hunterTimeoutMinutes) {
@@ -378,7 +449,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withHunterReleaseDelaySeconds(int hunterReleaseDelaySeconds) {
@@ -391,7 +464,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withResetOnStart(boolean resetOnStart) {
@@ -404,7 +479,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withWorldName(String worldName) {
@@ -417,7 +494,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withSeedChoice(SeedChoice seedChoice) {
@@ -430,7 +509,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withSeedValue(long seedValue) {
@@ -443,7 +524,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withCloseWhitelistOnStart(boolean closeWhitelistOnStart) {
@@ -456,7 +539,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withChaosCooldownSeconds(int chaosCooldownSeconds) {
@@ -469,7 +554,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withRunnerSelfJoinEnabled(boolean runnerSelfJoinEnabled) {
@@ -482,7 +569,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withLobbySpawnSet(boolean lobbySpawnSet) {
@@ -495,7 +584,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withLobbyWorldName(String lobbyWorldName) {
@@ -508,7 +599,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withLobbyX(double lobbyX) {
@@ -521,7 +614,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withLobbyY(double lobbyY) {
@@ -534,7 +629,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withLobbyZ(double lobbyZ) {
@@ -547,7 +644,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withLobbyYaw(double lobbyYaw) {
@@ -560,7 +659,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withLobbyRadius(int lobbyRadius) {
@@ -573,7 +674,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withTrackerCompassEnabled(boolean trackerCompassEnabled) {
@@ -586,7 +689,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withTrackerRefreshTicks(int trackerRefreshTicks) {
@@ -599,7 +704,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withTrackerTargets(TrackerTargets trackerTargets) {
@@ -612,7 +719,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withTrackerCrossWorld(CrossWorldTracking trackerCrossWorld) {
@@ -625,7 +734,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withTrackerShowDistance(boolean trackerShowDistance) {
@@ -638,7 +749,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withTrackerGiveOnRespawn(boolean trackerGiveOnRespawn) {
@@ -651,7 +764,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withCountdownSeconds(int countdownSeconds) {
@@ -664,7 +779,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withRunnerDeathRule(RunnerDeathRule runnerDeathRule) {
@@ -677,7 +794,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withRunnerLives(int runnerLives) {
@@ -690,7 +809,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withEliminatedSpectate(boolean eliminatedSpectate) {
@@ -703,7 +824,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withHunterRespawnDelaySeconds(int hunterRespawnDelaySeconds) {
@@ -716,7 +839,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withReturnToLobbyOnFinish(boolean returnToLobbyOnFinish) {
@@ -729,7 +854,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withKeepRosterOnFinish(boolean keepRosterOnFinish) {
@@ -742,7 +869,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withNarrateDimensions(boolean narrateDimensions) {
@@ -755,7 +884,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withNarrateDeaths(boolean narrateDeaths) {
@@ -768,7 +899,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withNarrateTimeLeft(boolean narrateTimeLeft) {
@@ -781,7 +914,9 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
     public ManhuntSettings withNarrateDragon(boolean narrateDragon) {
@@ -794,7 +929,144 @@ public record ManhuntSettings(
                 trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
                 runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
                 keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
-                narrateDragon);
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
+    }
+
+    public ManhuntSettings withSideChat(boolean sideChat) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
+    }
+
+    public ManhuntSettings withSideChatGlobalPrefix(String sideChatGlobalPrefix) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
+    }
+
+    public ManhuntSettings withCoordinateSharing(boolean coordinateSharing) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
+    }
+
+    public ManhuntSettings withTrackerSharedTarget(boolean trackerSharedTarget) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
+    }
+
+    public ManhuntSettings withFriendlyFire(boolean friendlyFire) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
+    }
+
+    public ManhuntSettings withKeepInventoryDuringHunt(RuleOverride keepInventoryDuringHunt) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
+    }
+
+    public ManhuntSettings withNaturalRegenerationDuringHunt(RuleOverride naturalRegenerationDuringHunt) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
+    }
+
+    public ManhuntSettings withDifficultyDuringHunt(DifficultyOverride difficultyDuringHunt) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
+    }
+
+    public ManhuntSettings withSpectatorsAllowed(boolean spectatorsAllowed) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled, lobbySpawnSet,
+                lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish, narrateDimensions, narrateDeaths, narrateTimeLeft,
+                narrateDragon, sideChat, sideChatGlobalPrefix, coordinateSharing,
+                trackerSharedTarget, friendlyFire, keepInventoryDuringHunt,
+                naturalRegenerationDuringHunt, difficultyDuringHunt, spectatorsAllowed);
     }
 
 }

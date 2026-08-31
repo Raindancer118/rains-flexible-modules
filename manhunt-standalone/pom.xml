@@ -28,8 +28,9 @@
         <!-- Deliberately below 1.0.0, and staying there until Manhunt is actually the whole thing
              it is meant to be: 1.0.0 is the milestone, not the first build that runs.
              0.1.0: the two sides, the win conditions, the whitelist, chaos, the waiting lobby.
-             0.2.0: the Hunters carry a tracking compass. -->
-        <plugin.version>0.2.0</plugin.version>
+             0.2.0: the Hunters carry a tracking compass.
+             0.3.0: a countdown, death rules, narration, side chat, borrowed rules, spectators. -->
+        <plugin.version>0.3.0</plugin.version>
     </properties>
 
     <dependencies>

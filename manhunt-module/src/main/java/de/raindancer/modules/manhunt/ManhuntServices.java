@@ -11,6 +11,7 @@ import de.raindancer.modules.manhunt.service.ManhuntAchievements;
 import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
 import de.raindancer.modules.manhunt.service.ManhuntService;
 import de.raindancer.modules.manhunt.service.ManhuntDeathListener;
+import de.raindancer.modules.manhunt.service.ManhuntSpectators;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
 import de.raindancer.modules.manhunt.service.TrackerCompassService;
 import org.bukkit.Server;
@@ -41,6 +42,7 @@ public record ManhuntServices(
         ManhuntLobbyListener lobbyListener,
         TrackerCompassService tracker,
         ManhuntDeathListener deaths,
+        ManhuntSpectators spectators,
 
         IManhuntScreensOpener screens) {
 

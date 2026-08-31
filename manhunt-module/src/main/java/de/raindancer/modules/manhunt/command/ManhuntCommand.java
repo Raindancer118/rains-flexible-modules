@@ -18,6 +18,7 @@ import io.papermc.paper.advancement.AdvancementDisplay;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
 import java.util.Locale;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -68,6 +70,9 @@ public final class ManhuntCommand implements IManhuntCommand {
             case "achievements" -> achievements(live, sender);
             case "options" -> options(live, sender);
             case "tracker" -> tracker(live, sender);
+            case "field" -> field(live, sender);
+            case "here" -> here(live, sender);
+            case "spectate" -> spectate(live, sender);
             case "setlobby" -> setlobby(live, sender);
             case "goal" -> goal(live, sender, args);
             default -> help(live, sender);
@@ -315,6 +320,69 @@ public final class ManhuntCommand implements IManhuntCommand {
         live.messages().send(sender, "manhunt.options.console-only");
     }
 
+    /** {@code /manhunt field} — narration, side chat, the borrowed rules and spectators, on one page. */
+    private void field(ManhuntServices live, CommandSender sender) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        if (sender instanceof Player player) {
+            live.screens().field(player);
+            return;
+        }
+        live.messages().send(sender, "manhunt.options.console-only");
+    }
+
+    /**
+     * {@code /manhunt here} — tells your own side where you are standing. The one way a pack of
+     * Hunters converges without voice chat, and deliberately your own side only: a Runner announcing
+     * their position to the Hunters would be a way to lose on purpose, and a Hunter announcing theirs
+     * to the Runners is a scouting report for the wrong team.
+     */
+    private void here(ManhuntServices live, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "manhunt.only-a-player");
+            return;
+        }
+        if (!live.config().coordinateSharing()) {
+            live.messages().send(player, "manhunt.here.off");
+            return;
+        }
+        ManhuntTeams teams = live.manhunt().teams();
+        UUID id = player.getUniqueId();
+        boolean runner = teams.isRunner(id);
+        if (!runner && !teams.isHunter(id)) {
+            live.messages().send(player, "manhunt.not-on-a-side");
+            return;
+        }
+        Location where = player.getLocation();
+        String world = where.getWorld() == null ? "?" : where.getWorld().getName();
+        for (UUID mate : runner ? teams.runners() : teams.hunters()) {
+            Player other = Bukkit.getPlayer(mate);
+            if (other != null) {
+                live.messages().send(other, "manhunt.here.shared",
+                        "player", player.getName(), "world", world,
+                        "x", String.valueOf(where.getBlockX()),
+                        "y", String.valueOf(where.getBlockY()),
+                        "z", String.valueOf(where.getBlockZ()));
+            }
+        }
+    }
+
+    /** {@code /manhunt spectate} — start or stop watching, the same command both ways. */
+    private void spectate(ManhuntServices live, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "manhunt.only-a-player");
+            return;
+        }
+        switch (live.spectators().watch(player)) {
+            case WATCHING -> live.messages().send(player, "manhunt.spectate.watching");
+            case STOPPED -> live.messages().send(player, "manhunt.spectate.stopped");
+            case NOT_ALLOWED -> live.messages().send(player, "manhunt.spectate.not-allowed");
+            case ON_A_SIDE -> live.messages().send(player, "manhunt.spectate.on-a-side");
+        }
+    }
+
     /** {@code /manhunt tracker} — the compass' own settings page; console is pointed at
      *  {@code /settings}, exactly as {@link #options} is and for the same reason. */
     private void tracker(ManhuntServices live, CommandSender sender) {
@@ -371,7 +439,8 @@ public final class ManhuntCommand implements IManhuntCommand {
             String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
             return startingWith(
                     List.of("join", "leave", "assign", "start", "stop", "reset", "status", "chaos",
-                            "achievements", "options", "tracker", "setlobby", "goal"), typed);
+                            "achievements", "options", "tracker", "field", "here", "spectate", "setlobby",
+                            "goal"), typed);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("join")) {
             return startingWith(List.of("runner", "hunter"), args[1].toLowerCase(Locale.ROOT));

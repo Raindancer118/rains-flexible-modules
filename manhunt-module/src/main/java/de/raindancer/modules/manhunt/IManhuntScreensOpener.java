@@ -19,4 +19,7 @@ public interface IManhuntScreensOpener {
 
     /** The tracking compass' own page: every one of its settings, with icons. */
     void tracker(Player viewer);
+
+    /** What a hunt is like to be in: narration, side chat, the borrowed rules, spectators. */
+    void field(Player viewer);
 }

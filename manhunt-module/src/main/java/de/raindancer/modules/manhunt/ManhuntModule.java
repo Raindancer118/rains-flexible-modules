@@ -11,6 +11,7 @@ import de.raindancer.modules.manhunt.screen.ManhuntAchievementsMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntChaosMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntLobbyMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntOptionsMenu;
+import de.raindancer.modules.manhunt.screen.ManhuntFieldMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntTrackerMenu;
 import de.raindancer.modules.manhunt.service.ChaosService;
 import de.raindancer.modules.manhunt.service.ManhuntAchievements;
@@ -21,6 +22,10 @@ import de.raindancer.modules.manhunt.service.ManhuntDeathListener;
 import de.raindancer.modules.manhunt.service.ManhuntEndOfRun;
 import de.raindancer.modules.manhunt.service.ManhuntNarrationListener;
 import de.raindancer.modules.manhunt.service.ManhuntNarrator;
+import de.raindancer.modules.manhunt.service.ManhuntChatListener;
+import de.raindancer.modules.manhunt.service.ManhuntRules;
+import de.raindancer.modules.manhunt.service.ManhuntSpectators;
+import de.raindancer.modules.manhunt.service.SideChat;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
 import de.raindancer.modules.manhunt.service.PortalMemory;
 import de.raindancer.modules.manhunt.service.TrackerCompass;
@@ -44,7 +49,7 @@ import java.util.List;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.3.0")
             .describedAs("Runners against Hunters on top of speedrun-module's engine — a win "
                     + "condition per side, a tracking compass that follows a Runner through the "
                     + "portal they took, a real server whitelist a Runner can open and close, "
@@ -126,6 +131,20 @@ public final class ManhuntModule implements FlexModule {
         server.getPluginManager().registerEvents(
                 new ManhuntNarrationListener(liveManhunt, liveManhunt.lives(), narrator), context.plugin());
 
+        // Talking to your own side, the rules a hunt borrows, and watching from outside it.
+        SideChat sideChat = new SideChat(settings.current());
+        settings.onChange(sideChat::settings);
+        server.getPluginManager().registerEvents(
+                new ManhuntChatListener(liveManhunt, sideChat, context.core().messages()), context.plugin());
+
+        ManhuntRules rules = new ManhuntRules(context.plugin(), liveManhunt, settings.current());
+        settings.onChange(rules::settings);
+        server.getPluginManager().registerEvents(rules, context.plugin());
+
+        ManhuntSpectators spectators = new ManhuntSpectators(context.plugin(), liveManhunt,
+                settings.current());
+        settings.onChange(spectators::settings);
+
         ManhuntAchievements manhuntAchievements = new ManhuntAchievements(context.core().achievements());
         manhuntAchievements.defineAll();
         // Both hooks take exactly one caller each (see ManhuntService.onStart) — stacking two concerns
@@ -133,6 +152,7 @@ public final class ManhuntModule implements FlexModule {
         liveManhunt.onStart(roster -> {
             manhuntAchievements.awardFirstHunt(roster);
             deaths.reset();
+            rules.arm();
             narrator.arm();
             tracker.armFor(roster);
         });
@@ -140,6 +160,8 @@ public final class ManhuntModule implements FlexModule {
             manhuntAchievements.awardWin(everybody, teams, outcome.reason());
             narrator.disarm();
             tracker.disarm();
+            rules.disarm();
+            spectators.releaseAll();
             endOfRun.finish(everybody);
         });
 
@@ -147,7 +169,7 @@ public final class ManhuntModule implements FlexModule {
                 context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, settings,
-                liveManhunt, chaos, whitelist, manhuntAchievements, lobbyListener, tracker, deaths,
+                liveManhunt, chaos, whitelist, manhuntAchievements, lobbyListener, tracker, deaths, spectators,
                 new LiveScreens());
 
         // The command was registered during bootstrap, long before any of this existed, and has been
@@ -190,6 +212,11 @@ public final class ManhuntModule implements FlexModule {
         public void tracker(Player viewer) {
             new ManhuntTrackerMenu(services, viewer, null).open();
         }
+
+        @Override
+        public void field(Player viewer) {
+            new ManhuntFieldMenu(services, viewer, null).open();
+        }
     }
 
     @Override
@@ -201,6 +228,8 @@ public final class ManhuntModule implements FlexModule {
     public void disable() {
         ManhuntCommands.stopped();
         if (manhunt != null) {
+            // shutdown() finishes the session, which runs onFinished — the rules are handed back and
+            // the watchers released there. This only covers the case of there being no run at all.
             manhunt.shutdown();
         }
     }

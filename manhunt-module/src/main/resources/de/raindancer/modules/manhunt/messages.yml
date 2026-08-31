@@ -70,8 +70,20 @@ manhunt:
   tracker:
     given: "<gold>You have been handed a tracking compass."
     now-following: "<gold>Your compass now follows <white><runner></white>."
+    pack-following: "<gold><hunter></gold> <gray>put the pack on <white><runner></white><gray>."
     picking-off: "<red>Your compass follows whoever is nearest — that is not yours to change."
     no-runners: "<red>There is no Runner left to follow."
+
+  # ---------------------------------------------------------------- talking to your side
+  here:
+    shared: "<gold><player></gold> <gray>is at <white><x> <y> <z></white> in <white><world></white><gray>."
+    off: "<red>Sharing your position is switched off."
+
+  spectate:
+    watching: "<gray>You are watching the hunt. Type it again to stop."
+    stopped: "<gray>You are no longer watching."
+    not-allowed: "<red>Watching is switched off on this server."
+    on-a-side: "<red>Leave your side first — a player in the hunt cannot watch it."
 
   # ---------------------------------------------------------------- achievements
   achievements:
@@ -114,6 +126,9 @@ manhunt:
     - "<gray>/manhunt achievements <dark_gray>— the curated set, earned or not"
     - "<gray>/manhunt options <dark_gray>— how a hunt is set up: winning, dying, and ending"
     - "<gray>/manhunt tracker <dark_gray>— everything the Hunters' tracking compass does"
+    - "<gray>/manhunt field <dark_gray>— narration, side chat, borrowed rules, spectators"
+    - "<gray>/manhunt here <dark_gray>— tell your own side where you are"
+    - "<gray>/manhunt spectate <dark_gray>— watch a hunt you are not in"
     - "<gray>/manhunt setlobby <dark_gray>— place the waiting lobby where you are standing"
     - "<gray>/manhunt goal <advancement-key> <dark_gray>— set the Runners' win advancement, with tab-completion"
     - "<gray>/whitelist open|close <dark_gray>— open or close the server's doors"
