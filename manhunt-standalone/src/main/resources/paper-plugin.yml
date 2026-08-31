@@ -5,7 +5,7 @@ version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
 api-version: '1.21'
-description: 'Runners against Hunters on top of speedrun-module''s engine — a win condition per side, a real server whitelist a Runner can open and close, and live chaos actions a host can throw at a running match.'
+description: 'Runners against Hunters on top of speedrun-module''s engine — a win condition per side, a tracking compass that follows a Runner through the portal they took, a real server whitelist a Runner can open and close, and live chaos actions a host can throw at a running match.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 

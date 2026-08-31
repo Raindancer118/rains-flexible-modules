@@ -44,6 +44,13 @@ manhunt:
     no_targets: "<red>Nobody for <white><action></white> to act on right now."
     not_running: "<red>There is no hunt running to throw chaos at."
 
+  # ---------------------------------------------------------------- the tracking compass
+  tracker:
+    given: "<gold>You have been handed a tracking compass."
+    now-following: "<gold>Your compass now follows <white><runner></white>."
+    picking-off: "<red>Your compass follows whoever is nearest — that is not yours to change."
+    no-runners: "<red>There is no Runner left to follow."
+
   # ---------------------------------------------------------------- achievements
   achievements:
     header: "<gold>Manhunt achievements — <white><count></white> shown, <white><hidden></white> still hidden."
@@ -84,6 +91,7 @@ manhunt:
     - "<gray>/manhunt chaos [<action>] <dark_gray>— throw chaos at a running hunt, or open the menu"
     - "<gray>/manhunt achievements <dark_gray>— the curated set, earned or not"
     - "<gray>/manhunt options <dark_gray>— five quick-access settings for this hunt"
+    - "<gray>/manhunt tracker <dark_gray>— everything the Hunters' tracking compass does"
     - "<gray>/manhunt setlobby <dark_gray>— place the waiting lobby where you are standing"
     - "<gray>/manhunt goal <advancement-key> <dark_gray>— set the Runners' win advancement, with tab-completion"
     - "<gray>/whitelist open|close <dark_gray>— open or close the server's doors"

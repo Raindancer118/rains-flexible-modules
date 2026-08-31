@@ -16,4 +16,7 @@ public interface IManhuntScreensOpener {
 
     /** The options menu: a curated quick-access subset of ManhuntSettings, with icons. */
     void options(Player viewer);
+
+    /** The tracking compass' own page: every one of its settings, with icons. */
+    void tracker(Player viewer);
 }

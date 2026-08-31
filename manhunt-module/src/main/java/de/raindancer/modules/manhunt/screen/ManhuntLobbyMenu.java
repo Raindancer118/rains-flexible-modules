@@ -111,6 +111,9 @@ public final class ManhuntLobbyMenu extends Menu {
                         "<dark_gray>The curated set — earned or not."),
                 click -> new ManhuntAchievementsMenu(services, viewer, this).open());
         if (viewer.hasPermission(PermissionNodes.ADMIN)) {
+            band(MenuLayout.TOOLBAR_ROW, 1, Icons.of(Material.COMPASS, "<gold>Tracking compass",
+                            "<dark_gray>Who the Hunters' compass follows, and what it gives away."),
+                    click -> new ManhuntTrackerMenu(services, viewer, this).open());
             band(MenuLayout.TOOLBAR_ROW, 7, Icons.of(Material.COMMAND_BLOCK, "<gold>Options",
                             "<dark_gray>Five quick-access settings for this hunt."),
                     click -> new ManhuntOptionsMenu(services, viewer, this).open());

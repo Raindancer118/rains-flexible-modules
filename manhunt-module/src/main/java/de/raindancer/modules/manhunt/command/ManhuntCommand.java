@@ -67,6 +67,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             case "chaos" -> chaos(live, sender, args);
             case "achievements" -> achievements(live, sender);
             case "options" -> options(live, sender);
+            case "tracker" -> tracker(live, sender);
             case "setlobby" -> setlobby(live, sender);
             case "goal" -> goal(live, sender, args);
             default -> help(live, sender);
@@ -314,6 +315,20 @@ public final class ManhuntCommand implements IManhuntCommand {
         live.messages().send(sender, "manhunt.options.console-only");
     }
 
+    /** {@code /manhunt tracker} — the compass' own settings page; console is pointed at
+     *  {@code /settings}, exactly as {@link #options} is and for the same reason. */
+    private void tracker(ManhuntServices live, CommandSender sender) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        if (sender instanceof Player player) {
+            live.screens().tracker(player);
+            return;
+        }
+        live.messages().send(sender, "manhunt.options.console-only");
+    }
+
     /**
      * {@code /manhunt goal <advancement-key>} — the exhaustive, tab-completed counterpart to
      * {@link ManhuntGoalMenu}'s curated seven. Console-usable, unlike {@code setlobby}: setting the
@@ -356,7 +371,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
             return startingWith(
                     List.of("join", "leave", "assign", "start", "stop", "reset", "status", "chaos",
-                            "achievements", "options", "setlobby", "goal"), typed);
+                            "achievements", "options", "tracker", "setlobby", "goal"), typed);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("join")) {
             return startingWith(List.of("runner", "hunter"), args[1].toLowerCase(Locale.ROOT));

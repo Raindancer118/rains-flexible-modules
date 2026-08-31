@@ -11,6 +11,7 @@ import de.raindancer.modules.manhunt.service.ManhuntAchievements;
 import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
 import de.raindancer.modules.manhunt.service.ManhuntService;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
+import de.raindancer.modules.manhunt.service.TrackerCompassService;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
 
@@ -37,6 +38,7 @@ public record ManhuntServices(
         ManhuntWhitelistService whitelist,
         ManhuntAchievements achievements,
         ManhuntLobbyListener lobbyListener,
+        TrackerCompassService tracker,
 
         IManhuntScreensOpener screens) {
 

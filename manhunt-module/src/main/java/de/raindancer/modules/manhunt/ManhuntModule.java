@@ -11,12 +11,17 @@ import de.raindancer.modules.manhunt.screen.ManhuntAchievementsMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntChaosMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntLobbyMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntOptionsMenu;
+import de.raindancer.modules.manhunt.screen.ManhuntTrackerMenu;
 import de.raindancer.modules.manhunt.service.ChaosService;
 import de.raindancer.modules.manhunt.service.ManhuntAchievements;
 import de.raindancer.modules.manhunt.service.ManhuntLobbyBox;
 import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
 import de.raindancer.modules.manhunt.service.ManhuntService;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
+import de.raindancer.modules.manhunt.service.PortalMemory;
+import de.raindancer.modules.manhunt.service.TrackerCompass;
+import de.raindancer.modules.manhunt.service.TrackerCompassService;
+import de.raindancer.modules.manhunt.service.TrackerListener;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -35,9 +40,10 @@ import java.util.List;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "1.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "1.1.0")
             .describedAs("Runners against Hunters on top of speedrun-module's engine — a win "
-                    + "condition per side, a real server whitelist a Runner can open and close, "
+                    + "condition per side, a tracking compass that follows a Runner through the "
+                    + "portal they took, a real server whitelist a Runner can open and close, "
                     + "and live chaos actions a host can throw at a running match.")
             .by("Raindancer118");
 
@@ -85,17 +91,36 @@ public final class ManhuntModule implements FlexModule {
         ManhuntLobbyListener lobbyListener = new ManhuntLobbyListener(lobbyBox, context.core().messages());
         server.getPluginManager().registerEvents(lobbyListener, context.plugin());
 
+        // The tracking compass. Registered once, like the waiting lobby and for the same reason: each
+        // of its handlers already asks whether a hunt is running, and one pair of moments where a
+        // crash could leave a listener behind is one too many.
+        PortalMemory portals = new PortalMemory();
+        TrackerCompass trackerCompass = new TrackerCompass(settings.current(), portals);
+        settings.onChange(trackerCompass::settings);
+        TrackerCompassService tracker = new TrackerCompassService(context.plugin(), liveManhunt,
+                trackerCompass, portals, context.core().messages(), settings.current());
+        settings.onChange(tracker::settings);
+        server.getPluginManager().registerEvents(
+                new TrackerListener(liveManhunt, tracker, portals), context.plugin());
+
         ManhuntAchievements manhuntAchievements = new ManhuntAchievements(context.core().achievements());
         manhuntAchievements.defineAll();
-        liveManhunt.onStart(manhuntAchievements::awardFirstHunt);
-        liveManhunt.onFinished((everybody, outcome) ->
-                manhuntAchievements.awardWin(everybody, teams, outcome.reason()));
+        // Both hooks take exactly one caller each (see ManhuntService.onStart) — stacking two concerns
+        // behind the same moment is this wiring class' job, not the service's.
+        liveManhunt.onStart(roster -> {
+            manhuntAchievements.awardFirstHunt(roster);
+            tracker.armFor(roster);
+        });
+        liveManhunt.onFinished((everybody, outcome) -> {
+            manhuntAchievements.awardWin(everybody, teams, outcome.reason());
+            tracker.disarm();
+        });
 
         this.services = new ManhuntServices(
                 context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, settings,
-                liveManhunt, chaos, whitelist, manhuntAchievements, lobbyListener,
+                liveManhunt, chaos, whitelist, manhuntAchievements, lobbyListener, tracker,
                 new LiveScreens());
 
         // The command was registered during bootstrap, long before any of this existed, and has been
@@ -132,6 +157,11 @@ public final class ManhuntModule implements FlexModule {
         @Override
         public void options(Player viewer) {
             new ManhuntOptionsMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void tracker(Player viewer) {
+            new ManhuntTrackerMenu(services, viewer, null).open();
         }
     }
 

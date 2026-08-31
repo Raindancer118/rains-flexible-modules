@@ -25,8 +25,9 @@
         <!-- The name the server sees, and the name of its data folder. -->
         <plugin.name>RainsManhunt</plugin.name>
 
-        <!-- 1.0.0: the first release of this as a plugin. -->
-        <plugin.version>1.0.0</plugin.version>
+        <!-- 1.0.0: the first release of this as a plugin.
+             1.1.0: the Hunters carry a tracking compass. -->
+        <plugin.version>1.1.0</plugin.version>
     </properties>
 
     <dependencies>
