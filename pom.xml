@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.31.0</rainscore.version>
+        <rainscore.version>1.34.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -60,6 +60,9 @@
              for the incident. chained-module depends on this directly for the engine underneath it. -->
         <speedrun-module.version>1.6.0</speedrun-module.version>
         <chat-module.version>1.2.1</chat-module.version>
+        <!-- Depends on speedrun-module's engine classes the same way chained-module does; see that
+             module's own note in this file. -->
+        <manhunt-module.version>1.0.0</manhunt-module.version>
     </properties>
 
     <modules>
@@ -110,6 +113,11 @@
         <module>speedrun-standalone</module>
         <module>chained-module</module>
         <module>chained-standalone</module>
+
+        <!-- After speedrun-module, for the same reason chained-module is: manhunt-module depends on
+             speedrun-module's engine classes and a reactor builds in the order it is given. -->
+        <module>manhunt-module</module>
+        <module>manhunt-standalone</module>
         <!--
           Archived 2026-08-14: not being worked on for a while, and there is no value in the reactor
           spending a build and 850+ tests on it every push in the meantime. The code is untouched on
@@ -248,6 +256,11 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>chat-module</artifactId>
                 <version>${chat-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>manhunt-module</artifactId>
+                <version>${manhunt-module.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

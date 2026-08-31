@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>manhunt-module</artifactId>
+    <!-- Own version, independent of the reactor's: this module is published to the registry on its own
+         schedule under its own tag (manhunt-module-vX.Y.Z), not tied to any other module's release. -->
+    <version>${manhunt-module.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Manhunt</name>
+    <description>
+        One or more Runners against a pack of Hunters, on top of speedrun-module's engine: a
+        configurable win condition per side, a real server whitelist a Runner can open and close from
+        the console-compatible /whitelist command, and a set of live "chaos" actions a host can throw
+        at a running match from a command or a menu.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+        <!--
+          provided, the same reasoning chained-module already wrote out for itself: this module's
+          classes come from RainsSpeedrun at runtime, which manhunt-standalone's own paper-plugin.yml
+          declares as a second required host plugin (join-classpath, both phases) alongside RainsCore.
+          Shading speedrun-module into RainsManhunt.jar as well would put a second copy of
+          SpeedrunSession/SpeedrunTimer/the end conditions on the server the moment both plugins are
+          installed — a second "who is still around" and a second "did this run already finish", each
+          with its own idea of the answer.
+        -->
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>speedrun-module</artifactId>
+            <version>${speedrun-module.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${modules-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

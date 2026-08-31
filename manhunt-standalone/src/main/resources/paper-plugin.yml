@@ -1,0 +1,49 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see that class for why every line
+# here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Runners against Hunters on top of speedrun-module''s engine — a win condition per side, a real server whitelist a Runner can open and close, and live chaos actions a host can throw at a running match.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Not claimed here, deliberately: WhitelistCommand.passthrough calls Bukkit.dispatchCommand from
+# whatever thread the /whitelist command lands on, and several ChaosAction entries teleport players
+# and touch world state directly rather than hopping onto Scheduling.global/entity first the way
+# speedrun-module and chained-module were made to. Folia support is a claim to earn once that is
+# actually true, not a default.
+# folia-supported: true
+
+dependencies:
+  # Both phases, and bootstrap is not belt-and-braces — see chained-standalone's own copy of this
+  # note, which this repeats because the mistake it guards against (RainsCore declared for the server
+  # phase alone, so the bootstrapper that discovers modules never gets its classes) has already
+  # happened once in this project.
+  #
+  # RainsSpeedrun is the second required host here, not RainsCore alone — manhunt-module compiles
+  # against speedrun-module's engine classes (SpeedrunSession, SpeedrunTimer, the end conditions) as a
+  # `provided` dependency, exactly like chained-module. RainsManhunt.jar deliberately does not shade
+  # speedrun-module in: a shaded copy alongside an installed RainsSpeedrun would be two independent
+  # SpeedrunSessions on one server, each with its own idea of whether a run has already finished.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    RainsSpeedrun:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      # The line that actually puts RainsCore's classes on this plugin's classpath. Paper plugins get isolated
+      # classloaders, so without it everything above is right and the plugin dies the moment it touches one.
+      join-classpath: true
+    RainsSpeedrun:
+      load: BEFORE
+      required: true
+      join-classpath: true

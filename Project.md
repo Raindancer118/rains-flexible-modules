@@ -610,6 +610,196 @@ answered the probe, which is the one fact separating "broken" from "nobody has t
 
 ---
 
+## Walls and roads — `wallsroads-module` / `wallsroads-standalone` (RainsWallsAndRoads 1.0.0)
+
+The module that had been "work in progress" for months, and the reason was not that it was half
+written: **it did not compile, and had been commented out of the reactor since 18.08.2026.** It was
+written against a RainsCore API that never landed — `world.geometry.ColumnPolygon`/`Polyline`,
+`world.build.BatchBuilder`/`BuildSnapshot`/`BukkitGround`, the four `world.selection` marking classes
+and `world.visual.OutlineRenderer`, none of which existed in any released Core. So 1.0.0 began one
+level down, in **RainsCore 1.31.0**, where that API now lives — which is where it belonged anyway
+under this project's own Core/module rule.
+
+### What is Core's, and why each piece is
+
+- **`world.geometry`** — `ColumnPolygon` (a closed ring of *columns*: x/z with no height, because a
+  shape is decided on the ground and given a height by whoever builds it) and `Polyline` (the open
+  counterpart). Separate types rather than one with a flag, because a ring has an inside and a path
+  has two ends, and every method serving both would begin by asking which it was.
+  - **Corner rounding clamps per corner to half the shorter edge.** Unclamped, two arcs meeting on one
+    edge overshoot and the shape folds inside out — a wall that crosses itself and encloses the wrong
+    side.
+  - **`Polyline.smoothed` is Chaikin with both ends pinned.** A road that decided for itself where it
+    started would miss the gate it was drawn to.
+- **`world.build`** — `BatchBuilder` (a queue placed a batch per tick; a town wall is tens of thousands
+  of blocks and one pass is a freeze for everybody online) and `BuildSnapshot`.
+  - **A refused or already-correct placement is never recorded.** Undoing one writes a block nobody
+    put there.
+  - **Restoring runs in reverse**, so a position covered twice ends on what was first there.
+  - `BukkitGround` places **without physics**: a wall going up with physics on collapses its own
+    gravel, pops its own torches and floods itself where it cut through water.
+- **`world.selection`** — the tool is recognised by **persistent data, never by its name**; on a server
+  whose marking stick is a plain stick, name-matching makes every stick in the world a marking tool.
+  The **off-hand event for the same physical click is ignored** (or every corner is added twice), and a
+  click in a world other than the one the marking began in is not part of it.
+- **`world.visual.OutlineRenderer`** — drawn to the one player marking, never to the world: a preview
+  spawned into the world is a light show everybody in render distance has to watch.
+
+### What the module actually is
+
+**A road decides what to do per *route*, not per column** — `RouteProfiler`. "Is this a bridge?"
+cannot be answered by looking at one column: a road over a six-block stream is a bridge and the same
+road over an ocean is a tunnel, and the only difference is how long the crossing is. Four passes, in
+this order and no other: what the ground says → smoothed → **dips filled** (a gap is spanned, not
+descended into) → **grade capped**. Filling before capping matters — capped first, the road begins
+diving into a ravine and the fill then spans the dive rather than the ravine. Each column's kind falls
+out of its *final* height: `GROUND`, `BRIDGE`, `TUNNEL`, `GLASS_TUNNEL`.
+
+**A gap wider than `max-bridge-span` is deliberately not spanned.** A road does not fly across a whole
+valley; it goes down into it, and a bridge whose far end is out of sight is not a bridge.
+
+**`TerrainReader` replaced `topSolidY`, which is why roads used to be built over treetops.** The old
+scan took the first non-air block from Y=320 down, and a leaf is not air. It also put roads on tall
+grass, on snow layers that melt, and on the surface of the sea. Now foliage, ground cover and snow are
+seen through; water and lava are reported as what they are. Caves below the surface never become the
+ground, because the scan is top-down and stops at the first real one.
+
+**Glass tunnels under long, deep water** (`sea-tunnel-min-length` 24, `sea-tunnel-min-depth` 6, both
+settings). The crossing rests on the sea bed with a glass shell and air inside; short or shallow water
+is bridged instead.
+
+**The shell is derived from the space, not drawn as walls-and-a-ceiling.** Per cross-section it was
+watertight on a straight and not on a bend: two cross-sections meeting at an angle leave a face on the
+outside of the join that no wall-and-ceiling rule ever sees. Under the sea that is not cosmetic —
+water flows on the next tick, so one missing block floods the tunnel overnight, and no static test of
+a placement queue can catch it because a queue does not simulate fluid. So the interior of the whole
+route is worked out first and every face of it that is neither more interior nor road surface gets a
+block, pinned by a diagonal ocean crossing asserting exactly that.
+
+**Clearing is always queued before structure.** A tunnel lining placed before its bore still has the
+hill inside it, and glass placed before the water is cleared is a box full of sea.
+
+**`Occupancy` — the bug that mattered most.** Without it a second road paving across the first
+recorded *the first road's surface* as "what was here before"; tearing the second up then restored a
+hole through a road nobody touched. A structure may now only place into blocks that are free or
+already its own, so a crossing belongs to whichever got there first. Rebuilt at load from what each
+structure's snapshot says it covered, so it never needs a file of its own to fall out of step with.
+
+**Standing structures are protected, and that is not a courtesy.** A build is undone from a snapshot
+of what was there before; let anybody mine a wall and tearing it down afterwards fills their hole with
+blocks that were never there. Explosions are *filtered*, not cancelled — cancelling stops the half of
+the blast that was over open ground too.
+
+**Profiles, not eight material choosers.** `RoadProfile` is plain/lit/grand, `WallProfile` is
+plain/town/fortress, each one button that cycles. A wall profile adds footings that chase the ground,
+a walkway on the **inside** face (outside is a step for whoever is besieging you), battlements whose
+merlon pattern is derived from the column's own coordinates so two runs meeting at a corner line up
+rather than restarting the pattern, and hollow towers at the marked corners.
+
+**Shut and sealed are separate flags**, because they are undone by different people for different
+reasons: a guard opens a shut gate, an owner unseals a bricked-up one. Right-clicking a gate works it,
+subject to the wall's own "anybody may work the gates" switch (**true by default** — somebody who
+walled a village has not thereby said the village is closed). The night curfew is watched on the
+**change of day**, never re-applied on a timer, or a gate somebody deliberately opened at midnight is
+slammed shut a tick later.
+
+**A wall may be charged for** (`charge-materials`, off by default). A four-thousand-block wall
+conjured from nothing is creative mode in survival clothes. The build is **truncated to what the
+builder can pay for** rather than refused whole; clearing stays free and always affordable, or a
+tunnel stops half-bored with the hill still in the road.
+
+**Roads are quicker to walk than the ground beside them** (`road-speed-bonus`, on). A road network
+that is only decoration gets built once; one that is genuinely the quicker way is a thing a server
+keeps extending. Checked on block change only — a move event fires several times a second per player.
+
+**Two seams, both to modules this one does not require.** `claims`: a sign can be pointed at a claim
+and works out the distance, which is the first use this module has ever made of a `ClaimLink` it has
+had all along. `map`: gates and road ends offered as waypoints — **points only, deliberately**, since
+the client protocol carries waypoints and a road is a line and a wall a polygon; drawing either would
+mean pretending it is a claim. `xaeromap-module` now registers its services with Bukkit's
+`ServicesManager` so there is something to ask.
+
+**Signs stand beside the road, one above its surface** — the old code placed them at the paving's own
+height, which is inside the road — face along it in sixteenths (four compass points look askew next to
+a curve), and **remember what they replaced**, so taking one down no longer punches a hole in whatever
+it stood on.
+
+**Deployed 25.08.2026 to the 26.2-Testserver** as `RainsWallsAndRoads-1.0.0.jar` alongside
+`RainsCore-1.31.0.jar` (which replaced 1.19.1). Standalone, and deliberately **not** in the YeukSMP
+bundle — that was asked for directly, and the bundle stayed at 1.17.2. Boot: `Done (18.541s)`, **zero
+warnings and zero exceptions**, the module up with its four permissions registered and its config
+written with every routing setting in it.
+
+One warning appeared on the first of the two boots and was fixed between them: `open-creation`
+collided with `mannequin-module`'s setting of the same name, so this module's is now `open-marking` —
+renamed rather than left colliding, since nothing has ever shipped with the old key.
+
+**Still worth knowing: the module is *running*, not *exercised*.** Nobody has yet marked a wall out on
+that server and watched it go up, so every claim above about how a road looks is a claim about a build
+nobody has watched happen.
+
+**The deploy procedure changed on request, 25.08.2026:** old jars are **deleted, not moved aside**, and
+the `deploy-backup-*` / `mannequin-update-*` folders that had accumulated in the plugins directory were
+removed. `wipe-backup-20260813-151047` was **kept** despite the same instruction, because it is not a
+jar backup: it holds `core.db`, `audit.db` and the moderation notes/reports/staff files from the 13.08
+wipe. That is real data and a separate decision.
+
+## Manhunt — `manhunt-module` / `manhunt-standalone` (RainsManhunt 1.0.0)
+
+The newest module, and the second on the `chained-module`→`speedrun-module` shape: a real, required
+Maven dependency (`provided`, never shaded) on speedrun-module's engine, `RainsSpeedrun` declared as a
+second required host in `manhunt-standalone`'s `paper-plugin.yml`, and its own `SpeedrunSession` built
+fresh per run rather than reaching into speedrun-module's own singleton lobby — a server can run
+`/speedrun` and `/manhunt` as two entirely separate things.
+
+**Two Core teams, not a module-private pair of sets.** `ManhuntTeams` wraps `core.social.team.Teams`
+with `TeamPolicy.match(0, 2)` — exactly two teams, unlimited size each, exclusive colours (lime
+Runners, red Hunters), nobody player-created. `Teams.create` refuses while its own `frozen` supplier
+answers true, which meant a caller wiring `frozen` to "a hunt is running" bricked the constructor
+itself — a hunt cannot be running before its two teams exist to run it. Fixed with a one-shot
+bootstrap flag that unfreezes construction regardless of what the caller's supplier says, found by a
+test that froze from the start on purpose (`ManhuntTeamsTest.rolesCannotChangeWhileFrozen`) and got
+`NO_SUCH_TEAM` instead of `FROZEN`.
+
+**A win condition per side, independently configurable — the two are not branches of one choice.**
+`ManhuntSettings.RunnerWinCondition` (`PORTAL_EXIT` — leaving The End at all, watched the same
+dual-event way speedrun-module's own `DragonExitEndCondition` does, minus the dragon-kill gate; or
+`ADVANCEMENT`, any configured advancement key) and `HunterWinCondition` (`ALL_RUNNERS_DEAD`, a
+Runner-filtered `DeathEndCondition.ALL`; or `TIMEOUT`, a cancellable one-shot global-region timer).
+`ManhuntService.start` arms whichever pair the current settings name; `SpeedrunSession.finish` only
+ever keeps the first to actually fire, so arming both sides at once is safe by construction.
+
+**The head start is a movement freeze, not a location.** `HunterHoldListener` cancels the Hunters'
+own `PlayerMoveEvent` for `hunter-release-delay-seconds` after the Runners are already loose — the
+same `HIGHEST`-priority, same-block-is-not-a-move trick `SpeedrunCountdown.onMove` already uses for
+the whole roster during its countdown, applied here to one side only, afterwards.
+
+**`/whitelist` — the real Bukkit server whitelist, not a match roster**, taking over the bare vanilla
+name on purpose: `open` and `close` are the two new words, gated by this module's own
+`rainsmanhunt.manhunt.whitelist` (a Runner may hold this without holding vanilla's admin-only
+`bukkit.command.whitelist`), and every other word — `add`, `remove`, `list`, `on`, `off`, `reload`, or
+nothing at all — passes straight through to `minecraft:whitelist` unchanged, so no existing admin
+workflow on a server installing this module breaks. `close` snapshots everybody currently online onto
+the whitelist before turning the flag on and never removes an existing entry; `open` only ever flips
+the flag.
+
+**Chaos actions are one command and one menu over the same service, not two implementations of "throw
+something at the hunt".** `ChaosService` gates every `ChaosAction` behind a single cooldown
+(`chaos-cooldown-seconds`) and every action is cosmetic or reversible by design —
+`LIGHTNING_ON_A_RUNNER` is `strikeLightningEffect` (no damage, no fire), every potion effect is short
+and named, `SWAP_POSITIONS` only ever relocates the living. `/manhunt chaos <action>` runs from the
+console; `/manhunt chaos` with no argument opens `ManhuntChaosMenu` for a player. `PotionEffectType`'s
+static fields reach for Paper's registry the same way `mannequin-module`'s `ItemSpec` does — untestable
+in a plain unit test in this reactor, so `ChaosServiceTest` exercises the cooldown gate and the
+targeting logic through `LIGHTNING_ON_A_RUNNER`, which touches no registry, and the potion-effect
+actions are verified by code review and the live boot instead.
+
+**Still worth knowing: the module has never actually run on a live server.** Everything above is
+proven by 44 unit/integration tests plus the shaded jar's own `StandaloneJarTest` (no second RainsCore
+or speedrun-module class inside `RainsManhunt.jar`, service file intact, descriptor correct) and a
+clean `mvn -o clean install` across the whole reactor — nobody has yet started a hunt and watched a
+Runner walk through the exit portal.
+
 ## GUI conventions
 
 Everything below was asked for explicitly. Most of it is pinned by `ScreenGrammarTest` so it cannot drift

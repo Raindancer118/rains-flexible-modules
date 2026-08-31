@@ -1,0 +1,65 @@
+# Rain's Manhunt — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins, and so
+# does a host's bundled wording. See Messages.defineFrom.
+manhunt:
+
+  # ---------------------------------------------------------------- joining a side
+  joined: "<green>You are now on the <white><side></white> side."
+  left: "<yellow>You are no longer on either side."
+  not-on-a-side: "<red>You were not on either side."
+  join-refused:
+    frozen: "<red>Sides cannot be changed while a hunt is running."
+    already-in-that-team: "<yellow>You are already on that side."
+
+  # ---------------------------------------------------------------- running
+  start:
+    started: "<green>The hunt is on."
+    already_running: "<red>A hunt is already going."
+    no_runners: "<red>Nobody has joined the Runners yet."
+    no_hunters: "<red>Nobody has joined the Hunters yet."
+    world_missing: "<red>The configured Manhunt world is not loaded."
+  stop-refused: "<red>There is no hunt going to stop."
+  stopped: "<yellow>The hunt has been stopped."
+  finished: "<gold>The hunt is over — <white><reason></white>, after <white><time></white>."
+
+  # ---------------------------------------------------------------- resetting
+  reset-done: "<green>The map has been reset."
+  reset-refused: "<red>The map could not be reset — is the configured world loaded?"
+
+  # ---------------------------------------------------------------- the server whitelist
+  whitelist:
+    opened: "<green>The whitelist is open — anybody can join."
+    closed: "<yellow>The whitelist is closed — <white><added></white> player(s) newly whitelisted."
+
+  # ---------------------------------------------------------------- chaos
+  chaos:
+    applied: "<gold>Thrown: <white><action></white>."
+    on_cooldown: "<red>Chaos is still cooling down."
+    no_targets: "<red>Nobody for <white><action></white> to act on right now."
+    not_running: "<red>There is no hunt running to throw chaos at."
+
+  # ---------------------------------------------------------------- status
+  status:
+    idle: "<gray>No hunt is going — <white><runners></white> Runner(s), <white><hunters></white> Hunter(s)."
+    running: "<gray><white><runners></white> Runner(s), <white><hunters></white> Hunter(s) — <white><time></white> elapsed."
+
+  # ---------------------------------------------------------------- general
+  only-a-player: "<red>Only somebody standing in the world can do that."
+  not-yours: "<red>Manhunt is not yours to change."
+
+  usage:
+    join: "<gray>/manhunt join <runner|hunter>"
+    reset: "<gray>/manhunt reset [seed <a number|random>]"
+    chaos: "<gray>/manhunt chaos <action>"
+
+  help:
+    - "<gray>/manhunt <dark_gray>— the lobby: sides, and the clock"
+    - "<gray>/manhunt join <runner|hunter> <dark_gray>— put yourself on a side"
+    - "<gray>/manhunt leave <dark_gray>— take yourself off"
+    - "<gray>/manhunt start <dark_gray>— begin the hunt"
+    - "<gray>/manhunt stop <dark_gray>— end it early"
+    - "<gray>/manhunt reset <dark_gray>— throw the map away and make it again"
+    - "<gray>/manhunt status <dark_gray>— the roster and the clock, as text"
+    - "<gray>/manhunt chaos [<action>] <dark_gray>— throw chaos at a running hunt, or open the menu"
+    - "<gray>/whitelist open|close <dark_gray>— open or close the server's doors"
