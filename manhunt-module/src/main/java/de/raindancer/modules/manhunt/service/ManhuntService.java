@@ -76,6 +76,22 @@ public final class ManhuntService {
         return task -> () -> { };
     }
 
+    /**
+     * The seconds between {@link #start} being asked for and the hunt actually beginning. A seam for
+     * the same reason {@link RunTicker} is one: a countdown is a scheduler and a boss bar, and every
+     * decision around it is testable only if the waiting itself can be taken out.
+     */
+    @FunctionalInterface
+    public interface RunCountdown {
+        /** Counts {@code seconds} down in front of {@code participants}, then runs {@code onDone}. */
+        void count(Set<UUID> participants, int seconds, Runnable onDone);
+    }
+
+    /** Never waits at all — runs the hunt immediately. For tests, and for a countdown of zero. */
+    public static RunCountdown immediate() {
+        return (participants, seconds, onDone) -> onDone.run();
+    }
+
     private static final String OWNER = "manhunt";
     private static final String BAR_ID = "run";
 
@@ -85,6 +101,8 @@ public final class ManhuntService {
     private final Messages messages;
     private final SpeedrunReset reset;
     private final RunTicker ticker;
+    private final RunCountdown countdown;
+    private final ManhuntLives lives;
 
     private volatile ManhuntSettings settings;
 
@@ -92,29 +110,45 @@ public final class ManhuntService {
     private BiConsumer<Set<UUID>, SpeedrunOutcome> onFinished = (roster, outcome) -> { };
 
     private SpeedrunSession session;
+    /** True from the moment a countdown begins until the hunt it belongs to is over — see
+     *  {@link #isRunning()}, which a second {@code /manhunt start} and the roster freeze both ask. */
+    private volatile boolean counting;
     private SpeedrunOccupancyListener occupancy;
     private HunterHoldListener hold;
     private AutoCloseable ticking;
 
     public ManhuntService(Plugin plugin, ManhuntTeams teams, BossBars bossBars, Messages messages,
                           ManhuntSettings settings) {
-        this(plugin, teams, bossBars, messages, new SpeedrunReset(), viaScheduling(plugin), settings);
+        this(plugin, teams, bossBars, messages, new SpeedrunReset(), viaScheduling(plugin),
+                ManhuntCountdown.viaScheduling(plugin, bossBars, messages), settings);
     }
 
-    /** The same, with the world-reset step and the ticker injectable — what the tests use. */
+    /** The same, with the world-reset step, the ticker and the countdown injectable — what the
+     *  tests use. */
     ManhuntService(Plugin plugin, ManhuntTeams teams, BossBars bossBars, Messages messages,
-                  SpeedrunReset reset, RunTicker ticker, ManhuntSettings settings) {
+                  SpeedrunReset reset, RunTicker ticker, RunCountdown countdown,
+                  ManhuntSettings settings) {
         this.plugin = plugin;
         this.teams = teams;
         this.bossBars = bossBars;
         this.messages = messages;
         this.reset = reset;
         this.ticker = ticker;
+        this.countdown = countdown;
+        this.lives = new ManhuntLives(settings);
         settings(settings);
     }
 
     public void settings(ManhuntSettings fresh) {
         this.settings = fresh;
+        if (lives != null) {
+            lives.settings(fresh);
+        }
+    }
+
+    /** Who is still standing, and what a death costs them — see {@link ManhuntLives}. */
+    public ManhuntLives lives() {
+        return lives;
     }
 
     public ManhuntSettings config() {
@@ -127,7 +161,7 @@ public final class ManhuntService {
 
     /** Whether the roster may currently change sides — {@link ManhuntTeams}' own "fact about the moment". */
     public boolean isRunning() {
-        return session != null && session.state() != SpeedrunState.FINISHED;
+        return counting || (session != null && session.state() != SpeedrunState.FINISHED);
     }
 
     public Optional<SpeedrunSession> session() {
@@ -178,6 +212,27 @@ public final class ManhuntService {
         }
 
         Set<UUID> everybody = teams.everybody();
+        int seconds = config.countdownSecondsClamped();
+        if (seconds <= 0) {
+            begin(config, runners, hunters, everybody);
+            return StartOutcome.STARTED;
+        }
+        // Counting, not yet running: the roster is already frozen (see isRunning) so nobody can
+        // switch sides during the count, and a second /manhunt start is refused rather than starting
+        // a parallel hunt behind the first one's countdown.
+        counting = true;
+        countdown.count(everybody, seconds, () -> {
+            counting = false;
+            // Re-read: an owner may have changed something during the count, and the roster itself
+            // cannot have moved because the freeze above held it.
+            begin(settings, teams.runners(), teams.hunters(), teams.everybody());
+        });
+        return StartOutcome.STARTED;
+    }
+
+    /** The hunt itself, once whatever countdown there was has run out. */
+    private void begin(ManhuntSettings config, Set<UUID> runners, Set<UUID> hunters, Set<UUID> everybody) {
+        lives.reset();
         SpeedrunSession fresh = new SpeedrunSession(everybody);
         for (SpeedrunEndCondition condition : conditionsFor(config, runners)) {
             fresh.addEndCondition(condition);
@@ -203,7 +258,6 @@ public final class ManhuntService {
         ticking = ticker.everySecond(this::tick);
         resetParticipants(everybody);
         onStart.accept(everybody);
-        return StartOutcome.STARTED;
     }
 
     /**
@@ -251,10 +305,18 @@ public final class ManhuntService {
             case ADVANCEMENT -> new RunnerAdvancementEndCondition(plugin, runnerAdvancementKey(config), runners);
         };
         SpeedrunEndCondition hunterSide = switch (config.hunterWin()) {
-            case ALL_RUNNERS_DEAD -> new AllRunnersDeadEndCondition(plugin, runners);
+            case ALL_RUNNERS_DEAD -> new AllRunnersDeadEndCondition(plugin, runners, lives);
             case TIMEOUT -> new TimeoutEndCondition(plugin, Duration.ofMinutes(config.hunterTimeoutMinutesClamped()));
         };
-        return List.of(runnerSide, hunterSide);
+        List<SpeedrunEndCondition> armed = new java.util.ArrayList<>(List.of(runnerSide, hunterSide));
+        // Under TIMEOUT, nothing above watches the Runners dying — and a hunt whose every Runner is
+        // eliminated is over whatever the clock says, since there is nobody left who could still win
+        // it. Never armed twice: under ALL_RUNNERS_DEAD the condition above is already that watcher.
+        if (config.hunterWin() != ManhuntSettings.HunterWinCondition.ALL_RUNNERS_DEAD
+                && config.runnerDeathRule() != ManhuntSettings.RunnerDeathRule.RESPAWN) {
+            armed.add(new AllRunnersDeadEndCondition(plugin, runners, lives));
+        }
+        return List.copyOf(armed);
     }
 
     private static NamespacedKey runnerAdvancementKey(ManhuntSettings config) {
@@ -311,6 +373,7 @@ public final class ManhuntService {
     }
 
     private void endRun() {
+        counting = false;
         releaseHunters();
         if (occupancy != null) {
             HandlerList.unregisterAll(occupancy);

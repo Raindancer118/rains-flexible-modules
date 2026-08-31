@@ -35,6 +35,8 @@ import org.bukkit.Material;
         @Topic(path = "manhunt/roster", title = "Joining a side", icon = Material.PLAYER_HEAD),
         @Topic(path = "manhunt/lobby", title = "The waiting lobby", icon = Material.ITEM_FRAME),
         @Topic(path = "manhunt/tracker", title = "The tracking compass", icon = Material.COMPASS),
+        @Topic(path = "manhunt/death", title = "Dying", icon = Material.SKELETON_SKULL),
+        @Topic(path = "manhunt/finish", title = "When it is over", icon = Material.GOLDEN_APPLE),
 })
 public record ManhuntSettings(
 
@@ -189,7 +191,53 @@ public record ManhuntSettings(
         @Describe("A Hunter who dies drops their compass with everything else. On: they are handed "
                 + "a fresh one on respawn. Off: losing it is losing it.")
         @Key("tracker-give-on-respawn")
-        boolean trackerGiveOnRespawn) {
+        boolean trackerGiveOnRespawn,
+
+        @In("manhunt/start") @Title("Countdown before the hunt, in seconds") @Range(min = 0, max = 60)
+        @Describe("Everybody is frozen and counted down before the clock starts, so a hunt begins "
+                + "on a shared 'go' rather than whenever somebody typed the command. Zero starts "
+                + "the moment it is asked for.")
+        @Key("countdown-seconds")
+        int countdownSeconds,
+
+        @In("manhunt/death") @Title("What a Runner's death costs them")
+        @Describe("RESPAWN: nothing — they come back and the hunt goes on. ELIMINATE: one death "
+                + "and they are out of the hunt for good. LIVES: they are out after the number of "
+                + "deaths set below.")
+        @Key("runner-death-rule")
+        RunnerDeathRule runnerDeathRule,
+
+        @In("manhunt/death") @Title("Lives per Runner") @Range(min = 1, max = 10)
+        @Describe("Only used when the rule above is LIVES.")
+        @Key("runner-lives")
+        int runnerLives,
+
+        @In("manhunt/death") @Title("A Runner who is out watches on")
+        @Describe("On: an eliminated Runner is put into Spectator, so they can follow the rest of "
+                + "the hunt instead of standing at their spawn. Off: they are left where the "
+                + "server would have put them.")
+        @Key("eliminated-spectate")
+        boolean eliminatedSpectate,
+
+        @In("manhunt/death") @Title("A dead Hunter waits, in seconds") @Range(min = 0, max = 300)
+        @Describe("A Hunter is held in Spectator this long after dying before being let back in — "
+                + "a death penalty for the side that can afford to die. Zero lets them straight "
+                + "back.")
+        @Key("hunter-respawn-delay-seconds")
+        int hunterRespawnDelaySeconds,
+
+        @In("manhunt/finish") @Title("Everybody back to the lobby when it ends")
+        @Describe("On: the moment a hunt is over, every participant is put back in the waiting "
+                + "lobby (if one has been placed). Off: everybody stays exactly where the hunt "
+                + "left them.")
+        @Key("return-to-lobby-on-finish")
+        boolean returnToLobbyOnFinish,
+
+        @In("manhunt/finish") @Title("Keep the sides for a rematch")
+        @Describe("On: the two rosters survive the end of a hunt, so the next one starts with the "
+                + "same sides. Off: everybody is taken off their side and has to join again.")
+        @Key("keep-roster-on-finish")
+        boolean keepRosterOnFinish) {
 
     /** How a Runner side wins. */
     public enum RunnerWinCondition { PORTAL_EXIT, ADVANCEMENT }
@@ -199,6 +247,9 @@ public record ManhuntSettings(
 
     /** How a reset world's terrain is chosen. */
     public enum SeedChoice { FIXED, RANDOM }
+
+    /** What a Runner's death costs them. */
+    public enum RunnerDeathRule { RESPAWN, ELIMINATE, LIVES }
 
     /** Whether the tracking compass follows the nearest Runner or one the Hunter picked. */
     public enum TrackerTargets { NEAREST, CHOSEN }
@@ -215,7 +266,9 @@ public record ManhuntSettings(
             10,
             true,
             false, "", 0, 0, 0, 0, 15,
-            true, 10, TrackerTargets.CHOSEN, CrossWorldTracking.LAST_PORTAL, true, true);
+            true, 10, TrackerTargets.CHOSEN, CrossWorldTracking.LAST_PORTAL, true, true,
+            5, RunnerDeathRule.ELIMINATE, 3, true, 0,
+            true, true);
 
     // ------------------------------------------------------------------ read back safely
 
@@ -235,6 +288,18 @@ public record ManhuntSettings(
         return Math.max(1, Math.min(100, trackerRefreshTicks));
     }
 
+    public int countdownSecondsClamped() {
+        return Math.max(0, Math.min(60, countdownSeconds));
+    }
+
+    public int runnerLivesClamped() {
+        return Math.max(1, Math.min(10, runnerLives));
+    }
+
+    public int hunterRespawnDelaySecondsClamped() {
+        return Math.max(0, Math.min(300, hunterRespawnDelaySeconds));
+    }
+
     // ------------------------------------------------------------------ one component at a time
 
     public ManhuntSettings withRunnerWin(RunnerWinCondition condition) {
@@ -243,7 +308,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withRunnerAdvancementKey(String key) {
@@ -252,7 +319,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withHunterWin(HunterWinCondition condition) {
@@ -261,7 +330,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withHunterTimeoutMinutes(int minutes) {
@@ -270,7 +341,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withHunterReleaseDelaySeconds(int seconds) {
@@ -279,7 +352,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withResetOnStart(boolean reset) {
@@ -288,7 +363,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withWorldName(String world) {
@@ -297,7 +374,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withSeedChoice(SeedChoice choice) {
@@ -306,7 +385,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withSeedValue(long seed) {
@@ -315,7 +396,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withCloseWhitelistOnStart(boolean close) {
@@ -324,7 +407,9 @@ public record ManhuntSettings(
                 close, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withChaosCooldownSeconds(int seconds) {
@@ -333,7 +418,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, seconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withRunnerSelfJoinEnabled(boolean enabled) {
@@ -342,7 +429,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 enabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withLobbySpawnSet(boolean set) {
@@ -351,7 +440,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, set, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withLobbyWorldName(String world) {
@@ -360,7 +451,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, world, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withLobbyX(double x) {
@@ -369,7 +462,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, x, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withLobbyY(double y) {
@@ -378,7 +473,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, y, lobbyZ, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withLobbyZ(double z) {
@@ -387,7 +484,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, z, lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withLobbyYaw(double yaw) {
@@ -396,7 +495,9 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, yaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withTrackerCompassEnabled(boolean enabled) {
@@ -406,7 +507,9 @@ public record ManhuntSettings(
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
                 lobbyYaw, lobbyRadius,
                 enabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withTrackerRefreshTicks(int ticks) {
@@ -416,7 +519,9 @@ public record ManhuntSettings(
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
                 lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, ticks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withTrackerTargets(TrackerTargets targets) {
@@ -426,7 +531,9 @@ public record ManhuntSettings(
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
                 lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, targets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withTrackerCrossWorld(CrossWorldTracking crossWorld) {
@@ -436,7 +543,9 @@ public record ManhuntSettings(
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
                 lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, crossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withTrackerShowDistance(boolean shown) {
@@ -446,7 +555,9 @@ public record ManhuntSettings(
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
                 lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                shown, trackerGiveOnRespawn);
+                shown, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 
     public ManhuntSettings withTrackerGiveOnRespawn(boolean given) {
@@ -456,7 +567,93 @@ public record ManhuntSettings(
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ,
                 lobbyYaw, lobbyRadius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, given);
+                trackerShowDistance, given,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
+    }
+
+    public ManhuntSettings withCountdownSeconds(int value) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
+                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, value, runnerDeathRule, runnerLives,
+                eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish);
+    }
+
+    public ManhuntSettings withRunnerDeathRule(RunnerDeathRule value) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
+                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, value, runnerLives,
+                eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish);
+    }
+
+    public ManhuntSettings withRunnerLives(int value) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
+                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                value, eliminatedSpectate, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish);
+    }
+
+    public ManhuntSettings withEliminatedSpectate(boolean value) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
+                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, value, hunterRespawnDelaySeconds, returnToLobbyOnFinish,
+                keepRosterOnFinish);
+    }
+
+    public ManhuntSettings withHunterRespawnDelaySeconds(int value) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
+                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, value, returnToLobbyOnFinish,
+                keepRosterOnFinish);
+    }
+
+    public ManhuntSettings withReturnToLobbyOnFinish(boolean value) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
+                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds, value,
+                keepRosterOnFinish);
+    }
+
+    public ManhuntSettings withKeepRosterOnFinish(boolean value) {
+        return new ManhuntSettings(
+                runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds, runnerSelfJoinEnabled,
+                lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius,
+                trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
+                trackerShowDistance, trackerGiveOnRespawn, countdownSeconds, runnerDeathRule,
+                runnerLives, eliminatedSpectate, hunterRespawnDelaySeconds,
+                returnToLobbyOnFinish, value);
     }
 
     public ManhuntSettings withLobbyRadius(int radius) {
@@ -465,6 +662,8 @@ public record ManhuntSettings(
                 closeWhitelistOnStart, chaosCooldownSeconds,
                 runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, radius,
                 trackerCompassEnabled, trackerRefreshTicks, trackerTargets, trackerCrossWorld,
-                trackerShowDistance, trackerGiveOnRespawn);
+                trackerShowDistance, trackerGiveOnRespawn,
+                countdownSeconds, runnerDeathRule, runnerLives, eliminatedSpectate,
+                hunterRespawnDelaySeconds, returnToLobbyOnFinish, keepRosterOnFinish);
     }
 }

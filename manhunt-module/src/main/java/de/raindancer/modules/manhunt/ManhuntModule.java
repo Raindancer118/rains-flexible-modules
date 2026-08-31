@@ -17,6 +17,8 @@ import de.raindancer.modules.manhunt.service.ManhuntAchievements;
 import de.raindancer.modules.manhunt.service.ManhuntLobbyBox;
 import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
 import de.raindancer.modules.manhunt.service.ManhuntService;
+import de.raindancer.modules.manhunt.service.ManhuntDeathListener;
+import de.raindancer.modules.manhunt.service.ManhuntEndOfRun;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
 import de.raindancer.modules.manhunt.service.PortalMemory;
 import de.raindancer.modules.manhunt.service.TrackerCompass;
@@ -103,24 +105,37 @@ public final class ManhuntModule implements FlexModule {
         server.getPluginManager().registerEvents(
                 new TrackerListener(liveManhunt, tracker, portals), context.plugin());
 
+        // What a death costs, and what happens once it is all over. Both registered once, like the
+        // waiting lobby: each asks whether a hunt is running before it does anything.
+        ManhuntDeathListener deaths = new ManhuntDeathListener(context.plugin(), liveManhunt,
+                liveManhunt.lives(), context.core().messages(), settings.current());
+        settings.onChange(deaths::settings);
+        server.getPluginManager().registerEvents(deaths, context.plugin());
+
+        ManhuntEndOfRun endOfRun = new ManhuntEndOfRun(context.plugin(), teams, lobbyListener,
+                settings.current());
+        settings.onChange(endOfRun::settings);
+
         ManhuntAchievements manhuntAchievements = new ManhuntAchievements(context.core().achievements());
         manhuntAchievements.defineAll();
         // Both hooks take exactly one caller each (see ManhuntService.onStart) — stacking two concerns
         // behind the same moment is this wiring class' job, not the service's.
         liveManhunt.onStart(roster -> {
             manhuntAchievements.awardFirstHunt(roster);
+            deaths.reset();
             tracker.armFor(roster);
         });
         liveManhunt.onFinished((everybody, outcome) -> {
             manhuntAchievements.awardWin(everybody, teams, outcome.reason());
             tracker.disarm();
+            endOfRun.finish(everybody);
         });
 
         this.services = new ManhuntServices(
                 context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, settings,
-                liveManhunt, chaos, whitelist, manhuntAchievements, lobbyListener, tracker,
+                liveManhunt, chaos, whitelist, manhuntAchievements, lobbyListener, tracker, deaths,
                 new LiveScreens());
 
         // The command was registered during bootstrap, long before any of this existed, and has been

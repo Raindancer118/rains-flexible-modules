@@ -62,7 +62,8 @@ class ManhuntServiceTest {
      *  Bukkit's advancement API, so most tests need no {@code mockStatic(Bukkit.class)} at all. */
     private static final ManhuntSettings PLAIN = ManhuntSettings.DEFAULTS
             .withResetOnStart(false)
-            .withHunterReleaseDelaySeconds(0);
+            .withHunterReleaseDelaySeconds(0)
+            .withCountdownSeconds(0);
 
     @BeforeEach
     void setUp() {
@@ -81,7 +82,31 @@ class ManhuntServiceTest {
     }
 
     private ManhuntService service(ManhuntSettings settings) {
-        return new ManhuntService(plugin, teams, bossBars, messages, reset, ManhuntService.manual(), settings);
+        return service(settings, ManhuntService.immediate());
+    }
+
+    private ManhuntService service(ManhuntSettings settings, ManhuntService.RunCountdown countdown) {
+        return new ManhuntService(plugin, teams, bossBars, messages, reset, ManhuntService.manual(),
+                countdown, settings);
+    }
+
+    /** A countdown that is asked for but never finishes, so "during the count" is a state a test can
+     *  actually stand in. */
+    private static final class HeldCountdown implements ManhuntService.RunCountdown {
+        private Runnable pending;
+        private int seconds;
+
+        @Override
+        public void count(java.util.Set<UUID> participants, int seconds, Runnable onDone) {
+            this.seconds = seconds;
+            this.pending = onDone;
+        }
+
+        void finish() {
+            Runnable go = pending;
+            pending = null;
+            go.run();
+        }
     }
 
     @Nested
@@ -311,4 +336,87 @@ class ManhuntServiceTest {
             assertThat(seenOutcome.get().reason()).isEqualTo("manual");
         }
     }
+
+    @Nested
+    @DisplayName("the countdown before a hunt")
+    class Countdown {
+
+        @Test
+        @DisplayName("a countdown of zero starts the hunt outright")
+        void zeroStartsImmediately() {
+            teams.joinRunners(runner);
+            teams.joinHunters(hunter);
+            ManhuntService service = service(PLAIN);
+
+            assertThat(service.start()).isEqualTo(ManhuntService.StartOutcome.STARTED);
+            assertThat(service.session()).isPresent();
+        }
+
+        @Test
+        @DisplayName("a countdown is asked for with the configured seconds and the whole roster")
+        void countdownIsAskedFor() {
+            teams.joinRunners(runner);
+            teams.joinHunters(hunter);
+            HeldCountdown held = new HeldCountdown();
+            ManhuntService service = service(PLAIN.withCountdownSeconds(5), held);
+
+            assertThat(service.start()).isEqualTo(ManhuntService.StartOutcome.STARTED);
+            assertThat(held.seconds).isEqualTo(5);
+        }
+
+        @Test
+        @DisplayName("no session exists until the count runs out")
+        void noSessionWhileCounting() {
+            teams.joinRunners(runner);
+            teams.joinHunters(hunter);
+            HeldCountdown held = new HeldCountdown();
+            ManhuntService service = service(PLAIN.withCountdownSeconds(5), held);
+
+            service.start();
+
+            assertThat(service.session()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("the roster is already frozen while counting, so nobody switches sides mid-count")
+        void frozenWhileCounting() {
+            teams.joinRunners(runner);
+            teams.joinHunters(hunter);
+            HeldCountdown held = new HeldCountdown();
+            ManhuntService service = service(PLAIN.withCountdownSeconds(5), held);
+
+            service.start();
+
+            assertThat(service.isRunning()).isTrue();
+        }
+
+        @Test
+        @DisplayName("a second start during the count is refused rather than stacking a hunt")
+        void doubleStartDuringCount() {
+            teams.joinRunners(runner);
+            teams.joinHunters(hunter);
+            HeldCountdown held = new HeldCountdown();
+            ManhuntService service = service(PLAIN.withCountdownSeconds(5), held);
+
+            service.start();
+
+            assertThat(service.start()).isEqualTo(ManhuntService.StartOutcome.ALREADY_RUNNING);
+        }
+
+        @Test
+        @DisplayName("the hunt begins the moment the count runs out")
+        void beginsWhenTheCountEnds() {
+            teams.joinRunners(runner);
+            teams.joinHunters(hunter);
+            HeldCountdown held = new HeldCountdown();
+            ManhuntService service = service(PLAIN.withCountdownSeconds(5), held);
+
+            service.start();
+            held.finish();
+
+            assertThat(service.session()).isPresent();
+            assertThat(service.isRunning()).isTrue();
+        }
+    }
+
 }

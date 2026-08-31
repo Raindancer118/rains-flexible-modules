@@ -44,6 +44,19 @@ manhunt:
     no_targets: "<red>Nobody for <white><action></white> to act on right now."
     not_running: "<red>There is no hunt running to throw chaos at."
 
+  # ---------------------------------------------------------------- the countdown
+  countdown:
+    tick: "<yellow>The hunt begins in <white><seconds></white>…"
+    go: "<green>Go."
+
+  # ---------------------------------------------------------------- dying
+  death:
+    lives-left: "<red>You died. <white><lives></white> live(s) left."
+    eliminated: "<dark_red>You are out of the hunt."
+    eliminated-watching: "<dark_red>You are out of the hunt — watch the rest of it."
+    hunter-waiting: "<gray>Back in <white><seconds></white> second(s)."
+    hunter-back: "<green>Back in the hunt."
+
   # ---------------------------------------------------------------- the tracking compass
   tracker:
     given: "<gold>You have been handed a tracking compass."
@@ -90,7 +103,7 @@ manhunt:
     - "<gray>/manhunt status <dark_gray>— the roster and the clock, as text"
     - "<gray>/manhunt chaos [<action>] <dark_gray>— throw chaos at a running hunt, or open the menu"
     - "<gray>/manhunt achievements <dark_gray>— the curated set, earned or not"
-    - "<gray>/manhunt options <dark_gray>— five quick-access settings for this hunt"
+    - "<gray>/manhunt options <dark_gray>— how a hunt is set up: winning, dying, and ending"
     - "<gray>/manhunt tracker <dark_gray>— everything the Hunters' tracking compass does"
     - "<gray>/manhunt setlobby <dark_gray>— place the waiting lobby where you are standing"
     - "<gray>/manhunt goal <advancement-key> <dark_gray>— set the Runners' win advancement, with tab-completion"
