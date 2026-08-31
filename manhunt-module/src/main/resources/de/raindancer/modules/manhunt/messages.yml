@@ -11,6 +11,11 @@ manhunt:
   join-refused:
     frozen: "<red>Sides cannot be changed while a hunt is running."
     already-in-that-team: "<yellow>You are already on that side."
+    runners-locked: "<red>Only an admin can put you on the Runners right now."
+
+  # ---------------------------------------------------------------- the waiting lobby
+  no-fighting-in-lobby: "<red>Nobody fights in the waiting lobby."
+  lobby-set: "<green>The waiting lobby is now here."
 
   # ---------------------------------------------------------------- running
   start:
@@ -39,6 +44,15 @@ manhunt:
     no_targets: "<red>Nobody for <white><action></white> to act on right now."
     not_running: "<red>There is no hunt running to throw chaos at."
 
+  # ---------------------------------------------------------------- achievements
+  achievements:
+    header: "<gold>Manhunt achievements — <white><count></white> shown, <white><hidden></white> still hidden."
+    entry: "<gray>  <white><title></white> <dark_gray>(<points> pt) — <description>"
+
+  # ---------------------------------------------------------------- options
+  options:
+    console-only: "<gray>Options are edited in-game with /manhunt options, or in full at /settings."
+
   # ---------------------------------------------------------------- status
   status:
     idle: "<gray>No hunt is going — <white><runners></white> Runner(s), <white><hunters></white> Hunter(s)."
@@ -52,14 +66,19 @@ manhunt:
     join: "<gray>/manhunt join <runner|hunter>"
     reset: "<gray>/manhunt reset [seed <a number|random>]"
     chaos: "<gray>/manhunt chaos <action>"
+    assign: "<gray>/manhunt assign <player> <runner|hunter>"
 
   help:
     - "<gray>/manhunt <dark_gray>— the lobby: sides, and the clock"
     - "<gray>/manhunt join <runner|hunter> <dark_gray>— put yourself on a side"
     - "<gray>/manhunt leave <dark_gray>— take yourself off"
+    - "<gray>/manhunt assign <player> <runner|hunter> <dark_gray>— put somebody else on a side"
     - "<gray>/manhunt start <dark_gray>— begin the hunt"
     - "<gray>/manhunt stop <dark_gray>— end it early"
     - "<gray>/manhunt reset <dark_gray>— throw the map away and make it again"
     - "<gray>/manhunt status <dark_gray>— the roster and the clock, as text"
     - "<gray>/manhunt chaos [<action>] <dark_gray>— throw chaos at a running hunt, or open the menu"
+    - "<gray>/manhunt achievements <dark_gray>— the curated set, earned or not"
+    - "<gray>/manhunt options <dark_gray>— five quick-access settings for this hunt"
+    - "<gray>/manhunt setlobby <dark_gray>— place the waiting lobby where you are standing"
     - "<gray>/whitelist open|close <dark_gray>— open or close the server's doors"

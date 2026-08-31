@@ -795,10 +795,87 @@ targeting logic through `LIGHTNING_ON_A_RUNNER`, which touches no registry, and 
 actions are verified by code review and the live boot instead.
 
 **Still worth knowing: the module has never actually run on a live server.** Everything above is
-proven by 44 unit/integration tests plus the shaded jar's own `StandaloneJarTest` (no second RainsCore
+proven by 60 unit/integration tests plus the shaded jar's own `StandaloneJarTest` (no second RainsCore
 or speedrun-module class inside `RainsManhunt.jar`, service file intact, descriptor correct) and a
 clean `mvn -o clean install` across the whole reactor — nobody has yet started a hunt and watched a
 Runner walk through the exit portal.
+
+**Nine achievements over RainsCore's `Achievements`, seven of them curated into the GUI band, two
+command-only.** `ManhuntAchievements` is `ChaosService`'s own shape applied to a different Core
+service: one class that owns every rule about *when* something is earned, so a menu click and a
+console command award through the identical call rather than each re-deriving "did they win, and
+which side". `first-hunt` fires on any run that actually starts; `runner-portal` /
+`runner-advancement` / `hunter-elimination` / `hunter-timeout` are read straight off
+`SpeedrunOutcome.reason()` — `"portal-exit"`, `"advancement:…"`, `"all-runners-dead"`, `"timeout"` —
+with `"manual"` and `"plugin-disable"` deliberately mapping to nobody, because stopping a hunt by hand
+is not winning it; `chaos-agent` and `gatekeeper` are the two visible enough to want an icon but small
+enough not to need secrecy. `open-doors` and `chaos-veteran` are `hidden(true)` — reachable only by
+earning them or by `/manhunt achievements`' full console listing — because a server showing "Open the
+whitelist again" as a permanent button in the same band as "Win as a Runner" would read as the game
+asking to be gamed for an easy point, not as a milestone.
+
+**Wired into `ManhuntService` by two hooks, not by widening its constructor.** `onStart(Consumer<Set
+<UUID>>)` and `onFinished(BiConsumer<Set<UUID>, SpeedrunOutcome>)` are single-slot callbacks — default
+no-ops — called from exactly the two moments `start()` already reaches: right before it returns
+`STARTED`, and inside the `fresh.onFinish` lambda that already calls `announceFinish`. Achievements are
+therefore something `ManhuntModule.enable()` bolts on from the outside
+(`liveManhunt.onStart(manhuntAchievements::awardFirstHunt)`), the same "compose in the wiring class,
+not in the service" reasoning `ChaosService` already gets for free by taking a `ManhuntService`
+reference instead of being handed constructor flags for every feature that will ever want to react to
+a run starting or ending. `ManhuntServiceTest`'s existing constructor-based assertions did not change;
+three new cases in a `Hooks` nested class cover firing, not firing on a refused start, and firing with
+the right roster and outcome on finish.
+
+**Five settings get a quick-access icon in `ManhuntOptionsMenu`; the other six stay in `/settings`
+alone.** Every field of `ManhuntSettings` already renders in the server's generic settings GUI, because
+`@Topic` already declares a `Material` per field — building a second, parallel settings screen inside
+Manhunt would be a second copy of that rendering logic for no reason. What Manhunt's own menu adds is
+convenience: the win conditions, the map-reset and whitelist-on-start flags, and the seed policy are
+the five an admin changes between matches, not once at setup, so they get a one-click cycle
+(`SettingsStore.cycle` + `save()`, the exact call the generic menu's `SettingsMenu.onClick` already
+makes for `CYCLED`) without leaving the Manhunt lobby. There is exactly one place any of these nine
+settings can change — the shared `SettingsStore` — whichever menu the click came through.
+
+**Runners can be locked to admin-only, with `/manhunt assign` as the escape hatch.**
+`runnerSelfJoinEnabled` (default `true`) gates the self-service half of `/manhunt join runner` and
+`ManhuntLobbyMenu`'s own "Join Runners" band — Hunters are never affected, on purpose, since the
+setting exists for servers that want to hand-pick who chases rather than who runs. A locked band is
+shown greyed via `Icons.locked(...)` with a reason rather than hidden, the same "a live-looking button
+that errors teaches distrust" reasoning already documented on `Icons.locked` itself. The lock has one
+deliberate hole: `/manhunt assign <player> <side>`, gated by the same `ADMIN` node as `start`/`stop`,
+calls `teams.joinRunners`/`joinHunters` directly and never consults the setting at all — an admin's own
+explicit action is not the thing being locked, the *player's own* self-service click is.
+
+**The waiting lobby is pure geometry with no memory of who is in it, for the same reason
+`LobbyBoxService` in `hungergames-module` documents for its own source.** `ManhuntLobbyBox` is a
+Bukkit-free record-and-arithmetic class — a cube (three independent `abs(...) <= radius` checks, not a
+sphere) around a configured spawn point, re-derived fresh from the live `ManhuntSettings` on every
+question rather than cached. A stateful "am I holding this player in the lobby" flag can drift from
+reality the moment another plugin teleports somebody away or the server restarts mid-hunt; asking pure
+geometry against the player's actual current position cannot. `ManhuntLobbyListener` is the thin Bukkit
+half — `relocateIfWaiting` and `releaseIfHeld` are plain methods, not event handlers, because there is
+no Bukkit event for "joined a Manhunt side" in this reactor's own established convention, so both
+`ManhuntCommand.join()`/`assign()` and both of `ManhuntLobbyMenu`'s join bands call them directly, right
+where each already calls `teams.joinRunners`/`joinHunters`. Adventure mode is the same free
+build-and-break block `hungergames-module`'s glass lobby already relies on. The listener is registered
+once, at `ManhuntModule.enable()`, rather than per-run like `HunterHoldListener` — a player can join a
+side at any time, not only while a hunt is going.
+
+**A hunt start is also a clean slate: health, hunger, potion effects and gamemode, for everybody still
+online.** `ManhuntService.start()` resets every online participant to full health (off
+`Attribute.MAX_HEALTH`, the same constant `RainsCore`'s `BukkitPlayerAdminSink` already reads it
+through), full food and saturation, clears every active potion effect (copied first — removing through
+the live view throws `ConcurrentModificationException`), and drops them out of Adventure mode if the
+waiting lobby left them in it — the same guarded `if (gameMode == ADVENTURE) setGameMode(SURVIVAL)`
+`ManhuntLobbyListener.releaseIfHeld` uses, inlined here rather than duplicated through a second call,
+since this loop already exists for the rest of the reset and a run starting is the one moment both
+concerns are true at once. Reads through `plugin.getServer().getPlayer(id)` rather than the static
+`Bukkit.getPlayer(id)` the rest of this class uses for the post-run announcement — the mocked `Server`
+already stood up in `ManhuntServiceTest`'s `@BeforeEach` answers `null` for that without every existing
+`start()` test needing its own `mockStatic(Bukkit.class)` just for this one loop. A no-op in every
+current test for the same reason; not given its own assertions, since forcing `Bukkit.getPlayer` to
+answer a real mocked `Player` would mean widening scaffolding several existing, unrelated test classes
+share for a single new call site.
 
 ## GUI conventions
 

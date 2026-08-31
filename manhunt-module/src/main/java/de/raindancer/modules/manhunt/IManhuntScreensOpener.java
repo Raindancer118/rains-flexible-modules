@@ -10,4 +10,10 @@ public interface IManhuntScreensOpener {
 
     /** The chaos menu: one button per {@code ChaosAction}. */
     void chaos(Player viewer);
+
+    /** The achievements menu: the curated set, with icons, earned or not. */
+    void achievements(Player viewer);
+
+    /** The options menu: a curated quick-access subset of ManhuntSettings, with icons. */
+    void options(Player viewer);
 }

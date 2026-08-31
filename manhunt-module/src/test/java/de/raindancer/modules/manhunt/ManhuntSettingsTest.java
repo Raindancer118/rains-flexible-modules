@@ -14,6 +14,10 @@ class ManhuntSettingsTest {
         assertThat(d.hunterWin()).isEqualTo(ManhuntSettings.HunterWinCondition.ALL_RUNNERS_DEAD);
         assertThat(d.resetOnStart()).isTrue();
         assertThat(d.closeWhitelistOnStart()).isTrue();
+        assertThat(d.runnerSelfJoinEnabled()).isTrue();
+        assertThat(d.lobbySpawnSet()).isFalse();
+        assertThat(d.lobbyWorldName()).isEmpty();
+        assertThat(d.lobbyRadius()).isEqualTo(15);
     }
 
     @Test
@@ -29,7 +33,15 @@ class ManhuntSettingsTest {
                 .withCloseWhitelistOnStart(false)
                 .withChaosCooldownSeconds(30)
                 .withResetOnStart(false)
-                .withRunnerAdvancementKey("minecraft:adventure/kill_a_mob");
+                .withRunnerAdvancementKey("minecraft:adventure/kill_a_mob")
+                .withRunnerSelfJoinEnabled(false)
+                .withLobbySpawnSet(true)
+                .withLobbyWorldName("hunt")
+                .withLobbyX(1.5)
+                .withLobbyY(64.0)
+                .withLobbyZ(-3.5)
+                .withLobbyYaw(90.0)
+                .withLobbyRadius(30);
 
         assertThat(changed.runnerWin()).isEqualTo(ManhuntSettings.RunnerWinCondition.ADVANCEMENT);
         assertThat(changed.hunterWin()).isEqualTo(ManhuntSettings.HunterWinCondition.TIMEOUT);
@@ -42,6 +54,14 @@ class ManhuntSettingsTest {
         assertThat(changed.chaosCooldownSeconds()).isEqualTo(30);
         assertThat(changed.resetOnStart()).isFalse();
         assertThat(changed.runnerAdvancementKey()).isEqualTo("minecraft:adventure/kill_a_mob");
+        assertThat(changed.runnerSelfJoinEnabled()).isFalse();
+        assertThat(changed.lobbySpawnSet()).isTrue();
+        assertThat(changed.lobbyWorldName()).isEqualTo("hunt");
+        assertThat(changed.lobbyX()).isEqualTo(1.5);
+        assertThat(changed.lobbyY()).isEqualTo(64.0);
+        assertThat(changed.lobbyZ()).isEqualTo(-3.5);
+        assertThat(changed.lobbyYaw()).isEqualTo(90.0);
+        assertThat(changed.lobbyRadius()).isEqualTo(30);
 
         // Nothing else drifted along with the one component each with… call was for.
         assertThat(ManhuntSettings.DEFAULTS.runnerWin())

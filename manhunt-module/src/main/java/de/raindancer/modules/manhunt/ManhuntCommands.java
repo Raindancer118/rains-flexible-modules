@@ -25,11 +25,13 @@ public final class ManhuntCommands {
                                 new ManhuntCommand(ManhuntCommands::require))
                         .taking("join <runner|hunter> — put yourself on a side",
                                 "leave — take yourself off whichever side you were on",
+                                "assign <player> <runner|hunter> — put somebody else on a side (admin)",
                                 "start — begin the hunt",
                                 "stop — end it early",
                                 "reset [seed <value|random>] — throw the map away and make it again",
                                 "status — the roster and the clock",
-                                "chaos [<action>] — throw a chaos action at a running hunt, or open the menu")
+                                "chaos [<action>] — throw a chaos action at a running hunt, or open the menu",
+                                "setlobby — place the waiting lobby where you are standing (admin)")
                         .needing("rainsmanhunt.manhunt.use"),
                 ModuleCommand.of("whitelist",
                                 "Open and close the server whitelist for a hunt; everything else "

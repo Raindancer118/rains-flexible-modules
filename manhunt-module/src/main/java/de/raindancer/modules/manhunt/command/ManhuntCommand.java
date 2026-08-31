@@ -1,16 +1,20 @@
 package de.raindancer.modules.manhunt.command;
 
+import de.raindancer.core.content.achievement.Achievement;
 import de.raindancer.core.social.team.Teams;
 import de.raindancer.modules.manhunt.ManhuntServices;
+import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.model.ChaosAction;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.service.ChaosService;
+import de.raindancer.modules.manhunt.service.ManhuntAchievements;
 import de.raindancer.modules.manhunt.service.ManhuntService;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
 import de.raindancer.modules.speedrun.SpeedrunSeed;
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import de.raindancer.core.world.time.Times;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -20,6 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * {@code /manhunt} — joining a side, starting and stopping a hunt, resetting the map, and throwing a
@@ -48,11 +53,15 @@ public final class ManhuntCommand implements IManhuntCommand {
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "join" -> join(live, sender, args);
             case "leave" -> leave(live, sender);
+            case "assign" -> assign(live, sender, args);
             case "start" -> start(live, sender);
             case "stop" -> stop(live, sender);
             case "reset" -> reset(live, sender, args);
             case "status" -> status(live, sender);
             case "chaos" -> chaos(live, sender, args);
+            case "achievements" -> achievements(live, sender);
+            case "options" -> options(live, sender);
+            case "setlobby" -> setlobby(live, sender);
             default -> help(live, sender);
         }
     }
@@ -91,7 +100,14 @@ public final class ManhuntCommand implements IManhuntCommand {
             live.messages().send(sender, "manhunt.usage.join");
             return;
         }
-        Teams.MembershipChange change = switch (args[1].toLowerCase(Locale.ROOT)) {
+        String side = args[1].toLowerCase(Locale.ROOT);
+        boolean joiningRunners = side.equals("runner") || side.equals("runners");
+        if (joiningRunners && !live.config().runnerSelfJoinEnabled()
+                && !sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.join-refused.runners-locked");
+            return;
+        }
+        Teams.MembershipChange change = switch (side) {
             case "runner", "runners" -> live.manhunt().teams().joinRunners(player.getUniqueId());
             case "hunter", "hunters" -> live.manhunt().teams().joinHunters(player.getUniqueId());
             default -> null;
@@ -104,7 +120,8 @@ public final class ManhuntCommand implements IManhuntCommand {
             live.messages().send(sender, "manhunt.join-refused." + change.status().key());
             return;
         }
-        live.messages().send(sender, "manhunt.joined", "side", args[1].toLowerCase(Locale.ROOT));
+        live.lobbyListener().relocateIfWaiting(player, live.manhunt().isRunning());
+        live.messages().send(sender, "manhunt.joined", "side", side);
     }
 
     private void leave(ManhuntServices live, CommandSender sender) {
@@ -116,7 +133,64 @@ public final class ManhuntCommand implements IManhuntCommand {
             live.messages().send(sender, "manhunt.not-on-a-side");
             return;
         }
+        live.lobbyListener().releaseIfHeld(player);
         live.messages().send(sender, "manhunt.left");
+    }
+
+    /** {@code /manhunt assign <player> <runner|hunter>} — an admin's own explicit action, which
+     *  bypasses {@link ManhuntSettings#runnerSelfJoinEnabled()} entirely on purpose. */
+    private void assign(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        if (args.length < 3) {
+            live.messages().send(sender, "manhunt.usage.assign");
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(args[1]);
+        if (target == null) {
+            live.messages().send(sender, "manhunt.usage.assign");
+            return;
+        }
+        String side = args[2].toLowerCase(Locale.ROOT);
+        Teams.MembershipChange change = switch (side) {
+            case "runner", "runners" -> live.manhunt().teams().joinRunners(target.getUniqueId());
+            case "hunter", "hunters" -> live.manhunt().teams().joinHunters(target.getUniqueId());
+            default -> null;
+        };
+        if (change == null) {
+            live.messages().send(sender, "manhunt.usage.assign");
+            return;
+        }
+        if (!change.status().isSuccess()) {
+            live.messages().send(sender, "manhunt.join-refused." + change.status().key());
+            return;
+        }
+        live.lobbyListener().relocateIfWaiting(target, live.manhunt().isRunning());
+        live.messages().send(sender, "manhunt.joined", "side", side);
+    }
+
+    /** {@code /manhunt setlobby} — captures where the sender is standing right now. */
+    private void setlobby(ManhuntServices live, CommandSender sender) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "manhunt.only-a-player");
+            return;
+        }
+        org.bukkit.Location here = player.getLocation();
+        String world = here.getWorld() == null ? "" : here.getWorld().getName();
+        live.store().set("lobby-spawn-set", "true");
+        live.store().set("lobby-world-name", world);
+        live.store().set("lobby-x", String.valueOf(here.getX()));
+        live.store().set("lobby-y", String.valueOf(here.getY()));
+        live.store().set("lobby-z", String.valueOf(here.getZ()));
+        live.store().set("lobby-yaw", String.valueOf(here.getYaw()));
+        live.store().save();
+        live.messages().send(sender, "manhunt.lobby-set");
     }
 
     private void start(ManhuntServices live, CommandSender sender) {
@@ -190,8 +264,47 @@ public final class ManhuntCommand implements IManhuntCommand {
             return;
         }
         ChaosService.Result result = live.chaos().apply(action);
+        if (result == ChaosService.Result.APPLIED) {
+            live.achievements().progressChaos(sender instanceof Player player ? player : null);
+        }
         live.messages().send(sender, "manhunt.chaos." + result.name().toLowerCase(Locale.ROOT),
                 "action", action.label());
+    }
+
+    /** {@code /manhunt achievements} — the curated menu for a player, a full chat listing for console. */
+    private void achievements(ManhuntServices live, CommandSender sender) {
+        if (!sender.hasPermission(PermissionNodes.USE)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        if (sender instanceof Player player) {
+            live.screens().achievements(player);
+            return;
+        }
+        ManhuntAchievements achievements = live.achievements();
+        List<Achievement> visible = achievements.visibleList();
+        live.messages().send(sender, "manhunt.achievements.header",
+                "count", String.valueOf(visible.size()),
+                "hidden", String.valueOf(achievements.hiddenCount()));
+        for (Achievement achievement : visible) {
+            live.messages().send(sender, "manhunt.achievements.entry",
+                    "title", achievement.title(),
+                    "description", achievement.description(),
+                    "points", String.valueOf(achievement.points()));
+        }
+    }
+
+    /** {@code /manhunt options} — the curated settings menu; console is pointed at {@code /settings}. */
+    private void options(ManhuntServices live, CommandSender sender) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        if (sender instanceof Player player) {
+            live.screens().options(player);
+            return;
+        }
+        live.messages().send(sender, "manhunt.options.console-only");
     }
 
     // ------------------------------------------------------------------------ completion
@@ -202,10 +315,19 @@ public final class ManhuntCommand implements IManhuntCommand {
         if (args.length <= 1) {
             String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
             return startingWith(
-                    List.of("join", "leave", "start", "stop", "reset", "status", "chaos"), typed);
+                    List.of("join", "leave", "assign", "start", "stop", "reset", "status", "chaos",
+                            "achievements", "options", "setlobby"), typed);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("join")) {
             return startingWith(List.of("runner", "hunter"), args[1].toLowerCase(Locale.ROOT));
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("assign")) {
+            List<String> names = Bukkit.getOnlinePlayers().stream()
+                    .map(Player::getName).collect(Collectors.toList());
+            return startingWith(names, args[1].toLowerCase(Locale.ROOT));
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("assign")) {
+            return startingWith(List.of("runner", "hunter"), args[2].toLowerCase(Locale.ROOT));
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("chaos")) {
             List<String> names = Arrays.stream(ChaosAction.values())

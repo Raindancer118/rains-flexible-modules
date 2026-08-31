@@ -66,10 +66,16 @@ public final class WhitelistCommand implements IManhuntCommand {
         }
         if (open) {
             live.whitelist().open();
+            if (sender instanceof org.bukkit.entity.Player opener) {
+                live.achievements().awardOpenDoors(opener);
+            }
             live.messages().send(sender, "manhunt.whitelist.opened");
             return;
         }
         int added = live.whitelist().close();
+        if (sender instanceof org.bukkit.entity.Player closer) {
+            live.achievements().awardGatekeeper(closer);
+        }
         live.messages().send(sender, "manhunt.whitelist.closed", "added", String.valueOf(added));
     }
 

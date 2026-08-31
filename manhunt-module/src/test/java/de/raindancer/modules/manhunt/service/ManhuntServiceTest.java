@@ -253,4 +253,62 @@ class ManhuntServiceTest {
             assertThat(service.stop()).isFalse();
         }
     }
+
+    @Nested
+    @DisplayName("hooks, for something else to wire up without touching this class' constructors")
+    class Hooks {
+
+        @Test
+        @DisplayName("onStart fires with the full roster right as a run starts")
+        void onStartFiresWithTheRoster() {
+            teams.joinRunners(runner);
+            teams.joinHunters(hunter);
+            ManhuntService service = service(PLAIN);
+            java.util.concurrent.atomic.AtomicReference<java.util.Set<UUID>> seen =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            service.onStart(seen::set);
+
+            assertThat(service.start()).isEqualTo(ManhuntService.StartOutcome.STARTED);
+
+            assertThat(seen.get()).isEqualTo(java.util.Set.of(runner, hunter));
+        }
+
+        @Test
+        @DisplayName("onStart does not fire when starting is refused")
+        void onStartDoesNotFireWhenRefused() {
+            ManhuntService service = service(PLAIN);
+            java.util.concurrent.atomic.AtomicReference<java.util.Set<UUID>> seen =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            service.onStart(seen::set);
+
+            assertThat(service.start()).isEqualTo(ManhuntService.StartOutcome.NO_RUNNERS);
+
+            assertThat(seen.get()).isNull();
+        }
+
+        @Test
+        @DisplayName("onFinished fires with the roster and the outcome once the run finishes")
+        void onFinishedFiresWithRosterAndOutcome() {
+            teams.joinRunners(runner);
+            teams.joinHunters(hunter);
+            ManhuntService service = service(PLAIN);
+            java.util.concurrent.atomic.AtomicReference<java.util.Set<UUID>> seenRoster =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            java.util.concurrent.atomic.AtomicReference<de.raindancer.modules.speedrun.SpeedrunOutcome> seenOutcome =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            service.onFinished((roster, outcome) -> {
+                seenRoster.set(roster);
+                seenOutcome.set(outcome);
+            });
+            service.start();
+
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                assertThat(service.stop()).isTrue();
+            }
+
+            assertThat(seenRoster.get()).isEqualTo(java.util.Set.of(runner, hunter));
+            assertThat(seenOutcome.get()).isNotNull();
+            assertThat(seenOutcome.get().reason()).isEqualTo("manual");
+        }
+    }
 }

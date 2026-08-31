@@ -23,17 +23,22 @@ import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.potion.PotionEffect;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Runs exactly one Manhunt at a time: builds the {@link SpeedrunSession} with whichever end
@@ -83,6 +88,9 @@ public final class ManhuntService {
 
     private volatile ManhuntSettings settings;
 
+    private Consumer<Set<UUID>> onStart = roster -> { };
+    private BiConsumer<Set<UUID>, SpeedrunOutcome> onFinished = (roster, outcome) -> { };
+
     private SpeedrunSession session;
     private SpeedrunOccupancyListener occupancy;
     private HunterHoldListener hold;
@@ -126,6 +134,21 @@ public final class ManhuntService {
         return Optional.ofNullable(session);
     }
 
+    /**
+     * Told the full roster right as a run actually starts — how {@code ManhuntAchievements} learns to
+     * award {@code first-hunt} without this class knowing achievements exist. One hook, not a list:
+     * nothing in this module needs more than one caller wired at a time, and a caller stacking two
+     * concerns behind the same moment is the caller's own composition to do, not this class'.
+     */
+    public void onStart(Consumer<Set<UUID>> hook) {
+        this.onStart = hook != null ? hook : roster -> { };
+    }
+
+    /** Told the roster and the {@link SpeedrunOutcome} the moment a run finishes — see {@link #onStart}. */
+    public void onFinished(BiConsumer<Set<UUID>, SpeedrunOutcome> hook) {
+        this.onFinished = hook != null ? hook : (roster, outcome) -> { };
+    }
+
     // ------------------------------------------------------------------------ running
 
     public StartOutcome start() {
@@ -161,6 +184,7 @@ public final class ManhuntService {
         }
         fresh.onFinish(outcome -> {
             announceFinish(everybody, outcome);
+            onFinished.accept(everybody, outcome);
             endRun();
         });
 
@@ -177,7 +201,41 @@ public final class ManhuntService {
 
         fresh.start();
         ticking = ticker.everySecond(this::tick);
+        resetParticipants(everybody);
+        onStart.accept(everybody);
         return StartOutcome.STARTED;
+    }
+
+    /**
+     * Every participant who is online gets a clean slate the moment a hunt actually starts: full
+     * health and hunger, no leftover potion effects from whatever happened in the waiting lobby or an
+     * earlier attempt, and out of Adventure mode if the waiting lobby (see {@code ManhuntLobbyBox})
+     * left them in it. A no-op in these tests, since the mocked {@code Server} answers null for every
+     * id without a real one behind it — {@code plugin.getServer().getPlayer(id)} rather than the
+     * static {@code Bukkit.getPlayer(id)}, matching how every other lookup in this class already
+     * reaches Bukkit, and the only way to ask without every test needing its own
+     * {@code mockStatic(Bukkit.class)} just for this loop.
+     */
+    private void resetParticipants(Set<UUID> everybody) {
+        for (UUID id : everybody) {
+            Player player = plugin.getServer().getPlayer(id);
+            if (player == null) {
+                continue;
+            }
+            var maxHealth = player.getAttribute(Attribute.MAX_HEALTH);
+            if (maxHealth != null) {
+                player.setHealth(maxHealth.getValue());
+            }
+            player.setFoodLevel(20);
+            player.setSaturation(20f);
+            player.setExhaustion(0f);
+            for (PotionEffect effect : List.copyOf(player.getActivePotionEffects())) {
+                player.removePotionEffect(effect.getType());
+            }
+            if (player.getGameMode() == GameMode.ADVENTURE) {
+                player.setGameMode(GameMode.SURVIVAL);
+            }
+        }
     }
 
     private void releaseHunters() {

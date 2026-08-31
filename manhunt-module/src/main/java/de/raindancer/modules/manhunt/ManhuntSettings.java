@@ -32,6 +32,8 @@ import org.bukkit.Material;
         @Topic(path = "manhunt/world", title = "Resetting the map", icon = Material.TNT),
         @Topic(path = "manhunt/whitelist", title = "The server whitelist", icon = Material.PAPER),
         @Topic(path = "manhunt/chaos", title = "Chaos actions", icon = Material.BLAZE_POWDER),
+        @Topic(path = "manhunt/roster", title = "Joining a side", icon = Material.PLAYER_HEAD),
+        @Topic(path = "manhunt/lobby", title = "The waiting lobby", icon = Material.ITEM_FRAME),
 })
 public record ManhuntSettings(
 
@@ -101,7 +103,51 @@ public record ManhuntSettings(
         @Describe("Seconds a console or a menu click has to wait before another chaos action can "
                 + "be thrown at the same run — zero switches the cooldown off entirely.")
         @Key("chaos-cooldown-seconds")
-        int chaosCooldownSeconds) {
+        int chaosCooldownSeconds,
+
+        @In("manhunt/roster") @Title("Runners may join themselves")
+        @Describe("Off: only somebody with the admin permission can put a player on the Runners. "
+                + "Hunters can always join themselves either way — this only locks the Runners.")
+        @Key("runner-self-join-enabled")
+        boolean runnerSelfJoinEnabled,
+
+        @In("manhunt/lobby") @Title("Waiting lobby set")
+        @Describe("Whether an admin has placed a waiting lobby with /manhunt setlobby yet. Nothing "
+                + "below does anything until this is on.")
+        @Key("lobby-spawn-set")
+        boolean lobbySpawnSet,
+
+        @In("manhunt/lobby") @Title("Waiting lobby world")
+        @Describe("Set by /manhunt setlobby, not meant to be hand-edited.")
+        @Key("lobby-world-name")
+        String lobbyWorldName,
+
+        @In("manhunt/lobby") @Title("Waiting lobby X")
+        @Describe("Set by /manhunt setlobby, not meant to be hand-edited.")
+        @Key("lobby-x")
+        double lobbyX,
+
+        @In("manhunt/lobby") @Title("Waiting lobby Y")
+        @Describe("Set by /manhunt setlobby, not meant to be hand-edited.")
+        @Key("lobby-y")
+        double lobbyY,
+
+        @In("manhunt/lobby") @Title("Waiting lobby Z")
+        @Describe("Set by /manhunt setlobby, not meant to be hand-edited.")
+        @Key("lobby-z")
+        double lobbyZ,
+
+        @In("manhunt/lobby") @Title("Waiting lobby facing")
+        @Describe("The yaw a player lands facing when relocated into the waiting lobby. Set by "
+                + "/manhunt setlobby.")
+        @Key("lobby-yaw")
+        double lobbyYaw,
+
+        @In("manhunt/lobby") @Title("Waiting lobby radius") @Range(min = 1, max = 200)
+        @Describe("Half-width, in blocks, of the protected cube around the waiting lobby's spawn "
+                + "point — nobody fights or builds inside it.")
+        @Key("lobby-radius")
+        int lobbyRadius) {
 
     /** How a Runner side wins. */
     public enum RunnerWinCondition { PORTAL_EXIT, ADVANCEMENT }
@@ -118,7 +164,9 @@ public record ManhuntSettings(
             60,
             true, "world", SeedChoice.RANDOM, 0L,
             true,
-            10);
+            10,
+            true,
+            false, "", 0, 0, 0, 0, 15);
 
     // ------------------------------------------------------------------ read back safely
 
@@ -139,66 +187,133 @@ public record ManhuntSettings(
     public ManhuntSettings withRunnerWin(RunnerWinCondition condition) {
         return new ManhuntSettings(condition, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds);
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
     }
 
     public ManhuntSettings withRunnerAdvancementKey(String key) {
         return new ManhuntSettings(runnerWin, key, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds);
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
     }
 
     public ManhuntSettings withHunterWin(HunterWinCondition condition) {
         return new ManhuntSettings(runnerWin, runnerAdvancementKey, condition, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds);
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
     }
 
     public ManhuntSettings withHunterTimeoutMinutes(int minutes) {
         return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, minutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds);
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
     }
 
     public ManhuntSettings withHunterReleaseDelaySeconds(int seconds) {
         return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 seconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds);
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
     }
 
     public ManhuntSettings withResetOnStart(boolean reset) {
         return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, reset, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds);
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
     }
 
     public ManhuntSettings withWorldName(String world) {
         return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, world, seedChoice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds);
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
     }
 
     public ManhuntSettings withSeedChoice(SeedChoice choice) {
         return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, choice, seedValue,
-                closeWhitelistOnStart, chaosCooldownSeconds);
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
     }
 
     public ManhuntSettings withSeedValue(long seed) {
         return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seed,
-                closeWhitelistOnStart, chaosCooldownSeconds);
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
     }
 
     public ManhuntSettings withCloseWhitelistOnStart(boolean close) {
         return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                close, chaosCooldownSeconds);
+                close, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
     }
 
     public ManhuntSettings withChaosCooldownSeconds(int seconds) {
         return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
                 hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
-                closeWhitelistOnStart, seconds);
+                closeWhitelistOnStart, seconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
+    }
+
+    public ManhuntSettings withRunnerSelfJoinEnabled(boolean enabled) {
+        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                enabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
+    }
+
+    public ManhuntSettings withLobbySpawnSet(boolean set) {
+        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, set, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
+    }
+
+    public ManhuntSettings withLobbyWorldName(String world) {
+        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, world, lobbyX, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
+    }
+
+    public ManhuntSettings withLobbyX(double x) {
+        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, x, lobbyY, lobbyZ, lobbyYaw, lobbyRadius);
+    }
+
+    public ManhuntSettings withLobbyY(double y) {
+        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, y, lobbyZ, lobbyYaw, lobbyRadius);
+    }
+
+    public ManhuntSettings withLobbyZ(double z) {
+        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, z, lobbyYaw, lobbyRadius);
+    }
+
+    public ManhuntSettings withLobbyYaw(double yaw) {
+        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, yaw, lobbyRadius);
+    }
+
+    public ManhuntSettings withLobbyRadius(int radius) {
+        return new ManhuntSettings(runnerWin, runnerAdvancementKey, hunterWin, hunterTimeoutMinutes,
+                hunterReleaseDelaySeconds, resetOnStart, worldName, seedChoice, seedValue,
+                closeWhitelistOnStart, chaosCooldownSeconds,
+                runnerSelfJoinEnabled, lobbySpawnSet, lobbyWorldName, lobbyX, lobbyY, lobbyZ, lobbyYaw, radius);
     }
 }

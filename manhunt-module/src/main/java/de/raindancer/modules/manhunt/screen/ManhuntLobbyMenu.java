@@ -1,10 +1,12 @@
 package de.raindancer.modules.manhunt.screen;
 
+import de.raindancer.core.social.team.Teams;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.manhunt.ManhuntServices;
+import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.service.ManhuntService;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
@@ -53,21 +55,37 @@ public final class ManhuntLobbyMenu extends Menu {
 
         set(MenuLayout.HEADER_SUBJECT, headerFor(manhunt, teams));
 
-        band(MenuLayout.WHO, 1, Icons.of(Material.LIME_WOOL,
-                        isRunner ? "<green>You are a Runner" : "<white>Join the Runners",
-                        "<gray>" + teams.runners().size() + " on this side",
-                        "<dark_gray>Click to switch sides."),
-                click -> {
-                    teams.joinRunners(viewer.getUniqueId());
-                    refresh();
-                });
+        ManhuntSettings config = services.config();
+        boolean runnersLocked = !config.runnerSelfJoinEnabled() && !viewer.hasPermission(PermissionNodes.ADMIN);
+
+        if (runnersLocked) {
+            band(MenuLayout.WHO, 1, Icons.locked(
+                    Icons.of(Material.LIME_WOOL, isRunner ? "<green>You are a Runner" : "<white>Join the Runners",
+                            "<gray>" + teams.runners().size() + " on this side"),
+                    "Runners are assigned by an admin"), click -> { });
+        } else {
+            band(MenuLayout.WHO, 1, Icons.of(Material.LIME_WOOL,
+                            isRunner ? "<green>You are a Runner" : "<white>Join the Runners",
+                            "<gray>" + teams.runners().size() + " on this side",
+                            "<dark_gray>Click to switch sides."),
+                    click -> {
+                        Teams.MembershipChange change = teams.joinRunners(viewer.getUniqueId());
+                        if (change.status().isSuccess()) {
+                            services.lobbyListener().relocateIfWaiting(viewer, manhunt.isRunning());
+                        }
+                        refresh();
+                    });
+        }
 
         band(MenuLayout.WHO, 7, Icons.of(Material.RED_WOOL,
                         isHunter ? "<red>You are a Hunter" : "<white>Join the Hunters",
                         "<gray>" + teams.hunters().size() + " on this side",
                         "<dark_gray>Click to switch sides."),
                 click -> {
-                    teams.joinHunters(viewer.getUniqueId());
+                    Teams.MembershipChange change = teams.joinHunters(viewer.getUniqueId());
+                    if (change.status().isSuccess()) {
+                        services.lobbyListener().relocateIfWaiting(viewer, manhunt.isRunning());
+                    }
                     refresh();
                 });
 
@@ -76,6 +94,7 @@ public final class ManhuntLobbyMenu extends Menu {
                             "<dark_gray>Take yourself off whichever side you are on."),
                     click -> {
                         teams.leave(viewer.getUniqueId());
+                        services.lobbyListener().releaseIfHeld(viewer);
                         refresh();
                     });
         }
@@ -87,6 +106,14 @@ public final class ManhuntLobbyMenu extends Menu {
             band(MenuLayout.TOOLBAR_ROW, 5, Icons.of(Material.BLAZE_POWDER, "<gold>Chaos",
                             "<dark_gray>Throw a chaos action at a running hunt."),
                     click -> new ManhuntChaosMenu(services, viewer, this).open());
+        }
+        band(MenuLayout.TOOLBAR_ROW, 3, Icons.of(Material.NETHER_STAR, "<gold>Achievements",
+                        "<dark_gray>The curated set — earned or not."),
+                click -> new ManhuntAchievementsMenu(services, viewer, this).open());
+        if (viewer.hasPermission(PermissionNodes.ADMIN)) {
+            band(MenuLayout.TOOLBAR_ROW, 7, Icons.of(Material.COMMAND_BLOCK, "<gold>Options",
+                            "<dark_gray>Five quick-access settings for this hunt."),
+                    click -> new ManhuntOptionsMenu(services, viewer, this).open());
         }
     }
 

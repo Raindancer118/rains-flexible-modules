@@ -7,6 +7,8 @@ import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.service.ChaosService;
+import de.raindancer.modules.manhunt.service.ManhuntAchievements;
+import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
 import de.raindancer.modules.manhunt.service.ManhuntService;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
 import org.bukkit.Server;
@@ -33,6 +35,8 @@ public record ManhuntServices(
         ManhuntService manhunt,
         ChaosService chaos,
         ManhuntWhitelistService whitelist,
+        ManhuntAchievements achievements,
+        ManhuntLobbyListener lobbyListener,
 
         IManhuntScreensOpener screens) {
 

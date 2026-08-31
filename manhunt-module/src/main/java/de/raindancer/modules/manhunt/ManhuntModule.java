@@ -7,9 +7,14 @@ import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
+import de.raindancer.modules.manhunt.screen.ManhuntAchievementsMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntChaosMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntLobbyMenu;
+import de.raindancer.modules.manhunt.screen.ManhuntOptionsMenu;
 import de.raindancer.modules.manhunt.service.ChaosService;
+import de.raindancer.modules.manhunt.service.ManhuntAchievements;
+import de.raindancer.modules.manhunt.service.ManhuntLobbyBox;
+import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
 import de.raindancer.modules.manhunt.service.ManhuntService;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
@@ -72,11 +77,25 @@ public final class ManhuntModule implements FlexModule {
         ChaosService chaos = new ChaosService(context.plugin(), liveManhunt);
         ManhuntWhitelistService whitelist = new ManhuntWhitelistService(server);
 
+        // The waiting lobby: continuous from plugin startup, since a player may join a side at any
+        // time — unlike HunterHoldListener/SpeedrunOccupancyListener, which are only ever registered
+        // per-run inside ManhuntService itself, this one is registered once, here.
+        ManhuntLobbyBox lobbyBox = new ManhuntLobbyBox(settings.current());
+        settings.onChange(lobbyBox::settings);
+        ManhuntLobbyListener lobbyListener = new ManhuntLobbyListener(lobbyBox, context.core().messages());
+        server.getPluginManager().registerEvents(lobbyListener, context.plugin());
+
+        ManhuntAchievements manhuntAchievements = new ManhuntAchievements(context.core().achievements());
+        manhuntAchievements.defineAll();
+        liveManhunt.onStart(manhuntAchievements::awardFirstHunt);
+        liveManhunt.onFinished((everybody, outcome) ->
+                manhuntAchievements.awardWin(everybody, teams, outcome.reason()));
+
         this.services = new ManhuntServices(
                 context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, settings,
-                liveManhunt, chaos, whitelist,
+                liveManhunt, chaos, whitelist, manhuntAchievements, lobbyListener,
                 new LiveScreens());
 
         // The command was registered during bootstrap, long before any of this existed, and has been
@@ -103,6 +122,16 @@ public final class ManhuntModule implements FlexModule {
         @Override
         public void chaos(Player viewer) {
             new ManhuntChaosMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void achievements(Player viewer) {
+            new ManhuntAchievementsMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void options(Player viewer) {
+            new ManhuntOptionsMenu(services, viewer, null).open();
         }
     }
 

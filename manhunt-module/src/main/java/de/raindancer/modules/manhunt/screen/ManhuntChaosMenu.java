@@ -62,6 +62,9 @@ public final class ManhuntChaosMenu extends Menu {
                             "<dark_gray>Click to throw this at the running hunt."),
                     click -> {
                         ChaosService.Result result = chaos.apply(action);
+                        if (result == ChaosService.Result.APPLIED) {
+                            services.achievements().progressChaos(viewer);
+                        }
                         services.messages().send(viewer,
                                 "manhunt.chaos." + result.name().toLowerCase(Locale.ROOT),
                                 "action", action.label());
