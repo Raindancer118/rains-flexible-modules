@@ -62,7 +62,7 @@
         <chat-module.version>1.2.1</chat-module.version>
         <!-- Depends on speedrun-module's engine classes the same way chained-module does; see that
              module's own note in this file. -->
-        <manhunt-module.version>1.1.0</manhunt-module.version>
+        <manhunt-module.version>0.2.0</manhunt-module.version>
     </properties>
 
     <modules>
