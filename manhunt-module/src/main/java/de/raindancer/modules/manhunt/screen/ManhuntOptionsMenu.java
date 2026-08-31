@@ -5,19 +5,23 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.manhunt.ManhuntServices;
 import de.raindancer.modules.manhunt.ManhuntSettings;
+import io.papermc.paper.advancement.AdvancementDisplay;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
+import org.bukkit.advancement.Advancement;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.List;
+
 /**
- * Five settings worth a click without leaving Manhunt's own menus — everything else in
- * {@link ManhuntSettings} stays reachable only through the server's generic {@code /settings}
- * command, which already renders every field of it with an icon. Each click here cycles the exact
- * same {@code SettingsStore} that command edits, through {@code SettingsStore.cycle}, so there is
- * exactly one place any of these values can actually change — this menu is a shortcut to it, not a
- * second copy of it.
+ * Five settings worth a click without leaving Manhunt's own menus, plus a sixth that opens
+ * {@link ManhuntGoalMenu} rather than cycling in place — everything else in {@link ManhuntSettings}
+ * stays reachable only through the server's generic {@code /settings} command, which already renders
+ * every field of it with an icon. Each click here cycles the exact same {@code SettingsStore} that
+ * command edits, through {@code SettingsStore.cycle}, so there is exactly one place any of these
+ * values can actually change — this menu is a shortcut to it, not a second copy of it.
  *
  * <h2>Why {@link de.raindancer.modules.manhunt.util.PermissionNodes#ADMIN}</h2>
  * Changing how a hunt is configured is the same class of decision as starting or stopping one —
@@ -58,6 +62,7 @@ public final class ManhuntOptionsMenu extends Menu {
                         "Snapshots everybody online as whitelisted the moment the countdown ends."),
                 click -> cycle("close-whitelist-on-start"));
         band(MenuLayout.WHO, 5, seedIcon(config), click -> cycle("seed-choice"));
+        band(MenuLayout.WHO, 6, goalIcon(config), click -> new ManhuntGoalMenu(services, viewer, this).open());
     }
 
     private void cycle(String key) {
@@ -88,6 +93,18 @@ public final class ManhuntOptionsMenu extends Menu {
                 "<dark_gray>Click to cycle.");
     }
 
+    private ItemStack goalIcon(ManhuntSettings config) {
+        String key = config.runnerAdvancementKey();
+        Advancement advancement = ManhuntGoalMenu.resolveAdvancement(key);
+        AdvancementDisplay display = advancement == null ? null : advancement.getDisplay();
+        List<String> lore = List.of("<gray>Current key: <white>" + key,
+                "<dark_gray>Click to pick from seven curated advancements.");
+        if (display != null) {
+            return ManhuntGoalMenu.styledIcon(display.icon(), "<gold>Choose the Runners' goal", lore);
+        }
+        return Icons.of(Material.KNOWLEDGE_BOOK, "<gold>Choose the Runners' goal", lore);
+    }
+
     private ItemStack flagIcon(boolean on, String name, String description) {
         return Icons.of(on ? Material.LIME_DYE : Material.GRAY_DYE,
                 "<gold>" + name + ": " + (on ? "<green>on" : "<red>off"),
@@ -95,6 +112,6 @@ public final class ManhuntOptionsMenu extends Menu {
     }
 
     public String describe() {
-        return "five curated Manhunt settings, cycled here or in full at /settings";
+        return "five curated Manhunt settings plus the Runners' goal picker, cycled here or in full at /settings";
     }
 }

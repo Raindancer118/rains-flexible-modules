@@ -836,6 +836,26 @@ the five an admin changes between matches, not once at setup, so they get a one-
 makes for `CYCLED`) without leaving the Manhunt lobby. There is exactly one place any of these nine
 settings can change — the shared `SettingsStore` — whichever menu the click came through.
 
+**`ManhuntGoalMenu` is a curated seven-icon picker for the one settings field a GUI is actually the
+right tool for: `runnerAdvancementKey`.** It mirrors `ManhuntAchievements`' own "seven in the GUI, the
+rest by command" reasoning, not by coincidence — a full vanilla advancement tree in one nine-slot band
+is a wall of icons, not a choice, so the menu shows exactly `end/kill_dragon`, `end/elytra`, `end/root`,
+`nether/root`, `husbandry/balanced_diet`, `adventure/kill_all_mobs` and `nether/all_effects`, resolved
+live via `Bukkit.getAdvancement` rather than hand-picked `Material`s. Each button's icon, title and
+description come straight off the advancement's own `AdvancementDisplay` — `icon()`, `title()` and
+`description()`, all `Component`s in this Paper version, not the legacy `String` the older
+`org.bukkit.advancement.AdvancementDisplay` interface still returns — restyled through `Icons.name`/
+`Icons.loreLine` so a real vanilla item reads like every other button in these menus rather than in the
+game's own uncoloured text. An advancement a stripped-down datapack does not have, or one with no
+display at all (recipe unlocks have none), is simply dropped from the band instead of guessed at.
+Clicking a button sets `runner-advancement-key` **and** flips `runner-win` to `ADVANCEMENT` in the same
+`SettingsStore` write — picking a goal is obviously meant to make it the active one, even though nobody
+asked for that half in words. `/manhunt goal <advancement-key>`, tab-completed over every advancement
+`Bukkit.advancementIterator()` knows about (curated or not, capped at the existing 50-suggestion limit),
+is the actual "everything else" answer for this one field — the generic `/settings` chat-typing flow
+still edits it too, but is no longer the intended path now that both a curated picker and a
+fully-completed command exist.
+
 **Runners can be locked to admin-only, with `/manhunt assign` as the escape hatch.**
 `runnerSelfJoinEnabled` (default `true`) gates the self-service half of `/manhunt join runner` and
 `ManhuntLobbyMenu`'s own "Join Runners" band — Hunters are never affected, on purpose, since the

@@ -6,6 +6,7 @@ import de.raindancer.modules.manhunt.ManhuntServices;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.model.ChaosAction;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
+import de.raindancer.modules.manhunt.screen.ManhuntGoalMenu;
 import de.raindancer.modules.manhunt.service.ChaosService;
 import de.raindancer.modules.manhunt.service.ManhuntAchievements;
 import de.raindancer.modules.manhunt.service.ManhuntService;
@@ -13,14 +14,19 @@ import de.raindancer.modules.manhunt.util.PermissionNodes;
 import de.raindancer.modules.speedrun.SpeedrunSeed;
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import de.raindancer.core.world.time.Times;
+import io.papermc.paper.advancement.AdvancementDisplay;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.advancement.Advancement;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
@@ -62,6 +68,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             case "achievements" -> achievements(live, sender);
             case "options" -> options(live, sender);
             case "setlobby" -> setlobby(live, sender);
+            case "goal" -> goal(live, sender, args);
             default -> help(live, sender);
         }
     }
@@ -307,6 +314,39 @@ public final class ManhuntCommand implements IManhuntCommand {
         live.messages().send(sender, "manhunt.options.console-only");
     }
 
+    /**
+     * {@code /manhunt goal <advancement-key>} — the exhaustive, tab-completed counterpart to
+     * {@link ManhuntGoalMenu}'s curated seven. Console-usable, unlike {@code setlobby}: setting the
+     * goal needs no location, only a key {@link Bukkit#getAdvancement} can actually resolve.
+     */
+    private void goal(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        if (args.length < 2) {
+            live.messages().send(sender, "manhunt.usage.goal");
+            return;
+        }
+        Advancement advancement = ManhuntGoalMenu.resolveAdvancement(args[1]);
+        if (advancement == null) {
+            live.messages().send(sender, "manhunt.usage.goal");
+            return;
+        }
+        live.store().set("runner-advancement-key", advancement.getKey().toString());
+        live.store().set("runner-win", "ADVANCEMENT");
+        live.store().save();
+        live.messages().send(sender, "manhunt.goal-set", "goal", titleOf(advancement));
+    }
+
+    private static String titleOf(Advancement advancement) {
+        AdvancementDisplay display = advancement.getDisplay();
+        if (display == null) {
+            return advancement.getKey().toString();
+        }
+        return PlainTextComponentSerializer.plainText().serialize(display.title());
+    }
+
     // ------------------------------------------------------------------------ completion
 
     @Override
@@ -316,7 +356,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
             return startingWith(
                     List.of("join", "leave", "assign", "start", "stop", "reset", "status", "chaos",
-                            "achievements", "options", "setlobby"), typed);
+                            "achievements", "options", "setlobby", "goal"), typed);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("join")) {
             return startingWith(List.of("runner", "hunter"), args[1].toLowerCase(Locale.ROOT));
@@ -340,7 +380,19 @@ public final class ManhuntCommand implements IManhuntCommand {
         if (args.length == 3 && args[0].equalsIgnoreCase("reset")) {
             return startingWith(List.of("random"), args[2].toLowerCase(Locale.ROOT));
         }
+        if (args.length == 2 && args[0].equalsIgnoreCase("goal")) {
+            return startingWith(advancementKeys(), args[1].toLowerCase(Locale.ROOT));
+        }
         return List.of();
+    }
+
+    private static List<String> advancementKeys() {
+        List<String> keys = new ArrayList<>();
+        Iterator<Advancement> iterator = Bukkit.advancementIterator();
+        while (iterator.hasNext()) {
+            keys.add(iterator.next().getKey().toString());
+        }
+        return keys;
     }
 
     private static Collection<String> startingWith(List<String> options, String typed) {
