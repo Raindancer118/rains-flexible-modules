@@ -52,6 +52,7 @@
         <worldgate-module.version>1.0.0</worldgate-module.version>
         <mannequin-module.version>1.6.0</mannequin-module.version>
         <invsnap-module.version>1.1.0</invsnap-module.version>
+        <xpbottle-module.version>1.0.0</xpbottle-module.version>
         <xaeromap-module.version>1.0.0</xaeromap-module.version>
         <wallsroads-module.version>1.0.0</wallsroads-module.version>
         <hungergames-module.version>2.8.1</hungergames-module.version>
@@ -96,6 +97,8 @@
         <module>worldgate-standalone</module>
         <module>invsnap-module</module>
         <module>invsnap-standalone</module>
+        <module>xpbottle-module</module>
+        <module>xpbottle-standalone</module>
         <!-- After claims-module: it compiles against it (provided, never shaded) for the seam in
              de.raindancer.modules.xaeromap.claims, and a reactor builds in the order it is given. -->
         <module>xaeromap-module</module>
@@ -231,6 +234,11 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>invsnap-module</artifactId>
                 <version>${invsnap-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>xpbottle-module</artifactId>
+                <version>${xpbottle-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>

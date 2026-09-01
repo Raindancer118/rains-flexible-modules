@@ -1,0 +1,32 @@
+# Rain's XP Bottles — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins. See
+# Messages.defineFrom. Every placeholder a line asks for is supplied where it is sent, and nothing
+# here is YAML's idea of a truth value.
+xpbottle:
+
+  usage: "<gray>/xpbottle  ·  /xpbottle give <player> [tier]"
+  only-a-player: "<red>Only a player standing in the world can open that."
+  filled: "<green>Bottled <white><points></white> experience points."
+  poured: "<green><white><points></white> experience points, back where they came from."
+  bottle-full: "<red>That bottle will not hold any more."
+  already-empty: "<red>There is nothing in that bottle."
+  no-experience: "<red>You have no experience to bottle."
+  wait: "<red>You may bottle again in <white><seconds></white> second(s)."
+
+  menu:
+    not-allowed: "<red>You may not open that."
+
+  pour:
+    not-allowed: "<red>You may not pour a bottle out."
+
+  siphon:
+    not-allowed: "<red>You may not use a siphon bottle."
+    full: "<green>The siphon bottle is full."
+
+  give:
+    not-allowed: "<red>Only staff can conjure a siphon bottle."
+    not-online: "<red><player> is not online — a bottle has to go into a real inventory."
+    bad-tier: "<red><tier> is not a tier; this server has I to <highest>."
+    given: "<green>A tier <white><tier></white> siphon bottle went to <white><player></white>."
+    received: "<green>You were given a tier <white><tier></white> siphon bottle."
