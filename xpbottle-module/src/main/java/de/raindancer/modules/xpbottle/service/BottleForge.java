@@ -87,7 +87,8 @@ public final class BottleForge implements IXpBottleService {
      * The stack a bottle in this state is.
      *
      * <p>A plain bottle changes material as it fills: nothing in it is a glass bottle, something in
-     * it is a bottle o' enchanting, because those are what a player already reads as the two states.
+     * it is a bottle o' enchanting, because those are what a player already reads as the two states
+     * — and the filled one is a real one, thrown like a real one, paying out what went into it.
      * A siphon keeps its potion shape throughout and shows its level in its colour instead — it is
      * an item somebody was given, and one that turned into a different item when it emptied would be
      * one they think they have lost.
@@ -175,7 +176,10 @@ public final class BottleForge implements IXpBottleService {
             lore.add(line("<yellow>Sneak and right click<gray> to pour it back."));
         } else {
             lore.add(Component.empty());
-            lore.add(line("<yellow>Right click<gray> to pour it back into yourself."));
+            lore.add(line("<yellow>Throw it<gray> and it gives back exactly this"));
+            lore.add(line("<gray>many, not the usual three to eleven."));
+            lore.add(line("<yellow>Sneak and right click<gray> to pour it back"));
+            lore.add(line("<gray>into yourself instead."));
         }
         return lore;
     }

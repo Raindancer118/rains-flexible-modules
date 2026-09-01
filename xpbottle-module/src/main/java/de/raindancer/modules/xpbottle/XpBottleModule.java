@@ -9,6 +9,7 @@ import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.xpbottle.listener.BottleUseListener;
 import de.raindancer.modules.xpbottle.listener.SiphonHoldListener;
+import de.raindancer.modules.xpbottle.listener.ThrownBottleListener;
 import de.raindancer.modules.xpbottle.rules.FillAmountRule;
 import de.raindancer.modules.xpbottle.rules.SiphonReachRule;
 import de.raindancer.modules.xpbottle.screen.XpBottleRootMenu;
@@ -26,9 +27,11 @@ import java.util.List;
  *
  * <p>Shipped through the standard wrapper this is {@code RainsXPBottles}. A plain glass bottle,
  * right clicked in the air, draws what its holder is carrying into a bottle o' enchanting holding
- * exactly that many points; right clicking that pours it back. A siphon bottle — a potion-shaped
- * item with tiers, given out by staff — is <em>held</em> down instead, and pulls loose experience
- * orbs off the ground around its holder, falling back to their own bar when there are none in reach.
+ * exactly that many points. That bottle is a real one: thrown, it pays out what went into it rather
+ * than vanilla's three to eleven, and a sneak and a right click pours it straight back instead. A
+ * siphon bottle — a potion-shaped item with tiers, given out by staff — is <em>held</em> down and
+ * pulls loose experience orbs off the ground around its holder, falling back to their own bar when
+ * there are none in reach.
  *
  * <h2>The one invariant</h2>
  * Points in equal points out. Never levels, never a rounded fraction of a level, and never a bottle
@@ -97,6 +100,7 @@ public final class XpBottleModule implements FlexModule {
 
         context.listener(new BottleUseListener(services));
         context.listener(new SiphonHoldListener(services));
+        context.listener(new ThrownBottleListener(services));
 
         XpBottleCommands.ready(services);
 

@@ -20,13 +20,16 @@ import java.util.UUID;
 /**
  * What a right click on a bottle does.
  *
- * <h2>The three clicks</h2>
+ * <h2>The clicks</h2>
  * <ul>
  *   <li><b>An empty glass bottle, in the air.</b> Draws the holder's own experience into it, and
  *       hands them a bottle o' enchanting holding exactly that many points.</li>
- *   <li><b>A bottle with something in it.</b> Pours it back. A plain one plainly; a siphon needs a
- *       sneak, because its ordinary right click is the draw and one gesture cannot be both.</li>
- *   <li><b>A siphon that is not sneaking.</b> Deliberately <em>not</em> cancelled: the click has to
+ *   <li><b>A sneak on anything with something in it.</b> Pours it back, both kinds alike — one
+ *       gesture to learn rather than one per sort of bottle.</li>
+ *   <li><b>A filled plain bottle, not sneaking.</b> Deliberately <em>not</em> cancelled: it is a
+ *       real bottle o' enchanting and it gets thrown like one. What it pays out on impact is
+ *       {@code ThrownBottleListener}'s business, from the tag that travels on the item.</li>
+ *   <li><b>A siphon, not sneaking.</b> Also not cancelled, for a different reason: the click has to
  *       reach vanilla for the client to enter the drink animation, and that animation is what tells
  *       the server the button is still down. Cancelling here is the one change that would stop the
  *       siphon working while leaving every test passing.</li>
@@ -88,7 +91,7 @@ public final class BottleUseListener implements IXpBottleListener {
             return;
         }
         if (!bottle.isEmpty()) {
-            pour(event, player, held, bottle);
+            onFilledBottle(event, player, held, bottle);
             return;
         }
         onEmptyGlass(event, player, held);
@@ -110,6 +113,21 @@ public final class BottleUseListener implements IXpBottleListener {
         }
         event.setCancelled(true);
         services.bottling().fillPlain(player, held);
+    }
+
+    /**
+     * A filled plain bottle: a sneak pours it out, anything else throws it.
+     *
+     * <p>Not cancelled when it is thrown, and that is the point of the plain path — it hands back a
+     * real bottle o' enchanting, which flies and breaks like one. What it is worth on impact is
+     * {@code ThrownBottleListener}'s business; nothing needs remembering here, because the amount
+     * travels on the item.
+     */
+    private void onFilledBottle(PlayerInteractEvent event, Player player, ItemStack held,
+                                Bottle bottle) {
+        if (player.isSneaking()) {
+            pour(event, player, held, bottle);
+        }
     }
 
     /** A siphon: a sneak pours it out, anything else starts the draw. */
