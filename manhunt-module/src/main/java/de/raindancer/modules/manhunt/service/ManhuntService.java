@@ -5,7 +5,6 @@ import de.raindancer.core.ui.bossbar.BarPriority;
 import de.raindancer.core.ui.bossbar.BarStyle;
 import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.messages.Messages;
-import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.conditions.AllRunnersDeadEndCondition;
 import de.raindancer.modules.manhunt.conditions.RunnerAdvancementEndCondition;
@@ -344,9 +343,18 @@ public final class ManhuntService {
         bossBars.showShared(OWNER, BAR_ID, List.copyOf(teams.everybody()), styleFor(session), BarPriority.NORMAL);
     }
 
+    /**
+     * The bar says what is happening, and deliberately not for how long.
+     *
+     * <p>The clock lives on the action bar instead — asked for directly, and the same choice
+     * {@code SpeedrunTimerDisplay} already documents for a speedrun: a boss bar is a wide,
+     * hard-to-miss banner, and a number that changes every second inside one draws the eye away from
+     * the hunt for no reason. The banner is the state; the clock is a detail, and belongs where
+     * details go.
+     */
     private static BarStyle styleFor(SpeedrunSession session) {
         boolean paused = session.state() == SpeedrunState.PAUSED;
-        String text = (paused ? "Manhunt (paused) — " : "Manhunt — ") + Times.brief(session.elapsed());
+        String text = paused ? "Manhunt (paused)" : "Manhunt";
         return BarStyle.of(Component.text(text, NamedTextColor.WHITE))
                 .progress(1f)
                 .colour(paused ? BossBar.Color.YELLOW : BossBar.Color.RED);

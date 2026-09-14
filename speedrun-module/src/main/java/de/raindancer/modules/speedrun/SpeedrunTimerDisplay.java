@@ -27,29 +27,43 @@ import java.util.UUID;
  * came before it, the same way {@code SpeedrunLobby} only ever has one live session. A fresh instance
  * per run would be a second thing to remember to throw away.
  */
-final class SpeedrunTimerDisplay {
+public final class SpeedrunTimerDisplay {
 
-    static final String OWNER = "speedrun-timer";
+    /**
+     * The action bar slot this display owns, when the caller does not name one.
+     *
+     * <p>Named per caller rather than shared, because the slot is arbitrated by owner: two clocks
+     * sharing one owner would take turns overwriting each other on the same player's bar. manhunt-
+     * module runs its own hunt clock through this class and passes its own.
+     */
+    public static final String OWNER = "speedrun-timer";
 
     /** Runs {@code task} once a second until told to stop — the seam a test drives by hand instead of
      *  waiting on a real Paper scheduler; see {@code GameTimerService.RoundTicker} for the same shape. */
     @FunctionalInterface
-    interface Ticker {
+    public interface Ticker {
         AutoCloseable everySecond(Runnable task);
     }
 
     private final ActionBars actionBars;
     private final Ticker ticker;
+    private final String owner;
 
     private AutoCloseable running;
 
-    SpeedrunTimerDisplay(ActionBars actionBars, Ticker ticker) {
+    public SpeedrunTimerDisplay(ActionBars actionBars, Ticker ticker) {
+        this(actionBars, ticker, OWNER);
+    }
+
+    /** The same, showing the clock in {@code owner}'s own action bar slot — see {@link #OWNER}. */
+    public SpeedrunTimerDisplay(ActionBars actionBars, Ticker ticker, String owner) {
         this.actionBars = actionBars;
         this.ticker = ticker;
+        this.owner = owner == null || owner.isBlank() ? OWNER : owner;
     }
 
     /** The real ticker: onto Core's own repeating scheduler, once a second. */
-    static Ticker viaScheduling(Plugin plugin) {
+    public static Ticker viaScheduling(Plugin plugin) {
         return task -> {
             var scheduled = Scheduling.globalTimer(plugin, 20L, 20L, handle -> task.run());
             return scheduled::cancel;
@@ -61,7 +75,7 @@ final class SpeedrunTimerDisplay {
      * {@link #stop} to be called the moment it finishes — a caller does not have to remember to clean
      * up after a run that ends on its own.
      */
-    void start(SpeedrunSession session) {
+    public void start(SpeedrunSession session) {
         stop();
         show(session);
         running = ticker.everySecond(() -> show(session));
@@ -71,7 +85,7 @@ final class SpeedrunTimerDisplay {
     private void show(SpeedrunSession session) {
         Component text = format(session.elapsed());
         for (UUID participant : session.participants()) {
-            actionBars.show(participant, OWNER, text, ActionBars.UNTIL_CLEARED, ActionBarPriority.LOW);
+            actionBars.show(participant, owner, text, ActionBars.UNTIL_CLEARED, ActionBarPriority.LOW);
         }
     }
 
@@ -79,7 +93,7 @@ final class SpeedrunTimerDisplay {
     private void stop(SpeedrunSession session) {
         stop();
         for (UUID participant : session.participants()) {
-            actionBars.clear(participant, OWNER);
+            actionBars.clear(participant, owner);
         }
     }
 
@@ -96,7 +110,7 @@ final class SpeedrunTimerDisplay {
         running = null;
     }
 
-    static Component format(Duration elapsed) {
+    public static Component format(Duration elapsed) {
         long seconds = Math.max(0, elapsed.getSeconds());
         return Component.text("%d:%02d".formatted(seconds / 60, seconds % 60), NamedTextColor.YELLOW);
     }

@@ -301,21 +301,63 @@ public final class TrackerCompassService {
                 meta.lore(List.of(line("<gray>Nothing to point at.")));
             }
         }
+        // Nothing is written unless something actually changed — see unchanged().
+        //
+        // Reported as "it feels like I get a new one every few seconds": this ran on every sweep,
+        // twice a second by default, and each run replaced the item in its slot. The client redraws a
+        // slot whose item changed, and redrawing the item in a hand is the equip animation — so a
+        // compass that was pointing at the same place, with the same name and the same lore, still
+        // flickered like a fresh item twice a second. It is the same compass; it should look like it.
+        if (unchanged(stack, meta)) {
+            return;
+        }
         stack.setItemMeta(meta);
         hunter.getInventory().setItem(slot.get(), stack);
     }
 
+    /**
+     * Whether the meta about to be written says exactly what the item already says.
+     *
+     * <p>{@link ItemMeta} is a copy taken from the stack, so the comparison is against the stack's own
+     * current meta rather than against the object being edited. Adventure's components and Bukkit's
+     * {@link Location} both have real equality, so this is a genuine "would this write change
+     * anything" and not an approximation of one.
+     */
+    private static boolean unchanged(ItemStack stack, CompassMeta edited) {
+        return stack.getItemMeta() instanceof CompassMeta current
+                && Objects.equals(current.displayName(), edited.displayName())
+                && Objects.equals(current.lore(), edited.lore())
+                && Objects.equals(current.getLodestone(), edited.getLodestone())
+                && current.isLodestoneTracked() == edited.isLodestoneTracked();
+    }
+
     /** Points the needle at {@code at} — see the class javadoc on why tracking is switched off. */
+    /**
+     * Points the needle at a spot, rounded to the block it is in.
+     *
+     * <p>The rounding is what stops the item being rewritten on every single sweep. A needle is a
+     * direction, and no direction anybody can see changes within one block — but a {@link Location}
+     * built from raw doubles differs from the last one every time a Runner so much as walks, which
+     * made every sweep a real change and every real change a redraw of the item in somebody's hand.
+     * Whole blocks give exactly the same needle and change only when the Runner actually leaves a
+     * block.
+     */
     private static void aimAt(CompassMeta meta, World world, Point at) {
         meta.setLodestoneTracked(false);
-        meta.setLodestone(new Location(world, at.x(), at.y(), at.z()));
+        meta.setLodestone(new Location(world,
+                Math.floor(at.x()), Math.floor(at.y()), Math.floor(at.z())));
     }
 
     private List<net.kyori.adventure.text.Component> loreFor(String first, Aim aim) {
         List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
         lore.add(line(first));
         if (compass.showsDistance()) {
-            lore.add(line("<gray>About <white>" + Math.round(aim.distance()) + "<gray> blocks away."));
+            // To the nearest five blocks, and the word is "about" for exactly that reason. A figure
+            // to the block changes every time either of them takes a step, and a lore line that
+            // changes is an item that changes, which is a redraw of the compass in somebody's hand —
+            // see applyTo's own note. Five blocks is below what anybody reads off a chase anyway.
+            lore.add(line("<gray>About <white>" + roundedDistance(aim.distance())
+                    + "<gray> blocks away."));
         }
         if (compass.allowsPicking()) {
             lore.add(line(aim.target() == null
@@ -327,6 +369,18 @@ public final class TrackerCompassService {
 
     private static net.kyori.adventure.text.Component line(String mini) {
         return MINI.deserialize(mini).decoration(TextDecoration.ITALIC, false);
+    }
+
+    /**
+     * A distance to the nearest five blocks, never below five while there is any distance at all.
+     *
+     * <p>Kept off zero on purpose: "about 0 blocks away" reads as a bug rather than as "right on top
+     * of them", and the one case where a Hunter does not need a number is the one where they can see
+     * the Runner.
+     */
+    static long roundedDistance(double blocks) {
+        long rounded = Math.round(blocks / 5.0) * 5;
+        return rounded == 0 && blocks > 0 ? 5 : rounded;
     }
 
     /** A player-supplied name never reaches MiniMessage as markup — see {@code Chat}'s own rule. */

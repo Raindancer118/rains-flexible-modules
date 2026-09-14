@@ -35,6 +35,7 @@ import de.raindancer.modules.manhunt.service.TrackerCompassService;
 import de.raindancer.modules.manhunt.service.TrackerListener;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
 import de.raindancer.modules.speedrun.SpeedrunCompanions;
+import de.raindancer.modules.speedrun.SpeedrunTimerDisplay;
 import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -57,7 +58,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.6.3")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.7.0")
             .describedAs("Runners against Hunters on top of speedrun-module's engine — a win "
                     + "condition per side, a tracking compass that follows a Runner through the "
                     + "portal they took, a real server whitelist a Runner can open and close, "
@@ -154,6 +155,15 @@ public final class ManhuntModule implements FlexModule {
                 settings.current());
         settings.onChange(spectators::settings);
 
+        // The hunt's clock, on the action bar rather than in the boss bar — asked for directly, and
+        // speedrun-module's own display already does exactly this, so it is reused rather than
+        // written a second time. Its own action bar slot, because the slot is arbitrated by owner and
+        // a speedrun clock on the same server must not take turns with this one. It counts from zero
+        // at the moment the hunt actually begins: SpeedrunSession's timer starts in begin(), after
+        // the countdown has already finished, so the countdown is never part of the reading.
+        SpeedrunTimerDisplay huntClock = new SpeedrunTimerDisplay(context.core().actionBars(),
+                SpeedrunTimerDisplay.viaScheduling(context.plugin()), "manhunt-timer");
+
         ManhuntAchievements manhuntAchievements = new ManhuntAchievements(context.core().achievements());
         manhuntAchievements.defineAll();
 
@@ -181,6 +191,7 @@ public final class ManhuntModule implements FlexModule {
             step("borrowing the hunt's gamerules", rules::arm, trouble);
             step("starting the narrator", narrator::arm, trouble);
             step("handing out the tracking compasses", () -> tracker.armFor(roster), trouble);
+            step("starting the hunt clock", () -> liveManhunt.session().ifPresent(huntClock::start), trouble);
         });
         // Guarded one by one for a sharper reason than the start hook's: every line below the first
         // is a hand-back. An awardWin that threw used to take rules.disarm() with it, and a hunt's

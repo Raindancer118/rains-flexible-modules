@@ -39,8 +39,10 @@
              to their feet instead, and the "handed a compass" message no longer lies about it.
              0.6.3: one concern failing as a hunt starts no longer abandons the ones after it (which
              is how the compass handout, last of five, went missing on a live server), and the
-             locator bar is switched off for the length of a hunt. -->
-        <plugin.version>0.6.3</plugin.version>
+             locator bar is switched off for the length of a hunt.
+             0.7.0: the clock moves out of the boss bar and onto the action bar, counting from zero
+             at the hunt's own start, and a tracking compass no longer drops from a dead Hunter. -->
+        <plugin.version>0.7.0</plugin.version>
     </properties>
 
     <dependencies>

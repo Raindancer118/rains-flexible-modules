@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -90,6 +91,30 @@ class TrackerCompassServiceTest {
 
         verify(world).dropItem(location, compass);
         verify(messages).send(hunter, "manhunt.tracker.given");
+    }
+
+    @Test
+    @DisplayName("the distance is rounded to five blocks, so a step does not redraw the compass")
+    void distanceIsRoundedToFives() {
+        // The churn this prevents: at one-block precision every step changes the lore, every lore
+        // change rewrites the item, and a rewritten item in a hand is the equip animation — twice a
+        // second, which is what "it feels like I get a new one every few seconds" actually was.
+        assertThat(TrackerCompassService.roundedDistance(0)).isZero();
+        assertThat(TrackerCompassService.roundedDistance(1)).isEqualTo(5);
+        assertThat(TrackerCompassService.roundedDistance(2.4)).isEqualTo(5);
+        assertThat(TrackerCompassService.roundedDistance(3)).isEqualTo(5);
+        assertThat(TrackerCompassService.roundedDistance(7)).isEqualTo(5);
+        assertThat(TrackerCompassService.roundedDistance(8)).isEqualTo(10);
+        assertThat(TrackerCompassService.roundedDistance(142)).isEqualTo(140);
+    }
+
+    @Test
+    @DisplayName("every step between two five-block marks reads the same, which is the whole point")
+    void neighbouringStepsReadTheSame() {
+        long first = TrackerCompassService.roundedDistance(100.2);
+        for (double walked = 100.2; walked < 102.4; walked += 0.3) {
+            assertThat(TrackerCompassService.roundedDistance(walked)).isEqualTo(first);
+        }
     }
 
     @Test
