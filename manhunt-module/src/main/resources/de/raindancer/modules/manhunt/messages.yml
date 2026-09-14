@@ -24,6 +24,9 @@ manhunt:
     no_runners: "<red>Nobody has joined the Runners yet."
     no_hunters: "<red>Nobody has joined the Hunters yet."
     world_missing: "<red>The configured Manhunt world is not loaded."
+    hunters_cannot_win: "<red>This hunt could never be won by the Hunters: they win when every Runner \
+      is out, but Runners respawn forever. Set <white>runner-death-rule</white> to eliminate or \
+      lives, or the Hunters' win to timeout."
   stop-refused: "<red>There is no hunt going to stop."
   stopped: "<yellow>The hunt has been stopped."
   finished: "<gold>The hunt is over — <white><reason></white>, after <white><time></white>."
@@ -54,6 +57,7 @@ manhunt:
   # ---------------------------------------------------------------- dying
   death:
     lives-left: "<red>You died. <white><lives></white> live(s) left."
+    respawned: "<red>You died. <gray>You are back in the hunt."
     eliminated: "<dark_red>You are out of the hunt."
     eliminated-watching: "<dark_red>You are out of the hunt — watch the rest of it."
     hunter-waiting: "<gray>Back in <white><seconds></white> second(s)."

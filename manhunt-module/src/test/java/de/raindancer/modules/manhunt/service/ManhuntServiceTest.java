@@ -128,6 +128,38 @@ class ManhuntServiceTest {
         }
 
         @Test
+        @DisplayName("Hunters who win when every Runner is out, against Runners who respawn forever, is refused")
+        void unwinnableForTheHuntersIsRefused() {
+            // Reported live: a Runner died, the hunt carried on, and the death line said they had
+            // Integer.MAX_VALUE lives left. RESPAWN never puts anybody out, so ALL_RUNNERS_DEAD can
+            // never happen — the hunt was unwinnable for one side from the moment it started.
+            teams.joinRunners(runner);
+            teams.joinHunters(hunter);
+            ManhuntService service = service(PLAIN
+                    .withHunterWin(ManhuntSettings.HunterWinCondition.ALL_RUNNERS_DEAD)
+                    .withRunnerDeathRule(ManhuntSettings.RunnerDeathRule.RESPAWN));
+
+            assertThat(service.start()).isEqualTo(ManhuntService.StartOutcome.HUNTERS_CANNOT_WIN);
+            assertThat(service.isRunning()).isFalse();
+        }
+
+        @Test
+        @DisplayName("RESPAWN is fine when the Hunters win on the clock instead")
+        void respawnWithATimeoutStarts() {
+            teams.joinRunners(runner);
+            teams.joinHunters(hunter);
+            ManhuntService service = service(PLAIN
+                    .withHunterWin(ManhuntSettings.HunterWinCondition.TIMEOUT)
+                    .withRunnerDeathRule(ManhuntSettings.RunnerDeathRule.RESPAWN));
+
+            // TIMEOUT arms a real scheduler timer, which a test has no server for.
+            try (MockedStatic<de.raindancer.core.platform.util.Scheduling> scheduling =
+                         mockStatic(de.raindancer.core.platform.util.Scheduling.class)) {
+                assertThat(service.start()).isEqualTo(ManhuntService.StartOutcome.STARTED);
+            }
+        }
+
+        @Test
         @DisplayName("with a Hunter but no Runner, starting is refused")
         void noRunnerRefuses() {
             teams.joinHunters(hunter);

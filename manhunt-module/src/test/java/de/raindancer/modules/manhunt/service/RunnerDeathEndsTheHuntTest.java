@@ -53,6 +53,7 @@ class RunnerDeathEndsTheHuntTest {
     private ManhuntTeams teams;
     private MockedStatic<Scheduling> scheduling;
     private MockedStatic<Bukkit> bukkit;
+    private Messages deathMessages;
 
     @BeforeEach
     void setUp() {
@@ -99,8 +100,9 @@ class RunnerDeathEndsTheHuntTest {
     private Hunt start(ManhuntSettings settings) {
         ManhuntService service = new ManhuntService(plugin, teams, mock(Messages.class), mock(SpeedrunReset.class),
                 ManhuntService.manual(), ManhuntService.immediate(), settings);
+        deathMessages = mock(Messages.class);
         ManhuntDeathListener deaths = new ManhuntDeathListener(plugin, service, service.lives(),
-                mock(Messages.class), settings);
+                deathMessages, settings);
         assertThat(service.start()).isEqualTo(ManhuntService.StartOutcome.STARTED);
 
         ArgumentCaptor<Listener> registered = ArgumentCaptor.forClass(Listener.class);
@@ -109,7 +111,7 @@ class RunnerDeathEndsTheHuntTest {
                 .filter(AllRunnersDeadEndCondition.class::isInstance)
                 .map(AllRunnersDeadEndCondition.class::cast)
                 .findFirst()
-                .orElseThrow(() -> new AssertionError("no all-runners-dead condition was armed"));
+                .orElse(null);  // not armed at all under TIMEOUT with RESPAWN, where nothing can put a Runner out
         return new Hunt(service, deaths, condition);
     }
 
@@ -120,7 +122,9 @@ class RunnerDeathEndsTheHuntTest {
         PlayerDeathEvent event = mock(PlayerDeathEvent.class);
         when(event.getEntity()).thenReturn(player);
         hunt.deaths().onDeath(event);
-        hunt.condition().onDeath(event);
+        if (hunt.condition() != null) {
+            hunt.condition().onDeath(event);
+        }
     }
 
     @Test
@@ -143,6 +147,23 @@ class RunnerDeathEndsTheHuntTest {
 
         die(hunt, runner);
         assertThat(hunt.service().isRunning()).isFalse();
+    }
+
+    @Test
+    @DisplayName("RESPAWN with a timeout: a death says the Runner is back, and never counts lives")
+    void respawnNeverMentionsLives() {
+        Hunt hunt = start(rules(RunnerDeathRule.RESPAWN)
+                .withHunterWin(ManhuntSettings.HunterWinCondition.TIMEOUT));
+
+        die(hunt, runner);
+
+        // The live report: "You died. 2147483646 live(s) left." — RESPAWN counts against
+        // Integer.MAX_VALUE internally, and that number was printed.
+        org.mockito.Mockito.verify(deathMessages).send(any(Player.class),
+                org.mockito.ArgumentMatchers.eq("manhunt.death.respawned"), any(Object[].class));
+        org.mockito.Mockito.verify(deathMessages, org.mockito.Mockito.never()).send(any(Player.class),
+                org.mockito.ArgumentMatchers.eq("manhunt.death.lives-left"), any(Object[].class));
+        assertThat(hunt.service().isRunning()).isTrue();
     }
 
     @Test

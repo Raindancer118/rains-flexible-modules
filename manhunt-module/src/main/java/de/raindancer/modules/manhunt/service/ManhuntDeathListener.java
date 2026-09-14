@@ -92,7 +92,13 @@ public final class ManhuntDeathListener implements Listener {
     private void onRunnerDeath(Player player, UUID id) {
         Verdict verdict = lives.record(id);
         if (verdict == Verdict.RESPAWNED) {
-            say(player, "manhunt.death.lives-left", "lives", String.valueOf(lives.livesLeft(id)));
+            // Under RESPAWN there is no count: ManhuntLives allows Integer.MAX_VALUE deaths there, and
+            // printing that allowance is exactly how a Runner was once told they had 2147483646 lives.
+            if (settings.runnerDeathRule() == ManhuntSettings.RunnerDeathRule.RESPAWN) {
+                say(player, "manhunt.death.respawned");
+            } else {
+                say(player, "manhunt.death.lives-left", "lives", String.valueOf(lives.livesLeft(id)));
+            }
             return;
         }
         eliminated.add(id);

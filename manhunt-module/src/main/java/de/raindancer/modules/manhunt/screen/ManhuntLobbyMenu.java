@@ -134,7 +134,12 @@ public final class ManhuntLobbyMenu extends Menu {
                     if (running) {
                         manhunt.stop();
                     } else {
-                        manhunt.start();
+                        // Said out loud, the same as /manhunt start says it. The button used to throw
+                        // the answer away, so a refused start — no Runners, a missing world, a hunt the
+                        // Hunters could never win — looked exactly like a click that did nothing.
+                        ManhuntService.StartOutcome outcome = manhunt.start();
+                        services.messages().send(viewer,
+                                "manhunt.start." + outcome.name().toLowerCase(java.util.Locale.ROOT));
                     }
                     refresh();
                 });

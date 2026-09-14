@@ -17,7 +17,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * The seconds between {@code /manhunt start} and the hunt actually beginning: a line a second, and everybody frozen where they stand until it reaches zero.
+ * The seconds between {@code /manhunt start} and the hunt actually beginning: a line a second, and
+ * everybody frozen where they stand until it reaches zero.
  *
  * <h2>Why this is a copy of {@code SpeedrunCountdown} rather than a call to it</h2>
  * That class is package-private inside {@code speedrun-module} and takes that module's own lobby's

@@ -48,7 +48,13 @@ public final class ManhuntService {
 
     /** What {@link #start} answered. */
     public enum StartOutcome {
-        STARTED, ALREADY_RUNNING, NO_RUNNERS, NO_HUNTERS, WORLD_MISSING
+        STARTED, ALREADY_RUNNING, NO_RUNNERS, NO_HUNTERS, WORLD_MISSING,
+        /**
+         * The Hunters win when every Runner is out, and the Runners respawn forever — so nobody can
+         * ever be out, and one side could never win. Refused rather than started, because a hunt
+         * like that looks perfectly normal right up until the moment it matters.
+         */
+        HUNTERS_CANNOT_WIN
     }
 
     /** Runs {@code task} once a second until told to stop — see {@code ChainService}'s own copy. */
@@ -186,6 +192,15 @@ public final class ManhuntService {
         }
 
         ManhuntSettings config = settings;
+        // Reported live: a Runner died, the hunt carried on, and the death line said they had
+        // 2147483646 lives left. That is RESPAWN, which never puts a Runner out, against
+        // ALL_RUNNERS_DEAD, which waits for every Runner to be out. The two settings live on
+        // different pages and each is reasonable alone; together they are a hunt the Hunters cannot
+        // win, and nothing said so. Checked before anything is touched — no world reset, no freeze.
+        if (config.hunterWin() == ManhuntSettings.HunterWinCondition.ALL_RUNNERS_DEAD
+                && config.runnerDeathRule() == ManhuntSettings.RunnerDeathRule.RESPAWN) {
+            return StartOutcome.HUNTERS_CANNOT_WIN;
+        }
         World world = plugin.getServer().getWorld(config.worldName());
         if (world == null) {
             return StartOutcome.WORLD_MISSING;

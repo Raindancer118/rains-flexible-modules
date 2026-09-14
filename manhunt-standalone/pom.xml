@@ -46,8 +46,11 @@
              each side told when the hunt makes its chat private.
              0.8.1: no boss bar at all any more — neither during the countdown nor during the hunt.
              0.9.0: the compass needle comes from the player's compass target in the overworld, so the
-             item is never rewritten while chasing; the distance moves to the action bar. -->
-        <plugin.version>0.9.0</plugin.version>
+             item is never rewritten while chasing; the distance moves to the action bar.
+             0.9.1: a hunt the Hunters could never win (all-runners-dead against respawning Runners)
+             is refused with a reason, and a respawning Runner is no longer told they have 2147483646
+             lives left. -->
+        <plugin.version>0.9.1</plugin.version>
     </properties>
 
     <dependencies>
