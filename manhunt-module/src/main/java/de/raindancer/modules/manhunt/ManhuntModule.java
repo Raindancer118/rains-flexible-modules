@@ -58,7 +58,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.8.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.8.1")
             .describedAs("Runners against Hunters on top of speedrun-module's engine — a win "
                     + "condition per side, a tracking compass that follows a Runner through the "
                     + "portal they took, a real server whitelist a Runner can open and close, "
@@ -95,7 +95,7 @@ public final class ManhuntModule implements FlexModule {
 
         ManhuntTeams teams = new ManhuntTeams(() -> manhunt != null && manhunt.isRunning());
         ManhuntService liveManhunt = new ManhuntService(context.plugin(), teams,
-                context.core().bossBars(), context.core().messages(), settings.current());
+                context.core().messages(), settings.current());
         this.manhunt = liveManhunt;
         settings.onChange(liveManhunt::settings);
 

@@ -1,9 +1,6 @@
 package de.raindancer.modules.manhunt.service;
 
 import de.raindancer.core.platform.util.Scheduling;
-import de.raindancer.core.ui.bossbar.BarPriority;
-import de.raindancer.core.ui.bossbar.BarStyle;
-import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.conditions.AllRunnersDeadEndCondition;
@@ -18,9 +15,6 @@ import de.raindancer.modules.speedrun.SpeedrunReset;
 import de.raindancer.modules.speedrun.SpeedrunSeed;
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import de.raindancer.modules.speedrun.SpeedrunState;
-import net.kyori.adventure.bossbar.BossBar;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
@@ -42,7 +36,7 @@ import java.util.function.Consumer;
 /**
  * Runs exactly one Manhunt at a time: builds the {@link SpeedrunSession} with whichever end
  * conditions {@link ManhuntSettings} currently names on each side, holds the Hunters for their head
- * start, shows a shared clock, and resets the map between attempts.
+ * start, and resets the map between attempts.
  *
  * <h2>Why one run, not a map of them like {@code ChainService}</h2>
  * A chained pair is one of potentially many independent pairs on the same server, each racing on its
@@ -77,7 +71,7 @@ public final class ManhuntService {
 
     /**
      * The seconds between {@link #start} being asked for and the hunt actually beginning. A seam for
-     * the same reason {@link RunTicker} is one: a countdown is a scheduler and a boss bar, and every
+     * the same reason {@link RunTicker} is one: a countdown is a scheduler and a line a second, and every
      * decision around it is testable only if the waiting itself can be taken out.
      */
     @FunctionalInterface
@@ -91,12 +85,8 @@ public final class ManhuntService {
         return (participants, seconds, onDone) -> onDone.run();
     }
 
-    private static final String OWNER = "manhunt";
-    private static final String BAR_ID = "run";
-
     private final Plugin plugin;
     private final ManhuntTeams teams;
-    private final BossBars bossBars;
     private final Messages messages;
     private final SpeedrunReset reset;
     private final RunTicker ticker;
@@ -116,20 +106,18 @@ public final class ManhuntService {
     private HunterHoldListener hold;
     private AutoCloseable ticking;
 
-    public ManhuntService(Plugin plugin, ManhuntTeams teams, BossBars bossBars, Messages messages,
-                          ManhuntSettings settings) {
-        this(plugin, teams, bossBars, messages, new SpeedrunReset(), viaScheduling(plugin),
-                ManhuntCountdown.viaScheduling(plugin, bossBars, messages), settings);
+    public ManhuntService(Plugin plugin, ManhuntTeams teams, Messages messages, ManhuntSettings settings) {
+        this(plugin, teams, messages, new SpeedrunReset(), viaScheduling(plugin),
+                ManhuntCountdown.viaScheduling(plugin, messages), settings);
     }
 
     /** The same, with the world-reset step, the ticker and the countdown injectable — what the
      *  tests use. */
-    ManhuntService(Plugin plugin, ManhuntTeams teams, BossBars bossBars, Messages messages,
+    ManhuntService(Plugin plugin, ManhuntTeams teams, Messages messages,
                   SpeedrunReset reset, RunTicker ticker, RunCountdown countdown,
                   ManhuntSettings settings) {
         this.plugin = plugin;
         this.teams = teams;
-        this.bossBars = bossBars;
         this.messages = messages;
         this.reset = reset;
         this.ticker = ticker;
@@ -332,32 +320,18 @@ public final class ManhuntService {
         return true;
     }
 
+    /**
+     * Once a second, only to notice a session that finished on its own. There is no boss bar: it was
+     * taken out entirely, asked for directly — the clock is on the action bar
+     * ({@code SpeedrunTimerDisplay}, wired in {@code ManhuntModule}) and chat says what happened.
+     */
     private void tick() {
         if (session == null) {
             return;
         }
         if (session.state() == SpeedrunState.FINISHED) {
             endRun();
-            return;
         }
-        bossBars.showShared(OWNER, BAR_ID, List.copyOf(teams.everybody()), styleFor(session), BarPriority.NORMAL);
-    }
-
-    /**
-     * The bar says what is happening, and deliberately not for how long.
-     *
-     * <p>The clock lives on the action bar instead — asked for directly, and the same choice
-     * {@code SpeedrunTimerDisplay} already documents for a speedrun: a boss bar is a wide,
-     * hard-to-miss banner, and a number that changes every second inside one draws the eye away from
-     * the hunt for no reason. The banner is the state; the clock is a detail, and belongs where
-     * details go.
-     */
-    private static BarStyle styleFor(SpeedrunSession session) {
-        boolean paused = session.state() == SpeedrunState.PAUSED;
-        String text = paused ? "Manhunt (paused)" : "Manhunt";
-        return BarStyle.of(Component.text(text, NamedTextColor.WHITE))
-                .progress(1f)
-                .colour(paused ? BossBar.Color.YELLOW : BossBar.Color.RED);
     }
 
     /** Tells everybody still online what ended the hunt and how long it took — Runner or Hunter,
@@ -391,7 +365,6 @@ public final class ManhuntService {
             closeQuietly(ticking);
             ticking = null;
         }
-        bossBars.clearShared(OWNER, BAR_ID);
         session = null;
     }
 

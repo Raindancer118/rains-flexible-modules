@@ -1,14 +1,8 @@
 package de.raindancer.modules.manhunt.service;
 
 import de.raindancer.core.platform.util.Scheduling;
-import de.raindancer.core.ui.bossbar.BarPriority;
-import de.raindancer.core.ui.bossbar.BarStyle;
-import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.service.ManhuntService.RunCountdown;
-import net.kyori.adventure.bossbar.BossBar;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -18,14 +12,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.plugin.Plugin;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * The seconds between {@code /manhunt start} and the hunt actually beginning: a shared boss bar, a
- * line a second, and everybody frozen where they stand until it reaches zero.
+ * The seconds between {@code /manhunt start} and the hunt actually beginning: a line a second, and everybody frozen where they stand until it reaches zero.
  *
  * <h2>Why this is a copy of {@code SpeedrunCountdown} rather than a call to it</h2>
  * That class is package-private inside {@code speedrun-module} and takes that module's own lobby's
@@ -41,24 +33,20 @@ import java.util.UUID;
  */
 public final class ManhuntCountdown implements Listener, RunCountdown {
 
-    private static final String OWNER = "manhunt";
-    private static final String BAR_ID = "countdown";
 
     private final Plugin plugin;
-    private final BossBars bossBars;
     private final Messages messages;
 
     private Set<UUID> frozen = Set.of();
 
-    public ManhuntCountdown(Plugin plugin, BossBars bossBars, Messages messages) {
+    public ManhuntCountdown(Plugin plugin, Messages messages) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
-        this.bossBars = bossBars;
         this.messages = messages;
     }
 
     /** The real, scheduling implementation — what {@code ManhuntService}'s public constructor uses. */
-    public static RunCountdown viaScheduling(Plugin plugin, BossBars bossBars, Messages messages) {
-        return new ManhuntCountdown(plugin, bossBars, messages);
+    public static RunCountdown viaScheduling(Plugin plugin, Messages messages) {
+        return new ManhuntCountdown(plugin, messages);
     }
 
     @Override
@@ -70,11 +58,11 @@ public final class ManhuntCountdown implements Listener, RunCountdown {
         frozen = Set.copyOf(participants);
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         int[] left = {seconds};
-        announce(participants, left[0], seconds);
+        announce(participants, left[0]);
         Scheduling.globalTimer(plugin, 20L, 20L, task -> {
             left[0]--;
             if (left[0] > 0) {
-                announce(participants, left[0], seconds);
+                announce(participants, left[0]);
                 return;
             }
             task.cancel();
@@ -84,14 +72,8 @@ public final class ManhuntCountdown implements Listener, RunCountdown {
         });
     }
 
-    private void announce(Set<UUID> participants, int left, int total) {
-        if (bossBars != null) {
-            bossBars.showShared(OWNER, BAR_ID, List.copyOf(participants),
-                    BarStyle.of(Component.text("The hunt begins in " + left + "…", NamedTextColor.YELLOW))
-                            .progress(total <= 0 ? 1f : (float) left / total)
-                            .colour(BossBar.Color.YELLOW),
-                    BarPriority.HIGH);
-        }
+    /** A line a second in chat — no boss bar, which was taken out of this module entirely. */
+    private void announce(Set<UUID> participants, int left) {
         say(participants, "manhunt.countdown.tick", "seconds", String.valueOf(left));
     }
 
@@ -110,9 +92,6 @@ public final class ManhuntCountdown implements Listener, RunCountdown {
     private void release() {
         HandlerList.unregisterAll(this);
         frozen = Set.of();
-        if (bossBars != null) {
-            bossBars.clearShared(OWNER, BAR_ID);
-        }
     }
 
     /** Blocks an actual step, not a look around — see {@code HunterHoldListener.onMove}, which this

@@ -1,6 +1,5 @@
 package de.raindancer.modules.manhunt.service;
 
-import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.conditions.AllRunnersDeadEndCondition;
@@ -54,7 +53,6 @@ class ManhuntServiceTest {
     private Server server;
     private PluginManager pluginManager;
     private ManhuntTeams teams;
-    private BossBars bossBars;
     private Messages messages;
     private SpeedrunReset reset;
 
@@ -76,7 +74,6 @@ class ManhuntServiceTest {
                 .thenReturn(mock(World.class));
 
         teams = new ManhuntTeams(() -> false);
-        bossBars = mock(BossBars.class);
         messages = mock(Messages.class);
         reset = mock(SpeedrunReset.class);
     }
@@ -86,7 +83,7 @@ class ManhuntServiceTest {
     }
 
     private ManhuntService service(ManhuntSettings settings, ManhuntService.RunCountdown countdown) {
-        return new ManhuntService(plugin, teams, bossBars, messages, reset, ManhuntService.manual(),
+        return new ManhuntService(plugin, teams, messages, reset, ManhuntService.manual(),
                 countdown, settings);
     }
 
