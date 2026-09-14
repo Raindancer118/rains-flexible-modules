@@ -49,8 +49,10 @@
              item is never rewritten while chasing; the distance moves to the action bar.
              0.9.1: a hunt the Hunters could never win (all-runners-dead against respawning Runners)
              is refused with a reason, and a respawning Runner is no longer told they have 2147483646
-             lives left. -->
-        <plugin.version>0.9.1</plugin.version>
+             lives left.
+             0.9.2: refuses to start against a RainsSpeedrun older than 1.10.0, naming the jar to
+             replace instead of dying with an IllegalAccessError. -->
+        <plugin.version>0.9.2</plugin.version>
     </properties>
 
     <dependencies>

@@ -58,7 +58,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.9.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.9.2")
             .describedAs("Runners against Hunters on top of speedrun-module's engine — a win "
                     + "condition per side, a tracking compass that follows a Runner through the "
                     + "portal they took, a real server whitelist a Runner can open and close, "
@@ -74,10 +74,17 @@ public final class ManhuntModule implements FlexModule {
         return INFO;
     }
 
+    /** The oldest RainsSpeedrun whose engine classes this module links against. */
+    static final String SPEEDRUN_NEEDED = "1.10.0";
+
     @Override
     public void enable(ModuleContext context) {
         LogChannel log = context.log();
         Server server = context.plugin().getServer();
+
+        // First, before any line that touches speedrun-module's newer classes — see
+        // requireCurrentSpeedrun for why this cannot be left to the class loader.
+        requireCurrentSpeedrun(server);
 
         // The module's own wording, offered as a floor below anything the owner has written — see
         // ChainedModule's own note on why this is defineFrom rather than Messages.load.
@@ -242,6 +249,44 @@ public final class ManhuntModule implements FlexModule {
 
         log.info("Manhunt is up: {} Runner(s), {} Hunter(s).",
                 teams.runners().size(), teams.hunters().size());
+    }
+
+    private static void requireCurrentSpeedrun(Server server) {
+        Class<?> display;
+        try {
+            // By name, not by class literal: a literal of an inaccessible class fails to link right
+            // here with the very IllegalAccessError this method exists to replace.
+            display = Class.forName("de.raindancer.modules.speedrun.SpeedrunTimerDisplay");
+        } catch (ClassNotFoundException missing) {
+            display = null;
+        }
+        var speedrun = server.getPluginManager().getPlugin("RainsSpeedrun");
+        requireCurrentSpeedrun(display,
+                speedrun == null ? null : speedrun.getPluginMeta().getVersion());
+    }
+
+    /**
+     * Refuses to start against a RainsSpeedrun too old for this module, and says which jar to replace.
+     *
+     * <h2>Why this has to be checked by hand</h2>
+     * A Paper descriptor can require RainsSpeedrun, but not a version of it, so an older jar loads
+     * without complaint. This module then fails the first time it touches a class that was widened
+     * later — reported live as "IllegalAccessError: failed to access class
+     * de.raindancer.modules.speedrun.SpeedrunTimerDisplay", with RainsSpeedrun 1.9.0 installed. That
+     * error is accurate and useless: it names a class, where the person reading it needs a jar.
+     *
+     * <p>Checked by capability rather than by comparing version strings: the question is whether the
+     * class this module needs is reachable, and the version is only for the message. A speedrun-module
+     * shaded into a bundle under another plugin name still passes, because the class is what counts.
+     */
+    static void requireCurrentSpeedrun(Class<?> timerDisplay, String foundVersion) {
+        if (timerDisplay != null && java.lang.reflect.Modifier.isPublic(timerDisplay.getModifiers())) {
+            return;
+        }
+        throw new IllegalStateException("Manhunt needs RainsSpeedrun " + SPEEDRUN_NEEDED + " or newer, "
+                + (foundVersion == null ? "and the installed one is older"
+                        : "but RainsSpeedrun " + foundVersion + " is installed")
+                + " — replace the RainsSpeedrun jar in plugins/ and restart.");
     }
 
     /** What {@link HuntHistory#record} needs from the moment a hunt began — see the field's own note. */
