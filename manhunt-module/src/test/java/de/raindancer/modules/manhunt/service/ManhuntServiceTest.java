@@ -448,4 +448,58 @@ class ManhuntServiceTest {
         }
     }
 
+
+    @Nested
+    @DisplayName("starting everybody in a circle")
+    class Circle {
+
+        private World world;
+        private org.bukkit.entity.Player runnerPlayer;
+        private org.bukkit.entity.Player hunterPlayer;
+
+        @BeforeEach
+        void players() {
+            world = mock(World.class);
+            lenient().when(server.getWorld("world")).thenReturn(world);
+            lenient().when(world.getSpawnLocation()).thenReturn(new org.bukkit.Location(world, 10, 64, 20));
+            lenient().when(world.getHighestBlockYAt(org.mockito.ArgumentMatchers.anyInt(),
+                    org.mockito.ArgumentMatchers.anyInt())).thenReturn(70);
+            runnerPlayer = mock(org.bukkit.entity.Player.class);
+            hunterPlayer = mock(org.bukkit.entity.Player.class);
+            lenient().when(server.getPlayer(runner)).thenReturn(runnerPlayer);
+            lenient().when(server.getPlayer(hunter)).thenReturn(hunterPlayer);
+        }
+
+        @Test
+        @DisplayName("everybody is placed on the surface around the world's spawn, facing the middle")
+        void everybodyIsPlacedAroundTheSpawn() {
+            ManhuntService service = service(PLAIN.withStartInCircle(true));
+
+            service.arrangeInCircle(PLAIN.withStartInCircle(true), java.util.Set.of(runner), java.util.Set.of(hunter));
+
+            ArgumentCaptor<org.bukkit.Location> runnerAt = ArgumentCaptor.forClass(org.bukkit.Location.class);
+            ArgumentCaptor<org.bukkit.Location> hunterAt = ArgumentCaptor.forClass(org.bukkit.Location.class);
+            verify(runnerPlayer).teleportAsync(runnerAt.capture());
+            verify(hunterPlayer).teleportAsync(hunterAt.capture());
+            for (org.bukkit.Location at : java.util.List.of(runnerAt.getValue(), hunterAt.getValue())) {
+                assertThat(at.getWorld()).isSameAs(world);
+                assertThat(at.getY()).as("one above the highest block").isEqualTo(71);
+                assertThat(Math.hypot(at.getX() - 10, at.getZ() - 20)).as("on the circle, not the centre")
+                        .isGreaterThan(3);
+            }
+            assertThat(runnerAt.getValue().distance(hunterAt.getValue())).as("not on top of each other")
+                    .isGreaterThan(3);
+        }
+
+        @Test
+        @DisplayName("switched off, nobody is moved at all")
+        void offMovesNobody() {
+            ManhuntService service = service(PLAIN.withStartInCircle(false));
+
+            service.arrangeInCircle(PLAIN.withStartInCircle(false), java.util.Set.of(runner), java.util.Set.of(hunter));
+
+            verify(runnerPlayer, never()).teleportAsync(any());
+            verify(hunterPlayer, never()).teleportAsync(any());
+        }
+    }
 }

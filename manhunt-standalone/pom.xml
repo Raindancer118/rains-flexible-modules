@@ -51,8 +51,10 @@
              is refused with a reason, and a respawning Runner is no longer told they have 2147483646
              lives left.
              0.9.2: refuses to start against a RainsSpeedrun older than 1.10.0, naming the jar to
-             replace instead of dying with an IllegalAccessError. -->
-        <plugin.version>0.9.2</plugin.version>
+             replace instead of dying with an IllegalAccessError.
+             0.10.0: everybody starts evenly around one circle at the hunt world's spawn, sized by the
+             roster, facing the middle. -->
+        <plugin.version>0.10.0</plugin.version>
     </properties>
 
     <dependencies>

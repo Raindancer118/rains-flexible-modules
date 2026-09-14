@@ -249,6 +249,11 @@ public final class ManhuntService {
         occupancy = new SpeedrunOccupancyListener(fresh);
         plugin.getServer().getPluginManager().registerEvents(occupancy, plugin);
 
+        // Before the head start's hold is registered, and before anybody is loose. Teleports raise
+        // PlayerTeleportEvent, which has its own handler list, so neither the countdown's freeze nor
+        // the hold (both PlayerMoveEvent) can cancel these.
+        arrangeInCircle(config, runners, hunters);
+
         int delaySeconds = config.hunterReleaseDelaySecondsClamped();
         if (delaySeconds > 0) {
             hold = new HunterHoldListener(hunters);
@@ -291,6 +296,57 @@ public final class ManhuntService {
             if (player.getGameMode() == GameMode.ADVENTURE) {
                 player.setGameMode(GameMode.SURVIVAL);
             }
+        }
+    }
+
+    /** The gap between neighbours on the starting circle, and the smallest circle there is. */
+    private static final double CIRCLE_SPACING = 4;
+    private static final double CIRCLE_MIN_RADIUS = 5;
+
+    /**
+     * Puts every online participant evenly around one circle at the hunt world's spawn, facing the
+     * middle — asked for directly. Runners first and Hunters after, so each side stands together
+     * rather than interleaved. The circle's size follows the roster, see {@link SpawnCircle}.
+     *
+     * <p>Package-private for the tests: the rest of {@code begin()} resets every participant through
+     * {@code Attribute.MAX_HEALTH}, which cannot be resolved without a server.
+     */
+    void arrangeInCircle(ManhuntSettings config, Set<UUID> runners, Set<UUID> hunters) {
+        if (!config.startInCircle()) {
+            return;
+        }
+        World world = plugin.getServer().getWorld(config.worldName());
+        if (world == null) {
+            return;
+        }
+        org.bukkit.Location centre = world.getSpawnLocation();
+        if (centre == null) {
+            return;
+        }
+        List<Player> placing = new java.util.ArrayList<>();
+        for (UUID id : runners) {
+            Player player = plugin.getServer().getPlayer(id);
+            if (player != null) {
+                placing.add(player);
+            }
+        }
+        for (UUID id : hunters) {
+            Player player = plugin.getServer().getPlayer(id);
+            if (player != null) {
+                placing.add(player);
+            }
+        }
+        List<SpawnCircle.Spot> spots = SpawnCircle.around(centre.getX(), centre.getZ(), placing.size(),
+                CIRCLE_SPACING, CIRCLE_MIN_RADIUS);
+        for (int i = 0; i < placing.size(); i++) {
+            SpawnCircle.Spot spot = spots.get(i);
+            int blockX = (int) Math.floor(spot.x());
+            int blockZ = (int) Math.floor(spot.z());
+            // The middle of the block, one above whatever is highest there — on the ground, never
+            // inside it, whatever the terrain around the spawn happens to be.
+            org.bukkit.Location at = new org.bukkit.Location(world, blockX + 0.5,
+                    world.getHighestBlockYAt(blockX, blockZ) + 1, blockZ + 0.5, spot.yaw(), 0f);
+            placing.get(i).teleportAsync(at);
         }
     }
 
