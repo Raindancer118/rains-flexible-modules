@@ -225,7 +225,24 @@ public final class TrackerCompassService {
         if (findTracker(hunter).isPresent()) {
             return;
         }
-        hunter.getInventory().addItem(freshCompass());
+        place(hunter, freshCompass());
+    }
+
+    /**
+     * Puts {@code compass} into {@code hunter}'s inventory, or at their feet when it does not fit.
+     *
+     * <p>{@code Inventory.addItem} does not throw when there is no room — it hands back whatever it
+     * could not place. That return value used to be thrown away here, so a Hunter whose inventory
+     * happened to be full was told "you have been handed a tracking compass" while nothing landed
+     * anywhere: the compass was never dropped, never kept, and the message claimed otherwise. Split
+     * out from {@link #give} so the decision is testable without the real Material registry
+     * {@link #freshCompass} needs — see {@code TrackerCompassServiceTest}'s own note on why.
+     */
+    void place(Player hunter, ItemStack compass) {
+        java.util.Map<Integer, ItemStack> notFitted = hunter.getInventory().addItem(compass);
+        for (ItemStack leftover : notFitted.values()) {
+            hunter.getWorld().dropItem(hunter.getLocation(), leftover);
+        }
         if (messages != null) {
             messages.send(hunter, "manhunt.tracker.given");
         }
