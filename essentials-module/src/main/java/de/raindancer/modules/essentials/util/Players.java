@@ -56,9 +56,9 @@ public final class Players {
      */
     public static List<String> suggestions(Server server, String typed, Vanish vanish, UUID viewer) {
         String wanted = typed == null ? "" : typed.toLowerCase(Locale.ROOT);
-        List<String> names = new ArrayList<>();
+        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
         if (server == null) {
-            return names;
+            return new ArrayList<>(names);
         }
         for (Player who : server.getOnlinePlayers()) {
             if (viewer != null && !vanish.canSee(viewer, who.getUniqueId())) {
@@ -68,7 +68,20 @@ public final class Players {
                 names.add(who.getName());
             }
         }
-        return names.size() > 50 ? names.subList(0, 50) : names;
+        // Offline players are not hidden by vanish — there is no live entity to hide — and a command
+        // like /nick or /ignore is as often aimed at somebody who is not currently on as at somebody
+        // who is.
+        for (OfflinePlayer who : server.getOfflinePlayers()) {
+            if (names.size() >= 50) {
+                break;
+            }
+            String name = who.getName();
+            if (name != null && name.toLowerCase(Locale.ROOT).startsWith(wanted)) {
+                names.add(name);
+            }
+        }
+        List<String> result = new ArrayList<>(names);
+        return result.size() > 50 ? result.subList(0, 50) : result;
     }
 
     /**

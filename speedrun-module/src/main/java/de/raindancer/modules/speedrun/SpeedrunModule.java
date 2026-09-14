@@ -23,7 +23,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.6.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.9.0")
             .describedAs("A speedrun lobby: pick an advancement goal or a death policy from the "
                     + "compass's menu, then press the green block to race. A countdown freezes "
                     + "everyone first, and the lobby world resets once the last racer has left.")
@@ -81,6 +81,10 @@ public final class SpeedrunModule implements FlexModule {
     @Override
     public void disable() {
         SpeedrunCommands.stopped();
+        // Whatever a companion module offered goes with this module, not with theirs: on a reload
+        // this one may come back before they do, and a shelf that survived the unload would draw a
+        // button into a plugin that has not been rebuilt yet.
+        SpeedrunCompanions.clear();
         // Nothing to flush: the configuration is already on disk through its own settings store, and
         // a run in progress does not survive a restart either way — see SpeedrunLobby's own class
         // javadoc for why that is unchanged, deliberate scope rather than an oversight.

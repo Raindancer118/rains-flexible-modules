@@ -113,19 +113,37 @@ public final class Players {
         return everyone;
     }
 
-    /** Names to complete, online first. Capped, because a four-year-old server has thousands. */
+    /**
+     * Names to complete, online first, then everybody else the server has seen before. Capped, because
+     * a four-year-old server has thousands.
+     *
+     * <p>Offline players matter here as much as online ones — {@code /promote}, {@code /ban} and the
+     * rest of this module's commands are usually aimed at somebody who is not currently on, and a
+     * suggestion list that only ever offers online names is one that works for every case except the
+     * one those commands exist for.
+     */
     public static List<String> suggestions(Server server, String typed) {
         String wanted = typed == null ? "" : typed.toLowerCase(Locale.ROOT);
-        List<String> names = new ArrayList<>();
+        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
         if (server == null) {
-            return names;
+            return new ArrayList<>(names);
         }
         for (Player who : server.getOnlinePlayers()) {
             if (who.getName().toLowerCase(Locale.ROOT).startsWith(wanted)) {
                 names.add(who.getName());
             }
         }
-        return names.size() > 50 ? names.subList(0, 50) : names;
+        for (OfflinePlayer who : server.getOfflinePlayers()) {
+            if (names.size() >= 50) {
+                break;
+            }
+            String name = who.getName();
+            if (name != null && name.toLowerCase(Locale.ROOT).startsWith(wanted)) {
+                names.add(name);
+            }
+        }
+        List<String> result = new ArrayList<>(names);
+        return result.size() > 50 ? result.subList(0, 50) : result;
     }
 
     /**
@@ -134,9 +152,9 @@ public final class Players {
      */
     public static List<String> suggestions(Server server, String typed, Vanish vanish, UUID viewer) {
         String wanted = typed == null ? "" : typed.toLowerCase(Locale.ROOT);
-        List<String> names = new ArrayList<>();
+        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
         if (server == null) {
-            return names;
+            return new ArrayList<>(names);
         }
         for (Player who : server.getOnlinePlayers()) {
             if (!vanish.canSee(viewer, who.getUniqueId())) {
@@ -146,6 +164,18 @@ public final class Players {
                 names.add(who.getName());
             }
         }
-        return names.size() > 50 ? names.subList(0, 50) : names;
+        // Offline players are not hidden by vanish — there is no live entity to hide — so they are
+        // added the same way the plain overload above adds them.
+        for (OfflinePlayer who : server.getOfflinePlayers()) {
+            if (names.size() >= 50) {
+                break;
+            }
+            String name = who.getName();
+            if (name != null && name.toLowerCase(Locale.ROOT).startsWith(wanted)) {
+                names.add(name);
+            }
+        }
+        List<String> result = new ArrayList<>(names);
+        return result.size() > 50 ? result.subList(0, 50) : result;
     }
 }

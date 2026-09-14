@@ -58,7 +58,7 @@
              walking back out of that left them in the server's overworld, outside the race. The
              dragon run also ends when a racer leaves the End at all, not only when the exit portal
              happens to arrive as a portal event — it did not, and the clock kept running. -->
-        <plugin.version>1.6.0</plugin.version>
+        <plugin.version>1.9.0</plugin.version>
     </properties>
 
     <dependencies>

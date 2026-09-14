@@ -5,6 +5,7 @@ import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.service.TrackerCompass.Aim;
 import de.raindancer.modules.manhunt.service.TrackerCompass.Candidate;
+import de.raindancer.modules.manhunt.service.TrackerCompass.Following;
 import de.raindancer.modules.manhunt.service.TrackerCompass.Point;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -70,8 +71,13 @@ public final class TrackerCompassService {
     private final Messages messages;
     private final NamespacedKey marker;
 
-    /** Which Runner each Hunter has picked. Never a {@code Player} — see {@link PortalMemory}. */
-    private final Map<UUID, UUID> picks = new ConcurrentHashMap<>();
+    /**
+     * What each Hunter has set their own compass to. Never a {@code Player} — see
+     * {@link PortalMemory}. An absent entry is a Hunter who has never right-clicked it, which is not
+     * the same as one who cycled back to {@link Following#NEAREST}: the first takes whatever
+     * {@code tracker-targets} says, the second has said it themselves and outranks it.
+     */
+    private final Map<UUID, Following> picks = new ConcurrentHashMap<>();
 
     private volatile ManhuntSettings settings;
     private volatile ScheduledTask sweep;
@@ -295,7 +301,9 @@ public final class TrackerCompassService {
             lore.add(line("<gray>About <white>" + Math.round(aim.distance()) + "<gray> blocks away."));
         }
         if (compass.allowsPicking()) {
-            lore.add(line("<dark_gray>Right-click to follow the next Runner."));
+            lore.add(line(aim.target() == null
+                    ? "<dark_gray>Right-click to lock onto a Runner."
+                    : "<dark_gray>Right-click for the next Runner, or the nearest."));
         }
         return lore;
     }
@@ -331,9 +339,10 @@ public final class TrackerCompassService {
     // ------------------------------------------------------------------------ picking a Runner
 
     /**
-     * A Hunter right-clicked their compass: follow the next Runner along. Refused outright under
-     * {@link ManhuntSettings.TrackerTargets#NEAREST}, where the needle is the owner's choice and not
-     * the Hunter's.
+     * A Hunter right-clicked their compass: move it one position along the cycle — the next Runner
+     * in the roster, and after the last of them back to "whoever is nearest". Refused outright when
+     * {@code tracker-hunter-may-choose} is off, where the needle is the owner's to set and not the
+     * Hunter's.
      */
     public void cycleTarget(Player hunter) {
         if (!manhunt.isRunning()) {
@@ -344,31 +353,58 @@ public final class TrackerCompassService {
             return;
         }
         List<Candidate> runners = livingRunners();
-        Optional<UUID> next = TrackerCompass.next(runners, picks.get(hunter.getUniqueId()));
+        Optional<Following> next = TrackerCompass.next(runners, current(hunter.getUniqueId(), runners));
         if (next.isEmpty()) {
             say(hunter, "manhunt.tracker.no-runners");
             return;
         }
-        Player runner = plugin.getServer().getPlayer(next.get());
-        String name = runner != null ? runner.getName() : "a Runner";
+        Following moved = next.get();
+        String name = nameOf(moved.runner());
         if (settings.trackerSharedTarget()) {
             // One pack, one needle: everybody's compass turns, and everybody is told why — a Hunter
             // whose own view swung without explanation would reasonably think it had broken.
             for (UUID id : manhunt.teams().hunters()) {
-                picks.put(id, next.get());
+                picks.put(id, moved);
                 Player other = plugin.getServer().getPlayer(id);
                 if (other != null && !other.equals(hunter)) {
-                    say(other, "manhunt.tracker.pack-following", "runner", name,
-                            "hunter", hunter.getName());
+                    if (moved.isNearest()) {
+                        say(other, "manhunt.tracker.pack-nearest", "hunter", hunter.getName());
+                    } else {
+                        say(other, "manhunt.tracker.pack-following", "runner", name,
+                                "hunter", hunter.getName());
+                    }
                 }
             }
         } else {
-            picks.put(hunter.getUniqueId(), next.get());
+            picks.put(hunter.getUniqueId(), moved);
         }
-        say(hunter, "manhunt.tracker.now-following", "runner", name);
-        Aim aim = compass.aim(pointOf(hunter), runners, next.get());
-        Map<UUID, String> names = namesOf(runners);
-        applyTo(hunter, aim, names);
+        if (moved.isNearest()) {
+            say(hunter, "manhunt.tracker.now-nearest");
+        } else {
+            say(hunter, "manhunt.tracker.now-following", "runner", name);
+        }
+        // Redrawn at once rather than at the next sweep: a compass that answers a click a second
+        // later is a compass the Hunter clicks again.
+        Aim aim = compass.aim(pointOf(hunter), runners, moved);
+        applyTo(hunter, aim, namesOf(runners));
+    }
+
+    /**
+     * Where {@code hunter}'s compass is right now — their own setting, or the starting point the
+     * owner's {@code tracker-targets} names for a Hunter who has never touched it. Resolved before
+     * cycling so the first right-click of a hunt moves one position rather than appearing to jump.
+     */
+    private Following current(UUID hunter, List<Candidate> runners) {
+        Following own = picks.get(hunter);
+        return own != null ? own : compass.startingPoint(runners);
+    }
+
+    private String nameOf(UUID runner) {
+        if (runner == null) {
+            return "a Runner";
+        }
+        Player player = plugin.getServer().getPlayer(runner);
+        return player != null ? player.getName() : "a Runner";
     }
 
     /** Forgets a Hunter's pick — they left the side, or the server. */
@@ -376,8 +412,8 @@ public final class TrackerCompassService {
         picks.remove(hunter);
     }
 
-    /** Which Runner {@code hunter} is following right now, if they have picked one. */
-    public Optional<UUID> pickOf(UUID hunter) {
+    /** What {@code hunter} has set their own compass to, if they have set it at all. */
+    public Optional<Following> pickOf(UUID hunter) {
         return Optional.ofNullable(picks.get(hunter));
     }
 

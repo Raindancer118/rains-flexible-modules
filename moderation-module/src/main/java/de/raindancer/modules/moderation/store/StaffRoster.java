@@ -86,7 +86,10 @@ public final class StaffRoster {
             return false;
         }
         ranks.put(who, rank);
-        grants.set(who, rank.nodes());
+        // A named preset rather than a bare set(): with LuckPerms behind Grants, this becomes a
+        // maintained LuckPerms group — rains_<rank key> — so an admin reading the LuckPerms editor sees
+        // "Moderator" rather than eleven unrelated-looking node strings. See Grants#setPreset.
+        grants.setPreset(who, rank.key(), rank.nodes());
         // A fresh assignment of the rank's full node set already includes whatever was individually
         // refused before — carrying the exclusion forward would have topUpFromPreset immediately
         // undo half of what this line just did.

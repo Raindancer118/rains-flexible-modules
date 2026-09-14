@@ -15,76 +15,93 @@ import org.bukkit.Material;
  *
  * <p>The GUI writes through this record's own {@code SettingsStore} — {@code set}/{@code cycle} — so
  * a click and a hand-edited {@code speedrun.yml} can never disagree.
+ *
+ * <h2>Why these sit at the top of {@code /settings} rather than under "Server settings"</h2>
+ * They used to be one page at {@code config/speedrun}, filed beside Core's own chat, logging, packs
+ * and safety pages. That is where a handful of server knobs belong; a whole game mode is not a knob,
+ * and next to {@code manhunt}, which had a root of its own, it read as though Speedrun's settings had
+ * gone missing entirely — which is exactly how it was reported. So {@code speedrun} is a root now,
+ * with the three questions it actually holds behind it: the race, the hazard, and the start line.
+ *
+ * <p><b>Nothing moved in the file.</b> A topic path is where a setting is <em>shown</em>; the
+ * {@code @Key} is where it is stored, and no key changed, so an existing {@code config.yml} keeps
+ * every value it had.
  */
 @Settings(id = "speedrun", topics = {
-        @Topic(path = "config/speedrun", title = "Speedrun", icon = Material.NETHER_STAR,
-                description = "Which world races run in, and what ends one."),
+        @Topic(path = "speedrun", title = "Speedrun", icon = Material.NETHER_STAR,
+                description = "Which world races run in, what ends one, and what is in the way."),
+        @Topic(path = "speedrun/race", title = "The race", icon = Material.WRITABLE_BOOK,
+                description = "The world it runs in, and what ends a run."),
+        @Topic(path = "speedrun/hazard", title = "The creeper hazard", icon = Material.CREEPER_HEAD,
+                description = "Creepers where a racer mines or loots. Off until a host turns it on."),
+        @Topic(path = "speedrun/start", title = "The start point", icon = Material.LODESTONE,
+                description = "Where /starthere put the line every run begins on."),
 })
 public record SpeedrunSettings(
 
-        @In("config/speedrun") @Title("Lobby world")
+        @In("speedrun/race") @Title("Lobby world")
         @Describe("The Bukkit world the lobby, and every run, takes place in.")
         String worldName,
 
-        @In("config/speedrun") @Title("Advancement goal")
+        @In("speedrun/race") @Title("Advancement goal")
         @Describe("The advancement that ends a run, as 'namespace:path'. Empty means none.")
         String advancementKey,
 
-        @In("config/speedrun") @Title("Death policy")
+        @In("speedrun/race") @Title("Death policy")
         @Describe("Whether a death ends the run, and whether one death is enough.")
         SpeedrunDeathPolicy deathPolicy,
 
-        @In("config/speedrun") @Title("Require the exit portal")
+        @In("speedrun/race") @Title("Require the exit portal")
         @Describe("When the advancement goal is the vanilla dragon kill, whether killing it is only "
                 + "the first half — a run does not end until a participant then steps into the exit "
                 + "portal, the way an actual dragon-kill speedrun is judged. Has no effect on any other "
                 + "advancement goal, or when death alone ends the run.")
         boolean requireExitPortalAfterDragon,
 
-        @In("config/speedrun") @Title("Creeper chance (block break)") @Range(min = 0, max = 100)
+        @In("speedrun/hazard") @Title("Creeper chance (block break)") @Range(min = 0, max = 100)
         @Describe("Chance, in percent, that a racer breaking a block during a run spawns a creeper "
                 + "right where it broke. 0 turns the hazard off; 100 is the old plain on/off toggle's "
                 + "'on'.")
         int creeperSpawnChanceOnBreakPercent,
 
-        @In("config/speedrun") @Title("Charged creeper chance (block break)") @Range(min = 0, max = 100)
+        @In("speedrun/hazard") @Title("Charged creeper chance (block break)") @Range(min = 0, max = 100)
         @Describe("Of a creeper spawned by breaking a block, the chance in percent that it is charged "
                 + "(powered) instead of an ordinary one.")
         int chargedCreeperChanceOnBreakPercent,
 
-        @In("config/speedrun") @Title("Creeper chance (container open)") @Range(min = 0, max = 100)
+        @In("speedrun/hazard") @Title("Creeper chance (container open)") @Range(min = 0, max = 100)
         @Describe("Chance, in percent, that a racer opening a chest or other container during a run "
                 + "spawns a creeper right where it stands — set separately from the block-break chance, "
                 + "since opening loot chests is a very different risk than mining.")
         int creeperSpawnChanceOnContainerPercent,
 
-        @In("config/speedrun") @Title("Charged creeper chance (container open)") @Range(min = 0, max = 100)
+        @In("speedrun/hazard") @Title("Charged creeper chance (container open)") @Range(min = 0, max = 100)
         @Describe("Of a creeper spawned by opening a container, the chance in percent that it is "
                 + "charged (powered) instead of an ordinary one.")
         int chargedCreeperChanceOnContainerPercent,
 
-        @In("config/speedrun") @Title("Start point set")
+        @In("speedrun/start") @Title("Start point set")
         @Describe("Whether /starthere has set a start point. Off means nobody is teleported when a "
                 + "countdown begins — racers start wherever they were standing when it caught them.")
         boolean startPointSet,
 
-        @In("config/speedrun") @Title("Start X")
+        @In("speedrun/start") @Title("Start X")
         @Describe("Set by /starthere, not meant to be hand-edited.")
         double startX,
 
-        @In("config/speedrun") @Title("Start Y")
+        @In("speedrun/start") @Title("Start Y")
         @Describe("Set by /starthere, not meant to be hand-edited.")
         double startY,
 
-        @In("config/speedrun") @Title("Start Z")
+        @In("speedrun/start") @Title("Start Z")
         @Describe("Set by /starthere, not meant to be hand-edited.")
         double startZ,
 
-        @In("config/speedrun") @Title("Start yaw")
+        @In("speedrun/start") @Title("Start yaw")
         @Describe("Set by /starthere, not meant to be hand-edited.")
         double startYaw,
 
-        @In("config/speedrun") @Title("Start pitch")
+        @In("speedrun/start") @Title("Start pitch")
         @Describe("Set by /starthere, not meant to be hand-edited.")
         double startPitch
 
@@ -113,9 +130,15 @@ public record SpeedrunSettings(
      * What a fresh install ships with: the vanilla dragon kill, nobody's death ends it, and the portal
      * requirement on, since a run that stops timing the instant the dragon dies is not how anybody
      * actually races this goal.
+     *
+     * <p><b>Every creeper chance is zero.</b> The hazard used to default to 100% on both block breaks
+     * and container opens, which meant installing this module changed the game for anybody who raced
+     * before finding the setting — mining a block spawned a creeper, every time. A hazard is something
+     * a host turns on for a particular evening, not the shape of a plain speedrun, so the default is
+     * off and the whole feature costs nothing until somebody asks for it.
      */
     public static final SpeedrunSettings DEFAULTS = new SpeedrunSettings(
-            DEFAULT_WORLD_NAME, DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, 100, 0, 100, 0,
+            DEFAULT_WORLD_NAME, DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, 0, 0, 0, 0,
             false, 0, 0, 0, 0, 0);
 
     /** Whether the configured goal is specifically the vanilla dragon kill — the only goal

@@ -48,6 +48,10 @@ class SpeedrunCreeperOnBreakListenerTest {
                 SettingsSchema.of(SpeedrunSettings.class, SpeedrunSettings.DEFAULTS),
                 dataFolder.resolve("speedrun.yml"));
         settings.load();
+        // The hazard ships off — see SpeedrunSettingsTest. These tests are about what the
+        // listener does once a host has turned it on, so they turn it on rather than leaning
+        // on a default that is deliberately the other way round.
+        settings.set("creeper-spawn-chance-on-break-percent", "100");
 
         world = mock(World.class);
         block = mock(Block.class);

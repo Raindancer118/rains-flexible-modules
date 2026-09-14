@@ -29,8 +29,11 @@
              it is meant to be: 1.0.0 is the milestone, not the first build that runs.
              0.1.0: the two sides, the win conditions, the whitelist, chaos, the waiting lobby.
              0.2.0: the Hunters carry a tracking compass.
-             0.3.0: a countdown, death rules, narration, side chat, borrowed rules, spectators. -->
-        <plugin.version>0.3.0</plugin.version>
+             0.3.0: a countdown, death rules, narration, side chat, borrowed rules, spectators.
+             0.4.0-0.5.0: the Hunter aims their own compass, the curated screens, the map page.
+             0.6.0: hunt history — every finished hunt remembered, /manhunt history and a per-player
+             record, the last thing manhunt-roadmap-to-1-0 named as still missing before 1.0.0. -->
+        <plugin.version>0.6.0</plugin.version>
     </properties>
 
     <dependencies>

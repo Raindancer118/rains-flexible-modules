@@ -70,8 +70,10 @@ manhunt:
   tracker:
     given: "<gold>You have been handed a tracking compass."
     now-following: "<gold>Your compass now follows <white><runner></white>."
+    now-nearest: "<gold>Your compass is back on whoever is nearest."
     pack-following: "<gold><hunter></gold> <gray>put the pack on <white><runner></white><gray>."
-    picking-off: "<red>Your compass follows whoever is nearest — that is not yours to change."
+    pack-nearest: "<gold><hunter></gold> <gray>put the pack back on whoever is nearest."
+    picking-off: "<red>Your compass is set by the host — that is not yours to change."
     no-runners: "<red>There is no Runner left to follow."
 
   # ---------------------------------------------------------------- talking to your side
@@ -89,6 +91,17 @@ manhunt:
   achievements:
     header: "<gold>Manhunt achievements — <white><count></white> shown, <white><hidden></white> still hidden."
     entry: "<gray>  <white><title></white> <dark_gray>(<points> pt) — <description>"
+
+  # ---------------------------------------------------------------- hunt history
+  history:
+    empty: "<gray>No hunt has finished on this server yet."
+    summary: "<gold>Manhunt history — <white><total></white> hunt(s): <white><runner-wins></white> to \
+      the Runners, <white><hunter-wins></white> to the Hunters, <white><aborted></white> aborted. \
+      Average <white><average></white>."
+    player-summary: "<gold><white><player></white></gold> — <white><played></white> hunt(s) played, \
+      <white><won></white> won."
+    entry: "<gray>  <white><winner></white> <dark_gray>(<reason>) — <white><time></white>, \
+      <white><runners></white>v<white><hunters></white>"
 
   # ---------------------------------------------------------------- options
   options:
@@ -112,6 +125,7 @@ manhunt:
     chaos: "<gray>/manhunt chaos <action>"
     assign: "<gray>/manhunt assign <player> <runner|hunter>"
     goal: "<gray>/manhunt goal <advancement-key>"
+    history: "<gray>/manhunt history [player]"
 
   help:
     - "<gray>/manhunt <dark_gray>— the lobby: sides, and the clock"
@@ -124,6 +138,7 @@ manhunt:
     - "<gray>/manhunt status <dark_gray>— the roster and the clock, as text"
     - "<gray>/manhunt chaos [<action>] <dark_gray>— throw chaos at a running hunt, or open the menu"
     - "<gray>/manhunt achievements <dark_gray>— the curated set, earned or not"
+    - "<gray>/manhunt history [player] <dark_gray>— every finished hunt, or one player's own record"
     - "<gray>/manhunt options <dark_gray>— how a hunt is set up: winning, dying, and ending"
     - "<gray>/manhunt tracker <dark_gray>— everything the Hunters' tracking compass does"
     - "<gray>/manhunt field <dark_gray>— narration, side chat, borrowed rules, spectators"

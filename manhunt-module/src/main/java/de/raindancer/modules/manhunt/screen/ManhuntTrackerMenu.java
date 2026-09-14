@@ -1,5 +1,6 @@
 package de.raindancer.modules.manhunt.screen;
 
+import de.raindancer.core.ui.choose.AmountChooser;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -13,30 +14,37 @@ import org.bukkit.inventory.ItemStack;
 
 /**
  * Everything about the tracking compass, in one page: whether the Hunters carry one at all, who it
- * follows, what it does about a Runner in another dimension, whether it says the distance, whether a
- * dead Hunter gets a new one, and how often the needle re-aims.
+ * follows and whether a Hunter may change that for themselves, what it does about a Runner in
+ * another dimension, whether it says the distance, whether a dead Hunter gets a new one, and how
+ * often the needle re-aims.
  *
  * <h2>A page of its own, off the lobby rather than off {@link ManhuntOptionsMenu}</h2>
- * The compass is six settings, which is a category — and a thing inside {@code Options} may not be
+ * The compass is seven settings, which is a category — and a thing inside {@code Options} may not be
  * another category (see the GUI conventions in {@code Project.md}: three levels means nobody can say
  * where anything lives). So it sits beside Options in the lobby's toolbar, two columns clear of the
  * achievements button, and both are one step from the front page.
  *
  * <h2>The same store, not a second copy of it</h2>
  * Every click here goes through the same {@code SettingsStore} the server's generic {@code /settings}
- * command edits — {@link #cycle} for a flag or a choice, {@link #bump} for the one number, which is
- * clamped to the {@code @Range} the record itself declares before being offered, since
+ * command edits — {@link #cycle} for a flag or a choice, and Core's own {@link AmountChooser} for the
+ * one number, bounded by the {@code @Range} the record itself declares, since
  * {@code SettingsStore.set} refuses an out-of-range value rather than clamping it. There is exactly
- * one place any of these six can actually change.
+ * one place any of these seven can actually change.
+ *
+ * <p>The refresh interval used to be a ±5 pair of candles. It is a picker now, like every other number
+ * in this reactor — see {@code EntryFeeMenu}'s note on why nudging a number is the wrong shape.
  */
 public final class ManhuntTrackerMenu extends Menu {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
-    /** Both ends of {@code tracker-refresh-ticks}' own {@code @Range}, kept in step with it. */
+    /**
+     * Both ends of {@code tracker-refresh-ticks}' own {@code @Range}, kept in step with it — handed to
+     * {@link AmountChooser}, which will not offer a value outside them, because {@code SettingsStore.set}
+     * refuses an out-of-range value rather than clamping it.
+     */
     private static final int FASTEST = 1;
     private static final int SLOWEST = 100;
-    private static final int STEP = 5;
 
     private final ManhuntServices services;
 
@@ -76,6 +84,11 @@ public final class ManhuntTrackerMenu extends Menu {
                         "Off: a direction, and never how far away they are."),
                 click -> cycle("tracker-show-distance"));
 
+        band(MenuLayout.RULES, 7, flagIcon(config.trackerHunterMayChoose(),
+                        "Hunters choose for themselves",
+                        "Off: nobody may right-click, and every needle does what 'Follows' says."),
+                click -> cycle("tracker-hunter-may-choose"));
+
         band(MenuLayout.RULES, 3, flagIcon(config.trackerSharedTarget(), "One pack, one needle",
                         "A Hunter's pick turns every Hunter's compass, not only their own."),
                 click -> cycle("tracker-shared-target"));
@@ -84,16 +97,19 @@ public final class ManhuntTrackerMenu extends Menu {
                         "A Hunter who died drops their compass with everything else."),
                 click -> cycle("tracker-give-on-respawn"));
 
-        // The two halves of one decision, side by side — the one place these conventions allow
-        // adjacent buttons.
-        band(MenuLayout.RULES, 5, Icons.of(Material.RED_CANDLE, "<gold>Slower needle",
-                        "<gray>Re-aim less often: <white>" + config.trackerRefreshTicksClamped() + "<gray> ticks.",
-                        "<dark_gray>Click to add " + STEP + " ticks."),
-                click -> bump(+STEP));
-        band(MenuLayout.RULES, 6, Icons.of(Material.GREEN_CANDLE, "<gold>Faster needle",
-                        "<gray>Re-aim more often: <white>" + config.trackerRefreshTicksClamped() + "<gray> ticks.",
-                        "<dark_gray>Click to take " + STEP + " ticks off."),
-                click -> bump(-STEP));
+        band(MenuLayout.RULES, 5, Icons.of(Material.CLOCK,
+                        "<white>Re-aim every <green>" + config.trackerRefreshTicksClamped() + "<green> ticks",
+                        "<gray>Smaller keeps up with a sprinting Runner;",
+                        "<gray>larger is a needle they can outrun for a moment.",
+                        "<dark_gray>20 ticks is once a second.",
+                        "<dark_gray>Click to choose a number."),
+                click -> new AmountChooser(viewer, services.brand(), this,
+                        "Ticks between compass updates", config.trackerRefreshTicksClamped(),
+                        FASTEST, SLOWEST, value -> {
+                            services.store().set("tracker-refresh-ticks", Integer.toString(value));
+                            services.store().save();
+                            refresh();
+                        }).open());
     }
 
     private void cycle(String key) {
@@ -102,21 +118,17 @@ public final class ManhuntTrackerMenu extends Menu {
         refresh();
     }
 
-    private void bump(int by) {
-        int wanted = services.config().trackerRefreshTicksClamped() + by;
-        int clamped = Math.max(FASTEST, Math.min(SLOWEST, wanted));
-        services.store().set("tracker-refresh-ticks", Integer.toString(clamped));
-        services.store().save();
-        refresh();
-    }
-
     private ItemStack targetsIcon(ManhuntSettings config) {
         boolean chosen = config.trackerTargets() == ManhuntSettings.TrackerTargets.CHOSEN;
+        String andThen = config.trackerHunterMayChoose()
+                ? "<dark_gray>A Hunter may right-click to change their own."
+                : "<dark_gray>Fixed: no Hunter may change it.";
         return Icons.of(chosen ? Material.PLAYER_HEAD : Material.SPYGLASS,
                 "<gold>Follows: " + config.trackerTargets(),
                 chosen
-                        ? "<gray>A Hunter right-clicks to pick one Runner and stays on them."
-                        : "<gray>The needle always swings to whoever is nearest.",
+                        ? "<gray>Every compass starts locked on the same one Runner."
+                        : "<gray>Every compass starts on whoever is nearest.",
+                andThen,
                 "<dark_gray>Click to cycle.");
     }
 

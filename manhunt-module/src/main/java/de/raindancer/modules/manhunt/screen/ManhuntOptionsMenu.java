@@ -1,5 +1,6 @@
 package de.raindancer.modules.manhunt.screen;
 
+import de.raindancer.core.ui.choose.AmountChooser;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -55,60 +56,80 @@ public final class ManhuntOptionsMenu extends Menu {
     protected void render() {
         ManhuntSettings config = services.config();
 
+        // How it is won, and on what ground. Columns 1 · 3 · 5 · 7, so a pane falls between every
+        // pair — the GUI conventions' one hard layout rule, and the reason this page used to be
+        // unreadable: it ran 1 · 2 · 3 · 4 · 5 · 6 straight across the band.
         band(MenuLayout.WHO, 1, runnerWinIcon(config), click -> cycle("runner-win"));
-        band(MenuLayout.WHO, 2, hunterWinIcon(config), click -> cycle("hunter-win"));
-        band(MenuLayout.WHO, 3, flagIcon(config.resetOnStart(), "Reset the map on start",
-                        "Throws the configured world away and makes it again before each run."),
-                click -> cycle("reset-on-start"));
-        band(MenuLayout.WHO, 4, flagIcon(config.closeWhitelistOnStart(), "Close the whitelist on start",
-                        "Snapshots everybody online as whitelisted the moment the countdown ends."),
-                click -> cycle("close-whitelist-on-start"));
-        band(MenuLayout.WHO, 5, seedIcon(config), click -> cycle("seed-choice"));
-        band(MenuLayout.WHO, 6, goalIcon(config), click -> new ManhuntGoalMenu(services, viewer, this).open());
+        band(MenuLayout.WHO, 3, hunterWinIcon(config), click -> cycle("hunter-win"));
+        band(MenuLayout.WHO, 5, goalIcon(config),
+                click -> new ManhuntGoalMenu(services, viewer, this).open());
+        band(MenuLayout.WHO, 7, mapIcon(config),
+                click -> new ManhuntMapMenu(services, viewer, this).open());
 
         // What a death costs.
-        band(MenuLayout.RULES, 1, Icons.of(Material.RED_CANDLE, "<gold>Shorter countdown",
-                        "<gray>Now <white>" + config.countdownSecondsClamped() + "<gray> second(s) before a hunt starts.",
-                        "<dark_gray>Click to take one off."),
-                click -> bump("countdown-seconds", config.countdownSecondsClamped(), -1, 0, 60));
-        band(MenuLayout.RULES, 2, Icons.of(Material.GREEN_CANDLE, "<gold>Longer countdown",
-                        "<gray>Now <white>" + config.countdownSecondsClamped() + "<gray> second(s) before a hunt starts.",
-                        "<dark_gray>Click to add one."),
-                click -> bump("countdown-seconds", config.countdownSecondsClamped(), +1, 0, 60));
-        band(MenuLayout.RULES, 4, deathRuleIcon(config), click -> cycle("runner-death-rule"));
-        band(MenuLayout.RULES, 6, Icons.of(Material.TOTEM_OF_UNDYING, "<gold>Lives per Runner: "
-                                + config.runnerLivesClamped(),
+        band(MenuLayout.RULES, 1, Icons.of(Material.CLOCK,
+                        "<white>Countdown: <green>" + config.countdownSecondsClamped() + "s",
+                        "<gray>Everybody frozen this long before a hunt starts.",
+                        "<dark_gray>0 starts the moment it is asked for.",
+                        "<dark_gray>Click to choose a number."),
+                click -> choose("Countdown before the hunt (seconds)", "countdown-seconds",
+                        config.countdownSecondsClamped(), 0, 60));
+        band(MenuLayout.RULES, 3, deathRuleIcon(config), click -> cycle("runner-death-rule"));
+        band(MenuLayout.RULES, 5, Icons.of(Material.TOTEM_OF_UNDYING,
+                        "<white>Lives per Runner: <green>" + config.runnerLivesClamped(),
                         "<gray>Only used when the rule beside this is LIVES.",
-                        "<dark_gray>Click to add one, right-click to take one off."),
-                click -> bump("runner-lives", config.runnerLivesClamped(),
-                        click.isRightClick() ? -1 : +1, 1, 10));
+                        "<dark_gray>Click to choose a number."),
+                click -> choose("Lives per Runner", "runner-lives",
+                        config.runnerLivesClamped(), 1, 10));
         band(MenuLayout.RULES, 7, flagIcon(config.eliminatedSpectate(), "Out means watching",
                         "An eliminated Runner is put into Spectator rather than left standing."),
                 click -> cycle("eliminated-spectate"));
 
-        // What happens when it is over.
-        band(MenuLayout.LAND, 1, Icons.of(Material.CLOCK, "<gold>A dead Hunter waits: "
+        // Before it starts, and after it ends.
+        band(MenuLayout.LAND, 1, flagIcon(config.closeWhitelistOnStart(), "Close the whitelist",
+                        "Everybody online is snapshotted as whitelisted when the countdown ends."),
+                click -> cycle("close-whitelist-on-start"));
+        band(MenuLayout.LAND, 3, Icons.of(Material.SKELETON_SKULL,
+                        "<white>A dead Hunter waits: <green>"
                                 + config.hunterRespawnDelaySecondsClamped() + "s",
                         "<gray>Held in Spectator this long after dying.",
-                        "<dark_gray>Click to add five, right-click to take five off."),
-                click -> bump("hunter-respawn-delay-seconds", config.hunterRespawnDelaySecondsClamped(),
-                        click.isRightClick() ? -5 : +5, 0, 300));
-        band(MenuLayout.LAND, 3, flagIcon(config.returnToLobbyOnFinish(), "Back to the lobby",
+                        "<dark_gray>Click to choose a number."),
+                click -> choose("Seconds a dead Hunter waits", "hunter-respawn-delay-seconds",
+                        config.hunterRespawnDelaySecondsClamped(), 0, 300));
+        band(MenuLayout.LAND, 5, flagIcon(config.returnToLobbyOnFinish(), "Back to the lobby",
                         "Everybody is returned to the waiting lobby once a hunt ends."),
                 click -> cycle("return-to-lobby-on-finish"));
-        band(MenuLayout.LAND, 5, flagIcon(config.keepRosterOnFinish(), "Keep the sides",
+        band(MenuLayout.LAND, 7, flagIcon(config.keepRosterOnFinish(), "Keep the sides",
                         "The two rosters survive a hunt, so the next one starts with the same sides."),
                 click -> cycle("keep-roster-on-finish"));
     }
 
-    /** Nudges a numeric setting, clamped to its own {@code @Range} first — {@code SettingsStore.set}
-     *  refuses an out-of-range value rather than clamping it. */
-    private void bump(String key, int current, int by, int least, int most) {
-        int wanted = Math.max(least, Math.min(most, current + by));
-        services.store().set(key, Integer.toString(wanted));
-        services.store().save();
-        refresh();
+    /** The door to {@link ManhuntMapMenu}, saying what is behind it without needing the click. */
+    private ItemStack mapIcon(ManhuntSettings config) {
+        return Icons.of(Material.FILLED_MAP, "<gold>The map",
+                "<gray>Which world, whether it is remade, and its seed.",
+                "<dark_gray>" + (config.resetOnStart() ? "remade each run" : "kept between runs")
+                        + ", " + config.seedChoice().name().toLowerCase(java.util.Locale.ROOT) + " seed",
+                "<dark_gray>Click to open.");
     }
+
+    /**
+     * A number, through Core's own picker.
+     *
+     * <p>This page used to nudge every number with a ±pair of candles, or a left/right click worth
+     * five — twelve clicks to cross a range of sixty, and two adjacent buttons where the conventions
+     * allow adjacency only for exactly that pattern. {@code AmountChooser} is what every other module
+     * in this reactor already uses for the same job, it writes nothing until Accept, and it is one
+     * button instead of two. See {@code EntryFeeMenu}, which wrote the same note first.
+     */
+    private void choose(String label, String key, int current, int least, int most) {
+        new AmountChooser(viewer, services.brand(), this, label, current, least, most, value -> {
+            services.store().set(key, Integer.toString(value));
+            services.store().save();
+            refresh();
+        }).open();
+    }
+
 
     private ItemStack deathRuleIcon(ManhuntSettings config) {
         Material icon = switch (config.runnerDeathRule()) {
@@ -143,14 +164,6 @@ public final class ManhuntOptionsMenu extends Menu {
         return Icons.of(timeout ? Material.CLOCK : Material.IRON_SWORD,
                 "<gold>Hunter win: " + config.hunterWin(),
                 "<gray>How the Hunters win.", "<dark_gray>Click to cycle.");
-    }
-
-    private ItemStack seedIcon(ManhuntSettings config) {
-        boolean random = config.seedChoice() == ManhuntSettings.SeedChoice.RANDOM;
-        return Icons.of(random ? Material.MAGMA_CREAM : Material.IRON_NUGGET,
-                "<gold>Seed policy: " + config.seedChoice(),
-                "<gray>A fixed seed replays the same map; random makes a fresh one.",
-                "<dark_gray>Click to cycle.");
     }
 
     private ItemStack goalIcon(ManhuntSettings config) {

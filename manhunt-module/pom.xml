@@ -51,5 +51,17 @@
             <version>${modules-api.version}</version>
             <scope>test</scope>
         </dependency>
+        <!--
+          The same driver Paper ships inside its own jar, at the same version, and only for tests —
+          see farmworld-module's own pom.xml for the full reasoning. HuntHistory keeps this module's
+          own hunt records in its own SQLite database, so its storage layer needs the same real-
+          database testing farmworld-module's does.
+        -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.49.1.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

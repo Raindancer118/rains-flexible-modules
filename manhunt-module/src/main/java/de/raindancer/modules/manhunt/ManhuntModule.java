@@ -2,6 +2,7 @@ package de.raindancer.modules.manhunt;
 
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
@@ -14,6 +15,7 @@ import de.raindancer.modules.manhunt.screen.ManhuntOptionsMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntFieldMenu;
 import de.raindancer.modules.manhunt.screen.ManhuntTrackerMenu;
 import de.raindancer.modules.manhunt.service.ChaosService;
+import de.raindancer.modules.manhunt.service.HuntHistory;
 import de.raindancer.modules.manhunt.service.ManhuntAchievements;
 import de.raindancer.modules.manhunt.service.ManhuntLobbyBox;
 import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
@@ -32,10 +34,16 @@ import de.raindancer.modules.manhunt.service.TrackerCompass;
 import de.raindancer.modules.manhunt.service.TrackerCompassService;
 import de.raindancer.modules.manhunt.service.TrackerListener;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
+import de.raindancer.modules.speedrun.SpeedrunCompanions;
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * "RainsManhunt", as a module.
@@ -49,11 +57,12 @@ import java.util.List;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.6.0")
             .describedAs("Runners against Hunters on top of speedrun-module's engine — a win "
                     + "condition per side, a tracking compass that follows a Runner through the "
                     + "portal they took, a real server whitelist a Runner can open and close, "
-                    + "and live chaos actions a host can throw at a running match.")
+                    + "live chaos actions a host can throw at a running match, and a remembered "
+                    + "history of every hunt that has ever finished.")
             .by("Raindancer118");
 
     private ManhuntService manhunt;
@@ -147,9 +156,21 @@ public final class ManhuntModule implements FlexModule {
 
         ManhuntAchievements manhuntAchievements = new ManhuntAchievements(context.core().achievements());
         manhuntAchievements.defineAll();
+
+        // Every hunt that finishes, ever — the one thing manhunt-roadmap-to-1-0 named as still
+        // missing beyond the four run-lifecycle areas. Its own database, like the tracking compass'
+        // portals need nothing from Core's own core.db/audit.db — see HuntHistory's own javadoc.
+        HuntHistory history = new HuntHistory(context.core().databases().of("manhunt-history", HuntHistory.SCHEMA));
+        // Snapshotted at the moment a hunt actually starts, not read again at onFinished: the roster
+        // is frozen for the whole run (see ManhuntTeams/ManhuntService.isRunning), so the two moments
+        // agree, and reading it here means onFinished never has to ask "who was still a Runner" of a
+        // roster that a settings change or a fresh join could have moved on by the time it fires.
+        AtomicReference<RunStart> currentRun = new AtomicReference<>();
+
         // Both hooks take exactly one caller each (see ManhuntService.onStart) — stacking two concerns
         // behind the same moment is this wiring class' job, not the service's.
         liveManhunt.onStart(roster -> {
+            currentRun.set(new RunStart(Instant.now(), Set.copyOf(teams.runners()), Set.copyOf(teams.hunters())));
             manhuntAchievements.awardFirstHunt(roster);
             deaths.reset();
             rules.arm();
@@ -158,6 +179,14 @@ public final class ManhuntModule implements FlexModule {
         });
         liveManhunt.onFinished((everybody, outcome) -> {
             manhuntAchievements.awardWin(everybody, teams, outcome.reason());
+            RunStart started = currentRun.getAndSet(null);
+            if (started != null) {
+                // Off the server thread, like every other database write in this reactor — see
+                // Database.write's own note on why a write on the thread running the world is only
+                // ever reported, never blocked.
+                Scheduling.async(context.plugin(), () ->
+                        history.record(started.startedAt(), started.runners(), started.hunters(), outcome));
+            }
             narrator.disarm();
             tracker.disarm();
             rules.disarm();
@@ -170,14 +199,28 @@ public final class ManhuntModule implements FlexModule {
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, settings,
                 liveManhunt, chaos, whitelist, manhuntAchievements, lobbyListener, tracker, deaths, spectators,
+                history,
                 new LiveScreens());
 
         // The command was registered during bootstrap, long before any of this existed, and has been
         // answering "not started yet" until now. See ManhuntCommands.
         ManhuntCommands.ready(services);
 
+        // A button on the speedrun compass' own screen. Offered from this side because the
+        // dependency only runs this way — see SpeedrunCompanions for the whole argument. Withdrawn
+        // again in disable(), which is the half that actually matters: a stale entry would hand the
+        // next clicker a door into a module that is no longer loaded.
+        SpeedrunCompanions.offer(new SpeedrunCompanions.Companion(
+                "manhunt", "Manhunt", "<gray>Runners against Hunters, on this same engine.",
+                Material.TARGET,
+                (viewer, parent) -> new ManhuntLobbyMenu(services, viewer, parent).open()));
+
         log.info("Manhunt is up: {} Runner(s), {} Hunter(s).",
                 teams.runners().size(), teams.hunters().size());
+    }
+
+    /** What {@link HuntHistory#record} needs from the moment a hunt began — see the field's own note. */
+    private record RunStart(Instant startedAt, Set<UUID> runners, Set<UUID> hunters) {
     }
 
     /**
@@ -227,6 +270,7 @@ public final class ManhuntModule implements FlexModule {
     @Override
     public void disable() {
         ManhuntCommands.stopped();
+        SpeedrunCompanions.withdraw("manhunt");
         if (manhunt != null) {
             // shutdown() finishes the session, which runs onFinished — the rules are handed back and
             // the watchers released there. This only covers the case of there being no run at all.

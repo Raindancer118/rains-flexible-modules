@@ -8,6 +8,7 @@ import de.raindancer.modules.manhunt.model.ChaosAction;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.screen.ManhuntGoalMenu;
 import de.raindancer.modules.manhunt.service.ChaosService;
+import de.raindancer.modules.manhunt.service.HuntHistory;
 import de.raindancer.modules.manhunt.service.ManhuntAchievements;
 import de.raindancer.modules.manhunt.service.ManhuntService;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
@@ -68,6 +69,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             case "status" -> status(live, sender);
             case "chaos" -> chaos(live, sender, args);
             case "achievements" -> achievements(live, sender);
+            case "history" -> history(live, sender, args);
             case "options" -> options(live, sender);
             case "tracker" -> tracker(live, sender);
             case "field" -> field(live, sender);
@@ -305,6 +307,72 @@ public final class ManhuntCommand implements IManhuntCommand {
                     "description", achievement.description(),
                     "points", String.valueOf(achievement.points()));
         }
+    }
+
+    /**
+     * {@code /manhunt history} — every finished hunt so far: a summary, then the most recent ones,
+     * newest first. {@code /manhunt history <player>} narrows both to just that player's own hunts,
+     * on whichever side they played each one. Works the same from the console as from a player — a
+     * chat listing, like {@link #achievements}' console branch, rather than a screen: a leaderboard
+     * nobody has asked to click through yet.
+     */
+    private void history(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!sender.hasPermission(PermissionNodes.USE)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        HuntHistory history = live.history();
+        if (args.length >= 2) {
+            UUID target = resolvePlayer(args[1]);
+            if (target == null) {
+                live.messages().send(sender, "manhunt.usage.history");
+                return;
+            }
+            HuntHistory.PlayerRecord record = history.forPlayerSummary(target);
+            String name = Bukkit.getOfflinePlayer(target).getName();
+            live.messages().send(sender, "manhunt.history.player-summary",
+                    "player", name != null ? name : args[1],
+                    "played", String.valueOf(record.played()),
+                    "won", String.valueOf(record.won()));
+            for (HuntHistory.Entry entry : history.forPlayer(target, 10)) {
+                sendHistoryEntry(live, sender, entry);
+            }
+            return;
+        }
+        HuntHistory.Summary summary = history.summary();
+        if (summary.total() == 0) {
+            live.messages().send(sender, "manhunt.history.empty");
+            return;
+        }
+        live.messages().send(sender, "manhunt.history.summary",
+                "total", String.valueOf(summary.total()),
+                "runner-wins", String.valueOf(summary.runnerWins()),
+                "hunter-wins", String.valueOf(summary.hunterWins()),
+                "aborted", String.valueOf(summary.aborted()),
+                "average", Times.brief(summary.averageElapsed()));
+        for (HuntHistory.Entry entry : history.recent(10)) {
+            sendHistoryEntry(live, sender, entry);
+        }
+    }
+
+    private void sendHistoryEntry(ManhuntServices live, CommandSender sender, HuntHistory.Entry entry) {
+        live.messages().send(sender, "manhunt.history.entry",
+                "winner", entry.winner().name().toLowerCase(Locale.ROOT),
+                "reason", entry.reason(),
+                "time", Times.brief(entry.elapsed()),
+                "runners", String.valueOf(entry.runners().size()),
+                "hunters", String.valueOf(entry.hunters().size()));
+    }
+
+    /** A name to a {@link UUID}: whoever is online by that name, or whoever has ever played under
+     *  it — never a fresh, invented offline profile for a name the server has never seen. */
+    private static UUID resolvePlayer(String name) {
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) {
+            return online.getUniqueId();
+        }
+        org.bukkit.OfflinePlayer offline = Bukkit.getOfflinePlayer(name);
+        return offline.hasPlayedBefore() ? offline.getUniqueId() : null;
     }
 
     /** {@code /manhunt options} — the curated settings menu; console is pointed at {@code /settings}. */

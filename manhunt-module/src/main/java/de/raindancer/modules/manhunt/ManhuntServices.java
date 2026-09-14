@@ -7,6 +7,7 @@ import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.service.ChaosService;
+import de.raindancer.modules.manhunt.service.HuntHistory;
 import de.raindancer.modules.manhunt.service.ManhuntAchievements;
 import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
 import de.raindancer.modules.manhunt.service.ManhuntService;
@@ -43,6 +44,7 @@ public record ManhuntServices(
         TrackerCompassService tracker,
         ManhuntDeathListener deaths,
         ManhuntSpectators spectators,
+        HuntHistory history,
 
         IManhuntScreensOpener screens) {
 

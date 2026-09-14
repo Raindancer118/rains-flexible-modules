@@ -5,6 +5,7 @@ import de.raindancer.modules.manhunt.ManhuntSettings.CrossWorldTracking;
 import de.raindancer.modules.manhunt.ManhuntSettings.TrackerTargets;
 import de.raindancer.modules.manhunt.service.TrackerCompass.Aim;
 import de.raindancer.modules.manhunt.service.TrackerCompass.Candidate;
+import de.raindancer.modules.manhunt.service.TrackerCompass.Following;
 import de.raindancer.modules.manhunt.service.TrackerCompass.Point;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -108,145 +109,110 @@ class TrackerCompassTest {
     class Targets {
 
         @Test
-        @DisplayName("CHOSEN keeps the picked Runner even when somebody else is nearer")
+        @DisplayName("a Hunter's pick is kept even when somebody else is nearer")
         void chosenIsSticky() {
             Aim aim = compass().aim(HUNTER,
-                    List.of(at(ANNA, "hunt", 300, 0), at(BEN, "hunt", 40, 30)), ANNA);
+                    List.of(at(ANNA, "hunt", 300, 0), at(BEN, "hunt", 40, 30)), Following.of(ANNA));
 
             assertThat(aim.target()).isEqualTo(ANNA);
         }
 
         @Test
-        @DisplayName("CHOSEN falls back to the nearest when the picked Runner is gone")
+        @DisplayName("a pick falls back to the nearest when that Runner is gone")
         void chosenGoneFallsBack() {
             Aim aim = compass().aim(HUNTER,
-                    List.of(at(ANNA, "hunt", 300, 0), at(BEN, "hunt", 40, 30)), CARO);
+                    List.of(at(ANNA, "hunt", 300, 0), at(BEN, "hunt", 40, 30)), Following.of(CARO));
 
             assertThat(aim.target()).isEqualTo(BEN);
         }
 
         @Test
-        @DisplayName("NEAREST ignores a pick entirely — the needle always swings to the closest")
-        void nearestIgnoresThePick() {
+        @DisplayName("a Hunter's own pick wins over a server default of NEAREST")
+        void hunterPickBeatsTheServerDefault() {
             TrackerCompass nearest = compass(
                     ManhuntSettings.DEFAULTS.withTrackerTargets(TrackerTargets.NEAREST),
                     new PortalMemory());
 
-            Aim aim = nearest.aim(HUNTER, List.of(at(ANNA, "hunt", 300, 0), at(BEN, "hunt", 40, 30)), ANNA);
+            Aim aim = nearest.aim(HUNTER, List.of(at(ANNA, "hunt", 300, 0), at(BEN, "hunt", 40, 30)), Following.of(ANNA));
+
+            assertThat(aim.target()).isEqualTo(ANNA);
+        }
+
+        @Test
+        @DisplayName("with the Hunters unable to choose, a pick is ignored and the mode decides")
+        void fixedIgnoresThePick() {
+            TrackerCompass fixed = compass(ManhuntSettings.DEFAULTS
+                            .withTrackerHunterMayChoose(false)
+                            .withTrackerTargets(TrackerTargets.NEAREST),
+                    new PortalMemory());
+
+            Aim aim = fixed.aim(HUNTER, List.of(at(ANNA, "hunt", 300, 0), at(BEN, "hunt", 40, 30)), Following.of(ANNA));
 
             assertThat(aim.target()).isEqualTo(BEN);
         }
 
         @Test
-        @DisplayName("a Hunter may only pick a target when the mode says so")
+        @DisplayName("CHOSEN starts an untouched compass on the roster's first Runner, not the nearest")
+        void chosenStartsLocked() {
+            TrackerCompass locked = compass(
+                    ManhuntSettings.DEFAULTS.withTrackerTargets(TrackerTargets.CHOSEN),
+                    new PortalMemory());
+
+            Aim aim = locked.aim(HUNTER, List.of(at(ANNA, "hunt", 300, 0), at(BEN, "hunt", 40, 30)), null);
+
+            assertThat(aim.target()).isEqualTo(ANNA);
+        }
+
+        @Test
+        @DisplayName("a Hunter who cycled back to the nearest gets the nearest, even under CHOSEN")
+        void explicitNearestBeatsChosen() {
+            TrackerCompass locked = compass(
+                    ManhuntSettings.DEFAULTS.withTrackerTargets(TrackerTargets.CHOSEN),
+                    new PortalMemory());
+
+            Aim aim = locked.aim(HUNTER, List.of(at(ANNA, "hunt", 300, 0), at(BEN, "hunt", 40, 30)),
+                    Following.NEAREST);
+
+            assertThat(aim.target()).isEqualTo(BEN);
+        }
+
+        @Test
+        @DisplayName("CHOSEN and nobody allowed to choose is one Runner for every Hunter, all hunt")
+        void fixedOnOneRunner() {
+            TrackerCompass fixed = compass(ManhuntSettings.DEFAULTS
+                            .withTrackerTargets(TrackerTargets.CHOSEN)
+                            .withTrackerHunterMayChoose(false),
+                    new PortalMemory());
+            List<Candidate> roster = List.of(at(ANNA, "hunt", 300, 0), at(BEN, "hunt", 40, 30));
+
+            assertThat(fixed.aim(HUNTER, roster, Following.NEAREST).target()).isEqualTo(ANNA);
+            assertThat(fixed.aim(HUNTER, roster, Following.of(BEN)).target()).isEqualTo(ANNA);
+        }
+
+        @Test
+        @DisplayName("the starting point is the mode's, and it is a real position a click can leave")
+        void startingPoint() {
+            List<Candidate> roster = List.of(at(ANNA, "hunt", 0, 0), at(BEN, "hunt", 0, 0));
+
+            assertThat(compass().startingPoint(roster)).isEqualTo(Following.NEAREST);
+            assertThat(compass(ManhuntSettings.DEFAULTS.withTrackerTargets(TrackerTargets.CHOSEN),
+                    new PortalMemory()).startingPoint(roster)).isEqualTo(Following.of(ANNA));
+            assertThat(compass(ManhuntSettings.DEFAULTS.withTrackerTargets(TrackerTargets.CHOSEN),
+                    new PortalMemory()).startingPoint(List.of()))
+                    .as("nobody to lock onto yet")
+                    .isEqualTo(Following.NEAREST);
+        }
+
+        @Test
+        @DisplayName("the right-click is gated by the Hunters-may-choose setting, not by the mode")
         void pickingIsGated() {
             assertThat(compass().allowsPicking()).isTrue();
             assertThat(compass(ManhuntSettings.DEFAULTS.withTrackerTargets(TrackerTargets.NEAREST),
+                    new PortalMemory()).allowsPicking())
+                    .as("the server default has nothing to say about who may click")
+                    .isTrue();
+            assertThat(compass(ManhuntSettings.DEFAULTS.withTrackerHunterMayChoose(false),
                     new PortalMemory()).allowsPicking()).isFalse();
-        }
-    }
-
-    @Nested
-    @DisplayName("a Runner in another dimension")
-    class AcrossDimensions {
-
-        private static final Point PORTAL = new Point("hunt", 250, 70, -80);
-
-        private static PortalMemory memoryWithAnnasPortal() {
-            PortalMemory memory = new PortalMemory();
-            memory.remember(ANNA, PORTAL);
-            return memory;
-        }
-
-        @Test
-        @DisplayName("LAST_PORTAL points at the portal the Runner went through")
-        void pointsAtThePortal() {
-            Aim aim = compass(ManhuntSettings.DEFAULTS, memoryWithAnnasPortal())
-                    .aim(HUNTER, List.of(at(ANNA, "hunt_nether", 12, 0)), null);
-
-            assertThat(aim.kind()).isEqualTo(Aim.Kind.PORTAL);
-            assertThat(aim.target()).isEqualTo(ANNA);
-            assertThat(aim.at()).isEqualTo(PORTAL);
-            assertThat(aim.worldName()).isEqualTo("hunt_nether");
-            assertThat(aim.distance()).isEqualTo(HUNTER.distanceTo(PORTAL).blocks());
-        }
-
-        @Test
-        @DisplayName("the newest crossing is the one pointed at")
-        void newestCrossingWins() {
-            PortalMemory memory = new PortalMemory();
-            memory.remember(ANNA, new Point("hunt", 10, 64, 0));
-            memory.remember(ANNA, new Point("hunt", 900, 64, 0));
-
-            Aim aim = compass(ManhuntSettings.DEFAULTS, memory)
-                    .aim(HUNTER, List.of(at(ANNA, "hunt_nether", 12, 0)), null);
-
-            assertThat(aim.at()).isEqualTo(new Point("hunt", 900, 64, 0));
-        }
-
-        @Test
-        @DisplayName("LAST_PORTAL names the dimension when no crossing was ever seen")
-        void fallsBackToNaming() {
-            Aim aim = compass(ManhuntSettings.DEFAULTS, new PortalMemory())
-                    .aim(HUNTER, List.of(at(ANNA, "hunt_nether", 12, 0)), null);
-
-            assertThat(aim.kind()).isEqualTo(Aim.Kind.OTHER_WORLD);
-            assertThat(aim.worldName()).isEqualTo("hunt_nether");
-        }
-
-        @Test
-        @DisplayName("a crossing in a third world is no help to a Hunter in this one")
-        void crossingInAnotherWorldIsNoHelp() {
-            PortalMemory memory = new PortalMemory();
-            memory.remember(ANNA, new Point("hunt_nether", 5, 64, 5));
-
-            Aim aim = compass(ManhuntSettings.DEFAULTS, memory)
-                    .aim(HUNTER, List.of(at(ANNA, "hunt_the_end", 0, 0)), null);
-
-            assertThat(aim.kind()).isEqualTo(Aim.Kind.OTHER_WORLD);
-        }
-
-        @Test
-        @DisplayName("NAME_WORLD names the dimension even with a crossing on record")
-        void namingOnly() {
-            Aim aim = compass(ManhuntSettings.DEFAULTS.withTrackerCrossWorld(CrossWorldTracking.NAME_WORLD),
-                    memoryWithAnnasPortal()).aim(HUNTER, List.of(at(ANNA, "hunt_nether", 12, 0)), null);
-
-            assertThat(aim.kind()).isEqualTo(Aim.Kind.OTHER_WORLD);
-            assertThat(aim.worldName()).isEqualTo("hunt_nether");
-        }
-
-        @Test
-        @DisplayName("HIDDEN says nothing at all, crossing or no crossing")
-        void hidden() {
-            Aim aim = compass(ManhuntSettings.DEFAULTS.withTrackerCrossWorld(CrossWorldTracking.HIDDEN),
-                    memoryWithAnnasPortal()).aim(HUNTER, List.of(at(ANNA, "hunt_nether", 12, 0)), null);
-
-            assertThat(aim.kind()).isEqualTo(Aim.Kind.NONE);
-        }
-
-        @Test
-        @DisplayName("a picked Runner in another dimension is still the one followed")
-        void pickedAcrossDimensions() {
-            Aim aim = compass(ManhuntSettings.DEFAULTS, memoryWithAnnasPortal())
-                    .aim(HUNTER, List.of(at(ANNA, "hunt_the_end", 0, 0), at(BEN, "hunt", 10, 0)), ANNA);
-
-            assertThat(aim.kind()).isEqualTo(Aim.Kind.PORTAL);
-            assertThat(aim.target()).isEqualTo(ANNA);
-        }
-
-        @Test
-        @DisplayName("with everybody gone below, the nearest known portal is the one chosen")
-        void nearestPortalWhenAllAreAway() {
-            PortalMemory memory = new PortalMemory();
-            memory.remember(ANNA, new Point("hunt", 800, 64, 0));
-            memory.remember(BEN, new Point("hunt", 60, 64, 0));
-
-            Aim aim = compass(ManhuntSettings.DEFAULTS, memory)
-                    .aim(HUNTER, List.of(at(ANNA, "hunt_nether", 0, 0), at(BEN, "hunt_nether", 0, 0)), null);
-
-            assertThat(aim.target()).isEqualTo(BEN);
-            assertThat(aim.kind()).isEqualTo(Aim.Kind.PORTAL);
         }
     }
 
@@ -257,14 +223,14 @@ class TrackerCompassTest {
         @Test
         @DisplayName("nobody to cycle to with no Runners left")
         void nothingToCycleTo() {
-            assertThat(TrackerCompass.next(List.of(), ANNA)).isEmpty();
+            assertThat(TrackerCompass.next(List.of(), Following.of(ANNA))).isEmpty();
         }
 
         @Test
-        @DisplayName("cycling from nobody lands on the first Runner")
-        void fromNobody() {
+        @DisplayName("cycling from the nearest lands on the first Runner")
+        void fromNearest() {
             assertThat(TrackerCompass.next(List.of(at(ANNA, "hunt", 0, 0), at(BEN, "hunt", 0, 0)), null))
-                    .contains(ANNA);
+                    .contains(Following.of(ANNA));
         }
 
         @Test
@@ -273,28 +239,41 @@ class TrackerCompassTest {
             List<Candidate> roster = List.of(at(ANNA, "hunt", 0, 0), at(BEN, "hunt", 0, 0),
                     at(CARO, "hunt", 0, 0));
 
-            assertThat(TrackerCompass.next(roster, ANNA)).contains(BEN);
-            assertThat(TrackerCompass.next(roster, BEN)).contains(CARO);
+            assertThat(TrackerCompass.next(roster, Following.of(ANNA))).contains(Following.of(BEN));
+            assertThat(TrackerCompass.next(roster, Following.of(BEN))).contains(Following.of(CARO));
         }
 
         @Test
-        @DisplayName("cycling past the last Runner wraps to the first")
-        void wraps() {
+        @DisplayName("cycling past the last Runner comes back to the nearest, not to the first")
+        void wrapsToNearest() {
             List<Candidate> roster = List.of(at(ANNA, "hunt", 0, 0), at(BEN, "hunt", 0, 0));
 
-            assertThat(TrackerCompass.next(roster, BEN)).contains(ANNA);
+            assertThat(TrackerCompass.next(roster, Following.of(BEN))).contains(Following.NEAREST);
+            assertThat(TrackerCompass.next(roster, null)).contains(Following.of(ANNA));
         }
 
         @Test
         @DisplayName("cycling from a Runner who is gone starts over at the first")
         void currentGone() {
-            assertThat(TrackerCompass.next(List.of(at(ANNA, "hunt", 0, 0)), CARO)).contains(ANNA);
+            assertThat(TrackerCompass.next(List.of(at(ANNA, "hunt", 0, 0)), Following.of(CARO)))
+                    .contains(Following.of(ANNA));
         }
 
         @Test
-        @DisplayName("a lone Runner cycles to themselves rather than to nobody")
-        void singleWrapsToItself() {
-            assertThat(TrackerCompass.next(List.of(at(ANNA, "hunt", 0, 0)), ANNA)).contains(ANNA);
+        @DisplayName("a lone Runner and the nearest are two positions, so the click always does something")
+        void singleRunnerStillTogglesTwoWays() {
+            List<Candidate> lone = List.of(at(ANNA, "hunt", 0, 0));
+
+            assertThat(TrackerCompass.next(lone, null)).contains(Following.of(ANNA));
+            assertThat(TrackerCompass.next(lone, Following.of(ANNA))).contains(Following.NEAREST);
+        }
+
+        @Test
+        @DisplayName("the nearest is not a Runner of its own")
+        void nearestIsNotARunner() {
+            assertThat(Following.NEAREST.isNearest()).isTrue();
+            assertThat(Following.NEAREST.runner()).isNull();
+            assertThat(Following.of(ANNA).isNearest()).isFalse();
         }
     }
 

@@ -16,13 +16,25 @@ import java.util.UUID;
  * {@code TrackerCompassTest}) and {@code TrackerCompassService} converts a real {@code Location} into
  * a {@link Point} only at the door.
  *
- * <h2>Nearest, or the one the Hunter picked — the owner's call, not this class'</h2>
+ * <h2>Nearest, or the one the Hunter picked — the Hunter's call, unless the owner took it away</h2>
  * With one Runner there is nothing to decide. With several, a compass that silently re-aims at
  * whoever happens to be closest can be unusable — a Hunter chasing one Runner would be swung around
  * every time a second Runner crossed nearer — and yet on a server where the Runners stay together it
- * is exactly what is wanted. So both exist, under {@link TrackerTargets}: {@code NEAREST} ignores any
- * pick outright, {@code CHOSEN} keeps the Hunter's pick for as long as that Runner is still in the
- * roster this class is handed and only falls back to the nearest when they drop out of it.
+ * is exactly what is wanted. Which of the two a Hunter wants is not something an owner can know in
+ * advance, so by default each Hunter decides for their own compass, by right-clicking it: the roster
+ * and "whoever is nearest" are the positions of one cycle (see {@link #next}), and a pick is kept for
+ * as long as that Runner is still in the roster this class is handed.
+ *
+ * <p>{@link ManhuntSettings#trackerHunterMayChoose()} is the owner taking that back. Off, a pick is
+ * not merely un-settable but ignored outright — an owner who switches it off mid-hunt means it from
+ * that moment, not from the next hunt.
+ *
+ * <p>{@link TrackerTargets} is the other half: where a compass sits before its Hunter has touched
+ * it, and where it stays for good when they may not. {@code NEAREST} starts on whoever is closest;
+ * {@code CHOSEN} starts locked on the first Runner of the roster this class is handed, which is a
+ * stable order (see {@code TrackerCompassService.livingRunners}) and therefore the same Runner for
+ * every Hunter — the two together are the four hunts an owner can actually ask for, from "everybody
+ * decides for themselves" down to "every needle, all match, on one Runner, and nobody may look away".
  *
  * <h2>Another dimension is a third answer, not an absent one</h2>
  * A compass needle is a direction in one world; a Runner two worlds away has no direction to give —
@@ -135,9 +147,9 @@ public final class TrackerCompass {
         return settings.trackerCompassEnabled();
     }
 
-    /** Whether a Hunter may pick which Runner to follow, or the needle is always the owner's choice. */
+    /** Whether a Hunter may aim their own compass, or the needle is fixed to what the owner set. */
     public boolean allowsPicking() {
-        return settings.trackerTargets() == TrackerTargets.CHOSEN;
+        return settings.trackerHunterMayChoose();
     }
 
     /** Whether the block distance belongs in the item's lore. */
@@ -150,9 +162,11 @@ public final class TrackerCompass {
      *
      * @param hunter    where the Hunter is standing
      * @param runners   every Runner still worth pointing at — living, online, on the Runner side
-     * @param picked    the Runner this Hunter chose, or null; ignored under {@link TrackerTargets#NEAREST}
+     * @param picked    what this Hunter set their own compass to, or null for a Hunter who has never
+     *                  touched it — ignored entirely when
+     *                  {@link ManhuntSettings#trackerHunterMayChoose()} is off
      */
-    public Aim aim(Point hunter, List<Candidate> runners, UUID picked) {
+    public Aim aim(Point hunter, List<Candidate> runners, Following picked) {
         ManhuntSettings config = settings;
         if (!config.trackerCompassEnabled() || hunter == null || runners == null || runners.isEmpty()) {
             return Aim.none();
@@ -166,14 +180,31 @@ public final class TrackerCompass {
     }
 
     private Candidate chooseTarget(ManhuntSettings config, Point hunter, List<Candidate> runners,
-                                   UUID picked) {
-        if (config.trackerTargets() == TrackerTargets.CHOSEN) {
-            Optional<Candidate> stuck = find(runners, picked);
+                                   Following picked) {
+        if (config.trackerHunterMayChoose() && picked != null) {
+            if (picked.isNearest()) {
+                return nearest(config, hunter, runners);
+            }
+            Optional<Candidate> stuck = find(runners, picked.runner());
             if (stuck.isPresent()) {
                 return stuck.get();
             }
+            // The Runner they were on is out of the hunt. The nearest is the only honest answer
+            // left, and it is also where next() will start counting from again.
+            return nearest(config, hunter, runners);
+        }
+        if (config.trackerTargets() == TrackerTargets.CHOSEN) {
+            return runners.get(0);
         }
         return nearest(config, hunter, runners);
+    }
+
+    /** Where a compass sits for a Hunter who has never touched it, or who may not. */
+    public Following startingPoint(List<Candidate> runners) {
+        if (settings.trackerTargets() == TrackerTargets.CHOSEN && runners != null && !runners.isEmpty()) {
+            return Following.of(runners.get(0).id());
+        }
+        return Following.NEAREST;
     }
 
     /**
@@ -232,23 +263,49 @@ public final class TrackerCompass {
         return runners.stream().filter(candidate -> id.equals(candidate.id())).findFirst();
     }
 
+    /** One position of a Hunter's compass: a named Runner, or the nearest, whoever that turns out to be. */
+    public record Following(UUID runner) {
+
+        /** No particular Runner — the needle goes back to swinging at whoever is closest. */
+        public static final Following NEAREST = new Following(null);
+
+        public static Following of(UUID runner) {
+            return new Following(Objects.requireNonNull(runner, "runner"));
+        }
+
+        public boolean isNearest() {
+            return runner == null;
+        }
+    }
+
     /**
-     * The Runner after {@code current} in the roster, wrapping at the end — what a right-click on the
-     * compass moves to. Empty only when there is nobody left to point at at all; a lone Runner cycles
-     * to themselves, since "the only Runner" and "no Runner" are different answers and a Hunter
-     * clicking should not be able to switch their own compass off.
+     * Where a right-click on the compass moves it: the Runner after {@code current} in the roster,
+     * and {@link Following#NEAREST} after the last of them — so the cycle is
+     * nearest → first → … → last → nearest and a Hunter can always get back to where they started
+     * without walking the whole roster twice.
+     *
+     * <p>{@code null} for {@code current}, or {@link Following#NEAREST}, both mean the compass is on
+     * the nearest right now. Empty only when there is nobody left to point at at all; note that a
+     * single Runner still gives two positions rather than one, because "locked on Anna" and "whoever
+     * is nearest, who happens to be Anna" stop being the same answer the moment a second Runner
+     * joins — and a click that visibly does nothing reads as broken.
      */
-    public static Optional<UUID> next(List<Candidate> runners, UUID current) {
+    public static Optional<Following> next(List<Candidate> runners, Following current) {
         if (runners == null || runners.isEmpty()) {
             return Optional.empty();
         }
-        int index = -1;
+        if (current == null || current.isNearest()) {
+            return Optional.of(Following.of(runners.get(0).id()));
+        }
         for (int i = 0; i < runners.size(); i++) {
-            if (runners.get(i).id().equals(current)) {
-                index = i;
-                break;
+            if (runners.get(i).id().equals(current.runner())) {
+                return Optional.of(i + 1 < runners.size()
+                        ? Following.of(runners.get(i + 1).id())
+                        : Following.NEAREST);
             }
         }
-        return Optional.of(runners.get((index + 1) % runners.size()).id());
+        // The Runner they were on has left the hunt: start the cycle over rather than dropping them
+        // to the nearest, which is where the compass has already fallen back to on its own.
+        return Optional.of(Following.of(runners.get(0).id()));
     }
 }
