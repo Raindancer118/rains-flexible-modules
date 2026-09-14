@@ -79,6 +79,14 @@ manhunt:
     no-runners: "<red>There is no Runner left to follow."
 
   # ---------------------------------------------------------------- talking to your side
+  side-chat:
+    tag-runners: "<green>[Runners]</green>"
+    tag-hunters: "<red>[Hunters]</red>"
+    tag-everybody: "<gold>[All]</gold>"
+    now-private: "<gray>Your chat now reaches <white>only your own side</white>. Start a line with \
+      <white><prefix></white> to talk to everybody."
+    now-private-no-prefix: "<gray>Your chat now reaches <white>only your own side</white> for the whole hunt."
+
   here:
     shared: "<gold><player></gold> <gray>is at <white><x> <y> <z></white> in <white><world></white><gray>."
     off: "<red>Sharing your position is switched off."

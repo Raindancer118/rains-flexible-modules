@@ -41,8 +41,10 @@
              is how the compass handout, last of five, went missing on a live server), and the
              locator bar is switched off for the length of a hunt.
              0.7.0: the clock moves out of the boss bar and onto the action bar, counting from zero
-             at the hunt's own start, and a tracking compass no longer drops from a dead Hunter. -->
-        <plugin.version>0.7.0</plugin.version>
+             at the hunt's own start, and a tracking compass no longer drops from a dead Hunter.
+             0.8.0: side chat is visible — every line tagged with its channel, like staff chat, and
+             each side told when the hunt makes its chat private. -->
+        <plugin.version>0.8.0</plugin.version>
     </properties>
 
     <dependencies>

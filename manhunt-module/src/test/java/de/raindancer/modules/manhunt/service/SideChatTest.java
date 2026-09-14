@@ -2,6 +2,7 @@ package de.raindancer.modules.manhunt.service;
 
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.service.SideChat.Audience;
+import de.raindancer.modules.manhunt.service.SideChat.Channel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -76,5 +77,43 @@ class SideChatTest {
         live.settings(ManhuntSettings.DEFAULTS.withSideChat(false));
 
         assertThat(live.audienceFor("hello", true, true)).isEqualTo(Audience.EVERYBODY);
+    }
+
+    // ------------------------------------------------------------------ which channel a line is shown as
+
+    @Test
+    @DisplayName("mid-hunt, a Runner's line is marked as Runner chat and a Hunter's as Hunter chat")
+    void channelNamesTheSide() {
+        assertThat(chat().channelFor("they went nether", true, true, false)).isEqualTo(Channel.RUNNERS);
+        assertThat(chat().channelFor("left at the village", true, false, true)).isEqualTo(Channel.HUNTERS);
+    }
+
+    @Test
+    @DisplayName("a line sent to everybody with the prefix mid-hunt is marked as going to everybody")
+    void escapedLineIsMarkedEverybody() {
+        assertThat(chat().channelFor("!gg everyone", true, true, false)).isEqualTo(Channel.EVERYBODY);
+    }
+
+    @Test
+    @DisplayName("outside a hunt, for a bystander, or with side chat off, nothing is marked at all")
+    void untouchedLinesCarryNoMark() {
+        assertThat(chat().channelFor("hello", false, true, false)).isEqualTo(Channel.NONE);
+        assertThat(chat().channelFor("hello", true, false, false)).isEqualTo(Channel.NONE);
+        assertThat(new SideChat(ManhuntSettings.DEFAULTS.withSideChat(false))
+                .channelFor("hello", true, true, false)).isEqualTo(Channel.NONE);
+    }
+
+    @Test
+    @DisplayName("the channel and the audience never disagree about who hears a line")
+    void channelAgreesWithAudience() {
+        for (String line : new String[]{"hello", "!hello"}) {
+            for (boolean running : new boolean[]{true, false}) {
+                Channel channel = chat().channelFor(line, running, true, false);
+                Audience audience = chat().audienceFor(line, running, true);
+                assertThat(audience == Audience.OWN_SIDE)
+                        .as("%s while running=%s", line, running)
+                        .isEqualTo(channel == Channel.RUNNERS || channel == Channel.HUNTERS);
+            }
+        }
     }
 }

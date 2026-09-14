@@ -2,6 +2,8 @@ package de.raindancer.modules.manhunt.service;
 
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.service.SideChat.Audience;
+import de.raindancer.modules.manhunt.service.SideChat.Channel;
+import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -44,7 +46,13 @@ public final class ManhuntChatListener implements Listener {
         this.messages = messages;
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    /**
+     * {@code HIGH}, not {@code NORMAL}: the tag wraps whatever renderer is already on the event, and
+     * chat-module sets its own formatting at {@code NORMAL}. Running after it means the tag goes in
+     * front of the finished line instead of being thrown away when chat-module replaces the renderer.
+     * Staff chat cancels its lines at {@code NORMAL}, and {@code ignoreCancelled} keeps those out.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
         Player speaker = event.getPlayer();
         UUID id = speaker.getUniqueId();
@@ -52,7 +60,9 @@ public final class ManhuntChatListener implements Listener {
         boolean hunter = manhunt.teams().isHunter(id);
 
         String text = PLAIN.serialize(event.message());
-        Audience audience = sideChat.audienceFor(text, manhunt.isRunning(), runner || hunter);
+        boolean running = manhunt.isRunning();
+        tag(event, sideChat.channelFor(text, running, runner, hunter));
+        Audience audience = sideChat.audienceFor(text, running, runner || hunter);
         if (audience == Audience.EVERYBODY) {
             stripPrefixIfAny(event, text);
             return;
@@ -60,6 +70,21 @@ public final class ManhuntChatListener implements Listener {
 
         event.viewers().removeIf(viewer -> viewer instanceof Player watcher
                 && !onSameSide(watcher.getUniqueId(), runner));
+    }
+
+    /**
+     * Puts the channel's tag in front of the line, around whatever renderer is already there — see
+     * {@link SideChat.Channel}. Wrapped rather than replaced, for the same reason this listener narrows
+     * viewers instead of resending: another plugin's formatting of the line stays exactly as it was.
+     */
+    private void tag(AsyncChatEvent event, Channel channel) {
+        if (channel == Channel.NONE || messages == null) {
+            return;
+        }
+        Component mark = messages.get("manhunt.side-chat.tag-" + channel.name().toLowerCase(java.util.Locale.ROOT));
+        ChatRenderer underneath = event.renderer();
+        event.renderer((source, displayName, message, viewer) ->
+                mark.append(Component.space()).append(underneath.render(source, displayName, message, viewer)));
     }
 
     /** A message that used the prefix is shown without it — see {@link SideChat#strip}. */
@@ -72,6 +97,29 @@ public final class ManhuntChatListener implements Listener {
 
     private boolean onSameSide(UUID viewer, boolean speakerIsRunner) {
         return speakerIsRunner ? manhunt.teams().isRunner(viewer) : manhunt.teams().isHunter(viewer);
+    }
+
+    /**
+     * Tells everybody on a side, the moment a hunt begins, that their chat has just become their
+     * side's — the counterpart of staff chat's "you are talking to the staff" line. A rule nobody was
+     * told about is a mode people discover by saying the wrong thing to the wrong side.
+     */
+    public void announce(java.util.Set<UUID> roster) {
+        if (messages == null || !sideChat.enabled()) {
+            return;
+        }
+        java.util.Optional<String> prefix = sideChat.globalPrefix();
+        for (UUID id : roster) {
+            Player player = org.bukkit.Bukkit.getPlayer(id);
+            if (player == null) {
+                continue;
+            }
+            if (prefix.isPresent()) {
+                messages.send(player, "manhunt.side-chat.now-private", "prefix", prefix.get());
+            } else {
+                messages.send(player, "manhunt.side-chat.now-private-no-prefix");
+            }
+        }
     }
 
     public String describe() {

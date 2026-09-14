@@ -58,7 +58,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.7.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.8.0")
             .describedAs("Runners against Hunters on top of speedrun-module's engine — a win "
                     + "condition per side, a tracking compass that follows a Runner through the "
                     + "portal they took, a real server whitelist a Runner can open and close, "
@@ -144,8 +144,8 @@ public final class ManhuntModule implements FlexModule {
         // Talking to your own side, the rules a hunt borrows, and watching from outside it.
         SideChat sideChat = new SideChat(settings.current());
         settings.onChange(sideChat::settings);
-        server.getPluginManager().registerEvents(
-                new ManhuntChatListener(liveManhunt, sideChat, context.core().messages()), context.plugin());
+        ManhuntChatListener chatListener = new ManhuntChatListener(liveManhunt, sideChat, context.core().messages());
+        server.getPluginManager().registerEvents(chatListener, context.plugin());
 
         ManhuntRules rules = new ManhuntRules(context.plugin(), liveManhunt, settings.current());
         settings.onChange(rules::settings);
@@ -191,6 +191,7 @@ public final class ManhuntModule implements FlexModule {
             step("borrowing the hunt's gamerules", rules::arm, trouble);
             step("starting the narrator", narrator::arm, trouble);
             step("handing out the tracking compasses", () -> tracker.armFor(roster), trouble);
+            step("telling the sides their chat is now private", () -> chatListener.announce(roster), trouble);
             step("starting the hunt clock", () -> liveManhunt.session().ifPresent(huntClock::start), trouble);
         });
         // Guarded one by one for a sharper reason than the start hook's: every line below the first

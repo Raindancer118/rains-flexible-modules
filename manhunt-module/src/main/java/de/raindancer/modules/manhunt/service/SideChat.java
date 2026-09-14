@@ -30,6 +30,26 @@ public final class SideChat {
         OWN_SIDE
     }
 
+    /**
+     * Which channel a line is shown as — the tag in front of it.
+     *
+     * <p>Asked for directly, after {@code moderation-module}'s staff chat: every staff line carries
+     * its channel's tag, so nobody reading chat has to guess where a line went. Side chat had no
+     * mark at all — the same line everybody always sees, only to fewer people — so a Runner could not
+     * tell whether they had just told their team or the whole server, which in a hunt is the one
+     * mistake that matters.
+     */
+    public enum Channel {
+        /** Not this module's line at all: no hunt, a bystander, or side chat switched off. */
+        NONE,
+        /** Heard by the Runners only. */
+        RUNNERS,
+        /** Heard by the Hunters only. */
+        HUNTERS,
+        /** A participant speaking to the whole server mid-hunt, through the prefix. */
+        EVERYBODY
+    }
+
     private volatile ManhuntSettings settings;
 
     public SideChat(ManhuntSettings settings) {
@@ -61,6 +81,21 @@ public final class SideChat {
     }
 
     /**
+     * The channel {@code message} is shown as. Agrees with {@link #audienceFor} by construction —
+     * the side channels are exactly the lines narrowed to a side.
+     */
+    public Channel channelFor(String message, boolean huntRunning, boolean runner, boolean hunter) {
+        boolean onASide = runner || hunter;
+        if (!huntRunning || !onASide || !settings.sideChat()) {
+            return Channel.NONE;
+        }
+        if (audienceFor(message, true, true) == Audience.EVERYBODY) {
+            return Channel.EVERYBODY;
+        }
+        return runner ? Channel.RUNNERS : Channel.HUNTERS;
+    }
+
+    /**
      * The message with its global prefix taken off, when it had one. Nobody wants to read the
      * punctuation that routed the line, and leaving it in would also let it be typed twice to no
      * effect.
@@ -71,6 +106,11 @@ public final class SideChat {
             return message;
         }
         return message.substring(prefix.length()).stripLeading();
+    }
+
+    /** Whether side chat is switched on at all. */
+    public boolean enabled() {
+        return settings.sideChat();
     }
 
     /** The prefix a player would have to type to be heard by everybody, if there is one at all. */
