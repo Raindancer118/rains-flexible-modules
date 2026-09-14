@@ -64,7 +64,7 @@ class TrackerCompassServiceTest {
         when(plugin.namespace()).thenReturn("manhunt");
         service = new TrackerCompassService(plugin, mock(ManhuntService.class),
                 new TrackerCompass(ManhuntSettings.DEFAULTS, new PortalMemory()), new PortalMemory(),
-                messages, ManhuntSettings.DEFAULTS);
+                messages, null, ManhuntSettings.DEFAULTS);
     }
 
     @Test
@@ -94,27 +94,29 @@ class TrackerCompassServiceTest {
     }
 
     @Test
-    @DisplayName("the distance is rounded to five blocks, so a step does not redraw the compass")
-    void distanceIsRoundedToFives() {
-        // The churn this prevents: at one-block precision every step changes the lore, every lore
-        // change rewrites the item, and a rewritten item in a hand is the equip animation — twice a
-        // second, which is what "it feels like I get a new one every few seconds" actually was.
-        assertThat(TrackerCompassService.roundedDistance(0)).isZero();
-        assertThat(TrackerCompassService.roundedDistance(1)).isEqualTo(5);
-        assertThat(TrackerCompassService.roundedDistance(2.4)).isEqualTo(5);
-        assertThat(TrackerCompassService.roundedDistance(3)).isEqualTo(5);
-        assertThat(TrackerCompassService.roundedDistance(7)).isEqualTo(5);
-        assertThat(TrackerCompassService.roundedDistance(8)).isEqualTo(10);
-        assertThat(TrackerCompassService.roundedDistance(142)).isEqualTo(140);
+    @DisplayName("in the overworld the needle comes from the player's compass target, never the item")
+    void overworldUsesTheCompassTarget() {
+        // Player.setCompassTarget moves the needle without touching the item at all, so it cannot
+        // redraw the compass in a hand however often the Runner moves.
+        assertThat(TrackerCompassService.needleFromCompassTarget(org.bukkit.World.Environment.NORMAL)).isTrue();
     }
 
     @Test
-    @DisplayName("every step between two five-block marks reads the same, which is the whole point")
-    void neighbouringStepsReadTheSame() {
-        long first = TrackerCompassService.roundedDistance(100.2);
-        for (double walked = 100.2; walked < 102.4; walked += 0.3) {
-            assertThat(TrackerCompassService.roundedDistance(walked)).isEqualTo(first);
-        }
+    @DisplayName("in the Nether and the End it stays a lodestone, where a plain compass only spins")
+    void otherDimensionsKeepTheLodestone() {
+        assertThat(TrackerCompassService.needleFromCompassTarget(org.bukkit.World.Environment.NETHER)).isFalse();
+        assertThat(TrackerCompassService.needleFromCompassTarget(org.bukkit.World.Environment.THE_END)).isFalse();
+    }
+
+    @Test
+    @DisplayName("the distance is no longer part of the item — a lore that changes is an item that changes")
+    void distanceIsNotInTheLore() {
+        java.util.List<net.kyori.adventure.text.Component> lore = service.loreFor("<gray>Straight ahead.");
+        String plain = lore.stream()
+                .map(line -> net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(line))
+                .reduce("", (a, b) -> a + "\n" + b);
+
+        assertThat(plain).contains("Straight ahead.").doesNotContain("blocks away");
     }
 
     @Test

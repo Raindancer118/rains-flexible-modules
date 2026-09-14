@@ -44,8 +44,10 @@
              at the hunt's own start, and a tracking compass no longer drops from a dead Hunter.
              0.8.0: side chat is visible — every line tagged with its channel, like staff chat, and
              each side told when the hunt makes its chat private.
-             0.8.1: no boss bar at all any more — neither during the countdown nor during the hunt. -->
-        <plugin.version>0.8.1</plugin.version>
+             0.8.1: no boss bar at all any more — neither during the countdown nor during the hunt.
+             0.9.0: the compass needle comes from the player's compass target in the overworld, so the
+             item is never rewritten while chasing; the distance moves to the action bar. -->
+        <plugin.version>0.9.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -50,7 +50,7 @@ class TrackerListenerDropsTest {
         manhunt = mock(ManhuntService.class);
         tracker = new TrackerCompassService(plugin, manhunt,
                 new TrackerCompass(ManhuntSettings.DEFAULTS, new PortalMemory()), new PortalMemory(),
-                null, ManhuntSettings.DEFAULTS);
+                null, null, ManhuntSettings.DEFAULTS);
         listener = new TrackerListener(manhunt, tracker, new PortalMemory());
     }
 

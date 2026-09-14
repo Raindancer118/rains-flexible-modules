@@ -1,6 +1,8 @@
 package de.raindancer.modules.manhunt.service;
 
 import de.raindancer.core.platform.util.Scheduling;
+import de.raindancer.core.ui.actionbar.ActionBarPriority;
+import de.raindancer.core.ui.actionbar.ActionBars;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.service.TrackerCompass.Aim;
@@ -21,6 +23,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,12 +43,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * "which Runner, and where does the needle go" testable without a server, and it is the same shape
  * {@link ManhuntLobbyBox}/{@link ManhuntLobbyListener} already have.
  *
- * <h2>A lodestone that is not a lodestone</h2>
- * {@link CompassMeta#setLodestone} with {@link CompassMeta#setLodestoneTracked(boolean) tracked =
- * false} is the only way to aim a compass at an arbitrary spot: tracked compasses insist there is a
- * real lodestone block at the target and go blank when there is not, which every moving Runner
- * guarantees. The needle is therefore re-pointed at whatever spot the aim names, every
- * {@link ManhuntSettings#trackerRefreshTicks()} ticks, rather than following anything by itself.
+ * <h2>Where the needle comes from</h2>
+ * In the overworld, from {@link Player#setCompassTarget}: per player, sent to that one client, and
+ * never part of the item — so the needle follows every step without the compass ever being redrawn.
+ * In the Nether and the End, where a plain compass only spins, from a lodestone set with
+ * {@link CompassMeta#setLodestoneTracked(boolean) tracked = false} (a tracked one insists on a real
+ * lodestone block at the target), rewritten only when the target leaves a block. See
+ * {@link #needleFromCompassTarget}. The distance is on the action bar, not in the lore, for the same
+ * reason.
  *
  * <h2>Why the timer restarts on a settings change</h2>
  * A Paper repeating task's period is fixed when it is scheduled. Rather than run every tick and skip
@@ -69,7 +74,14 @@ public final class TrackerCompassService {
     private final TrackerCompass compass;
     private final PortalMemory portals;
     private final Messages messages;
+    private final ActionBars actionBars;
     private final NamespacedKey marker;
+
+    /** The action bar slot the distance is shown in — its own, so it never takes turns with the clock. */
+    static final String DISTANCE_OWNER = "manhunt-tracker";
+
+    /** Hunters currently being shown a distance, so the slot is cleared once and not every sweep. */
+    private final java.util.Set<UUID> showingDistance = ConcurrentHashMap.newKeySet();
 
     /**
      * What each Hunter has set their own compass to. Never a {@code Player} — see
@@ -84,12 +96,14 @@ public final class TrackerCompassService {
     private volatile int sweepPeriod;
 
     public TrackerCompassService(Plugin plugin, ManhuntService manhunt, TrackerCompass compass,
-                                 PortalMemory portals, Messages messages, ManhuntSettings settings) {
+                                 PortalMemory portals, Messages messages, ActionBars actionBars,
+                                 ManhuntSettings settings) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.manhunt = Objects.requireNonNull(manhunt, "manhunt");
         this.compass = Objects.requireNonNull(compass, "compass");
         this.portals = Objects.requireNonNull(portals, "portals");
         this.messages = messages;
+        this.actionBars = actionBars;
         this.settings = Objects.requireNonNull(settings, "settings");
         this.marker = new NamespacedKey(plugin, "manhunt-tracker");
     }
@@ -139,7 +153,18 @@ public final class TrackerCompassService {
         for (UUID id : manhunt.teams().hunters()) {
             Player hunter = plugin.getServer().getPlayer(id);
             if (hunter != null) {
-                Scheduling.entity(plugin, hunter, () -> takeBack(hunter));
+                Scheduling.entity(plugin, hunter, () -> {
+                    takeBack(hunter);
+                    // Every ordinary compass this Hunter carries points at the compass target too, so it
+                    // is handed back to the world's spawn, where vanilla keeps it.
+                    List<World> worlds = plugin.getServer().getWorlds();
+                    if (!worlds.isEmpty()) {
+                        hunter.setCompassTarget(worlds.getFirst().getSpawnLocation());
+                    }
+                });
+            }
+            if (actionBars != null && showingDistance.remove(id)) {
+                actionBars.clear(id, DISTANCE_OWNER);
             }
         }
         picks.clear();
@@ -277,17 +302,28 @@ public final class TrackerCompassService {
             return;
         }
         String targetName = aim.target() == null ? null : names.getOrDefault(aim.target(), "a Runner");
+        showDistance(hunter, aim, targetName);
+
         switch (aim.kind()) {
-            case TRACKING -> {
-                aimAt(meta, hunter.getWorld(), aim.at());
+            case TRACKING, PORTAL -> {
                 meta.displayName(line("<gold>Tracking <white>" + safe(targetName)));
-                meta.lore(loreFor("<gray>Straight ahead.", aim));
-            }
-            case PORTAL -> {
-                aimAt(meta, hunter.getWorld(), aim.at());
-                meta.displayName(line("<gold>Tracking <white>" + safe(targetName)));
-                meta.lore(loreFor("<gray>Through the portal, into <white>"
-                        + safe(aim.worldName()) + "<gray>.", aim));
+                meta.lore(loreFor(aim.kind() == Aim.Kind.TRACKING
+                        ? "<gray>Straight ahead."
+                        : "<gray>Through the portal, into <white>" + safe(aim.worldName()) + "<gray>."));
+                World here = hunter.getWorld();
+                if (needleFromCompassTarget(here.getEnvironment())) {
+                    // The needle, without the item: see needleFromCompassTarget.
+                    hunter.setCompassTarget(blockOf(here, aim.at()));
+                    if (meta.hasLodestone()) {
+                        // Back from the Nether or the End with a lodestone still on it. A lodestone
+                        // compass ignores the compass target entirely, so it is swapped once for a
+                        // plain one — the one item change a dimension crossing costs.
+                        replaceWithPlain(hunter, slot.get(), meta);
+                        return;
+                    }
+                } else {
+                    aimAt(meta, here, aim.at());
+                }
             }
             case OTHER_WORLD -> {
                 meta.setLodestone(null);
@@ -301,18 +337,81 @@ public final class TrackerCompassService {
                 meta.lore(List.of(line("<gray>Nothing to point at.")));
             }
         }
-        // Nothing is written unless something actually changed — see unchanged().
-        //
-        // Reported as "it feels like I get a new one every few seconds": this ran on every sweep,
-        // twice a second by default, and each run replaced the item in its slot. The client redraws a
-        // slot whose item changed, and redrawing the item in a hand is the equip animation — so a
-        // compass that was pointing at the same place, with the same name and the same lore, still
-        // flickered like a fresh item twice a second. It is the same compass; it should look like it.
+        // Nothing is written unless something actually changed — see unchanged(). With the needle
+        // coming from the compass target in the overworld and the distance on the action bar, what is
+        // left on the item — the name and the lore — only changes when the Runner being followed does.
         if (unchanged(stack, meta)) {
             return;
         }
         stack.setItemMeta(meta);
         hunter.getInventory().setItem(slot.get(), stack);
+    }
+
+    /**
+     * Whether the needle is driven by {@link Player#setCompassTarget} rather than by a lodestone.
+     *
+     * <h2>Why the compass target, where it can be</h2>
+     * Asked for after "it feels like I get a new one every few seconds". A lodestone is a fixed spot
+     * stored <em>in the item</em>: following a Runner who moves means changing the item, and a client
+     * redraws an item that changed — in a hand, that is the equip animation. The compass target is
+     * per player and sent to that one client; a plain compass points at it, and moving it touches the
+     * item not at all. The needle can follow every step and the compass never so much as twitches.
+     *
+     * <h2>Why only in the overworld</h2>
+     * A plain compass spins in the Nether and the End — that is vanilla, not this module — so there the
+     * lodestone stays, written only when the Runner actually leaves a block. Whether the compass target
+     * would hold there too has not been checked against a client; if it does, this can widen.
+     */
+    static boolean needleFromCompassTarget(World.Environment environment) {
+        return environment == World.Environment.NORMAL;
+    }
+
+    private static Location blockOf(World world, Point at) {
+        return new Location(world, Math.floor(at.x()), Math.floor(at.y()), Math.floor(at.z()));
+    }
+
+    /** A plain compass carrying the same name and lore, in place of a lodestone one. */
+    private void replaceWithPlain(Player hunter, int slot, CompassMeta carried) {
+        ItemStack plain = freshCompass();
+        ItemMeta meta = plain.getItemMeta();
+        meta.displayName(carried.displayName());
+        meta.lore(carried.lore());
+        plain.setItemMeta(meta);
+        hunter.getInventory().setItem(slot, plain);
+    }
+
+    /**
+     * The distance, on the action bar, while the Hunter is holding the compass.
+     *
+     * <p>It used to be a lore line, and a lore line that changes is an item that changes — the same
+     * redraw the compass target exists to avoid. The action bar redraws text, not an item, so it can
+     * say the distance to the block as often as it likes. Only while the compass is in a hand: the
+     * hunt's clock owns the bar the rest of the time, and this sits above it only while there is a
+     * reason to.
+     */
+    private void showDistance(Player hunter, Aim aim, String targetName) {
+        if (actionBars == null || messages == null) {
+            return;
+        }
+        UUID id = hunter.getUniqueId();
+        boolean pointing = aim.kind() == Aim.Kind.TRACKING || aim.kind() == Aim.Kind.PORTAL;
+        if (!compass.showsDistance() || !pointing || !holdingTracker(hunter)) {
+            if (showingDistance.remove(id)) {
+                actionBars.clear(id, DISTANCE_OWNER);
+            }
+            return;
+        }
+        actionBars.show(id, DISTANCE_OWNER,
+                messages.get("manhunt.tracker.distance",
+                        "runner", safe(targetName),
+                        "blocks", String.valueOf(Math.round(aim.distance()))),
+                Duration.ofMillis(Math.max(1, sweepPeriod) * 50L + 1000L), ActionBarPriority.NORMAL);
+        showingDistance.add(id);
+    }
+
+    private boolean holdingTracker(Player hunter) {
+        return isTracker(hunter.getInventory().getItemInMainHand())
+                || isTracker(hunter.getInventory().getItemInOffHand());
     }
 
     /**
@@ -348,39 +447,18 @@ public final class TrackerCompassService {
                 Math.floor(at.x()), Math.floor(at.y()), Math.floor(at.z())));
     }
 
-    private List<net.kyori.adventure.text.Component> loreFor(String first, Aim aim) {
+    /** The item's lore: what the needle means, and how to change it. No distance — see showDistance. */
+    List<net.kyori.adventure.text.Component> loreFor(String first) {
         List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
         lore.add(line(first));
-        if (compass.showsDistance()) {
-            // To the nearest five blocks, and the word is "about" for exactly that reason. A figure
-            // to the block changes every time either of them takes a step, and a lore line that
-            // changes is an item that changes, which is a redraw of the compass in somebody's hand —
-            // see applyTo's own note. Five blocks is below what anybody reads off a chase anyway.
-            lore.add(line("<gray>About <white>" + roundedDistance(aim.distance())
-                    + "<gray> blocks away."));
-        }
         if (compass.allowsPicking()) {
-            lore.add(line(aim.target() == null
-                    ? "<dark_gray>Right-click to lock onto a Runner."
-                    : "<dark_gray>Right-click for the next Runner, or the nearest."));
+            lore.add(line("<dark_gray>Right-click for the next Runner, or the nearest."));
         }
         return lore;
     }
 
     private static net.kyori.adventure.text.Component line(String mini) {
         return MINI.deserialize(mini).decoration(TextDecoration.ITALIC, false);
-    }
-
-    /**
-     * A distance to the nearest five blocks, never below five while there is any distance at all.
-     *
-     * <p>Kept off zero on purpose: "about 0 blocks away" reads as a bug rather than as "right on top
-     * of them", and the one case where a Hunter does not need a number is the one where they can see
-     * the Runner.
-     */
-    static long roundedDistance(double blocks) {
-        long rounded = Math.round(blocks / 5.0) * 5;
-        return rounded == 0 && blocks > 0 ? 5 : rounded;
     }
 
     /** A player-supplied name never reaches MiniMessage as markup — see {@code Chat}'s own rule. */
@@ -481,6 +559,7 @@ public final class TrackerCompassService {
     /** Forgets a Hunter's pick — they left the side, or the server. */
     public void forget(UUID hunter) {
         picks.remove(hunter);
+        showingDistance.remove(hunter);
     }
 
     /** What {@code hunter} has set their own compass to, if they have set it at all. */

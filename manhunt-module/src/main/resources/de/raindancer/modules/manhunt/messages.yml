@@ -77,6 +77,7 @@ manhunt:
     pack-nearest: "<gold><hunter></gold> <gray>put the pack back on whoever is nearest."
     picking-off: "<red>Your compass is set by the host — that is not yours to change."
     no-runners: "<red>There is no Runner left to follow."
+    distance: "<gold>Tracking <white><runner></white> <gray>— <white><blocks></white> blocks away"
 
   # ---------------------------------------------------------------- talking to your side
   side-chat:
