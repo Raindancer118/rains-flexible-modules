@@ -32,8 +32,10 @@
              0.3.0: a countdown, death rules, narration, side chat, borrowed rules, spectators.
              0.4.0-0.5.0: the Hunter aims their own compass, the curated screens, the map page.
              0.6.0: hunt history — every finished hunt remembered, /manhunt history and a per-player
-             record, the last thing manhunt-roadmap-to-1-0 named as still missing before 1.0.0. -->
-        <plugin.version>0.6.0</plugin.version>
+             record, the last thing manhunt-roadmap-to-1-0 named as still missing before 1.0.0.
+             0.6.1: /whitelist's passthrough no longer dumps a stack trace at the console for a word
+             that is neither this module's nor vanilla's own. -->
+        <plugin.version>0.6.1</plugin.version>
     </properties>
 
     <dependencies>

@@ -4,6 +4,7 @@ import de.raindancer.modules.manhunt.ManhuntServices;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandException;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 
@@ -56,7 +57,7 @@ public final class WhitelistCommand implements IManhuntCommand {
             openOrClose(live, sender, false);
             return;
         }
-        passthrough(sender, args);
+        passthrough(live, sender, args);
     }
 
     private void openOrClose(ManhuntServices live, CommandSender sender, boolean open) {
@@ -79,12 +80,27 @@ public final class WhitelistCommand implements IManhuntCommand {
         live.messages().send(sender, "manhunt.whitelist.closed", "added", String.valueOf(added));
     }
 
-    /** Everything that is not {@code open} or {@code close}, unchanged, straight to vanilla. */
-    private void passthrough(CommandSender sender, String[] args) {
+    /**
+     * Everything that is not {@code open} or {@code close}, unchanged, straight to vanilla.
+     *
+     * <p>A word that is neither this module's ({@code open}/{@code close}) nor vanilla's own
+     * ({@code add}/{@code remove}/{@code list}/{@code on}/{@code off}/{@code reload}) — {@code enable},
+     * say — reaches {@link Bukkit#dispatchCommand} and fails to parse there. A directly-typed command's
+     * own top-level dispatcher catches exactly that and shows a clean usage line; going through
+     * {@code dispatchCommand} from inside another command does not get the same treatment; the
+     * unhandled {@link CommandException} would otherwise reach the console as a full stack trace over
+     * what is, from wherever it was typed, a plain typo.
+     */
+    private void passthrough(ManhuntServices live, CommandSender sender, String[] args) {
         String command = args.length == 0
                 ? "minecraft:whitelist"
                 : "minecraft:whitelist " + String.join(" ", args);
-        Bukkit.dispatchCommand(sender, command);
+        try {
+            Bukkit.dispatchCommand(sender, command);
+        } catch (CommandException badWord) {
+            live.messages().send(sender, "manhunt.whitelist.unknown-command",
+                    "word", args.length == 0 ? "" : args[0]);
+        }
     }
 
     // ------------------------------------------------------------------------ completion

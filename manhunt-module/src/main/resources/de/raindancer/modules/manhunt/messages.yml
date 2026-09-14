@@ -36,6 +36,8 @@ manhunt:
   whitelist:
     opened: "<green>The whitelist is open — anybody can join."
     closed: "<yellow>The whitelist is closed — <white><added></white> player(s) newly whitelisted."
+    unknown-command: "<red>'<white><word></white>' is not a /whitelist word — try: open, close, add, \
+      remove, list, on, off, reload."
 
   # ---------------------------------------------------------------- chaos
   chaos:
