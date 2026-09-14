@@ -57,7 +57,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.6.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.6.3")
             .describedAs("Runners against Hunters on top of speedrun-module's engine — a win "
                     + "condition per side, a tracking compass that follows a Runner through the "
                     + "portal they took, a real server whitelist a Runner can open and close, "
@@ -169,16 +169,28 @@ public final class ManhuntModule implements FlexModule {
 
         // Both hooks take exactly one caller each (see ManhuntService.onStart) — stacking two concerns
         // behind the same moment is this wiring class' job, not the service's.
+        // Each concern on its own, so the first one to throw cannot abandon the rest — see step().
+        // The compass used to be last of five bare statements here, which is exactly how a live hunt
+        // started correctly in every visible way and handed out no compasses at all.
+        Trouble trouble = (what, broken) -> log.error(broken,
+                "A hunt started, but {} failed. The rest of the hunt is unaffected.", what);
         liveManhunt.onStart(roster -> {
             currentRun.set(new RunStart(Instant.now(), Set.copyOf(teams.runners()), Set.copyOf(teams.hunters())));
-            manhuntAchievements.awardFirstHunt(roster);
-            deaths.reset();
-            rules.arm();
-            narrator.arm();
-            tracker.armFor(roster);
+            step("awarding the first-hunt achievement", () -> manhuntAchievements.awardFirstHunt(roster), trouble);
+            step("resetting the death counters", deaths::reset, trouble);
+            step("borrowing the hunt's gamerules", rules::arm, trouble);
+            step("starting the narrator", narrator::arm, trouble);
+            step("handing out the tracking compasses", () -> tracker.armFor(roster), trouble);
         });
+        // Guarded one by one for a sharper reason than the start hook's: every line below the first
+        // is a hand-back. An awardWin that threw used to take rules.disarm() with it, and a hunt's
+        // borrowed gamerules would then never be given back — the server left permanently altered by
+        // a match that had already ended.
+        Trouble afterwards = (what, broken) -> log.error(broken,
+                "A hunt finished, but {} failed. Everything else about the ending still ran.", what);
         liveManhunt.onFinished((everybody, outcome) -> {
-            manhuntAchievements.awardWin(everybody, teams, outcome.reason());
+            step("awarding the win", () -> manhuntAchievements.awardWin(everybody, teams, outcome.reason()),
+                    afterwards);
             RunStart started = currentRun.getAndSet(null);
             if (started != null) {
                 // Off the server thread, like every other database write in this reactor — see
@@ -187,11 +199,11 @@ public final class ManhuntModule implements FlexModule {
                 Scheduling.async(context.plugin(), () ->
                         history.record(started.startedAt(), started.runners(), started.hunters(), outcome));
             }
-            narrator.disarm();
-            tracker.disarm();
-            rules.disarm();
-            spectators.releaseAll();
-            endOfRun.finish(everybody);
+            step("stopping the narrator", narrator::disarm, afterwards);
+            step("taking the tracking compasses back", tracker::disarm, afterwards);
+            step("handing the hunt's gamerules back", rules::disarm, afterwards);
+            step("releasing the spectators", spectators::releaseAll, afterwards);
+            step("sending everybody home", () -> endOfRun.finish(everybody), afterwards);
         });
 
         this.services = new ManhuntServices(
@@ -221,6 +233,43 @@ public final class ManhuntModule implements FlexModule {
 
     /** What {@link HuntHistory#record} needs from the moment a hunt began — see the field's own note. */
     private record RunStart(Instant startedAt, Set<UUID> runners, Set<UUID> hunters) {
+    }
+
+    /** Told what failed and what threw — {@code log::error} in practice, a collector in the tests. */
+    @FunctionalInterface
+    interface Trouble {
+        void with(String what, Throwable thrown);
+    }
+
+    /**
+     * Runs one concern of a hunt starting or ending, and contains its failure.
+     *
+     * <h2>Why this exists</h2>
+     * {@link ManhuntService#onStart} takes exactly one hook on purpose, so this class stacks several
+     * independent concerns behind it. Written as bare statements in one lambda, the first of them to
+     * throw silently abandoned every one after it — and the tracking compass was last, so a hunt
+     * could start correctly in every visible way (the countdown, the boss bar and the clock all
+     * happen <em>before</em> the hook fires) and hand out no compasses at all, with nothing in the
+     * log pointing anywhere near the compass. That is a real report, not a hypothetical.
+     *
+     * <p>These concerns are genuinely independent: a missing achievement store is no reason for the
+     * Hunters to go without a compass, and a gamerule that could not be borrowed is no reason for the
+     * narrator to stay silent. Each is therefore run on its own and its failure is named in the log —
+     * the same "one listener must not stop another's" rule {@code SettingsStore.publish} already
+     * applies to settings listeners.
+     *
+     * <p>{@link Throwable}, not {@link RuntimeException}: the realistic failure is an API that moved
+     * between the Paper this compiles against and the one a server runs — {@code GameRule} is
+     * deprecated-for-removal on 26.2 — and that arrives as an {@link Error} a narrower guard would
+     * let straight through. {@code ModuleCommands.canUse} catches {@link Throwable} for the same
+     * reason.
+     */
+    static void step(String what, Runnable concern, Trouble trouble) {
+        try {
+            concern.run();
+        } catch (Throwable broken) {
+            trouble.with(what, broken);
+        }
     }
 
     /**

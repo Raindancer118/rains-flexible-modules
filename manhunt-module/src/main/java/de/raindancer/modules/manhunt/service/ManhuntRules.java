@@ -42,6 +42,21 @@ import java.util.UUID;
  * Runner cannot hit a Runner while a Hunter still can. That is a question about two players' sides,
  * which only this module can answer, so it is a cancelled damage event and not a borrowed rule.
  */
+/*
+ * What this class cannot have a unit test for, and why
+ * ----------------------------------------------------
+ * Every method below touches org.bukkit.GameRules, whose constants are resolved through Paper's
+ * RegistryAccess and which therefore cannot even be class-initialised outside a running server —
+ * referencing GameRules.LOCATOR_BAR in a test throws NoClassDefFoundError before any assertion runs.
+ * That is the same limitation MannequinEquipServiceTest documents for real ItemStacks and
+ * Enchantments, and it is why no ManhuntRulesTest exists beside the other service tests. The
+ * borrowing here is verified by code review and against a running server, not by JUnit.
+ *
+ * It is also worth knowing that this is exactly the class most likely to break across Paper builds:
+ * GameRule is deprecated-for-removal on 26.2, this module compiles against one build and servers run
+ * another, and a moved constant arrives as an Error rather than an exception. ManhuntModule.step()
+ * exists so that when that happens it costs this class only, and not the compass handout beside it.
+ */
 public final class ManhuntRules implements Listener {
 
     private final Plugin plugin;
@@ -50,6 +65,14 @@ public final class ManhuntRules implements Listener {
     /** What the world had before this hunt borrowed it. Empty when nothing has been borrowed. */
     private final Map<String, Object> borrowed = new HashMap<>();
     private String borrowedFrom;
+
+    /**
+     * What each world's locator bar was set to before this hunt borrowed it, by world name.
+     *
+     * <p>Its own map, and keyed by world, because this is the one borrowed rule that is not taken
+     * from the configured world alone — see {@link #arm()}.
+     */
+    private final Map<String, Boolean> locatorBarBefore = new HashMap<>();
 
     private volatile ManhuntSettings settings;
 
@@ -83,10 +106,43 @@ public final class ManhuntRules implements Listener {
             borrowed.put("difficulty", world.getDifficulty());
             world.setDifficulty(difficultyOf(config.difficultyDuringHunt()));
         }
+        borrowLocatorBar(config.locatorBarDuringHunt());
+    }
+
+    /**
+     * The locator bar, in every loaded world rather than only the configured one.
+     *
+     * <h2>Why every world</h2>
+     * A Manhunt is played across the overworld, the Nether and the End, and this is a per-world rule.
+     * Off in the configured world alone would leave it on for exactly the half of a hunt that happens
+     * after a Runner takes a portal — the half where finding them is meant to be hard, and the half
+     * the tracking compass' whole cross-world behaviour exists for.
+     *
+     * <h2>Why its default is OFF and not UNCHANGED</h2>
+     * Every other rule here defaults to leaving the server alone. This one does not, because the bar
+     * puts every player's direction on everybody's screen: left on, the Hunters do not need a compass,
+     * a portal memory, or any of the rest of this module. A server that wants it anyway says so with
+     * UNCHANGED or ON.
+     */
+    private void borrowLocatorBar(RuleOverride override) {
+        if (override == RuleOverride.UNCHANGED) {
+            return;
+        }
+        boolean wanted = override == RuleOverride.ON;
+        for (World world : plugin.getServer().getWorlds()) {
+            Boolean before = world.getGameRuleValue(GameRules.LOCATOR_BAR);
+            locatorBarBefore.put(world.getName(), before != null ? before : Boolean.TRUE);
+            world.setGameRule(GameRules.LOCATOR_BAR, wanted);
+        }
     }
 
     /** The hunt is over: everything borrowed goes back exactly as it was. */
     public void disarm() {
+        // The locator bar first, and outside the borrowedFrom guard below: it is borrowed from every
+        // loaded world rather than from the configured one, so a hunt whose world had gone missing —
+        // regenerated, unloaded, renamed — would otherwise leave every world's bar switched off for
+        // good, with no hunt running to explain it.
+        giveLocatorBarBack();
         if (borrowedFrom == null) {
             return;
         }
@@ -100,6 +156,20 @@ public final class ManhuntRules implements Listener {
         }
         borrowed.clear();
         borrowedFrom = null;
+    }
+
+    /** Each world's locator bar back to exactly what it was, and never a guess at what it was. */
+    private void giveLocatorBarBack() {
+        if (locatorBarBefore.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Boolean> was : locatorBarBefore.entrySet()) {
+            World world = plugin.getServer().getWorld(was.getKey());
+            if (world != null) {
+                world.setGameRule(GameRules.LOCATOR_BAR, was.getValue());
+            }
+        }
+        locatorBarBefore.clear();
     }
 
     private void borrow(World world, GameRule<Boolean> rule, RuleOverride override) {
