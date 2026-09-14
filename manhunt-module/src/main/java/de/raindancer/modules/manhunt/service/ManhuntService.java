@@ -21,6 +21,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
@@ -283,6 +284,7 @@ public final class ManhuntService {
             if (player == null) {
                 continue;
             }
+            dropSpeedrunLobbyItems(player);
             var maxHealth = player.getAttribute(Attribute.MAX_HEALTH);
             if (maxHealth != null) {
                 player.setHealth(maxHealth.getValue());
@@ -348,6 +350,33 @@ public final class ManhuntService {
                     world.getHighestBlockYAt(blockX, blockZ) + 1, blockZ + 0.5, spot.yaw(), 0f);
             placing.get(i).teleportAsync(at);
         }
+    }
+
+    /**
+     * Takes speedrun-module's lobby compass and start block off a participant.
+     *
+     * <p>Found with two real clients: on a server running RainsSpeedrun, everybody who joined into its
+     * lobby is carrying both when a hunt begins. In a hunt they are worse than useless — a second
+     * compass that points nowhere, beside the tracking compass a Hunter is looking for, and a block
+     * that starts a speedrun. Recognised by the key's name, whatever plugin speedrun-module runs
+     * inside; {@code SpeedrunLobbyItems.MARKER_KEY} is a compile-time constant, so this needs no newer
+     * RainsSpeedrun at runtime.
+     */
+    static void dropSpeedrunLobbyItems(Player player) {
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            if (isSpeedrunLobbyItem(contents[slot])) {
+                player.getInventory().setItem(slot, null);
+            }
+        }
+    }
+
+    static boolean isSpeedrunLobbyItem(ItemStack stack) {
+        if (stack == null || !stack.hasItemMeta()) {
+            return false;
+        }
+        return stack.getItemMeta().getPersistentDataContainer().getKeys().stream()
+                .anyMatch(key -> de.raindancer.modules.speedrun.SpeedrunLobbyItems.MARKER_KEY.equals(key.getKey()));
     }
 
     private void releaseHunters() {

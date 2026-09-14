@@ -91,6 +91,9 @@ public final class TrackerCompassService {
      */
     private final Map<UUID, Following> picks = new ConcurrentHashMap<>();
 
+    /** The compass target each Hunter was last sent — see {@link CompassTargets}. */
+    private final CompassTargets compassTargets = new CompassTargets();
+
     private volatile ManhuntSettings settings;
     private volatile ScheduledTask sweep;
     private volatile int sweepPeriod;
@@ -169,6 +172,7 @@ public final class TrackerCompassService {
         }
         picks.clear();
         portals.clear();
+        compassTargets.clear();
     }
 
     /** A Hunter who died and came back — handed a replacement, if the owner allows one. */
@@ -313,7 +317,11 @@ public final class TrackerCompassService {
                 World here = hunter.getWorld();
                 if (needleFromCompassTarget(here.getEnvironment())) {
                     // The needle, without the item: see needleFromCompassTarget.
-                    hunter.setCompassTarget(blockOf(here, aim.at()));
+                    Location target = blockOf(here, aim.at());
+                    if (compassTargets.moved(hunter.getUniqueId(), here.getName(),
+                            target.getBlockX(), target.getBlockY(), target.getBlockZ())) {
+                        hunter.setCompassTarget(target);
+                    }
                     if (meta.hasLodestone()) {
                         // Back from the Nether or the End with a lodestone still on it. A lodestone
                         // compass ignores the compass target entirely, so it is swapped once for a
@@ -560,6 +568,7 @@ public final class TrackerCompassService {
     public void forget(UUID hunter) {
         picks.remove(hunter);
         showingDistance.remove(hunter);
+        compassTargets.forget(hunter);
     }
 
     /** What {@code hunter} has set their own compass to, if they have set it at all. */

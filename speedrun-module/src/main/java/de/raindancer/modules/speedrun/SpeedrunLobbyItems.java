@@ -27,13 +27,21 @@ public final class SpeedrunLobbyItems {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
+    /**
+     * The name of the key these items are tagged with, without its namespace — which is whichever
+     * plugin speedrun-module is running inside. Public and a compile-time constant so a module built
+     * on this engine can recognise lobby items without a runtime dependency on this exact version:
+     * manhunt-module takes them off a hunt's participants.
+     */
+    public static final String MARKER_KEY = "speedrun-lobby-item";
+
     private static final String MENU = "menu";
     private static final String START = "start";
 
     private final NamespacedKey marker;
 
     public SpeedrunLobbyItems(Plugin plugin) {
-        this.marker = new NamespacedKey(plugin, "speedrun-lobby-item");
+        this.marker = new NamespacedKey(plugin, MARKER_KEY);
     }
 
     /** The compass that opens the lobby's menu. */

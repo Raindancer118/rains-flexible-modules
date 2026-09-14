@@ -44,7 +44,11 @@ public final class ManhuntNarrationListener implements Listener {
             return;
         }
         World now = player.getWorld();
-        if (now.equals(event.getFrom())) {
+        // A change of world is not a change of dimension. The hunt's own start moves everybody from
+        // wherever they were — a speedrun lobby, another overworld — into the hunt world, and that was
+        // announced as the Runner "reaching the Overworld" at the very moment the hunt began. Only a
+        // real crossing, Overworld to Nether and the like, is worth saying out loud.
+        if (now.equals(event.getFrom()) || now.getEnvironment() == event.getFrom().getEnvironment()) {
             return;
         }
         narrator.runnerChangedWorld(player.getName(), friendly(now));
