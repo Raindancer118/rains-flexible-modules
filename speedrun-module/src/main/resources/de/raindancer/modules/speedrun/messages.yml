@@ -21,6 +21,10 @@ speedrun:
     not-allowed: "<yellow>Only staff can start a run here."
     # The world speedrun.yml points at is not currently loaded.
     world-missing: "<red>The lobby world is not loaded. Somebody should look at speedrun.yml."
+  explosives:
+    # A bed or a respawn anchor clicked in a dimension where this server's ruleset says it does not
+    # go off. Said out loud rather than swallowed: a click that silently does nothing reads as lag.
+    refused: "<yellow>That does not explode here."
   goal:
     # Picking an advancement in the chooser.
     set: "<green>Advancement goal set to <white><advancement></white>."

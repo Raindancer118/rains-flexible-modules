@@ -11,11 +11,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.plugin.Plugin;
 
@@ -144,6 +146,47 @@ public final class SpeedrunLobbyListener implements Listener {
         for (Player player : lobbyWorld.getPlayers()) {
             Scheduling.entity(plugin, player, () -> giveItemsIfReady(player));
         }
+    }
+
+    /**
+     * Keeps the two lobby items out of a death's drop pile — and out of the world.
+     *
+     * <h2>Why they are deleted rather than kept</h2>
+     * They are buttons, not gear. A compass and a green block lying in a lava pit where somebody died
+     * are two things: litter the next reset has to sweep, and — for the start block — a way for
+     * whoever walks past to start a run they were never handed the right to start. Both are handed
+     * out again for free the moment the lobby is ready, so there is nothing to lose by dropping them
+     * from the drop list entirely.
+     *
+     * <p>{@code getDrops()} rather than {@code setKeepInventory}: keeping the whole inventory would
+     * change what a death costs in the race itself, which is the game's decision and not this one's.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onDeath(PlayerDeathEvent event) {
+        event.getDrops().removeIf(stack -> items.isMenu(stack) || items.isStart(stack));
+    }
+
+    /**
+     * Hands the kit back to somebody who died and respawned into a ready lobby — their inventory went
+     * with the death, and without this they would stand in the lobby empty-handed until they left the
+     * world and came back.
+     *
+     * <p>The respawn location is what is checked, not where they died: dying in the run's Nether and
+     * respawning at the lobby's start line is exactly the case this is for.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        World where = event.getRespawnLocation().getWorld();
+        if (where == null || !where.getName().equals(lobby.config().worldName())) {
+            return;
+        }
+        if (lobby.state() != SpeedrunLobbyState.READY) {
+            return;
+        }
+        // One tick later: the respawn has not happened yet, and an inventory written now is written
+        // to the player as they were before it. Onto the player's own thread, for Folia.
+        Scheduling.entityLater(plugin, player, 1L, () -> giveItemsIfReady(player));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

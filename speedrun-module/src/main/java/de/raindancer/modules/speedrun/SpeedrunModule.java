@@ -65,6 +65,9 @@ public final class SpeedrunModule implements FlexModule {
         // of the module rather than of a session, because the whole point of it is the gap between
         // two sessions. See SpeedrunLobbySafetyListener.
         context.listener(new SpeedrunLobbySafetyListener(lobby));
+        // What a racer is allowed to set off during the run itself, per dimension — a ruleset, not a
+        // safety rail, and off nobody's by default. See SpeedrunExplosivesListener.
+        context.listener(new SpeedrunExplosivesListener(lobby, context.core().messages()));
         // Whoever stayed in the lobby world while a run finished and it reset around them gets the
         // items the moment there is something to do with them again, rather than needing to leave and
         // come back — neither onJoin nor onWorldChange fires for somebody who never actually moved.

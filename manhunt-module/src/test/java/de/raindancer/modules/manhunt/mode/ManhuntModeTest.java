@@ -92,7 +92,8 @@ class ManhuntModeTest {
                 goal ? SpeedrunSettings.DRAGON_KILL_ADVANCEMENT : "",
                 de.raindancer.modules.speedrun.SpeedrunDeathPolicy.OFF, true,
                 0, 0, 0, 0, false, 0, 0, 0, 0, 0,
-                true, true, true, true, true, 10, true, 1000);
+                true, true, true, true, true, 10, true, 1000,
+                true, true, true, true, true, true, true, true, true, true);
     }
 
     @Nested

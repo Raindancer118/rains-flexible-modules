@@ -36,6 +36,9 @@ import org.bukkit.Material;
                 description = "Creepers where a racer mines or loots. Off until a host turns it on."),
         @Topic(path = "speedrun/start", title = "The start point", icon = Material.LODESTONE,
                 description = "Where /starthere put the line every run begins on."),
+        @Topic(path = "speedrun/explosives", title = "What players may blow up", icon = Material.TNT,
+                description = "Beds, respawn anchors, TNT and end crystals — each one switchable per "
+                        + "dimension, so a ruleset can ban bed bombing without banning the dragon fight."),
         @Topic(path = "speedrun/lobby", title = "The lobby itself", icon = Material.LIME_CONCRETE,
                 description = "Who may start a run, what can hurt anybody waiting for one, and what "
                         + "happens the moment one ends."),
@@ -157,7 +160,53 @@ public record SpeedrunSettings(
         @In("speedrun/race") @Title("The time a run starts at") @Range(min = 0, max = 24000)
         @Describe("Which tick of the Minecraft day a run starts at, when the setting above is on. "
                 + "1000 is a normal morning; 0 is sunrise, 6000 midday, 13000 nightfall.")
-        int startTimeTicks
+        int startTimeTicks,
+
+        @In("speedrun/explosives") @Title("Beds explode in the Nether")
+        @Describe("Whether clicking a bed in the run's Nether does what it does in vanilla. Off, the "
+                + "click simply does nothing — the classic 'no bed bombing' rule.")
+        boolean bedExplosionsInNether,
+
+        @In("speedrun/explosives") @Title("Beds explode in the End")
+        @Describe("The same for the run's End, set separately: a bed is a different weapon in the "
+                + "dragon fight than it is in the Nether.")
+        boolean bedExplosionsInTheEnd,
+
+        @In("speedrun/explosives") @Title("Respawn anchors explode in the Overworld")
+        @Describe("Whether a respawn anchor used in the run's Overworld does what it does in vanilla. "
+                + "An anchor is the mirror of a bed: it works in the Nether and explodes everywhere "
+                + "else.")
+        boolean anchorExplosionsInOverworld,
+
+        @In("speedrun/explosives") @Title("Respawn anchors explode in the End")
+        @Describe("The same for the run's End, set separately.")
+        boolean anchorExplosionsInTheEnd,
+
+        @In("speedrun/explosives") @Title("TNT explodes in the Overworld")
+        @Describe("Whether TNT — including a minecart with TNT in it, which is the same trick — goes "
+                + "off in the run's Overworld.")
+        boolean tntInOverworld,
+
+        @In("speedrun/explosives") @Title("TNT explodes in the Nether")
+        @Describe("The same for the run's Nether.")
+        boolean tntInNether,
+
+        @In("speedrun/explosives") @Title("TNT explodes in the End")
+        @Describe("The same for the run's End.")
+        boolean tntInTheEnd,
+
+        @In("speedrun/explosives") @Title("End crystals explode in the Overworld")
+        @Describe("Whether an end crystal goes off in the run's Overworld.")
+        boolean endCrystalsInOverworld,
+
+        @In("speedrun/explosives") @Title("End crystals explode in the Nether")
+        @Describe("The same for the run's Nether.")
+        boolean endCrystalsInNether,
+
+        @In("speedrun/explosives") @Title("End crystals explode in the End")
+        @Describe("The same for the run's End — the one that decides whether the dragon can be "
+                + "respawned, and whether her healing crystals can be shot down.")
+        boolean endCrystalsInTheEnd
 
 ) {
 
@@ -194,7 +243,8 @@ public record SpeedrunSettings(
     public static final SpeedrunSettings DEFAULTS = new SpeedrunSettings(
             "", DEFAULT_WORLD_NAME, DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, 0, 0, 0, 0,
             false, 0, 0, 0, 0, 0,
-            true, true, true, true, true, 10, true, (int) SpeedrunPreparation.DAY_START);
+            true, true, true, true, true, 10, true, (int) SpeedrunPreparation.DAY_START,
+            true, true, true, true, true, true, true, true, true, true);
 
     /** Whether a game mode is chosen at all — an empty id is the plain race. */
     public boolean hasGameMode() {

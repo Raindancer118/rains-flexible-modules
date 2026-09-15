@@ -37,7 +37,8 @@ class SpeedrunLobbySafetyListenerTest {
     private static SpeedrunSettings config(boolean protectPlayers, boolean blockExplosions) {
         return new SpeedrunSettings("", "world", "minecraft:end/kill_dragon",
                 SpeedrunDeathPolicy.OFF, false, 0, 0, 0, 0, false, 0, 0, 0, 0, 0,
-                true, protectPlayers, blockExplosions, true, true, 10, true, 1000);
+                true, protectPlayers, blockExplosions, true, true, 10, true, 1000,
+                true, true, true, true, true, true, true, true, true, true);
     }
 
     @BeforeEach
