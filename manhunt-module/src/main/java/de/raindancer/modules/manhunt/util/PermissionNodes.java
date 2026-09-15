@@ -13,10 +13,11 @@ import java.util.List;
  */
 public final class PermissionNodes {
 
-    /** Seeing the lobby screen, joining a side, watching the clock. */
+    /** Seeing the sides screen and putting yourself on one. */
     public static final String USE = "rainsmanhunt.manhunt.use";
 
-    /** Starting, stopping and resetting a hunt, and assigning who is on which side. */
+    /** Putting somebody else on a side — {@code /manhunt assign}. Starting and stopping a hunt is
+     *  the speedrun lobby's own business, and its own permissions. */
     public static final String ADMIN = "rainsmanhunt.manhunt.admin";
 
     /**
@@ -27,19 +28,15 @@ public final class PermissionNodes {
      */
     public static final String WHITELIST = "rainsmanhunt.manhunt.whitelist";
 
-    /** Throwing a {@code ChaosAction} at a running hunt, from the console command or the menu. */
-    public static final String CHAOS = "rainsmanhunt.manhunt.chaos";
-
     private PermissionNodes() {
     }
 
     public static List<Permission> declared() {
         return List.of(
                 new Permission(USE, "See the Manhunt lobby and join a side", PermissionDefault.TRUE),
-                new Permission(ADMIN, "Start, stop and reset a hunt, and assign sides", PermissionDefault.OP),
+                new Permission(ADMIN, "Put somebody else on a side", PermissionDefault.OP),
                 new Permission(WHITELIST, "Open and close the server whitelist for a hunt",
-                        PermissionDefault.OP),
-                new Permission(CHAOS, "Throw a chaos action at a running hunt", PermissionDefault.OP));
+                        PermissionDefault.OP));
     }
 
     /**

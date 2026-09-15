@@ -56,8 +56,12 @@
              roster, facing the middle.
              0.10.1: found with two real clients — speedrun's lobby items are taken off at the start,
              the start teleport is no longer narrated as a dimension change, and an unchanged compass
-             target is not re-sent. -->
-        <plugin.version>0.10.1</plugin.version>
+             target is not re-sent.
+             0.11.0: rebuilt as a game the speedrun lobby plays, rather than a second lobby beside it.
+             One world, one compass, one start block, one countdown, one clock, one reset — all of
+             them RainsSpeedrun's — and what is left here is the two sides, the tracking compass,
+             elimination, and the server's own door. Needs RainsSpeedrun 1.11.0 or newer. -->
+        <plugin.version>0.12.0</plugin.version>
     </properties>
 
     <dependencies>

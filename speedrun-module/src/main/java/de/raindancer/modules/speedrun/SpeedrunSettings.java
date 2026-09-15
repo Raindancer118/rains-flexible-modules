@@ -36,8 +36,18 @@ import org.bukkit.Material;
                 description = "Creepers where a racer mines or loots. Off until a host turns it on."),
         @Topic(path = "speedrun/start", title = "The start point", icon = Material.LODESTONE,
                 description = "Where /starthere put the line every run begins on."),
+        @Topic(path = "speedrun/lobby", title = "The lobby itself", icon = Material.LIME_CONCRETE,
+                description = "Who may start a run, what can hurt anybody waiting for one, and what "
+                        + "happens the moment one ends."),
 })
 public record SpeedrunSettings(
+
+        @In("speedrun/race") @Title("Game mode")
+        @Describe("Which game is played in this lobby. Empty is a plain race; 'manhunt' is Runners "
+                + "against Hunters, and needs RainsManhunt installed. A mode keeps everything a race "
+                + "already has — this world, the compass, the countdown, the clock and the reset — "
+                + "and only adds what makes it a different game.")
+        String gameMode,
 
         @In("speedrun/race") @Title("Lobby world")
         @Describe("The Bukkit world the lobby, and every run, takes place in.")
@@ -103,7 +113,51 @@ public record SpeedrunSettings(
 
         @In("speedrun/start") @Title("Start pitch")
         @Describe("Set by /starthere, not meant to be hand-edited.")
-        double startPitch
+        double startPitch,
+
+        @In("speedrun/lobby") @Title("Only staff get the start block")
+        @Describe("Whether the green block is handed only to somebody holding rainsspeedrun.start — "
+                + "operators, by default — and only they may press one. Off, everybody in the lobby "
+                + "is handed one and anybody can start the next run.")
+        boolean startBlockStaffOnly,
+
+        @In("speedrun/lobby") @Title("Nobody can be hurt in the lobby")
+        @Describe("Whether damage to anybody standing in the lobby world is refused while no run is "
+                + "under way — including damage another player deals. Off, waiting for a run to start "
+                + "is as dangerous as anywhere else.")
+        boolean lobbyProtected,
+
+        @In("speedrun/lobby") @Title("Nothing explodes in the lobby")
+        @Describe("Whether an explosion in the lobby world is refused outright while no run is under "
+                + "way, so a creeper cannot take the start line — or anybody standing on it — with it. "
+                + "Nothing is refused once a run has actually begun.")
+        boolean lobbyExplosionsBlocked,
+
+        @In("speedrun/lobby") @Title("Show the clock to onlookers")
+        @Describe("Whether the run's clock is on the action bar of everybody in the lobby world "
+                + "rather than the racers alone, so somebody who arrived mid-run sees how long it has "
+                + "been going.")
+        boolean showTimerToOnlookers,
+
+        @In("speedrun/lobby") @Title("Reset for another run when one ends")
+        @Describe("Whether a finished run remakes the world by itself and hands the lobby items back, "
+                + "instead of waiting for every racer to leave the server first.")
+        boolean restartWhenRunEnds,
+
+        @In("speedrun/lobby") @Title("Wait before that reset (seconds)") @Range(min = 0, max = 300)
+        @Describe("How long a finished run is left standing before the world is remade — long enough "
+                + "to read who won and look at where it ended, short enough that nobody is waiting.")
+        int restartAfterSeconds,
+
+        @In("speedrun/race") @Title("Set the time when a run starts")
+        @Describe("Whether the lobby world's clock is set when a run begins. Off, a run starts at "
+                + "whatever time of day the world happens to be at.")
+        boolean setTimeOnStart,
+
+        @In("speedrun/race") @Title("The time a run starts at") @Range(min = 0, max = 24000)
+        @Describe("Which tick of the Minecraft day a run starts at, when the setting above is on. "
+                + "1000 is a normal morning; 0 is sunrise, 6000 midday, 13000 nightfall.")
+        int startTimeTicks
 
 ) {
 
@@ -138,8 +192,14 @@ public record SpeedrunSettings(
      * off and the whole feature costs nothing until somebody asks for it.
      */
     public static final SpeedrunSettings DEFAULTS = new SpeedrunSettings(
-            DEFAULT_WORLD_NAME, DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, 0, 0, 0, 0,
-            false, 0, 0, 0, 0, 0);
+            "", DEFAULT_WORLD_NAME, DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, 0, 0, 0, 0,
+            false, 0, 0, 0, 0, 0,
+            true, true, true, true, true, 10, true, (int) SpeedrunPreparation.DAY_START);
+
+    /** Whether a game mode is chosen at all — an empty id is the plain race. */
+    public boolean hasGameMode() {
+        return gameMode != null && !gameMode.isBlank();
+    }
 
     /** Whether the configured goal is specifically the vanilla dragon kill — the only goal
      *  {@link #requireExitPortalAfterDragon} means anything for. */
@@ -160,5 +220,22 @@ public record SpeedrunSettings(
     /** Whether there is anything at all that could end a run started with this configuration. */
     public boolean hasEndCondition() {
         return hasAdvancementGoal() || hasDeathCondition();
+    }
+
+    /**
+     * The time of day {@link SpeedrunPreparation} puts the world at when a run begins, or
+     * {@link SpeedrunPreparation#LEAVE_THE_TIME_ALONE} when the host turned that off — one answer
+     * rather than two settings to read in the right order at every call site.
+     */
+    public long timeAtStart() {
+        if (!setTimeOnStart) {
+            return SpeedrunPreparation.LEAVE_THE_TIME_ALONE;
+        }
+        return Math.max(0, Math.min(24000, startTimeTicks));
+    }
+
+    /** The wait before a finished run remakes the world, in ticks — see {@link #restartWhenRunEnds}. */
+    public long restartDelayTicks() {
+        return Math.max(0, Math.min(300, restartAfterSeconds)) * 20L;
     }
 }

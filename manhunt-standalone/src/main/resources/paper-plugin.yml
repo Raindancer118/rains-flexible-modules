@@ -5,14 +5,12 @@ version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
 api-version: '1.21'
-description: 'Runners against Hunters on top of speedrun-module''s engine — a win condition per side, a tracking compass that follows a Runner through the portal they took, a real server whitelist a Runner can open and close, and live chaos actions a host can throw at a running match.'
+description: 'Runners against Hunters, played in the speedrun lobby: the lobby''s own goal is what the Runners race for, every Hunter carries a compass that follows a Runner through the portal they took, a caught Runner is out for good, and a Runner can open and close the server''s door around a hunt.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
 # Not claimed here, deliberately: WhitelistCommand.passthrough calls Bukkit.dispatchCommand from
-# whatever thread the /whitelist command lands on, and several ChaosAction entries teleport players
-# and touch world state directly rather than hopping onto Scheduling.global/entity first the way
-# speedrun-module and chained-module were made to. Folia support is a claim to earn once that is
+# whatever thread the /whitelist command lands on. Folia support is a claim to earn once that is
 # actually true, not a default.
 # folia-supported: true
 
@@ -22,9 +20,10 @@ dependencies:
   # phase alone, so the bootstrapper that discovers modules never gets its classes) has already
   # happened once in this project.
   #
-  # RainsSpeedrun is the second required host here, not RainsCore alone — manhunt-module compiles
-  # against speedrun-module's engine classes (SpeedrunSession, SpeedrunTimer, the end conditions) as a
-  # `provided` dependency, exactly like chained-module. RainsManhunt.jar deliberately does not shade
+  # RainsSpeedrun is the second required host here, not RainsCore alone — and more than a dependency
+  # now: Manhunt is a game *that lobby plays* (see SpeedrunMode), so without RainsSpeedrun there is
+  # nowhere for a hunt to happen at all. manhunt-module compiles against its classes as a `provided`
+  # dependency, exactly like chained-module. RainsManhunt.jar deliberately does not shade
   # speedrun-module in: a shaded copy alongside an installed RainsSpeedrun would be two independent
   # SpeedrunSessions on one server, each with its own idea of whether a run has already finished.
   bootstrap:

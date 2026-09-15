@@ -751,4 +751,108 @@ class SpeedrunLobbyTest {
             }
         }
     }
+
+    /**
+     * What happens the moment a run ends and everybody is still standing there — asked for after a
+     * live evening in which a finished hunt left a lobby full of people with nothing in their hands
+     * and no way to start another round short of an admin typing /speedrunreset.
+     */
+    @Nested
+    @DisplayName("resetting itself for another run once one ends")
+    class RestartAfterFinish {
+
+        @Test
+        @DisplayName("schedules the reset for the configured wait")
+        void schedulesTheReset() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                settings.set("restart-after-seconds", "10");
+                SpeedrunLobby lobby = lobby();
+                Map<Long, Runnable> scheduled = new HashMap<>();
+                lobby.schedulesLaterWith(scheduled::put);
+                lobby.start(Set.of(ALICE));
+
+                lobby.session().orElseThrow().finish("done");
+
+                assertThat(scheduled).containsOnlyKeys(200L);
+            }
+        }
+
+        @Test
+        @DisplayName("schedules nothing at all once a host turns it off")
+        void schedulesNothingWhenOff() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                settings.set("restart-when-run-ends", "false");
+                SpeedrunLobby lobby = lobby();
+                Map<Long, Runnable> scheduled = new HashMap<>();
+                lobby.schedulesLaterWith(scheduled::put);
+                lobby.start(Set.of(ALICE));
+
+                lobby.session().orElseThrow().finish("done");
+
+                assertThat(scheduled).isEmpty();
+            }
+        }
+
+        @Test
+        @DisplayName("when the wait is up, the world is remade and the lobby is READY again")
+        void remakesTheWorldAndIsReady() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         (mockCreator, context) -> when(mockCreator.createWorld())
+                                 .thenReturn(mock(World.class)))) {
+                World world = mock(World.class);
+                World mainWorld = mock(World.class);
+                Location spawn = mock(Location.class);
+                when(mainWorld.getSpawnLocation()).thenReturn(spawn);
+                when(world.getName()).thenReturn("world");
+                when(world.getWorldFolder()).thenReturn(dataFolder.resolve("speedrun").toFile());
+                when(world.getPlayers()).thenReturn(List.of());
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                bukkit.when(Bukkit::getWorlds).thenReturn(List.of(mainWorld));
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(true);
+                io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler globalScheduler =
+                        mock(io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler.class);
+                bukkit.when(Bukkit::getGlobalRegionScheduler).thenReturn(globalScheduler);
+                org.mockito.stubbing.Answer<Void> runImmediately = invocation -> {
+                    ((Runnable) invocation.getArgument(1)).run();
+                    return null;
+                };
+                org.mockito.Mockito.doAnswer(runImmediately).when(globalScheduler)
+                        .execute(eq(plugin), any(Runnable.class));
+
+                SpeedrunLobby lobby = lobby();
+                Map<Long, Runnable> scheduled = new HashMap<>();
+                lobby.schedulesLaterWith(scheduled::put);
+                lobby.start(Set.of(ALICE));
+                lobby.session().orElseThrow().finish("done");
+
+                scheduled.get(200L).run();
+
+                assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.READY);
+                assertThat(lobby.session()).isEmpty();
+            }
+        }
+
+        @Test
+        @DisplayName("a wait that an admin already reset through does nothing when it comes up")
+        void doesNothingWhenAlreadyReset() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                SpeedrunLobby lobby = lobby();
+                Map<Long, Runnable> scheduled = new HashMap<>();
+                lobby.schedulesLaterWith(scheduled::put);
+                lobby.start(Set.of(ALICE));
+                lobby.session().orElseThrow().finish("done");
+                // The admin got there first — with the world already unloaded, forceReset only has
+                // the session to forget, which is exactly the state the scheduled wait must survive.
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(null);
+                lobby.forceReset();
+
+                assertThatCode(() -> scheduled.get(200L).run()).doesNotThrowAnyException();
+                assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.READY);
+            }
+        }
+    }
 }

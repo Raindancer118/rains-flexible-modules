@@ -30,6 +30,12 @@ public final class PermissionNodes {
     /** Registering as not racing. On by default, the same reasoning as {@link #LEMMEMOVE_SELF}. */
     public static final String SPECTATE = "rainsspeedrun.spectate";
 
+    /** Being handed the green start block, and being allowed to press one. Op-only, and only asked
+     *  about at all while {@code SpeedrunSettings.startBlockStaffOnly} is on: starting a run takes
+     *  the world away from everybody standing in it, which is not a thing any passer-by should be
+     *  able to do to a lobby full of people. */
+    public static final String START = "rainsspeedrun.start";
+
     /** Teleporting yourself to the lobby world. On by default: this is the only way there at all —
      *  nothing else gets a player into the lobby world in the first place. */
     public static final String JOIN = "rainsspeedrun.join";
@@ -48,7 +54,9 @@ public final class PermissionNodes {
                 new Permission(SPECTATE, "Register as not racing the next speedrun",
                         PermissionDefault.TRUE),
                 new Permission(JOIN, "Teleport to the speedrun lobby world",
-                        PermissionDefault.TRUE));
+                        PermissionDefault.TRUE),
+                new Permission(START, "Start a speedrun from the lobby's green block",
+                        PermissionDefault.OP));
     }
 
     /**

@@ -23,10 +23,12 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.10.1")
-            .describedAs("A speedrun lobby: pick an advancement goal or a death policy from the "
-                    + "compass's menu, then press the green block to race. A countdown freezes "
-                    + "everyone first, and the lobby world resets once the last racer has left.")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.12.0")
+            .describedAs("A speedrun lobby: pick a game, an advancement goal and a death policy "
+                    + "from the compass's menu, then press the green block to race. A countdown "
+                    + "freezes everyone first, and the lobby world resets once the last racer has "
+                    + "left. Another module can add a game of its own to this same lobby — see "
+                    + "SpeedrunMode.")
             .by("Raindancer118");
 
     private SpeedrunLobby lobby;
@@ -59,6 +61,10 @@ public final class SpeedrunModule implements FlexModule {
         // Portal travel out of a runtime-made world falls back to the server's own dimensions, which
         // is how a racer walked out of a nether portal into the server's overworld mid-run.
         context.listener(new SpeedrunPortalListener(lobby));
+        // Nobody can be hurt, and nothing explodes, in a lobby that is not racing yet — for the life
+        // of the module rather than of a session, because the whole point of it is the gap between
+        // two sessions. See SpeedrunLobbySafetyListener.
+        context.listener(new SpeedrunLobbySafetyListener(lobby));
         // Whoever stayed in the lobby world while a run finished and it reset around them gets the
         // items the moment there is something to do with them again, rather than needing to leave and
         // come back — neither onJoin nor onWorldChange fires for somebody who never actually moved.
@@ -81,10 +87,10 @@ public final class SpeedrunModule implements FlexModule {
     @Override
     public void disable() {
         SpeedrunCommands.stopped();
-        // Whatever a companion module offered goes with this module, not with theirs: on a reload
-        // this one may come back before they do, and a shelf that survived the unload would draw a
-        // button into a plugin that has not been rebuilt yet.
-        SpeedrunCompanions.clear();
+        // Whatever game mode a module offered goes with this module, not with theirs: on a reload
+        // this one may come back before they do, and a shelf that survived the unload would hand the
+        // next start to a plugin that has not been rebuilt yet.
+        SpeedrunModes.clear();
         // Nothing to flush: the configuration is already on disk through its own settings store, and
         // a run in progress does not survive a restart either way — see SpeedrunLobby's own class
         // javadoc for why that is unchanged, deliberate scope rather than an oversight.

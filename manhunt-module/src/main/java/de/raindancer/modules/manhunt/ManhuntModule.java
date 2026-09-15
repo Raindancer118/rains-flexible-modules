@@ -2,80 +2,58 @@ package de.raindancer.modules.manhunt;
 
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
-import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
+import de.raindancer.modules.manhunt.mode.ManhuntMode;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
-import de.raindancer.modules.manhunt.screen.ManhuntAchievementsMenu;
-import de.raindancer.modules.manhunt.screen.ManhuntChaosMenu;
-import de.raindancer.modules.manhunt.screen.ManhuntLobbyMenu;
-import de.raindancer.modules.manhunt.screen.ManhuntOptionsMenu;
-import de.raindancer.modules.manhunt.screen.ManhuntFieldMenu;
-import de.raindancer.modules.manhunt.screen.ManhuntTrackerMenu;
-import de.raindancer.modules.manhunt.service.ChaosService;
-import de.raindancer.modules.manhunt.service.HuntHistory;
-import de.raindancer.modules.manhunt.service.ManhuntAchievements;
-import de.raindancer.modules.manhunt.service.ManhuntLobbyBox;
-import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
-import de.raindancer.modules.manhunt.service.ManhuntService;
-import de.raindancer.modules.manhunt.service.ManhuntDeathListener;
-import de.raindancer.modules.manhunt.service.ManhuntEndOfRun;
-import de.raindancer.modules.manhunt.service.ManhuntNarrationListener;
-import de.raindancer.modules.manhunt.service.ManhuntNarrator;
-import de.raindancer.modules.manhunt.service.ManhuntChatListener;
-import de.raindancer.modules.manhunt.service.ManhuntRules;
-import de.raindancer.modules.manhunt.service.ManhuntSpectators;
-import de.raindancer.modules.manhunt.service.SideChat;
+import de.raindancer.modules.manhunt.screen.ManhuntSidesMenu;
+import de.raindancer.modules.manhunt.service.Eliminations;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
-import de.raindancer.modules.manhunt.service.PortalMemory;
-import de.raindancer.modules.manhunt.service.TrackerCompass;
-import de.raindancer.modules.manhunt.service.TrackerCompassService;
-import de.raindancer.modules.manhunt.service.TrackerListener;
+import de.raindancer.modules.manhunt.service.WhitelistVips;
+import de.raindancer.modules.manhunt.service.SpectatorRestoreListener;
+import de.raindancer.modules.manhunt.tracker.PortalMemory;
+import de.raindancer.modules.manhunt.tracker.TrackerCompass;
+import de.raindancer.modules.manhunt.tracker.TrackerCompassService;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
-import de.raindancer.modules.speedrun.SpeedrunCompanions;
-import de.raindancer.modules.speedrun.SpeedrunTimerDisplay;
-import org.bukkit.Material;
+import de.raindancer.modules.speedrun.SpeedrunModes;
 import org.bukkit.Server;
-import org.bukkit.entity.Player;
 
-import java.time.Instant;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * "RainsManhunt", as a module.
  *
- * <h2>What is deliberately not here</h2>
- * The speedrun timer, the pause-while-everybody-is-offline behaviour, and throwing a world away and
- * making it again are all {@code speedrun-module}'s — see {@code ChainedModule}'s own class javadoc
- * for why that engine lives there rather than in RainsCore. This module is the two sides of the hunt,
- * a win condition each of them can pick independently, the head start, the real server whitelist a
- * Runner can open and close, and a handful of live chaos actions.
+ * <h2>What this module is now, and what it used to be</h2>
+ * It is a {@link de.raindancer.modules.speedrun.SpeedrunMode} — one game offered to the speedrun
+ * lobby, which then plays it in its own world, with its own countdown, its own clock and its own
+ * reset. It used to be a second lobby standing beside that one with a copy of each of those, and
+ * every visible bug of the last version came out of the two disagreeing: the speedrun lobby's compass
+ * and start block still in everybody's hands as a hunt began, two plugins both declaring a
+ * {@code world-name}, a hunt's own start teleport announced as a Runner reaching the Overworld.
+ *
+ * <h2>What is left here</h2>
+ * The two sides, the tracking compass, what being caught costs, and the server's own door.
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.10.1")
-            .describedAs("Runners against Hunters on top of speedrun-module's engine — a win "
-                    + "condition per side, a tracking compass that follows a Runner through the "
-                    + "portal they took, a real server whitelist a Runner can open and close, "
-                    + "live chaos actions a host can throw at a running match, and a remembered "
-                    + "history of every hunt that has ever finished.")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.12.0")
+            .describedAs("Runners against Hunters, played in the speedrun lobby: the lobby's own "
+                    + "goal is what the Runners race for, every Hunter carries a compass that "
+                    + "follows a Runner through the portal they took, a caught Runner is out for "
+                    + "good, and a Runner can open and close the server's door around a hunt.")
             .by("Raindancer118");
 
-    private ManhuntService manhunt;
-    private ManhuntServices services;
+    private ManhuntMode mode;
 
     @Override
     public ModuleInfo info() {
         return INFO;
     }
 
-    /** The oldest RainsSpeedrun whose engine classes this module links against. */
-    static final String SPEEDRUN_NEEDED = "1.10.0";
+    /** The oldest RainsSpeedrun that has the game-mode seam this module hangs on. */
+    static final String SPEEDRUN_NEEDED = "1.11.0";
 
     @Override
     public void enable(ModuleContext context) {
@@ -100,168 +78,67 @@ public final class ManhuntModule implements FlexModule {
         SettingsStore<ManhuntSettings> settings = context.settings(ManhuntSettings.class,
                 ManhuntSettings.DEFAULTS);
 
-        ManhuntTeams teams = new ManhuntTeams(() -> manhunt != null && manhunt.isRunning());
-        ManhuntService liveManhunt = new ManhuntService(context.plugin(), teams,
-                context.core().messages(), settings.current());
-        this.manhunt = liveManhunt;
-        settings.onChange(liveManhunt::settings);
+        // The sides are frozen for exactly as long as a hunt is under way — asked of the mode rather
+        // than kept as a second flag here, which is the same "one fact, one owner" rule the hunt's own
+        // roster follows.
+        ManhuntTeams teams = new ManhuntTeams(() -> mode != null && mode.isRunning());
+        Eliminations eliminations = new Eliminations(context.plugin());
+        // The few people a clear never sweeps up and a close always lets in — kept on disk beside the
+        // module's own settings, because a list of players is not a settings field. See WhitelistVips.
+        ManhuntWhitelistService whitelist = new ManhuntWhitelistService(server,
+                new WhitelistVips(context.dataFolder().resolve("whitelist-vips.yml")));
 
-        ChaosService chaos = new ChaosService(context.plugin(), liveManhunt);
-        ManhuntWhitelistService whitelist = new ManhuntWhitelistService(server);
-
-        // The waiting lobby: continuous from plugin startup, since a player may join a side at any
-        // time — unlike HunterHoldListener/SpeedrunOccupancyListener, which are only ever registered
-        // per-run inside ManhuntService itself, this one is registered once, here.
-        ManhuntLobbyBox lobbyBox = new ManhuntLobbyBox(settings.current());
-        settings.onChange(lobbyBox::settings);
-        ManhuntLobbyListener lobbyListener = new ManhuntLobbyListener(lobbyBox, context.core().messages());
-        server.getPluginManager().registerEvents(lobbyListener, context.plugin());
-
-        // The tracking compass. Registered once, like the waiting lobby and for the same reason: each
-        // of its handlers already asks whether a hunt is running, and one pair of moments where a
-        // crash could leave a listener behind is one too many.
         PortalMemory portals = new PortalMemory();
-        TrackerCompass trackerCompass = new TrackerCompass(settings.current(), portals);
-        settings.onChange(trackerCompass::settings);
-        TrackerCompassService tracker = new TrackerCompassService(context.plugin(), liveManhunt,
-                trackerCompass, portals, context.core().messages(), context.core().actionBars(),
+        TrackerCompass compass = new TrackerCompass(settings.current(), portals);
+        settings.onChange(compass::settings);
+        TrackerCompassService tracker = new TrackerCompassService(context.plugin(),
+                () -> mode == null ? java.util.Optional.empty() : mode.current(),
+                compass, portals, context.core().messages(), context.core().actionBars(),
                 settings.current());
         settings.onChange(tracker::settings);
-        server.getPluginManager().registerEvents(
-                new TrackerListener(liveManhunt, tracker, portals), context.plugin());
 
-        // What a death costs, and what happens once it is all over. Both registered once, like the
-        // waiting lobby: each asks whether a hunt is running before it does anything.
-        ManhuntDeathListener deaths = new ManhuntDeathListener(context.plugin(), liveManhunt,
-                liveManhunt.lives(), context.core().messages(), settings.current());
-        settings.onChange(deaths::settings);
-        server.getPluginManager().registerEvents(deaths, context.plugin());
+        ManhuntServices[] holder = new ManhuntServices[1];
+        ManhuntMode liveMode = new ManhuntMode(context.plugin(), teams, eliminations, tracker, portals,
+                whitelist, context.core().messages(), settings::current,
+                // The sides page, opened from the speedrun compass' own menu. A lambda rather than a
+                // reference to the services, which are built a line below this and cannot be handed
+                // in before they exist.
+                (viewer, parent) -> new ManhuntSidesMenu(holder[0], viewer, parent).open());
+        this.mode = liveMode;
 
-        ManhuntEndOfRun endOfRun = new ManhuntEndOfRun(context.plugin(), teams, lobbyListener,
-                settings.current());
-        settings.onChange(endOfRun::settings);
+        ManhuntServices services = new ManhuntServices(context.core().messages(),
+                context.chat().brand(), settings, teams, liveMode, whitelist,
+                viewer -> new ManhuntSidesMenu(holder[0], viewer, null).open());
+        holder[0] = services;
 
-        // What the hunt says out loud. Its own one-second timer, armed with the hunt — see the
-        // narrator's own note on why that beats a third hook on ManhuntService.
-        ManhuntNarrator narrator = new ManhuntNarrator(context.plugin(), liveManhunt,
-                context.core().messages(), settings.current());
-        settings.onChange(narrator::settings);
-        server.getPluginManager().registerEvents(
-                new ManhuntNarrationListener(liveManhunt, liveManhunt.lives(), narrator), context.plugin());
-
-        // Talking to your own side, the rules a hunt borrows, and watching from outside it.
-        SideChat sideChat = new SideChat(settings.current());
-        settings.onChange(sideChat::settings);
-        ManhuntChatListener chatListener = new ManhuntChatListener(liveManhunt, sideChat, context.core().messages());
-        server.getPluginManager().registerEvents(chatListener, context.plugin());
-
-        ManhuntRules rules = new ManhuntRules(context.plugin(), liveManhunt, settings.current());
-        settings.onChange(rules::settings);
-        server.getPluginManager().registerEvents(rules, context.plugin());
-
-        ManhuntSpectators spectators = new ManhuntSpectators(context.plugin(), liveManhunt,
-                settings.current());
-        settings.onChange(spectators::settings);
-
-        // The hunt's clock, on the action bar rather than in the boss bar — asked for directly, and
-        // speedrun-module's own display already does exactly this, so it is reused rather than
-        // written a second time. Its own action bar slot, because the slot is arbitrated by owner and
-        // a speedrun clock on the same server must not take turns with this one. It counts from zero
-        // at the moment the hunt actually begins: SpeedrunSession's timer starts in begin(), after
-        // the countdown has already finished, so the countdown is never part of the reading.
-        SpeedrunTimerDisplay huntClock = new SpeedrunTimerDisplay(context.core().actionBars(),
-                SpeedrunTimerDisplay.viaScheduling(context.plugin()), "manhunt-timer");
-
-        ManhuntAchievements manhuntAchievements = new ManhuntAchievements(context.core().achievements());
-        manhuntAchievements.defineAll();
-
-        // Every hunt that finishes, ever — the one thing manhunt-roadmap-to-1-0 named as still
-        // missing beyond the four run-lifecycle areas. Its own database, like the tracking compass'
-        // portals need nothing from Core's own core.db/audit.db — see HuntHistory's own javadoc.
-        HuntHistory history = new HuntHistory(context.core().databases().of("manhunt-history", HuntHistory.SCHEMA));
-        // Snapshotted at the moment a hunt actually starts, not read again at onFinished: the roster
-        // is frozen for the whole run (see ManhuntTeams/ManhuntService.isRunning), so the two moments
-        // agree, and reading it here means onFinished never has to ask "who was still a Runner" of a
-        // roster that a settings change or a fresh join could have moved on by the time it fires.
-        AtomicReference<RunStart> currentRun = new AtomicReference<>();
-
-        // Both hooks take exactly one caller each (see ManhuntService.onStart) — stacking two concerns
-        // behind the same moment is this wiring class' job, not the service's.
-        // Each concern on its own, so the first one to throw cannot abandon the rest — see step().
-        // The compass used to be last of five bare statements here, which is exactly how a live hunt
-        // started correctly in every visible way and handed out no compasses at all.
-        Trouble trouble = (what, broken) -> log.error(broken,
-                "A hunt started, but {} failed. The rest of the hunt is unaffected.", what);
-        liveManhunt.onStart(roster -> {
-            currentRun.set(new RunStart(Instant.now(), Set.copyOf(teams.runners()), Set.copyOf(teams.hunters())));
-            step("awarding the first-hunt achievement", () -> manhuntAchievements.awardFirstHunt(roster), trouble);
-            step("resetting the death counters", deaths::reset, trouble);
-            step("borrowing the hunt's gamerules", rules::arm, trouble);
-            step("starting the narrator", narrator::arm, trouble);
-            step("handing out the tracking compasses", () -> tracker.armFor(roster), trouble);
-            step("telling the sides their chat is now private", () -> chatListener.announce(roster), trouble);
-            step("starting the hunt clock", () -> liveManhunt.session().ifPresent(huntClock::start), trouble);
-        });
-        // Guarded one by one for a sharper reason than the start hook's: every line below the first
-        // is a hand-back. An awardWin that threw used to take rules.disarm() with it, and a hunt's
-        // borrowed gamerules would then never be given back — the server left permanently altered by
-        // a match that had already ended.
-        Trouble afterwards = (what, broken) -> log.error(broken,
-                "A hunt finished, but {} failed. Everything else about the ending still ran.", what);
-        liveManhunt.onFinished((everybody, outcome) -> {
-            step("awarding the win", () -> manhuntAchievements.awardWin(everybody, teams, outcome.reason()),
-                    afterwards);
-            RunStart started = currentRun.getAndSet(null);
-            if (started != null) {
-                // Off the server thread, like every other database write in this reactor — see
-                // Database.write's own note on why a write on the thread running the world is only
-                // ever reported, never blocked.
-                Scheduling.async(context.plugin(), () ->
-                        history.record(started.startedAt(), started.runners(), started.hunters(), outcome));
-            }
-            step("stopping the narrator", narrator::disarm, afterwards);
-            step("taking the tracking compasses back", tracker::disarm, afterwards);
-            step("handing the hunt's gamerules back", rules::disarm, afterwards);
-            step("releasing the spectators", spectators::releaseAll, afterwards);
-            step("sending everybody home", () -> endOfRun.finish(everybody), afterwards);
-        });
-
-        this.services = new ManhuntServices(
-                context.plugin(), server, context.core(), log,
-                context.core().messages(), context.chat(), context.chat().brand(),
-                settings::current, settings,
-                liveManhunt, chaos, whitelist, manhuntAchievements, lobbyListener, tracker, deaths, spectators,
-                history,
-                new LiveScreens());
+        // Registered for the life of the module, not of a hunt: its whole job is somebody whose hunt
+        // no longer exists. Everything scoped to one hunt is registered through SpeedrunRun instead —
+        // see ManhuntMode.onStart.
+        context.listener(new SpectatorRestoreListener(
+                () -> mode == null ? java.util.Optional.empty() : mode.current(), eliminations));
 
         // The command was registered during bootstrap, long before any of this existed, and has been
         // answering "not started yet" until now. See ManhuntCommands.
         ManhuntCommands.ready(services);
 
-        // A button on the speedrun compass' own screen. Offered from this side because the
-        // dependency only runs this way — see SpeedrunCompanions for the whole argument. Withdrawn
-        // again in disable(), which is the half that actually matters: a stale entry would hand the
-        // next clicker a door into a module that is no longer loaded.
-        SpeedrunCompanions.offer(new SpeedrunCompanions.Companion(
-                "manhunt", "Manhunt", "<gray>Runners against Hunters, on this same engine.",
-                Material.TARGET,
-                (viewer, parent) -> new ManhuntLobbyMenu(services, viewer, parent).open()));
+        // The lobby cannot name this module — the dependency only runs this way. See SpeedrunModes.
+        SpeedrunModes.offer(liveMode);
 
-        log.info("Manhunt is up: {} Runner(s), {} Hunter(s).",
-                teams.runners().size(), teams.hunters().size());
+        log.info("Manhunt is up, as a game the speedrun lobby can play: {} Runner(s) waiting.",
+                teams.runners().size());
     }
 
     private static void requireCurrentSpeedrun(Server server) {
-        Class<?> display;
+        Class<?> modes;
         try {
-            // By name, not by class literal: a literal of an inaccessible class fails to link right
-            // here with the very IllegalAccessError this method exists to replace.
-            display = Class.forName("de.raindancer.modules.speedrun.SpeedrunTimerDisplay");
+            // By name, not by class literal: a literal of a class that is not there fails to link
+            // right here, with the very error this method exists to replace.
+            modes = Class.forName("de.raindancer.modules.speedrun.SpeedrunModes");
         } catch (ClassNotFoundException missing) {
-            display = null;
+            modes = null;
         }
         var speedrun = server.getPluginManager().getPlugin("RainsSpeedrun");
-        requireCurrentSpeedrun(display,
+        requireCurrentSpeedrun(modes,
                 speedrun == null ? null : speedrun.getPluginMeta().getVersion());
     }
 
@@ -270,103 +147,23 @@ public final class ManhuntModule implements FlexModule {
      *
      * <h2>Why this has to be checked by hand</h2>
      * A Paper descriptor can require RainsSpeedrun, but not a version of it, so an older jar loads
-     * without complaint. This module then fails the first time it touches a class that was widened
-     * later — reported live as "IllegalAccessError: failed to access class
-     * de.raindancer.modules.speedrun.SpeedrunTimerDisplay", with RainsSpeedrun 1.9.0 installed. That
-     * error is accurate and useless: it names a class, where the person reading it needs a jar.
+     * without complaint and this module dies the first time it touches a class that is not there —
+     * reported live once already as "IllegalAccessError: failed to access class …SpeedrunTimerDisplay"
+     * with RainsSpeedrun 1.9.0 installed. That error is accurate and useless: it names a class, where
+     * the person reading it needs a jar.
      *
      * <p>Checked by capability rather than by comparing version strings: the question is whether the
      * class this module needs is reachable, and the version is only for the message. A speedrun-module
      * shaded into a bundle under another plugin name still passes, because the class is what counts.
      */
-    static void requireCurrentSpeedrun(Class<?> timerDisplay, String foundVersion) {
-        if (timerDisplay != null && java.lang.reflect.Modifier.isPublic(timerDisplay.getModifiers())) {
+    static void requireCurrentSpeedrun(Class<?> speedrunModes, String foundVersion) {
+        if (speedrunModes != null && java.lang.reflect.Modifier.isPublic(speedrunModes.getModifiers())) {
             return;
         }
         throw new IllegalStateException("Manhunt needs RainsSpeedrun " + SPEEDRUN_NEEDED + " or newer, "
                 + (foundVersion == null ? "and the installed one is older"
                         : "but RainsSpeedrun " + foundVersion + " is installed")
                 + " — replace the RainsSpeedrun jar in plugins/ and restart.");
-    }
-
-    /** What {@link HuntHistory#record} needs from the moment a hunt began — see the field's own note. */
-    private record RunStart(Instant startedAt, Set<UUID> runners, Set<UUID> hunters) {
-    }
-
-    /** Told what failed and what threw — {@code log::error} in practice, a collector in the tests. */
-    @FunctionalInterface
-    interface Trouble {
-        void with(String what, Throwable thrown);
-    }
-
-    /**
-     * Runs one concern of a hunt starting or ending, and contains its failure.
-     *
-     * <h2>Why this exists</h2>
-     * {@link ManhuntService#onStart} takes exactly one hook on purpose, so this class stacks several
-     * independent concerns behind it. Written as bare statements in one lambda, the first of them to
-     * throw silently abandoned every one after it — and the tracking compass was last, so a hunt
-     * could start correctly in every visible way (the countdown, the boss bar and the clock all
-     * happen <em>before</em> the hook fires) and hand out no compasses at all, with nothing in the
-     * log pointing anywhere near the compass. That is a real report, not a hypothetical.
-     *
-     * <p>These concerns are genuinely independent: a missing achievement store is no reason for the
-     * Hunters to go without a compass, and a gamerule that could not be borrowed is no reason for the
-     * narrator to stay silent. Each is therefore run on its own and its failure is named in the log —
-     * the same "one listener must not stop another's" rule {@code SettingsStore.publish} already
-     * applies to settings listeners.
-     *
-     * <p>{@link Throwable}, not {@link RuntimeException}: the realistic failure is an API that moved
-     * between the Paper this compiles against and the one a server runs — {@code GameRule} is
-     * deprecated-for-removal on 26.2 — and that arrives as an {@link Error} a narrower guard would
-     * let straight through. {@code ModuleCommands.canUse} catches {@link Throwable} for the same
-     * reason.
-     */
-    static void step(String what, Runnable concern, Trouble trouble) {
-        try {
-            concern.run();
-        } catch (Throwable broken) {
-            trouble.with(what, broken);
-        }
-    }
-
-    /**
-     * Opening the screens, which is the only thing in the module that knows the menu classes exist —
-     * an inner class rather than a supplier-holding record, so it reads {@link #services} lazily off
-     * the enclosing module at click time instead of needing to be handed a reference to a
-     * {@link ManhuntServices} that has not finished being built yet when this is constructed.
-     */
-    private final class LiveScreens implements IManhuntScreensOpener {
-
-        @Override
-        public void lobby(Player viewer) {
-            new ManhuntLobbyMenu(services, viewer, null).open();
-        }
-
-        @Override
-        public void chaos(Player viewer) {
-            new ManhuntChaosMenu(services, viewer, null).open();
-        }
-
-        @Override
-        public void achievements(Player viewer) {
-            new ManhuntAchievementsMenu(services, viewer, null).open();
-        }
-
-        @Override
-        public void options(Player viewer) {
-            new ManhuntOptionsMenu(services, viewer, null).open();
-        }
-
-        @Override
-        public void tracker(Player viewer) {
-            new ManhuntTrackerMenu(services, viewer, null).open();
-        }
-
-        @Override
-        public void field(Player viewer) {
-            new ManhuntFieldMenu(services, viewer, null).open();
-        }
     }
 
     @Override
@@ -377,11 +174,13 @@ public final class ManhuntModule implements FlexModule {
     @Override
     public void disable() {
         ManhuntCommands.stopped();
-        SpeedrunCompanions.withdraw("manhunt");
-        if (manhunt != null) {
-            // shutdown() finishes the session, which runs onFinished — the rules are handed back and
-            // the watchers released there. This only covers the case of there being no run at all.
-            manhunt.shutdown();
+        // Withdrawn before anything else: a mode left on the shelf hands the next start to a plugin
+        // that is no longer loaded.
+        SpeedrunModes.withdraw(ManhuntMode.ID);
+        if (mode != null) {
+            // A hunt that outlives its plugin leaves its Runners spectating for good. The compasses
+            // and the whitelist go back the same way they would at any other ending.
+            mode.forget();
         }
     }
 }

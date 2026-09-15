@@ -38,4 +38,38 @@ class SpeedrunSettingsTest {
         assertThat(defaults.deathPolicy()).isEqualTo(SpeedrunDeathPolicy.OFF);
         assertThat(defaults.worldName()).isEqualTo(SpeedrunSettings.DEFAULT_WORLD_NAME);
     }
+
+    @Test
+    @DisplayName("a fresh lobby is safe, staff-started, and resets itself for another run")
+    void theLobbyItselfIsSafeByDefault() {
+        SpeedrunSettings defaults = SpeedrunSettings.DEFAULTS;
+
+        assertThat(defaults.startBlockStaffOnly()).isTrue();
+        assertThat(defaults.lobbyProtected()).isTrue();
+        assertThat(defaults.lobbyExplosionsBlocked()).isTrue();
+        assertThat(defaults.showTimerToOnlookers()).isTrue();
+        assertThat(defaults.restartWhenRunEnds()).isTrue();
+        assertThat(defaults.restartAfterSeconds()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("a run starts in the morning unless a host says otherwise")
+    void theClockIsSetOnStart() {
+        SpeedrunSettings defaults = SpeedrunSettings.DEFAULTS;
+
+        assertThat(defaults.setTimeOnStart()).isTrue();
+        assertThat(defaults.startTimeTicks()).isEqualTo((int) SpeedrunPreparation.DAY_START);
+        assertThat(defaults.timeAtStart()).isEqualTo(SpeedrunPreparation.DAY_START);
+    }
+
+    @Test
+    @DisplayName("turning the clock setting off means 'leave the world's time alone'")
+    void theClockCanBeLeftAlone() {
+        SpeedrunSettings off = new SpeedrunSettings(
+                "", "world", "", SpeedrunDeathPolicy.OFF, false, 0, 0, 0, 0,
+                false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, false, 1000);
+
+        assertThat(off.timeAtStart()).isEqualTo(SpeedrunPreparation.LEAVE_THE_TIME_ALONE);
+    }
 }

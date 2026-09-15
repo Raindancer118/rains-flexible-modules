@@ -28,6 +28,7 @@ import java.util.function.Consumer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -88,12 +89,13 @@ class SpeedrunLobbyListenerTest {
         void givesKitWhenReadyInLobbyWorld() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             Player player = playerInWorld("world");
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
 
-            verify(items).give(player);
+            verify(items).give(player, false);
         }
 
         /**
@@ -108,8 +110,9 @@ class SpeedrunLobbyListenerTest {
         void leavesInventoryAloneOutsideTheLobbyWorld() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("speedrun-lobby", "minecraft:end/kill_dragon",
-                            SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "speedrun-lobby", "minecraft:end/kill_dragon",
+                            SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             Player player = playerInWorld("world");   // the server's real, shared world — not the lobby
 
             try (MockedStatic<Bukkit> bukkit =
@@ -121,7 +124,7 @@ class SpeedrunLobbyListenerTest {
                 listener.onJoin(new PlayerJoinEvent(player, "hi"));
             }
 
-            verify(items, never()).give(any());
+            verify(items, never()).give(any(), anyBoolean());
         }
 
         @Test
@@ -129,13 +132,14 @@ class SpeedrunLobbyListenerTest {
         void leavesInventoryAloneWhileRunning() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
-                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             Player player = playerInWorld("world");   // already in the lobby world — no teleport needed
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
 
-            verify(items, never()).give(any());
+            verify(items, never()).give(any(), anyBoolean());
         }
 
         @Test
@@ -143,13 +147,14 @@ class SpeedrunLobbyListenerTest {
         void leavesInventoryAloneWhileFinished() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.FINISHED);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
-                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             Player player = playerInWorld("world");   // already in the lobby world — no teleport needed
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
 
-            verify(items, never()).give(any());
+            verify(items, never()).give(any(), anyBoolean());
         }
 
         @Test
@@ -157,8 +162,9 @@ class SpeedrunLobbyListenerTest {
         void teleportsToTheLobbyWorldOnJoin() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
-                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             Player player = playerInWorld("world");
             World lobbyWorld = mock(World.class);
             Location lobbySpawn = mock(Location.class);
@@ -179,8 +185,9 @@ class SpeedrunLobbyListenerTest {
         void doesNotTeleportWhenLobbyWorldMissing() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
-                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             Player player = playerInWorld("world");
 
             try (MockedStatic<Bukkit> bukkit =
@@ -203,8 +210,9 @@ class SpeedrunLobbyListenerTest {
         void givesKitOnArrivalWhileReady() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
-                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             Player player = playerWithId(ALICE);
             World lobbyWorld = mock(World.class);
             when(lobbyWorld.getName()).thenReturn("speedrun");
@@ -213,7 +221,7 @@ class SpeedrunLobbyListenerTest {
 
             listener.onWorldChange(new PlayerChangedWorldEvent(player, from));
 
-            verify(items).give(player);
+            verify(items).give(player, false);
         }
 
         @Test
@@ -225,7 +233,7 @@ class SpeedrunLobbyListenerTest {
 
             listener.onWorldChange(new PlayerChangedWorldEvent(player, from));
 
-            verify(items, never()).give(any());
+            verify(items, never()).give(any(), anyBoolean());
         }
     }
 
@@ -238,8 +246,9 @@ class SpeedrunLobbyListenerTest {
         void givesItemsToEverybodyPresent() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
-                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             World lobbyWorld = mock(World.class);
             when(lobbyWorld.getName()).thenReturn("speedrun");
             Player alice = playerWithId(ALICE);
@@ -257,16 +266,17 @@ class SpeedrunLobbyListenerTest {
                 listener.giveItemsToEveryoneInLobby();
             }
 
-            verify(items).give(alice);
-            verify(items).give(bob);
+            verify(items).give(alice, false);
+            verify(items).give(bob, false);
         }
 
         @Test
         @DisplayName("does nothing when the lobby world is not loaded")
         void doesNothingWhenWorldMissing() {
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
-                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                            false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
 
             try (MockedStatic<Bukkit> bukkit =
                          mockStatic(Bukkit.class)) {
@@ -275,7 +285,7 @@ class SpeedrunLobbyListenerTest {
                 assertThatCode(() -> listener.giveItemsToEveryoneInLobby()).doesNotThrowAnyException();
             }
 
-            verify(items, never()).give(any());
+            verify(items, never()).give(any(), anyBoolean());
         }
     }
 
@@ -306,7 +316,8 @@ class SpeedrunLobbyListenerTest {
         void cancelsStepsWhileReady() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             Player player = playerInWorld("world");
             World world = player.getWorld();
             Location from = new Location(world, 10, 64, 10, 90f, 0f);
@@ -324,7 +335,8 @@ class SpeedrunLobbyListenerTest {
         void allowsLookingAround() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             Player player = playerInWorld("world");
             World world = player.getWorld();
             Location from = new Location(world, 10, 64, 10, 90f, 0f);
@@ -358,8 +370,9 @@ class SpeedrunLobbyListenerTest {
         void allowsMovementOutsideTheLobbyWorld() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("speedrun-lobby", "minecraft:end/kill_dragon",
-                            SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+                    new SpeedrunSettings("", "speedrun-lobby", "minecraft:end/kill_dragon",
+                            SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
             Player player = playerInWorld("world");
             World world = player.getWorld();
             Location from = new Location(world, 10, 64, 10);
@@ -394,8 +407,11 @@ class SpeedrunLobbyListenerTest {
             when(items.isStart(startBlock)).thenReturn(true);
             when(items.isMenu(startBlock)).thenReturn(false);
 
-            SpeedrunSettings config = new SpeedrunSettings("world", "minecraft:end/kill_dragon",
-                    SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0);
+            // startBlockStaffOnly off: these tests are about what the block does once somebody is
+            // allowed to press it at all. Who is allowed is StaffOnlyStartBlock's own question.
+            SpeedrunSettings config = new SpeedrunSettings("", "world", "minecraft:end/kill_dragon",
+                    SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                    false, true, true, true, true, 10, true, 1000);
             when(lobby.config()).thenReturn(config);
         }
 
@@ -493,6 +509,100 @@ class SpeedrunLobbyListenerTest {
             // null block) before this listener ever runs. useItemInHand() is what setCancelled(true)
             // actually touches, so it is the precise check that this listener did nothing.
             assertThat(event.useItemInHand()).isEqualTo(org.bukkit.event.Event.Result.DEFAULT);
+        }
+    }
+
+    /**
+     * Who is handed the green block, and who may press one they somehow have. Asked for after a live
+     * round in which anybody in the lobby could start the next one out from under everybody else.
+     */
+    @Nested
+    @DisplayName("the start block is staff's, unless a host says otherwise")
+    class StaffOnlyStartBlock {
+
+        private SpeedrunSettings staffOnly(boolean on) {
+            return new SpeedrunSettings("", "world", "minecraft:end/kill_dragon",
+                    SpeedrunDeathPolicy.OFF, false, 0, 0, 0, 0, false, 0, 0, 0, 0, 0,
+                    on, true, true, true, true, 10, true, 1000);
+        }
+
+        private Player inLobby(boolean mayStart) {
+            Player player = playerWithId(ALICE);
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            when(player.getWorld()).thenReturn(world);
+            when(player.hasPermission(de.raindancer.modules.speedrun.util.PermissionNodes.START))
+                    .thenReturn(mayStart);
+            return player;
+        }
+
+        @Test
+        @DisplayName("an ordinary player is handed the compass without a start block")
+        void ordinaryPlayerGetsNoStartBlock() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            when(lobby.config()).thenReturn(staffOnly(true));
+            Player player = inLobby(false);
+
+            listener.onJoin(new PlayerJoinEvent(player, "hi"));
+
+            verify(items).give(player, false);
+        }
+
+        @Test
+        @DisplayName("somebody holding rainsspeedrun.start is handed both")
+        void staffGetTheStartBlock() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            when(lobby.config()).thenReturn(staffOnly(true));
+            Player player = inLobby(true);
+
+            listener.onJoin(new PlayerJoinEvent(player, "hi"));
+
+            verify(items).give(player, true);
+        }
+
+        @Test
+        @DisplayName("with the setting off, everybody is handed both again")
+        void everybodyGetsOneWhenTheSettingIsOff() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            when(lobby.config()).thenReturn(staffOnly(false));
+            Player player = inLobby(false);
+
+            listener.onJoin(new PlayerJoinEvent(player, "hi"));
+
+            verify(items).give(player, true);
+        }
+
+        @Test
+        @DisplayName("pressing a start block without the permission starts nothing, and says why")
+        void pressingWithoutPermissionIsRefused() {
+            when(lobby.config()).thenReturn(staffOnly(true));
+            Player clicker = inLobby(false);
+            ItemStack startBlock = mock(ItemStack.class);
+            when(items.isStart(startBlock)).thenReturn(true);
+
+            listener.onInteract(new PlayerInteractEvent(clicker, Action.RIGHT_CLICK_BLOCK,
+                    startBlock, null, null, EquipmentSlot.HAND));
+
+            verify(lobby, never()).beginCountdown(any());
+            verify(messages).send(clicker, "speedrun.start.not-allowed");
+        }
+
+        @Test
+        @DisplayName("staff pressing one starts the run as always")
+        void staffPressingOneStarts() {
+            when(lobby.config()).thenReturn(staffOnly(true));
+            Player clicker = inLobby(true);
+            PlayerInventory inventory = mock(PlayerInventory.class);
+            when(clicker.getInventory()).thenReturn(inventory);
+            when(clicker.getWorld().getPlayers()).thenReturn(List.of(clicker));
+            when(lobby.beginCountdown(any())).thenReturn(SpeedrunLobby.StartOutcome.STARTED);
+            ItemStack startBlock = mock(ItemStack.class);
+            when(items.isStart(startBlock)).thenReturn(true);
+
+            listener.onInteract(new PlayerInteractEvent(clicker, Action.RIGHT_CLICK_BLOCK,
+                    startBlock, null, null, EquipmentSlot.HAND));
+
+            verify(lobby).beginCountdown(java.util.Set.of(ALICE));
         }
     }
 }

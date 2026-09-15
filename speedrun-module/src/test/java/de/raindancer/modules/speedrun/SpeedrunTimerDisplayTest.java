@@ -133,4 +133,37 @@ class SpeedrunTimerDisplayTest {
     private static String plain(Component component) {
         return PlainTextComponentSerializer.plainText().serialize(component);
     }
+
+    @Test
+    @DisplayName("an onlooker who was not racing is shown the same clock")
+    void showsToOnlookersToo() {
+        SpeedrunTimerDisplay display = new SpeedrunTimerDisplay(actionBars, manualTicker());
+        java.util.Set<UUID> watching = new java.util.HashSet<>();
+        display.alsoShowTo(() -> watching);
+        SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
+        session.start();
+        display.start(session);
+
+        // Bob walks in mid-run: he is not a participant, and the very next tick still finds him.
+        watching.add(BOB);
+        tick();
+
+        assertThat(textFor(BOB)).isEqualTo("0:00");
+    }
+
+    @Test
+    @DisplayName("the clock leaves an onlooker's bar when the run ends, the same as a racer's")
+    void clearsOnlookersAtTheEnd() {
+        SpeedrunTimerDisplay display = new SpeedrunTimerDisplay(actionBars, manualTicker());
+        display.alsoShowTo(() -> Set.of(BOB));
+        SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
+        session.start();
+        display.start(session);
+        assertThat(textFor(BOB)).isEqualTo("0:00");
+
+        session.finish("done");
+
+        assertThat(textFor(BOB)).isNull();
+        assertThat(textFor(ALICE)).isNull();
+    }
 }

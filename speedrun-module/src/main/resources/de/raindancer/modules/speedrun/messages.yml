@@ -12,6 +12,13 @@ speedrun:
     no-end-condition: "<yellow>Nothing is set to end the run yet — open the menu and pick one."
     # Should not really happen: whoever pressed it counts as a participant.
     no-participants: "<yellow>Nobody is here to race."
+    # game-mode names a mode whose plugin is not installed — RainsManhunt, say.
+    mode-missing: "<red>This lobby is set to play <white><mode></white>, and that plugin is not installed. Pick another game in the menu, or install it."
+    # The mode's own setup threw. The console says what; this is what the player sees.
+    mode-failed: "<red>The game mode could not start. The lobby is ready again — an admin should look at the console."
+    # Somebody without rainsspeedrun.start pressed a start block anyway — one they kept, picked up
+    # or was given. Says whose call it is rather than "nothing happened".
+    not-allowed: "<yellow>Only staff can start a run here."
     # The world speedrun.yml points at is not currently loaded.
     world-missing: "<red>The lobby world is not loaded. Somebody should look at speedrun.yml."
   goal:

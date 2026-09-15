@@ -3,6 +3,7 @@ package de.raindancer.modules.manhunt;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.manhunt.command.ManhuntCommand;
 import de.raindancer.modules.manhunt.command.WhitelistCommand;
+import de.raindancer.modules.manhunt.util.PermissionNodes;
 
 import java.util.List;
 
@@ -20,20 +21,13 @@ public final class ManhuntCommands {
 
     public static List<ModuleCommand> declared() {
         return List.of(
-                ModuleCommand.of("manhunt",
-                                "Join a side, start and stop a hunt, and throw chaos at one",
+                ModuleCommand.of("manhunt", "Pick a side for the next hunt",
                                 new ManhuntCommand(ManhuntCommands::require))
                         .taking("join <runner|hunter> — put yourself on a side",
-                                "leave — take yourself off whichever side you were on",
+                                "leave — go back to hunting with everybody else",
                                 "assign <player> <runner|hunter> — put somebody else on a side (admin)",
-                                "start — begin the hunt",
-                                "stop — end it early",
-                                "reset [seed <value|random>] — throw the map away and make it again",
-                                "status — the roster and the clock",
-                                "chaos [<action>] — throw a chaos action at a running hunt, or open the menu",
-                                "history [player] — every finished hunt, or one player's own record",
-                                "setlobby — place the waiting lobby where you are standing (admin)")
-                        .needing("rainsmanhunt.manhunt.use"),
+                                "status — who is on which side, and how the hunt is going")
+                        .needing(PermissionNodes.USE),
                 ModuleCommand.of("whitelist",
                                 "Open and close the server whitelist for a hunt; everything else "
                                         + "passes through to vanilla",

@@ -41,6 +41,10 @@ final class SpeedrunPreparation {
     /** A normal morning — chosen over midnight ({@code 0}) so a run never starts in the dark. */
     static final long DAY_START = 1000L;
 
+    /** Handed to {@link #prepare} instead of a time of day, for a host who wants the world's own
+     *  clock left exactly where it was — see {@link SpeedrunSettings#timeAtStart()}. */
+    static final long LEAVE_THE_TIME_ALONE = -1L;
+
     /** Full, per {@link org.bukkit.entity.HumanEntity#getSaturation}'s own default on spawn. */
     private static final float FULL_SATURATION = 20f;
 
@@ -50,13 +54,29 @@ final class SpeedrunPreparation {
         this.players = players;
     }
 
-    /** Resets every participant and clears {@code world} of mobs and dropped items, before the clock starts. */
+    /** The same, at {@link #DAY_START} — what every caller wanted before the time became a setting. */
     void prepare(World world, Set<UUID> participants) {
+        prepare(world, participants, DAY_START);
+    }
+
+    /**
+     * Resets every participant and clears {@code world} of mobs and dropped items, before the clock
+     * starts — and sets the world to {@code timeOfDay}, unless that is
+     * {@link #LEAVE_THE_TIME_ALONE}.
+     *
+     * <p>The time is the one half of this a host can switch off, because it is the one half that is
+     * a choice rather than a repair: a run that begins at dusk on purpose is a different game, where
+     * a run that begins with somebody on three hearts, or with the last run's zombies still standing
+     * on the start line, is simply the last run leaking into this one.
+     */
+    void prepare(World world, Set<UUID> participants, long timeOfDay) {
         for (UUID id : participants) {
             resetPlayer(id);
         }
         if (world != null) {
-            world.setTime(DAY_START);
+            if (timeOfDay != LEAVE_THE_TIME_ALONE) {
+                world.setTime(timeOfDay);
+            }
             clearHostilesAndItems(world);
         }
     }

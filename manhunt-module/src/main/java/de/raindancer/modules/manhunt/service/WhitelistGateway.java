@@ -15,6 +15,9 @@ interface WhitelistGateway {
     /** Everybody on the server right now. */
     Collection<UUID> onlinePlayerIds();
 
+    /** Everybody on the whitelist right now, online or not — what a clear works through. */
+    Collection<UUID> whitelistedIds();
+
     boolean isWhitelisted(UUID id);
 
     void setWhitelisted(UUID id, boolean whitelisted);

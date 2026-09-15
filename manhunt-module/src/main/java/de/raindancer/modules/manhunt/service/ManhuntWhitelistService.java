@@ -2,7 +2,9 @@ package de.raindancer.modules.manhunt.service;
 
 import org.bukkit.Server;
 
+import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,14 +28,21 @@ import java.util.UUID;
 public final class ManhuntWhitelistService {
 
     private final WhitelistGateway gateway;
+    private final WhitelistVips vips;
 
-    public ManhuntWhitelistService(Server server) {
-        this(new BukkitWhitelistGateway(Objects.requireNonNull(server, "server")));
+    public ManhuntWhitelistService(Server server, WhitelistVips vips) {
+        this(new BukkitWhitelistGateway(Objects.requireNonNull(server, "server")), vips);
     }
 
     /** For tests: a fake gateway that never touches a live server. */
-    ManhuntWhitelistService(WhitelistGateway gateway) {
+    ManhuntWhitelistService(WhitelistGateway gateway, WhitelistVips vips) {
         this.gateway = Objects.requireNonNull(gateway, "gateway");
+        this.vips = Objects.requireNonNull(vips, "vips");
+    }
+
+    /** The people every one of these operations spares — see {@link WhitelistVips}. */
+    public WhitelistVips vips() {
+        return vips;
     }
 
     /** Anybody can join again. Existing whitelist entries are left exactly as they were. */
@@ -48,7 +57,11 @@ public final class ManhuntWhitelistService {
      */
     public int close() {
         int added = 0;
-        for (UUID id : gateway.onlinePlayerIds()) {
+        Set<UUID> letIn = new LinkedHashSet<>(gateway.onlinePlayerIds());
+        // A VIP is let in whether or not they were standing here when the door shut — that is the
+        // whole of what being one means, and it is the case the online sweep cannot cover.
+        letIn.addAll(vips.ids());
+        for (UUID id : letIn) {
             if (!gateway.isWhitelisted(id)) {
                 gateway.setWhitelisted(id, true);
                 added++;
@@ -56,6 +69,56 @@ public final class ManhuntWhitelistService {
         }
         gateway.setWhitelistEnabled(true);
         return added;
+    }
+
+    /**
+     * Takes everybody off the whitelist except the VIPs, and leaves the door itself exactly as open
+     * or shut as it was.
+     *
+     * <h2>Why the flag is not touched</h2>
+     * "Clear" is about who is on the list, not about whether the list is being enforced — and the two
+     * are different decisions with very different consequences. Turning the flag off as well would
+     * silently throw the server open at the moment its list was emptied; turning it on would lock out
+     * everybody who is playing right now. Whoever wants either types {@code open} or {@code close}.
+     *
+     * @return how many entries were removed — for the confirmation a command shows
+     */
+    public int clear() {
+        int removed = 0;
+        for (UUID id : gateway.whitelistedIds()) {
+            if (vips.isVip(id)) {
+                continue;
+            }
+            gateway.setWhitelisted(id, false);
+            removed++;
+        }
+        return removed;
+    }
+
+    /**
+     * Makes {@code id} a VIP — and, when the door is already shut, lets them in at once rather than
+     * at the next close, which is the whole reason somebody is made one mid-evening.
+     *
+     * @return whether they were not already one
+     */
+    public boolean addVip(UUID id, String name) {
+        boolean fresh = vips.add(id, name);
+        if (isClosed() && !gateway.isWhitelisted(id)) {
+            gateway.setWhitelisted(id, true);
+        }
+        return fresh;
+    }
+
+    /**
+     * Takes the badge off {@code id}, and nothing else: their whitelist entry, if they have one,
+     * stays. Removing somebody from the server is {@code /whitelist remove}'s job, and a VIP being
+     * demoted mid-evening should not be kicked out of the round they are in the middle of — the next
+     * {@link #clear()} simply no longer spares them.
+     *
+     * @return whether they were a VIP at all
+     */
+    public boolean removeVip(UUID id) {
+        return vips.remove(id);
     }
 
     /** Whether the server whitelist is currently on. */

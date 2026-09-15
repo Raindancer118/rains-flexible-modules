@@ -29,6 +29,15 @@ final class BukkitWhitelistGateway implements WhitelistGateway {
     }
 
     @Override
+    public Collection<UUID> whitelistedIds() {
+        List<UUID> ids = new ArrayList<>();
+        for (OfflinePlayer whitelisted : server.getWhitelistedPlayers()) {
+            ids.add(whitelisted.getUniqueId());
+        }
+        return List.copyOf(ids);
+    }
+
+    @Override
     public boolean isWhitelisted(UUID id) {
         return server.getOfflinePlayer(id).isWhitelisted();
     }

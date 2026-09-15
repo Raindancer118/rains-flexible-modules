@@ -28,8 +28,9 @@ class SpeedrunPortalListenerTest {
     @BeforeEach
     void setUp() {
         lobby = mock(SpeedrunLobby.class);
-        when(lobby.config()).thenReturn(new SpeedrunSettings("speedrun", "minecraft:end/kill_dragon",
-                SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0));
+        when(lobby.config()).thenReturn(new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon",
+                SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000));
         listener = new SpeedrunPortalListener(lobby);
     }
 

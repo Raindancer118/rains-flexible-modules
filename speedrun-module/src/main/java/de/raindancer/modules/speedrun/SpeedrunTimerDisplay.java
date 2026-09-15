@@ -8,7 +8,12 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * The running clock on every participant's action bar — {@code m:ss}, counting up from zero.
@@ -49,6 +54,12 @@ public final class SpeedrunTimerDisplay {
     private final Ticker ticker;
     private final String owner;
 
+    /** Who else is shown the clock, asked again on every tick — see {@link #alsoShowTo}. */
+    private volatile Supplier<Collection<UUID>> onlookers = Set::of;
+    /** Exactly whose bar the clock is on right now, so it can be taken off again — the audience is
+     *  not a fixed roster, so "everybody who was ever shown it" is the only safe thing to clear. */
+    private final Set<UUID> showing = ConcurrentHashMap.newKeySet();
+
     private AutoCloseable running;
 
     public SpeedrunTimerDisplay(ActionBars actionBars, Ticker ticker) {
@@ -60,6 +71,20 @@ public final class SpeedrunTimerDisplay {
         this.actionBars = actionBars;
         this.ticker = ticker;
         this.owner = owner == null || owner.isBlank() ? OWNER : owner;
+    }
+
+    /**
+     * Also shows the clock to whoever {@code onlookers} names at the moment of each tick — somebody
+     * who walked into the lobby world after the run began, typically, who is not a participant and
+     * never will be for this run.
+     *
+     * <p>A supplier rather than a set, because the whole point is the people who were not there when
+     * {@link #start} was called: a set handed in once would be the same roster the session already
+     * has. Re-asked every second, so somebody arriving mid-run waits at most that long, and somebody
+     * leaving has the clock taken off their bar on the next tick.
+     */
+    public void alsoShowTo(Supplier<Collection<UUID>> onlookers) {
+        this.onlookers = onlookers == null ? Set::of : onlookers;
     }
 
     /** The real ticker: onto Core's own repeating scheduler, once a second. */
@@ -84,17 +109,31 @@ public final class SpeedrunTimerDisplay {
 
     private void show(SpeedrunSession session) {
         Component text = format(session.elapsed());
-        for (UUID participant : session.participants()) {
-            actionBars.show(participant, owner, text, ActionBars.UNTIL_CLEARED, ActionBarPriority.LOW);
+        Set<UUID> audience = new HashSet<>(session.participants());
+        audience.addAll(onlookers.get());
+        for (UUID viewer : audience) {
+            actionBars.show(viewer, owner, text, ActionBars.UNTIL_CLEARED, ActionBarPriority.LOW);
         }
+        // Whoever was watching a second ago and is not in the audience now — they walked out of the
+        // lobby world — gets their own bar back rather than a clock frozen at the moment they left.
+        for (UUID gone : showing) {
+            if (!audience.contains(gone)) {
+                actionBars.clear(gone, owner);
+            }
+        }
+        showing.clear();
+        showing.addAll(audience);
     }
 
-    /** Cancels the tick and takes the clock off every participant's bar — called once a run finishes. */
+    /** Cancels the tick and takes the clock off every bar it is on — called once a run finishes. */
     private void stop(SpeedrunSession session) {
         stop();
-        for (UUID participant : session.participants()) {
-            actionBars.clear(participant, owner);
+        Set<UUID> audience = new HashSet<>(showing);
+        audience.addAll(session.participants());
+        for (UUID viewer : audience) {
+            actionBars.clear(viewer, owner);
         }
+        showing.clear();
     }
 
     private void stop() {

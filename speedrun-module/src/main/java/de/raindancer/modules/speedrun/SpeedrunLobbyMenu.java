@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The compass's screen: the current end conditions while the lobby is
@@ -39,11 +40,6 @@ import java.util.List;
 public final class SpeedrunLobbyMenu extends Menu {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
-
-    /** {band, column} for each companion button — the outer columns nothing else on this page uses. */
-    private static final int[][] COMPANION_SLOTS = {
-            {MenuLayout.WHO, 7}, {MenuLayout.WHO, 1}, {MenuLayout.LAND, 7}, {MenuLayout.LAND, 1}
-    };
 
     private final SpeedrunLobby lobby;
     private final Messages messages;
@@ -75,30 +71,58 @@ public final class SpeedrunLobbyMenu extends Menu {
             case FINISHED -> renderFinished();
         }
         renderHazardDoor();
-        renderCompanions();
+        renderModeDoor();
     }
 
     /**
-     * One button per module built on top of this one that has offered itself — see
-     * {@link SpeedrunCompanions} for why the arrow points that way and not the obvious one.
+     * The chosen game mode's own page — Manhunt's sides — as one door on the right of the top band.
      *
-     * <p>Drawn on every page regardless of {@link SpeedrunLobbyState}, like
-     * {@link #renderHazardDoor()}: a host who opens the compass mid-run to look at Manhunt
-     * should not have to end the race to reach it. The four slots are the ones no branch of
-     * {@link #render()} writes to — the outer columns of the two bands — so a companion can never
-     * land on top of the goal, the death policy or a creeper setting; a fifth companion is simply
-     * not drawn, which is a page that stays readable rather than one that overwrites itself.
+     * <p>Drawn on every {@link SpeedrunLobbyState}, like {@link #renderHazardDoor()} and for the same
+     * reason: somebody opening the compass mid-hunt to see who is still running should not have to
+     * end it first. Nothing is drawn for a plain race, or for a mode with no page of its own.
      */
-    private void renderCompanions() {
-        List<SpeedrunCompanions.Companion> companions = SpeedrunCompanions.offered();
-        for (int i = 0; i < companions.size() && i < COMPANION_SLOTS.length; i++) {
-            SpeedrunCompanions.Companion companion = companions.get(i);
-            int[] slot = COMPANION_SLOTS[i];
-            band(slot[0], slot[1],
-                    Icons.of(companion.icon(), "<white>" + companion.label(),
-                            companion.lore(), "<dark_gray>Click to open."),
-                    click -> companion.opener().open(viewer, this));
+    private void renderModeDoor() {
+        Optional<SpeedrunMode.Setup> setup = lobby.mode().flatMap(SpeedrunMode::setup);
+        if (setup.isEmpty()) {
+            return;
         }
+        SpeedrunMode mode = lobby.mode().orElseThrow();
+        List<String> lore = new ArrayList<>(mode.description());
+        lore.add("<dark_gray>Click to open.");
+        band(MenuLayout.WHO, 7, Icons.of(mode.icon(), "<white>" + mode.label(), lore),
+                click -> setup.get().open(viewer, this));
+    }
+
+    /**
+     * Which game this lobby plays, cycled through the plain race and every installed mode — see
+     * {@link SpeedrunModes#next}.
+     *
+     * <p>Only while {@link SpeedrunLobbyState#READY}, for the same reason the goal is: the mode is
+     * read once, when {@link SpeedrunLobby#start} builds the run, so switching it mid-race would
+     * change nothing about the race and only confuse whoever clicked. On a server with no mode
+     * installed the button is not drawn at all — a cycle with one position is not a choice.
+     */
+    private void renderModeButton() {
+        if (SpeedrunModes.offered().isEmpty()) {
+            return;
+        }
+        String current = lobby.config().gameMode();
+        Optional<SpeedrunMode> chosen = lobby.mode();
+        String label = chosen.map(SpeedrunMode::label)
+                .orElse(current.isBlank() ? "Speedrun" : current + " (not installed)");
+        List<String> lore = new ArrayList<>(chosen.map(SpeedrunMode::description)
+                .orElse(List.of(current.isBlank()
+                        ? "<gray>A plain race against the clock."
+                        : "<red>That mode's plugin is not installed.")));
+        lore.add("");
+        lore.add("<gray>Click to cycle.");
+        band(MenuLayout.WHO, 1,
+                Icons.of(chosen.map(SpeedrunMode::icon).orElse(Material.NETHER_STAR),
+                        "<white>Game: " + label, lore),
+                click -> {
+                    lobby.settings().set("game-mode", SpeedrunModes.next(current));
+                    refresh();
+                });
     }
 
     private void renderCountdown() {
@@ -108,16 +132,22 @@ public final class SpeedrunLobbyMenu extends Menu {
 
     private void renderReady() {
         SpeedrunSettings config = lobby.config();
+        renderModeButton();
         band(MenuLayout.WHO, 3,
                 Icons.of(Material.WRITABLE_BOOK, "<white>Goal: " + goalLabel(config), advancementLore(config)),
                 click -> new SpeedrunAdvancementChooser(lobby, messages, brand(), viewer, this).open());
-        band(MenuLayout.WHO, 5,
-                Icons.of(deathIcon(config.deathPolicy()), "<white>Death policy: " + config.deathPolicy(),
-                        deathLore(config)),
-                click -> {
-                    lobby.settings().cycle("death-policy");
-                    refresh();
-                });
+        // Not drawn at all for a mode with its own rules about dying — Manhunt eliminates a Runner
+        // where a race would end. A button that silently does nothing to the game being played is
+        // worse than a page that does not offer it; see the class javadoc on why nothing is greyed.
+        if (lobby.mode().map(SpeedrunMode::usesDeathPolicy).orElse(true)) {
+            band(MenuLayout.WHO, 5,
+                    Icons.of(deathIcon(config.deathPolicy()), "<white>Death policy: " + config.deathPolicy(),
+                            deathLore(config)),
+                    click -> {
+                        lobby.settings().cycle("death-policy");
+                        refresh();
+                    });
+        }
     }
 
     /**

@@ -122,4 +122,35 @@ class SpeedrunPreparationTest {
 
         verify(players).heal(ALICE);
     }
+
+    @Test
+    @DisplayName("sets the world to whatever time the host configured")
+    void setsTheConfiguredTime() {
+        PlayerAdmin players = mock(PlayerAdmin.class);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+        World world = mock(World.class);
+        when(world.getEntities()).thenReturn(List.of());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            preparation.prepare(world, Set.of(), 6000L);
+        }
+
+        verify(world).setTime(6000L);
+    }
+
+    @Test
+    @DisplayName("leaves the world's own clock alone when the host turned that off")
+    void leavesTheClockAloneWhenAsked() {
+        PlayerAdmin players = mock(PlayerAdmin.class);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+        World world = mock(World.class);
+        when(world.getEntities()).thenReturn(List.of());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            preparation.prepare(world, Set.of(), SpeedrunPreparation.LEAVE_THE_TIME_ALONE);
+        }
+
+        verify(world, never()).setTime(org.mockito.ArgumentMatchers.anyLong());
+        verify(world).getEntities();   // the rest of the world half still ran
+    }
 }

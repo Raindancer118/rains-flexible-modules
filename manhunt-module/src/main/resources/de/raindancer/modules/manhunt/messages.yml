@@ -3,162 +3,59 @@
 # Offered as a *floor*: anything an owner has already written in their own messages.yml wins, and so
 # does a host's bundled wording. See Messages.defineFrom.
 manhunt:
-
-  # ---------------------------------------------------------------- joining a side
-  joined: "<green>You are now on the <white><side></white> side."
-  left: "<yellow>You are no longer on either side."
-  not-on-a-side: "<red>You were not on either side."
-  join-refused:
-    frozen: "<red>Sides cannot be changed while a hunt is running."
-    already-in-that-team: "<yellow>You are already on that side."
-    runners-locked: "<red>Only an admin can put you on the Runners right now."
-
-  # ---------------------------------------------------------------- the waiting lobby
-  no-fighting-in-lobby: "<red>Nobody fights in the waiting lobby."
-  lobby-set: "<green>The waiting lobby is now here."
-
-  # ---------------------------------------------------------------- running
+  # Somebody typed a word /manhunt does not have.
+  unknown-word: "<yellow>No such thing as <white><word></white>. Try join, leave, assign or status."
+  # A command that only makes sense for somebody standing in the world.
+  only-a-player: "<red>Only a player can do that."
+  # /manhunt assign, without the permission for it.
+  not-yours: "<red>That is not yours to do."
+  # /manhunt assign <player>, where nobody by that name is online.
+  no-such-player: "<red>No online player named <white><player></white>."
+  # Sides cannot change while a hunt is being played — see Hunt on why the roster is a snapshot.
+  sides-frozen: "<yellow>A hunt is under way. Sides go back to being yours to pick once it ends."
+  # /manhunt leave — leaving the Runners is joining the pack, which is what this says.
+  left: "<green>You are hunting with everybody else again."
   start:
-    started: "<green>The hunt is on."
-    already_running: "<red>A hunt is already going."
-    no_runners: "<red>Nobody has joined the Runners yet."
-    no_hunters: "<red>Nobody has joined the Hunters yet."
-    world_missing: "<red>The configured Manhunt world is not loaded."
-    hunters_cannot_win: "<red>This hunt could never be won by the Hunters: they win when every Runner \
-      is out, but Runners respawn forever. Set <white>runner-death-rule</white> to eliminate or \
-      lives, or the Hunters' win to timeout."
-  stop-refused: "<red>There is no hunt going to stop."
-  stopped: "<yellow>The hunt has been stopped."
-  finished: "<gold>The hunt is over — <white><reason></white>, after <white><time></white>."
-
-  # ---------------------------------------------------------------- resetting
-  reset-done: "<green>The map has been reset."
-  reset-refused: "<red>The map could not be reset — is the configured world loaded?"
-
-  # ---------------------------------------------------------------- the server whitelist
-  whitelist:
-    opened: "<green>The whitelist is open — anybody can join."
-    closed: "<yellow>The whitelist is closed — <white><added></white> player(s) newly whitelisted."
-    unknown-command: "<red>'<white><word></white>' is not a /whitelist word — try: open, close, add, \
-      remove, list, on, off, reload."
-
-  # ---------------------------------------------------------------- chaos
-  chaos:
-    applied: "<gold>Thrown: <white><action></white>."
-    on_cooldown: "<red>Chaos is still cooling down."
-    no_targets: "<red>Nobody for <white><action></white> to act on right now."
-    not_running: "<red>There is no hunt running to throw chaos at."
-
-  # ---------------------------------------------------------------- the countdown
-  countdown:
-    tick: "<yellow>The hunt begins in <white><seconds></white>…"
-    go: "<green>Go."
-
-  # ---------------------------------------------------------------- dying
-  death:
-    lives-left: "<red>You died. <white><lives></white> live(s) left."
-    respawned: "<red>You died. <gray>You are back in the hunt."
-    eliminated: "<dark_red>You are out of the hunt."
-    eliminated-watching: "<dark_red>You are out of the hunt — watch the rest of it."
-    hunter-waiting: "<gray>Back in <white><seconds></white> second(s)."
-    hunter-back: "<green>Back in the hunt."
-
-  # ---------------------------------------------------------------- what a hunt says out loud
-  narrate:
-    dimension: "<gold><runner></gold> <gray>has reached <white><where></white><gray>."
-    runner-died: "<red><runner></red> <gray>died — <white><lives></white> live(s) left."
-    runner-out: "<dark_red><runner></dark_red> <gray>is out of the hunt. <white><left></white> Runner(s) still in."
-    hunter-died: "<gray><hunter> died."
-    time-left: "<yellow><time></yellow> <gray>left on the clock."
-    dragon: "<gold>The dragon is down to <white><percent>%</white><gold>."
-
-  # ---------------------------------------------------------------- the tracking compass
+    # Refusals the speedrun lobby shows whoever pressed the start block — see StartRule.
+    no-runner: "<yellow>Nobody is running. Somebody has to take the Runner side first — /manhunt join runner."
+    no-hunter: "<yellow>Everybody here is a Runner. Somebody has to chase them."
+    no-goal: "<yellow>There is no goal for the Runners to race for. Pick one in the lobby menu first."
+  join:
+    which-side: "<yellow>Which side? /manhunt join <runner|hunter>."
+    runner: "<green>You are running. Everybody else will be chasing you."
+    hunter: "<red>You are hunting."
+    runners-locked: "<yellow>An admin picks the Runners on this server."
+  assign:
+    usage: "<yellow>/manhunt assign <player> <runner|hunter>."
+    done: "<green><player> is now on the <white><side></white> side."
+  status:
+    waiting: "<gray>Running: <white><runners></white>. Hunting: <white><hunters></white>."
+    running: "<gray>The hunt is on. Still running: <white><runners></white> (<out> caught), <white><hunters></white> hunting."
+  # A Runner has been caught, told to both sides.
+  caught: "<red><runner> has been caught. <white><left></white> Runner(s) left."
+  last-runner: "<red><runner> was the last Runner."
+  finished:
+    runners: "<green>The Runners made it. <white><time></white>."
+    hunters: "<red>Every Runner was caught. <white><time></white>."
+    stopped: "<yellow>The hunt ended. <white><time></white>."
   tracker:
     given: "<gold>You have been handed a tracking compass."
-    now-following: "<gold>Your compass now follows <white><runner></white>."
-    now-nearest: "<gold>Your compass is back on whoever is nearest."
-    pack-following: "<gold><hunter></gold> <gray>put the pack on <white><runner></white><gray>."
-    pack-nearest: "<gold><hunter></gold> <gray>put the pack back on whoever is nearest."
-    picking-off: "<red>Your compass is set by the host — that is not yours to change."
-    no-runners: "<red>There is no Runner left to follow."
-    distance: "<gold>Tracking <white><runner></white> <gray>— <white><blocks></white> blocks away"
-
-  # ---------------------------------------------------------------- talking to your side
-  side-chat:
-    tag-runners: "<green>[Runners]</green>"
-    tag-hunters: "<red>[Hunters]</red>"
-    tag-everybody: "<gold>[All]</gold>"
-    now-private: "<gray>Your chat now reaches <white>only your own side</white>. Start a line with \
-      <white><prefix></white> to talk to everybody."
-    now-private-no-prefix: "<gray>Your chat now reaches <white>only your own side</white> for the whole hunt."
-
-  here:
-    shared: "<gold><player></gold> <gray>is at <white><x> <y> <z></white> in <white><world></white><gray>."
-    off: "<red>Sharing your position is switched off."
-
-  spectate:
-    watching: "<gray>You are watching the hunt. Type it again to stop."
-    stopped: "<gray>You are no longer watching."
-    not-allowed: "<red>Watching is switched off on this server."
-    on-a-side: "<red>Leave your side first — a player in the hunt cannot watch it."
-
-  # ---------------------------------------------------------------- achievements
-  achievements:
-    header: "<gold>Manhunt achievements — <white><count></white> shown, <white><hidden></white> still hidden."
-    entry: "<gray>  <white><title></white> <dark_gray>(<points> pt) — <description>"
-
-  # ---------------------------------------------------------------- hunt history
-  history:
-    empty: "<gray>No hunt has finished on this server yet."
-    summary: "<gold>Manhunt history — <white><total></white> hunt(s): <white><runner-wins></white> to \
-      the Runners, <white><hunter-wins></white> to the Hunters, <white><aborted></white> aborted. \
-      Average <white><average></white>."
-    player-summary: "<gold><white><player></white></gold> — <white><played></white> hunt(s) played, \
-      <white><won></white> won."
-    entry: "<gray>  <white><winner></white> <dark_gray>(<reason>) — <white><time></white>, \
-      <white><runners></white>v<white><hunters></white>"
-
-  # ---------------------------------------------------------------- options
-  options:
-    console-only: "<gray>Options are edited in-game with /manhunt options, or in full at /settings."
-
-  # ---------------------------------------------------------------- the Runners' goal
-  goal-set: "<green>The Runners' goal is now <white><goal></white>."
-
-  # ---------------------------------------------------------------- status
-  status:
-    idle: "<gray>No hunt is going — <white><runners></white> Runner(s), <white><hunters></white> Hunter(s)."
-    running: "<gray><white><runners></white> Runner(s), <white><hunters></white> Hunter(s) — <white><time></white> elapsed."
-
-  # ---------------------------------------------------------------- general
-  only-a-player: "<red>Only somebody standing in the world can do that."
-  not-yours: "<red>Manhunt is not yours to change."
-
-  usage:
-    join: "<gray>/manhunt join <runner|hunter>"
-    reset: "<gray>/manhunt reset [seed <a number|random>]"
-    chaos: "<gray>/manhunt chaos <action>"
-    assign: "<gray>/manhunt assign <player> <runner|hunter>"
-    goal: "<gray>/manhunt goal <advancement-key>"
-    history: "<gray>/manhunt history [player]"
-
-  help:
-    - "<gray>/manhunt <dark_gray>— the lobby: sides, and the clock"
-    - "<gray>/manhunt join <runner|hunter> <dark_gray>— put yourself on a side"
-    - "<gray>/manhunt leave <dark_gray>— take yourself off"
-    - "<gray>/manhunt assign <player> <runner|hunter> <dark_gray>— put somebody else on a side"
-    - "<gray>/manhunt start <dark_gray>— begin the hunt"
-    - "<gray>/manhunt stop <dark_gray>— end it early"
-    - "<gray>/manhunt reset <dark_gray>— throw the map away and make it again"
-    - "<gray>/manhunt status <dark_gray>— the roster and the clock, as text"
-    - "<gray>/manhunt chaos [<action>] <dark_gray>— throw chaos at a running hunt, or open the menu"
-    - "<gray>/manhunt achievements <dark_gray>— the curated set, earned or not"
-    - "<gray>/manhunt history [player] <dark_gray>— every finished hunt, or one player's own record"
-    - "<gray>/manhunt options <dark_gray>— how a hunt is set up: winning, dying, and ending"
-    - "<gray>/manhunt tracker <dark_gray>— everything the Hunters' tracking compass does"
-    - "<gray>/manhunt field <dark_gray>— narration, side chat, borrowed rules, spectators"
-    - "<gray>/manhunt here <dark_gray>— tell your own side where you are"
-    - "<gray>/manhunt spectate <dark_gray>— watch a hunt you are not in"
-    - "<gray>/manhunt setlobby <dark_gray>— place the waiting lobby where you are standing"
-    - "<gray>/manhunt goal <advancement-key> <dark_gray>— set the Runners' win advancement, with tab-completion"
-    - "<gray>/whitelist open|close <dark_gray>— open or close the server's doors"
+    distance: "<gold><runner> <gray>— <white><blocks></white> blocks"
+    now-following: "<gold>Following <white><runner></white>."
+    now-nearest: "<gold>Following whoever is nearest."
+    picking-off: "<yellow>Your compass is aimed for you on this server."
+    no-runners: "<yellow>There is nobody left to point at."
+  whitelist:
+    opened: "<green>The server is open again — anybody can join."
+    closed: "<yellow>The server is closed. <white><added></white> player(s) were added to the whitelist first."
+    unknown-command: "<yellow>No such whitelist option as <white><word></white>."
+    # /whitelist clear — everybody off the list except the VIPs; the door itself is left as it was.
+    cleared: "<green>Whitelist cleared: <white><removed></white> entry(s) removed, <white><vips></white> VIP(s) kept."
+    vip:
+      usage: "<yellow>/whitelist vip <add|remove> <player>, or /whitelist vip list."
+      added: "<green><player> is a VIP now — a clear will not touch them, and a close lets them in."
+      already: "<yellow><player> is already a VIP."
+      removed: "<green><player> is no longer a VIP. Their whitelist entry is untouched."
+      not-one: "<yellow><player> was not a VIP."
+      list: "<gray>VIPs: <white><players></white>."
+      none: "<gray>Nobody is a VIP yet."

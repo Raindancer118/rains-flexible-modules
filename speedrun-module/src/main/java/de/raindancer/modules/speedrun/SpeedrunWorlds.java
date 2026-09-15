@@ -19,22 +19,22 @@ import java.util.Locale;
  * <p>The {@code _nether} / {@code _the_end} suffixes are Minecraft's own convention rather than an
  * invention here, so a server owner reading their world folder sees the shape they expect.
  */
-record SpeedrunWorlds(String overworld) {
+public record SpeedrunWorlds(String overworld) {
 
-    static SpeedrunWorlds around(String overworld) {
+    public static SpeedrunWorlds around(String overworld) {
         return new SpeedrunWorlds(overworld == null ? "" : overworld.toLowerCase(Locale.ROOT));
     }
 
-    String nether() {
+    public String nether() {
         return overworld + "_nether";
     }
 
-    String theEnd() {
+    public String theEnd() {
         return overworld + "_the_end";
     }
 
     /** Whether {@code worldName} is any of the three — the test for "this travel is ours to redirect". */
-    boolean contains(String worldName) {
+    public boolean contains(String worldName) {
         if (worldName == null) {
             return false;
         }
@@ -43,7 +43,7 @@ record SpeedrunWorlds(String overworld) {
     }
 
     /** Which of the three a trip into {@code environment} should land in, or {@code null} for a custom one. */
-    String inDimension(World.Environment environment) {
+    public String inDimension(World.Environment environment) {
         if (environment == null) {
             return null;
         }

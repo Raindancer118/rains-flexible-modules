@@ -1,54 +1,29 @@
 package de.raindancer.modules.manhunt;
 
-import de.raindancer.core.RainsCore;
 import de.raindancer.core.data.settings.SettingsStore;
-import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.chat.Brand;
-import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.messages.Messages;
-import de.raindancer.modules.manhunt.service.ChaosService;
-import de.raindancer.modules.manhunt.service.HuntHistory;
-import de.raindancer.modules.manhunt.service.ManhuntAchievements;
-import de.raindancer.modules.manhunt.service.ManhuntLobbyListener;
-import de.raindancer.modules.manhunt.service.ManhuntService;
-import de.raindancer.modules.manhunt.service.ManhuntDeathListener;
-import de.raindancer.modules.manhunt.service.ManhuntSpectators;
+import de.raindancer.modules.manhunt.mode.ManhuntMode;
+import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
-import de.raindancer.modules.manhunt.service.TrackerCompassService;
-import org.bukkit.Server;
-import org.bukkit.plugin.Plugin;
-
-import java.util.function.Supplier;
+import org.bukkit.entity.Player;
 
 /**
- * Everything this module has built, in one place — the same "data, not a god object" shape
- * {@code ChainedServices} already documents for itself.
+ * What every command in this module needs, built once {@code ManhuntModule.enable} has the real
+ * things — see {@code SpeedrunAdminServices} for the same shape one module over.
  */
-public record ManhuntServices(
-        Plugin plugin,
-        Server server,
-        RainsCore core,
-        LogChannel log,
-        Messages messages,
-        Chat chat,
-        Brand brand,
+public record ManhuntServices(Messages messages, Brand brand, SettingsStore<ManhuntSettings> settings,
+                              ManhuntTeams teams, ManhuntMode mode, ManhuntWhitelistService whitelist,
+                              Screens screens) {
 
-        Supplier<ManhuntSettings> settings,
-        SettingsStore<ManhuntSettings> store,
+    /** Opening this module's one screen. An interface so the commands never import a menu class. */
+    @FunctionalInterface
+    public interface Screens {
 
-        ManhuntService manhunt,
-        ChaosService chaos,
-        ManhuntWhitelistService whitelist,
-        ManhuntAchievements achievements,
-        ManhuntLobbyListener lobbyListener,
-        TrackerCompassService tracker,
-        ManhuntDeathListener deaths,
-        ManhuntSpectators spectators,
-        HuntHistory history,
-
-        IManhuntScreensOpener screens) {
+        void sides(Player viewer);
+    }
 
     public ManhuntSettings config() {
-        return settings.get();
+        return settings.current();
     }
 }

@@ -23,6 +23,7 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -67,7 +68,22 @@ public final class SpeedrunLobby {
         /** Nobody was handed in to run it. */
         NO_PARTICIPANTS,
         /** The configured lobby world is not currently loaded. */
-        WORLD_MISSING
+        WORLD_MISSING,
+        /** {@code game-mode} names a mode whose module is not installed — see {@link SpeedrunModes}. */
+        MODE_MISSING,
+        /** The chosen game mode refused this start; {@link #refusalFor} says why, in words. */
+        REFUSED_BY_MODE,
+        /** The chosen game mode threw while starting, and nothing was left running. */
+        MODE_FAILED
+    }
+
+    /**
+     * How the lobby waits — the seam between "in ten seconds, remake the world" and Paper's own
+     * scheduler, so the wait after a finished run can be driven by a test rather than slept through.
+     */
+    @FunctionalInterface
+    public interface DelayedTask {
+        void in(long ticks, Runnable task);
     }
 
     /** What {@link #forceReset} answered. */
@@ -93,6 +109,8 @@ public final class SpeedrunLobby {
     private final SpeedrunPreparation preparation;
 
     private SpeedrunSession session;
+    /** The live run as the chosen game mode sees it — {@code null} for a plain race and between runs. */
+    private SpeedrunRun run;
     /** Registered fresh for every session, so a finished run's listener does not linger. */
     private SpeedrunOccupancyListener occupancy;
     /** Registered alongside {@link #occupancy}, for the same reason and on the same lifecycle. */
@@ -107,6 +125,11 @@ public final class SpeedrunLobby {
     private final Set<UUID> released = ConcurrentHashMap.newKeySet();
     /** Told once the world has actually come back from a reset — see {@link #onReady}. */
     private final List<Runnable> readyListeners = new CopyOnWriteArrayList<>();
+    /** Who was standing in the run's worlds when it reset itself, and is owed a way back into the
+     *  fresh lobby — see {@link #resetForAnotherRun}. Cleared as they are sent. */
+    private final Set<UUID> owedAWayBack = ConcurrentHashMap.newKeySet();
+    /** How a wait is scheduled. Core's global scheduler in production; a test drives it by hand. */
+    private DelayedTask later;
     /** Who {@code /speedrunspectate} has marked as not racing — excluded from a start block's sweep of
      *  "everybody in the lobby world" until they toggle it off again. Same thread-safety reasoning as
      *  {@link #released}. */
@@ -126,6 +149,12 @@ public final class SpeedrunLobby {
                 players == null ? null : new SpeedrunPreparation(players));
         this.countdownLauncher = (participants, onComplete) ->
                 new SpeedrunCountdown(plugin, bossBars, effects, participants, onComplete, released).begin();
+        if (timerDisplay != null) {
+            // Set here rather than handed to the constructor for the same reason as the launcher
+            // above: this lambda reads the lobby's own configuration, and a this(...) call's argument
+            // list may not reach the instance being built.
+            timerDisplay.alsoShowTo(this::onlookers);
+        }
     }
 
     /** For tests: a fake {@link SpeedrunCountdownLauncher} that never touches a live server. */
@@ -161,6 +190,12 @@ public final class SpeedrunLobby {
         this.preparation = preparation;
         this.messages = messages;
         this.timerDisplay = timerDisplay;
+        this.later = (ticks, task) -> Scheduling.globalLater(plugin, ticks, task);
+    }
+
+    /** For tests: runs the waits by hand instead of through Paper's scheduler. */
+    void schedulesLaterWith(DelayedTask later) {
+        this.later = later;
     }
 
     public SpeedrunSettings config() {
@@ -175,6 +210,25 @@ public final class SpeedrunLobby {
 
     public Optional<SpeedrunSession> session() {
         return Optional.ofNullable(session);
+    }
+
+    /**
+     * The game mode this lobby is set to, if one is chosen <em>and</em> installed. Empty for a plain
+     * race — and also for a mode named in {@code game-mode} whose module is not on the server, which
+     * is why {@link #validate} answers {@link StartOutcome#MODE_MISSING} rather than quietly racing
+     * plain: somebody who set the lobby to Manhunt and pressed the block meant to play Manhunt.
+     */
+    public Optional<SpeedrunMode> mode() {
+        return SpeedrunModes.find(config().gameMode());
+    }
+
+    /**
+     * Why the chosen mode would refuse a start with {@code participants}, as a wording key — empty
+     * when it would not, and for a plain race. Asked by whoever sends the refusal, so the reason a
+     * player reads is the mode's own rather than a generic "not right now".
+     */
+    public Optional<String> refusalFor(Collection<UUID> participants) {
+        return mode().flatMap(mode -> mode.refuseStart(config(), Set.copyOf(participants)));
     }
 
     /** Where the lobby is right now — see the class javadoc for why this is derived, not stored. */
@@ -303,6 +357,7 @@ public final class SpeedrunLobby {
     }
 
     private void announceReady() {
+        sendBackWhoeverIsOwedAWayIn();
         for (Runnable listener : readyListeners) {
             try {
                 listener.run();
@@ -418,19 +473,26 @@ public final class SpeedrunLobby {
             return problem;
         }
         SpeedrunSettings current = config();
+        SpeedrunMode chosen = mode().orElse(null);
         SpeedrunSession fresh = new SpeedrunSession(Set.copyOf(participants));
+        // Who reaching the goal actually ends the run. Every participant in a plain race; in Manhunt
+        // only a Runner, since a Hunter killing the dragon has won the Runners nothing. Asked of the
+        // mode at the moment it happens rather than snapshotted here, so a side changing mid-run —
+        // which Manhunt does not allow, but another mode might — is answered as it stands then.
+        java.util.function.Predicate<UUID> countsForGoal =
+                chosen == null ? participant -> true : chosen::countsForGoal;
         if (current.hasAdvancementGoal()) {
             NamespacedKey key = NamespacedKey.fromString(current.advancementKey());
             if (key != null) {
                 fresh.addEndCondition(current.isDragonKillGoal() && current.requireExitPortalAfterDragon()
-                        ? new DragonExitEndCondition(plugin, key)
-                        : new AdvancementEndCondition(plugin, key));
+                        ? new DragonExitEndCondition(plugin, key, countsForGoal)
+                        : new AdvancementEndCondition(plugin, key, countsForGoal));
             } else {
                 log.warn("'{}' is not a valid advancement key; the advancement goal was skipped.",
                         current.advancementKey());
             }
         }
-        if (current.hasDeathCondition()) {
+        if (current.hasDeathCondition() && (chosen == null || chosen.usesDeathPolicy())) {
             DeathEndCondition.DeathPolicy policy = current.deathPolicy() == SpeedrunDeathPolicy.ALL
                     ? DeathEndCondition.DeathPolicy.ALL : DeathEndCondition.DeathPolicy.ANY;
             fresh.addEndCondition(new DeathEndCondition(plugin, policy));
@@ -444,8 +506,9 @@ public final class SpeedrunLobby {
         creeperOnContainerOpen = new SpeedrunCreeperOnContainerOpenListener(fresh, settings);
         plugin.getServer().getPluginManager().registerEvents(creeperOnContainerOpen, plugin);
         fresh.onFinish(outcome -> announceFinish(fresh, outcome));
+        fresh.onFinish(outcome -> restartAfterFinish());
         if (preparation != null) {
-            preparation.prepare(world().orElse(null), fresh.participants());
+            preparation.prepare(world().orElse(null), fresh.participants(), current.timeAtStart());
         }
         // Wherever each of them actually is the moment the run begins — the configured /starthere
         // point if one was set (teleportToStartPoint already moved them there before the countdown),
@@ -463,6 +526,23 @@ public final class SpeedrunLobby {
                         () -> player.setRespawnLocation(player.getLocation(), true));
             }
         }
+        if (chosen != null) {
+            SpeedrunRun theRun = new SpeedrunRun(plugin, fresh, SpeedrunWorlds.around(current.worldName()));
+            run = theRun;
+            try {
+                chosen.onStart(theRun);
+            } catch (Throwable broken) {
+                // A mode that could not arm itself must not leave a plain race running in its place:
+                // everybody pressed start expecting that game, the lobby items are already gone, and
+                // a race nobody chose is a worse answer than none. So the run is forgotten outright
+                // and the lobby goes back to ready, which hands the items out again.
+                log.error(broken, "The game mode '{}' failed to start; the run was abandoned and the "
+                        + "lobby is ready again.", chosen.id());
+                disarmSession();
+                announceReady();
+                return StartOutcome.MODE_FAILED;
+            }
+        }
         if (timerDisplay != null) {
             timerDisplay.start(fresh);
         }
@@ -476,6 +556,17 @@ public final class SpeedrunLobby {
      * but the boss bar noticed.
      */
     private void announceFinish(SpeedrunSession finished, SpeedrunOutcome outcome) {
+        SpeedrunMode chosen = mode().orElse(null);
+        if (chosen != null) {
+            try {
+                if (chosen.announceFinish(finished, outcome)) {
+                    return;   // the mode said it in its own words; one ending, announced once
+                }
+            } catch (RuntimeException broken) {
+                log.error(broken, "The game mode '{}' threw while announcing the finish; the plain "
+                        + "line is sent instead.", chosen.id());
+            }
+        }
         if (messages == null) {
             return;
         }
@@ -522,7 +613,18 @@ public final class SpeedrunLobby {
         if (state() != SpeedrunLobbyState.READY) {
             return StartOutcome.NOT_READY;
         }
-        if (!config().hasEndCondition()) {
+        SpeedrunSettings current = config();
+        SpeedrunMode chosen = mode().orElse(null);
+        if (current.hasGameMode() && chosen == null) {
+            return StartOutcome.MODE_MISSING;
+        }
+        // A mode that keeps the death policy can be ended by it; one that does not — Manhunt, where
+        // a death eliminates a Runner rather than ending the run — needs the goal to exist, or the
+        // Runners would have nothing to win by.
+        boolean endable = chosen == null || chosen.usesDeathPolicy()
+                ? current.hasEndCondition()
+                : current.hasAdvancementGoal();
+        if (!endable) {
             return StartOutcome.NO_END_CONDITION;
         }
         if (participants == null || participants.isEmpty()) {
@@ -530,6 +632,9 @@ public final class SpeedrunLobby {
         }
         if (world().isEmpty()) {
             return StartOutcome.WORLD_MISSING;
+        }
+        if (chosen != null && chosen.refuseStart(current, Set.copyOf(participants)).isPresent()) {
+            return StartOutcome.REFUSED_BY_MODE;
         }
         return null;
     }
@@ -582,7 +687,116 @@ public final class SpeedrunLobby {
             HandlerList.unregisterAll(creeperOnContainerOpen);
             creeperOnContainerOpen = null;
         }
+        if (run != null) {
+            // Whatever the mode hung on the run — its listeners, its compasses, its spectators —
+            // goes here, on every path a run can end by, because this is the one place that knows
+            // the run is over. See SpeedrunRun.
+            run.disarm();
+            run = null;
+        }
         session = null;
+    }
+
+    /**
+     * Sets the wait after which a finished run remakes its own world and the lobby is usable again —
+     * see {@link #resetForAnotherRun}. Does nothing at all when the host turned that off, in which
+     * case the world still resets the old way: once the last participant has left the server.
+     */
+    private void restartAfterFinish() {
+        SpeedrunSettings current = config();
+        if (!current.restartWhenRunEnds()) {
+            return;
+        }
+        later.in(current.restartDelayTicks(), this::resetForAnotherRun);
+    }
+
+    /**
+     * What the wait set by {@link #restartAfterFinish} actually does: remakes the world the run was
+     * played in and puts everybody who was standing in it back into the fresh one, where the lobby
+     * items are waiting for them.
+     *
+     * <h2>Why a whole reset rather than simply handing the items back</h2>
+     * Because the items are not the point — another run is. The world a run just finished in has a
+     * dead dragon in it, a looted nether and a lit portal; handing somebody a start block for that
+     * map is handing them a block that refuses, because {@link #validate} would answer
+     * {@code NOT_READY} for as long as the finished session exists. The reset is the thing that makes
+     * the lobby ready, and the items follow from it through {@link #onReady} — which is exactly the
+     * path an abandoned run already took, only without needing everybody to disconnect first.
+     *
+     * <h2>Why it re-checks the state it was scheduled under</h2>
+     * The wait is seconds long and anything can happen in it: an admin can type
+     * {@code /speedrunreset}, the last racer can quit and take {@link #resetIfAbandoned} with them,
+     * the plugin can be reloaded. Whatever ran first has already done this; there is nothing left
+     * here to do.
+     */
+    private void resetForAnotherRun() {
+        if (session == null || session.state() != SpeedrunState.FINISHED) {
+            return;
+        }
+        World target = world().orElse(null);
+        // Read before the regeneration, which evacuates them: WorldRegenerator sends everybody
+        // standing in a doomed world back to wherever they came from, and "wherever they came from"
+        // is not the lobby they were waiting in.
+        owedAWayBack.clear();
+        owedAWayBack.addAll(whoIsInTheRunsWorlds());
+        disarmSession();
+        if (target == null) {
+            log.warn("The finished run's world '{}' is not loaded; nothing to regenerate.",
+                    config().worldName());
+            return;
+        }
+        regenerateTheWholeRun(target);
+    }
+
+    /**
+     * Puts everybody {@link #resetForAnotherRun} evacuated back into the world it just remade. Their
+     * arrival is what hands them the lobby items — {@code SpeedrunLobbyListener.onWorldChange} — and
+     * the sweep {@link #onReady} triggers catches anybody the teleport did not have to move.
+     */
+    private void sendBackWhoeverIsOwedAWayIn() {
+        if (owedAWayBack.isEmpty()) {
+            return;
+        }
+        World lobbyWorld = world().orElse(null);
+        Location spawn = lobbyWorld == null ? null : lobbyWorld.getSpawnLocation();
+        for (UUID id : Set.copyOf(owedAWayBack)) {
+            Player player = Bukkit.getPlayer(id);
+            if (player != null && spawn != null) {
+                // teleportAsync rather than a scheduler hop: Paper takes this request from any
+                // thread, and this runs on whichever one finished remaking the world.
+                player.teleportAsync(spawn);
+            }
+        }
+        owedAWayBack.clear();
+    }
+
+    /**
+     * Everybody standing in any of the three worlds a run is played across — the audience for the
+     * clock, and the list of people a reset owes a way back in.
+     */
+    private Set<UUID> whoIsInTheRunsWorlds() {
+        SpeedrunWorlds worlds = SpeedrunWorlds.around(config().worldName());
+        Set<UUID> found = new HashSet<>();
+        for (String name : List.of(worlds.overworld(), worlds.nether(), worlds.theEnd())) {
+            World world = Bukkit.getWorld(name);
+            if (world == null) {
+                continue;
+            }
+            for (Player player : world.getPlayers()) {
+                found.add(player.getUniqueId());
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Who is shown the run's clock besides the racers — see
+     * {@link SpeedrunTimerDisplay#alsoShowTo}. Everybody in the run's worlds, so somebody who joined
+     * the server mid-run and was dropped into the lobby sees how long it has been going, rather than
+     * having to ask.
+     */
+    private Collection<UUID> onlookers() {
+        return config().showTimerToOnlookers() ? whoIsInTheRunsWorlds() : Set.of();
     }
 
     private Optional<World> world() {

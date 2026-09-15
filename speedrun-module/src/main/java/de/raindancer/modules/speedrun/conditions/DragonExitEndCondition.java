@@ -17,6 +17,8 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Objects;
+import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
  * Ends a run the way an actual dragon-kill speedrun is judged: not the instant the dragon dies, but
@@ -54,12 +56,29 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
 
     private final Plugin plugin;
     private final NamespacedKey dragonKill;
+    private final Predicate<UUID> counts;
     private SpeedrunSession session;
     private volatile boolean dragonKilled;
 
     public DragonExitEndCondition(Plugin plugin, NamespacedKey dragonKill) {
+        this(plugin, dragonKill, participant -> true);
+    }
+
+    /**
+     * @param counts who leaving the End actually ends the run for — see
+     *               {@link de.raindancer.modules.speedrun.SpeedrunMode#countsForGoal}. The dragon
+     *               dying still arms the portal whoever landed the hit, including a Hunter: the flag
+     *               is a fact about the world, and it is the walk out that is somebody's win.
+     */
+    public DragonExitEndCondition(Plugin plugin, NamespacedKey dragonKill, Predicate<UUID> counts) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.dragonKill = Objects.requireNonNull(dragonKill, "dragonKill");
+        this.counts = Objects.requireNonNull(counts, "counts");
+    }
+
+    /** Whether leaving the End as {@code participant} ends the run — the game mode's answer. */
+    public boolean counts(UUID participant) {
+        return counts.test(participant);
     }
 
     @Override
@@ -127,7 +146,7 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
         if (event.getFrom().getEnvironment() != World.Environment.THE_END) {
             return;
         }
-        if (!session.participants().contains(event.getPlayer().getUniqueId())) {
+        if (!isGoalReacher(event.getPlayer().getUniqueId())) {
             return;
         }
         session.finish("advancement:" + dragonKill);
@@ -145,10 +164,14 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
         if (from == null || from.getEnvironment() != World.Environment.THE_END) {
             return;
         }
-        if (!session.participants().contains(event.getPlayer().getUniqueId())) {
+        if (!isGoalReacher(event.getPlayer().getUniqueId())) {
             return;
         }
         session.finish("advancement:" + dragonKill);
+    }
+
+    private boolean isGoalReacher(UUID player) {
+        return session.participants().contains(player) && counts.test(player);
     }
 
     @Override

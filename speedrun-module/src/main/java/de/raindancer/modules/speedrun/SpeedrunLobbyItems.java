@@ -58,10 +58,23 @@ public final class SpeedrunLobbyItems {
                 START);
     }
 
-    /** Clears the player's inventory and gives them exactly these two items. */
-    public void give(Player player) {
+    /**
+     * Clears the player's inventory and gives them the menu compass — and the start block too, when
+     * {@code withStartBlock}.
+     *
+     * <p>Handed out rather than greyed, unlike almost every other gated thing in these modules: a
+     * block in an ordinary player's hotbar that refuses on click is a thing to try again every round,
+     * and the lobby is the one place where what somebody is carrying <em>is</em> the interface. The
+     * refusal on {@code SpeedrunLobbyListener.onInteract} still exists behind this, for a block that
+     * was dropped, traded or kept from before a host changed the setting.
+     */
+    public void give(Player player, boolean withStartBlock) {
         player.getInventory().clear();
-        player.getInventory().addItem(menuCompass(), startBlock());
+        if (withStartBlock) {
+            player.getInventory().addItem(menuCompass(), startBlock());
+        } else {
+            player.getInventory().addItem(menuCompass());
+        }
     }
 
     public boolean isMenu(ItemStack stack) {

@@ -3,6 +3,7 @@ package de.raindancer.modules.speedrun;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.modules.speedrun.util.PermissionNodes;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -108,7 +109,20 @@ public final class SpeedrunLobbyListener implements Listener {
         if (!player.getWorld().getName().equals(lobby.config().worldName())) {
             return;   // anywhere else on the server is not this feature's business
         }
-        items.give(player);
+        items.give(player, mayStart(player));
+    }
+
+    /**
+     * Whether {@code player} is one of the people this lobby lets start a run — everybody, or only
+     * somebody holding {@link PermissionNodes#START}, depending on
+     * {@link SpeedrunSettings#startBlockStaffOnly()}.
+     *
+     * <p>Asked twice, on purpose: once when the items are handed out, so an ordinary player is not
+     * carrying a block that does nothing, and once on the click itself, because a block can be
+     * dropped, picked up, or kept from before a host changed the setting.
+     */
+    private boolean mayStart(Player player) {
+        return !lobby.config().startBlockStaffOnly() || player.hasPermission(PermissionNodes.START);
     }
 
     /**
@@ -189,6 +203,10 @@ public final class SpeedrunLobbyListener implements Listener {
             new SpeedrunLobbyMenu(lobby, messages, brand, player, null).open();
         } else if (items.isStart(held)) {
             event.setCancelled(true);
+            if (!mayStart(player)) {
+                messages.send(player, "speedrun.start.not-allowed");
+                return;
+            }
             startFromLobby(player);
         }
     }
@@ -212,6 +230,18 @@ public final class SpeedrunLobbyListener implements Listener {
             }
             return;
         }
+        // A mode's own refusal is its own sentence — "somebody has to be running" reads as an answer
+        // where a generic "not right now" reads as a bug. Asked of the mode rather than mapped here,
+        // since this module has never heard of whatever game is being refused.
+        if (outcome == SpeedrunLobby.StartOutcome.REFUSED_BY_MODE) {
+            messages.send(clicker, lobby.refusalFor(present).orElse("speedrun.start.not-ready"));
+            return;
+        }
+        // The one refusal with something to fill in: which mode the lobby is set to and cannot find.
+        if (outcome == SpeedrunLobby.StartOutcome.MODE_MISSING) {
+            messages.send(clicker, refusalKey(outcome), "mode", lobby.config().gameMode());
+            return;
+        }
         messages.send(clicker, refusalKey(outcome));
     }
 
@@ -221,6 +251,9 @@ public final class SpeedrunLobbyListener implements Listener {
             case NO_END_CONDITION -> "speedrun.start.no-end-condition";
             case NO_PARTICIPANTS -> "speedrun.start.no-participants";
             case WORLD_MISSING -> "speedrun.start.world-missing";
+            case MODE_MISSING -> "speedrun.start.mode-missing";
+            case MODE_FAILED -> "speedrun.start.mode-failed";
+            case REFUSED_BY_MODE -> throw new IllegalStateException("the mode's own wording is used");
             case STARTED -> throw new IllegalStateException("STARTED is not a refusal");
         };
     }
