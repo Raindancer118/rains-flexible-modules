@@ -37,6 +37,11 @@ public final class ManhuntTeams {
     public static final TeamId HUNTERS = TeamId.fromName("Hunters");
 
     private final Teams teams;
+    /** Set for the length of one deliberate change that is allowed through the freeze — see
+     *  {@link #evenWhileFrozen}. A plain field rather than a thread-local: every path that reaches
+     *  it is a command or a menu click, and both land on the server's own thread. */
+    private final java.util.concurrent.atomic.AtomicBoolean letThisOneThrough =
+            new java.util.concurrent.atomic.AtomicBoolean();
 
     /**
      * @param frozen whether roles may be changed right now — false the whole time no run is going,
@@ -53,7 +58,8 @@ public final class ManhuntTeams {
         // asked for.
         boolean[] bootstrapping = {true};
         this.teams = new Teams(() -> TeamPolicy.match(0, 2),
-                () -> !bootstrapping[0] && frozen.getAsBoolean(), uuid -> true);
+                () -> !bootstrapping[0] && !letThisOneThrough.get() && frozen.getAsBoolean(),
+                uuid -> true);
         ensureBothTeamsExist();
         bootstrapping[0] = false;
     }
@@ -75,6 +81,44 @@ public final class ManhuntTeams {
     /** Puts {@code player} on the Hunter team, moving them off the Runners if they were on it. */
     public Teams.MembershipChange joinHunters(UUID player) {
         return teams.join(player, HUNTERS);
+    }
+
+    /**
+     * Runs one membership change even while the sides are frozen — the single door a mid-hunt side
+     * change goes through, and nothing else.
+     *
+     * <h2>Why this exists instead of simply unfreezing during a hunt</h2>
+     * Because "frozen" has to keep meaning what it says at every other call site. A hunt that allows
+     * switching still refuses a stray {@code /manhunt join} that did not go through
+     * {@code ManhuntMode.changeSide} — the method that also hands over or takes back the compass and
+     * keeps the hunt's own roster in step. Unfreezing wholesale would make every one of those paths
+     * work and leave a Hunter with no compass, or a Runner carrying one.
+     */
+    public <T> T evenWhileFrozen(java.util.function.Supplier<T> change) {
+        letThisOneThrough.set(true);
+        try {
+            return change.get();
+        } finally {
+            letThisOneThrough.set(false);
+        }
+    }
+
+    /**
+     * Empties both sides — everybody back to no side at all.
+     *
+     * <p>Refused while the sides are frozen, like every other write here: clearing the rosters under
+     * a hunt that is reading them is the one change that cannot be explained to the people in it.
+     *
+     * @return how many players were taken off a side
+     */
+    public int clearBoth() {
+        int cleared = 0;
+        for (UUID member : everybody()) {
+            if (leave(member).isPresent()) {
+                cleared++;
+            }
+        }
+        return cleared;
     }
 
     /** Takes {@code player} off whichever side they were on. Empty if they were on neither. */

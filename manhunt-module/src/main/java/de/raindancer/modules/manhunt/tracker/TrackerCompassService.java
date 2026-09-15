@@ -278,6 +278,20 @@ public final class TrackerCompassService {
         }
     }
 
+    /**
+     * Takes this module's compass off {@code hunter} and forgets whatever they were following —
+     * for somebody who has just stopped being a Hunter mid-hunt, where {@link #disarm} (which does
+     * the same for everybody, at the end) is far too big a hammer.
+     */
+    public void takeFrom(Player hunter) {
+        UUID id = hunter.getUniqueId();
+        Scheduling.entity(plugin, hunter, () -> takeBack(hunter));
+        forget(id);
+        if (actionBars != null && showingDistance.remove(id)) {
+            actionBars.clear(id, DISTANCE_OWNER);
+        }
+    }
+
     private void takeBack(Player hunter) {
         ItemStack[] contents = hunter.getInventory().getContents();
         for (int slot = 0; slot < contents.length; slot++) {

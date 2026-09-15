@@ -51,6 +51,13 @@ public record ManhuntSettings(
                 + "which is what a chase actually needs.")
         int trackerRefreshTicks,
 
+        @In("manhunt/sides") @Title("Sides may change mid-hunt")
+        @Describe("Whether a player can move between Runners and Hunters while a hunt is actually "
+                + "being played. Off, the two sides are fixed the moment the clock starts and only "
+                + "/manhunt assign can move anybody. On, a Runner who gives up becomes a Hunter with "
+                + "a compass, and a Hunter who takes up the chase loses theirs.")
+        boolean sideSwitchingMidHunt,
+
         @In("manhunt/sides") @Title("Runners may choose themselves")
         @Describe("Whether a player can put themselves on the Runner side. Off, only an admin can, "
                 + "through /manhunt assign — everybody else is chasing.")
@@ -68,12 +75,12 @@ public record ManhuntSettings(
 
     /**
      * A fresh install: the needle follows the Runner through the door they took, every Hunter aims
-     * their own, distance shown, twice a second, anybody may run, and the server's own door is left
-     * exactly as the owner set it — a plugin that quietly whitelists a server is a plugin that locked
+     * their own, distance shown, twice a second, the two sides fixed for the length of a hunt,
+     * anybody may run, and the server's own door is left exactly as the owner set it — a plugin that quietly whitelists a server is a plugin that locked
      * somebody out of their own.
      */
     public static final ManhuntSettings DEFAULTS = new ManhuntSettings(
-            CrossWorldTracking.LAST_PORTAL, true, true, 10, true, false);
+            CrossWorldTracking.LAST_PORTAL, true, true, 10, false, true, false);
 
     // Every with… takes its parameter named after the component it replaces, so the parameter shadows
     // exactly that field and a swapped argument does not compile. ManhuntSettingsContractTest walks
@@ -83,32 +90,37 @@ public record ManhuntSettings(
 
     public ManhuntSettings withTrackerCrossWorld(CrossWorldTracking trackerCrossWorld) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, runnerSelfJoin, closeWhitelistOnStart);
+                trackerRefreshTicks, sideSwitchingMidHunt, runnerSelfJoin, closeWhitelistOnStart);
     }
 
     public ManhuntSettings withTrackerHunterMayChoose(boolean trackerHunterMayChoose) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, runnerSelfJoin, closeWhitelistOnStart);
+                trackerRefreshTicks, sideSwitchingMidHunt, runnerSelfJoin, closeWhitelistOnStart);
     }
 
     public ManhuntSettings withTrackerShowDistance(boolean trackerShowDistance) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, runnerSelfJoin, closeWhitelistOnStart);
+                trackerRefreshTicks, sideSwitchingMidHunt, runnerSelfJoin, closeWhitelistOnStart);
     }
 
     public ManhuntSettings withTrackerRefreshTicks(int trackerRefreshTicks) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, runnerSelfJoin, closeWhitelistOnStart);
+                trackerRefreshTicks, sideSwitchingMidHunt, runnerSelfJoin, closeWhitelistOnStart);
+    }
+
+    public ManhuntSettings withSideSwitchingMidHunt(boolean sideSwitchingMidHunt) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, sideSwitchingMidHunt, runnerSelfJoin, closeWhitelistOnStart);
     }
 
     public ManhuntSettings withRunnerSelfJoin(boolean runnerSelfJoin) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, runnerSelfJoin, closeWhitelistOnStart);
+                trackerRefreshTicks, sideSwitchingMidHunt, runnerSelfJoin, closeWhitelistOnStart);
     }
 
     public ManhuntSettings withCloseWhitelistOnStart(boolean closeWhitelistOnStart) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, runnerSelfJoin, closeWhitelistOnStart);
+                trackerRefreshTicks, sideSwitchingMidHunt, runnerSelfJoin, closeWhitelistOnStart);
     }
 
     /** The refresh interval, inside the range the settings screen offers — a hand-edited 0 is a busy loop. */

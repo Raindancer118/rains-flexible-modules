@@ -69,7 +69,8 @@ class SpeedrunSettingsTest {
                 "", "world", "", SpeedrunDeathPolicy.OFF, false, 0, 0, 0, 0,
                 false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, false, 1000,
-                true, true, true, true, true, true, true, true, true, true);
+                true, true, true, true, true, true, true, true, true, true,
+                false, false);
 
         assertThat(off.timeAtStart()).isEqualTo(SpeedrunPreparation.LEAVE_THE_TIME_ALONE);
     }

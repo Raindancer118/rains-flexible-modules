@@ -93,7 +93,8 @@ class ManhuntModeTest {
                 de.raindancer.modules.speedrun.SpeedrunDeathPolicy.OFF, true,
                 0, 0, 0, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true);
+                true, true, true, true, true, true, true, true, true, true,
+                false, false);
     }
 
     @Nested
@@ -305,6 +306,130 @@ class ManhuntModeTest {
             announce("admin-reset");
 
             verify(messages).send(eq(player), eq("manhunt.finished.stopped"), eq("time"), eq("2:05"));
+        }
+    }
+
+    /**
+     * The one door a side changes through mid-hunt — the roster, the team and the compass moving
+     * together. See {@link ManhuntMode#changeSide}.
+     */
+    @Nested
+    @DisplayName("changing sides mid-hunt")
+    class ChangingSides {
+
+        private Player online(UUID id) {
+            Player player = mock(Player.class);
+            when(player.getUniqueId()).thenReturn(id);
+            when(plugin.getServer().getPlayer(id)).thenReturn(player);
+            return player;
+        }
+
+        private void huntWith(UUID... runners) {
+            teams.joinRunners(runners[0]);
+            for (int i = 1; i < runners.length; i++) {
+                teams.joinRunners(runners[i]);
+            }
+            mode.onStart(runWith(Set.of(ANNA, BEN, CARO)));
+        }
+
+        private void allowSwitching(boolean allowed) {
+            settings.set(ManhuntSettings.DEFAULTS.withSideSwitchingMidHunt(allowed));
+        }
+
+        @Test
+        @DisplayName("with no hunt on, it says so rather than touching the lobby's teams")
+        void noHunt() {
+            assertThat(mode.changeSide(ANNA, ManhuntMode.Side.HUNTER, false))
+                    .isEqualTo(ManhuntMode.SideChange.NO_HUNT);
+        }
+
+        @Test
+        @DisplayName("a server that fixes its sides refuses a player outright")
+        void frozenForPlayers() {
+            allowSwitching(false);
+            huntWith(ANNA, BEN);
+
+            assertThat(mode.changeSide(ANNA, ManhuntMode.Side.HUNTER, false))
+                    .isEqualTo(ManhuntMode.SideChange.FROZEN);
+            assertThat(mode.current().orElseThrow().isRunner(ANNA)).isTrue();
+        }
+
+        @Test
+        @DisplayName("an admin's assign goes through on that same server")
+        void forcedGoesThroughWhileFrozen() {
+            allowSwitching(false);
+            huntWith(ANNA, BEN);
+            Player anna = online(ANNA);
+
+            assertThat(mode.changeSide(ANNA, ManhuntMode.Side.HUNTER, true))
+                    .isEqualTo(ManhuntMode.SideChange.CHANGED);
+
+            assertThat(mode.current().orElseThrow().isHunter(ANNA)).isTrue();
+            assertThat(teams.isHunter(ANNA)).as("the frozen team moved with the roster").isTrue();
+            verify(tracker).give(anna);
+        }
+
+        @Test
+        @DisplayName("a Runner turning Hunter is handed a compass and wears the Hunter team")
+        void runnerToHunter() {
+            allowSwitching(true);
+            huntWith(ANNA, BEN);
+            Player anna = online(ANNA);
+
+            assertThat(mode.changeSide(ANNA, ManhuntMode.Side.HUNTER, false))
+                    .isEqualTo(ManhuntMode.SideChange.CHANGED);
+
+            verify(tracker).give(anna);
+            verify(tracker, never()).takeFrom(anna);
+            assertThat(teams.isHunter(ANNA)).isTrue();
+        }
+
+        @Test
+        @DisplayName("a Hunter turning Runner has their compass taken away")
+        void hunterToRunner() {
+            allowSwitching(true);
+            huntWith(ANNA);
+            Player caro = online(CARO);
+
+            assertThat(mode.changeSide(CARO, ManhuntMode.Side.RUNNER, false))
+                    .isEqualTo(ManhuntMode.SideChange.CHANGED);
+
+            verify(tracker).takeFrom(caro);
+            assertThat(teams.isRunner(CARO)).isTrue();
+            assertThat(mode.current().orElseThrow().isRunner(CARO)).isTrue();
+        }
+
+        @Test
+        @DisplayName("the last Runner is refused, so a hunt is never ended by somebody leaving the side")
+        void theLastRunnerIsRefused() {
+            allowSwitching(true);
+            huntWith(ANNA);
+            online(ANNA);
+
+            assertThat(mode.changeSide(ANNA, ManhuntMode.Side.HUNTER, true))
+                    .isEqualTo(ManhuntMode.SideChange.LAST_RUNNER);
+            assertThat(mode.current().orElseThrow().isRunner(ANNA)).isTrue();
+        }
+
+        @Test
+        @DisplayName("somebody who is not in this hunt is refused")
+        void notInTheHunt() {
+            allowSwitching(true);
+            huntWith(ANNA, BEN);
+            UUID stranger = UUID.nameUUIDFromBytes("dan".getBytes());
+
+            assertThat(mode.changeSide(stranger, ManhuntMode.Side.HUNTER, true))
+                    .isEqualTo(ManhuntMode.SideChange.NOT_IN_THE_HUNT);
+        }
+
+        @Test
+        @DisplayName("asking for the side they are already on changes nothing")
+        void alreadyThere() {
+            allowSwitching(true);
+            huntWith(ANNA, BEN);
+
+            assertThat(mode.changeSide(CARO, ManhuntMode.Side.HUNTER, false))
+                    .isEqualTo(ManhuntMode.SideChange.ALREADY);
         }
     }
 }

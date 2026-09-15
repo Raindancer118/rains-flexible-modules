@@ -206,7 +206,20 @@ public record SpeedrunSettings(
         @In("speedrun/explosives") @Title("End crystals explode in the End")
         @Describe("The same for the run's End — the one that decides whether the dragon can be "
                 + "respawned, and whether her healing crystals can be shot down.")
-        boolean endCrystalsInTheEnd
+        boolean endCrystalsInTheEnd,
+
+        @In("speedrun/lobby") @Title("Players may break blocks before a run")
+        @Describe("Whether an ordinary player can break a block anywhere on the server while no run "
+                + "is under way. Off — the default — nobody can strip the start line, or scout the "
+                + "map, in the wait before a race. Anybody holding rainsspeedrun.admin is exempt, "
+                + "since somebody has to be able to build the lobby.")
+        boolean breakingBlocksBeforeRuns,
+
+        @In("speedrun/lobby") @Title("Monsters hunt players before a run")
+        @Describe("Whether a mob may pick a player as its target while no run is under way, anywhere "
+                + "on the server. Off — the default — everything ignores everybody until the clock "
+                + "starts, so waiting for a race is not a fight.")
+        boolean monstersHuntBeforeRuns
 
 ) {
 
@@ -244,7 +257,8 @@ public record SpeedrunSettings(
             "", DEFAULT_WORLD_NAME, DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, 0, 0, 0, 0,
             false, 0, 0, 0, 0, 0,
             true, true, true, true, true, 10, true, (int) SpeedrunPreparation.DAY_START,
-            true, true, true, true, true, true, true, true, true, true);
+            true, true, true, true, true, true, true, true, true, true,
+            false, false);
 
     /** Whether a game mode is chosen at all — an empty id is the plain race. */
     public boolean hasGameMode() {

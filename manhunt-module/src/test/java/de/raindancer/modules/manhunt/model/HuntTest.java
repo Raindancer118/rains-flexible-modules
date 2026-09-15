@@ -70,4 +70,77 @@ class HuntTest {
         assertThat(hunt.allRunnersOut()).isTrue();
         assertThat(hunt.livingRunners()).isEmpty();
     }
+
+    /**
+     * Mid-hunt side changes — the gated door, not the lobby's teams leaking in. See
+     * {@link Hunt#moveToHunters} for why a snapshot is still a snapshot with this on it.
+     */
+    @org.junit.jupiter.api.Nested
+    @org.junit.jupiter.api.DisplayName("changing sides mid-hunt")
+    class SideChanges {
+
+        @Test
+        @DisplayName("a Runner who gives up is a Hunter, and stops counting for the Runners' win")
+        void runnerBecomesHunter() {
+            Hunt hunt = Hunt.of(Set.of(ANNA, BEN, CARO), Set.of(ANNA, BEN));
+
+            assertThat(hunt.moveToHunters(ANNA)).isEqualTo(Hunt.SideChange.MOVED);
+
+            assertThat(hunt.runners()).containsExactly(BEN);
+            assertThat(hunt.hunters()).containsExactlyInAnyOrder(ANNA, CARO);
+            assertThat(hunt.isRunner(ANNA)).isFalse();
+        }
+
+        @Test
+        @DisplayName("a Hunter who takes up running is a Runner")
+        void hunterBecomesRunner() {
+            Hunt hunt = Hunt.of(Set.of(ANNA, BEN), Set.of(ANNA));
+
+            assertThat(hunt.moveToRunners(BEN)).isEqualTo(Hunt.SideChange.MOVED);
+
+            assertThat(hunt.runners()).containsExactlyInAnyOrder(ANNA, BEN);
+            assertThat(hunt.hunters()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("the last Runner cannot walk off the side and end the hunt by accident")
+        void theLastRunnerIsRefused() {
+            Hunt hunt = Hunt.of(Set.of(ANNA, BEN), Set.of(ANNA));
+
+            assertThat(hunt.moveToHunters(ANNA)).isEqualTo(Hunt.SideChange.LAST_RUNNER);
+
+            assertThat(hunt.runners()).containsExactly(ANNA);
+        }
+
+        @Test
+        @DisplayName("a caught Runner switching sides stops being counted as caught")
+        void anEliminatedRunnerSwitchingIsNoLongerOut() {
+            Hunt hunt = Hunt.of(Set.of(ANNA, BEN, CARO), Set.of(ANNA, BEN));
+            hunt.eliminate(ANNA);
+
+            assertThat(hunt.moveToHunters(ANNA)).isEqualTo(Hunt.SideChange.MOVED);
+
+            assertThat(hunt.eliminated()).isEmpty();
+            assertThat(hunt.allRunnersOut()).isFalse();
+        }
+
+        @Test
+        @DisplayName("somebody who is not in the hunt at all is refused, not added")
+        void anOutsiderIsRefused() {
+            Hunt hunt = Hunt.of(Set.of(ANNA), Set.of(ANNA));
+
+            assertThat(hunt.moveToHunters(DAN)).isEqualTo(Hunt.SideChange.NOT_IN_THE_HUNT);
+            assertThat(hunt.moveToRunners(DAN)).isEqualTo(Hunt.SideChange.NOT_IN_THE_HUNT);
+            assertThat(hunt.everybody()).containsExactly(ANNA);
+        }
+
+        @Test
+        @DisplayName("asking for the side somebody is already on says so")
+        void alreadyThere() {
+            Hunt hunt = Hunt.of(Set.of(ANNA, BEN), Set.of(ANNA));
+
+            assertThat(hunt.moveToRunners(ANNA)).isEqualTo(Hunt.SideChange.ALREADY_THERE);
+            assertThat(hunt.moveToHunters(BEN)).isEqualTo(Hunt.SideChange.ALREADY_THERE);
+        }
+    }
 }

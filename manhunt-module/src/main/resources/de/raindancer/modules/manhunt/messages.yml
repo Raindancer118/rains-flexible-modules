@@ -4,7 +4,7 @@
 # does a host's bundled wording. See Messages.defineFrom.
 manhunt:
   # Somebody typed a word /manhunt does not have.
-  unknown-word: "<yellow>No such thing as <white><word></white>. Try join, leave, assign or status."
+  unknown-word: "<yellow>No such thing as <white><word></white>. Try join, leave, assign, reset or status."
   # A command that only makes sense for somebody standing in the world.
   only-a-player: "<red>Only a player can do that."
   # /manhunt assign, without the permission for it.
@@ -28,6 +28,17 @@ manhunt:
   assign:
     usage: "<yellow>/manhunt assign <player> <runner|hunter>."
     done: "<green><player> is now on the <white><side></white> side."
+    # Sent just before the confirmation page opens, so the warning is in the log as well as on screen.
+    mid-hunt-warning: "<yellow>A hunt is being played. Moving <white><player></white> to the <white><side></white>s changes the round everybody is in."
+  # What a mid-hunt side change did. See ManhuntMode.changeSide.
+  side:
+    changed: "<green><player> is now on the <white><side></white> side."
+    already: "<yellow><player> is already on that side."
+    last-runner: "<yellow>Somebody has to be running — <white><player></white> is the last Runner left."
+    not-in-hunt: "<yellow><player> is not in this hunt."
+    hunt-over: "<yellow>That hunt is over — the sides are yours to pick again."
+  reset:
+    done: "<green>Both sides are empty again — <white><players></white> player(s) were taken off one."
   status:
     waiting: "<gray>Running: <white><runners></white>. Hunting: <white><hunters></white>."
     running: "<gray>The hunt is on. Still running: <white><runners></white> (<out> caught), <white><hunters></white> hunting."

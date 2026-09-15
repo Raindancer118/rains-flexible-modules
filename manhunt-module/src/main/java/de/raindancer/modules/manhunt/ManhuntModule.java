@@ -1,6 +1,7 @@
 package de.raindancer.modules.manhunt;
 
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.ui.menu.ConfirmMenu;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
@@ -10,6 +11,7 @@ import de.raindancer.modules.manhunt.mode.ManhuntMode;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.screen.ManhuntSidesMenu;
 import de.raindancer.modules.manhunt.service.Eliminations;
+import de.raindancer.modules.manhunt.service.HuntersByDefaultListener;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
 import de.raindancer.modules.manhunt.service.WhitelistVips;
 import de.raindancer.modules.manhunt.service.SpectatorRestoreListener;
@@ -108,8 +110,33 @@ public final class ManhuntModule implements FlexModule {
 
         ManhuntServices services = new ManhuntServices(context.core().messages(),
                 context.chat().brand(), settings, teams, liveMode, whitelist,
-                viewer -> new ManhuntSidesMenu(holder[0], viewer, null).open());
+                new ManhuntServices.Screens() {
+                    @Override
+                    public void sides(org.bukkit.entity.Player viewer) {
+                        new ManhuntSidesMenu(holder[0], viewer, null).open();
+                    }
+
+                    @Override
+                    public void confirm(org.bukkit.entity.Player viewer, String question,
+                                        List<String> consequences, Runnable onYes) {
+                        // Core's own page, rather than a fourth copy of "are you sure?" — see
+                        // ConfirmMenu's javadoc for why no plugin writes its own any more. The
+                        // closing line is this module's, because nothing here is undone by saying no.
+                        new ConfirmMenu(viewer, context.chat().brand(), null, question, consequences,
+                                "<dark_gray>The hunt carries on either way.", onYes).open();
+                    }
+                });
         holder[0] = services;
+
+        // With the Runners hand-picked, everybody who has not been named is hunting — said up front
+        // rather than at the start whistle. See HuntersByDefaultListener.
+        HuntersByDefaultListener huntersByDefault = new HuntersByDefaultListener(
+                settings::current, teams, () -> mode != null && mode.isRunning());
+        context.listener(huntersByDefault);
+        huntersByDefault.sweep(server);
+        // And again the moment a host turns the setting off with a lobby full of people who never
+        // picked anything.
+        settings.onChange(fresh -> huntersByDefault.sweep(server));
 
         // Registered for the life of the module, not of a hunt: its whole job is somebody whose hunt
         // no longer exists. Everything scoped to one hunt is registered through SpeedrunRun instead —

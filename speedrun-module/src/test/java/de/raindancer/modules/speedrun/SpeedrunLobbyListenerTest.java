@@ -91,7 +91,8 @@ class SpeedrunLobbyListenerTest {
             when(lobby.config()).thenReturn(
                     new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             Player player = playerInWorld("world");
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
@@ -114,7 +115,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("", "speedrun-lobby", "minecraft:end/kill_dragon",
                             SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             Player player = playerInWorld("world");   // the server's real, shared world — not the lobby
 
             try (MockedStatic<Bukkit> bukkit =
@@ -137,7 +139,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             Player player = playerInWorld("world");   // already in the lobby world — no teleport needed
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
@@ -153,7 +156,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             Player player = playerInWorld("world");   // already in the lobby world — no teleport needed
 
             listener.onJoin(new PlayerJoinEvent(player, "hi"));
@@ -169,7 +173,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             Player player = playerInWorld("world");
             World lobbyWorld = mock(World.class);
             Location lobbySpawn = mock(Location.class);
@@ -193,7 +198,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             Player player = playerInWorld("world");
 
             try (MockedStatic<Bukkit> bukkit =
@@ -219,7 +225,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             Player player = playerWithId(ALICE);
             World lobbyWorld = mock(World.class);
             when(lobbyWorld.getName()).thenReturn("speedrun");
@@ -256,7 +263,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             World lobbyWorld = mock(World.class);
             when(lobbyWorld.getName()).thenReturn("speedrun");
             Player alice = playerWithId(ALICE);
@@ -285,7 +293,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
 
             try (MockedStatic<Bukkit> bukkit =
                          mockStatic(Bukkit.class)) {
@@ -327,7 +336,8 @@ class SpeedrunLobbyListenerTest {
             when(lobby.config()).thenReturn(
                     new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             Player player = playerInWorld("world");
             World world = player.getWorld();
             Location from = new Location(world, 10, 64, 10, 90f, 0f);
@@ -347,7 +357,8 @@ class SpeedrunLobbyListenerTest {
             when(lobby.config()).thenReturn(
                     new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             Player player = playerInWorld("world");
             World world = player.getWorld();
             Location from = new Location(world, 10, 64, 10, 90f, 0f);
@@ -384,7 +395,8 @@ class SpeedrunLobbyListenerTest {
                     new SpeedrunSettings("", "speedrun-lobby", "minecraft:end/kill_dragon",
                             SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true));
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
             Player player = playerInWorld("world");
             World world = player.getWorld();
             Location from = new Location(world, 10, 64, 10);
@@ -424,7 +436,8 @@ class SpeedrunLobbyListenerTest {
             SpeedrunSettings config = new SpeedrunSettings("", "world", "minecraft:end/kill_dragon",
                     SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                     false, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true);
+                true, true, true, true, true, true, true, true, true, true,
+                false, false);
             when(lobby.config()).thenReturn(config);
         }
 
@@ -537,7 +550,8 @@ class SpeedrunLobbyListenerTest {
             return new SpeedrunSettings("", "world", "minecraft:end/kill_dragon",
                     SpeedrunDeathPolicy.OFF, false, 0, 0, 0, 0, false, 0, 0, 0, 0, 0,
                     on, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true);
+                true, true, true, true, true, true, true, true, true, true,
+                false, false);
         }
 
         private Player inLobby(boolean mayStart) {

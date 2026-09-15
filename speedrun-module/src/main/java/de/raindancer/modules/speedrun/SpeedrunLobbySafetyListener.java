@@ -5,9 +5,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import de.raindancer.modules.speedrun.util.PermissionNodes;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
 
 /**
@@ -93,6 +96,56 @@ public final class SpeedrunLobbySafetyListener implements Listener {
         }
     }
 
+    /**
+     * Refuses an ordinary player breaking a block while no run is under way — <em>anywhere</em> on
+     * the server, unlike the two handlers above.
+     *
+     * <h2>Why this one is not scoped to the lobby world</h2>
+     * Asked for that way, and it is the only scope that means anything: the point is that the wait
+     * before a race is not a head start, and a racer who can reach any other world in the wait can
+     * mine there instead. The module already assumes a server built around this one lobby — see
+     * {@link SpeedrunLobbyListener}'s own note on why its join handler reaches server-wide.
+     *
+     * <p>Anybody holding {@link PermissionNodes#ADMIN} is exempt: somebody has to be able to build
+     * the lobby, fix the start line, and clear whatever the last round left, and all of that happens
+     * in exactly the state this refuses.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onBreak(BlockBreakEvent event) {
+        if (lobby.config().breakingBlocksBeforeRuns() || running()) {
+            return;
+        }
+        if (event.getPlayer().hasPermission(PermissionNodes.ADMIN)) {
+            return;
+        }
+        event.setCancelled(true);
+    }
+
+    /**
+     * Takes every mob's attention off every player while no run is under way, anywhere on the server
+     * — the same reach and the same reasoning as {@link #onBreak}.
+     *
+     * <p>By the <em>target</em> rather than by the mob's type: a phantom and a ghast are not
+     * {@code Monster}s in Bukkit's own hierarchy, and an angry wolf is not one either, yet all three
+     * make the wait a fight. What they have in common is the thing worth checking — they picked a
+     * player.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onTarget(EntityTargetEvent event) {
+        if (lobby.config().monstersHuntBeforeRuns() || running()) {
+            return;
+        }
+        if (event.getTarget() instanceof Player && !(event.getEntity() instanceof Player)) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** Whether a race is actually being played right now — the fence every rule here sits behind. */
+    private boolean running() {
+        SpeedrunLobbyState state = lobby.state();
+        return state == SpeedrunLobbyState.RUNNING || state == SpeedrunLobbyState.PAUSED;
+    }
+
     private boolean explosionsAreRefused(World world) {
         return betweenRuns(world) && lobby.config().lobbyExplosionsBlocked();
     }
@@ -102,8 +155,7 @@ public final class SpeedrunLobbySafetyListener implements Listener {
         if (world == null || !world.getName().equals(lobby.config().worldName())) {
             return false;
         }
-        SpeedrunLobbyState state = lobby.state();
-        return state != SpeedrunLobbyState.RUNNING && state != SpeedrunLobbyState.PAUSED;
+        return !running();
     }
 
     /** Whether this damage came out of an explosion, by either of the two causes Bukkit has for one. */

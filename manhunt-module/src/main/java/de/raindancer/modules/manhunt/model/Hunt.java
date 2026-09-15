@@ -28,14 +28,14 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class Hunt {
 
-    private final Set<UUID> runners;
-    private final Set<UUID> hunters;
+    private final Set<UUID> runners = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> hunters = ConcurrentHashMap.newKeySet();
     /** Runners who have died. Written from a death event, read from the end condition's own check. */
     private final Set<UUID> eliminated = ConcurrentHashMap.newKeySet();
 
     private Hunt(Set<UUID> runners, Set<UUID> hunters) {
-        this.runners = Set.copyOf(runners);
-        this.hunters = Set.copyOf(hunters);
+        this.runners.addAll(runners);
+        this.hunters.addAll(hunters);
     }
 
     /**
@@ -55,11 +55,11 @@ public final class Hunt {
     }
 
     public Set<UUID> runners() {
-        return runners;
+        return Set.copyOf(runners);
     }
 
     public Set<UUID> hunters() {
-        return hunters;
+        return Set.copyOf(hunters);
     }
 
     public boolean isRunner(UUID player) {
@@ -68,6 +68,62 @@ public final class Hunt {
 
     public boolean isHunter(UUID player) {
         return hunters.contains(player);
+    }
+
+    /** What {@link #moveToHunters}/{@link #moveToRunners} answered. */
+    public enum SideChange {
+        /** They are on the other side now. */
+        MOVED,
+        /** They were already there. */
+        ALREADY_THERE,
+        /** They are not in this hunt at all — a spectator, or somebody who joined after it began. */
+        NOT_IN_THE_HUNT,
+        /** Refused: they are the only Runner left, and a hunt with nobody running is over by accident. */
+        LAST_RUNNER
+    }
+
+    /**
+     * Moves {@code player} from the Runners to the Hunters, mid-hunt.
+     *
+     * <h2>Why a hunt can be edited at all, when the class javadoc above calls it a snapshot</h2>
+     * It still is one: the roster is never <em>re-read</em> from the lobby's teams, which is the
+     * failure that reasoning exists to prevent — somebody joining the Runners mid-hunt cannot
+     * resurrect a hunt already won. This is the other thing entirely: one deliberate, gated move,
+     * made by a player who asked for it or an admin who typed it, through a door that keeps the
+     * compass and the team in step with it. Whether that door exists at all is
+     * {@code ManhuntSettings.sideSwitchingMidHunt}.
+     *
+     * <p>An eliminated Runner switching sides stops being eliminated: they are not an out Runner any
+     * more, they are a Hunter, and leaving them on the eliminated list would let a hunt end as
+     * "every Runner caught" counting somebody who is doing the catching.
+     */
+    public SideChange moveToHunters(UUID player) {
+        if (hunters.contains(player)) {
+            return SideChange.ALREADY_THERE;
+        }
+        if (!runners.contains(player)) {
+            return SideChange.NOT_IN_THE_HUNT;
+        }
+        if (livingRunners().size() <= 1 && !isEliminated(player)) {
+            return SideChange.LAST_RUNNER;
+        }
+        runners.remove(player);
+        eliminated.remove(player);
+        hunters.add(player);
+        return SideChange.MOVED;
+    }
+
+    /** The mirror: a Hunter takes up running. See {@link #moveToHunters} for why this is allowed. */
+    public SideChange moveToRunners(UUID player) {
+        if (runners.contains(player)) {
+            return SideChange.ALREADY_THERE;
+        }
+        if (!hunters.contains(player)) {
+            return SideChange.NOT_IN_THE_HUNT;
+        }
+        hunters.remove(player);
+        runners.add(player);
+        return SideChange.MOVED;
     }
 
     /**
@@ -96,9 +152,15 @@ public final class Hunt {
         return Set.copyOf(eliminated);
     }
 
-    /** Whether the Hunters have caught every Runner — the moment they win. */
+    /**
+     * Whether the Hunters have caught every Runner — the moment they win.
+     *
+     * <p>A hunt with nobody on the Runner side is <em>not</em> that: {@link #moveToHunters} refuses
+     * to empty the side for exactly this reason, and an empty set is "containsAll" of itself, which
+     * would read as a win nobody earned.
+     */
     public boolean allRunnersOut() {
-        return eliminated.containsAll(runners);
+        return !runners.isEmpty() && eliminated.containsAll(runners);
     }
 
     /** Everybody in the hunt, both sides. */

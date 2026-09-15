@@ -16,11 +16,20 @@ public record ManhuntServices(Messages messages, Brand brand, SettingsStore<Manh
                               ManhuntTeams teams, ManhuntMode mode, ManhuntWhitelistService whitelist,
                               Screens screens) {
 
-    /** Opening this module's one screen. An interface so the commands never import a menu class. */
-    @FunctionalInterface
+    /** Opening this module's screens. An interface so the commands never import a menu class. */
     public interface Screens {
 
         void sides(Player viewer);
+
+        /**
+         * Core's own "are you sure?" page, for the one thing in this module worth asking about: an
+         * admin moving somebody between sides in the middle of a hunt.
+         *
+         * @param consequences what saying yes actually does, a line each, as MiniMessage
+         * @param onYes        run on the confirming click
+         */
+        void confirm(Player viewer, String question, java.util.List<String> consequences,
+                     Runnable onYes);
     }
 
     public ManhuntSettings config() {

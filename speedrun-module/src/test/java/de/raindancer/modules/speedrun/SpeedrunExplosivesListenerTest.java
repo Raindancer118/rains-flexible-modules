@@ -42,7 +42,8 @@ class SpeedrunExplosivesListenerTest {
         return new SpeedrunSettings(base.gameMode(), "world", base.advancementKey(),
                 base.deathPolicy(), base.requireExitPortalAfterDragon(), 0, 0, 0, 0,
                 false, 0, 0, 0, 0, 0, true, true, true, true, true, 10, true, 1000,
-                false, false, false, false, false, false, false, false, false, false);
+                false, false, false, false, false, false, false, false, false, false,
+                false, false);
     }
 
     private static SpeedrunSettings everythingExplodes() {
@@ -50,7 +51,8 @@ class SpeedrunExplosivesListenerTest {
         return new SpeedrunSettings(off.gameMode(), off.worldName(), off.advancementKey(),
                 off.deathPolicy(), off.requireExitPortalAfterDragon(), 0, 0, 0, 0,
                 false, 0, 0, 0, 0, 0, true, true, true, true, true, 10, true, 1000,
-                true, true, true, true, true, true, true, true, true, true);
+                true, true, true, true, true, true, true, true, true, true,
+                false, false);
     }
 
     @BeforeEach

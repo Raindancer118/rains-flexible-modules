@@ -107,10 +107,77 @@ class ManhuntCommandTest {
     @DisplayName("sides cannot change while a hunt is being played")
     void frozenDuringAHunt() {
         when(fake.mode.isRunning()).thenReturn(true);
+        when(fake.mode.changeSide(any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(de.raindancer.modules.manhunt.mode.ManhuntMode.SideChange.FROZEN);
 
         command.execute(source, new String[]{"join", "runner"});
 
         assertThat(fake.teams.runners()).isEmpty();
+        verify(fake.messages).send(eq(anna), eq("manhunt.sides-frozen"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("mid-hunt, a join goes through the mode, which moves the compass with it")
+    void joiningMidHuntGoesThroughTheMode() {
+        when(fake.mode.isRunning()).thenReturn(true);
+        when(fake.mode.changeSide(ANNA, de.raindancer.modules.manhunt.mode.ManhuntMode.Side.HUNTER, false))
+                .thenReturn(de.raindancer.modules.manhunt.mode.ManhuntMode.SideChange.CHANGED);
+
+        command.execute(source, new String[]{"join", "hunter"});
+
+        verify(fake.mode).changeSide(ANNA,
+                de.raindancer.modules.manhunt.mode.ManhuntMode.Side.HUNTER, false);
+        assertThat(fake.teams.hunters())
+                .as("the team is the mode's to move, not the command's")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("with the Runners hand-picked, not even an admin can choose to run")
+    void handPickedRunnersHaveNoAdminBackDoor() {
+        fake.settings.set("runner-self-join", "false");
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+
+        command.execute(source, new String[]{"join", "runner"});
+
+        assertThat(fake.teams.runners()).isEmpty();
+        verify(fake.messages).send(eq(anna), eq("manhunt.join.runners-locked"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("reset empties both sides, and needs the admin node")
+    void resetClearsBothSides() {
+        fake.teams.joinRunners(ANNA);
+        fake.teams.joinHunters(BEN);
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+
+        command.execute(source, new String[]{"reset"});
+
+        assertThat(fake.teams.everybody()).isEmpty();
+        verify(fake.messages).send(eq(anna), eq("manhunt.reset.done"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("reset is refused to somebody without the admin node")
+    void resetNeedsThePermission() {
+        fake.teams.joinRunners(ANNA);
+
+        command.execute(source, new String[]{"reset"});
+
+        assertThat(fake.teams.runners()).containsExactly(ANNA);
+        verify(fake.messages).send(eq(anna), eq("manhunt.not-yours"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("reset is refused while a hunt is being played")
+    void resetIsRefusedMidHunt() {
+        fake.teams.joinRunners(ANNA);
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        when(fake.mode.isRunning()).thenReturn(true);
+
+        command.execute(source, new String[]{"reset"});
+
+        assertThat(fake.teams.runners()).containsExactly(ANNA);
         verify(fake.messages).send(eq(anna), eq("manhunt.sides-frozen"), any(Object[].class));
     }
 
@@ -190,5 +257,52 @@ class ManhuntCommandTest {
         assertThat(command.suggest(source, new String[]{""}))
                 .contains("join", "leave", "assign", "status");
         assertThat(command.suggest(source, new String[]{"join", "r"})).containsExactly("runner");
+    }
+
+    @Test
+    @DisplayName("assign mid-hunt asks a player first, and moves nobody until they say yes")
+    void assignMidHuntAsksAPlayer() {
+        Player ben = mock(Player.class);
+        when(ben.getUniqueId()).thenReturn(BEN);
+        when(ben.getName()).thenReturn("Ben");
+        bukkit = mockStatic(Bukkit.class);
+        bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        when(fake.mode.isRunning()).thenReturn(true);
+        when(fake.mode.changeSide(BEN, de.raindancer.modules.manhunt.mode.ManhuntMode.Side.HUNTER, true))
+                .thenReturn(de.raindancer.modules.manhunt.mode.ManhuntMode.SideChange.CHANGED);
+
+        command.execute(source, new String[]{"assign", "Ben", "hunter"});
+
+        assertThat(fake.confirmationsAskedOf).containsExactly(anna);
+        verify(fake.mode, org.mockito.Mockito.never()).changeSide(any(), any(),
+                org.mockito.ArgumentMatchers.anyBoolean());
+
+        fake.lastConfirmation.run();   // they clicked yes
+
+        verify(fake.mode).changeSide(BEN,
+                de.raindancer.modules.manhunt.mode.ManhuntMode.Side.HUNTER, true);
+    }
+
+    @Test
+    @DisplayName("the console is not asked — it meant what it typed")
+    void assignMidHuntFromConsoleGoesStraightThrough() {
+        Player ben = mock(Player.class);
+        when(ben.getUniqueId()).thenReturn(BEN);
+        when(ben.getName()).thenReturn("Ben");
+        bukkit = mockStatic(Bukkit.class);
+        bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+        CommandSender console = mock(CommandSender.class);
+        when(console.hasPermission(anyString())).thenReturn(true);
+        when(source.getSender()).thenReturn(console);
+        when(fake.mode.isRunning()).thenReturn(true);
+        when(fake.mode.changeSide(BEN, de.raindancer.modules.manhunt.mode.ManhuntMode.Side.RUNNER, true))
+                .thenReturn(de.raindancer.modules.manhunt.mode.ManhuntMode.SideChange.CHANGED);
+
+        command.execute(source, new String[]{"assign", "Ben", "runner"});
+
+        assertThat(fake.confirmationsAskedOf).isEmpty();
+        verify(fake.mode).changeSide(BEN,
+                de.raindancer.modules.manhunt.mode.ManhuntMode.Side.RUNNER, true);
     }
 }

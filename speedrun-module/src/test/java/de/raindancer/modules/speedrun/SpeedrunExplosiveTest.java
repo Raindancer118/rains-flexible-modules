@@ -37,7 +37,8 @@ class SpeedrunExplosiveTest {
                 base.lobbyExplosionsBlocked(), base.showTimerToOnlookers(), base.restartWhenRunEnds(),
                 base.restartAfterSeconds(), base.setTimeOnStart(), base.startTimeTicks(),
                 bedNether, bedEnd, anchorOverworld, anchorEnd, tntOverworld, tntNether, tntEnd,
-                crystalOverworld, crystalNether, crystalEnd);
+                crystalOverworld, crystalNether, crystalEnd,
+                false, false);
     }
 
     @Test

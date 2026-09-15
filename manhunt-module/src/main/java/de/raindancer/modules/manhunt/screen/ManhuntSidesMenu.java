@@ -5,7 +5,6 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.manhunt.ManhuntServices;
 import de.raindancer.modules.manhunt.model.Hunt;
-import de.raindancer.modules.manhunt.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
@@ -53,11 +52,57 @@ public final class ManhuntSidesMenu extends Menu {
         renderRosters(hunt);
         if (hunt == null) {
             renderJoinButtons();
+        } else if (services.config().sideSwitchingMidHunt()) {
+            // A server that lets people change sides mid-hunt shows the same two buttons; they go
+            // through ManhuntMode.changeSide, which moves the compass and the roster with them.
+            band(MenuLayout.RULES, 4, Icons.of(Material.CLOCK, "<white>The hunt is on",
+                    "<gray>" + hunt.eliminated().size() + " of " + hunt.runners().size()
+                            + " Runner(s) caught.",
+                    "<dark_gray>You may still change sides."));
+            renderSwitchButtons();
         } else {
             band(MenuLayout.RULES, 4, Icons.of(Material.CLOCK, "<white>The hunt is on",
                     "<gray>" + hunt.eliminated().size() + " of " + hunt.runners().size()
                             + " Runner(s) caught.",
                     "<dark_gray>Sides are fixed until it ends."));
+        }
+    }
+
+    /**
+     * The two buttons again, mid-hunt, for a server that allows it. Each one asks the mode rather
+     * than the teams: a side change during a hunt is a compass and a roster as well as a colour, and
+     * {@code ManhuntMode.changeSide} is the only door that moves all three. Whatever it answers —
+     * "somebody has to be running", say — is said by the mode itself.
+     */
+    private void renderSwitchButtons() {
+        band(MenuLayout.RULES, 3, Icons.of(Material.FEATHER, "<white>Run instead",
+                        "<gray>Give up the chase and race the goal.",
+                        "<dark_gray>Your compass goes back."),
+                click -> {
+                    switchTo(de.raindancer.modules.manhunt.mode.ManhuntMode.Side.RUNNER);
+                    refresh();
+                });
+        band(MenuLayout.RULES, 5, Icons.of(Material.IRON_SWORD, "<white>Hunt instead",
+                        "<gray>Stop running and join the pack.",
+                        "<dark_gray>You are handed a tracking compass."),
+                click -> {
+                    switchTo(de.raindancer.modules.manhunt.mode.ManhuntMode.Side.HUNTER);
+                    refresh();
+                });
+    }
+
+    private void switchTo(de.raindancer.modules.manhunt.mode.ManhuntMode.Side side) {
+        var outcome = services.mode().changeSide(viewer.getUniqueId(), side, false);
+        switch (outcome) {
+            case CHANGED -> { }   // the mode already told them which side they are on
+            case FROZEN -> services.messages().send(viewer, "manhunt.sides-frozen");
+            case ALREADY -> services.messages().send(viewer, "manhunt.side.already",
+                    "player", viewer.getName());
+            case LAST_RUNNER -> services.messages().send(viewer, "manhunt.side.last-runner",
+                    "player", viewer.getName());
+            case NOT_IN_THE_HUNT -> services.messages().send(viewer, "manhunt.side.not-in-hunt",
+                    "player", viewer.getName());
+            case NO_HUNT -> services.messages().send(viewer, "manhunt.side.hunt-over");
         }
     }
 
@@ -78,18 +123,32 @@ public final class ManhuntSidesMenu extends Menu {
         band(MenuLayout.WHO, 5, Icons.of(Material.RED_BANNER, "<red>Hunters", hunterLore));
     }
 
+    /**
+     * The choice, before a hunt starts.
+     *
+     * <h2>Why the Run button is gone rather than greyed when the Runners are hand-picked</h2>
+     * Because on that server there is no choice to offer <em>anybody</em>, an admin included: the
+     * Runners are named with {@code /manhunt assign}, and everybody else — including the admin who
+     * has not been named — is hunting. A greyed button says "you might be allowed to press this";
+     * a locked one an admin can press anyway would be a second door to a decision that is supposed
+     * to have one. So the page shows the one side there is to choose.
+     */
     private void renderJoinButtons() {
-        boolean mayRun = services.config().runnerSelfJoin()
-                || viewer.hasPermission(PermissionNodes.ADMIN);
-        var runButton = Icons.of(Material.FEATHER, "<white>Run",
-                "<gray>Race the goal with the Hunters behind you.",
-                "<dark_gray>Click to join the Runners.");
-        band(MenuLayout.RULES, 3,
-                mayRun ? runButton : Icons.locked(runButton, "Only an admin picks the Runners here."),
+        if (!services.config().runnerSelfJoin()) {
+            band(MenuLayout.RULES, 4, Icons.of(Material.IRON_SWORD, "<white>Hunt",
+                            "<gray>Everybody here hunts.",
+                            "<dark_gray>An admin picks the Runners on this server."),
+                    click -> {
+                        services.teams().joinHunters(viewer.getUniqueId());
+                        services.messages().send(viewer, "manhunt.join.hunter");
+                        refresh();
+                    });
+            return;
+        }
+        band(MenuLayout.RULES, 3, Icons.of(Material.FEATHER, "<white>Run",
+                        "<gray>Race the goal with the Hunters behind you.",
+                        "<dark_gray>Click to join the Runners."),
                 click -> {
-                    if (!mayRun) {
-                        return;
-                    }
                     services.teams().joinRunners(viewer.getUniqueId());
                     services.messages().send(viewer, "manhunt.join.runner");
                     refresh();

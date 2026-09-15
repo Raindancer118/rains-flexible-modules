@@ -138,6 +138,88 @@ public final class ManhuntMode implements SpeedrunMode {
         return live.get() != null;
     }
 
+    // ------------------------------------------------------------------------ changing sides
+
+    /** One of the two sides, as a command or a screen names it. */
+    public enum Side { RUNNER, HUNTER }
+
+    /** What {@link #changeSide} answered, so the caller can say why nothing happened. */
+    public enum SideChange {
+        /** Done: the hunt's roster, the team, and the compass are all in step again. */
+        CHANGED,
+        /** No hunt is running — the caller should do the ordinary lobby join instead. */
+        NO_HUNT,
+        /** Sides do not change mid-hunt on this server, and this was not an admin's call. */
+        FROZEN,
+        /** They are not in this hunt: a spectator, or somebody who joined after it began. */
+        NOT_IN_THE_HUNT,
+        /** They are already on that side. */
+        ALREADY,
+        /** Refused: they are the last Runner, and a hunt with nobody running is over by accident. */
+        LAST_RUNNER
+    }
+
+    /**
+     * Moves somebody between the two sides <em>while a hunt is being played</em>, keeping the three
+     * things that have to agree in step: the hunt's own roster, the Core team they wear, and whether
+     * they are carrying a tracking compass.
+     *
+     * <h2>Why all three move together, in one method</h2>
+     * Because every bug in the module this replaced was two of them disagreeing. A Hunter without a
+     * compass cannot hunt; a Runner carrying one is being pointed at themselves; a team that says
+     * Hunter over somebody the hunt still counts as a Runner ends the round with the wrong winner.
+     * There is exactly one door, and {@code ManhuntTeams.evenWhileFrozen} is what makes it the only
+     * one — an ordinary {@code /manhunt join} mid-hunt is still refused.
+     *
+     * @param force an admin's {@code /manhunt assign}, which is allowed through even on a server
+     *              where players may not switch for themselves
+     */
+    public SideChange changeSide(UUID player, Side side, boolean force) {
+        Hunt hunt = live.get();
+        if (hunt == null) {
+            return SideChange.NO_HUNT;
+        }
+        if (!force && !settings.get().sideSwitchingMidHunt()) {
+            return SideChange.FROZEN;
+        }
+        Hunt.SideChange moved = side == Side.HUNTER
+                ? hunt.moveToHunters(player)
+                : hunt.moveToRunners(player);
+        switch (moved) {
+            case ALREADY_THERE -> {
+                return SideChange.ALREADY;
+            }
+            case NOT_IN_THE_HUNT -> {
+                return SideChange.NOT_IN_THE_HUNT;
+            }
+            case LAST_RUNNER -> {
+                return SideChange.LAST_RUNNER;
+            }
+            default -> { }
+        }
+        teams.evenWhileFrozen(() -> side == Side.HUNTER
+                ? teams.joinHunters(player)
+                : teams.joinRunners(player));
+        Player online = plugin.getServer().getPlayer(player);
+        if (online == null) {
+            // Offline: the roster and the team are what matter, and the compass is handed out on
+            // their next respawn or by the sweep when they come back. Nothing to carry yet.
+            return SideChange.CHANGED;
+        }
+        if (side == Side.HUNTER) {
+            // A Runner who was already caught is standing in spectator; they are a Hunter now, and a
+            // Hunter who cannot touch anything is not hunting.
+            eliminations.restore(online);
+            tracker.give(online);
+        } else {
+            tracker.takeFrom(online);
+        }
+        if (messages != null) {
+            messages.send(online, side == Side.HUNTER ? "manhunt.join.hunter" : "manhunt.join.runner");
+        }
+        return SideChange.CHANGED;
+    }
+
     // ------------------------------------------------------------------------ a hunt beginning
 
     @Override
