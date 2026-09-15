@@ -40,7 +40,7 @@ import java.util.List;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.12.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.13.0")
             .describedAs("Runners against Hunters, played in the speedrun lobby: the lobby's own "
                     + "goal is what the Runners race for, every Hunter carries a compass that "
                     + "follows a Runner through the portal they took, a caught Runner is out for "

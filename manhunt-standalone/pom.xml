@@ -61,7 +61,7 @@
              One world, one compass, one start block, one countdown, one clock, one reset — all of
              them RainsSpeedrun's — and what is left here is the two sides, the tracking compass,
              elimination, and the server's own door. Needs RainsSpeedrun 1.11.0 or newer. -->
-        <plugin.version>0.12.0</plugin.version>
+        <plugin.version>0.13.0</plugin.version>
     </properties>
 
     <dependencies>

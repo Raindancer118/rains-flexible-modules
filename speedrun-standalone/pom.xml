@@ -62,7 +62,7 @@
              this one offers a SpeedrunMode (Manhunt is the first), the compass's menu cycles to it,
              and that game is then played in this world, with this countdown, this clock and this
              reset — rather than in a second lobby of its own beside it. -->
-        <plugin.version>1.12.0</plugin.version>
+        <plugin.version>1.13.0</plugin.version>
     </properties>
 
     <dependencies>
