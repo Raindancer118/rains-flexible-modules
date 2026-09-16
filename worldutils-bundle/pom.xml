@@ -32,8 +32,11 @@
           gate starts open — and removes RainsWorldGate.jar: two copies of the gate are two portal listeners.
         -->
         <plugin.name>RainsWorldUtils</plugin.name>
-        <!-- 0.1.0: the first release. 0.x until it is everything that was asked for. Needs RainsCore 1.36.0. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.1.0: the first release. 0.x until it is everything that was asked for. Needs RainsCore 1.36.0.
+             0.1.1: /dim and /w found "nowhere safe" in a nether or end nobody was standing in — RainsCore
+             1.36.1 keeps a chunk loaded for the ground search; a Nether landing never goes on the roof.
+             Needs RainsCore 1.36.1. -->
+        <plugin.version>0.1.1</plugin.version>
     </properties>
 
     <dependencies>

@@ -59,6 +59,7 @@ class WorldTravelServiceTest {
         when(world.getCoordinateScale()).thenReturn(scale);
         when(world.getMinHeight()).thenReturn(environment == World.Environment.NORMAL ? -64 : 0);
         when(world.getMaxHeight()).thenReturn(environment == World.Environment.NORMAL ? 320 : 256);
+        when(world.getLogicalHeight()).thenReturn(environment == World.Environment.NETHER ? 128 : 384);
         WorldBorder border = mock(WorldBorder.class);
         when(border.getCenter()).thenReturn(new Location(world, 0, 0, 0));
         when(border.getSize()).thenReturn(6.0E7);
@@ -146,6 +147,26 @@ class WorldTravelServiceTest {
         assertThat(target.getWorld()).isSameAs(farmNether);
         assertThat(target.getBlockX()).isEqualTo(100);
         assertThat(target.getBlockZ()).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("a Nether landing on top of the bedrock roof is refused, not taken")
+    void neverTheRoof() {
+        service = new WorldTravelService(plugin, server, travel, safety, entry, messages, positions,
+                WorldUtilsSettings.DEFAULTS);
+        World farmNether = world("farm_nether", World.Environment.NETHER, 8);
+        when(farmNether.getLogicalHeight()).thenReturn(128);
+        when(server.getWorld("farm_nether")).thenReturn(farmNether);
+        when(player.getWorld()).thenReturn(farm);
+        when(player.getLocation()).thenReturn(new Location(farm, 0, 200, 0));
+        when(safety.findSafe(any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(
+                java.util.concurrent.CompletableFuture.completedFuture(
+                        Optional.of(new de.raindancer.core.world.safety.Spot("farm_nether", 0, 128, 0))));
+
+        service.toDimension(admin, player, Dimension.NETHER);
+
+        verify(travel, never()).go(any(), any(), any(), any());
+        verify(messages).send(admin, "worldutils.nowhere-safe", "player", "Alex", "world", "farm_nether");
     }
 
     @Test

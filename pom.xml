@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.36.0</rainscore.version>
+        <rainscore.version>1.36.1</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -51,7 +51,7 @@
         <essentials-module.version>1.6.1</essentials-module.version>
         <worldgate-module.version>1.1.0</worldgate-module.version>
         <!-- 0.x until it is everything that was asked for; the first release of World Utils. -->
-        <worldutils-module.version>0.1.0</worldutils-module.version>
+        <worldutils-module.version>0.1.1</worldutils-module.version>
         <mannequin-module.version>1.6.0</mannequin-module.version>
         <invsnap-module.version>1.1.0</invsnap-module.version>
         <xpbottle-module.version>1.0.0</xpbottle-module.version>

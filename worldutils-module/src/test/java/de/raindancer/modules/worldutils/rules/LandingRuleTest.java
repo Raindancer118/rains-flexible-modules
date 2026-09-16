@@ -30,6 +30,9 @@ class LandingRuleTest {
         assertThat(landing.x()).isEqualTo(100);
         assertThat(landing.z()).isEqualTo(-200);
         assertThat(landing.y()).isEqualTo(LandingRule.NETHER_CEILING);
+        assertThat(LandingRule.NETHER_CEILING)
+                .as("far enough below the roof that the roof is not the nearest place to stand")
+                .isLessThanOrEqualTo(100);
         assertThat(landing.surface()).isFalse();
     }
 

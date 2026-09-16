@@ -32,7 +32,7 @@ import java.util.List;
  */
 public final class WorldUtilsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("worldutils", "World Utils", "0.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("worldutils", "World Utils", "0.1.1")
             .describedAs("Switch worlds and dimensions, and create, reset or delete worlds with a "
                     + "chosen seed and a seed history")
             .by("Raindancer118");

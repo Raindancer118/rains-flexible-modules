@@ -15,8 +15,8 @@ import java.util.Optional;
  *       vanilla, whatever a datapack made it otherwise — so {@code /dim} lands where a portal built on
  *       the same spot would.</li>
  *   <li><b>Into the Nether</b> the height is kept between {@link #NETHER_FLOOR} and
- *       {@link #NETHER_CEILING}. Above that is the bedrock roof, and "the nearest safe spot" from up
- *       there is <em>on</em> the roof — the classic way to strand somebody.</li>
+ *       {@link #NETHER_CEILING}. The bedrock roof is at 127, and from 120 the roof was often the
+ *       nearest place to stand — the classic way to strand somebody.</li>
  *   <li><b>Into the overworld</b> the arrival looks for the surface rather than the nearest pocket of
  *       air, which from a Nether height is a cave.</li>
  *   <li><b>The End, either way,</b> has no meaningful corresponding place: into it is its arrival
@@ -29,7 +29,7 @@ import java.util.Optional;
 public final class LandingRule implements IWorldUtilsRule {
 
     public static final int NETHER_FLOOR = 32;
-    public static final int NETHER_CEILING = 120;
+    public static final int NETHER_CEILING = 100;
 
     /** Where to look for ground, and whether the ground wanted is the surface. */
     public record Landing(double x, double y, double z, boolean surface) {

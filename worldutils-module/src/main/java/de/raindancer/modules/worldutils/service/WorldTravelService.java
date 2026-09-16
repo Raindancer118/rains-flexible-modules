@@ -1,5 +1,6 @@
 package de.raindancer.modules.worldutils.service;
 
+import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.manage.WorldEntryRules;
@@ -154,12 +155,21 @@ public final class WorldTravelService implements IWorldUtilsService {
                 return;
             }
             Spot spot = found.get();
+            if (world.getEnvironment() == World.Environment.NETHER && spot.y() >= world.getLogicalHeight()) {
+                // On top of the bedrock roof: technically somewhere to stand, and exactly the place a
+                // Nether arrival must never be. Better refused than stranded.
+                messages.send(sender, "worldutils.nowhere-safe", "player", who.getName(), "world", world.getName());
+                return;
+            }
             Location exact = new Location(world, spot.centreX(), spot.y(), spot.centreZ(),
                     aim.getYaw(), aim.getPitch());
             // exactly(): the ground has already been found, here, with the search this destination
             // needed. Travel searching again would find the nearest pocket rather than the surface.
             travel.go(who, exact, Trip.to(world.getName()).exactly(), new Arriving(sender, world));
         })).exceptionally(failure -> {
+            // Logged, not only reported: a search that threw looks exactly like one that found nothing
+            // to the player, and that is what made a chunk-loading bug in Core look like a void End.
+            Log.of("worldutils").warn(failure, "The ground search for {} in {} failed.", who.getName(), world.getName());
             messages.send(sender, "worldutils.nowhere-safe", "player", who.getName(), "world", world.getName());
             return null;
         });
