@@ -6,6 +6,7 @@ import de.raindancer.modules.worldgate.WorldGateSettings;
 import de.raindancer.modules.worldgate.model.Dimension;
 import de.raindancer.modules.worldgate.model.GateState;
 import de.raindancer.modules.worldgate.model.GateStates;
+import de.raindancer.modules.worldgate.rules.GateRule;
 import de.raindancer.modules.worldgate.store.GateStateStore;
 import org.bukkit.Location;
 import org.bukkit.Server;
@@ -14,6 +15,7 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Whether the Nether and the End are open, and pulling everybody out of one.
@@ -31,6 +33,8 @@ import java.util.List;
  * so this teleports directly rather than dressing a forced move up as a voluntary one.
  */
 public final class WorldGateService implements IWorldGateService {
+
+    private static final GateRule RULE = new GateRule();
 
     private final GateStateStore store;
     private final LogChannel log;
@@ -82,6 +86,33 @@ public final class WorldGateService implements IWorldGateService {
                     dimension.label(), states.of(dimension));
         }
         return written;
+    }
+
+    /** Which managed dimension a world is, by the configured names — empty for every other world. */
+    public Optional<Dimension> dimensionOf(String worldName) {
+        if (worldName == null) {
+            return Optional.empty();
+        }
+        for (Dimension dimension : Dimension.values()) {
+            if (worldName.equalsIgnoreCase(worldName(dimension))) {
+                return Optional.of(dimension);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The state that keeps somebody out of {@code worldName} right now, if any — what Core's world entry
+     * rule answers with, so a teleport by command meets the same door a portal does. Decided by the same
+     * {@link GateRule} the portal listener asks.
+     */
+    public Optional<GateState> refusal(String worldName, boolean hasBypass) {
+        Optional<Dimension> dimension = dimensionOf(worldName);
+        if (dimension.isEmpty()) {
+            return Optional.empty();
+        }
+        GateState current = state(dimension.get());
+        return RULE.allowed(current, true, hasBypass) ? Optional.empty() : Optional.of(current);
     }
 
     /** Which world this dimension currently is, from the live settings. */

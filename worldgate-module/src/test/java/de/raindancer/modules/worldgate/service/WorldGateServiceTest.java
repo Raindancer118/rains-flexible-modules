@@ -154,4 +154,46 @@ class WorldGateServiceTest {
             assertThat(service.worldName(Dimension.NETHER)).isEqualTo("nether2");
         }
     }
+
+    /**
+     * Asked by Core's world entry rules, so a teleport by command — a world switcher, a home, a warp —
+     * meets the same closed door a portal does.
+     */
+    @Nested
+    @DisplayName("whether a world may be entered, for anything that teleports")
+    class Entry {
+
+        @Test
+        @DisplayName("a closed or draining dimension refuses, naming the state it refused with")
+        void refusesALockedDimension() {
+            WorldGateService service = service(folder);
+            service.set(Dimension.NETHER, GateState.CLOSED);
+            service.set(Dimension.END, GateState.DRAINED);
+
+            assertThat(service.refusal("world_nether", false)).contains(GateState.CLOSED);
+            assertThat(service.refusal("WORLD_THE_END", false)).contains(GateState.DRAINED);
+        }
+
+        @Test
+        @DisplayName("an open dimension, a world that is neither, or the bypass: no objection")
+        void letsTheRestThrough() {
+            WorldGateService service = service(folder);
+            service.set(Dimension.NETHER, GateState.CLOSED);
+
+            assertThat(service.refusal("world_the_end", false)).isEmpty();
+            assertThat(service.refusal("farm", false)).isEmpty();
+            assertThat(service.refusal("world_nether", true)).isEmpty();
+            assertThat(service.refusal(null, false)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("which dimension a world name is, by the configured names")
+        void dimensionOf() {
+            WorldGateService service = service(folder);
+
+            assertThat(service.dimensionOf("world_nether")).contains(Dimension.NETHER);
+            assertThat(service.dimensionOf("world_the_end")).contains(Dimension.END);
+            assertThat(service.dimensionOf("world")).isEmpty();
+        }
+    }
 }

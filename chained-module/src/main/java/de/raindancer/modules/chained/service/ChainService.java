@@ -7,8 +7,9 @@ import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.speedrun.SpeedrunEndCondition;
 import de.raindancer.modules.speedrun.SpeedrunOccupancyListener;
-import de.raindancer.modules.speedrun.SpeedrunReset;
-import de.raindancer.modules.speedrun.SpeedrunSeed;
+import de.raindancer.core.RainsCore;
+import de.raindancer.core.world.manage.WorldRegenerator;
+import de.raindancer.core.world.manage.WorldSeed;
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import de.raindancer.modules.speedrun.SpeedrunState;
 import de.raindancer.modules.speedrun.conditions.AdvancementEndCondition;
@@ -25,7 +26,6 @@ import org.bukkit.World;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
 
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -76,7 +76,7 @@ public final class ChainService implements IChainedService {
     private final ChainPairStore pairs;
     private final BossBars bossBars;
     private final Messages messages;
-    private final SpeedrunReset reset;
+    private final WorldRegenerator reset;
     private final RunTicker ticker;
 
     private record Run(SpeedrunSession session, AutoCloseable ticking,
@@ -89,12 +89,14 @@ public final class ChainService implements IChainedService {
 
     public ChainService(Plugin plugin, ChainPairStore pairs, BossBars bossBars, Messages messages,
                         ChainedSettings settings) {
-        this(plugin, pairs, bossBars, messages, new SpeedrunReset(), viaScheduling(plugin), settings);
+        this(plugin, pairs, bossBars, messages,
+                RainsCore.isAvailable() ? RainsCore.get().worldRegenerator() : new WorldRegenerator(),
+                viaScheduling(plugin), settings);
     }
 
     /** The same, with the world-reset step and the ticker injectable — what the tests use. */
     public ChainService(Plugin plugin, ChainPairStore pairs, BossBars bossBars, Messages messages,
-                        SpeedrunReset reset, RunTicker ticker, ChainedSettings settings) {
+                        WorldRegenerator reset, RunTicker ticker, ChainedSettings settings) {
         this.plugin = plugin;
         this.pairs = pairs;
         this.bossBars = bossBars;
@@ -141,7 +143,7 @@ public final class ChainService implements IChainedService {
         ChainedSettings config = settings;
 
         if (config.resetOnStart()) {
-            resetWorld(defaultSeed(config), Set.of(pair.a(), pair.b()), done -> { });
+            resetWorld(defaultSeed(config), done -> { });
         }
 
         SpeedrunSession session = new SpeedrunSession(Set.of(pair.a(), pair.b()));
@@ -252,48 +254,35 @@ public final class ChainService implements IChainedService {
      *
      * @param seedOverride the seed to use, or {@code null} to use the settings' own seed policy
      */
-    public void resetWorld(SpeedrunSeed seedOverride) {
+    public void resetWorld(WorldSeed seedOverride) {
         resetWorld(seedOverride, done -> { });
     }
 
     /**
-     * Resets the configured world.
+     * Resets the configured world, through Core's {@link WorldRegenerator}: everybody standing in it is
+     * moved out and waited for before it is unloaded, and both seeds go into Core's seed history.
      *
      * @param seedOverride the seed to use, or {@code null} to use the settings' own seed policy
-     * @param onDone       told whether the world came back, on the global region thread — the same
-     *                     thread {@code regenerate} itself runs on
+     * @param onDone       told whether the world came back
      */
-    public void resetWorld(SpeedrunSeed seedOverride, Consumer<Boolean> onDone) {
-        resetWorld(seedOverride, everyoneCurrentlyPaired(), onDone);
-    }
-
-    private void resetWorld(SpeedrunSeed seedOverride, Set<UUID> evacuate, Consumer<Boolean> onDone) {
+    public void resetWorld(WorldSeed seedOverride, Consumer<Boolean> onDone) {
         ChainedSettings config = settings;
         World world = plugin.getServer().getWorld(config.worldName());
         if (world == null) {
             onDone.accept(false);
             return;
         }
-        SpeedrunSeed seed = seedOverride != null ? seedOverride : defaultSeed(config);
-        // Folia: unloading, deleting and recreating a world are global-region operations — see
-        // SpeedrunReset's own threading note. resetWorld can be called from a command or a menu click,
-        // neither of which runs on that thread, so the hop has to happen here rather than in the caller.
-        Scheduling.global(plugin, () -> onDone.accept(reset.regenerate(world, seed, evacuate)));
+        WorldSeed seed = seedOverride != null ? seedOverride : defaultSeed(config);
+        // Folia: unloading, deleting and recreating a world are global-region operations. resetWorld
+        // can be called from a command or a menu click, neither of which runs on that thread, so the
+        // hop has to happen here rather than in the caller.
+        Scheduling.global(plugin, () -> reset.regenerate(world, seed, onDone));
     }
 
-    private static SpeedrunSeed defaultSeed(ChainedSettings config) {
+    private static WorldSeed defaultSeed(ChainedSettings config) {
         return config.seedChoice() == ChainedSettings.SeedChoice.FIXED
-                ? SpeedrunSeed.fixed(config.seedValue())
-                : SpeedrunSeed.random();
-    }
-
-    private Set<UUID> everyoneCurrentlyPaired() {
-        Set<UUID> all = new LinkedHashSet<>();
-        for (ChainPair pair : pairs.all()) {
-            all.add(pair.a());
-            all.add(pair.b());
-        }
-        return all;
+                ? WorldSeed.fixed(config.seedValue())
+                : WorldSeed.random();
     }
 
     // ------------------------------------------------------------------------ shutdown

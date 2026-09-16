@@ -1,0 +1,25 @@
+# Checked by BundleJarTest — see worldgate-standalone's descriptor for why every line here matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Worlds: /w and /dim, creating, resetting and deleting worlds with a seed history, and locking the Nether and the End.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Every world operation hops onto the global region scheduler first, and every player is moved with
+# teleportAsync on their own scheduler — both modules claim Folia support on their own.
+folia-supported: true
+
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

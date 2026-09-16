@@ -1,6 +1,6 @@
 package de.raindancer.modules.chained.command;
 
-import de.raindancer.modules.speedrun.SpeedrunSeed;
+import de.raindancer.core.world.manage.WorldSeed;
 import de.raindancer.modules.chained.ChainedServices;
 import de.raindancer.modules.chained.model.ChainPair;
 import de.raindancer.modules.chained.util.PermissionNodes;
@@ -165,9 +165,10 @@ public final class ChainCommand implements IChainedCommand {
             live.messages().send(sender, "chained.not-yours");
             return;
         }
-        SpeedrunSeed seed = null;
+        WorldSeed seed = null;
         if (args.length >= 3 && args[1].equalsIgnoreCase("seed")) {
-            seed = args[2].equalsIgnoreCase("random") ? SpeedrunSeed.random() : parseSeed(args[2]);
+            // Core's reading: a number, "random", "same", or a word hashed the way vanilla hashes it.
+            seed = WorldSeed.parse(args[2]).orElse(null);
             if (seed == null) {
                 live.messages().send(sender, "chained.usage.reset");
                 return;
@@ -176,17 +177,9 @@ public final class ChainCommand implements IChainedCommand {
             live.messages().send(sender, "chained.usage.reset");
             return;
         }
-        SpeedrunSeed resolvedSeed = seed;
+        WorldSeed resolvedSeed = seed;
         live.chain().resetWorld(resolvedSeed, done ->
                 live.messages().send(sender, done ? "chained.reset-done" : "chained.reset-refused"));
-    }
-
-    private static SpeedrunSeed parseSeed(String text) {
-        try {
-            return SpeedrunSeed.fixed(Long.parseLong(text));
-        } catch (NumberFormatException notANumber) {
-            return null;
-        }
     }
 
     // ------------------------------------------------------------------------ completion

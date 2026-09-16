@@ -76,16 +76,7 @@ public final class WorldGatePortalListener implements IWorldGateListener {
     }
 
     private Dimension ownedBy(String worldName) {
-        if (worldName == null) {
-            return null;
-        }
-        if (worldName.equalsIgnoreCase(service.worldName(Dimension.NETHER))) {
-            return Dimension.NETHER;
-        }
-        if (worldName.equalsIgnoreCase(service.worldName(Dimension.END))) {
-            return Dimension.END;
-        }
-        return null;
+        return service.dimensionOf(worldName).orElse(null);
     }
 
     @Override

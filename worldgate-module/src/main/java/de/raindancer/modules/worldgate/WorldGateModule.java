@@ -7,7 +7,9 @@ import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.worldgate.listener.WorldGatePortalListener;
+import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.worldgate.model.Dimension;
+import de.raindancer.modules.worldgate.model.GateState;
 import de.raindancer.modules.worldgate.rules.GateRule;
 import de.raindancer.modules.worldgate.service.WorldGateService;
 import de.raindancer.modules.worldgate.store.GateStateStore;
@@ -35,7 +37,7 @@ import java.util.List;
  */
 public final class WorldGateModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("worldgate", "World Gate", "1.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("worldgate", "World Gate", "1.1.0")
             .describedAs("Locks, drains or closes the Nether and the End to entry, and evacuates "
                     + "whoever is still inside")
             .by("Raindancer118");
@@ -77,6 +79,17 @@ public final class WorldGateModule implements FlexModule {
 
         GateRule rule = new GateRule();
         context.listener(new WorldGatePortalListener(gate, rule, context.core().messages()));
+
+        // Portals are only one way in. Registered with Core so anything that teleports by command — a
+        // world switcher, a home, a warp — asks the same question and meets the same closed door,
+        // without this module or that one having to know the other is installed.
+        Messages messages = context.core().messages();
+        context.closeWith(context.core().worldEntryRules().register("worldgate", (player, target) ->
+                gate.refusal(target.getName(), player.hasPermission(PermissionNodes.BYPASS))
+                        .map(state -> messages.prefixed(state == GateState.CLOSED
+                                        ? "worldgate.closed-entry-denied" : "worldgate.drained-entry-denied",
+                                "dimension", gate.dimensionOf(target.getName())
+                                        .map(Dimension::label).orElse(target.getName())))));
 
         WorldGateServices services = new WorldGateServices(context.plugin(), server, log,
                 context.core().messages(), context.chat().brand(), settings::current, settings, gate);

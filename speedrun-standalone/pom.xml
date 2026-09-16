@@ -61,8 +61,14 @@
              1.11.0: the lobby can play a game other than a plain race. A module installed beside
              this one offers a SpeedrunMode (Manhunt is the first), the compass's menu cycles to it,
              and that game is then played in this world, with this countdown, this clock and this
-             reset — rather than in a second lobby of its own beside it. -->
-        <plugin.version>1.13.0</plugin.version>
+             reset — rather than in a second lobby of its own beside it.
+             1.14.0: a reset with somebody still in the run's nether or end really resets all three.
+             The overworld went first, and whoever was left in the nether was sent back to where they
+             had entered it — the overworld that had just been deleted — which ended the reset there.
+             The whole run is now one regeneration through RainsCore's WorldRegenerator.regenerateAll,
+             which moves everybody out of every world first; portal linking and seeds are Core's too,
+             and the module's own copies (SpeedrunReset, SpeedrunSeed) are gone. Needs RainsCore 1.36.0. -->
+        <plugin.version>1.14.0</plugin.version>
     </properties>
 
     <dependencies>

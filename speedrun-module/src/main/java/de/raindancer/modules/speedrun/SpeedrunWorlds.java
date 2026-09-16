@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.core.world.manage.WorldFamily;
 import org.bukkit.World;
 
 import java.util.Locale;
@@ -26,32 +27,25 @@ public record SpeedrunWorlds(String overworld) {
     }
 
     public String nether() {
-        return overworld + "_nether";
+        return family().nether();
     }
 
     public String theEnd() {
-        return overworld + "_the_end";
+        return family().theEnd();
     }
 
     /** Whether {@code worldName} is any of the three — the test for "this travel is ours to redirect". */
     public boolean contains(String worldName) {
-        if (worldName == null) {
-            return false;
-        }
-        String name = worldName.toLowerCase(Locale.ROOT);
-        return name.equals(overworld) || name.equals(nether()) || name.equals(theEnd());
+        return family().contains(worldName);
     }
 
     /** Which of the three a trip into {@code environment} should land in, or {@code null} for a custom one. */
     public String inDimension(World.Environment environment) {
-        if (environment == null) {
-            return null;
-        }
-        return switch (environment) {
-            case NORMAL -> overworld;
-            case NETHER -> nether();
-            case THE_END -> theEnd();
-            default -> null;   // a datapack dimension; nothing sensible to redirect it to
-        };
+        return family().inDimension(environment).orElse(null);
+    }
+
+    /** The same three, as Core names them — Core owns the naming and the portal correction. */
+    public WorldFamily family() {
+        return new WorldFamily(overworld);
     }
 }

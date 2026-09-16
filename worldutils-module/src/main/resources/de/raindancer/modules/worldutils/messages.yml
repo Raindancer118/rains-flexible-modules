@@ -1,0 +1,64 @@
+# Rain's World Utils — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins. Placeholders
+# are filled in before the line is read as MiniMessage, which is why a world name can sit inside a click.
+worldutils:
+
+  arrived: "<gray>You are in <white><world></white>."
+  already-there: "<yellow><white><player></white> is already in <white><world></white>."
+  already-in-dimension: "<yellow><white><player></white> is already in <white><dimension></white>."
+  already-travelling: "<yellow><white><player></white> is already on the way somewhere."
+  travel-refused: "<red><white><player></white> could not be sent to <white><world></white>."
+  nowhere-safe: "<red>There is nowhere safe to put <white><player></white> in <white><world></white>."
+  no-such-dimension: "<red>This world has no <white><dimension></white> loaded — <white><world></white> does not exist."
+  unknown-world: "<red>There is no loaded world called <white><world></white>."
+  unknown-dimension: "<red><white><value></white> is not overworld, nether or end."
+  console-needs-a-player: "<red>From the console, say who: a name or a selector like @a."
+  no-permission-others: "<red>You may only move yourself."
+  nobody-matched: "<red>Nobody online matches <white><value></white>."
+  sending: "<gray>Sending <white><count></white> player(s)."
+
+  invalid-name: "<red><white><name></white> cannot be a world name: lowercase letters, digits, _ . and - only."
+  already-exists: "<red><white><world></white> already exists."
+  create-failed: "<red>The server would not create <white><world></white> — the log says why."
+  created: "<green>Created <white><world></white> with seed <click:copy_to_clipboard:'<seed>'><white><seed></white></click>."
+  regenerating: "<yellow>Resetting <white><worlds></white> with <white><seed></white>. Anybody inside is moved out first."
+  regenerated: "<green><white><worlds></white> is new, seed <click:copy_to_clipboard:'<seed>'><white><seed></white></click>."
+  regenerate-failed: "<red>Not everything of <white><worlds></white> could be reset — the log names what."
+  deleted: "<green>Deleted <white><worlds></white>. Its seeds are still in /worlds seeds."
+  delete-failed: "<red>Not everything of <white><worlds></white> could be deleted — the log names what."
+  server-world: "<red><white><world></white> is one of the server's own worlds and cannot be reset or deleted while it runs. Stop the server and delete its folder instead."
+
+  confirm:
+    regen-title: "Reset this world?"
+    regen-detail: "<gray><world> is deleted and made again with <seed>."
+    delete-title: "Delete this world?"
+    delete-detail: "<gray><world> is deleted for good."
+    console: "<yellow>This cannot be undone. Type the same command again with <white>confirm</white> at the end."
+
+  seeds:
+    none: "<gray>No seed has been recorded for <white><world></white> yet."
+    heading: "<gray>Seeds <white><world></white> has had, newest first (<white><count></white>):"
+    row: "  <click:copy_to_clipboard:'<seed>'><hover:show_text:'Click to copy'><white><seed></white></hover></click> <dark_gray>· <when> · <cause></dark_gray> <click:suggest_command:'/worlds regen <world> <seed>'><hover:show_text:'Reset <world> with this seed'><aqua>[reset with this]</aqua></hover></click>"
+
+  info: "<gray><white><world></white> — <white><dimension></white>, seed <click:copy_to_clipboard:'<seed>'><white><seed></white></click>, <white><players></white> player(s), <made>. Family: <white><family></white>."
+
+  list:
+    heading: "<gray>Loaded worlds (<white><count></white>):"
+    row: "  <click:run_command:'/w <world>'><hover:show_text:'Go to <world>'><white><world></white></hover></click> <dark_gray>· <dimension> · <players> online</dark_gray>"
+
+  usage:
+    dim: "<yellow>Usage: /dim (overworld, nether or end) [player or selector]"
+    create: "<yellow>Usage: /worlds create (name) [overworld, nether, end or family] [seed]"
+    regen: "<yellow>Usage: /worlds regen (world) [same, random or a seed] [family] [confirm]"
+    delete: "<yellow>Usage: /worlds delete (world) [family] [confirm]"
+    seeds: "<yellow>Usage: /worlds seeds (world)"
+    info: "<yellow>Usage: /worlds info (world)"
+
+  help:
+    - "<gray>/worlds list — every loaded world"
+    - "<gray>/worlds create (name) [overworld, nether, end or family] [seed] — family makes all three from one seed"
+    - "<gray>/worlds regen (world) [same, random or a seed] [family] — reset it, or its whole family"
+    - "<gray>/worlds delete (world) [family] — for good; the seeds are kept"
+    - "<gray>/worlds seeds (world) — every seed it has had, click one to reset with it"
+    - "<gray>/worlds info (world)"

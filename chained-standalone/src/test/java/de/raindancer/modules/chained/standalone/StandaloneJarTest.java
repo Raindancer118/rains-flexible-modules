@@ -173,7 +173,7 @@ class StandaloneJarTest {
                 .as("depend: is plugin.yml syntax and is silently ignored here")
                 .doesNotContain("depend:");
         assertThat(yaml)
-                .as("SpeedrunReset.regenerate is main-thread-only, but ChainService.resetWorld now hops "
+                .as("Core's WorldRegenerator is main-thread-only, but ChainService.resetWorld now hops "
                         + "onto the global region scheduler (Scheduling.global) before calling it, so "
                         + "the module can honestly claim Folia support")
                 .contains("folia-supported: true");

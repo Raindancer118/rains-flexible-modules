@@ -3,8 +3,8 @@ package de.raindancer.modules.chained.service;
 import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.speedrun.SpeedrunOccupancyListener;
-import de.raindancer.modules.speedrun.SpeedrunReset;
-import de.raindancer.modules.speedrun.SpeedrunSeed;
+import de.raindancer.core.world.manage.WorldRegenerator;
+import de.raindancer.core.world.manage.WorldSeed;
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import de.raindancer.modules.speedrun.conditions.AdvancementEndCondition;
 import de.raindancer.modules.speedrun.conditions.DeathEndCondition;
@@ -57,7 +57,7 @@ class ChainServiceTest {
     private ChainPairStore pairs;
     private BossBars bossBars;
     private Messages messages;
-    private SpeedrunReset reset;
+    private WorldRegenerator reset;
 
     @BeforeEach
     void setUp() {
@@ -72,7 +72,7 @@ class ChainServiceTest {
         pairs = new ChainPairStore();
         bossBars = mock(BossBars.class);
         messages = mock(Messages.class);
-        reset = mock(SpeedrunReset.class);
+        reset = mock(WorldRegenerator.class);
     }
 
     private ChainService service(ChainedSettings settings) {
@@ -242,9 +242,9 @@ class ChainServiceTest {
                 service.start(first);
             }
 
-            ArgumentCaptor<SpeedrunSeed> seedCaptor = ArgumentCaptor.forClass(SpeedrunSeed.class);
-            verify(reset).regenerate(eq(world), seedCaptor.capture(), eq(Set.of(first, second)));
-            assertThat(seedCaptor.getValue()).isEqualTo(SpeedrunSeed.fixed(1234L));
+            // Core's regenerator evacuates everybody in the world and waits for them to land, not only
+            // the pair — SpeedrunReset's copy moved the pair and unloaded without waiting.
+            verify(reset).regenerate(eq(world), eq(WorldSeed.fixed(1234L)), any());
         }
 
         @Test
@@ -265,9 +265,7 @@ class ChainServiceTest {
                 service.start(first);
             }
 
-            ArgumentCaptor<SpeedrunSeed> seedCaptor = ArgumentCaptor.forClass(SpeedrunSeed.class);
-            verify(reset).regenerate(eq(world), seedCaptor.capture(), eq(Set.of(first, second)));
-            assertThat(seedCaptor.getValue()).isEqualTo(SpeedrunSeed.random());
+            verify(reset).regenerate(eq(world), eq(WorldSeed.random()), any());
         }
 
         /** Runs whatever {@code Scheduling.global} hands the global region scheduler immediately. */
@@ -290,7 +288,7 @@ class ChainServiceTest {
 
             service.start(first);
 
-            verify(reset, never()).regenerate(any(), any(), any());
+            verify(reset, never()).regenerate(any(), any(WorldSeed.class), any());
         }
     }
 

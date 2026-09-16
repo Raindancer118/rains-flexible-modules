@@ -27,7 +27,7 @@ import org.bukkit.event.block.BlockBreakEvent;
  * <h2>Why the block's own world, not a scheduler hop</h2>
  * {@link BlockBreakEvent} fires on the region thread that already owns the broken block's chunk, and
  * the creeper is spawned at that same block — there is no region boundary to cross, unlike
- * {@code SpeedrunReset}'s world-wide operations, which is why those need the global region scheduler
+ * Core's {@code WorldRegenerator}'s world-wide operations, which is why those need the global region scheduler
  * and this does not.
  */
 public final class SpeedrunCreeperOnBreakListener implements Listener {

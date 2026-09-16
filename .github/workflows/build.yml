@@ -46,6 +46,7 @@ on:
       - 'xaeromap-module-v*'
       - 'wallsroads-module-v*'
       - 'manhunt-module-v*'
+      - 'worldutils-module-v*'
     branches:
       - '**'
   pull_request:
@@ -121,6 +122,7 @@ jobs:
                         tpa:tpa-standalone:RainsTPA \
                         farmworld:farmworld-standalone:RainsFarmWorlds \
                         pack:pack-standalone:RainsServerPack \
+                        worldutils:worldutils-bundle:RainsWorldUtils \
                         yeuk:yeuksmp:YeukSMP; do
             rest="${plugin#*:}"
             dir="${rest%%:*}/target"
@@ -154,6 +156,7 @@ jobs:
             tpa-standalone/target/RainsTPA-*.jar
             farmworld-standalone/target/RainsFarmWorlds-*.jar
             pack-standalone/target/RainsServerPack-*.jar
+            worldutils-bundle/target/RainsWorldUtils-*.jar
             yeuksmp/target/YeukSMP-*.jar
             !**/original-*.jar
           if-no-files-found: error
@@ -191,6 +194,7 @@ jobs:
               "| Rain's Homes | \`${{ steps.jars.outputs.homes_name }}\` | \`${{ steps.jars.outputs.homes_sha }}\` |" \
               "| Rain's TPA | \`${{ steps.jars.outputs.tpa_name }}\` | \`${{ steps.jars.outputs.tpa_sha }}\` |" \
               "| YeukSMP (claims · tpa · warps · moderation · server pack · names, in one jar) | \`${{ steps.jars.outputs.yeuk_name }}\` | \`${{ steps.jars.outputs.yeuk_sha }}\` |" \
+              "| Rain's World Utils (world gate · /w · /dim · worlds and seeds, in one jar) | \`${{ steps.jars.outputs.worldutils_name }}\` | \`${{ steps.jars.outputs.worldutils_sha }}\` |" \
               "" \
               "**YeukSMP replaces the six it contains — it does not go beside them.** Two copies of a" \
               "module on one server is two sets of listeners on the same event." \
@@ -226,6 +230,8 @@ jobs:
             "${{ steps.jars.outputs.tpa_jar }}.sha256" \
             "${{ steps.jars.outputs.yeuk_jar }}" \
             "${{ steps.jars.outputs.yeuk_jar }}.sha256" \
+            "${{ steps.jars.outputs.worldutils_jar }}" \
+            "${{ steps.jars.outputs.worldutils_jar }}.sha256" \
             --repo "${{ github.repository }}" \
             --title "Latest build" \
             --notes-file notes.md \
@@ -255,6 +261,8 @@ jobs:
             "${{ steps.jars.outputs.tpa_jar }}.sha256" \
             "${{ steps.jars.outputs.yeuk_jar }}" \
             "${{ steps.jars.outputs.yeuk_jar }}.sha256" \
+            "${{ steps.jars.outputs.worldutils_jar }}" \
+            "${{ steps.jars.outputs.worldutils_jar }}.sha256" \
             --repo "${{ github.repository }}" \
             --title "Build ${{ github.run_number }}" \
             --notes-file notes.md \
@@ -296,7 +304,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           set -euo pipefail
-          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module essentials-module chat-module farmworld-module pack-module chained-module rtp-module speedrun-module mannequin-module worldgate-module invsnap-module xpbottle-module xaeromap-module wallsroads-module manhunt-module"
+          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module essentials-module chat-module farmworld-module pack-module chained-module rtp-module speedrun-module mannequin-module worldgate-module invsnap-module xpbottle-module xaeromap-module wallsroads-module manhunt-module worldutils-module"
           new=""
           for module in $modules; do
             version="$(grep -oPm1 "(?<=<${module}\.version>)[^<]+" pom.xml)"

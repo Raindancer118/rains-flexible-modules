@@ -39,23 +39,10 @@ public final class SpeedrunPortalListener implements Listener {
         if (event.isCancelled()) {
             return;   // ignoreCancelled only filters through the real event bus, not a direct call
         }
-        Location to = event.getTo();
-        if (to == null || to.getWorld() == null || event.getFrom().getWorld() == null) {
-            return;
-        }
-        SpeedrunWorlds worlds = SpeedrunWorlds.around(lobby.config().worldName());
-        if (!worlds.contains(event.getFrom().getWorld().getName())) {
-            return;   // somebody else's portal, somewhere else on the server
-        }
-        String wanted = worlds.inDimension(to.getWorld().getEnvironment());
-        if (wanted == null || wanted.equalsIgnoreCase(to.getWorld().getName())) {
-            return;   // already right, or a dimension this module has no counterpart for
-        }
-        World destination = Bukkit.getWorld(wanted);
-        if (destination == null) {
-            return;   // not loaded; better the server's own answer than nowhere at all
-        }
-        to.setWorld(destination);
-        event.setTo(to);
+        // The correction itself is Core's WorldFamily#redirect, shared with every other plugin that
+        // makes worlds at runtime; what stays here is which family is this module's.
+        SpeedrunWorlds.around(lobby.config().worldName()).family()
+                .redirect(event.getFrom().getWorld(), event.getTo(), Bukkit::getWorld)
+                .ifPresent(event::setTo);
     }
 }

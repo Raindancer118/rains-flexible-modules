@@ -9,7 +9,7 @@ description: 'Two players, mechanically chained together — get too far apart a
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
-# SpeedrunReset.regenerate is main-thread-only: it calls Bukkit.unloadWorld and WorldCreator#createWorld
+# Core's WorldRegenerator is main-thread-only: it calls Bukkit.unloadWorld and WorldCreator#createWorld
 # directly, the way FarmWorlds does, and neither is a regionised operation Folia can run from just anywhere.
 # ChainService.resetWorld used to call it directly from whatever thread the admin screen click or the
 # /chain reset command landed on — a player's own region thread on Folia. It now hops onto the global

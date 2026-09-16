@@ -38,6 +38,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -426,6 +427,7 @@ class SpeedrunLobbyTest {
         void resetsOnceEverybodyIsGone() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
                  MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.RETURNS_SELF),
                          (mockCreator, context) -> when(mockCreator.createWorld())
                                  .thenReturn(mock(World.class)))) {
                 World world = mock(World.class);
@@ -591,6 +593,7 @@ class SpeedrunLobbyTest {
         void resetsAnUntouchedReadyWorld() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
                  MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.RETURNS_SELF),
                          (mockCreator, context) -> when(mockCreator.createWorld())
                                  .thenReturn(mock(World.class)))) {
                 World world = mock(World.class);
@@ -637,6 +640,7 @@ class SpeedrunLobbyTest {
         void resetsARunningSession() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
                  MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.RETURNS_SELF),
                          (mockCreator, context) -> when(mockCreator.createWorld())
                                  .thenReturn(mock(World.class)))) {
                 World world = mock(World.class);
@@ -668,6 +672,90 @@ class SpeedrunLobbyTest {
                 assertThat(lobby.session()).isEmpty();
             }
         }
+
+        /**
+         * The reset that left the nether and the end standing. The overworld went first; whoever was
+         * still in the nether had entered it from that overworld, so they were sent back into a world
+         * that no longer existed — and the nether and the end were never regenerated at all.
+         */
+        @Test
+        @DisplayName("somebody still in the nether: all three worlds are reset, and they land outside the run")
+        void resetsTheWholeRunWithSomebodyInTheNether() throws Exception {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                 MockedStatic<de.raindancer.core.RainsCore> core = mockStatic(de.raindancer.core.RainsCore.class);
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.RETURNS_SELF),
+                         (mockCreator, context) -> {
+                             when(mockCreator.environment(any())).thenReturn(mockCreator);
+                             when(mockCreator.seed(org.mockito.ArgumentMatchers.anyLong())).thenReturn(mockCreator);
+                             when(mockCreator.copy(any(World.class))).thenReturn(mockCreator);
+                             when(mockCreator.createWorld()).thenReturn(mock(World.class));
+                         })) {
+                World mainWorld = mock(World.class);
+                Location spawn = mock(Location.class);
+                when(mainWorld.getSpawnLocation()).thenReturn(spawn);
+                World overworld = runWorld(bukkit, "world", World.Environment.NORMAL);
+                World nether = runWorld(bukkit, "world_nether", World.Environment.NETHER);
+                World end = runWorld(bukkit, "world_the_end", World.Environment.THE_END);
+                bukkit.when(Bukkit::getWorlds).thenReturn(List.of(mainWorld, overworld, nether, end));
+
+                Player racer = mock(Player.class);
+                when(racer.getUniqueId()).thenReturn(ALICE);
+                when(racer.teleportAsync(any(Location.class)))
+                        .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(true));
+                when(nether.getPlayers()).thenReturn(List.of(racer));
+
+                UUID overworldId = UUID.randomUUID();
+                when(overworld.getUID()).thenReturn(overworldId);
+                bukkit.when(() -> Bukkit.getWorld(overworldId)).thenReturn(overworld);
+                Location cameFrom = new Location(overworld, 0, 70, 0);
+                de.raindancer.core.RainsCore live = mock(de.raindancer.core.RainsCore.class);
+                de.raindancer.core.world.manage.WorldEntryPoints entries =
+                        mock(de.raindancer.core.world.manage.WorldEntryPoints.class);
+                when(entries.before(any())).thenReturn(java.util.Optional.empty());
+                when(entries.before(ALICE)).thenReturn(java.util.Optional.of(cameFrom));
+                when(live.worldEntryPoints()).thenReturn(entries);
+                core.when(de.raindancer.core.RainsCore::get).thenReturn(live);
+
+                io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler globalScheduler =
+                        mock(io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler.class);
+                bukkit.when(Bukkit::getGlobalRegionScheduler).thenReturn(globalScheduler);
+                org.mockito.Mockito.doAnswer(invocation -> {
+                    ((Runnable) invocation.getArgument(1)).run();
+                    return null;
+                }).when(globalScheduler).execute(eq(plugin), any(Runnable.class));
+
+                SpeedrunLobby.ResetOutcome outcome = lobby().forceReset();
+
+                assertThat(outcome).isEqualTo(SpeedrunLobby.ResetOutcome.RESET);
+                verify(racer).teleportAsync(spawn);
+                verify(racer, never()).teleportAsync(cameFrom);
+                bukkit.verify(() -> Bukkit.unloadWorld(overworld, false));
+                bukkit.verify(() -> Bukkit.unloadWorld(nether, false));
+                bukkit.verify(() -> Bukkit.unloadWorld(end, false));
+                assertThat(creators.constructed()).hasSize(3);
+            }
+        }
+
+        private World runWorld(MockedStatic<Bukkit> bukkit, String name, World.Environment environment)
+                throws java.io.IOException {
+            Path folder = dataFolder.resolve("worlds").resolve(name);
+            java.nio.file.Files.createDirectories(folder);
+            World world = mock(World.class);
+            when(world.getName()).thenReturn(name);
+            when(world.getEnvironment()).thenReturn(environment);
+            when(world.getWorldFolder()).thenReturn(folder.toFile());
+            when(world.getPlayers()).thenReturn(List.of());
+            // Gone from getWorld once unloaded, as on a real server — otherwise the recreation sees the
+            // old world still "loaded" and declines to make it again.
+            java.util.concurrent.atomic.AtomicBoolean unloaded = new java.util.concurrent.atomic.AtomicBoolean();
+            bukkit.when(() -> Bukkit.getWorld(name)).thenAnswer(invocation -> unloaded.get() ? null : world);
+            bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenAnswer(invocation -> {
+                unloaded.set(true);
+                return true;
+            });
+            return world;
+        }
     }
 
     @Nested
@@ -675,7 +763,7 @@ class SpeedrunLobbyTest {
     class EnsureWorldExists {
 
         private MockedConstruction<WorldCreator> creatorsMakingWorlds() {
-            return mockConstruction(WorldCreator.class, (creator, context) -> {
+            return mockConstruction(WorldCreator.class, org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.RETURNS_SELF), (creator, context) -> {
                 when(creator.environment(any())).thenReturn(creator);
                 when(creator.createWorld()).thenReturn(mock(World.class));
             });
@@ -723,7 +811,8 @@ class SpeedrunLobbyTest {
         @DisplayName("does nothing at all when the world and both its dimensions are loaded")
         void doesNothingWhenAlreadyLoaded() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
-                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class)) {
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.RETURNS_SELF))) {
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
                 bukkit.when(() -> Bukkit.getWorld("world_nether")).thenReturn(mock(World.class));
                 bukkit.when(() -> Bukkit.getWorld("world_the_end")).thenReturn(mock(World.class));
@@ -738,7 +827,8 @@ class SpeedrunLobbyTest {
         @DisplayName("does not try to create the world when it is already loaded as the primary world")
         void doesNotTryToCreateAnAlreadyLoadedPrimaryWorld() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
-                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class)) {
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.RETURNS_SELF))) {
                 World primary = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(primary);
                 bukkit.when(() -> Bukkit.getWorld("world_nether")).thenReturn(mock(World.class));
@@ -800,6 +890,7 @@ class SpeedrunLobbyTest {
         void remakesTheWorldAndIsReady() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
                  MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.RETURNS_SELF),
                          (mockCreator, context) -> when(mockCreator.createWorld())
                                  .thenReturn(mock(World.class)))) {
                 World world = mock(World.class);

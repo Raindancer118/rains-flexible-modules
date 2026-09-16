@@ -1,0 +1,3 @@
+# How this module is found. ModuleDiscovery asks ServiceLoader, so adding this module to a build is adding a
+# dependency and nothing else — there is no list anywhere to keep in step.
+de.raindancer.modules.worldutils.WorldUtilsModule

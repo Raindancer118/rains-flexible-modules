@@ -9,7 +9,9 @@ import de.raindancer.core.ui.actionbar.ActionBars;
 import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.RainsCore;
 import de.raindancer.core.world.manage.WorldRegenerator;
+import de.raindancer.core.world.manage.WorldSeed;
 import de.raindancer.modules.speedrun.conditions.AdvancementEndCondition;
 import de.raindancer.modules.speedrun.conditions.DeathEndCondition;
 import de.raindancer.modules.speedrun.conditions.DragonExitEndCondition;
@@ -22,6 +24,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -418,38 +421,52 @@ public final class SpeedrunLobby {
      * {@code _the_end} beside it — and tells {@link #onReady} listeners once they are back.
      *
      * <p>Resetting only the overworld would leave a finished run's nether and end standing: the
-     * chests looted, the portal already lit, the dragon already dead. The next race would start
-     * against somebody else's leftovers. A companion that is not loaded is simply skipped, and one
-     * that refuses to come back is logged rather than stopping the rest — the overworld is the world
-     * a run cannot do without, and it is already back by then.
+     * chests looted, the portal already lit, the dragon already dead. A companion that is not loaded
+     * is simply not part of the group.
+     *
+     * <p><b>One operation, not three.</b> This used to regenerate the overworld and then each
+     * companion in turn, and whoever was still standing in the nether was then sent back to where they
+     * had entered it from — the overworld that had just been deleted. The nether's reset died on that,
+     * and the end's was never reached. Core's {@link WorldRegenerator#regenerateAll} moves every
+     * occupant of every world out of the whole group, waits for all of them, and only then unloads
+     * anything, so there is nobody left to strand.
      *
      * <p>Folia: unloading, deleting and recreating a world are global-region operations, and callers
      * reach this from whatever thread a command or a quit event ran on.
      */
     private void regenerateTheWholeRun(World target) {
         SpeedrunWorlds worlds = SpeedrunWorlds.around(config().worldName());
-        Scheduling.global(plugin, () -> worldRegenerator.regenerate(target, ok -> {
-            if (!ok) {
-                return;
+        List<World> group = new ArrayList<>();
+        group.add(target);
+        for (String companion : List.of(worlds.nether(), worlds.theEnd())) {
+            World loaded = Bukkit.getWorld(companion);
+            if (loaded != null) {
+                group.add(loaded);
             }
-            regenerateCompanion(worlds.nether(),
-                    () -> regenerateCompanion(worlds.theEnd(), this::announceReady));
+        }
+        Scheduling.global(plugin, () -> regenerator().regenerateAll(group, WorldSeed.random(), ok -> {
+            if (!ok) {
+                log.warn("Not every world of the run could be regenerated ({}); the server log says "
+                        + "which, and that one still holds whatever the last run left in it.",
+                        String.join(", ", group.stream().map(World::getName).toList()));
+            }
+            // Announced whenever the overworld itself came back, even if a companion did not: a lobby
+            // that never says it is ready again is one nobody can start a run in, which is worse than
+            // a used nether. A different World object is the proof it is a new one — an overworld
+            // that refused to unload is still the old object.
+            World now = Bukkit.getWorld(config().worldName());
+            if (now != null && now != target) {
+                announceReady();
+            }
         }));
     }
 
-    private void regenerateCompanion(String name, Runnable next) {
-        World companion = Bukkit.getWorld(name);
-        if (companion == null) {
-            next.run();
-            return;
-        }
-        worldRegenerator.regenerate(companion, ok -> {
-            if (!ok) {
-                log.warn("'{}' could not be regenerated; the run's overworld is fresh but that "
-                        + "dimension still holds whatever the last run left in it.", name);
-            }
-            next.run();
-        });
+    /**
+     * Core's regenerator when Core is running — the one that writes every seed into the seed history —
+     * and a plain one otherwise, which is what a test without a server gets.
+     */
+    private WorldRegenerator regenerator() {
+        return RainsCore.isAvailable() ? RainsCore.get().worldRegenerator() : worldRegenerator;
     }
 
     /**
@@ -827,7 +844,7 @@ public final class SpeedrunLobby {
                         + "will always fail on it — set world-name to a dedicated world instead.", name);
             }
         } else {
-            worldRegenerator.create(name);
+            regenerator().create(name);
         }
         // The other two dimensions of the same run. Minecraft only links these for the primary level's
         // own folder layout, never for a world made at runtime, so without them a nether portal in the
@@ -835,10 +852,10 @@ public final class SpeedrunLobby {
         // them in the server's overworld, outside the race entirely. See SpeedrunPortalListener.
         SpeedrunWorlds worlds = SpeedrunWorlds.around(name);
         if (Bukkit.getWorld(worlds.nether()) == null) {
-            worldRegenerator.create(worlds.nether(), World.Environment.NETHER);
+            regenerator().create(worlds.nether(), World.Environment.NETHER);
         }
         if (Bukkit.getWorld(worlds.theEnd()) == null) {
-            worldRegenerator.create(worlds.theEnd(), World.Environment.THE_END);
+            regenerator().create(worlds.theEnd(), World.Environment.THE_END);
         }
     }
 }

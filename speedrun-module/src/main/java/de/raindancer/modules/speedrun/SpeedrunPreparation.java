@@ -18,7 +18,7 @@ import java.util.UUID;
  * ground from whatever happened the last time the world was used.
  *
  * <h2>Why this runs on every start, not only after a regeneration</h2>
- * {@link SpeedrunReset} already hands back a pristine world once a finished run's last participant
+ * Core's {@code WorldRegenerator} already hands back a pristine world once a finished run's last participant
  * leaves — but a {@code PAUSED} run that gets resumed, or a lobby whose owner set the goal without a
  * run ever finishing first, never goes through that. A day/night cycle keeps advancing and mobs keep
  * spawning in a lobby world nobody has reset yet, so the only point every run can rely on is the one

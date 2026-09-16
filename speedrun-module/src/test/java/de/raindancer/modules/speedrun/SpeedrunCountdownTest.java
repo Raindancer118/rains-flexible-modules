@@ -39,7 +39,7 @@ import static org.mockito.Mockito.when;
  * zero, and a participant is frozen — see {@link SpeedrunCountdown#onMove} — without touching a real
  * Paper scheduler. {@code Bukkit.getGlobalRegionScheduler().runAtFixedRate} is stubbed to hand back
  * the tick {@code Consumer} it was given, which the test then calls by hand to simulate seconds
- * passing, the same trick {@code SpeedrunResetTest} uses for {@code WorldCreator}.
+ * passing, the same trick {@code SpeedrunLobbyTest} uses for {@code WorldCreator}.
  */
 class SpeedrunCountdownTest {
 

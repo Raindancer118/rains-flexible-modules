@@ -29,8 +29,14 @@
           1.0.0: the first release of this as a plugin. It is not a rebuild of an older chained-together
           plugin — there was none — so there is no earlier version line to continue and nothing on an
           upgrading server to preserve.
+
+          1.1.0: resetting the map goes through RainsCore's WorldRegenerator — everybody in the world is
+          moved out and waited for before it is unloaded (the old copy unloaded while their teleports were
+          still under way), the world's game rules and generator come back with it, the seed is written
+          into Core's seed history, and /chain reset seed takes "same" and words as well as numbers.
+          Needs RainsCore 1.36.0.
         -->
-        <plugin.version>1.0.0</plugin.version>
+        <plugin.version>1.1.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -24,8 +24,10 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <!-- The name the server sees, and the name of its data folder. -->
         <plugin.name>RainsWorldGate</plugin.name>
-        <!-- 1.0.0: the first release of this as a plugin. There is no earlier version line. -->
-        <plugin.version>1.0.0</plugin.version>
+        <!-- 1.0.0: the first release of this as a plugin. There is no earlier version line.
+             1.1.0: a locked dimension also refuses teleports by command, through RainsCore's world entry
+             rules — a world switcher or a home no longer walks past a closed End. Needs RainsCore 1.36.0. -->
+        <plugin.version>1.1.0</plugin.version>
     </properties>
 
     <dependencies>
