@@ -39,7 +39,7 @@ public final class EssentialsCommands {
 
                 ModuleCommand.of("msg", "Sends somebody a private message",
                                 new MsgCommand(EssentialsCommands::require))
-                        .aliased("tell", "w", "whisper")
+                        .aliased("m", "tell", "whisper")
                         .taking("<player> <message>"),
                 ModuleCommand.of("r", "Answers whoever last messaged you",
                                 new ReplyCommand(EssentialsCommands::require))

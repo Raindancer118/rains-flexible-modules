@@ -376,8 +376,10 @@
           after typing @. Replaced with AsyncTabCompleteEvent, which still fires for chat as well
           as commands. Pinging on send was never affected by this; a self-mention still pings
           nobody, on purpose, unchanged since 1.0.0.
+
+          1.17.3: essentials-module 1.6.1 — /msg answers to /m instead of /w, which is RainsWorldUtils'.
         -->
-        <plugin.version>1.17.2</plugin.version>
+        <plugin.version>1.17.3</plugin.version>
     </properties>
 
     <dependencies>

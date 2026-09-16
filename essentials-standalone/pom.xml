@@ -68,8 +68,11 @@
           somebody in /players or bare /seen now opens Core's ProfileMenu instead of only the seen
           report, with a "Message" button of this module's own; and /seen <name>'s own report now
           prints the name as a click-to-open-profile link instead of plain text.
+
+          1.6.1: /msg answers to /m instead of /w — /w is RainsWorldUtils' world switch, and two plugins
+          registering one name leaves Paper to decide which one a player gets.
         -->
-        <plugin.version>1.6.0</plugin.version>
+        <plugin.version>1.6.1</plugin.version>
     </properties>
 
     <dependencies>
