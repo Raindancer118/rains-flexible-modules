@@ -35,6 +35,35 @@ chat:
     header: "<gray>── <white><count></white> message(s) ──"
     line: "<dark_gray>[<white><time></white>] <gray><player>: <text>"
 
+  no-permission: "<red>You are not allowed to do that."
+  not-online: "<red>Nobody called <white><player></white> is online."
+
+  # ── /chat private, /chat public ───────────────────────────────────────────
+  private:
+    line: "<dark_purple>[Private]</dark_purple> <line>"
+    started: "<light_purple>You are in a private chat now. <gray>/chat private add [name] brings somebody in, /chat public talks in public again, /chat private end closes it."
+    switched: "<light_purple>Your messages go to the private chat again."
+    already-private: "<gray>You are already talking in the private chat."
+    public: "<green>Your messages go to public chat again. <gray>You still read the private chat — /chat private to talk there, /chat private leave to leave it."
+    already-public: "<gray>You are already talking in public chat."
+    added: "<light_purple><player></light_purple> <gray>joined the private chat."
+    you-were-added: "<white><owner></white> <light_purple>added you to a private chat — your messages go there now. <gray>/chat public talks in public again, /chat private leave leaves it."
+    already-a-member: "<gray><player> is already in this private chat."
+    in-another-chat: "<red><white><player></white> is already in another private chat."
+    left-this-chat: "<red><white><player></white> left this private chat and cannot be added back into it."
+    not-yourself: "<red>That would be yourself."
+    not-the-owner: "<red>Only <white><owner></white> can do that in this private chat."
+    not-a-member: "<red><white><player></white> is not in this private chat."
+    not-in-a-chat: "<red>You are not in a private chat. <gray>/chat private starts one."
+    removed: "<gray><player> was removed from the private chat."
+    you-were-removed: "<red>You were removed from <white><owner></white>'s private chat. <gray>Your messages go to public chat again."
+    left: "<gray><player> left the private chat."
+    you-left: "<green>You left the private chat. <gray>Your messages go to public chat again."
+    ended: "<gray>The private chat was closed by <white><player></white>. Your messages go to public chat again."
+    ended-offline: "<gray>The private chat closed — <white><player></white> went offline. Your messages go to public chat again."
+    went-offline: "<gray><player> went offline and left the private chat."
+    members: "<light_purple>Private chat of <white><owner></white> <gray>(<count>): <white><members>"
+
   # ── staff tools, /chat ────────────────────────────────────────────────────
   admin:
     cleared: "<gray>Chat was cleared by <white><player></white>."

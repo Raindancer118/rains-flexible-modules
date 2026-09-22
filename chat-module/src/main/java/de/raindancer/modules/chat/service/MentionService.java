@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -98,21 +99,49 @@ public final class MentionService implements IChatService {
      * {@link #mentionsIn}: a name nobody could actually ping is not worth suggesting either.
      */
     public List<String> candidatesFor(Player sender, String partial) {
-        List<String> found = new ArrayList<>();
         if (!settings.mentionsEnabled() || sender == null || partial == null) {
+            return new ArrayList<>();
+        }
+        List<String> found = new ArrayList<>();
+        for (String name : namesVisibleTo(sender, partial)) {
+            found.add("@" + name);
+        }
+        return found;
+    }
+
+    /**
+     * Every online player {@code asker} can see whose name starts with {@code partial}, {@code asker}
+     * excluded — whether or not mentions are switched on, since {@code /chat private add} completes
+     * names by the same rule.
+     */
+    public List<String> namesVisibleTo(Player asker, String partial) {
+        List<String> found = new ArrayList<>();
+        if (asker == null || partial == null) {
             return found;
         }
         String prefix = partial.toLowerCase(Locale.ROOT);
         for (Player online : server.getOnlinePlayers()) {
-            if (online.equals(sender) || !online.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
+            if (online.equals(asker) || !online.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
                 continue;
             }
-            if (!vanish.canSee(sender.getUniqueId(), online.getUniqueId())) {
+            if (!vanish.canSee(asker.getUniqueId(), online.getUniqueId())) {
                 continue;
             }
-            found.add("@" + online.getName());
+            found.add(online.getName());
         }
         return found;
+    }
+
+    /**
+     * The online player called {@code name}, if {@code asker} can see them — a vanished player is
+     * "not online" to anybody who cannot, exactly as they are to a mention.
+     */
+    public Optional<Player> visibleNamed(Player asker, String name) {
+        Player found = name == null ? null : server.getPlayerExact(name);
+        if (found == null || asker == null || !vanish.canSee(asker.getUniqueId(), found.getUniqueId())) {
+            return Optional.empty();
+        }
+        return Optional.of(found);
     }
 
     /** Pings everybody this line mentions — a sound and a message naming who sent it and what it said. */

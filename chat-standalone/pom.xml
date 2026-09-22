@@ -44,8 +44,16 @@
           commands and plain chat (isCommand() tells the two apart). @-mention pinging itself on
           message send was unaffected by this — that path never went through the dead event — and
           a self-mention still deliberately pings nobody, unchanged from 1.0.0.
+          1.3.0: /chat private — a conversation among a chosen few. /chat private starts one,
+          /chat private add <player> brings somebody in and switches them over at once, /chat public
+          talks in public again (while still reading the private one), /chat private leave|end|list.
+          A private line cancels the chat event and is delivered to the members by hand, so it never
+          reaches the console, /chathistory, or the Discord bridge (which ignores cancelled chat at
+          MONITOR). Somebody who leaves cannot be pulled back into the same chat. /chat itself no
+          longer requires chat.admin — the staff subcommands check it themselves; the private ones
+          ask for chat.private, which everybody has.
         -->
-        <plugin.version>1.2.1</plugin.version>
+        <plugin.version>1.3.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -24,9 +24,13 @@ public final class ChatCommands {
 
     public static List<ModuleCommand> declared() {
         return List.of(
-                ModuleCommand.of("chat", "Clears, freezes, or slows down public chat",
+                ModuleCommand.of("chat", "Private chats, and clearing, freezing or slowing down public chat",
                                 new ChatCommand(ChatCommands::require))
-                        .taking("clear — sends a wall of blank lines",
+                        .taking("private — starts a private chat, or talks in yours again",
+                                "private add|remove <player> — brings somebody in, or takes them out",
+                                "private leave|end|list — leaves it, closes it for everybody, or shows who is in it",
+                                "public — talks in public chat again, while still reading the private one",
+                                "clear — sends a wall of blank lines",
                                 "freeze — toggles whether anybody but staff may talk",
                                 "slowmode <seconds|off> — a cooldown for everybody, on top of any "
                                         + "per-player one"),

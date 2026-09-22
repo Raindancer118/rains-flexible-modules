@@ -13,6 +13,7 @@ import de.raindancer.modules.chat.service.ChatStyleService;
 import de.raindancer.modules.chat.service.FormatService;
 import de.raindancer.modules.chat.service.FreezeService;
 import de.raindancer.modules.chat.service.MentionService;
+import de.raindancer.modules.chat.service.PrivateChatService;
 import de.raindancer.modules.chat.store.ChatHistoryStore;
 import de.raindancer.modules.chat.store.ChatStyleStore;
 import de.raindancer.modules.chat.util.PermissionNodes;
@@ -33,13 +34,14 @@ import java.util.List;
  * player never reaches this module at all, refused by Core's own {@code PunishmentListener} before
  * {@link ChatListener} ever sees the line. What is left, once those are taken out, is what this
  * module is: the format a line is shown in, @-mentions, a quality filter, {@code /chathistory} for
- * catching up after being away, and the staff tools to reach for when chat needs calming down.
+ * catching up after being away, {@code /chat private} for a conversation among a chosen few, and the
+ * staff tools to reach for when chat needs calming down.
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.2.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.3.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
-                    + "and /chat clear, freeze and slowmode")
+                    + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
 
     private LogChannel log;
@@ -81,6 +83,7 @@ public final class ChatModule implements FlexModule {
                 context.core().messages(), settings.current());
         ChatQualityService quality = new ChatQualityService(settings.current());
         FreezeService freeze = new FreezeService();
+        PrivateChatService privateChat = new PrivateChatService();
 
         history = new ChatHistoryStore(context.dataFolder());
         history.load();
@@ -88,7 +91,8 @@ public final class ChatModule implements FlexModule {
 
         services = new ChatServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
-                settings::current, format, mentions, quality, freeze, chatHistory, styleService);
+                settings::current, format, mentions, quality, freeze, chatHistory, styleService,
+                privateChat);
 
         settings.onChange(fresh -> {
             format.settings(fresh);
@@ -97,6 +101,7 @@ public final class ChatModule implements FlexModule {
             freeze.settings(fresh);
             chatHistory.settings(fresh);
             styleService.settings(fresh);
+            privateChat.settings(fresh);
         });
 
         context.listener(new ChatListener(services));

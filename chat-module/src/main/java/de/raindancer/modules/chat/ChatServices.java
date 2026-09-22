@@ -11,6 +11,7 @@ import de.raindancer.modules.chat.service.ChatStyleService;
 import de.raindancer.modules.chat.service.FormatService;
 import de.raindancer.modules.chat.service.FreezeService;
 import de.raindancer.modules.chat.service.MentionService;
+import de.raindancer.modules.chat.service.PrivateChatService;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
 
@@ -41,7 +42,8 @@ public record ChatServices(
         ChatQualityService quality,
         FreezeService freeze,
         ChatHistoryService history,
-        ChatStyleService styles) {
+        ChatStyleService styles,
+        PrivateChatService privateChat) {
 
     /** The settings as they are right now. */
     public ChatSettings config() {

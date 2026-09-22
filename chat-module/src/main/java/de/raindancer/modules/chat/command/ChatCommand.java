@@ -7,15 +7,27 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
 
-/** {@code /chat clear|freeze|slowmode <seconds|off>} — the staff tools for a chat gone wrong. */
+/**
+ * {@code /chat} — the staff tools for a chat gone wrong ({@code clear}, {@code freeze},
+ * {@code slowmode}), and the private chats every player may start ({@code private}, {@code public}).
+ *
+ * <h2>Why the command itself asks for no permission</h2>
+ * It used to require {@code chat.admin} as a whole, which was right while every subcommand was a staff
+ * tool. With {@code /chat private} beside them, each half checks its own node — the staff tools
+ * {@link PermissionNodes#ADMIN}, the private chats {@link PermissionNodes#PRIVATE} — and a player is
+ * only ever offered the subcommands they may actually run.
+ */
 public final class ChatCommand implements IChatCommand {
 
-    private static final List<String> SUBCOMMANDS = List.of("clear", "freeze", "slowmode");
+    private static final List<String> STAFF = List.of("clear", "freeze", "slowmode");
+    private static final List<String> EVERYBODY = List.of("private", "public");
+    private static final String USAGE = "/chat private|public|clear|freeze|slowmode <seconds|off>";
 
     private final Supplier<ChatServices> services;
 
@@ -25,7 +37,7 @@ public final class ChatCommand implements IChatCommand {
 
     @Override
     public String describe() {
-        return "clears, freezes, or slows down public chat";
+        return "private chats, and clearing, freezing or slowing down public chat";
     }
 
     @Override
@@ -33,15 +45,38 @@ public final class ChatCommand implements IChatCommand {
         ChatServices live = services.get();
         CommandSender sender = source.getSender();
         if (args.length == 0) {
-            live.messages().send(sender, "chat.usage", "usage", "/chat clear|freeze|slowmode <seconds|off>");
+            live.messages().send(sender, "chat.usage", "usage", USAGE);
             return;
         }
-        switch (args[0].toLowerCase(Locale.ROOT)) {
+        String subcommand = args[0].toLowerCase(Locale.ROOT);
+        if (EVERYBODY.contains(subcommand)) {
+            if (!(sender instanceof Player player)) {
+                live.messages().send(sender, "chat.only-a-player");
+                return;
+            }
+            if (!player.hasPermission(PermissionNodes.PRIVATE)) {
+                live.messages().send(sender, "chat.no-permission");
+                return;
+            }
+            if (subcommand.equals("private")) {
+                PrivateChatSubcommand.privately(live, player, args);
+            } else {
+                PrivateChatSubcommand.publicly(live, player);
+            }
+            return;
+        }
+        if (!STAFF.contains(subcommand)) {
+            live.messages().send(sender, "chat.usage", "usage", USAGE);
+            return;
+        }
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "chat.no-permission");
+            return;
+        }
+        switch (subcommand) {
             case "clear" -> clear(live, sender);
             case "freeze" -> freeze(live, sender);
-            case "slowmode" -> slowmode(live, sender, args);
-            default -> live.messages().send(sender, "chat.usage",
-                    "usage", "/chat clear|freeze|slowmode <seconds|off>");
+            default -> slowmode(live, sender, args);
         }
     }
 
@@ -96,18 +131,32 @@ public final class ChatCommand implements IChatCommand {
 
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
-        if (args.length == 1) {
-            String typed = args[0].toLowerCase(Locale.ROOT);
-            return SUBCOMMANDS.stream().filter(name -> name.startsWith(typed)).toList();
+        CommandSender sender = source.getSender();
+        boolean staff = sender.hasPermission(PermissionNodes.ADMIN);
+        boolean mayTalkPrivately = sender instanceof Player && sender.hasPermission(PermissionNodes.PRIVATE);
+        if (args.length <= 1) {
+            String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
+            List<String> offered = new ArrayList<>();
+            if (mayTalkPrivately) {
+                offered.addAll(EVERYBODY);
+            }
+            if (staff) {
+                offered.addAll(STAFF);
+            }
+            return offered.stream().filter(name -> name.startsWith(typed)).toList();
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("slowmode")) {
+        if (args[0].equalsIgnoreCase("private") && mayTalkPrivately) {
+            return PrivateChatSubcommand.suggest(services.get(), (Player) sender, args);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("slowmode") && staff) {
             return List.of("off", "5", "10", "30");
         }
         return List.of();
     }
 
+    /** Nothing for the command as a whole — see the class note. */
     @Override
     public String permission() {
-        return PermissionNodes.ADMIN;
+        return null;
     }
 }

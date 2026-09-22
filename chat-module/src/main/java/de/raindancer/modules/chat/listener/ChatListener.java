@@ -2,10 +2,13 @@ package de.raindancer.modules.chat.listener;
 
 import com.destroystokyo.paper.event.server.AsyncTabCompleteEvent;
 import de.raindancer.core.platform.rule.Verdict;
+import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.modules.chat.ChatServices;
 import de.raindancer.modules.chat.util.PermissionNodes;
+import de.raindancer.modules.chat.util.PrivateChatNotices;
 import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -47,6 +50,12 @@ public final class ChatListener implements IChatListener {
         Player sender = event.getPlayer();
         String text = PLAIN.serialize(event.message());
 
+        if (services.privateChat().isTalkingPrivately(sender.getUniqueId())) {
+            event.setCancelled(true);
+            sayPrivately(sender, text);
+            return;
+        }
+
         if (services.freeze().isFrozen() && !sender.hasPermission(PermissionNodes.BYPASS_FREEZE)) {
             event.setCancelled(true);
             services.messages().send(sender, "chat.frozen");
@@ -67,6 +76,37 @@ public final class ChatListener implements IChatListener {
         event.renderer(ChatRenderer.viewerUnaware((source, sourceDisplayName, message) ->
                 services.format().render(sender, text, mentioned)));
         services.mentions().notifyMentioned(sender, text, mentioned);
+    }
+
+    /**
+     * A line said in a private chat, put in front of its members and nobody else.
+     *
+     * <h2>Why cancelling is the whole trick</h2>
+     * Paper writes a chat line to the console only as part of delivering an event nobody cancelled,
+     * and every listener after this one that honours a cancel — the Discord bridge sits at
+     * {@code MONITOR} with {@code ignoreCancelled = true} for exactly this reason — never sees the line
+     * at all. So the event is cancelled and the line is sent here, by hand, to each member. It is also
+     * why this comes before the freeze, the quality filters and {@code /chathistory}: none of them is
+     * about a conversation the public cannot read, and the history is one the public <em>can</em>.
+     *
+     * <h2>A mute still applies</h2>
+     * Core's {@code PunishmentListener} cancels a muted player's line at {@code LOW}, before this
+     * handler — which ignores cancelled events — is ever asked.
+     *
+     * <h2>Why nothing here is scheduled</h2>
+     * The same call {@link de.raindancer.modules.chat.service.MentionService} already makes on this
+     * thread: one online-player lookup per member, and sending a component, which needs no region
+     * thread. Deferring it would only let the chat end between the line and its delivery.
+     */
+    private void sayPrivately(Player sender, String text) {
+        Component line = services.chat().mm(services.messages().raw("chat.private.line"),
+                Chat.formatted("line", services.format().render(sender, text, List.of())));
+        for (UUID reader : services.privateChat().readersOf(sender.getUniqueId())) {
+            Player online = services.server().getPlayer(reader);
+            if (online != null) {
+                online.sendMessage(line);
+            }
+        }
     }
 
     /**
@@ -124,6 +164,7 @@ public final class ChatListener implements IChatListener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         services.history().markLeft(event.getPlayer().getUniqueId());
+        PrivateChatNotices.disconnected(services, event.getPlayer());
         forget(event.getPlayer().getUniqueId());
     }
 
