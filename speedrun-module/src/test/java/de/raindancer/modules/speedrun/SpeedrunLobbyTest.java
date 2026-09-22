@@ -623,6 +623,46 @@ class SpeedrunLobbyTest {
         }
 
         @Test
+        @DisplayName("forgets the /starthere point — those coordinates were in a world that is gone")
+        void resetForgetsTheStartPoint() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.RETURNS_SELF),
+                         (mockCreator, context) -> when(mockCreator.createWorld())
+                                 .thenReturn(mock(World.class)))) {
+                World world = mock(World.class);
+                World mainWorld = mock(World.class);
+                when(mainWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+                when(world.getName()).thenReturn("world");
+                when(world.getWorldFolder()).thenReturn(dataFolder.resolve("speedrun").toFile());
+                when(world.getPlayers()).thenReturn(List.of());
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                bukkit.when(Bukkit::getWorlds).thenReturn(List.of(mainWorld));
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(true);
+                io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler globalScheduler =
+                        mock(io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler.class);
+                bukkit.when(Bukkit::getGlobalRegionScheduler).thenReturn(globalScheduler);
+                org.mockito.Mockito.doAnswer(invocation -> {
+                    ((Runnable) invocation.getArgument(1)).run();
+                    return null;
+                }).when(globalScheduler).execute(eq(plugin), any(Runnable.class));
+                SpeedrunLobby lobby = lobby();
+                lobby.setStartPoint(new Location(world, 12.5, 70, -3.5, 90f, 15f));
+
+                lobby.forceReset();
+
+                SpeedrunSettings config = lobby.config();
+                assertThat(config.startPointSet()).isFalse();
+                assertThat(config.startX()).isZero();
+                assertThat(config.startY()).isZero();
+                assertThat(config.startZ()).isZero();
+                assertThat(config.startYaw()).isZero();
+                assertThat(config.startPitch()).isZero();
+                assertThat(lobby.startPoint()).isEmpty();
+            }
+        }
+
+        @Test
         @DisplayName("refuses mid-countdown rather than racing the launcher's own callback")
         void refusesMidCountdown() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {

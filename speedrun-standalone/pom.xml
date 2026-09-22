@@ -73,8 +73,13 @@
              with the clock still running: a world made at runtime is never the primary level, so a
              player with no respawn point of their own lands in the server's. And /freezeagain
              (alias /unlemmemove) undoes a /lemmemove, which until now lasted until the world was
-             reset around everybody. -->
-        <plugin.version>1.15.0</plugin.version>
+             reset around everybody.
+             1.16.0: a reset forgets the /starthere point. Those coordinates are in the world the
+             reset deletes, and the world that comes back is generated from a new seed — so the spot
+             they name is somewhere else entirely, and the next countdown teleported every racer into
+             it. A lobby with no start point starts everybody where they stand, which is the
+             documented "off". -->
+        <plugin.version>1.16.0</plugin.version>
     </properties>
 
     <dependencies>

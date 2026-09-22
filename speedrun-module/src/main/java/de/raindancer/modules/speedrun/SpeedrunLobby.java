@@ -417,6 +417,28 @@ public final class SpeedrunLobby {
     }
 
     /**
+     * Forgets whatever {@code /starthere} set — called by every reset, from
+     * {@link #regenerateTheWholeRun}.
+     *
+     * <h2>Why a reset throws it away rather than keeping it</h2>
+     * The point is coordinates in a world that the reset deletes. The world that comes back is
+     * generated from a new seed, so the spot those numbers name is somewhere else entirely — mid-air,
+     * inside a mountain, in an ocean — and the next countdown would teleport every racer into it
+     * without anyone having asked for that. Reported after exactly that: a start point set before a
+     * reset was still the start point after one. Cleared outright rather than guessed at, since a
+     * lobby with no start point simply starts everybody where they are standing, which is the
+     * documented "off".
+     */
+    public void clearStartPoint() {
+        settings.set("start-x", "0");
+        settings.set("start-y", "0");
+        settings.set("start-z", "0");
+        settings.set("start-yaw", "0");
+        settings.set("start-pitch", "0");
+        settings.set("start-point-set", "false");
+    }
+
+    /**
      * An admin's own escape hatch: whatever the speedrun world currently is — mid-run, freshly
      * regenerated and untouched, half-built by somebody poking around in it while READY — this ends
      * any run under way and hands the world to {@link WorldRegenerator#regenerate}: everybody standing
@@ -466,6 +488,10 @@ public final class SpeedrunLobby {
      * reach this from whatever thread a command or a quit event ran on.
      */
     private void regenerateTheWholeRun(World target) {
+        // Before anything else: the point /starthere set is coordinates in the world about to be
+        // deleted, and the one that comes back is a different world under the same name. See
+        // clearStartPoint.
+        clearStartPoint();
         SpeedrunWorlds worlds = SpeedrunWorlds.around(config().worldName());
         List<World> group = new ArrayList<>();
         group.add(target);
