@@ -67,8 +67,14 @@
              had entered it — the overworld that had just been deleted — which ended the reset there.
              The whole run is now one regeneration through RainsCore's WorldRegenerator.regenerateAll,
              which moves everybody out of every world first; portal linking and seeds are Core's too,
-             and the module's own copies (SpeedrunReset, SpeedrunSeed) are gone. Needs RainsCore 1.36.0. -->
-        <plugin.version>1.14.0</plugin.version>
+             and the module's own copies (SpeedrunReset, SpeedrunSeed) are gone. Needs RainsCore 1.36.0.
+             1.15.0: a death in the run's nether or end comes back into the run. A racer killed there
+             respawned at the server's own spawn — out of the race, in a world no reset ever touches,
+             with the clock still running: a world made at runtime is never the primary level, so a
+             player with no respawn point of their own lands in the server's. And /freezeagain
+             (alias /unlemmemove) undoes a /lemmemove, which until now lasted until the world was
+             reset around everybody. -->
+        <plugin.version>1.15.0</plugin.version>
     </properties>
 
     <dependencies>

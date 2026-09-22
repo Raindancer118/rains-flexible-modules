@@ -23,7 +23,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.14.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.15.0")
             .describedAs("A speedrun lobby: pick a game, an advancement goal and a death policy "
                     + "from the compass's menu, then press the green block to race. A countdown "
                     + "freezes everyone first, and the lobby world resets once the last racer has "
@@ -61,6 +61,10 @@ public final class SpeedrunModule implements FlexModule {
         // Portal travel out of a runtime-made world falls back to the server's own dimensions, which
         // is how a racer walked out of a nether portal into the server's overworld mid-run.
         context.listener(new SpeedrunPortalListener(lobby));
+        // The other way out of the run's worlds: a death in its nether or end put the racer back at
+        // the server's own spawn, because a runtime-made world is never the primary level. See
+        // SpeedrunRespawnListener.
+        context.listener(new SpeedrunRespawnListener(lobby));
         // Nobody can be hurt, and nothing explodes, in a lobby that is not racing yet — for the life
         // of the module rather than of a session, because the whole point of it is the gap between
         // two sessions. See SpeedrunLobbySafetyListener.

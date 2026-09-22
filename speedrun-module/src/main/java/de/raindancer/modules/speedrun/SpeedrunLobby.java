@@ -264,6 +264,18 @@ public final class SpeedrunLobby {
         }
     }
 
+    /**
+     * Takes a {@link #release} back, for {@code /freezeagain} — the freeze applies to them again from
+     * the next step they take. A release never expires on its own, so without this the only way out of
+     * one handed to the wrong name was to reset the world around everybody.
+     *
+     * @return whether they were actually released, so the command can say "there was nothing to undo"
+     *         rather than confirm something that did not happen
+     */
+    public boolean refreeze(UUID player) {
+        return player != null && released.remove(player);
+    }
+
     /** Whether {@code player} has been exempted from the movement freeze by {@link #release}. */
     public boolean isReleased(UUID player) {
         return player != null && released.contains(player);
@@ -328,22 +340,41 @@ public final class SpeedrunLobby {
     }
 
     private void teleportToStartPoint(Set<UUID> participants) {
-        SpeedrunSettings current = config();
-        if (!current.startPointSet()) {
+        // Empty when /starthere never ran — nobody is moved then, which is the documented "off".
+        Location point = startPoint().orElse(null);
+        if (point == null) {
             return;
         }
-        World target = world().orElse(null);
-        if (target == null) {
-            return;   // validate() has already refused a missing world; this is belt-and-braces
-        }
-        Location point = new Location(target, current.startX(), current.startY(), current.startZ(),
-                (float) current.startYaw(), (float) current.startPitch());
         for (UUID id : participants) {
             Player player = Bukkit.getPlayer(id);
             if (player != null) {
                 player.teleportAsync(point);
             }
         }
+    }
+
+    /**
+     * Where {@code /starthere} put the start line, empty when it never ran or the lobby world is not
+     * loaded — see {@link #setStartPoint}.
+     */
+    public Optional<Location> startPoint() {
+        SpeedrunSettings current = config();
+        if (!current.startPointSet()) {
+            return Optional.empty();
+        }
+        return world().map(target -> new Location(target, current.startX(), current.startY(),
+                current.startZ(), (float) current.startYaw(), (float) current.startPitch()));
+    }
+
+    /**
+     * Where somebody who left the run's worlds without meaning to belongs: the start line if one was
+     * set, the lobby world's spawn otherwise, and empty when that world is not loaded at all.
+     *
+     * @see SpeedrunRespawnListener
+     */
+    public Optional<Location> wayBackIn() {
+        Optional<Location> point = startPoint();
+        return point.isPresent() ? point : world().map(World::getSpawnLocation);
     }
 
     /**

@@ -22,7 +22,7 @@ public final class SpeedrunCommands {
     private SpeedrunCommands() {
     }
 
-    /** The five commands this module brings, beyond the compass and the block. */
+    /** The six commands this module brings, beyond the compass and the block. */
     public static List<ModuleCommand> declared() {
         return List.of(
                 ModuleCommand.of("speedrun", "Teleport to the speedrun lobby world",
@@ -30,6 +30,11 @@ public final class SpeedrunCommands {
                         .needing(PermissionNodes.JOIN),
                 ModuleCommand.of("lemmemove", "Escape the speedrun movement freeze",
                                 new SpeedrunLemmemoveCommand(SpeedrunCommands::require))
+                        .needing(PermissionNodes.LEMMEMOVE_SELF)
+                        .taking("[player]"),
+                ModuleCommand.of("freezeagain", "Undo a /lemmemove and freeze somebody again",
+                                new SpeedrunFreezeAgainCommand(SpeedrunCommands::require))
+                        .aliased("unlemmemove")
                         .needing(PermissionNodes.LEMMEMOVE_SELF)
                         .taking("[player]"),
                 ModuleCommand.of("starthere",

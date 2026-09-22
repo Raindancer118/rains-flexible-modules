@@ -38,6 +38,16 @@ speedrun:
     no-permission-for-others: "<red>You may only release yourself — not somebody else."
     player-not-found: "<red>No online player named <white><player></white>."
     console-needs-a-player: "<red>Console must name a player: /lemmemove <player>."
+  # Undoing one of those — /freezeagain. Its own branch rather than a second line under lemmemove:
+  # what is said about taking a head start back is not what is said about handing one out.
+  freezeagain:
+    done: "<green>Froze <white><player></white> again — the movement freeze applies to them once more."
+    # A release nobody had. Said rather than confirmed: a typo'd name is the likeliest way to get
+    # here, and a cheerful "done" is how somebody walks away believing a head start was taken back.
+    not-released: "<yellow><player> was not released from the movement freeze; there was nothing to undo."
+    no-permission-for-others: "<red>You may only freeze yourself again — not somebody else."
+    player-not-found: "<red>No online player named <white><player></white>."
+    console-needs-a-player: "<red>Console must name a player: /freezeagain <player>."
   starthere:
     only-a-player: "<red>Only a player standing in the lobby world can set the start point."
     wrong-world: "<yellow>This only sets a start point in <white><world></white>."
