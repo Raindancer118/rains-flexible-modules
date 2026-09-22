@@ -60,6 +60,13 @@ public record SpeedrunSettings(
         @Describe("The advancement that ends a run, as 'namespace:path'. Empty means none.")
         String advancementKey,
 
+        @In("speedrun/race") @Title("Clear advancements at the start")
+        @Describe("Whether every racer's advancements are wiped as a run starts. On — the default — "
+                + "a repeat racer plays the same game a first-timer does: the screen empty, every "
+                + "toast still to come, and a goal that can actually be granted again. Off leaves "
+                + "everybody's saved progress alone, and only the goal itself is cleared.")
+        boolean clearAdvancementsOnStart,
+
         @In("speedrun/race") @Title("Death policy")
         @Describe("Whether a death ends the run, and whether one death is enough.")
         SpeedrunDeathPolicy deathPolicy,
@@ -254,7 +261,7 @@ public record SpeedrunSettings(
      * off and the whole feature costs nothing until somebody asks for it.
      */
     public static final SpeedrunSettings DEFAULTS = new SpeedrunSettings(
-            "", DEFAULT_WORLD_NAME, DRAGON_KILL_ADVANCEMENT, SpeedrunDeathPolicy.OFF, true, 0, 0, 0, 0,
+            "", DEFAULT_WORLD_NAME, DRAGON_KILL_ADVANCEMENT, true, SpeedrunDeathPolicy.OFF, true, 0, 0, 0, 0,
             false, 0, 0, 0, 0, 0,
             true, true, true, true, true, 10, true, (int) SpeedrunPreparation.DAY_START,
             true, true, true, true, true, true, true, true, true, true,

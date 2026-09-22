@@ -1,15 +1,14 @@
 package de.raindancer.modules.speedrun.conditions;
 
 import de.raindancer.core.platform.util.Scheduling;
+import de.raindancer.modules.speedrun.SpeedrunAdvancements;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.advancement.Advancement;
-import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Collection;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -42,12 +41,9 @@ final class GoalAdvancement {
                 continue;
             }
             // Folia: a run starts on whatever thread the countdown owned, not on each racer's own.
-            Scheduling.entity(plugin, player, () -> {
-                AdvancementProgress progress = player.getAdvancementProgress(advancement);
-                for (String criterion : Set.copyOf(progress.getAwardedCriteria())) {
-                    progress.revokeCriteria(criterion);
-                }
-            });
+            // The revoke itself is SpeedrunAdvancements', shared with the whole-book clear a run
+            // start does — Bukkit has no "un-award" of its own, and one copy of that loop is enough.
+            Scheduling.entity(plugin, player, () -> SpeedrunAdvancements.revoke(player, advancement));
         }
     }
 }

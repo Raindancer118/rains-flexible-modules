@@ -78,8 +78,15 @@
              reset deletes, and the world that comes back is generated from a new seed — so the spot
              they name is somewhere else entirely, and the next countdown teleported every racer into
              it. A lobby with no start point starts everybody where they stand, which is the
-             documented "off". -->
-        <plugin.version>1.16.0</plugin.version>
+             documented "off".
+             1.17.0: every racer's advancements are wiped as a run starts (switchable, on by
+             default). Only the goal used to be cleared, which kept the end condition working but
+             still let a repeat racer start with the advancement screen already filled in — no
+             toasts, no progress to chase — while the first-timer beside them played the real thing.
+             And /speedrunreset now ends where a run that ended on its own does: everybody standing
+             in the run's worlds is put back into the fresh lobby with the items, instead of being
+             scattered wherever the evacuation dropped them. -->
+        <plugin.version>1.17.0</plugin.version>
     </properties>
 
     <dependencies>

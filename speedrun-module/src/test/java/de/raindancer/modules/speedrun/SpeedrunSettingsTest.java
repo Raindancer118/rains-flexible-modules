@@ -66,7 +66,7 @@ class SpeedrunSettingsTest {
     @DisplayName("turning the clock setting off means 'leave the world's time alone'")
     void theClockCanBeLeftAlone() {
         SpeedrunSettings off = new SpeedrunSettings(
-                "", "world", "", SpeedrunDeathPolicy.OFF, false, 0, 0, 0, 0,
+                "", "world", "", true, SpeedrunDeathPolicy.OFF, false, 0, 0, 0, 0,
                 false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, false, 1000,
                 true, true, true, true, true, true, true, true, true, true,

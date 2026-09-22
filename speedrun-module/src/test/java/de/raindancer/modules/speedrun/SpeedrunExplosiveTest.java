@@ -29,7 +29,7 @@ class SpeedrunExplosiveTest {
                                          boolean crystalEnd) {
         SpeedrunSettings base = SpeedrunSettings.DEFAULTS;
         return new SpeedrunSettings(base.gameMode(), base.worldName(), base.advancementKey(),
-                base.deathPolicy(), base.requireExitPortalAfterDragon(),
+                base.clearAdvancementsOnStart(), base.deathPolicy(), base.requireExitPortalAfterDragon(),
                 base.creeperSpawnChanceOnBreakPercent(), base.chargedCreeperChanceOnBreakPercent(),
                 base.creeperSpawnChanceOnContainerPercent(), base.chargedCreeperChanceOnContainerPercent(),
                 base.startPointSet(), base.startX(), base.startY(), base.startZ(), base.startYaw(),

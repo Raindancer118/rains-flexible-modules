@@ -149,7 +149,7 @@ public final class SpeedrunLobby {
         this(plugin, settings, null, messages,
                 actionBars == null ? null
                         : new SpeedrunTimerDisplay(actionBars, SpeedrunTimerDisplay.viaScheduling(plugin)),
-                players == null ? null : new SpeedrunPreparation(players));
+                players == null ? null : new SpeedrunPreparation(plugin, players));
         this.countdownLauncher = (participants, onComplete) ->
                 new SpeedrunCountdown(plugin, bossBars, effects, participants, onComplete, released).begin();
         if (timerDisplay != null) {
@@ -446,6 +446,10 @@ public final class SpeedrunLobby {
      * {@code WorldEntryPoints}), every one of its files is deleted, and a brand new world is made from
      * scratch. Not "revert to some earlier state": the old world is gone.
      *
+     * <p>Everybody standing in any of the run's three worlds is put back into the fresh lobby once it
+     * is up, exactly as {@link #resetForAnotherRun} does for a run that ended on its own — an admin
+     * resetting the map and a Runner dying end in the same place.
+     *
      * <p>Refuses only during {@link SpeedrunLobbyState#COUNTDOWN}, rather than racing it:
      * {@link #beginCountdown} has already scheduled a callback that will call {@link #start} once it
      * fires, and nothing here can reach into {@link SpeedrunCountdownLauncher} to cancel that. Deleting
@@ -460,6 +464,13 @@ public final class SpeedrunLobby {
         if (session != null && session.state() != SpeedrunState.FINISHED) {
             session.finish("admin-reset");
         }
+        // The same bookkeeping a run that ended on its own does — see resetForAnotherRun. Read before
+        // the regeneration, which evacuates everybody to wherever they entered the world from rather
+        // than to the lobby. Without it an admin's reset left the people waiting for the next run
+        // scattered outside it, while the identical reset after a death put them back on the start
+        // line with the items in their hands; reported as exactly that difference.
+        owedAWayBack.clear();
+        owedAWayBack.addAll(whoIsInTheRunsWorlds());
         disarmSession();
         if (target == null) {
             log.warn("The speedrun world '{}' is not loaded; nothing to regenerate.", config().worldName());
@@ -582,7 +593,8 @@ public final class SpeedrunLobby {
         fresh.onFinish(outcome -> announceFinish(fresh, outcome));
         fresh.onFinish(outcome -> restartAfterFinish());
         if (preparation != null) {
-            preparation.prepare(world().orElse(null), fresh.participants(), current.timeAtStart());
+            preparation.prepare(world().orElse(null), fresh.participants(), current.timeAtStart(),
+                    current.clearAdvancementsOnStart());
         }
         // Wherever each of them actually is the moment the run begins — the configured /starthere
         // point if one was set (teleportToStartPoint already moved them there before the countdown),

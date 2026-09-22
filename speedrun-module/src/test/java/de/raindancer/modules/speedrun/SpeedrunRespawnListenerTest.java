@@ -32,7 +32,7 @@ class SpeedrunRespawnListenerTest {
         wayBackIn = new Location(runOverworld, 0.5, 64, 0.5);
         lobby = mock(SpeedrunLobby.class);
         when(lobby.config()).thenReturn(new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon",
-                SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
                 false, false));

@@ -335,7 +335,7 @@ class SpeedrunLobbyTest {
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
                 de.raindancer.core.moderation.players.PlayerAdmin players =
                         mock(de.raindancer.core.moderation.players.PlayerAdmin.class);
-                SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+                SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
                 SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings,
                         (participants, onComplete) -> onComplete.run(), preparation);
 
@@ -619,6 +619,70 @@ class SpeedrunLobbyTest {
 
                 assertThat(outcome).isEqualTo(SpeedrunLobby.ResetOutcome.RESET);
                 bukkit.verify(() -> Bukkit.unloadWorld(world, false));
+            }
+        }
+
+        @Test
+        @DisplayName("puts everybody back into the fresh lobby, the same as a run that ended on its own")
+        void resetSendsEverybodyBackIn() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+                 MockedConstruction<WorldCreator> creators = mockConstruction(WorldCreator.class,
+                         org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.RETURNS_SELF),
+                         (mockCreator, context) -> when(mockCreator.createWorld())
+                                 .thenReturn(mock(World.class)))) {
+                World world = mock(World.class);
+                World fresh = mock(World.class);
+                World mainWorld = mock(World.class);
+                Location freshSpawn = mock(Location.class);
+                when(mainWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+                when(fresh.getSpawnLocation()).thenReturn(freshSpawn);
+                when(world.getName()).thenReturn("world");
+                when(world.getWorldFolder()).thenReturn(dataFolder.resolve("speedrun").toFile());
+                Player alice = mock(Player.class);
+                when(world.getPlayers()).thenReturn(List.of(alice));
+                when(alice.getUniqueId()).thenReturn(ALICE);
+                when(alice.teleportAsync(any(Location.class)))
+                        .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(true));
+                // The world that comes back is a different object — which is what tells the lobby the
+                // regeneration actually happened. Flipped by the unload, so the order is the real one.
+                java.util.concurrent.atomic.AtomicBoolean unloaded =
+                        new java.util.concurrent.atomic.AtomicBoolean();
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenAnswer(invocation -> {
+                    unloaded.set(true);
+                    return true;
+                });
+                bukkit.when(() -> Bukkit.getWorld("world"))
+                        .thenAnswer(invocation -> unloaded.get() ? fresh : world);
+                bukkit.when(Bukkit::getWorlds).thenReturn(List.of(mainWorld));
+                bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+                io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler globalScheduler =
+                        mock(io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler.class);
+                bukkit.when(Bukkit::getGlobalRegionScheduler).thenReturn(globalScheduler);
+                org.mockito.Mockito.doAnswer(invocation -> {
+                    ((Runnable) invocation.getArgument(1)).run();
+                    return null;
+                }).when(globalScheduler).execute(eq(plugin), any(Runnable.class));
+
+                // Core's regenerator evacuates whoever is standing in a doomed world through Core's
+                // own WorldEntryPoints; nothing was ever recorded here, so it falls back to the first
+                // loaded world's spawn — which is all this test needs it to do.
+                try (MockedStatic<de.raindancer.core.RainsCore> core =
+                             mockStatic(de.raindancer.core.RainsCore.class)) {
+                    de.raindancer.core.RainsCore running = mock(de.raindancer.core.RainsCore.class);
+                    de.raindancer.core.world.manage.WorldEntryPoints entries =
+                            mock(de.raindancer.core.world.manage.WorldEntryPoints.class);
+                    when(entries.before(ALICE)).thenReturn(java.util.Optional.empty());
+                    when(running.worldEntryPoints()).thenReturn(entries);
+                    core.when(de.raindancer.core.RainsCore::isAvailable).thenReturn(false);
+                    core.when(de.raindancer.core.RainsCore::get).thenReturn(running);
+
+                    lobby().forceReset();
+                }
+
+                // Where a finished run's own reset puts them: the fresh lobby's spawn, which is what
+                // hands them the lobby items again. Before this, an admin's reset left them wherever
+                // WorldRegenerator's evacuation dropped them — outside the lobby entirely.
+                verify(alice).teleportAsync(freshSpawn);
             }
         }
 

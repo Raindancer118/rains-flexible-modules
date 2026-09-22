@@ -7,6 +7,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
+import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -27,6 +28,8 @@ import static org.mockito.Mockito.when;
  */
 class SpeedrunPreparationTest {
 
+    private final Plugin plugin = mock(Plugin.class);
+
     private static final UUID ALICE = UUID.nameUUIDFromBytes("alice".getBytes());
     private static final UUID BOB = UUID.nameUUIDFromBytes("bob".getBytes());
 
@@ -34,7 +37,7 @@ class SpeedrunPreparationTest {
     @DisplayName("heals, feeds, cures and extinguishes every participant")
     void resetsEveryParticipant() {
         PlayerAdmin players = mock(PlayerAdmin.class);
-        SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
         when(world.getEntities()).thenReturn(List.of());
 
@@ -59,7 +62,7 @@ class SpeedrunPreparationTest {
     @DisplayName("sets a participant's saturation to full when they are online")
     void fillsSaturationForOnlineParticipants() {
         PlayerAdmin players = mock(PlayerAdmin.class);
-        SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
         when(world.getEntities()).thenReturn(List.of());
         Player onlineAlice = mock(Player.class);
@@ -77,7 +80,7 @@ class SpeedrunPreparationTest {
     @DisplayName("sets the world to morning")
     void setsTheWorldToMorning() {
         PlayerAdmin players = mock(PlayerAdmin.class);
-        SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
         when(world.getEntities()).thenReturn(List.of());
 
@@ -92,7 +95,7 @@ class SpeedrunPreparationTest {
     @DisplayName("removes every hostile mob and every dropped item, and nothing else")
     void clearsHostilesAndItemsOnly() {
         PlayerAdmin players = mock(PlayerAdmin.class);
-        SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
         Entity zombie = mock(Zombie.class);
         Entity droppedItem = mock(Item.class);
@@ -112,7 +115,7 @@ class SpeedrunPreparationTest {
     @DisplayName("a null world skips the world half without throwing")
     void nullWorldSkipsWorldReset() {
         PlayerAdmin players = mock(PlayerAdmin.class);
-        SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(null);
@@ -127,7 +130,7 @@ class SpeedrunPreparationTest {
     @DisplayName("sets the world to whatever time the host configured")
     void setsTheConfiguredTime() {
         PlayerAdmin players = mock(PlayerAdmin.class);
-        SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
         when(world.getEntities()).thenReturn(List.of());
 
@@ -142,7 +145,7 @@ class SpeedrunPreparationTest {
     @DisplayName("leaves the world's own clock alone when the host turned that off")
     void leavesTheClockAloneWhenAsked() {
         PlayerAdmin players = mock(PlayerAdmin.class);
-        SpeedrunPreparation preparation = new SpeedrunPreparation(players);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
         when(world.getEntities()).thenReturn(List.of());
 
@@ -152,5 +155,42 @@ class SpeedrunPreparationTest {
 
         verify(world, never()).setTime(org.mockito.ArgumentMatchers.anyLong());
         verify(world).getEntities();   // the rest of the world half still ran
+    }
+
+    @Test
+    @DisplayName("clears every racer's advancements when the setting asks for it")
+    void clearsAdvancementsWhenAsked() {
+        PlayerAdmin players = mock(PlayerAdmin.class);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
+        World world = mock(World.class);
+        when(world.getEntities()).thenReturn(List.of());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(null);
+
+            preparation.prepare(world, Set.of(ALICE), SpeedrunPreparation.DAY_START, true);
+
+            // Offline here, so nothing of theirs is written — what matters is that the clear was
+            // reached at all; SpeedrunAdvancementsTest owns what it then does.
+            bukkit.verify(() -> Bukkit.getPlayer(ALICE), org.mockito.Mockito.atLeastOnce());
+        }
+    }
+
+    @Test
+    @DisplayName("leaves them alone when it is switched off — that is somebody's own saved progress")
+    void leavesAdvancementsAloneWhenOff() {
+        PlayerAdmin players = mock(PlayerAdmin.class);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
+        World world = mock(World.class);
+        when(world.getEntities()).thenReturn(List.of());
+        Player alice = mock(Player.class);
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+
+            preparation.prepare(world, Set.of(ALICE), SpeedrunPreparation.DAY_START, false);
+
+            bukkit.verify(Bukkit::advancementIterator, never());
+        }
     }
 }

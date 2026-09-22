@@ -7,6 +7,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.util.List;
 import java.util.Set;
@@ -48,15 +49,18 @@ final class SpeedrunPreparation {
     /** Full, per {@link org.bukkit.entity.HumanEntity#getSaturation}'s own default on spawn. */
     private static final float FULL_SATURATION = 20f;
 
+    private final Plugin plugin;
     private final PlayerAdmin players;
 
-    SpeedrunPreparation(PlayerAdmin players) {
+    SpeedrunPreparation(Plugin plugin, PlayerAdmin players) {
+        this.plugin = plugin;
         this.players = players;
     }
 
-    /** The same, at {@link #DAY_START} — what every caller wanted before the time became a setting. */
+    /** The same, at {@link #DAY_START}, leaving advancements alone — what every caller wanted
+     *  before either became a setting. */
     void prepare(World world, Set<UUID> participants) {
-        prepare(world, participants, DAY_START);
+        prepare(world, participants, DAY_START, false);
     }
 
     /**
@@ -67,11 +71,22 @@ final class SpeedrunPreparation {
      * <p>The time is the one half of this a host can switch off, because it is the one half that is
      * a choice rather than a repair: a run that begins at dusk on purpose is a different game, where
      * a run that begins with somebody on three hearts, or with the last run's zombies still standing
-     * on the start line, is simply the last run leaking into this one.
+     * on the start line, is simply the last run leaking into this one. {@code clearAdvancements} is
+     * the same kind of choice, for the same kind of reason — see {@link SpeedrunAdvancements}.
      */
+    /** The same, leaving everybody's advancements alone — the shape before that became a setting. */
     void prepare(World world, Set<UUID> participants, long timeOfDay) {
+        prepare(world, participants, timeOfDay, false);
+    }
+
+    void prepare(World world, Set<UUID> participants, long timeOfDay, boolean clearAdvancements) {
         for (UUID id : participants) {
             resetPlayer(id);
+        }
+        if (clearAdvancements) {
+            // The one half of this that is a racer's own saved progress rather than the last run
+            // leaking into this one — hence its own switch. See SpeedrunAdvancements.
+            SpeedrunAdvancements.clearFor(plugin, participants);
         }
         if (world != null) {
             if (timeOfDay != LEAVE_THE_TIME_ALONE) {

@@ -89,7 +89,7 @@ class SpeedrunLobbyListenerTest {
         void givesKitWhenReadyInLobbyWorld() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
                 false, false));
@@ -113,7 +113,7 @@ class SpeedrunLobbyListenerTest {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
                     new SpeedrunSettings("", "speedrun-lobby", "minecraft:end/kill_dragon",
-                            SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                            true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
                 false, false));
@@ -136,7 +136,7 @@ class SpeedrunLobbyListenerTest {
         void leavesInventoryAloneWhileRunning() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
@@ -153,7 +153,7 @@ class SpeedrunLobbyListenerTest {
         void leavesInventoryAloneWhileFinished() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.FINISHED);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
@@ -170,7 +170,7 @@ class SpeedrunLobbyListenerTest {
         void teleportsToTheLobbyWorldOnJoin() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
@@ -195,7 +195,7 @@ class SpeedrunLobbyListenerTest {
         void doesNotTeleportWhenLobbyWorldMissing() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
@@ -222,7 +222,7 @@ class SpeedrunLobbyListenerTest {
         void givesKitOnArrivalWhileReady() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
@@ -260,7 +260,7 @@ class SpeedrunLobbyListenerTest {
         void givesItemsToEverybodyPresent() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
@@ -290,7 +290,7 @@ class SpeedrunLobbyListenerTest {
         @DisplayName("does nothing when the lobby world is not loaded")
         void doesNothingWhenWorldMissing() {
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF,
+                    new SpeedrunSettings("", "speedrun", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF,
                             false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
@@ -334,7 +334,7 @@ class SpeedrunLobbyListenerTest {
         void cancelsStepsWhileReady() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
                 false, false));
@@ -355,7 +355,7 @@ class SpeedrunLobbyListenerTest {
         void allowsLookingAround() {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
-                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
                 false, false));
@@ -393,7 +393,7 @@ class SpeedrunLobbyListenerTest {
             when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
             when(lobby.config()).thenReturn(
                     new SpeedrunSettings("", "speedrun-lobby", "minecraft:end/kill_dragon",
-                            SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                            true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                 true, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
                 false, false));
@@ -434,7 +434,7 @@ class SpeedrunLobbyListenerTest {
             // startBlockStaffOnly off: these tests are about what the block does once somebody is
             // allowed to press it at all. Who is allowed is StaffOnlyStartBlock's own question.
             SpeedrunSettings config = new SpeedrunSettings("", "world", "minecraft:end/kill_dragon",
-                    SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                    true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
                     false, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
                 false, false);
@@ -548,7 +548,7 @@ class SpeedrunLobbyListenerTest {
 
         private SpeedrunSettings staffOnly(boolean on) {
             return new SpeedrunSettings("", "world", "minecraft:end/kill_dragon",
-                    SpeedrunDeathPolicy.OFF, false, 0, 0, 0, 0, false, 0, 0, 0, 0, 0,
+                    true, SpeedrunDeathPolicy.OFF, false, 0, 0, 0, 0, false, 0, 0, 0, 0, 0,
                     on, true, true, true, true, 10, true, 1000,
                 true, true, true, true, true, true, true, true, true, true,
                 false, false);
