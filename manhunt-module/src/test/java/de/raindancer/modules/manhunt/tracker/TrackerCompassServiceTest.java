@@ -2,6 +2,7 @@ package de.raindancer.modules.manhunt.tracker;
 
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.ManhuntSettings;
+import de.raindancer.modules.manhunt.tracker.TrackerCompass.Aim;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -96,18 +97,34 @@ class TrackerCompassServiceTest {
     }
 
     @Test
-    @DisplayName("in the overworld the needle comes from the player's compass target, never the item")
-    void overworldUsesTheCompassTarget() {
+    @DisplayName("following a Runner in the overworld, the needle comes from the compass target")
+    void overworldTrackingUsesTheCompassTarget() {
         // Player.setCompassTarget moves the needle without touching the item at all, so it cannot
         // redraw the compass in a hand however often the Runner moves.
-        assertThat(TrackerCompassService.needleFromCompassTarget(org.bukkit.World.Environment.NORMAL)).isTrue();
+        assertThat(TrackerCompassService.needleFor(Aim.Kind.TRACKING, World.Environment.NORMAL))
+                .isEqualTo(TrackerCompassService.Needle.COMPASS_TARGET);
+    }
+
+    @Test
+    @DisplayName("a door is pointed at by a lodestone even in the overworld — reported as a spinning needle")
+    void aPortalIsAlwaysALodestone() {
+        // The bug: the Runner went into the Nether, the action bar had the distance to the door, and
+        // the needle spun. A compass target is the client's spawn position, which the server re-sends
+        // on its own (a respawn, a dimension change) and silently overwrites. A door does not move,
+        // so the item can hold it and no redraw is paid for it.
+        assertThat(TrackerCompassService.needleFor(Aim.Kind.PORTAL, World.Environment.NORMAL))
+                .isEqualTo(TrackerCompassService.Needle.LODESTONE);
     }
 
     @Test
     @DisplayName("in the Nether and the End it stays a lodestone, where a plain compass only spins")
     void otherDimensionsKeepTheLodestone() {
-        assertThat(TrackerCompassService.needleFromCompassTarget(org.bukkit.World.Environment.NETHER)).isFalse();
-        assertThat(TrackerCompassService.needleFromCompassTarget(org.bukkit.World.Environment.THE_END)).isFalse();
+        assertThat(TrackerCompassService.needleFor(Aim.Kind.TRACKING, World.Environment.NETHER))
+                .isEqualTo(TrackerCompassService.Needle.LODESTONE);
+        assertThat(TrackerCompassService.needleFor(Aim.Kind.TRACKING, World.Environment.THE_END))
+                .isEqualTo(TrackerCompassService.Needle.LODESTONE);
+        assertThat(TrackerCompassService.needleFor(Aim.Kind.PORTAL, World.Environment.NETHER))
+                .isEqualTo(TrackerCompassService.Needle.LODESTONE);
     }
 
     @Test

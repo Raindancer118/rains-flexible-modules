@@ -10,6 +10,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -109,10 +110,24 @@ public final class TrackerListener implements Listener {
         event.getDrops().removeIf(tracker::isTracker);
     }
 
-    /** A Hunter who died gets a replacement compass, if the owner allows one. */
+    /**
+     * A Hunter who died gets a replacement compass, if the owner allows one — and their needle is
+     * sent again.
+     *
+     * <p>The resend is not belt-and-braces: respawning is one of the moments the server sends that
+     * client a spawn position of its own, which replaces the compass target the sweep last sent while
+     * the sweep still believes it is showing. See {@link TrackerCompassService#resyncNeedle}.
+     */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onRespawn(PlayerRespawnEvent event) {
         tracker.giveOnRespawn(event.getPlayer());
+        tracker.resyncNeedle(event.getPlayer().getUniqueId());
+    }
+
+    /** The other moment the server overwrites a client's spawn position — see {@link #onRespawn}. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        tracker.resyncNeedle(event.getPlayer().getUniqueId());
     }
 
     /** Somebody leaving takes their pick with them — a stale one would aim a returning Hunter's

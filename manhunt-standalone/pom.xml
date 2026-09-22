@@ -60,8 +60,15 @@
              0.11.0: rebuilt as a game the speedrun lobby plays, rather than a second lobby beside it.
              One world, one compass, one start block, one countdown, one clock, one reset — all of
              them RainsSpeedrun's — and what is left here is the two sides, the tracking compass,
-             elimination, and the server's own door. Needs RainsSpeedrun 1.11.0 or newer. -->
-        <plugin.version>0.13.0</plugin.version>
+             elimination, and the server's own door. Needs RainsSpeedrun 1.11.0 or newer.
+             0.14.0: the needle really follows a Runner who went down. Reported as a compass that
+             spun while the action bar had the distance to the door: a compass target is the client's
+             spawn position, and the server sends one of those on its own account (a respawn, a
+             dimension change), overwriting what the sweep sent — which the sweep then never repeats,
+             because it remembers having sent it. A door is now held in the item as a lodestone,
+             which nothing overwrites and which costs no redraw since a door does not move; and a
+             respawn or a dimension change makes the next sweep send the needle again. -->
+        <plugin.version>0.14.0</plugin.version>
     </properties>
 
     <dependencies>

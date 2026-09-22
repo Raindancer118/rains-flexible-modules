@@ -330,22 +330,26 @@ public final class TrackerCompassService {
                         ? "<gray>Straight ahead."
                         : "<gray>Through the portal, into <white>" + safe(aim.worldName()) + "<gray>."));
                 World here = hunter.getWorld();
-                if (needleFromCompassTarget(here.getEnvironment())) {
-                    // The needle, without the item: see needleFromCompassTarget.
+                if (needleFor(aim.kind(), here.getEnvironment()) == Needle.COMPASS_TARGET) {
+                    // The needle, without the item: see needleFor.
                     Location target = blockOf(here, aim.at());
                     if (compassTargets.moved(hunter.getUniqueId(), here.getName(),
                             target.getBlockX(), target.getBlockY(), target.getBlockZ())) {
                         hunter.setCompassTarget(target);
                     }
                     if (meta.hasLodestone()) {
-                        // Back from the Nether or the End with a lodestone still on it. A lodestone
-                        // compass ignores the compass target entirely, so it is swapped once for a
-                        // plain one — the one item change a dimension crossing costs.
+                        // Back from the Nether or the End — or back from following a door — with a
+                        // lodestone still on it. A lodestone compass ignores the compass target
+                        // entirely, so it is swapped once for a plain one.
                         replaceWithPlain(hunter, slot.get(), meta);
                         return;
                     }
                 } else {
                     aimAt(meta, here, aim.at());
+                    // While the item holds the needle, nothing is being sent to the client: what it
+                    // was last sent is no longer what it is showing, so the next sweep that goes back
+                    // to the compass target has to send it again rather than recognise it.
+                    compassTargets.forget(hunter.getUniqueId());
                 }
             }
             case OTHER_WORLD -> {
@@ -370,8 +374,11 @@ public final class TrackerCompassService {
         hunter.getInventory().setItem(slot.get(), stack);
     }
 
+    /** Where a Hunter's needle comes from: the client's compass target, or a lodestone in the item. */
+    enum Needle { COMPASS_TARGET, LODESTONE }
+
     /**
-     * Whether the needle is driven by {@link Player#setCompassTarget} rather than by a lodestone.
+     * Which of the two drives the needle for this aim, in this dimension.
      *
      * <h2>Why the compass target, where it can be</h2>
      * Asked for after "it feels like I get a new one every few seconds". A lodestone is a fixed spot
@@ -380,13 +387,26 @@ public final class TrackerCompassService {
      * per player and sent to that one client; a plain compass points at it, and moving it touches the
      * item not at all. The needle can follow every step and the compass never so much as twitches.
      *
-     * <h2>Why only in the overworld</h2>
-     * A plain compass spins in the Nether and the End — that is vanilla, not this module — so there the
-     * lodestone stays, written only when the Runner actually leaves a block. Whether the compass target
-     * would hold there too has not been checked against a client; if it does, this can widen.
+     * <h2>Why a door is a lodestone even in the overworld</h2>
+     * Reported live: the Runner went into the Nether, the action bar showed the distance to the door —
+     * so the door was known and the aim was right — and the needle spun anyway. A compass target is
+     * the client's <em>spawn position</em>, which the server sends on its own account too (a respawn,
+     * a dimension change, a world's spawn being moved); anything it sends overwrites what this sent,
+     * and {@link CompassTargets} then recognises the target as already sent and never repeats it. A
+     * moving Runner papers over that within a block or two. A door does not move, so the same
+     * overwrite leaves the needle pointing at a spawn nobody is near — a needle that swings uselessly
+     * where the Hunter is standing, which is what "it spins" is. The item holds a door for nothing:
+     * it is written once when the Runner goes down and not again until they come back up.
+     *
+     * <h2>Why the Nether and the End are always the item</h2>
+     * A plain compass spins there — that is vanilla, not this module — so the lodestone is the only
+     * needle available at all.
      */
-    static boolean needleFromCompassTarget(World.Environment environment) {
-        return environment == World.Environment.NORMAL;
+    static Needle needleFor(Aim.Kind kind, World.Environment environment) {
+        if (kind == Aim.Kind.PORTAL || environment != World.Environment.NORMAL) {
+            return Needle.LODESTONE;
+        }
+        return Needle.COMPASS_TARGET;
     }
 
     private static Location blockOf(World world, Point at) {
@@ -559,6 +579,19 @@ public final class TrackerCompassService {
         }
         Player player = plugin.getServer().getPlayer(runner);
         return player != null ? player.getName() : "a Runner";
+    }
+
+    /**
+     * Sends this Hunter's needle again on the next sweep, whether or not the target has moved.
+     *
+     * <p>For the moments the server sends that client a spawn position of its own — a respawn, a
+     * dimension change — which silently replaces the compass target the sweep last sent while
+     * {@link CompassTargets} still believes it is the one showing. Without this, a Hunter who died
+     * once carried a needle pointing at a spawn until the Runner happened to leave the block the
+     * sweep last sent.
+     */
+    public void resyncNeedle(UUID hunter) {
+        compassTargets.forget(hunter);
     }
 
     /** Forgets a Hunter's pick — they left the side, or the server. */
