@@ -17,6 +17,7 @@ on:
       - 'homes-v*'
       - 'tpa-v*'
       - 'yeuk-v*'
+      - 'speedrunserver-v*'
       # Publishes one library module to packages.tstieh.de. Each module has its own version — a
       # property in the parent pom (e.g. claims-module.version), independent of the reactor's own
       # <version> and of every other module's — so each gets its own tag namespace too, the same way
@@ -358,7 +359,7 @@ jobs:
       # the version in the tag has to match the one in that plugin's pom — a release whose tag says
       # 2.1.0 and whose jar says 2.0.0 is one nobody can reason about afterwards.
       - name: Publish a versioned release
-        if: startsWith(github.ref, 'refs/tags/claims-v') || startsWith(github.ref, 'refs/tags/moderation-v') || startsWith(github.ref, 'refs/tags/names-v') || startsWith(github.ref, 'refs/tags/warps-v') || startsWith(github.ref, 'refs/tags/homes-v') || startsWith(github.ref, 'refs/tags/tpa-v') || startsWith(github.ref, 'refs/tags/yeuk-v')
+        if: startsWith(github.ref, 'refs/tags/claims-v') || startsWith(github.ref, 'refs/tags/moderation-v') || startsWith(github.ref, 'refs/tags/names-v') || startsWith(github.ref, 'refs/tags/warps-v') || startsWith(github.ref, 'refs/tags/homes-v') || startsWith(github.ref, 'refs/tags/tpa-v') || startsWith(github.ref, 'refs/tags/yeuk-v') || startsWith(github.ref, 'refs/tags/speedrunserver-v')
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
@@ -395,6 +396,13 @@ jobs:
                         sha='${{ steps.jars.outputs.yeuk_sha }}'
                         title="YeukSMP"
                         pom=yeuksmp/pom.xml ;;
+            # Also a bundle, in speedrun-bundle/. It replaces RainsSpeedrun, RainsManhunt and
+            # RainsWorldUtils, so the notes say so rather than only "alongside RainsCore".
+            speedrunserver) jar='${{ steps.jars.outputs.speedrunserver_jar }}'
+                        sha='${{ steps.jars.outputs.speedrunserver_sha }}'
+                        title="Rain's Speedrun Server"
+                        replaces="It replaces RainsSpeedrun, RainsManhunt and RainsWorldUtils — remove those jars first."
+                        pom=speedrun-bundle/pom.xml ;;
             *)          echo "::error::$TAG names no plugin I know about"; exit 1 ;;
           esac
 
@@ -413,6 +421,7 @@ jobs:
               "" \
               "Drop \`$(basename "$jar")\` into \`plugins/\` alongside \`RainsCore.jar\`, which it needs" \
               "and never carries a copy of. Restart the server." \
+              ${replaces:+"" "$replaces"} \
               "" \
               "\`sha256: $sha\`" \
               "" \
