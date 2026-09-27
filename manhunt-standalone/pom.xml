@@ -70,8 +70,11 @@
              respawn or a dimension change makes the next sweep send the needle again.
              0.15.0: Hunters may be limited to fists against each other; a team compass lets Hunters
              follow each other too, cycled or picked from a list (sneak + right-click); the tracking
-             compass cannot be dropped. Needs RainsCore 1.37.0 and RainsSpeedrun 1.18.0. -->
-        <plugin.version>0.15.0</plugin.version>
+             compass cannot be dropped. Needs RainsCore 1.37.0 and RainsSpeedrun 1.18.0.
+             0.16.0: a configurable head start for the Runners (the Hunters stand still and touch
+             nothing), and an option to start everybody in a circle, Runners together. Needs
+             RainsCore 1.38.0 and RainsSpeedrun 1.19.0. -->
+        <plugin.version>0.16.0</plugin.version>
     </properties>
 
     <dependencies>

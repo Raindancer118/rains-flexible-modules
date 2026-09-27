@@ -79,6 +79,17 @@ public interface SpeedrunMode {
     }
 
     /**
+     * Where each participant should stand for the countdown, around {@code centre} — the
+     * {@code /starthere} point, or the lobby world's spawn when none is set. Anybody left out goes
+     * to the start point as usual; an empty map (the default) leaves the lobby's own placement alone.
+     * Asked as the countdown begins, so nobody is moved again at "go".
+     */
+    default java.util.Map<UUID, org.bukkit.Location> startingSpots(org.bukkit.Location centre,
+                                                                  Set<UUID> participants) {
+        return java.util.Map.of();
+    }
+
+    /**
      * The run has been built: its goal is armed, everybody has been prepared, and the clock is about
      * to start. Add end conditions to {@link SpeedrunRun#session()}, and register listeners through
      * {@link SpeedrunRun#listen} so they go when the run does.

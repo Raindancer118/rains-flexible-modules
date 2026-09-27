@@ -71,6 +71,15 @@ class SpeedrunLobbyModeTest {
         Consumer<SpeedrunRun> whenStarted = run -> { };
         final List<SpeedrunRun> started = new ArrayList<>();
         final List<Set<UUID>> refusedAsked = new ArrayList<>();
+        java.util.Map<UUID, org.bukkit.Location> spots = java.util.Map.of();
+        final List<org.bukkit.Location> centresAsked = new ArrayList<>();
+
+        @Override
+        public java.util.Map<UUID, org.bukkit.Location> startingSpots(org.bukkit.Location centre,
+                                                                      Set<UUID> participants) {
+            centresAsked.add(centre);
+            return spots;
+        }
 
         @Override
         public String id() {
@@ -335,5 +344,32 @@ class SpeedrunLobbyModeTest {
 
         assertThat(goal.counts(BOB)).isFalse();
         assertThat(goal.counts(ALICE)).isTrue();
+    }
+
+    @Test
+    @DisplayName("a mode can place everybody itself before the countdown — around the world's spawn when no start point is set")
+    void modePlacesEverybody() {
+        settings.set("game-mode", "scripted");
+        World world = mock(World.class);
+        org.bukkit.Location spawn = mock(org.bukkit.Location.class);
+        when(world.getSpawnLocation()).thenReturn(spawn);
+        bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+        org.bukkit.entity.Player alice = playerRunningItsOwnTasks();
+        bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+        org.bukkit.Location aliceSpot = mock(org.bukkit.Location.class);
+        mode.spots = java.util.Map.of(ALICE, aliceSpot);
+
+        lobby().beginCountdown(Set.of(ALICE));
+
+        assertThat(mode.centresAsked).containsExactly(spawn);
+        org.mockito.Mockito.verify(alice).teleportAsync(aliceSpot);
+    }
+
+    @Test
+    @DisplayName("a plain race is not asked for spots at all")
+    void plainRaceHasNoSpots() {
+        lobby().beginCountdown(Set.of(ALICE));
+
+        assertThat(mode.centresAsked).isEmpty();
     }
 }

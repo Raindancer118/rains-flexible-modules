@@ -217,6 +217,15 @@ boot_once() {
   # A module skipped for a "requires" that turned out not to be satisfied — the exact shape of the
   # chained/speedrun incident this pipeline's first real runs found. WARN, not ERROR, so the check
   # above never catches it on its own.
+  # A module that throws in enable() is caught by the wrapper and logged, not a plugin-enable
+  # failure — the plugin itself stays up. RainsSpeedrun 1.19.0 once went through a "passing" run
+  # like that, its whole listener refused over one unregistrable event.
+  if grep -qE '\) failed to start — ' "$logfile"; then
+    log "── a module failed to start: ──"
+    grep -E '\) failed to start — ' "$logfile"
+    fail "Boot ($label): a module failed to start"
+  fi
+
   if grep -q 'was not started — requires' "$logfile"; then
     log "── a module was skipped for an unsatisfied requirement: ──"
     grep 'was not started — requires' "$logfile"

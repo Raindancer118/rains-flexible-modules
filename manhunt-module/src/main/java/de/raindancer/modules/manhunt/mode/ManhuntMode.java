@@ -67,6 +67,12 @@ public final class ManhuntMode implements SpeedrunMode {
     private final AtomicReference<Hunt> live = new AtomicReference<>();
     /** Whether this hunt was the one that shut the door, so only it ever opens it again. */
     private final AtomicBoolean closedTheWhitelist = new AtomicBoolean();
+    /** Runs a task this many ticks later — the global scheduler, or a test's own list. */
+    private java.util.function.BiConsumer<Long, Runnable> later;
+
+    /** The gap between neighbours on the starting circle, and the smallest circle there is. */
+    static final double CIRCLE_SPACING = 4;
+    static final double CIRCLE_MIN_RADIUS = 5;
 
     public ManhuntMode(Plugin plugin, ManhuntTeams teams, Eliminations eliminations,
                        TrackerCompassService tracker, PortalMemory portals,
@@ -81,6 +87,12 @@ public final class ManhuntMode implements SpeedrunMode {
         this.messages = messages;
         this.settings = Objects.requireNonNull(settings, "settings");
         this.setup = setup;
+        this.later = (ticks, task) -> de.raindancer.core.platform.util.Scheduling.globalLater(plugin, ticks, task);
+    }
+
+    /** For tests: how a delayed task is run instead of the server's scheduler. */
+    void laterWith(java.util.function.BiConsumer<Long, Runnable> runner) {
+        this.later = Objects.requireNonNull(runner, "runner");
     }
 
     // ------------------------------------------------------------------------ what the lobby asks
@@ -220,6 +232,45 @@ public final class ManhuntMode implements SpeedrunMode {
         return SideChange.CHANGED;
     }
 
+    // ------------------------------------------------------------------------ where everybody stands
+
+    /**
+     * With {@link ManhuntSettings#startInCircle()}, everybody evenly around one circle for the
+     * countdown, facing the middle — asked for as "make everyone spawn in a circle". The geometry is
+     * Core's ({@code Ring}); this only chooses the order and puts each spot on the ground.
+     */
+    @Override
+    public java.util.Map<UUID, org.bukkit.Location> startingSpots(org.bukkit.Location centre,
+                                                                 Set<UUID> participants) {
+        if (!settings.get().startInCircle() || centre == null || centre.getWorld() == null) {
+            return java.util.Map.of();
+        }
+        org.bukkit.World world = centre.getWorld();
+        List<UUID> order = circleOrder(participants);
+        List<de.raindancer.core.world.geometry.Ring.Spot> spots = de.raindancer.core.world.geometry.Ring
+                .around(centre.getX(), centre.getZ(), order.size(), CIRCLE_SPACING, CIRCLE_MIN_RADIUS);
+        java.util.Map<UUID, org.bukkit.Location> placed = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < order.size(); i++) {
+            var spot = spots.get(i);
+            int blockX = (int) Math.floor(spot.x());
+            int blockZ = (int) Math.floor(spot.z());
+            // The middle of the block, one above whatever is highest there: on the ground, never in it.
+            placed.put(order.get(i), new org.bukkit.Location(world, blockX + 0.5,
+                    world.getHighestBlockYAt(blockX, blockZ) + 1, blockZ + 0.5, spot.yaw(), 0f));
+        }
+        return placed;
+    }
+
+    /** Runners first and Hunters after, each side standing together; stable within a side. */
+    List<UUID> circleOrder(Set<UUID> participants) {
+        Set<UUID> runners = teams.runners();
+        java.util.Comparator<UUID> byId = java.util.Comparator.comparing(UUID::toString);
+        List<UUID> order = new java.util.ArrayList<>(participants.stream()
+                .filter(runners::contains).sorted(byId).toList());
+        order.addAll(participants.stream().filter(id -> !runners.contains(id)).sorted(byId).toList());
+        return order;
+    }
+
     // ------------------------------------------------------------------------ a hunt beginning
 
     @Override
@@ -236,6 +287,7 @@ public final class ManhuntMode implements SpeedrunMode {
         tracker.armFor(hunt);
         run.listen(new TrackerListener(hunt, tracker, portals));
         run.listen(new HuntDeathListener(plugin, hunt, run.session(), eliminations, messages));
+        holdTheHunters(run, hunt);
 
         if (settings.get().closeWhitelistOnStart() && !whitelist.isClosed()) {
             // Only when it was open: a server whose owner runs it whitelisted all the time must not
@@ -250,6 +302,40 @@ public final class ManhuntMode implements SpeedrunMode {
         // covers a run abandoned without ever finishing; it is written to be safe to run twice.
         run.session().onFinish(outcome -> endTheHunt(hunt));
         run.onDisarm(() -> endTheHunt(hunt));
+    }
+
+    /**
+     * The Runners' head start: the Hunters stand still and touch nothing for
+     * {@link ManhuntSettings#hunterHeadStartSeconds()}. The hold goes with the run through
+     * {@code run.listen}, so a hunt ending early never leaves anybody frozen.
+     */
+    private void holdTheHunters(SpeedrunRun run, Hunt hunt) {
+        int seconds = settings.get().hunterHeadStartSecondsClamped();
+        if (seconds <= 0) {
+            return;
+        }
+        de.raindancer.modules.manhunt.service.HunterHoldListener hold =
+                new de.raindancer.modules.manhunt.service.HunterHoldListener(hunt);
+        run.listen(hold);
+        tell(hunt, "manhunt.head-start.begun", "seconds", String.valueOf(seconds));
+        later.accept(seconds * 20L, () -> {
+            hold.release();
+            if (live.get() == hunt) {
+                tell(hunt, "manhunt.head-start.over");
+            }
+        });
+    }
+
+    private void tell(Hunt hunt, String key, String... placeholders) {
+        if (messages == null) {
+            return;
+        }
+        for (UUID id : hunt.everybody()) {
+            Player player = plugin.getServer().getPlayer(id);
+            if (player != null) {
+                messages.send(player, key, (Object[]) placeholders);
+            }
+        }
     }
 
     /** Everything a hunt borrowed, given back. Safe to call more than once — see {@link #onStart}. */

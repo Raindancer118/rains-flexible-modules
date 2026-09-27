@@ -88,11 +88,12 @@ class SettingsReachabilityTest {
     @DisplayName("what is left is the compass, the sides and the door, each reachable")
     void manhuntsOwnPages() {
         assertThat(pathsOf(navigation.page("manhunt").subtopics()))
-                .containsExactlyInAnyOrder("manhunt/tracker", "manhunt/sides", "manhunt/doors");
+                .containsExactlyInAnyOrder("manhunt/tracker", "manhunt/sides", "manhunt/doors", "manhunt/start");
         assertThat(keysOf("manhunt/tracker"))
                 .contains("tracker-cross-world", "tracker-hunter-may-choose", "tracker-show-distance",
                         "tracker-refresh-ticks", "tracker-team-compass");
         assertThat(keysOf("manhunt/sides")).contains("runner-self-join", "hunters-fists-only");
         assertThat(keysOf("manhunt/doors")).contains("close-whitelist-on-start");
+        assertThat(keysOf("manhunt/start")).contains("hunter-head-start-seconds", "start-in-circle");
     }
 }

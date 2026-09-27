@@ -432,4 +432,105 @@ class ManhuntModeTest {
                     .isEqualTo(ManhuntMode.SideChange.ALREADY);
         }
     }
+
+    @Nested
+    @DisplayName("the Runners' head start")
+    class HeadStart {
+
+        private final java.util.List<Long> delays = new java.util.ArrayList<>();
+        private final java.util.List<Runnable> releases = new java.util.ArrayList<>();
+
+        @BeforeEach
+        void noRealScheduler() {
+            mode.laterWith((ticks, task) -> {
+                delays.add(ticks);
+                releases.add(task);
+            });
+        }
+
+        private de.raindancer.modules.manhunt.service.HunterHoldListener registeredHold() {
+            ArgumentCaptor<Listener> listeners = ArgumentCaptor.forClass(Listener.class);
+            verify(pluginManager, atLeastOnce()).registerEvents(listeners.capture(), eq(plugin));
+            return listeners.getAllValues().stream()
+                    .filter(l -> l instanceof de.raindancer.modules.manhunt.service.HunterHoldListener)
+                    .map(l -> (de.raindancer.modules.manhunt.service.HunterHoldListener) l)
+                    .findFirst().orElse(null);
+        }
+
+        @Test
+        @DisplayName("with a head start, the Hunters are held and let go after exactly that long")
+        void heldThenReleased() {
+            settings.set(ManhuntSettings.DEFAULTS.withHunterHeadStartSeconds(30));
+            teams.joinRunners(ANNA);
+
+            mode.onStart(runWith(Set.of(ANNA, BEN)));
+
+            var hold = registeredHold();
+            assertThat(hold).isNotNull();
+            assertThat(hold.isHolding()).isTrue();
+            assertThat(delays).containsExactly(600L);
+
+            releases.getFirst().run();
+            assertThat(hold.isHolding()).isFalse();
+        }
+
+        @Test
+        @DisplayName("with none, nobody is held and nothing is scheduled")
+        void noHeadStart() {
+            teams.joinRunners(ANNA);
+
+            mode.onStart(runWith(Set.of(ANNA, BEN)));
+
+            assertThat(registeredHold()).isNull();
+            assertThat(delays).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("starting in a circle")
+    class Circle {
+
+        private org.bukkit.Location centre() {
+            org.bukkit.World world = mock(org.bukkit.World.class);
+            when(world.getHighestBlockYAt(org.mockito.ArgumentMatchers.anyInt(),
+                    org.mockito.ArgumentMatchers.anyInt())).thenReturn(70);
+            return new org.bukkit.Location(world, 100.5, 64, -20.5);
+        }
+
+        @Test
+        @DisplayName("off, the lobby places everybody as usual")
+        void off() {
+            assertThat(mode.startingSpots(centre(), Set.of(ANNA, BEN))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("on, everybody gets a spot on one circle, on the ground, facing the middle")
+        void on() {
+            settings.set(ManhuntSettings.DEFAULTS.withStartInCircle(true));
+            teams.joinRunners(ANNA);
+
+            var spots = mode.startingSpots(centre(), Set.of(ANNA, BEN, CARO));
+
+            assertThat(spots).containsOnlyKeys(ANNA, BEN, CARO);
+            double radius = Math.hypot(spots.get(ANNA).getX() - 100.5, spots.get(ANNA).getZ() + 20.5);
+            for (org.bukkit.Location spot : spots.values()) {
+                assertThat(spot.getY()).isEqualTo(71);
+                assertThat(Math.hypot(spot.getX() - 100.5, spot.getZ() + 20.5))
+                        .isCloseTo(radius, org.assertj.core.api.Assertions.within(1.0));
+            }
+        }
+
+        @Test
+        @DisplayName("the Runners stand next to each other, not scattered among the Hunters")
+        void runnersTogether() {
+            settings.set(ManhuntSettings.DEFAULTS.withStartInCircle(true));
+            teams.joinRunners(ANNA);
+            teams.joinRunners(CARO);
+
+            java.util.List<UUID> order = mode.circleOrder(Set.of(ANNA, BEN, CARO));
+
+            assertThat(order.subList(0, 2)).containsExactlyInAnyOrder(ANNA, CARO);
+            assertThat(order.get(2)).isEqualTo(BEN);
+        }
+    }
 }

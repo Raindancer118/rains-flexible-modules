@@ -340,15 +340,25 @@ public final class SpeedrunLobby {
     }
 
     private void teleportToStartPoint(Set<UUID> participants) {
-        // Empty when /starthere never ran — nobody is moved then, which is the documented "off".
+        // Empty when /starthere never ran — nobody is moved then, which is the documented "off" —
+        // unless the game mode places people itself (Manhunt's circle), around the world's spawn.
         Location point = startPoint().orElse(null);
-        if (point == null) {
-            return;
-        }
+        java.util.Map<UUID, Location> placed = mode()
+                .map(chosen -> {
+                    Location centre = point != null ? point
+                            : world().map(World::getSpawnLocation).orElse(null);
+                    return centre == null ? java.util.Map.<UUID, Location>of()
+                            : chosen.startingSpots(centre, participants);
+                })
+                .orElse(java.util.Map.of());
         for (UUID id : participants) {
+            Location target = placed.getOrDefault(id, point);
+            if (target == null) {
+                continue;
+            }
             Player player = Bukkit.getPlayer(id);
             if (player != null) {
-                player.teleportAsync(point);
+                player.teleportAsync(target);
             }
         }
     }

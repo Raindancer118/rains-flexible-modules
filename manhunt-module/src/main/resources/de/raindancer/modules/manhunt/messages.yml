@@ -45,6 +45,10 @@ manhunt:
   # A Hunter hitting another Hunter with anything but a fist, with "Hunters only punch each other" on.
   # Said instead of Core's combat.fists-only — for Manhunt only, see Messages.overrideFor.
   teammate-hit: "<red>Please don't kill your teammates!"
+  # The Runners' head start, told to both sides.
+  head-start:
+    begun: "<green>The Runners have a <white><seconds></white>-second head start. Hunters, hold still!"
+    over: "<red>The Hunters are loose!"
   # A Runner has been caught, told to both sides.
   caught: "<red><runner> has been caught. <white><left></white> Runner(s) left."
   last-runner: "<red><runner> was the last Runner."

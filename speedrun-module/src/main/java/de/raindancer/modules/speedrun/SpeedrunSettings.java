@@ -215,10 +215,11 @@ public record SpeedrunSettings(
                 + "respawned, and whether her healing crystals can be shot down.")
         boolean endCrystalsInTheEnd,
 
-        @In("speedrun/lobby") @Title("Players may break blocks before a run")
-        @Describe("Whether an ordinary player can break a block anywhere on the server while no run "
-                + "is under way. Off — the default — nobody can strip the start line, or scout the "
-                + "map, in the wait before a race. Anybody holding rainsspeedrun.admin is exempt, "
+        @In("speedrun/lobby") @Title("Players may change the world before a run")
+        @Describe("Whether an ordinary player can break or place a block, use a bucket, open a "
+                + "chest or use any other block anywhere on the server while no run is under way. "
+                + "Off — the default — nobody can strip the start line, loot, or scout the map, in "
+                + "the wait before a race. Anybody holding rainsspeedrun.admin is exempt, "
                 + "since somebody has to be able to build the lobby.")
         boolean breakingBlocksBeforeRuns,
 

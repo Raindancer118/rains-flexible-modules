@@ -112,13 +112,77 @@ public final class SpeedrunLobbySafetyListener implements Listener {
      */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
-        if (lobby.config().breakingBlocksBeforeRuns() || running()) {
+        if (mayNotTouch(event.getPlayer())) {
+            event.setCancelled(true);
+        }
+    }
+
+    /*
+     * The rest of "and all" — asked for as "people should not be able to break blocks and all before
+     * the run actually starts". Same setting, same reach, same admin exemption as onBreak: placing,
+     * buckets, using a block (a chest, a door, a button), trampling, and item frames and paintings.
+     */
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onPlace(org.bukkit.event.block.BlockPlaceEvent event) {
+        if (mayNotTouch(event.getPlayer())) {
+            event.setCancelled(true);
+        }
+    }
+
+    // Two handlers, not one on PlayerBucketEvent: that is abstract, has no handler list, and Bukkit
+    // refuses the whole listener for it — see EveryHandlerIsRegistrableTest.
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onBucketEmpty(org.bukkit.event.player.PlayerBucketEmptyEvent event) {
+        onBucket(event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onBucketFill(org.bukkit.event.player.PlayerBucketFillEvent event) {
+        onBucket(event);
+    }
+
+    void onBucket(org.bukkit.event.player.PlayerBucketEvent event) {
+        if (mayNotTouch(event.getPlayer())) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * The block is refused, never the item in hand: the lobby's own compass and start block are
+     * right-clicked too, and {@link SpeedrunLobbyListener} has to still hear them.
+     */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onInteract(org.bukkit.event.player.PlayerInteractEvent event) {
+        if (!mayNotTouch(event.getPlayer())) {
             return;
         }
-        if (event.getPlayer().hasPermission(PermissionNodes.ADMIN)) {
-            return;
+        if (event.getAction() == org.bukkit.event.block.Action.PHYSICAL) {
+            event.setCancelled(true);
+        } else if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+            event.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
         }
-        event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onHangingBreak(org.bukkit.event.hanging.HangingBreakByEntityEvent event) {
+        if (event.getRemover() instanceof Player player && mayNotTouch(player)) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** Turning an item frame, or taking what is in it. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onEntityInteract(org.bukkit.event.player.PlayerInteractEntityEvent event) {
+        if (event.getRightClicked() instanceof org.bukkit.entity.Hanging && mayNotTouch(event.getPlayer())) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** Whether {@code player} is held off the world right now — no run on, not allowed, not an admin. */
+    private boolean mayNotTouch(Player player) {
+        return !lobby.config().breakingBlocksBeforeRuns() && !running()
+                && !player.hasPermission(PermissionNodes.ADMIN);
     }
 
     /**

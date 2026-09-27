@@ -321,4 +321,125 @@ class SpeedrunLobbySafetyListenerTest {
             verify(event, never()).setCancelled(true);
         }
     }
+
+    /** "People should not be able to break blocks and all before the run actually starts." */
+    @Nested
+    @DisplayName("nothing in the world changes before the run, not only breaking")
+    class NoTouchingBeforeTheRun {
+
+        private final Player player = playerIn(lobbyWorld);
+
+        private org.bukkit.event.block.BlockPlaceEvent place(Player who) {
+            var event = mock(org.bukkit.event.block.BlockPlaceEvent.class);
+            when(event.getPlayer()).thenReturn(who);
+            return event;
+        }
+
+        private org.bukkit.event.player.PlayerInteractEvent interact(Player who,
+                                                                     org.bukkit.event.block.Action action) {
+            var event = mock(org.bukkit.event.player.PlayerInteractEvent.class);
+            when(event.getPlayer()).thenReturn(who);
+            when(event.getAction()).thenReturn(action);
+            return event;
+        }
+
+        @Test
+        @DisplayName("placing a block is refused")
+        void placing() {
+            var event = place(player);
+            listener.onPlace(event);
+            verify(event).setCancelled(true);
+        }
+
+        @Test
+        @DisplayName("emptying and filling a bucket are refused")
+        void buckets() {
+            var empty = mock(org.bukkit.event.player.PlayerBucketEmptyEvent.class);
+            when(empty.getPlayer()).thenReturn(player);
+            var fill = mock(org.bukkit.event.player.PlayerBucketFillEvent.class);
+            when(fill.getPlayer()).thenReturn(player);
+
+            listener.onBucket(empty);
+            listener.onBucket(fill);
+
+            verify(empty).setCancelled(true);
+            verify(fill).setCancelled(true);
+        }
+
+        @Test
+        @DisplayName("a chest, a door or a button cannot be used — but the item in hand still can")
+        void usingBlocks() {
+            var event = interact(player, org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK);
+
+            listener.onInteract(event);
+
+            verify(event).setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
+            verify(event, never()).setCancelled(true);
+        }
+
+        @Test
+        @DisplayName("trampling farmland or pressing a plate is refused")
+        void physical() {
+            var event = interact(player, org.bukkit.event.block.Action.PHYSICAL);
+
+            listener.onInteract(event);
+
+            verify(event).setCancelled(true);
+        }
+
+        @Test
+        @DisplayName("an item frame or painting cannot be knocked off, nor a frame turned")
+        void hangings() {
+            var knocked = mock(org.bukkit.event.hanging.HangingBreakByEntityEvent.class);
+            when(knocked.getRemover()).thenReturn(player);
+            var turned = mock(org.bukkit.event.player.PlayerInteractEntityEvent.class);
+            when(turned.getPlayer()).thenReturn(player);
+            when(turned.getRightClicked()).thenReturn(mock(org.bukkit.entity.ItemFrame.class));
+
+            listener.onHangingBreak(knocked);
+            listener.onEntityInteract(turned);
+
+            verify(knocked).setCancelled(true);
+            verify(turned).setCancelled(true);
+        }
+
+        @Test
+        @DisplayName("once the run is on, all of it is the race")
+        void allowedDuringTheRun() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
+            var placed = place(player);
+            var used = interact(player, org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK);
+
+            listener.onPlace(placed);
+            listener.onInteract(used);
+
+            verify(placed, never()).setCancelled(true);
+            verify(used, never()).setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
+        }
+
+        @Test
+        @DisplayName("the countdown is still before the run")
+        void refusedDuringTheCountdown() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.COUNTDOWN);
+            var event = place(player);
+            listener.onPlace(event);
+            verify(event).setCancelled(true);
+        }
+
+        @Test
+        @DisplayName("an admin building the lobby, or a host who allows it, is not stopped")
+        void exemptions() {
+            Player admin = playerIn(lobbyWorld);
+            when(admin.hasPermission(de.raindancer.modules.speedrun.util.PermissionNodes.ADMIN))
+                    .thenReturn(true);
+            var byAdmin = place(admin);
+            listener.onPlace(byAdmin);
+            verify(byAdmin, never()).setCancelled(true);
+
+            when(lobby.config()).thenReturn(config(true, true, true, false));
+            var allowed = place(player);
+            listener.onPlace(allowed);
+            verify(allowed, never()).setCancelled(true);
+        }
+    }
 }

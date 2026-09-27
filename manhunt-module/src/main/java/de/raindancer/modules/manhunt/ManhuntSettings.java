@@ -27,6 +27,8 @@ import org.bukkit.Material;
                 description = "Who may put themselves on the Runner side."),
         @Topic(path = "manhunt/doors", title = "The door", icon = Material.IRON_DOOR,
                 description = "What a hunt does to the server whitelist."),
+        @Topic(path = "manhunt/start", title = "The start", icon = Material.CLOCK,
+                description = "Where everybody stands, and how long the Runners get before the chase."),
 })
 public record ManhuntSettings(
 
@@ -77,7 +79,18 @@ public record ManhuntSettings(
         @In("manhunt/doors") @Title("Close the whitelist on start")
         @Describe("Whether starting a hunt shuts the server to anybody not already online, and opens "
                 + "it again when the hunt ends. Only ever re-opens a whitelist this closed itself.")
-        boolean closeWhitelistOnStart
+        boolean closeWhitelistOnStart,
+
+        @In("manhunt/start") @Title("Runners' head start (seconds)") @Range(min = 0, max = 600)
+        @Describe("How long the Hunters stand still and touch nothing once the run starts, while the "
+                + "Runners are already loose. 0 lets everybody go at once.")
+        int hunterHeadStartSeconds,
+
+        @In("manhunt/start") @Title("Start in a circle")
+        @Describe("Whether everybody is placed evenly around one circle for the countdown, facing "
+                + "the middle — Runners together, Hunters together. The circle grows with the "
+                + "number of players, around the start point or the world's spawn.")
+        boolean startInCircle
 
 ) {
 
@@ -87,11 +100,11 @@ public record ManhuntSettings(
     /**
      * A fresh install: the needle follows the Runner through the door they took, every Hunter aims
      * their own, distance shown, twice a second, the two sides fixed for the length of a hunt,
-     * anybody may run, no team compass, Hunters may fight each other however they like, and the server's own door is left exactly as the owner set it — a plugin that quietly whitelists a server is a plugin that locked
+     * anybody may run, no team compass, Hunters may fight each other however they like, no head start, nobody arranged in a circle, and the server's own door is left exactly as the owner set it — a plugin that quietly whitelists a server is a plugin that locked
      * somebody out of their own.
      */
     public static final ManhuntSettings DEFAULTS = new ManhuntSettings(
-            CrossWorldTracking.LAST_PORTAL, true, true, 10, false, false, true, false, false);
+            CrossWorldTracking.LAST_PORTAL, true, true, 10, false, false, true, false, false, 0, false);
 
     // Every with… takes its parameter named after the component it replaces, so the parameter shadows
     // exactly that field and a swapped argument does not compile. ManhuntSettingsContractTest walks
@@ -102,55 +115,72 @@ public record ManhuntSettings(
     public ManhuntSettings withTrackerCrossWorld(CrossWorldTracking trackerCrossWorld) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
                 trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
-                huntersFistsOnly, closeWhitelistOnStart);
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withTrackerHunterMayChoose(boolean trackerHunterMayChoose) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
                 trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
-                huntersFistsOnly, closeWhitelistOnStart);
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withTrackerShowDistance(boolean trackerShowDistance) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
                 trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
-                huntersFistsOnly, closeWhitelistOnStart);
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withTrackerRefreshTicks(int trackerRefreshTicks) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
                 trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
-                huntersFistsOnly, closeWhitelistOnStart);
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withTrackerTeamCompass(boolean trackerTeamCompass) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
                 trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
-                huntersFistsOnly, closeWhitelistOnStart);
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withSideSwitchingMidHunt(boolean sideSwitchingMidHunt) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
                 trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
-                huntersFistsOnly, closeWhitelistOnStart);
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withRunnerSelfJoin(boolean runnerSelfJoin) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
                 trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
-                huntersFistsOnly, closeWhitelistOnStart);
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withHuntersFistsOnly(boolean huntersFistsOnly) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
                 trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
-                huntersFistsOnly, closeWhitelistOnStart);
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withCloseWhitelistOnStart(boolean closeWhitelistOnStart) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
                 trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
-                huntersFistsOnly, closeWhitelistOnStart);
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
+    }
+
+    public ManhuntSettings withHunterHeadStartSeconds(int hunterHeadStartSeconds) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
+    }
+
+    public ManhuntSettings withStartInCircle(boolean startInCircle) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
+    }
+
+    /** The head start, inside the range the settings screen offers. */
+    public int hunterHeadStartSecondsClamped() {
+        return Math.max(0, Math.min(600, hunterHeadStartSeconds));
     }
 
     /** The refresh interval, inside the range the settings screen offers — a hand-edited 0 is a busy loop. */
