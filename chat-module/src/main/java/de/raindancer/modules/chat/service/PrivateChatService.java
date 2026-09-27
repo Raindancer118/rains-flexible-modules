@@ -3,6 +3,7 @@ package de.raindancer.modules.chat.service;
 import de.raindancer.modules.chat.ChatSettings;
 import de.raindancer.modules.chat.model.PrivateChat;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -10,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.LongSupplier;
 
 /**
  * {@code /chat private} — who is in which private chat, and whose next line goes there rather than to
@@ -21,12 +23,11 @@ import java.util.UUID;
  * again to rejoin a conversation they only stepped out of to answer somebody in public.
  * {@code /chat private leave} is the way out altogether.
  *
- * <h2>Being added switches you over, but walking out is final</h2>
- * The owner adding somebody puts them straight into the chat and makes it where their next line goes
- * — that was the point of asking for it. The price of that is that anybody could be pulled into a
- * chat they did not want, over and over. So somebody who <em>leaves</em> may not be added back to the
- * same chat; a fresh chat starts with a fresh list. Being removed by the owner, or merely
- * disconnecting, does not count — neither was their own decision.
+ * <h2>Nobody is pulled in: an invitation has to be accepted</h2>
+ * The owner {@link #invite invites}; the person joins only by {@link #accept accepting}, and is then
+ * switched over at once. An invitation is good for one answer and runs out after
+ * {@link #INVITE_STANDS}, and a second one to the same person while the first stands is refused — the
+ * only way left to pester somebody. Because joining needs a yes, somebody who left may be invited back.
  *
  * <h2>One chat each</h2>
  * Somebody already in one private chat cannot be added to a second. Two would mean deciding which of
@@ -49,10 +50,13 @@ public final class PrivateChatService implements IChatService {
         STARTED,
         SWITCHED,
         ALREADY_PRIVATE,
+        INVITED,
+        ALREADY_INVITED,
+        INVITE_GONE,
+        DECLINED,
         ADDED,
         ALREADY_A_MEMBER,
         IN_ANOTHER_CHAT,
-        LEFT_THIS_CHAT,
         NOT_YOURSELF,
         NOT_THE_OWNER,
         NOT_A_MEMBER,
@@ -66,7 +70,8 @@ public final class PrivateChatService implements IChatService {
     private static final class Room {
         final UUID owner;
         final Set<UUID> members = new LinkedHashSet<>();
-        final Set<UUID> walkedOut = new HashSet<>();
+        /** Who may still accept, and until when (epoch millis). */
+        final Map<UUID, Long> invited = new HashMap<>();
 
         Room(UUID owner) {
             this.owner = owner;
@@ -78,9 +83,21 @@ public final class PrivateChatService implements IChatService {
         }
     }
 
+    /** How long an invitation can be accepted. */
+    public static final Duration INVITE_STANDS = Duration.ofSeconds(60);
+
+    private final LongSupplier clock;
     private final Object lock = new Object();
     private final Map<UUID, Room> roomOf = new HashMap<>();
     private final Set<UUID> talking = new HashSet<>();
+
+    public PrivateChatService() {
+        this(System::currentTimeMillis);
+    }
+
+    PrivateChatService(LongSupplier clock) {
+        this.clock = clock;
+    }
 
     @Override
     public void settings(ChatSettings settings) {
@@ -107,8 +124,63 @@ public final class PrivateChatService implements IChatService {
     }
 
     /**
-     * {@code owner} adding {@code target}, starting {@code owner}'s chat first if they had none — adding
-     * somebody is as clear a way of asking for a private chat as {@code /chat private} itself.
+     * {@code owner} inviting {@code target}, starting {@code owner}'s chat first if they had none —
+     * inviting somebody is as clear a way of asking for a private chat as {@code /chat private} itself.
+     */
+    public Outcome invite(UUID owner, UUID target) {
+        synchronized (lock) {
+            if (owner.equals(target)) {
+                return Outcome.NOT_YOURSELF;
+            }
+            Room room = roomOf.get(owner);
+            if (room != null && !room.owner.equals(owner)) {
+                return Outcome.NOT_THE_OWNER;
+            }
+            Room theirs = roomOf.get(target);
+            if (theirs != null) {
+                return theirs == room ? Outcome.ALREADY_A_MEMBER : Outcome.IN_ANOTHER_CHAT;
+            }
+            long now = clock.getAsLong();
+            if (room != null && standing(room.invited.get(target), now)) {
+                return Outcome.ALREADY_INVITED;
+            }
+            if (room == null) {
+                room = open(owner);
+            }
+            room.invited.put(target, now + INVITE_STANDS.toMillis());
+            return Outcome.INVITED;
+        }
+    }
+
+    /** {@code target} saying yes to {@code owner}'s invitation — the only way into somebody's chat. */
+    public Outcome accept(UUID target, UUID owner) {
+        synchronized (lock) {
+            Room room = roomOf.get(owner);
+            if (room == null || !room.owner.equals(owner)
+                    || !standing(room.invited.remove(target), clock.getAsLong())) {
+                return Outcome.INVITE_GONE;
+            }
+            Room theirs = roomOf.get(target);
+            if (theirs != null) {
+                return theirs == room ? Outcome.ALREADY_A_MEMBER : Outcome.IN_ANOTHER_CHAT;
+            }
+            join(room, target);
+            return Outcome.ADDED;
+        }
+    }
+
+    public Outcome decline(UUID target, UUID owner) {
+        synchronized (lock) {
+            Room room = roomOf.get(owner);
+            boolean was = room != null && room.owner.equals(owner)
+                    && standing(room.invited.remove(target), clock.getAsLong());
+            return was ? Outcome.DECLINED : Outcome.INVITE_GONE;
+        }
+    }
+
+    /**
+     * Puts {@code target} straight in without asking. Not reachable from any command — the way in for
+     * a player is {@link #accept}; this is for callers that already have their consent.
      */
     public Outcome add(UUID owner, UUID target) {
         synchronized (lock) {
@@ -123,19 +195,27 @@ public final class PrivateChatService implements IChatService {
             if (theirs != null) {
                 return theirs == room ? Outcome.ALREADY_A_MEMBER : Outcome.IN_ANOTHER_CHAT;
             }
-            if (room != null && room.walkedOut.contains(target)) {
-                return Outcome.LEFT_THIS_CHAT;
-            }
-            if (room == null) {
-                room = new Room(owner);
-                roomOf.put(owner, room);
-                talking.add(owner);
-            }
-            room.members.add(target);
-            roomOf.put(target, room);
-            talking.add(target);
+            join(room == null ? open(owner) : room, target);
             return Outcome.ADDED;
         }
+    }
+
+    private Room open(UUID owner) {
+        Room room = new Room(owner);
+        roomOf.put(owner, room);
+        talking.add(owner);
+        return room;
+    }
+
+    private void join(Room room, UUID target) {
+        room.invited.remove(target);
+        room.members.add(target);
+        roomOf.put(target, room);
+        talking.add(target);
+    }
+
+    private static boolean standing(Long until, long now) {
+        return until != null && until >= now;
     }
 
     /** The owner taking somebody out. They may be added again later — it was not their decision. */
@@ -160,20 +240,19 @@ public final class PrivateChatService implements IChatService {
     }
 
     /**
-     * Somebody walking out of their chat for good — see the class note on why they cannot be dragged
-     * back. The owner walking out ends it for everybody: a chat nobody may add to or end is a room
+     * Somebody walking out of their chat. The owner walking out ends it for everybody: a chat nobody may add to or end is a room
      * with the door welded shut.
      */
     public Outcome leave(UUID who) {
-        return departing(who, true);
+        return departing(who);
     }
 
-    /** Somebody going offline. The same as {@link #leave}, except that they may be added again. */
+    /** Somebody going offline. */
     public Outcome disconnect(UUID who) {
-        return departing(who, false);
+        return departing(who);
     }
 
-    private Outcome departing(UUID who, boolean byChoice) {
+    private Outcome departing(UUID who) {
         synchronized (lock) {
             Room room = roomOf.get(who);
             if (room == null) {
@@ -185,9 +264,6 @@ public final class PrivateChatService implements IChatService {
                 return Outcome.ENDED;
             }
             takeOut(room, who);
-            if (byChoice) {
-                room.walkedOut.add(who);
-            }
             return Outcome.LEFT;
         }
     }
@@ -242,6 +318,7 @@ public final class PrivateChatService implements IChatService {
             talking.remove(member);
         }
         room.members.clear();
+        room.invited.clear();
     }
 
     @Override

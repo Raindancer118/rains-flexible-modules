@@ -13,7 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PrivateChatServiceTest {
 
-    private final PrivateChatService service = new PrivateChatService();
+    private long now = 1_000_000L;
+    private final PrivateChatService service = new PrivateChatService(() -> now);
 
     private final UUID alice = UUID.randomUUID();
     private final UUID bob = UUID.randomUUID();
@@ -126,16 +127,6 @@ class PrivateChatServiceTest {
         }
 
         @Test
-        @DisplayName("somebody who walked out may not be dragged back in by the same chat")
-        void walkedOutStaysOut() {
-            service.add(alice, bob);
-            service.leave(bob);
-
-            assertThat(service.add(alice, bob)).isEqualTo(Outcome.LEFT_THIS_CHAT);
-            assertThat(service.chatOf(bob)).isEmpty();
-        }
-
-        @Test
         @DisplayName("somebody the owner removed may be added again — that was the owner's call, not theirs")
         void removedMayComeBack() {
             service.add(alice, bob);
@@ -151,6 +142,136 @@ class PrivateChatServiceTest {
             service.disconnect(bob);
 
             assertThat(service.add(alice, bob)).isEqualTo(Outcome.ADDED);
+        }
+    }
+
+    @Nested
+    @DisplayName("inviting somebody")
+    class Inviting {
+
+        @Test
+        @DisplayName("an invitation does not put them in — only accepting it does")
+        void invitationIsNotMembership() {
+            assertThat(service.invite(alice, bob)).isEqualTo(Outcome.INVITED);
+
+            assertThat(service.readersOf(alice)).containsExactly(alice);
+            assertThat(service.chatOf(bob)).isEmpty();
+            assertThat(service.isTalkingPrivately(bob)).isFalse();
+        }
+
+        @Test
+        @DisplayName("inviting starts the inviter's chat and switches them into it")
+        void startsTheInvitersChat() {
+            service.invite(alice, bob);
+
+            assertThat(service.chatOf(alice)).get().extracting(PrivateChat::owner).isEqualTo(alice);
+            assertThat(service.isTalkingPrivately(alice)).isTrue();
+        }
+
+        @Test
+        @DisplayName("accepting puts them in and switches them to it straight away")
+        void acceptingJoins() {
+            service.invite(alice, bob);
+
+            assertThat(service.accept(bob, alice)).isEqualTo(Outcome.ADDED);
+
+            assertThat(service.readersOf(alice)).containsExactlyInAnyOrder(alice, bob);
+            assertThat(service.isTalkingPrivately(bob)).isTrue();
+        }
+
+        @Test
+        @DisplayName("an invitation is good for one accept — a second click does nothing")
+        void oneUse() {
+            service.invite(alice, bob);
+            service.accept(bob, alice);
+            service.leave(bob);
+
+            assertThat(service.accept(bob, alice)).isEqualTo(Outcome.INVITE_GONE);
+            assertThat(service.chatOf(bob)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("nobody can accept an invitation that was never sent")
+        void noInvitationNoEntry() {
+            service.goPrivate(alice);
+
+            assertThat(service.accept(bob, alice)).isEqualTo(Outcome.INVITE_GONE);
+            assertThat(service.readersOf(alice)).containsExactly(alice);
+        }
+
+        @Test
+        @DisplayName("an invitation runs out")
+        void expires() {
+            service.invite(alice, bob);
+            now += PrivateChatService.INVITE_STANDS.toMillis() + 1;
+
+            assertThat(service.accept(bob, alice)).isEqualTo(Outcome.INVITE_GONE);
+            assertThat(service.chatOf(bob)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("declining throws the invitation away, and leaves them out")
+        void declining() {
+            service.invite(alice, bob);
+
+            assertThat(service.decline(bob, alice)).isEqualTo(Outcome.DECLINED);
+            assertThat(service.accept(bob, alice)).isEqualTo(Outcome.INVITE_GONE);
+            assertThat(service.decline(bob, alice)).isEqualTo(Outcome.INVITE_GONE);
+        }
+
+        @Test
+        @DisplayName("a chat that was closed takes its invitations with it")
+        void endedChatInvitationsGone() {
+            service.invite(alice, bob);
+            service.end(alice);
+
+            assertThat(service.accept(bob, alice)).isEqualTo(Outcome.INVITE_GONE);
+            assertThat(service.chatOf(alice)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("inviting the same person twice while the first stands is refused, not repeated")
+        void noSpam() {
+            service.invite(alice, bob);
+
+            assertThat(service.invite(alice, bob)).isEqualTo(Outcome.ALREADY_INVITED);
+
+            now += PrivateChatService.INVITE_STANDS.toMillis() + 1;
+            assertThat(service.invite(alice, bob)).isEqualTo(Outcome.INVITED);
+        }
+
+        @Test
+        @DisplayName("only the owner may invite, and never themselves or a member")
+        void refusals() {
+            service.add(alice, bob);
+
+            assertThat(service.invite(bob, carol)).isEqualTo(Outcome.NOT_THE_OWNER);
+            assertThat(service.invite(alice, alice)).isEqualTo(Outcome.NOT_YOURSELF);
+            assertThat(service.invite(alice, bob)).isEqualTo(Outcome.ALREADY_A_MEMBER);
+        }
+
+        @Test
+        @DisplayName("somebody in another chat is not invited, and cannot accept into a second one")
+        void oneChatEach() {
+            service.add(carol, bob);
+
+            assertThat(service.invite(alice, bob)).isEqualTo(Outcome.IN_ANOTHER_CHAT);
+
+            UUID dave = UUID.randomUUID();
+            service.invite(alice, dave);
+            service.add(carol, dave);
+            assertThat(service.accept(dave, alice)).isEqualTo(Outcome.IN_ANOTHER_CHAT);
+            assertThat(service.readersOf(alice)).containsExactly(alice);
+        }
+
+        @Test
+        @DisplayName("somebody who left may be invited back — they have to say yes again anyway")
+        void walkedOutMayBeInvitedBack() {
+            service.invite(alice, bob);
+            service.accept(bob, alice);
+            service.leave(bob);
+
+            assertThat(service.invite(alice, bob)).isEqualTo(Outcome.INVITED);
         }
     }
 

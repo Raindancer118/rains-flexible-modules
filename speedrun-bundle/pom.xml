@@ -33,8 +33,9 @@
         -->
         <plugin.name>RainsSpeedrunServer</plugin.name>
         <!-- 0.1.0: speedrun 1.20.0, manhunt 0.17.1, worldgate 1.1.0, worldutils 0.1.1. Needs RainsCore 1.39.0.
-             0.2.0: RainsChat 1.4.0 comes along, so Manhunt's /chat team works without a second jar. -->
-        <plugin.version>0.2.0</plugin.version>
+             0.2.0: RainsChat 1.4.0 comes along, so Manhunt's /chat team works without a second jar.
+             0.3.0: chat 1.5.0 — private chats by invitation (/chat private <name>, click to join). -->
+        <plugin.version>0.3.0</plugin.version>
     </properties>
 
     <dependencies>

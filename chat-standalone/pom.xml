@@ -52,8 +52,12 @@
           MONITOR). Somebody who leaves cannot be pulled back into the same chat. /chat itself no
           longer requires chat.admin — the staff subcommands check it themselves; the private ones
           ask for chat.private, which everybody has.
+          1.5.0: nobody is pulled into a private chat any more. /chat private <name> (or add <name>)
+          sends an invitation only that player sees, with [Accept] [Deny] buttons, good for 60 seconds;
+          /chat private accept|decline <name> answers by typing. Joining shows a [Leave] button.
+          Someone who left may be invited back, since joining needs their yes.
         -->
-        <plugin.version>1.4.0</plugin.version>
+        <plugin.version>1.5.0</plugin.version>
     </properties>
 
     <dependencies>

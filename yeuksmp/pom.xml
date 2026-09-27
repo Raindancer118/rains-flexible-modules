@@ -383,8 +383,10 @@
           console, /chathistory or the Discord bridge, and nobody outside the chat sees them.
           1.19.0: chat-module 1.4.0 — /chat team, /chat all, and /chat alone opens a picker; a team line
           reaches the team only, tagged, never the console or /chathistory. Needs RainsCore 1.39.0.
-          -->
-        <plugin.version>1.19.0</plugin.version>
+          1.20.0: chat-module 1.5.0 — private chats by invitation: /chat private <name> sends a
+          clickable [Accept] [Deny] only that player sees; joining offers [Leave].
+        -->
+        <plugin.version>1.20.0</plugin.version>
     </properties>
 
     <dependencies>
