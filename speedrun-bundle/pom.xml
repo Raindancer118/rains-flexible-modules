@@ -35,8 +35,9 @@
         <!-- 0.1.0: speedrun 1.20.0, manhunt 0.17.1, worldgate 1.1.0, worldutils 0.1.1. Needs RainsCore 1.39.0.
              0.2.0: RainsChat 1.4.0 comes along, so Manhunt's /chat team works without a second jar.
              0.3.0: chat 1.5.0 — private chats by invitation (/chat private <name>, click to join).
-             0.4.0: chat 1.6.0 (channels a module delivers itself, e.g. staff chat). Needs RainsCore 1.40.0. -->
-        <plugin.version>0.4.0</plugin.version>
+             0.4.0: chat 1.6.0 (channels a module delivers itself, e.g. staff chat). Needs RainsCore 1.40.0.
+             0.5.0: chat 1.7.0 — the latest choice wins between a private chat and a channel. Needs RainsCore 1.41.0. -->
+        <plugin.version>0.5.0</plugin.version>
     </properties>
 
     <dependencies>

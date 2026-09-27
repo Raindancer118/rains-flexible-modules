@@ -417,4 +417,88 @@ class PrivateChatServiceTest {
             assertThat(service.disconnect(alice)).isEqualTo(Outcome.NOT_IN_A_CHAT);
         }
     }
+
+    @Nested
+    @DisplayName("the latest choice wins, between a private chat and a channel")
+    class LatestChoiceWins {
+
+        private final de.raindancer.core.ui.chat.ChatChannel staff = new de.raindancer.core.ui.chat.ChatChannel() {
+            @Override
+            public String id() {
+                return "staff";
+            }
+
+            @Override
+            public String label() {
+                return "Staff";
+            }
+
+            @Override
+            public Optional<java.util.Set<UUID>> audienceFor(UUID speaker) {
+                return Optional.of(java.util.Set.of(speaker));
+            }
+        };
+
+        @org.junit.jupiter.api.BeforeEach
+        void register() {
+            de.raindancer.core.ui.chat.ChatChannels.register(staff);
+        }
+
+        @org.junit.jupiter.api.AfterEach
+        void clean() {
+            de.raindancer.core.ui.chat.ChatChannels.unregister(staff);
+            for (UUID who : java.util.List.of(alice, bob, carol)) {
+                de.raindancer.core.ui.chat.ChatChannels.forget(who);
+            }
+        }
+
+        @Test
+        @DisplayName("choosing a channel stops talking privately — but they stay in the chat and read it")
+        void channelAfterPrivate() {
+            service.add(alice, bob);
+
+            service.channelChosen(bob, "staff");
+
+            assertThat(service.isTalkingPrivately(bob)).isFalse();
+            assertThat(service.readersOf(alice)).contains(bob);
+        }
+
+        @Test
+        @DisplayName("choosing everybody is left to /chat all and /chat public, which say so themselves")
+        void allIsNotAChannelChoice() {
+            service.goPrivate(alice);
+
+            service.channelChosen(alice, de.raindancer.core.ui.chat.ChatChannels.ALL);
+
+            assertThat(service.isTalkingPrivately(alice)).isTrue();
+        }
+
+        @Test
+        @DisplayName("going private again drops the channel that was chosen")
+        void privateAfterChannel() {
+            service.add(alice, bob);
+            de.raindancer.core.ui.chat.ChatChannels.select(bob, "staff");
+            service.goPublic(bob);
+
+            service.goPrivate(bob);
+
+            assertThat(de.raindancer.core.ui.chat.ChatChannels.selected(bob))
+                    .isEqualTo(de.raindancer.core.ui.chat.ChatChannels.ALL);
+        }
+
+        @Test
+        @DisplayName("starting a chat, or joining one, drops the channel too")
+        void startingOrJoiningDropsIt() {
+            de.raindancer.core.ui.chat.ChatChannels.select(alice, "staff");
+            de.raindancer.core.ui.chat.ChatChannels.select(bob, "staff");
+
+            service.invite(alice, bob);
+            service.accept(bob, alice);
+
+            assertThat(de.raindancer.core.ui.chat.ChatChannels.selected(alice))
+                    .isEqualTo(de.raindancer.core.ui.chat.ChatChannels.ALL);
+            assertThat(de.raindancer.core.ui.chat.ChatChannels.selected(bob))
+                    .isEqualTo(de.raindancer.core.ui.chat.ChatChannels.ALL);
+        }
+    }
 }

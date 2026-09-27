@@ -1,5 +1,6 @@
 package de.raindancer.modules.chat.command;
 
+import de.raindancer.core.ui.chat.ChatChannels;
 import de.raindancer.modules.chat.ChatServices;
 import de.raindancer.modules.chat.model.PrivateChat;
 import de.raindancer.modules.chat.service.PrivateChatService;
@@ -58,8 +59,17 @@ final class PrivateChatSubcommand {
 
     /** {@code /chat public} — talk in public again, while still reading the private chat. */
     static void publicly(ChatServices live, Player sender) {
-        live.messages().send(sender, live.privateChat().goPublic(sender.getUniqueId())
-                ? "chat.private.public" : "chat.private.already-public");
+        UUID who = sender.getUniqueId();
+        boolean wasPrivate = live.privateChat().goPublic(who);
+        boolean wasInAChannel = !ChatChannels.ALL.equals(ChatChannels.selected(who));
+        ChatChannels.select(who, ChatChannels.ALL);
+        if (wasPrivate) {
+            live.messages().send(sender, "chat.private.public");
+        } else if (wasInAChannel) {
+            live.messages().send(sender, "chat.channel.now", "channel", "All");
+        } else {
+            live.messages().send(sender, "chat.private.already-public");
+        }
     }
 
     private static void invite(ChatServices live, Player sender, String[] names) {

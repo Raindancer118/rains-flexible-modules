@@ -337,4 +337,49 @@ class ChatCommandPrivateTest {
         verify(messages).send(eq(bob), eq("chat.private.members"), eq("owner"), eq("Alice"),
                 eq("count"), eq("2"), eq("members"), any(String.class));
     }
+
+    @Test
+    @DisplayName("/chat all leaves the private chat's talking too — everybody means everybody")
+    void allMeansEverybody() {
+        run(alice, "private");
+
+        run(alice, "all");
+
+        assertThat(privateChat.isTalkingPrivately(alice.getUniqueId())).isFalse();
+        assertThat(privateChat.chatOf(alice.getUniqueId())).isPresent();
+    }
+
+    @Test
+    @DisplayName("/chat public leaves a chosen channel too, not only a private chat")
+    void publicLeavesAChannel() {
+        de.raindancer.core.ui.chat.ChatChannel staff = new de.raindancer.core.ui.chat.ChatChannel() {
+            @Override
+            public String id() {
+                return "staff";
+            }
+
+            @Override
+            public String label() {
+                return "Staff";
+            }
+
+            @Override
+            public java.util.Optional<java.util.Set<UUID>> audienceFor(UUID speaker) {
+                return java.util.Optional.of(java.util.Set.of(speaker));
+            }
+        };
+        de.raindancer.core.ui.chat.ChatChannels.register(staff);
+        try {
+            de.raindancer.core.ui.chat.ChatChannels.select(alice.getUniqueId(), "staff");
+
+            run(alice, "public");
+
+            assertThat(de.raindancer.core.ui.chat.ChatChannels.selected(alice.getUniqueId()))
+                    .isEqualTo(de.raindancer.core.ui.chat.ChatChannels.ALL);
+            verify(messages).send(alice, "chat.channel.now", "channel", "All");
+        } finally {
+            de.raindancer.core.ui.chat.ChatChannels.unregister(staff);
+            de.raindancer.core.ui.chat.ChatChannels.forget(alice.getUniqueId());
+        }
+    }
 }

@@ -1,5 +1,6 @@
 package de.raindancer.modules.chat.service;
 
+import de.raindancer.core.ui.chat.ChatChannels;
 import de.raindancer.modules.chat.ChatSettings;
 import de.raindancer.modules.chat.model.PrivateChat;
 
@@ -108,10 +109,10 @@ public final class PrivateChatService implements IChatService {
     public Outcome goPrivate(UUID who) {
         synchronized (lock) {
             if (roomOf.containsKey(who)) {
-                return talking.add(who) ? Outcome.SWITCHED : Outcome.ALREADY_PRIVATE;
+                return talk(who) ? Outcome.SWITCHED : Outcome.ALREADY_PRIVATE;
             }
             roomOf.put(who, new Room(who));
-            talking.add(who);
+            talk(who);
             return Outcome.STARTED;
         }
     }
@@ -203,7 +204,7 @@ public final class PrivateChatService implements IChatService {
     private Room open(UUID owner) {
         Room room = new Room(owner);
         roomOf.put(owner, room);
-        talking.add(owner);
+        talk(owner);
         return room;
     }
 
@@ -211,7 +212,31 @@ public final class PrivateChatService implements IChatService {
         room.invited.remove(target);
         room.members.add(target);
         roomOf.put(target, room);
-        talking.add(target);
+        talk(target);
+    }
+
+    /**
+     * Their lines go to the private chat now, and no longer to a channel they had chosen — the latest
+     * choice wins. See {@link #channelChosen} for the other direction.
+     */
+    private boolean talk(UUID who) {
+        ChatChannels.select(who, ChatChannels.ALL);
+        return talking.add(who);
+    }
+
+    /**
+     * Somebody chose a channel — {@code /chat staff}, {@code /staffchat}, the picker — so their lines
+     * stop going to the private chat. They stay in it and keep reading it. Wired to
+     * {@link ChatChannels#watch}; {@link ChatChannels#ALL} is left to {@code /chat all} and
+     * {@code /chat public}, which also say so.
+     */
+    public void channelChosen(UUID who, String channelId) {
+        if (ChatChannels.ALL.equalsIgnoreCase(channelId)) {
+            return;
+        }
+        synchronized (lock) {
+            talking.remove(who);
+        }
     }
 
     private static boolean standing(Long until, long now) {

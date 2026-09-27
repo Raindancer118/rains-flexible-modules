@@ -59,8 +59,12 @@
           1.6.0: staff chat is one of the channels — /chat staff and the picker reach the same room as
           moderation's /staffchat; moderation still says the line (its format, the console record).
           Needs RainsCore 1.40.0, and RainsModeration 2.19.0 or newer beside it (older says it twice).
+          1.7.0: the latest choice wins. Choosing a channel (/chat staff, /staffchat, /chat team, the
+          picker) stops talking in the private chat — still a member, still reading it; going private
+          again (or starting/joining one) drops the channel; /chat all and /chat public mean everybody.
+          Needs RainsCore 1.41.0.
         -->
-        <plugin.version>1.6.0</plugin.version>
+        <plugin.version>1.7.0</plugin.version>
     </properties>
 
     <dependencies>

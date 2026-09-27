@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.6.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.7.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -50,6 +50,7 @@ public final class ChatModule implements FlexModule {
     private ChatHistoryStore history;
     private ChatStyleStore styles;
     private ChatServices services;
+    private java.util.function.BiConsumer<java.util.UUID, String> channelWatcher;
 
     @Override
     public ModuleInfo info() {
@@ -108,6 +109,9 @@ public final class ChatModule implements FlexModule {
         // From here on this module routes channel lines, so a module that could say its channel alone
         // (moderation's staff chat) stands down and a line is said once.
         de.raindancer.core.ui.chat.ChatChannels.claimRouting(this);
+        // Whichever plugin's command chose a channel, a private chat steps aside for it.
+        channelWatcher = privateChat::channelChosen;
+        de.raindancer.core.ui.chat.ChatChannels.watch(channelWatcher);
 
         // The commands were registered during bootstrap, long before any of this existed, and have
         // been answering "not started yet" until now. See ChatCommands.
@@ -126,6 +130,7 @@ public final class ChatModule implements FlexModule {
     @Override
     public void disable() {
         de.raindancer.core.ui.chat.ChatChannels.releaseRouting(this);
+        de.raindancer.core.ui.chat.ChatChannels.unwatch(channelWatcher);
         ChatCommands.stopped();
         if (history != null) {
             history.flush();

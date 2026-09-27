@@ -109,6 +109,7 @@ public final class ChatCommand implements IChatCommand {
      */
     public static void switchChannel(ChatServices live, Player player, String id) {
         if (id.equalsIgnoreCase(ChatChannels.ALL)) {
+            live.privateChat().goPublic(player.getUniqueId());
             ChatChannels.select(player.getUniqueId(), ChatChannels.ALL);
             live.messages().send(player, "chat.channel.now", "channel", "All");
             return;
