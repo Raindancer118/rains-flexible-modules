@@ -15,24 +15,26 @@
 
     <name>Rain's Speedrun Server</name>
     <description>
-        A speedrun server in one jar: the speedrun lobby, Manhunt as a game that lobby plays, and the
-        world tools (world gate, /w, /dim, worlds and seeds), with RainsCore installed alongside.
+        A speedrun server in one jar: the speedrun lobby, Manhunt as a game that lobby plays, the chat
+        (with Manhunt's team chat), and the world tools (world gate, /w, /dim, worlds and seeds), with
+        RainsCore installed alongside.
     </description>
 
     <properties>
         <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
         <maven.deploy.skip>true</maven.deploy.skip>
         <!--
-          Its own name, not RainsSpeedrun's: installed beside a RainsSpeedrun, RainsManhunt or
-          RainsWorldUtils jar, two copies of a module would be two lobbies, two portal listeners.
+          Its own name, not RainsSpeedrun's: installed beside a RainsSpeedrun, RainsManhunt,
+          RainsChat or RainsWorldUtils jar, two copies of a module would be two lobbies, two portal listeners.
           Replace those jars with this one, never add it to them.
 
-          Four modules, so each gets a subfolder: plugins/RainsSpeedrunServer/modules/<id>/. A server
+          Five modules, so each gets a subfolder: plugins/RainsSpeedrunServer/modules/<id>/. A server
           coming from the single jars moves each plugin's files into the matching subfolder.
         -->
         <plugin.name>RainsSpeedrunServer</plugin.name>
-        <!-- 0.1.0: speedrun 1.20.0, manhunt 0.17.1, worldgate 1.1.0, worldutils 0.1.1. Needs RainsCore 1.39.0. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.1.0: speedrun 1.20.0, manhunt 0.17.1, worldgate 1.1.0, worldutils 0.1.1. Needs RainsCore 1.39.0.
+             0.2.0: RainsChat 1.4.0 comes along, so Manhunt's /chat team works without a second jar. -->
+        <plugin.version>0.2.0</plugin.version>
     </properties>
 
     <dependencies>
@@ -45,6 +47,10 @@
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>manhunt-module</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>chat-module</artifactId>
         </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>

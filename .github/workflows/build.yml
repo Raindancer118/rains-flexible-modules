@@ -198,7 +198,7 @@ jobs:
               "| Rain's TPA | \`${{ steps.jars.outputs.tpa_name }}\` | \`${{ steps.jars.outputs.tpa_sha }}\` |" \
               "| YeukSMP (claims · tpa · warps · moderation · server pack · names, in one jar) | \`${{ steps.jars.outputs.yeuk_name }}\` | \`${{ steps.jars.outputs.yeuk_sha }}\` |" \
               "| Rain's World Utils (world gate · /w · /dim · worlds and seeds, in one jar) | \`${{ steps.jars.outputs.worldutils_name }}\` | \`${{ steps.jars.outputs.worldutils_sha }}\` |" \
-              "| Rain's Speedrun Server (speedrun · manhunt · world gate · world utils, in one jar — replaces those jars) | \`${{ steps.jars.outputs.speedrunserver_name }}\` | \`${{ steps.jars.outputs.speedrunserver_sha }}\` |" \
+              "| Rain's Speedrun Server (speedrun · manhunt · chat · world gate · world utils, in one jar — replaces those jars) | \`${{ steps.jars.outputs.speedrunserver_name }}\` | \`${{ steps.jars.outputs.speedrunserver_sha }}\` |" \
               "" \
               "**YeukSMP replaces the six it contains — it does not go beside them.** Two copies of a" \
               "module on one server is two sets of listeners on the same event." \
@@ -396,12 +396,12 @@ jobs:
                         sha='${{ steps.jars.outputs.yeuk_sha }}'
                         title="YeukSMP"
                         pom=yeuksmp/pom.xml ;;
-            # Also a bundle, in speedrun-bundle/. It replaces RainsSpeedrun, RainsManhunt and
-            # RainsWorldUtils, so the notes say so rather than only "alongside RainsCore".
+            # Also a bundle, in speedrun-bundle/. It replaces RainsSpeedrun, RainsManhunt,
+            # RainsChat and RainsWorldUtils, so the notes say so rather than only "alongside RainsCore".
             speedrunserver) jar='${{ steps.jars.outputs.speedrunserver_jar }}'
                         sha='${{ steps.jars.outputs.speedrunserver_sha }}'
                         title="Rain's Speedrun Server"
-                        replaces="It replaces RainsSpeedrun, RainsManhunt and RainsWorldUtils — remove those jars first."
+                        replaces="It replaces RainsSpeedrun, RainsManhunt, RainsChat and RainsWorldUtils — remove those jars first."
                         pom=speedrun-bundle/pom.xml ;;
             *)          echo "::error::$TAG names no plugin I know about"; exit 1 ;;
           esac

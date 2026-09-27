@@ -21,7 +21,7 @@ import java.util.zip.ZipInputStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * What RainsSpeedrunServer actually contains — the same checks as the Hunger Games bundle's, for the four
+ * What RainsSpeedrunServer actually contains — the same checks as the Hunger Games bundle's, for the five
  * modules this jar holds. See that class for what each failure looks like on a live server.
  */
 class BundleJarTest {
@@ -46,6 +46,7 @@ class BundleJarTest {
     private static final List<Bundled> BUNDLE = List.of(
             new Bundled("speedrun", "speedrun-module", "speedrun", "SpeedrunModule"),
             new Bundled("manhunt", "manhunt-module", "manhunt", "ManhuntModule"),
+            new Bundled("chat", "chat-module", "chat", "ChatModule"),
             new Bundled("worldgate", "worldgate-module", "worldgate", "WorldGateModule"),
             new Bundled("worldutils", "worldutils-module", "worldutils", "WorldUtilsModule"));
 
@@ -121,7 +122,7 @@ class BundleJarTest {
     class Contents {
 
         @Test
-        @DisplayName("all four modules and the wrapper are in it, and each declares itself")
+        @DisplayName("all five modules and the wrapper are in it, and each declares itself")
         void itContainsWhatItShould() {
             List<String> entries = entries();
             String services = read("META-INF/services/de.raindancer.modules.api.FlexModule");
@@ -144,7 +145,7 @@ class BundleJarTest {
         }
 
         @Test
-        @DisplayName("only the four — the bundle has not quietly grown")
+        @DisplayName("only the five — the bundle has not quietly grown")
         void nothingElseCameAlong() {
             for (String notBundled : List.of("de/raindancer/modules/claims/", "de/raindancer/modules/chained/",
                     "de/raindancer/modules/farmworld/", "de/raindancer/modules/homes/")) {
@@ -188,7 +189,7 @@ class BundleJarTest {
             }
         }
         assertThat(clashes).isEmpty();
-        assertThat(claimedBy).containsKeys("speedrun", "manhunt", "worldgate", "w", "dim", "worlds");
+        assertThat(claimedBy).containsKeys("speedrun", "manhunt", "chat", "worldgate", "w", "dim", "worlds");
     }
 
     private static final Pattern DECLARED = Pattern.compile("ModuleCommand\\.of\\(\\s*\"([^\"]+)\"");
@@ -241,7 +242,7 @@ class BundleJarTest {
     }
 
     @Test
-    @DisplayName("the bundle's own pom asks for exactly the four")
+    @DisplayName("the bundle's own pom asks for exactly the five")
     void thePomAndThisTestAgree() {
         List<String> inThePom = new ArrayList<>();
         Matcher found = Pattern.compile("<artifactId>([a-z]+)-module</artifactId>").matcher(readFile(Path.of("pom.xml")));

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Boots RainsSpeedrunServer (speedrun, manhunt, worldgate, worldutils in one jar) beside RainsCore on a
-# real, unmodified Paper server and checks what BundleJarTest cannot: that all four modules come up in
+# Boots RainsSpeedrunServer (speedrun, manhunt, chat, worldgate, worldutils in one jar) beside RainsCore on a
+# real, unmodified Paper server and checks what BundleJarTest cannot: that all five modules come up in
 # one plugin, speedrun before manhunt, that each answers its commands, that /speedrunreset still makes
 # the run's worlds, and that a second boot and both shutdowns are clean.
 #
@@ -130,13 +130,14 @@ boot first
 
 check "the speedrun lobby is up" wait_for 'Speedrun lobby is up' 5
 check "manhunt is up and offered to the lobby" wait_for 'Manhunt is up' 5
+check "the chat is up" wait_for 'Chat is up' 5
 check "the world gate is up" wait_for 'World Gate is up' 5
 check "world utils is up" wait_for 'World Utils is up' 5
 speedrun_line="$(plain | grep -nE 'Speedrun lobby is up' | head -1 | cut -d: -f1)"
 manhunt_line="$(plain | grep -nE 'Manhunt is up' | head -1 | cut -d: -f1)"
 check "speedrun started before manhunt" bash -c "[ -n '$speedrun_line' ] && [ -n '$manhunt_line' ] && [ '$speedrun_line' -lt '$manhunt_line' ]"
 
-for cmd in speedrun manhunt worldgate worlds dim w; do
+for cmd in speedrun manhunt chathistory worldgate worlds dim w; do
   answer="$(rcon "$cmd")"
   log "  /$cmd → $(echo "$answer" | head -1)"
   check "/$cmd exists" bash -c "! grep -qiE 'Unknown (or incomplete )?command' <<<\"$answer\""
@@ -157,7 +158,7 @@ log "Boot 1 stopped."
 
 # ─────────────────────────────────────────────────────────────── boot 2
 boot second
-check "all four come up again" bash -c "for l in 'Speedrun lobby is up' 'Manhunt is up' 'World Gate is up' 'World Utils is up'; do sed -E 's/\x1b\[[0-9;]*m//g' '$LOG' | grep -q \"\$l\" || exit 1; done"
+check "all five come up again" bash -c "for l in 'Speedrun lobby is up' 'Manhunt is up' 'Chat is up' 'World Gate is up' 'World Utils is up'; do sed -E 's/\x1b\[[0-9;]*m//g' '$LOG' | grep -q \"\$l\" || exit 1; done"
 check "the data lives in per-module subfolders" test -d "$SERVER/plugins/RainsSpeedrunServer"
 log "  data folder: $(ls "$SERVER/plugins/RainsSpeedrunServer" 2>/dev/null | tr '\n' ' ')"
 stop
