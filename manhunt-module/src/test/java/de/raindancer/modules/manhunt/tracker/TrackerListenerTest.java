@@ -69,8 +69,8 @@ class TrackerListenerTest {
     }
 
     @Test
-    @DisplayName("a Hunter's door is nobody's business — only Runners are followed")
-    void aHuntersCrossingIsNotRemembered() {
+    @DisplayName("a Hunter's door is remembered too — the team compass follows a teammate down")
+    void aHuntersCrossingIsRemembered() {
         World nether = mock(World.class);
         when(nether.getName()).thenReturn("speedrun_nether");
         PlayerPortalEvent event = new PlayerPortalEvent(playerWithId(HUNTER),
@@ -79,7 +79,52 @@ class TrackerListenerTest {
 
         listener.onPortal(event);
 
-        assertThat(portals.lastCrossingIn(HUNTER, "speedrun")).isEmpty();
+        assertThat(portals.lastCrossingIn(HUNTER, "speedrun"))
+                .contains(new Point("speedrun", 100, 64, -40));
+    }
+
+    @Test
+    @DisplayName("somebody outside the hunt leaves no door behind")
+    void anOutsidersCrossingIsNotRemembered() {
+        UUID outsider = UUID.nameUUIDFromBytes("outsider".getBytes());
+        World nether = mock(World.class);
+        when(nether.getName()).thenReturn("speedrun_nether");
+        listener.onPortal(new PlayerPortalEvent(playerWithId(outsider),
+                new Location(overworld, 1, 64, 1), new Location(nether, 0, 64, 0),
+                PlayerTeleportEvent.TeleportCause.NETHER_PORTAL));
+
+        assertThat(portals.lastCrossingIn(outsider, "speedrun")).isEmpty();
+    }
+
+    private org.bukkit.event.player.PlayerInteractEvent rightClick(Player player) {
+        org.bukkit.inventory.ItemStack compass = mock(org.bukkit.inventory.ItemStack.class);
+        when(tracker.isTracker(compass)).thenReturn(true);
+        return new org.bukkit.event.player.PlayerInteractEvent(player,
+                org.bukkit.event.block.Action.RIGHT_CLICK_AIR, compass, null,
+                org.bukkit.block.BlockFace.SELF);
+    }
+
+    @Test
+    @DisplayName("a right-click cycles the compass")
+    void rightClickCycles() {
+        Player hunter = playerWithId(HUNTER);
+
+        listener.onInteract(rightClick(hunter));
+
+        verify(tracker).cycleTarget(hunter);
+        verify(tracker, org.mockito.Mockito.never()).openPicker(hunter);
+    }
+
+    @Test
+    @DisplayName("sneaking, the same click opens the list instead")
+    void sneakRightClickOpensTheList() {
+        Player hunter = playerWithId(HUNTER);
+        when(hunter.isSneaking()).thenReturn(true);
+
+        listener.onInteract(rightClick(hunter));
+
+        verify(tracker).openPicker(hunter);
+        verify(tracker, org.mockito.Mockito.never()).cycleTarget(hunter);
     }
 
     @Test

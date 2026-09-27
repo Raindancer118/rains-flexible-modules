@@ -15,7 +15,7 @@ import java.util.UUID;
 
 /**
  * Puts every racer, and the map itself, back to a standard starting point the instant a run begins —
- * full hearts, a full hunger bar, morning, nothing hostile standing around and nothing lying on the
+ * full hearts, a full hunger bar, no XP, empty inventory and ender chest, morning, nothing hostile standing around and nothing lying on the
  * ground from whatever happened the last time the world was used.
  *
  * <h2>Why this runs on every start, not only after a regeneration</h2>
@@ -104,7 +104,34 @@ final class SpeedrunPreparation {
         Player online = Bukkit.getPlayer(id);
         if (online != null) {
             online.setSaturation(FULL_SATURATION);
+            carryNothingOver(online);
         }
+    }
+
+    /**
+     * Everything else a player could bring from the last round into this one — asked for as "a new
+     * round means XP reset, all reset essentially". The inventory is cleared here too, not only when
+     * the start block is clicked, because a run started by command never went through that click.
+     * Runs before the game mode's own start, so what a mode hands out (Manhunt's compass) survives.
+     *
+     * <p>The ender chest is part of it: it is the one place a racer could stash last round's
+     * diamonds. The respawn point goes because a bed from the last round points into a world that
+     * has since been regenerated.
+     */
+    private static void carryNothingOver(Player player) {
+        player.setLevel(0);
+        player.setExp(0f);
+        player.setTotalExperience(0);
+        player.getInventory().clear();
+        player.setItemOnCursor(null);
+        player.getEnderChest().clear();
+        player.setRespawnLocation(null);
+        player.setExhaustion(0f);
+        player.setFallDistance(0f);
+        player.setFreezeTicks(0);
+        player.setRemainingAir(player.getMaximumAir());
+        player.setAbsorptionAmount(0);
+        player.setArrowsInBody(0);
     }
 
     private void clearHostilesAndItems(World world) {

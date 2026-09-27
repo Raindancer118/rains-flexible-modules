@@ -1,5 +1,6 @@
 package de.raindancer.modules.manhunt.tracker;
 
+import de.raindancer.core.content.items.BoundItems;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.actionbar.ActionBarPriority;
 import de.raindancer.core.ui.actionbar.ActionBars;
@@ -96,6 +97,8 @@ public final class TrackerCompassService {
     private final CompassTargets compassTargets = new CompassTargets();
 
     private volatile ManhuntSettings settings;
+    /** Opens the list a Hunter picks from — set by the module, which has the brand a menu needs. */
+    private volatile java.util.function.Consumer<Player> pickerScreen;
     private volatile ScheduledTask sweep;
     private volatile int sweepPeriod;
 
@@ -209,15 +212,39 @@ public final class TrackerCompassService {
             return;
         }
         List<Candidate> runners = livingRunners(hunt);
-        Map<UUID, String> names = namesOf(runners);
+        List<Candidate> hunters = compass.allowsTeammates() ? livingHunters(hunt) : List.of();
+        Map<UUID, String> names = namesOf(runners, hunters);
         for (UUID id : hunt.hunters()) {
             Player hunter = plugin.getServer().getPlayer(id);
             if (hunter == null || !hunter.isOnline()) {
                 continue;
             }
-            Aim aim = compass.aim(pointOf(hunter), runners, picks.get(id));
+            Aim aim = compass.aim(pointOf(hunter), runners, without(hunters, id), picks.get(id));
             Scheduling.entity(plugin, hunter, () -> applyTo(hunter, aim, names));
         }
+    }
+
+    /** Every Hunter online and alive, in the same stable order as the Runners — for the team compass. */
+    private List<Candidate> livingHunters(Hunt hunt) {
+        List<Candidate> alive = new ArrayList<>();
+        for (UUID id : hunt.hunters()) {
+            Player hunter = plugin.getServer().getPlayer(id);
+            if (hunter != null && hunter.isOnline() && !hunter.isDead()) {
+                alive.add(new Candidate(id, pointOf(hunter)));
+            }
+        }
+        alive.sort(java.util.Comparator.comparing(candidate -> candidate.id().toString()));
+        return List.copyOf(alive);
+    }
+
+    /** A Hunter's teammates: everybody on the side but themselves. */
+    private static List<Candidate> without(List<Candidate> hunters, UUID self) {
+        return hunters.stream().filter(candidate -> !candidate.id().equals(self)).toList();
+    }
+
+    /** Teammates of {@code hunter}, or nobody while the team compass is off. */
+    private List<Candidate> teammatesOf(Hunt hunt, UUID hunter) {
+        return compass.allowsTeammates() ? without(livingHunters(hunt), hunter) : List.of();
     }
 
     /** Every Runner still worth pointing at, in a stable order so cycling is repeatable. */
@@ -234,10 +261,16 @@ public final class TrackerCompassService {
     }
 
     private Map<UUID, String> namesOf(List<Candidate> runners) {
+        return namesOf(runners, List.of());
+    }
+
+    private Map<UUID, String> namesOf(List<Candidate> runners, List<Candidate> hunters) {
         Map<UUID, String> names = new LinkedHashMap<>();
-        for (Candidate candidate : runners) {
-            Player runner = plugin.getServer().getPlayer(candidate.id());
-            names.put(candidate.id(), runner != null ? runner.getName() : "a Runner");
+        for (List<Candidate> side : List.of(runners, hunters)) {
+            for (Candidate candidate : side) {
+                Player player = plugin.getServer().getPlayer(candidate.id());
+                names.put(candidate.id(), player != null ? player.getName() : "somebody");
+            }
         }
         return names;
     }
@@ -308,7 +341,8 @@ public final class TrackerCompassService {
         meta.lore(List.of(line("<gray>Looking for a Runner…")));
         meta.getPersistentDataContainer().set(marker, PersistentDataType.STRING, TAG);
         stack.setItemMeta(meta);
-        return stack;
+        // A dropped compass is a working compass in a Runner's hands; Core refuses the drop.
+        return BoundItems.bind(stack);
     }
 
     private void applyTo(Player hunter, Aim aim, Map<UUID, String> names) {
@@ -322,10 +356,13 @@ public final class TrackerCompassService {
         }
         String targetName = aim.target() == null ? null : names.getOrDefault(aim.target(), "a Runner");
         showDistance(hunter, aim, targetName);
+        String heading = isTeammate(aim.target())
+                ? "<gold>Teammate <white>" + safe(targetName)
+                : "<gold>Tracking <white>" + safe(targetName);
 
         switch (aim.kind()) {
             case TRACKING, PORTAL -> {
-                meta.displayName(line("<gold>Tracking <white>" + safe(targetName)));
+                meta.displayName(line(heading));
                 meta.lore(loreFor(aim.kind() == Aim.Kind.TRACKING
                         ? "<gray>Straight ahead."
                         : "<gray>Through the portal, into <white>" + safe(aim.worldName()) + "<gray>."));
@@ -354,7 +391,7 @@ public final class TrackerCompassService {
             }
             case OTHER_WORLD -> {
                 meta.setLodestone(null);
-                meta.displayName(line("<gold>Tracking <white>" + safe(targetName)));
+                meta.displayName(line(heading));
                 meta.lore(List.of(line("<gray>Somewhere in <white>" + safe(aim.worldName()) + "<gray>."),
                         line("<dark_gray>No way through from here.")));
             }
@@ -493,8 +530,12 @@ public final class TrackerCompassService {
     List<net.kyori.adventure.text.Component> loreFor(String first) {
         List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
         lore.add(line(first));
-        if (compass.allowsPicking()) {
+        if (compass.allowsPicking() && compass.allowsTeammates()) {
+            lore.add(line("<dark_gray>Right-click for the next Runner or teammate."));
+            lore.add(line("<dark_gray>Sneak + right-click to pick from a list."));
+        } else if (compass.allowsPicking()) {
             lore.add(line("<dark_gray>Right-click for the next Runner, or the nearest."));
+            lore.add(line("<dark_gray>Sneak + right-click to pick from a list."));
         }
         return lore;
     }
@@ -545,23 +586,107 @@ public final class TrackerCompassService {
             return;
         }
         List<Candidate> runners = livingRunners(hunt);
-        Optional<Following> next = TrackerCompass.next(runners, current(hunter.getUniqueId()));
+        List<Candidate> teammates = teammatesOf(hunt, hunter.getUniqueId());
+        Optional<Following> next = TrackerCompass.next(runners, teammates, current(hunter.getUniqueId()));
         if (next.isEmpty()) {
             say(hunter, "manhunt.tracker.no-runners");
             return;
         }
-        Following moved = next.get();
-        String name = nameOf(moved.runner());
+        follow(hunter, next.get(), runners, teammates);
+    }
+
+    /**
+     * A Hunter picked {@code choice} from the list — see {@code ManhuntTrackerMenu}. Refused, like a
+     * right-click, where the owner aims the compass; and a pick that is no longer in the hunt (a
+     * Runner caught while the list was open) is simply ignored.
+     */
+    public void pick(Player hunter, Following choice) {
+        Hunt hunt = liveHunt.get().orElse(null);
+        if (hunt == null || !hunt.isHunter(hunter.getUniqueId()) || choice == null) {
+            return;
+        }
+        if (!compass.allowsPicking()) {
+            say(hunter, "manhunt.tracker.picking-off");
+            return;
+        }
+        List<Candidate> runners = livingRunners(hunt);
+        List<Candidate> teammates = teammatesOf(hunt, hunter.getUniqueId());
+        if (!choice.isNearest() && runners.stream().noneMatch(c -> c.id().equals(choice.runner()))
+                && teammates.stream().noneMatch(c -> c.id().equals(choice.runner()))) {
+            return;
+        }
+        follow(hunter, choice, runners, teammates);
+    }
+
+    private void follow(Player hunter, Following moved, List<Candidate> runners,
+                        List<Candidate> teammates) {
         picks.put(hunter.getUniqueId(), moved);
         if (moved.isNearest()) {
             say(hunter, "manhunt.tracker.now-nearest");
+        } else if (isTeammate(moved.runner())) {
+            say(hunter, "manhunt.tracker.now-following-teammate", "hunter", nameOf(moved.runner()));
         } else {
-            say(hunter, "manhunt.tracker.now-following", "runner", name);
+            say(hunter, "manhunt.tracker.now-following", "runner", nameOf(moved.runner()));
         }
         // Redrawn at once rather than at the next sweep: a compass that answers a click a second
         // later is a compass the Hunter clicks again.
-        Aim aim = compass.aim(pointOf(hunter), runners, moved);
-        applyTo(hunter, aim, namesOf(runners));
+        Aim aim = compass.aim(pointOf(hunter), runners, teammates, moved);
+        applyTo(hunter, aim, namesOf(runners, teammates));
+    }
+
+    private boolean isTeammate(UUID target) {
+        return target != null && liveHunt.get().map(hunt -> hunt.isHunter(target)).orElse(false);
+    }
+
+    /** One line of the list a Hunter picks from. */
+    public record Target(Following following, String name, boolean teammate, boolean current) {
+    }
+
+    /**
+     * What {@code hunter} may pick: the nearest Runner, every Runner, and — with the team compass on
+     * — every teammate. Empty when there is no hunt or they are not hunting.
+     */
+    public List<Target> targetsFor(Player hunter) {
+        Hunt hunt = liveHunt.get().orElse(null);
+        if (hunt == null || !hunt.isHunter(hunter.getUniqueId())) {
+            return List.of();
+        }
+        Following now = picks.get(hunter.getUniqueId());
+        List<Target> targets = new ArrayList<>();
+        targets.add(new Target(Following.NEAREST, "Whoever is nearest", false,
+                now == null || now.isNearest()));
+        for (Candidate runner : livingRunners(hunt)) {
+            targets.add(new Target(Following.of(runner.id()), nameOf(runner.id()), false,
+                    now != null && runner.id().equals(now.runner())));
+        }
+        for (Candidate mate : teammatesOf(hunt, hunter.getUniqueId())) {
+            targets.add(new Target(Following.of(mate.id()), nameOf(mate.id()), true,
+                    now != null && mate.id().equals(now.runner())));
+        }
+        return targets;
+    }
+
+    /** Tells the service how to open the pick list — the module owns the brand a menu needs. */
+    public void pickerScreen(java.util.function.Consumer<Player> opener) {
+        this.pickerScreen = opener;
+    }
+
+    /** A Hunter sneak-right-clicked their compass: the list, where picking is allowed at all. */
+    public void openPicker(Player hunter) {
+        Hunt hunt = liveHunt.get().orElse(null);
+        if (hunt == null || !hunt.isHunter(hunter.getUniqueId())) {
+            return;
+        }
+        if (!compass.allowsPicking()) {
+            say(hunter, "manhunt.tracker.picking-off");
+            return;
+        }
+        java.util.function.Consumer<Player> opener = pickerScreen;
+        if (opener == null) {
+            cycleTarget(hunter);   // no screen wired (tests, or a host without menus): cycling still works
+            return;
+        }
+        opener.accept(hunter);
     }
 
     /**
@@ -573,12 +698,12 @@ public final class TrackerCompassService {
         return picks.get(hunter);
     }
 
-    private String nameOf(UUID runner) {
-        if (runner == null) {
-            return "a Runner";
+    private String nameOf(UUID player) {
+        if (player == null) {
+            return "somebody";
         }
-        Player player = plugin.getServer().getPlayer(runner);
-        return player != null ? player.getName() : "a Runner";
+        Player online = plugin.getServer().getPlayer(player);
+        return online != null ? online.getName() : "somebody";
     }
 
     /**

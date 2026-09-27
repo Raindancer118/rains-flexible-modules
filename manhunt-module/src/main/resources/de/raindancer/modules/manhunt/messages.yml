@@ -42,6 +42,9 @@ manhunt:
   status:
     waiting: "<gray>Running: <white><runners></white>. Hunting: <white><hunters></white>."
     running: "<gray>The hunt is on. Still running: <white><runners></white> (<out> caught), <white><hunters></white> hunting."
+  # A Hunter hitting another Hunter with anything but a fist, with "Hunters only punch each other" on.
+  # Said instead of Core's combat.fists-only — for Manhunt only, see Messages.overrideFor.
+  teammate-hit: "<red>Please don't kill your teammates!"
   # A Runner has been caught, told to both sides.
   caught: "<red><runner> has been caught. <white><left></white> Runner(s) left."
   last-runner: "<red><runner> was the last Runner."
@@ -56,6 +59,8 @@ manhunt:
     now-nearest: "<gold>Following whoever is nearest."
     picking-off: "<yellow>Your compass is aimed for you on this server."
     no-runners: "<yellow>There is nobody left to point at."
+    now-following-teammate: "<gold>Following your teammate <white><hunter></white>."
+    picker-title: "Track whom?"
   whitelist:
     opened: "<green>The server is open again — anybody can join."
     closed: "<yellow>The server is closed. <white><added></white> player(s) were added to the whitelist first."

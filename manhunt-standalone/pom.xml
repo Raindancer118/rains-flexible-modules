@@ -67,8 +67,11 @@
              dimension change), overwriting what the sweep sent — which the sweep then never repeats,
              because it remembers having sent it. A door is now held in the item as a lodestone,
              which nothing overwrites and which costs no redraw since a door does not move; and a
-             respawn or a dimension change makes the next sweep send the needle again. -->
-        <plugin.version>0.14.0</plugin.version>
+             respawn or a dimension change makes the next sweep send the needle again.
+             0.15.0: Hunters may be limited to fists against each other; a team compass lets Hunters
+             follow each other too, cycled or picked from a list (sneak + right-click); the tracking
+             compass cannot be dropped. Needs RainsCore 1.37.0 and RainsSpeedrun 1.18.0. -->
+        <plugin.version>0.15.0</plugin.version>
     </properties>
 
     <dependencies>

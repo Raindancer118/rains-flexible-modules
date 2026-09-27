@@ -158,4 +158,103 @@ class TrackerCompassServiceTest {
 
         verify(inventory, never()).addItem(any(ItemStack.class));
     }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("picking from the list")
+    class Picking {
+
+        private final java.util.UUID runner = java.util.UUID.nameUUIDFromBytes("runner".getBytes());
+        private final java.util.UUID hunterId = java.util.UUID.nameUUIDFromBytes("hunter".getBytes());
+        private final java.util.UUID mate = java.util.UUID.nameUUIDFromBytes("mate".getBytes());
+        private org.bukkit.Server server;
+
+        private TrackerCompassService serviceWith(ManhuntSettings settings) {
+            de.raindancer.modules.manhunt.model.Hunt hunt = de.raindancer.modules.manhunt.model.Hunt.of(
+                    java.util.Set.of(runner, hunterId, mate), java.util.Set.of(runner));
+            Plugin plugin = mock(Plugin.class);
+            when(plugin.getName()).thenReturn("manhunt");
+            when(plugin.namespace()).thenReturn("manhunt");
+            server = mock(org.bukkit.Server.class);
+            when(plugin.getServer()).thenReturn(server);
+            when(hunter.getUniqueId()).thenReturn(hunterId);
+            when(hunter.isOnline()).thenReturn(true);
+            when(hunter.getName()).thenReturn("Hunter");
+            when(server.getPlayer(hunterId)).thenReturn(hunter);
+            online(runner, "Runner");
+            online(mate, "Mate");
+            return new TrackerCompassService(plugin, () -> java.util.Optional.of(hunt),
+                    new TrackerCompass(settings, new PortalMemory()), new PortalMemory(), messages,
+                    null, settings);
+        }
+
+        private void online(java.util.UUID id, String name) {
+            Player player = mock(Player.class);
+            when(player.getUniqueId()).thenReturn(id);
+            when(player.isOnline()).thenReturn(true);
+            when(player.getName()).thenReturn(name);
+            when(player.getLocation()).thenReturn(location);
+            when(server.getPlayer(id)).thenReturn(player);
+        }
+
+        @Test
+        @DisplayName("the list is nearest, the Runners, and — only with the team compass — the teammates")
+        void targets() {
+            assertThat(serviceWith(ManhuntSettings.DEFAULTS).targetsFor(hunter))
+                    .extracting(TrackerCompassService.Target::name)
+                    .containsExactly("Whoever is nearest", "Runner");
+
+            assertThat(serviceWith(ManhuntSettings.DEFAULTS.withTrackerTeamCompass(true)).targetsFor(hunter))
+                    .extracting(TrackerCompassService.Target::name, TrackerCompassService.Target::teammate)
+                    .containsExactly(org.assertj.core.groups.Tuple.tuple("Whoever is nearest", false),
+                            org.assertj.core.groups.Tuple.tuple("Runner", false),
+                            org.assertj.core.groups.Tuple.tuple("Mate", true));
+        }
+
+        @Test
+        @DisplayName("picking a teammate follows them and says so")
+        void pickTeammate() {
+            TrackerCompassService picking = serviceWith(ManhuntSettings.DEFAULTS.withTrackerTeamCompass(true));
+
+            picking.pick(hunter, TrackerCompass.Following.of(mate));
+
+            assertThat(picking.pickOf(hunterId)).contains(TrackerCompass.Following.of(mate));
+            org.mockito.Mockito.verify(messages).send(hunter, "manhunt.tracker.now-following-teammate",
+                    "hunter", "Mate");
+        }
+
+        @Test
+        @DisplayName("a teammate cannot be picked while the team compass is off")
+        void noTeammateWhenOff() {
+            TrackerCompassService picking = serviceWith(ManhuntSettings.DEFAULTS);
+
+            picking.pick(hunter, TrackerCompass.Following.of(mate));
+
+            assertThat(picking.pickOf(hunterId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("where the owner aims the compass, the list refuses like a right-click does")
+        void refusedWhenPickingIsOff() {
+            TrackerCompassService picking = serviceWith(ManhuntSettings.DEFAULTS.withTrackerHunterMayChoose(false));
+
+            picking.openPicker(hunter);
+            picking.pick(hunter, TrackerCompass.Following.of(runner));
+
+            assertThat(picking.pickOf(hunterId)).isEmpty();
+            org.mockito.Mockito.verify(messages, org.mockito.Mockito.times(2))
+                    .send(hunter, "manhunt.tracker.picking-off");
+        }
+
+        @Test
+        @DisplayName("sneak-click opens whatever screen the module wired")
+        void opensTheScreen() {
+            TrackerCompassService picking = serviceWith(ManhuntSettings.DEFAULTS);
+            java.util.List<Player> opened = new java.util.ArrayList<>();
+            picking.pickerScreen(opened::add);
+
+            picking.openPicker(hunter);
+
+            assertThat(opened).containsExactly(hunter);
+        }
+    }
 }

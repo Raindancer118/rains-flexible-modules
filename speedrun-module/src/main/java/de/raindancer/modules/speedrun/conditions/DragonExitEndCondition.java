@@ -7,6 +7,7 @@ import org.bukkit.World;
 import org.bukkit.entity.EnderDragon;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
@@ -17,7 +18,9 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 /**
@@ -59,6 +62,12 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
     private final Predicate<UUID> counts;
     private SpeedrunSession session;
     private volatile boolean dragonKilled;
+    /**
+     * Who is about to leave the End some other way than the exit portal — dying there, or being
+     * teleported out. {@link #onLeavingTheEnd} only knows "was in the End a moment ago", and without
+     * this a Runner dying after the kill respawned in the Overworld and won the hunt.
+     */
+    private final Set<UUID> leavingOtherwise = ConcurrentHashMap.newKeySet();
 
     public DragonExitEndCondition(Plugin plugin, NamespacedKey dragonKill) {
         this(plugin, dragonKill, participant -> true);
@@ -140,10 +149,13 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onLeavingTheEnd(PlayerChangedWorldEvent event) {
-        if (!dragonKilled) {
+        if (event.getFrom().getEnvironment() != World.Environment.THE_END) {
             return;
         }
-        if (event.getFrom().getEnvironment() != World.Environment.THE_END) {
+        if (leavingOtherwise.remove(event.getPlayer().getUniqueId())) {
+            return;   // a death or a teleport, not the portal
+        }
+        if (!dragonKilled) {
             return;
         }
         if (!isGoalReacher(event.getPlayer().getUniqueId())) {
@@ -168,6 +180,28 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
             return;
         }
         session.finish("advancement:" + dragonKill);
+    }
+
+    /** Dying in the End sends them to their respawn point — out of the End, but not through the portal. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onDeathInTheEnd(PlayerDeathEvent event) {
+        World world = event.getPlayer().getWorld();
+        if (world != null && world.getEnvironment() == World.Environment.THE_END) {
+            leavingOtherwise.add(event.getPlayer().getUniqueId());
+        }
+    }
+
+    /** A command or a plugin moving somebody out of the End is not them walking out either. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleportOut(PlayerTeleportEvent event) {
+        if (event.getCause() == PlayerTeleportEvent.TeleportCause.END_PORTAL) {
+            return;
+        }
+        World from = event.getFrom().getWorld();
+        World to = event.getTo() == null ? null : event.getTo().getWorld();
+        if (from != null && from.getEnvironment() == World.Environment.THE_END && to != from) {
+            leavingOtherwise.add(event.getPlayer().getUniqueId());
+        }
     }
 
     private boolean isGoalReacher(UUID player) {

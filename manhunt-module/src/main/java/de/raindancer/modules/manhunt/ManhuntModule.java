@@ -12,6 +12,7 @@ import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.screen.ManhuntSidesMenu;
 import de.raindancer.modules.manhunt.service.Eliminations;
 import de.raindancer.modules.manhunt.service.HuntersByDefaultListener;
+import de.raindancer.modules.manhunt.service.HuntersFistsOnly;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
 import de.raindancer.modules.manhunt.service.WhitelistVips;
 import de.raindancer.modules.manhunt.service.SpectatorRestoreListener;
@@ -40,7 +41,7 @@ import java.util.List;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.14.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.15.0")
             .describedAs("Runners against Hunters, played in the speedrun lobby: the lobby's own "
                     + "goal is what the Runners race for, every Hunter carries a compass that "
                     + "follows a Runner through the portal they took, a caught Runner is out for "
@@ -48,6 +49,8 @@ public final class ManhuntModule implements FlexModule {
             .by("Raindancer118");
 
     private ManhuntMode mode;
+    private de.raindancer.core.RainsCore core;
+    private HuntersFistsOnly fistsOnly;
 
     @Override
     public ModuleInfo info() {
@@ -98,6 +101,9 @@ public final class ManhuntModule implements FlexModule {
                 compass, portals, context.core().messages(), context.core().actionBars(),
                 settings.current());
         settings.onChange(tracker::settings);
+        tracker.pickerScreen(viewer -> new de.raindancer.modules.manhunt.screen.ManhuntTrackerMenu(
+                tracker, context.chat().brand(),
+                context.core().messages().raw("manhunt.tracker.picker-title"), viewer).open());
 
         ManhuntServices[] holder = new ManhuntServices[1];
         ManhuntMode liveMode = new ManhuntMode(context.plugin(), teams, eliminations, tracker, portals,
@@ -143,6 +149,15 @@ public final class ManhuntModule implements FlexModule {
         // see ManhuntMode.onStart.
         context.listener(new SpectatorRestoreListener(
                 () -> mode == null ? java.util.Optional.empty() : mode.current(), eliminations));
+
+        // Hunters only punching each other is one of Core's combat rules, not a damage listener of
+        // our own — Core already traces arrows and pets back to a person and says how a hit landed.
+        // The refusal is Core's combat.fists-only, said in Manhunt's own words for Manhunt only.
+        core = context.core();
+        fistsOnly = new HuntersFistsOnly(
+                () -> mode == null ? java.util.Optional.empty() : mode.current(), settings::current);
+        core.combat().alsoAsk(ManhuntMode.ID, fistsOnly);
+        core.messages().overrideFor(ManhuntMode.ID, "combat.fists-only", "manhunt.teammate-hit");
 
         // The command was registered during bootstrap, long before any of this existed, and has been
         // answering "not started yet" until now. See ManhuntCommands.
@@ -204,6 +219,10 @@ public final class ManhuntModule implements FlexModule {
         // Withdrawn before anything else: a mode left on the shelf hands the next start to a plugin
         // that is no longer loaded.
         SpeedrunModes.withdraw(ManhuntMode.ID);
+        if (core != null) {
+            core.combat().stopAsking(fistsOnly);
+            core.messages().forgetOverridesFor(ManhuntMode.ID);
+        }
         if (mode != null) {
             // A hunt that outlives its plugin leaves its Runners spectating for good. The compasses
             // and the whitelist go back the same way they would at any other ending.

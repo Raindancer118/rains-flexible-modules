@@ -65,7 +65,7 @@ class SpeedrunPreparationTest {
         SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
         when(world.getEntities()).thenReturn(List.of());
-        Player onlineAlice = mock(Player.class);
+        Player onlineAlice = mock(Player.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(onlineAlice);
@@ -183,7 +183,7 @@ class SpeedrunPreparationTest {
         SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
         when(world.getEntities()).thenReturn(List.of());
-        Player alice = mock(Player.class);
+        Player alice = mock(Player.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
@@ -192,5 +192,40 @@ class SpeedrunPreparationTest {
 
             bukkit.verify(Bukkit::advancementIterator, never());
         }
+    }
+
+    @Test
+    @DisplayName("a new round is a clean slate: XP, inventory, ender chest, respawn point and the body all reset")
+    void resetsEverythingAPlayerCarriesOver() {
+        PlayerAdmin players = mock(PlayerAdmin.class);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
+        World world = mock(World.class);
+        when(world.getEntities()).thenReturn(List.of());
+        Player alice = mock(Player.class);
+        org.bukkit.inventory.PlayerInventory inventory = mock(org.bukkit.inventory.PlayerInventory.class);
+        org.bukkit.inventory.Inventory enderChest = mock(org.bukkit.inventory.Inventory.class);
+        when(alice.getInventory()).thenReturn(inventory);
+        when(alice.getEnderChest()).thenReturn(enderChest);
+        when(alice.getMaximumAir()).thenReturn(300);
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+
+            preparation.prepare(world, Set.of(ALICE));
+        }
+
+        verify(alice).setLevel(0);
+        verify(alice).setExp(0f);
+        verify(alice).setTotalExperience(0);
+        verify(inventory).clear();
+        verify(alice).setItemOnCursor(null);
+        verify(enderChest).clear();
+        verify(alice).setRespawnLocation(null);
+        verify(alice).setExhaustion(0f);
+        verify(alice).setFallDistance(0f);
+        verify(alice).setFreezeTicks(0);
+        verify(alice).setRemainingAir(300);
+        verify(alice).setAbsorptionAmount(0);
+        verify(alice).setArrowsInBody(0);
     }
 }

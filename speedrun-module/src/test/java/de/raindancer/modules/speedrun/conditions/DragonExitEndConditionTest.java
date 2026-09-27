@@ -13,6 +13,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
@@ -219,5 +220,79 @@ class DragonExitEndConditionTest {
                 in(World.Environment.NORMAL), PlayerTeleportEvent.TeleportCause.NETHER_PORTAL));
 
         assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
+    }
+
+    /**
+     * Manhunt's rule: only a Runner walking out ends the hunt. A Hunter taking the exit portal after
+     * the kill is somebody going home, not a win for anybody.
+     */
+    @Test
+    void onlyAParticipantWhoCountsEndsItThroughThePortal() {
+        SpeedrunSession hunt = armed(Set.of(ALICE, BOB), ALICE::equals);
+        DragonExitEndCondition runnersOnly = lastArmed;
+        runnersOnly.onDragonDeath(deathOf(mock(EnderDragon.class)));
+
+        runnersOnly.onExitPortal(new PlayerPortalEvent(playerWithId(BOB), in(World.Environment.THE_END),
+                in(World.Environment.NORMAL), PlayerTeleportEvent.TeleportCause.END_PORTAL));
+        runnersOnly.onLeavingTheEnd(new PlayerChangedWorldEvent(playerWithId(BOB),
+                worldIn(World.Environment.THE_END)));
+        assertThat(hunt.state()).isEqualTo(SpeedrunState.RUNNING);
+
+        runnersOnly.onExitPortal(new PlayerPortalEvent(playerWithId(ALICE), in(World.Environment.THE_END),
+                in(World.Environment.NORMAL), PlayerTeleportEvent.TeleportCause.END_PORTAL));
+        assertThat(hunt.state()).isEqualTo(SpeedrunState.FINISHED);
+    }
+
+    /** Dying in the End and respawning in the Overworld is leaving it, but not through the portal. */
+    @Test
+    void dyingInTheEndAfterTheKillIsNotReachingThePortal() {
+        condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
+        Player alice = playerWithId(ALICE);
+        World end = worldIn(World.Environment.THE_END);
+        when(alice.getWorld()).thenReturn(end);
+        PlayerDeathEvent death = mock(PlayerDeathEvent.class);
+        when(death.getEntity()).thenReturn(alice);
+        when(death.getPlayer()).thenReturn(alice);
+
+        condition.onDeathInTheEnd(death);
+        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(alice, end));
+
+        assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
+
+        // ...and the next time they leave, through the portal this time, it counts again.
+        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(alice, end));
+        assertThat(session.state()).isEqualTo(SpeedrunState.FINISHED);
+    }
+
+    /** A command or another plugin teleporting somebody out is not the exit portal either. */
+    @Test
+    void beingTeleportedOutOfTheEndIsNotReachingThePortal() {
+        condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
+        Player alice = playerWithId(ALICE);
+        Location from = in(World.Environment.THE_END);
+        Location to = in(World.Environment.NORMAL);
+
+        condition.onTeleportOut(new PlayerTeleportEvent(alice, from, to,
+                PlayerTeleportEvent.TeleportCause.COMMAND));
+        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(alice, from.getWorld()));
+
+        assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
+    }
+
+    private DragonExitEndCondition lastArmed;
+
+    private SpeedrunSession armed(Set<UUID> participants, java.util.function.Predicate<UUID> counts) {
+        Server server = mock(Server.class);
+        when(server.getPluginManager()).thenReturn(mock(PluginManager.class));
+        Plugin plugin = mock(Plugin.class);
+        when(plugin.getServer()).thenReturn(server);
+        SpeedrunSession fresh = new SpeedrunSession(participants);
+        lastArmed = new DragonExitEndCondition(plugin, KEY, counts);
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getAdvancement(KEY)).thenReturn(null);
+            fresh.addEndCondition(lastArmed);
+            fresh.start();
+        }
+        return fresh;
     }
 }

@@ -91,8 +91,8 @@ class SettingsReachabilityTest {
                 .containsExactlyInAnyOrder("manhunt/tracker", "manhunt/sides", "manhunt/doors");
         assertThat(keysOf("manhunt/tracker"))
                 .contains("tracker-cross-world", "tracker-hunter-may-choose", "tracker-show-distance",
-                        "tracker-refresh-ticks");
-        assertThat(keysOf("manhunt/sides")).contains("runner-self-join");
+                        "tracker-refresh-ticks", "tracker-team-compass");
+        assertThat(keysOf("manhunt/sides")).contains("runner-self-join", "hunters-fists-only");
         assertThat(keysOf("manhunt/doors")).contains("close-whitelist-on-start");
     }
 }

@@ -57,7 +57,9 @@ public final class TrackerListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPortal(PlayerPortalEvent event) {
         Player player = event.getPlayer();
-        if (!hunt.isRunner(player.getUniqueId()) || hunt.isEliminated(player.getUniqueId())) {
+        // Hunters too, not only Runners: with the team compass on, a teammate below is followed
+        // through the door they took exactly as a Runner is.
+        if (!hunt.everybody().contains(player.getUniqueId()) || hunt.isEliminated(player.getUniqueId())) {
             return;
         }
         Location from = event.getFrom();
@@ -68,8 +70,9 @@ public final class TrackerListener implements Listener {
                 new Point(from.getWorld().getName(), from.getX(), from.getY(), from.getZ()));
     }
 
-    /** A Hunter right-clicking the compass follows the next Runner along — see
-     *  {@link TrackerCompassService#cycleTarget}, which decides whether that is allowed at all. */
+    /** A Hunter right-clicking the compass follows the next one along; sneaking, it opens the list —
+     *  see {@link TrackerCompassService#cycleTarget} and {@code openPicker}, which decide whether
+     *  that is allowed at all. */
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
@@ -85,7 +88,11 @@ public final class TrackerListener implements Listener {
         // The compass is a button here, not a block-placing item: a right-click on a lodestone would
         // otherwise bind it for real and undo the aim on the very next sweep.
         event.setCancelled(true);
-        tracker.cycleTarget(player);
+        if (player.isSneaking()) {
+            tracker.openPicker(player);
+        } else {
+            tracker.cycleTarget(player);
+        }
     }
 
     /**
