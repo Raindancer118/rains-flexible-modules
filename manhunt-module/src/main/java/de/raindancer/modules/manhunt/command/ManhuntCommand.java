@@ -52,8 +52,34 @@ public final class ManhuntCommand implements IManhuntCommand {
             case "assign" -> assign(live, sender, args);
             case "reset" -> reset(live, sender);
             case "status" -> status(live, sender);
+            case "trail" -> trail(live, sender);
+            case "here" -> here(live, sender, args);
             default -> live.messages().send(sender, "manhunt.unknown-word", "word", word);
         }
+    }
+
+    /** Says where you are to everybody, the coordinates a button that walks the clicker there. */
+    private void here(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "manhunt.only-a-player");
+            return;
+        }
+        if (args.length > 1 && args[1].equalsIgnoreCase("stop")) {
+            live.messages().send(player, live.share().stop(player)
+                    ? "manhunt.here.stopped" : "manhunt.here.not-navigating");
+            return;
+        }
+        live.share().share(player);
+    }
+
+    /** Each player's own particle trail on or off — see TrailPreference. */
+    private void trail(ManhuntServices live, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "manhunt.only-a-player");
+            return;
+        }
+        live.messages().send(player, de.raindancer.modules.manhunt.tracker.TrailPreference.messageKey(
+                de.raindancer.modules.manhunt.tracker.TrailPreference.toggle(player, live.config())));
     }
 
     private void open(ManhuntServices live, CommandSender sender) {
@@ -266,11 +292,14 @@ public final class ManhuntCommand implements IManhuntCommand {
                                                String @NotNull [] args) {
         if (args.length <= 1) {
             String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
-            return List.of("join", "leave", "assign", "reset", "status").stream()
+            return List.of("join", "leave", "assign", "reset", "status", "trail", "here").stream()
                     .filter(word -> word.startsWith(typed))
                     .toList();
         }
         String word = args[0].toLowerCase(Locale.ROOT);
+        if (word.equals("here") && args.length == 2) {
+            return "stop".startsWith(args[1].toLowerCase(Locale.ROOT)) ? List.of("stop") : List.of();
+        }
         if (word.equals("join") && args.length == 2) {
             return sides(args[1]);
         }

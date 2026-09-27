@@ -223,6 +223,10 @@ public final class ManhuntMode implements SpeedrunMode {
             // Hunter who cannot touch anything is not hunting.
             eliminations.restore(online);
             tracker.give(online);
+        } else if (settings.get().runnerCompass()) {
+            // Runners carry one too on this server: keep it, now pointing at the Hunters — only
+            // the old pick goes, since it named somebody on the side they just joined.
+            tracker.forget(online.getUniqueId());
         } else {
             tracker.takeFrom(online);
         }

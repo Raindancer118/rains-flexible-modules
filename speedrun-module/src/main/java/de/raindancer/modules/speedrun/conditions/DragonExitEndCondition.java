@@ -7,20 +7,17 @@ import org.bukkit.World;
 import org.bukkit.entity.EnderDragon;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
-import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 /**
@@ -57,17 +54,14 @@ import java.util.function.Predicate;
  */
 public final class DragonExitEndCondition implements SpeedrunEndCondition, Listener {
 
+    private static final de.raindancer.core.platform.log.LogChannel LOG =
+            de.raindancer.core.platform.log.Log.of("speedrun");
+
     private final Plugin plugin;
     private final NamespacedKey dragonKill;
     private final Predicate<UUID> counts;
     private SpeedrunSession session;
     private volatile boolean dragonKilled;
-    /**
-     * Who is about to leave the End some other way than the exit portal — dying there, or being
-     * teleported out. {@link #onLeavingTheEnd} only knows "was in the End a moment ago", and without
-     * this a Runner dying after the kill respawned in the Overworld and won the hunt.
-     */
-    private final Set<UUID> leavingOtherwise = ConcurrentHashMap.newKeySet();
 
     public DragonExitEndCondition(Plugin plugin, NamespacedKey dragonKill) {
         this(plugin, dragonKill, participant -> true);
@@ -133,37 +127,6 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
         }
     }
 
-    /**
-     * Leaving the End at all, once the dragon is dead — the same finish as {@link #onExitPortal},
-     * caught one step later.
-     *
-     * <h2>Why this is not redundant</h2>
-     * Stepping into the exit portal is not an ordinary portal trip: the server runs the credits and
-     * sends the player to their respawn point, and which event that arrives as has never been
-     * something to rely on — a {@link PlayerPortalEvent} that never fired is a run whose clock never
-     * stopped, which is exactly what happened. A player standing in the overworld who was in the End
-     * a moment ago has left through the only exit there is, and {@link PlayerChangedWorldEvent}
-     * always fires for that, whatever moved them.
-     *
-     * <p>Harmless when both fire: {@link SpeedrunSession#finish} only counts the first.
-     */
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onLeavingTheEnd(PlayerChangedWorldEvent event) {
-        if (event.getFrom().getEnvironment() != World.Environment.THE_END) {
-            return;
-        }
-        if (leavingOtherwise.remove(event.getPlayer().getUniqueId())) {
-            return;   // a death or a teleport, not the portal
-        }
-        if (!dragonKilled) {
-            return;
-        }
-        if (!isGoalReacher(event.getPlayer().getUniqueId())) {
-            return;
-        }
-        session.finish("advancement:" + dragonKill);
-    }
-
     @EventHandler(priority = EventPriority.MONITOR)
     public void onExitPortal(PlayerPortalEvent event) {
         if (!dragonKilled) {
@@ -176,32 +139,36 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
         if (from == null || from.getEnvironment() != World.Environment.THE_END) {
             return;
         }
-        if (!isGoalReacher(event.getPlayer().getUniqueId())) {
-            return;
-        }
-        session.finish("advancement:" + dragonKill);
+        reached(event.getPlayer(), "the exit portal");
     }
 
-    /** Dying in the End sends them to their respawn point — out of the End, but not through the portal. */
+    /**
+     * The respawn after the end credits — the second way in, and the reliable one.
+     *
+     * <h2>Why this and not "changed world out of the End"</h2>
+     * The exit portal runs the credits and then respawns the player with
+     * {@link PlayerRespawnEvent.RespawnReason#END_PORTAL}; whether a {@link PlayerPortalEvent} fires
+     * on the way in has never been something to rely on. This used to be caught one step later as
+     * "was in the End, is somewhere else now" — which is also true after dying there, a command, a
+     * plugin, or the lobby sending a reconnecting player home, and each of those ended a hunt as the
+     * Runners' win. Only the player who actually walked through is respawned for this reason.
+     */
     @EventHandler(priority = EventPriority.MONITOR)
-    public void onDeathInTheEnd(PlayerDeathEvent event) {
-        World world = event.getPlayer().getWorld();
-        if (world != null && world.getEnvironment() == World.Environment.THE_END) {
-            leavingOtherwise.add(event.getPlayer().getUniqueId());
-        }
-    }
-
-    /** A command or a plugin moving somebody out of the End is not them walking out either. */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onTeleportOut(PlayerTeleportEvent event) {
-        if (event.getCause() == PlayerTeleportEvent.TeleportCause.END_PORTAL) {
+    public void onEndCredits(PlayerRespawnEvent event) {
+        if (!dragonKilled || event.getRespawnReason() != PlayerRespawnEvent.RespawnReason.END_PORTAL) {
             return;
         }
-        World from = event.getFrom().getWorld();
-        World to = event.getTo() == null ? null : event.getTo().getWorld();
-        if (from != null && from.getEnvironment() == World.Environment.THE_END && to != from) {
-            leavingOtherwise.add(event.getPlayer().getUniqueId());
+        reached(event.getPlayer(), "the respawn after the end credits");
+    }
+
+    private void reached(org.bukkit.entity.Player player, String how) {
+        if (!isGoalReacher(player.getUniqueId())) {
+            return;
         }
+        // Named in the log, so a finish anybody doubts can be checked afterwards.
+        LOG.info("The run was finished by {} ({}): {} after the dragon died.",
+                player.getName(), player.getUniqueId(), how);
+        session.finish("advancement:" + dragonKill);
     }
 
     private boolean isGoalReacher(UUID player) {

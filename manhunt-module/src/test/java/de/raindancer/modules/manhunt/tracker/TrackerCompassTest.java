@@ -232,90 +232,54 @@ class TrackerCompassTest {
     }
 
     @Nested
-    @DisplayName("the team compass")
-    class TeamCompass {
-
-        private static final UUID DORA = UUID.nameUUIDFromBytes("dora".getBytes());
-        private static final UUID EMIL = UUID.nameUUIDFromBytes("emil".getBytes());
-
-        private final ManhuntSettings on = ManhuntSettings.DEFAULTS.withTrackerTeamCompass(true);
+    @DisplayName("the particle trail")
+    class Trail {
 
         @Test
-        @DisplayName("a Hunter who picked a teammate is pointed at the teammate")
-        void followsAPickedTeammate() {
-            Aim aim = compass(on, new PortalMemory()).aim(HUNTER,
-                    List.of(at(ANNA, "hunt", 10, 0)), List.of(at(DORA, "hunt", 0, 30)),
-                    Following.of(DORA));
+        @DisplayName("leads from the Hunter towards the Runner, at chest height, and not all the way")
+        void leadsTowardsTheTarget() {
+            Aim aim = Aim.tracking(ANNA, new Point("hunt", 100, 64, 0), 100);
 
-            assertThat(aim.target()).isEqualTo(DORA);
-            assertThat(aim.distance()).isEqualTo(30.0);
+            var dots = TrackerCompass.trail(HUNTER, aim);
+
+            assertThat(dots).isNotEmpty();
+            assertThat(dots.getFirst().x()).isGreaterThan(0).isLessThan(3);
+            assertThat(dots.getLast().x()).isLessThanOrEqualTo(TrackerCompass.TRAIL_LENGTH + 1e-9);
+            assertThat(dots).allSatisfy(dot -> assertThat(dot.y()).isEqualTo(65.0));
         }
 
         @Test
-        @DisplayName("with no pick, the needle still goes to the nearest Runner — never to a teammate")
-        void nearestIsAlwaysARunner() {
-            Aim aim = compass(on, new PortalMemory()).aim(HUNTER,
-                    List.of(at(ANNA, "hunt", 500, 0)), List.of(at(DORA, "hunt", 1, 0)), null);
+        @DisplayName("leads to the door when the Runner went through one")
+        void leadsToTheDoor() {
+            Aim aim = Aim.portal(ANNA, new Point("hunt", 0, 64, 50), "hunt_nether", 50);
 
-            assertThat(aim.target()).isEqualTo(ANNA);
+            var dots = TrackerCompass.trail(HUNTER, aim);
+
+            assertThat(dots).isNotEmpty();
+            assertThat(dots.getLast().z()).isGreaterThan(0);
         }
 
         @Test
-        @DisplayName("switched off, a teammate pick is ignored and the nearest Runner is followed")
-        void offIgnoresTeammates() {
-            Aim aim = compass().aim(HUNTER,
-                    List.of(at(ANNA, "hunt", 10, 0)), List.of(at(DORA, "hunt", 0, 30)),
-                    Following.of(DORA));
-
-            assertThat(aim.target()).isEqualTo(ANNA);
+        @DisplayName("nothing to follow, or only a world's name, is no trail")
+        void nothingToFollow() {
+            assertThat(TrackerCompass.trail(HUNTER, Aim.none())).isEmpty();
+            assertThat(TrackerCompass.trail(HUNTER, Aim.otherWorld(ANNA, "hunt_nether"))).isEmpty();
         }
 
         @Test
-        @DisplayName("a teammate can be followed even when no Runner is online to point at")
-        void teammateWithoutRunners() {
-            Aim aim = compass(on, new PortalMemory()).aim(HUNTER,
-                    List.of(), List.of(at(DORA, "hunt", 0, 30)), Following.of(DORA));
+        @DisplayName("never drawn into another world")
+        void sameWorldOnly() {
+            Aim elsewhere = Aim.tracking(ANNA, new Point("elsewhere", 10, 64, 0), 10);
 
-            assertThat(aim.target()).isEqualTo(DORA);
+            assertThat(TrackerCompass.trail(HUNTER, elsewhere)).isEmpty();
         }
 
         @Test
-        @DisplayName("a teammate in another world is followed through the door they took")
-        void teammateThroughAPortal() {
-            PortalMemory memory = new PortalMemory();
-            memory.remember(DORA, new Point("hunt", 0, 64, 40));
-
-            Aim aim = compass(on, memory).aim(HUNTER,
-                    List.of(at(ANNA, "hunt", 10, 0)), List.of(at(DORA, "hunt_nether", 0, 5)),
-                    Following.of(DORA));
-
-            assertThat(aim.kind()).isEqualTo(Aim.Kind.PORTAL);
-            assertThat(aim.target()).isEqualTo(DORA);
-        }
-
-        @Test
-        @DisplayName("the cycle is nearest → every Runner → every teammate → nearest")
-        void cycleWalksBothLists() {
-            List<Candidate> runners = List.of(at(ANNA, "hunt", 1, 0), at(BEN, "hunt", 2, 0));
-            List<Candidate> mates = List.of(at(DORA, "hunt", 3, 0), at(EMIL, "hunt", 4, 0));
-
-            Following step = TrackerCompass.next(runners, mates, Following.NEAREST).orElseThrow();
-            assertThat(step.runner()).isEqualTo(ANNA);
-            step = TrackerCompass.next(runners, mates, step).orElseThrow();
-            assertThat(step.runner()).isEqualTo(BEN);
-            step = TrackerCompass.next(runners, mates, step).orElseThrow();
-            assertThat(step.runner()).isEqualTo(DORA);
-            step = TrackerCompass.next(runners, mates, step).orElseThrow();
-            assertThat(step.runner()).isEqualTo(EMIL);
-            step = TrackerCompass.next(runners, mates, step).orElseThrow();
-            assertThat(step.isNearest()).isTrue();
-        }
-
-        @Test
-        @DisplayName("with only teammates left, the cycle still has somewhere to go")
-        void cycleWithOnlyTeammates() {
-            assertThat(TrackerCompass.next(List.of(), List.of(at(DORA, "hunt", 3, 0)), null))
-                    .contains(Following.of(DORA));
+        @DisplayName("follows the setting")
+        void setting() {
+            assertThat(compass().showsTrail()).isTrue();
+            assertThat(compass(ManhuntSettings.DEFAULTS.withTrackerParticleTrail(false), new PortalMemory())
+                    .showsTrail()).isFalse();
         }
     }
 }

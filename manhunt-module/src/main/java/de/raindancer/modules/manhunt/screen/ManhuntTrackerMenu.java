@@ -3,7 +3,6 @@ package de.raindancer.modules.manhunt.screen;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.PaginatedMenu;
-import de.raindancer.modules.manhunt.tracker.TrackerCompassService;
 import de.raindancer.modules.manhunt.tracker.TrackerCompassService.Target;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -24,12 +23,18 @@ public final class ManhuntTrackerMenu extends PaginatedMenu<Target> {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
-    private final TrackerCompassService tracker;
+    private final java.util.function.Function<Player, List<Target>> targets;
+    private final java.util.function.BiConsumer<Player, de.raindancer.modules.manhunt.tracker.TrackerCompass.Following> pick;
     private final String title;
 
-    public ManhuntTrackerMenu(TrackerCompassService tracker, Brand brand, String title, Player viewer) {
+    /** The list for either compass — the tracking one or the team one — each bringing its own targets. */
+    public ManhuntTrackerMenu(java.util.function.Function<Player, List<Target>> targets,
+                              java.util.function.BiConsumer<Player,
+                                      de.raindancer.modules.manhunt.tracker.TrackerCompass.Following> pick,
+                              Brand brand, String title, Player viewer) {
         super(viewer, brand, null);
-        this.tracker = tracker;
+        this.targets = targets;
+        this.pick = pick;
         this.title = title == null || title.isBlank() ? "Track whom?" : title;
     }
 
@@ -45,7 +50,7 @@ public final class ManhuntTrackerMenu extends PaginatedMenu<Target> {
 
     @Override
     protected List<Target> entries() {
-        return tracker.targetsFor(viewer);
+        return targets.apply(viewer);
     }
 
     @Override
@@ -59,13 +64,14 @@ public final class ManhuntTrackerMenu extends PaginatedMenu<Target> {
         String name = MINI.escapeTags(target.name());
         ItemStack icon;
         if (target.following().isNearest()) {
-            lore.add("<gray>The needle swings to the closest Runner.");
+            lore.add(target.teammate() ? "<gray>The needle swings to the closest teammate."
+                    : "<gray>The needle swings to the closest Runner.");
             lore.add(footer(target));
             icon = Icons.of(Material.COMPASS, "<gold>" + name, lore);
         } else if (target.teammate()) {
             lore.add("<gray>Your teammate.");
             lore.add(footer(target));
-            icon = Icons.head(target.following().runner(), "<red>" + name, lore);
+            icon = Icons.head(target.following().runner(), "<aqua>" + name, lore);
         } else {
             lore.add("<gray>A Runner.");
             lore.add(footer(target));
@@ -80,7 +86,7 @@ public final class ManhuntTrackerMenu extends PaginatedMenu<Target> {
 
     @Override
     protected void onClick(Target target, InventoryClickEvent event) {
-        tracker.pick(viewer, target.following());
+        pick.accept(viewer, target.following());
         viewer.closeInventory();
     }
 }

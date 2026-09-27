@@ -28,6 +28,8 @@ final class FakeServices {
     final ManhuntTeams teams;
     final ManhuntMode mode = mock(ManhuntMode.class);
     final ManhuntWhitelistService whitelist = mock(ManhuntWhitelistService.class);
+    final de.raindancer.modules.manhunt.service.PositionShare share =
+            mock(de.raindancer.modules.manhunt.service.PositionShare.class);
     final SettingsStore<ManhuntSettings> settings;
     final List<Player> screensOpenedFor = new ArrayList<>();
     final List<Player> confirmationsAskedOf = new ArrayList<>();
@@ -56,6 +58,6 @@ final class FakeServices {
                         confirmationsAskedOf.add(viewer);
                         lastConfirmation = onYes;
                     }
-                });
+                }, share);
     }
 }

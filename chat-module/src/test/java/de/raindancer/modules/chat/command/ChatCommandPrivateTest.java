@@ -190,7 +190,7 @@ class ChatCommandPrivateTest {
         CommandSourceStack source = mock(CommandSourceStack.class);
         when(source.getSender()).thenReturn(alice);
 
-        assertThat(command.suggest(source, new String[]{""})).containsExactly("private", "public");
+        assertThat(command.suggest(source, new String[]{""})).containsExactly("all", "team", "private", "public");
         assertThat(command.suggest(source, new String[]{"private", ""}))
                 .contains("add", "remove", "leave", "end", "list");
     }

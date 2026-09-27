@@ -305,4 +305,110 @@ class ManhuntCommandTest {
         verify(fake.mode).changeSide(BEN,
                 de.raindancer.modules.manhunt.mode.ManhuntMode.Side.RUNNER, true);
     }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("/manhunt trail — each player's own particle trail")
+    class Trail {
+
+        private final java.util.Map<org.bukkit.NamespacedKey, Boolean> stored = new java.util.HashMap<>();
+
+        @BeforeEach
+        void playerData() {
+            org.bukkit.persistence.PersistentDataContainer data =
+                    mock(org.bukkit.persistence.PersistentDataContainer.class);
+            when(anna.getPersistentDataContainer()).thenReturn(data);
+            when(data.get(any(org.bukkit.NamespacedKey.class),
+                    eq(org.bukkit.persistence.PersistentDataType.BOOLEAN)))
+                    .thenAnswer(call -> stored.get(call.getArgument(0, org.bukkit.NamespacedKey.class)));
+            org.mockito.Mockito.doAnswer(call -> stored.put(call.getArgument(0), call.getArgument(2)))
+                    .when(data).set(any(org.bukkit.NamespacedKey.class),
+                            eq(org.bukkit.persistence.PersistentDataType.BOOLEAN), any(Boolean.class));
+        }
+
+        @Test
+        @DisplayName("switches it off for them, and on again")
+        void toggles() {
+            command.execute(source, new String[]{"trail"});
+            assertThat(de.raindancer.modules.manhunt.tracker.TrailPreference.shows(anna, fake.settings.current()))
+                    .isFalse();
+            verify(fake.messages).send(eq(anna), eq("manhunt.trail.off"), any(Object[].class));
+
+            command.execute(source, new String[]{"trail"});
+            assertThat(de.raindancer.modules.manhunt.tracker.TrailPreference.shows(anna, fake.settings.current()))
+                    .isTrue();
+            verify(fake.messages).send(eq(anna), eq("manhunt.trail.on"), any(Object[].class));
+        }
+
+        @Test
+        @DisplayName("where the server has the trail off, a player cannot switch it on for themselves")
+        void serverOff() {
+            fake.settings.set("tracker-particle-trail", "false");
+
+            command.execute(source, new String[]{"trail"});
+
+            verify(fake.messages).send(eq(anna), eq("manhunt.trail.server-off"), any(Object[].class));
+            assertThat(stored).isEmpty();
+        }
+
+        @Test
+        @DisplayName("the console has no trail to switch")
+        void console() {
+            org.bukkit.command.CommandSender console = mock(org.bukkit.command.ConsoleCommandSender.class);
+            when(source.getSender()).thenReturn(console);
+
+            command.execute(source, new String[]{"trail"});
+
+            verify(fake.messages).send(eq(console), eq("manhunt.only-a-player"), any(Object[].class));
+        }
+
+        @Test
+        @DisplayName("and it is offered when typing")
+        void completes() {
+            assertThat(command.suggest(source, new String[]{"tr"})).containsExactly("trail");
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("/manhunt here")
+    class Here {
+
+        @Test
+        @DisplayName("shares where the caller stands")
+        void shares() {
+            command.execute(source, new String[]{"here"});
+
+            verify(fake.share).share(anna);
+        }
+
+        @Test
+        @DisplayName("here stop ends the caller's navigation, and says whether there was one")
+        void stops() {
+            when(fake.share.stop(anna)).thenReturn(true);
+            command.execute(source, new String[]{"here", "stop"});
+            verify(fake.messages).send(eq(anna), eq("manhunt.here.stopped"), any(Object[].class));
+
+            when(fake.share.stop(anna)).thenReturn(false);
+            command.execute(source, new String[]{"here", "stop"});
+            verify(fake.messages).send(eq(anna), eq("manhunt.here.not-navigating"), any(Object[].class));
+        }
+
+        @Test
+        @DisplayName("the console stands nowhere")
+        void console() {
+            org.bukkit.command.CommandSender console = mock(org.bukkit.command.ConsoleCommandSender.class);
+            when(source.getSender()).thenReturn(console);
+
+            command.execute(source, new String[]{"here"});
+
+            verify(fake.share, org.mockito.Mockito.never()).share(any());
+            verify(fake.messages).send(eq(console), eq("manhunt.only-a-player"), any(Object[].class));
+        }
+
+        @Test
+        @DisplayName("offered when typing, with stop after it")
+        void completes() {
+            assertThat(command.suggest(source, new String[]{"he"})).containsExactly("here");
+            assertThat(command.suggest(source, new String[]{"here", ""})).containsExactly("stop");
+        }
+    }
 }

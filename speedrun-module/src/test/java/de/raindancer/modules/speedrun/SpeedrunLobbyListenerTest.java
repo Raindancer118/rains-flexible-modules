@@ -131,6 +131,29 @@ class SpeedrunLobbyListenerTest {
             verify(items, never()).give(any(), anyBoolean());
         }
 
+        /**
+         * A racer who reconnects in the run's Nether or End is part of the run and stays there.
+         * Sending them to the lobby world took them out of the End — which the exit-portal condition
+         * used to read as walking out, and ended a hunt as the Runners' win.
+         */
+        @Test
+        @DisplayName("a racer reconnecting in the run's nether or end is left where they are")
+        void racerInTheRunsOtherWorldsStays() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
+            when(lobby.config()).thenReturn(SpeedrunSettings.DEFAULTS);
+            String overworld = SpeedrunSettings.DEFAULTS.worldName();
+            for (String dimension : new String[] {overworld + "_nether", overworld + "_the_end"}) {
+                Player player = playerInWorld(dimension);
+                try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                    World lobbyWorld = mock(World.class);
+                    bukkit.when(() -> Bukkit.getWorld(overworld)).thenReturn(lobbyWorld);
+
+                    listener.onJoin(new PlayerJoinEvent(player, "hi"));
+                }
+                verify(player, never()).teleportAsync(any());
+            }
+        }
+
         @Test
         @DisplayName("leaves the inventory alone while a run is in progress")
         void leavesInventoryAloneWhileRunning() {

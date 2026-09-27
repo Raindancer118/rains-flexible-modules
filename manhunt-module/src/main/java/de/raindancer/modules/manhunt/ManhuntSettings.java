@@ -54,10 +54,33 @@ public record ManhuntSettings(
         int trackerRefreshTicks,
 
         @In("manhunt/tracker") @Title("Team compass")
-        @Describe("Whether a Hunter's compass can also follow the other Hunters, not only the "
-                + "Runners — to regroup. Right-click cycles through everybody; sneak + right-click "
-                + "opens a list to pick from.")
+        @Describe("Whether everybody in a hunt also gets a second compass — a recovery compass — that "
+                + "points at their own side: Runners at Runners, Hunters at Hunters. It works in the "
+                + "Nether and the End too. Right-click cycles; sneak + right-click opens a list.")
         boolean trackerTeamCompass,
+
+        @In("manhunt/tracker") @Title("Team compass item")
+        @Describe("RECOVERY_COMPASS (default) aims without the item ever changing and works in every "
+                + "dimension. COMPASS looks like a plain compass, but its target is kept in the item, "
+                + "so it redraws in your hand whenever the teammate enters a new block.")
+        TeamCompassItem trackerTeamCompassItem,
+
+        @In("manhunt/tracker") @Title("Particle trail")
+        @Describe("Whether a Hunter holding the compass sees a dotted line of particles leading "
+                + "towards whoever — or whichever door — it is pointing at. Only they see it.")
+        boolean trackerParticleTrail,
+
+        @In("manhunt/tracker") @Title("Runners get a compass too")
+        @Describe("Whether every Runner also carries a tracking compass — pointing at the Hunters: "
+                + "the nearest, or one they pick. Off, Runners get no tracking compass at all.")
+        boolean runnerCompass,
+
+        @In("manhunt/tracker") @Title("Runners' structure compass")
+        @Describe("Whether every Runner gets one compass per hunt that they point at a kind of "
+                + "structure of their choice — never a stronghold. It finds the nearest one, shows "
+                + "no distance, and disappears when dropped or once they are within 20 blocks. "
+                + "Off, nobody is handed one.")
+        boolean runnerStructureCompass,
 
         @In("manhunt/sides") @Title("Sides may change mid-hunt")
         @Describe("Whether a player can move between Runners and Hunters while a hunt is actually "
@@ -94,17 +117,21 @@ public record ManhuntSettings(
 
 ) {
 
+    /** Which item the team compass is — see {@code TeamCompassService}. */
+    public enum TeamCompassItem { RECOVERY_COMPASS, COMPASS }
+
     /** What the needle does about a Runner in another dimension. */
     public enum CrossWorldTracking { HIDDEN, NAME_WORLD, LAST_PORTAL }
 
     /**
      * A fresh install: the needle follows the Runner through the door they took, every Hunter aims
      * their own, distance shown, twice a second, the two sides fixed for the length of a hunt,
-     * anybody may run, no team compass, Hunters may fight each other however they like, no head start, nobody arranged in a circle, and the server's own door is left exactly as the owner set it — a plugin that quietly whitelists a server is a plugin that locked
+     * anybody may run, no team compass, a particle trail, Hunters may fight each other however they like, no head start, nobody arranged in a circle, and the server's own door is left exactly as the owner set it — a plugin that quietly whitelists a server is a plugin that locked
      * somebody out of their own.
      */
     public static final ManhuntSettings DEFAULTS = new ManhuntSettings(
-            CrossWorldTracking.LAST_PORTAL, true, true, 10, false, false, true, false, false, 0, false);
+            CrossWorldTracking.LAST_PORTAL, true, true, 10, false, TeamCompassItem.RECOVERY_COMPASS, true,
+            false, true, false, true, false, false, 0, false);
 
     // Every with… takes its parameter named after the component it replaces, so the parameter shadows
     // exactly that field and a swapped argument does not compile. ManhuntSettingsContractTest walks
@@ -114,67 +141,106 @@ public record ManhuntSettings(
 
     public ManhuntSettings withTrackerCrossWorld(CrossWorldTracking trackerCrossWorld) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withTrackerHunterMayChoose(boolean trackerHunterMayChoose) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withTrackerShowDistance(boolean trackerShowDistance) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withTrackerRefreshTicks(int trackerRefreshTicks) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withTrackerTeamCompass(boolean trackerTeamCompass) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
+    }
+
+    public ManhuntSettings withTrackerTeamCompassItem(TeamCompassItem trackerTeamCompassItem) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
+    }
+
+    public ManhuntSettings withTrackerParticleTrail(boolean trackerParticleTrail) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
+    }
+
+    public ManhuntSettings withRunnerCompass(boolean runnerCompass) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
+    }
+
+    public ManhuntSettings withRunnerStructureCompass(boolean runnerStructureCompass) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withSideSwitchingMidHunt(boolean sideSwitchingMidHunt) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withRunnerSelfJoin(boolean runnerSelfJoin) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withHuntersFistsOnly(boolean huntersFistsOnly) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withCloseWhitelistOnStart(boolean closeWhitelistOnStart) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withHunterHeadStartSeconds(int hunterHeadStartSeconds) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 
     public ManhuntSettings withStartInCircle(boolean startInCircle) {
         return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
-                trackerRefreshTicks, trackerTeamCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle);
     }
 

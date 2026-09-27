@@ -92,6 +92,11 @@ public final class SpeedrunLobbyListener implements Listener {
             giveItemsIfReady(player);
             return;
         }
+        if (SpeedrunWorlds.around(lobby.config().worldName()).contains(player.getWorld().getName())) {
+            // The run's own nether or end: they are racing, and moving them would pull them out of
+            // the run — out of the End, which once read as walking through the exit portal.
+            return;
+        }
         World lobbyWorld = Bukkit.getWorld(lobby.config().worldName());
         if (lobbyWorld != null) {
             player.teleportAsync(lobbyWorld.getSpawnLocation());

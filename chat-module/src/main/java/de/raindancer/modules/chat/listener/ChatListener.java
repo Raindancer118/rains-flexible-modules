@@ -70,6 +70,16 @@ public final class ChatListener implements IChatListener {
             return;
         }
         services.quality().recordSent(sender.getUniqueId(), text);
+
+        java.util.Optional<de.raindancer.core.ui.chat.ChatChannels.Route> route =
+                de.raindancer.core.ui.chat.ChatChannels.route(sender.getUniqueId());
+        if (route.isPresent()) {
+            // Team chat and the like: the same cancel-and-deliver as a private chat, for the same
+            // reasons — not in the console, not on Discord, not in the public /chathistory.
+            event.setCancelled(true);
+            sayInChannel(sender, text, route.get());
+            return;
+        }
         services.history().record(sender.getUniqueId(), sender.getName(), text);
 
         List<Player> mentioned = services.mentions().mentionsIn(sender, text);
@@ -98,6 +108,18 @@ public final class ChatListener implements IChatListener {
      * thread: one online-player lookup per member, and sending a component, which needs no region
      * thread. Deferring it would only let the chat end between the line and its delivery.
      */
+    private void sayInChannel(Player sender, String text, de.raindancer.core.ui.chat.ChatChannels.Route route) {
+        Component line = services.chat().mm(services.messages().raw("chat.channel.line"),
+                Chat.arg("tag", route.tag()),
+                Chat.formatted("line", services.format().render(sender, text, List.of())));
+        for (UUID reader : route.audience()) {
+            Player online = services.server().getPlayer(reader);
+            if (online != null) {
+                online.sendMessage(line);
+            }
+        }
+    }
+
     private void sayPrivately(Player sender, String text) {
         Component line = services.chat().mm(services.messages().raw("chat.private.line"),
                 Chat.formatted("line", services.format().render(sender, text, List.of())));

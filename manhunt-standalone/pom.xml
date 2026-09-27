@@ -73,8 +73,14 @@
              compass cannot be dropped. Needs RainsCore 1.37.0 and RainsSpeedrun 1.18.0.
              0.16.0: a configurable head start for the Runners (the Hunters stand still and touch
              nothing), and an option to start everybody in a circle, Runners together. Needs
-             RainsCore 1.38.0 and RainsSpeedrun 1.19.0. -->
-        <plugin.version>0.16.0</plugin.version>
+             RainsCore 1.38.0 and RainsSpeedrun 1.19.0.
+             0.17.0: the team compass is a second compass (a recovery compass by default, a plain one
+             as an option) pointing at your own side; Runners may carry a tracking compass pointing at
+             the Hunters; a one-time structure compass for Runners (never strongholds); a particle
+             trail every player can switch off (/manhunt trail, /profile); /manhunt here shares your
+             position as a button that navigates the clicker there; team chat via RainsChat's
+             /chat team. Every one of these is a setting. Needs RainsCore 1.39.0, RainsSpeedrun 1.20.0. -->
+        <plugin.version>0.17.0</plugin.version>
     </properties>
 
     <dependencies>

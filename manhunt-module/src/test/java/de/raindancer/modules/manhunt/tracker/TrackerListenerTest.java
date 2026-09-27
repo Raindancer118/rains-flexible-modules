@@ -42,6 +42,8 @@ class TrackerListenerTest {
         hunt = Hunt.of(Set.of(RUNNER, HUNTER), Set.of(RUNNER));
         portals = new PortalMemory();
         tracker = mock(TrackerCompassService.class);
+        when(tracker.isHolder(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(HUNTER)))
+                .thenReturn(true);
         listener = new TrackerListener(hunt, tracker, portals);
         overworld = mock(World.class);
         when(overworld.getName()).thenReturn("speedrun");

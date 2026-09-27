@@ -92,8 +92,11 @@
              counts as taking the exit portal. Needs RainsCore 1.37.0.
              1.19.0: before a run nobody may change the world at all — placing, buckets, chests,
              doors, trampling and item frames, not only breaking. A game mode can place everybody
-             for the countdown itself (Manhunt's circle). -->
-        <plugin.version>1.19.0</plugin.version>
+             for the countdown itself (Manhunt's circle).
+             1.20.0: only the exit portal itself — or the respawn after the end credits — wins a run;
+             leaving the End any other way (dying, a command, the join handler) no longer does, and
+             the log names who finished it. A racer reconnecting in the run's Nether or End stays there. -->
+        <plugin.version>1.20.0</plugin.version>
     </properties>
 
     <dependencies>

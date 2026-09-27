@@ -14,7 +14,8 @@ import org.bukkit.entity.Player;
  */
 public record ManhuntServices(Messages messages, Brand brand, SettingsStore<ManhuntSettings> settings,
                               ManhuntTeams teams, ManhuntMode mode, ManhuntWhitelistService whitelist,
-                              Screens screens) {
+                              Screens screens,
+                              de.raindancer.modules.manhunt.service.PositionShare share) {
 
     /** Opening this module's screens. An interface so the commands never import a menu class. */
     public interface Screens {

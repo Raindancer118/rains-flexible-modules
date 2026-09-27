@@ -137,12 +137,13 @@ public final class TrackerCompassService {
     public void armFor(Hunt hunt) {
         picks.clear();
         portals.clear();
-        for (UUID id : hunt.hunters()) {
-            Player hunter = plugin.getServer().getPlayer(id);
-            if (hunter != null) {
-                give(hunter);
+        for (UUID id : holders(hunt)) {
+            Player holder = plugin.getServer().getPlayer(id);
+            if (holder != null) {
+                give(holder);
             }
         }
+        arms.forEach(arm -> arm.accept(hunt));
         startSweep();
     }
 
@@ -154,7 +155,7 @@ public final class TrackerCompassService {
      */
     public void disarm(Hunt hunt) {
         stopSweep();
-        for (UUID id : hunt.hunters()) {
+        for (UUID id : hunt.everybody()) {
             Player hunter = plugin.getServer().getPlayer(id);
             if (hunter != null) {
                 Scheduling.entity(plugin, hunter, () -> {
@@ -174,6 +175,7 @@ public final class TrackerCompassService {
         picks.clear();
         portals.clear();
         compassTargets.clear();
+        disarms.forEach(disarm -> disarm.accept(hunt));
     }
 
     /**
@@ -182,7 +184,7 @@ public final class TrackerCompassService {
      */
     public void giveOnRespawn(Player hunter) {
         Hunt hunt = liveHunt.get().orElse(null);
-        if (hunt == null || !hunt.isHunter(hunter.getUniqueId())) {
+        if (hunt == null || !isHolder(hunt, hunter.getUniqueId())) {
             return;
         }
         // A tick later: on respawn the inventory is still being restored around us, and an item added
@@ -212,19 +214,77 @@ public final class TrackerCompassService {
             return;
         }
         List<Candidate> runners = livingRunners(hunt);
-        List<Candidate> hunters = compass.allowsTeammates() ? livingHunters(hunt) : List.of();
+        List<Candidate> hunters = settings.runnerCompass() ? livingHunters(hunt) : List.of();
         Map<UUID, String> names = namesOf(runners, hunters);
-        for (UUID id : hunt.hunters()) {
-            Player hunter = plugin.getServer().getPlayer(id);
-            if (hunter == null || !hunter.isOnline()) {
+        for (UUID id : holders(hunt)) {
+            Player holder = plugin.getServer().getPlayer(id);
+            if (holder == null || !holder.isOnline()) {
                 continue;
             }
-            Aim aim = compass.aim(pointOf(hunter), runners, without(hunters, id), picks.get(id));
-            Scheduling.entity(plugin, hunter, () -> applyTo(hunter, aim, names));
+            Aim aim = compass.aim(pointOf(holder), hunt.isRunner(id) ? hunters : runners, picks.get(id));
+            Scheduling.entity(plugin, holder, () -> applyTo(holder, aim, names));
+        }
+        if (afterSweep != null) {
+            afterSweep.accept(hunt);
         }
     }
 
-    /** Every Hunter online and alive, in the same stable order as the Runners — for the team compass. */
+    /** Run after every sweep, on the same beat — the team compass rides on this timer. */
+    private volatile java.util.function.Consumer<Hunt> afterSweep;
+
+    /** The second compass, armed and disarmed with this one. Null where nothing wired it. */
+    private volatile TeamCompassService team;
+
+    public void afterSweep(java.util.function.Consumer<Hunt> then) {
+        this.afterSweep = then;
+    }
+
+    /** Wires the team compass to this one's hunt start, end and timer. */
+    public void teamCompass(TeamCompassService companion) {
+        this.team = companion;
+        companion(companion::armFor, companion::disarm, companion::sweep);
+    }
+
+    /** Anything else riding on this compass' hunt start, end and timer — the structure compass. */
+    public void companion(java.util.function.Consumer<Hunt> onArm, java.util.function.Consumer<Hunt> onDisarm,
+                          java.util.function.Consumer<Hunt> onSweep) {
+        arms.add(onArm);
+        disarms.add(onDisarm);
+        sweeps.add(onSweep);
+        this.afterSweep = hunt -> sweeps.forEach(sweep -> sweep.accept(hunt));
+    }
+
+    private final List<java.util.function.Consumer<Hunt>> arms = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final List<java.util.function.Consumer<Hunt>> disarms = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final List<java.util.function.Consumer<Hunt>> sweeps = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public Optional<TeamCompassService> team() {
+        return Optional.ofNullable(team);
+    }
+
+    /**
+     * Who carries a tracking compass: every Hunter, and — with {@link ManhuntSettings#runnerCompass()}
+     * — every Runner still in it.
+     */
+    public boolean isHolder(Hunt hunt, UUID player) {
+        return hunt.isHunter(player)
+                || (settings.runnerCompass() && hunt.isRunner(player) && !hunt.isEliminated(player));
+    }
+
+    private java.util.Set<UUID> holders(Hunt hunt) {
+        java.util.Set<UUID> holders = new java.util.LinkedHashSet<>(hunt.hunters());
+        if (settings.runnerCompass()) {
+            holders.addAll(hunt.livingRunners());
+        }
+        return holders;
+    }
+
+    /** What {@code holder} tracks: the Hunters for a Runner, the Runners for everybody else. */
+    private List<Candidate> targetsOf(Hunt hunt, UUID holder) {
+        return hunt.isRunner(holder) ? livingHunters(hunt) : livingRunners(hunt);
+    }
+
+    /** Every Hunter online and alive, stable order — what a Runner's compass points at. */
     private List<Candidate> livingHunters(Hunt hunt) {
         List<Candidate> alive = new ArrayList<>();
         for (UUID id : hunt.hunters()) {
@@ -235,16 +295,6 @@ public final class TrackerCompassService {
         }
         alive.sort(java.util.Comparator.comparing(candidate -> candidate.id().toString()));
         return List.copyOf(alive);
-    }
-
-    /** A Hunter's teammates: everybody on the side but themselves. */
-    private static List<Candidate> without(List<Candidate> hunters, UUID self) {
-        return hunters.stream().filter(candidate -> !candidate.id().equals(self)).toList();
-    }
-
-    /** Teammates of {@code hunter}, or nobody while the team compass is off. */
-    private List<Candidate> teammatesOf(Hunt hunt, UUID hunter) {
-        return compass.allowsTeammates() ? without(livingHunters(hunt), hunter) : List.of();
     }
 
     /** Every Runner still worth pointing at, in a stable order so cycling is repeatable. */
@@ -275,7 +325,7 @@ public final class TrackerCompassService {
         return names;
     }
 
-    private static Point pointOf(Player player) {
+    static Point pointOf(Player player) {
         Location where = player.getLocation();
         String world = where.getWorld() == null ? "" : where.getWorld().getName();
         return new Point(world, where.getX(), where.getY(), where.getZ());
@@ -338,7 +388,7 @@ public final class TrackerCompassService {
         ItemStack stack = new ItemStack(Material.COMPASS);
         ItemMeta meta = stack.getItemMeta();
         meta.displayName(line("<gold>Tracking compass"));
-        meta.lore(List.of(line("<gray>Looking for a Runner…")));
+        meta.lore(List.of(line("<gray>Looking for somebody to follow…")));
         meta.getPersistentDataContainer().set(marker, PersistentDataType.STRING, TAG);
         stack.setItemMeta(meta);
         // A dropped compass is a working compass in a Runner's hands; Core refuses the drop.
@@ -356,9 +406,8 @@ public final class TrackerCompassService {
         }
         String targetName = aim.target() == null ? null : names.getOrDefault(aim.target(), "a Runner");
         showDistance(hunter, aim, targetName);
-        String heading = isTeammate(aim.target())
-                ? "<gold>Teammate <white>" + safe(targetName)
-                : "<gold>Tracking <white>" + safe(targetName);
+        showTrail(hunter, aim);
+        String heading = "<gold>Tracking <white>" + safe(targetName);
 
         switch (aim.kind()) {
             case TRACKING, PORTAL -> {
@@ -489,7 +538,24 @@ public final class TrackerCompassService {
         showingDistance.add(id);
     }
 
-    private boolean holdingTracker(Player hunter) {
+    /**
+     * The particle trail, drawn to this Hunter alone while they hold the compass — every sweep, so it
+     * follows a moving Runner. Lime for a Runner, purple for a door.
+     */
+    private void showTrail(Player hunter, Aim aim) {
+        if (!TrailPreference.shows(hunter, settings) || !holdingTracker(hunter)) {
+            return;
+        }
+        var dots = TrackerCompass.trail(pointOf(hunter), aim);
+        if (dots.isEmpty()) {
+            return;
+        }
+        org.bukkit.Color colour = aim.kind() == Aim.Kind.PORTAL ? org.bukkit.Color.PURPLE : org.bukkit.Color.LIME;
+        de.raindancer.core.world.visual.PathTrail.draw(hunter, hunter.getWorld(), dots,
+                new org.bukkit.Particle.DustOptions(colour, 1.0f));
+    }
+
+    boolean holdingTracker(Player hunter) {
         return isTracker(hunter.getInventory().getItemInMainHand())
                 || isTracker(hunter.getInventory().getItemInOffHand());
     }
@@ -530,11 +596,8 @@ public final class TrackerCompassService {
     List<net.kyori.adventure.text.Component> loreFor(String first) {
         List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
         lore.add(line(first));
-        if (compass.allowsPicking() && compass.allowsTeammates()) {
-            lore.add(line("<dark_gray>Right-click for the next Runner or teammate."));
-            lore.add(line("<dark_gray>Sneak + right-click to pick from a list."));
-        } else if (compass.allowsPicking()) {
-            lore.add(line("<dark_gray>Right-click for the next Runner, or the nearest."));
+        if (compass.allowsPicking()) {
+            lore.add(line("<dark_gray>Right-click for the next one, or the nearest."));
             lore.add(line("<dark_gray>Sneak + right-click to pick from a list."));
         }
         return lore;
@@ -578,21 +641,20 @@ public final class TrackerCompassService {
      */
     public void cycleTarget(Player hunter) {
         Hunt hunt = liveHunt.get().orElse(null);
-        if (hunt == null || !hunt.isHunter(hunter.getUniqueId())) {
+        if (hunt == null || !isHolder(hunt, hunter.getUniqueId())) {
             return;
         }
         if (!compass.allowsPicking()) {
             say(hunter, "manhunt.tracker.picking-off");
             return;
         }
-        List<Candidate> runners = livingRunners(hunt);
-        List<Candidate> teammates = teammatesOf(hunt, hunter.getUniqueId());
-        Optional<Following> next = TrackerCompass.next(runners, teammates, current(hunter.getUniqueId()));
+        List<Candidate> runners = targetsOf(hunt, hunter.getUniqueId());
+        Optional<Following> next = TrackerCompass.next(runners, current(hunter.getUniqueId()));
         if (next.isEmpty()) {
             say(hunter, "manhunt.tracker.no-runners");
             return;
         }
-        follow(hunter, next.get(), runners, teammates);
+        follow(hunter, next.get(), runners);
     }
 
     /**
@@ -602,66 +664,50 @@ public final class TrackerCompassService {
      */
     public void pick(Player hunter, Following choice) {
         Hunt hunt = liveHunt.get().orElse(null);
-        if (hunt == null || !hunt.isHunter(hunter.getUniqueId()) || choice == null) {
+        if (hunt == null || !isHolder(hunt, hunter.getUniqueId()) || choice == null) {
             return;
         }
         if (!compass.allowsPicking()) {
             say(hunter, "manhunt.tracker.picking-off");
             return;
         }
-        List<Candidate> runners = livingRunners(hunt);
-        List<Candidate> teammates = teammatesOf(hunt, hunter.getUniqueId());
-        if (!choice.isNearest() && runners.stream().noneMatch(c -> c.id().equals(choice.runner()))
-                && teammates.stream().noneMatch(c -> c.id().equals(choice.runner()))) {
+        List<Candidate> runners = targetsOf(hunt, hunter.getUniqueId());
+        if (!choice.isNearest() && runners.stream().noneMatch(c -> c.id().equals(choice.runner()))) {
             return;
         }
-        follow(hunter, choice, runners, teammates);
+        follow(hunter, choice, runners);
     }
 
-    private void follow(Player hunter, Following moved, List<Candidate> runners,
-                        List<Candidate> teammates) {
+    private void follow(Player hunter, Following moved, List<Candidate> runners) {
         picks.put(hunter.getUniqueId(), moved);
         if (moved.isNearest()) {
             say(hunter, "manhunt.tracker.now-nearest");
-        } else if (isTeammate(moved.runner())) {
-            say(hunter, "manhunt.tracker.now-following-teammate", "hunter", nameOf(moved.runner()));
         } else {
             say(hunter, "manhunt.tracker.now-following", "runner", nameOf(moved.runner()));
         }
         // Redrawn at once rather than at the next sweep: a compass that answers a click a second
         // later is a compass the Hunter clicks again.
-        Aim aim = compass.aim(pointOf(hunter), runners, teammates, moved);
-        applyTo(hunter, aim, namesOf(runners, teammates));
-    }
-
-    private boolean isTeammate(UUID target) {
-        return target != null && liveHunt.get().map(hunt -> hunt.isHunter(target)).orElse(false);
+        Aim aim = compass.aim(pointOf(hunter), runners, moved);
+        applyTo(hunter, aim, namesOf(runners));
     }
 
     /** One line of the list a Hunter picks from. */
     public record Target(Following following, String name, boolean teammate, boolean current) {
     }
 
-    /**
-     * What {@code hunter} may pick: the nearest Runner, every Runner, and — with the team compass on
-     * — every teammate. Empty when there is no hunt or they are not hunting.
-     */
+    /** What {@code hunter} may pick: the nearest Runner, and every Runner. Empty outside a hunt. */
     public List<Target> targetsFor(Player hunter) {
         Hunt hunt = liveHunt.get().orElse(null);
-        if (hunt == null || !hunt.isHunter(hunter.getUniqueId())) {
+        if (hunt == null || !isHolder(hunt, hunter.getUniqueId())) {
             return List.of();
         }
         Following now = picks.get(hunter.getUniqueId());
         List<Target> targets = new ArrayList<>();
         targets.add(new Target(Following.NEAREST, "Whoever is nearest", false,
                 now == null || now.isNearest()));
-        for (Candidate runner : livingRunners(hunt)) {
+        for (Candidate runner : targetsOf(hunt, hunter.getUniqueId())) {
             targets.add(new Target(Following.of(runner.id()), nameOf(runner.id()), false,
                     now != null && runner.id().equals(now.runner())));
-        }
-        for (Candidate mate : teammatesOf(hunt, hunter.getUniqueId())) {
-            targets.add(new Target(Following.of(mate.id()), nameOf(mate.id()), true,
-                    now != null && mate.id().equals(now.runner())));
         }
         return targets;
     }
@@ -674,7 +720,7 @@ public final class TrackerCompassService {
     /** A Hunter sneak-right-clicked their compass: the list, where picking is allowed at all. */
     public void openPicker(Player hunter) {
         Hunt hunt = liveHunt.get().orElse(null);
-        if (hunt == null || !hunt.isHunter(hunter.getUniqueId())) {
+        if (hunt == null || !isHolder(hunt, hunter.getUniqueId())) {
             return;
         }
         if (!compass.allowsPicking()) {

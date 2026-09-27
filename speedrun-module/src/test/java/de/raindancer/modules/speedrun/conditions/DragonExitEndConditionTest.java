@@ -13,7 +13,6 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
 import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
@@ -169,45 +168,55 @@ class DragonExitEndConditionTest {
         assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
     }
 
+    private static org.bukkit.event.player.PlayerRespawnEvent respawnAfter(Player player,
+            org.bukkit.event.player.PlayerRespawnEvent.RespawnReason reason) {
+        org.bukkit.event.player.PlayerRespawnEvent event = mock(org.bukkit.event.player.PlayerRespawnEvent.class);
+        when(event.getPlayer()).thenReturn(player);
+        when(event.getRespawnReason()).thenReturn(reason);
+        return event;
+    }
+
     /**
-     * The exit portal is not an ordinary portal trip — the server runs the credits and sends the
-     * player to their respawn point — and the portal event we were waiting for did not arrive. Having
-     * been in the End a moment ago and being somewhere else now is the same fact, caught later.
+     * The exit portal is not an ordinary portal trip — the server runs the credits and then respawns
+     * the player with reason END_PORTAL. That respawn only ever happens to the one who walked through,
+     * so it is the second, authoritative way in.
      */
     @Test
-    void finishesWhenAParticipantLeavesTheEndAfterTheKill() {
+    void finishesOnTheRespawnAfterTheEndCredits() {
         condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
 
-        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(playerWithId(ALICE),
-                worldIn(World.Environment.THE_END)));
+        condition.onEndCredits(respawnAfter(playerWithId(ALICE),
+                org.bukkit.event.player.PlayerRespawnEvent.RespawnReason.END_PORTAL));
 
         assertThat(session.state()).isEqualTo(SpeedrunState.FINISHED);
     }
 
     @Test
-    void leavingTheEndBeforeTheKillEndsNothing() {
-        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(playerWithId(ALICE),
-                worldIn(World.Environment.THE_END)));
+    void anOrdinaryRespawnIsNotTheExitPortal() {
+        condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
+
+        condition.onEndCredits(respawnAfter(playerWithId(ALICE),
+                org.bukkit.event.player.PlayerRespawnEvent.RespawnReason.DEATH));
+        condition.onEndCredits(respawnAfter(playerWithId(ALICE),
+                org.bukkit.event.player.PlayerRespawnEvent.RespawnReason.PLUGIN));
 
         assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
     }
 
     @Test
-    void leavingTheNetherAfterTheKillEndsNothing() {
-        condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
-
-        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(playerWithId(ALICE),
-                worldIn(World.Environment.NETHER)));
+    void theCreditsBeforeTheKillEndNothing() {
+        condition.onEndCredits(respawnAfter(playerWithId(ALICE),
+                org.bukkit.event.player.PlayerRespawnEvent.RespawnReason.END_PORTAL));
 
         assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
     }
 
     @Test
-    void aNonParticipantLeavingTheEndEndsNothing() {
+    void aNonParticipantsCreditsEndNothing() {
         condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
 
-        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(playerWithId(BOB),
-                worldIn(World.Environment.THE_END)));
+        condition.onEndCredits(respawnAfter(playerWithId(BOB),
+                org.bukkit.event.player.PlayerRespawnEvent.RespawnReason.END_PORTAL));
 
         assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
     }
@@ -224,7 +233,7 @@ class DragonExitEndConditionTest {
 
     /**
      * Manhunt's rule: only a Runner walking out ends the hunt. A Hunter taking the exit portal after
-     * the kill is somebody going home, not a win for anybody.
+     * the kill — portal event and credits alike — is somebody going home, not a win for anybody.
      */
     @Test
     void onlyAParticipantWhoCountsEndsItThroughThePortal() {
@@ -234,49 +243,25 @@ class DragonExitEndConditionTest {
 
         runnersOnly.onExitPortal(new PlayerPortalEvent(playerWithId(BOB), in(World.Environment.THE_END),
                 in(World.Environment.NORMAL), PlayerTeleportEvent.TeleportCause.END_PORTAL));
-        runnersOnly.onLeavingTheEnd(new PlayerChangedWorldEvent(playerWithId(BOB),
-                worldIn(World.Environment.THE_END)));
+        runnersOnly.onEndCredits(respawnAfter(playerWithId(BOB),
+                org.bukkit.event.player.PlayerRespawnEvent.RespawnReason.END_PORTAL));
         assertThat(hunt.state()).isEqualTo(SpeedrunState.RUNNING);
 
-        runnersOnly.onExitPortal(new PlayerPortalEvent(playerWithId(ALICE), in(World.Environment.THE_END),
-                in(World.Environment.NORMAL), PlayerTeleportEvent.TeleportCause.END_PORTAL));
+        runnersOnly.onEndCredits(respawnAfter(playerWithId(ALICE),
+                org.bukkit.event.player.PlayerRespawnEvent.RespawnReason.END_PORTAL));
         assertThat(hunt.state()).isEqualTo(SpeedrunState.FINISHED);
     }
 
-    /** Dying in the End and respawning in the Overworld is leaving it, but not through the portal. */
+    /**
+     * Leaving the End any other way — dying, a command, a plugin, the join handler sending a
+     * reconnecting player back to the lobby — used to count through a "changed world out of the End"
+     * fallback. There is no such fallback any more: the class has no handler for it at all.
+     */
     @Test
-    void dyingInTheEndAfterTheKillIsNotReachingThePortal() {
-        condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
-        Player alice = playerWithId(ALICE);
-        World end = worldIn(World.Environment.THE_END);
-        when(alice.getWorld()).thenReturn(end);
-        PlayerDeathEvent death = mock(PlayerDeathEvent.class);
-        when(death.getEntity()).thenReturn(alice);
-        when(death.getPlayer()).thenReturn(alice);
-
-        condition.onDeathInTheEnd(death);
-        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(alice, end));
-
-        assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
-
-        // ...and the next time they leave, through the portal this time, it counts again.
-        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(alice, end));
-        assertThat(session.state()).isEqualTo(SpeedrunState.FINISHED);
-    }
-
-    /** A command or another plugin teleporting somebody out is not the exit portal either. */
-    @Test
-    void beingTeleportedOutOfTheEndIsNotReachingThePortal() {
-        condition.onDragonDeath(deathOf(mock(EnderDragon.class)));
-        Player alice = playerWithId(ALICE);
-        Location from = in(World.Environment.THE_END);
-        Location to = in(World.Environment.NORMAL);
-
-        condition.onTeleportOut(new PlayerTeleportEvent(alice, from, to,
-                PlayerTeleportEvent.TeleportCause.COMMAND));
-        condition.onLeavingTheEnd(new PlayerChangedWorldEvent(alice, from.getWorld()));
-
-        assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
+    void changingWorldIsNotAWayIn() {
+        assertThat(java.util.Arrays.stream(DragonExitEndCondition.class.getMethods())
+                .flatMap(method -> java.util.Arrays.stream(method.getParameterTypes())))
+                .doesNotContain((Class) PlayerChangedWorldEvent.class);
     }
 
     private DragonExitEndCondition lastArmed;

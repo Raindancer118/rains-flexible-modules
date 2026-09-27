@@ -381,8 +381,10 @@
 
           1.18.0: chat-module 1.3.0 — /chat private and /chat public. Private lines never reach the
           console, /chathistory or the Discord bridge, and nobody outside the chat sees them.
-        -->
-        <plugin.version>1.18.0</plugin.version>
+          1.19.0: chat-module 1.4.0 — /chat team, /chat all, and /chat alone opens a picker; a team line
+          reaches the team only, tagged, never the console or /chathistory. Needs RainsCore 1.39.0.
+          -->
+        <plugin.version>1.19.0</plugin.version>
     </properties>
 
     <dependencies>

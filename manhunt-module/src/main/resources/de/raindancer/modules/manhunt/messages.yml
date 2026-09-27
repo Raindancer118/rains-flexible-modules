@@ -4,7 +4,7 @@
 # does a host's bundled wording. See Messages.defineFrom.
 manhunt:
   # Somebody typed a word /manhunt does not have.
-  unknown-word: "<yellow>No such thing as <white><word></white>. Try join, leave, assign, reset or status."
+  unknown-word: "<yellow>No such thing as <white><word></white>. Try join, leave, assign, reset, status, trail or here."
   # A command that only makes sense for somebody standing in the world.
   only-a-player: "<red>Only a player can do that."
   # /manhunt assign, without the permission for it.
@@ -45,6 +45,31 @@ manhunt:
   # A Hunter hitting another Hunter with anything but a fist, with "Hunters only punch each other" on.
   # Said instead of Core's combat.fists-only — for Manhunt only, see Messages.overrideFor.
   teammate-hit: "<red>Please don't kill your teammates!"
+  # The second compass, pointing at your own side — see TeamCompassService.
+  team-compass:
+    given: "<aqua>You have been handed a team compass. It points at your own side."
+    distance: "<aqua><teammate> <gray>— <white><blocks></white> blocks"
+    now-following: "<aqua>Your team compass follows <white><teammate></white>."
+    now-nearest: "<aqua>Your team compass follows whichever teammate is nearest."
+    alone: "<yellow>Nobody else is on your side to point at."
+    picker-title: "Find a teammate"
+  # /manhunt here — the coordinates follow this line as a button.
+  here:
+    shared: "<white><player></white> <gray>is here, in the <white><world></white>:"
+    stopped: "<gray>Navigation stopped."
+    not-navigating: "<gray>You are not being shown the way anywhere."
+  # The Runners' structure compass — see StructureCompassService.
+  structure:
+    given: "<gold>You have a structure compass. <gray>Right-click it to choose what it finds — once."
+    chosen: "<gold>Your compass points at the nearest <white><structure></white>."
+    none: "<yellow>No <white><structure></white> anywhere near. Choose something else."
+    reached: "<green>You have reached the <white><structure></white>. Your compass is gone."
+    dropped: "<gray>You threw your structure compass away. It is gone."
+  # /manhunt trail, or the button on /profile — each player's own particle trail.
+  trail:
+    on: "<green>Your compass shows the particle trail again."
+    off: "<yellow>Your compass no longer shows the particle trail. <gray>/manhunt trail</gray> turns it back on."
+    server-off: "<yellow>The particle trail is switched off on this server."
   # The Runners' head start, told to both sides.
   head-start:
     begun: "<green>The Runners have a <white><seconds></white>-second head start. Hunters, hold still!"
@@ -63,7 +88,6 @@ manhunt:
     now-nearest: "<gold>Following whoever is nearest."
     picking-off: "<yellow>Your compass is aimed for you on this server."
     no-runners: "<yellow>There is nobody left to point at."
-    now-following-teammate: "<gold>Following your teammate <white><hunter></white>."
     picker-title: "Track whom?"
   whitelist:
     opened: "<green>The server is open again — anybody can join."

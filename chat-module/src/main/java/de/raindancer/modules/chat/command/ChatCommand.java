@@ -1,5 +1,7 @@
 package de.raindancer.modules.chat.command;
 
+import de.raindancer.core.ui.chat.ChatChannels;
+
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.modules.chat.ChatServices;
 import de.raindancer.modules.chat.util.PermissionNodes;
@@ -27,7 +29,15 @@ public final class ChatCommand implements IChatCommand {
 
     private static final List<String> STAFF = List.of("clear", "freeze", "slowmode");
     private static final List<String> EVERYBODY = List.of("private", "public");
-    private static final String USAGE = "/chat private|public|clear|freeze|slowmode <seconds|off>";
+    private static final String USAGE = "/chat team|all|private|public|clear|freeze|slowmode <seconds|off>";
+
+    /** Opens the channel picker — a seam, because a real menu needs a running server. */
+    private java.util.function.BiConsumer<ChatServices, Player> channelMenu =
+            (live, viewer) -> new de.raindancer.modules.chat.screen.ChatChannelMenu(live, viewer).open();
+
+    void channelMenu(java.util.function.BiConsumer<ChatServices, Player> opener) {
+        this.channelMenu = opener;
+    }
 
     private final Supplier<ChatServices> services;
 
@@ -45,10 +55,23 @@ public final class ChatCommand implements IChatCommand {
         ChatServices live = services.get();
         CommandSender sender = source.getSender();
         if (args.length == 0) {
-            live.messages().send(sender, "chat.usage", "usage", USAGE);
+            if (sender instanceof Player player) {
+                channelMenu.accept(live, player);
+            } else {
+                live.messages().send(sender, "chat.usage", "usage", USAGE);
+            }
             return;
         }
         String subcommand = args[0].toLowerCase(Locale.ROOT);
+        if (subcommand.equals(ChatChannels.ALL) || ChatChannels.byId(subcommand).isPresent()
+                || subcommand.equals("team")) {
+            if (!(sender instanceof Player player)) {
+                live.messages().send(sender, "chat.only-a-player");
+                return;
+            }
+            switchChannel(live, player, subcommand);
+            return;
+        }
         if (EVERYBODY.contains(subcommand)) {
             if (!(sender instanceof Player player)) {
                 live.messages().send(sender, "chat.only-a-player");
@@ -78,6 +101,25 @@ public final class ChatCommand implements IChatCommand {
             case "freeze" -> freeze(live, sender);
             default -> slowmode(live, sender, args);
         }
+    }
+
+    /**
+     * {@code /chat team}, {@code /chat all}, or any other channel a module registered. Refused — and
+     * nothing changed — when the player has no part in that channel right now.
+     */
+    public static void switchChannel(ChatServices live, Player player, String id) {
+        if (id.equalsIgnoreCase(ChatChannels.ALL)) {
+            ChatChannels.select(player.getUniqueId(), ChatChannels.ALL);
+            live.messages().send(player, "chat.channel.now", "channel", "All");
+            return;
+        }
+        java.util.Optional<de.raindancer.core.ui.chat.ChatChannel> channel = ChatChannels.byId(id);
+        if (channel.isEmpty() || channel.get().audienceFor(player.getUniqueId()).isEmpty()) {
+            live.messages().send(player, "chat.channel.unavailable", "channel", id);
+            return;
+        }
+        ChatChannels.select(player.getUniqueId(), channel.get().id());
+        live.messages().send(player, "chat.channel.now", "channel", channel.get().label());
     }
 
     private void clear(ChatServices live, CommandSender sender) {
@@ -137,6 +179,15 @@ public final class ChatCommand implements IChatCommand {
         if (args.length <= 1) {
             String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
             List<String> offered = new ArrayList<>();
+            if (sender instanceof Player) {
+                offered.add(ChatChannels.ALL);
+                offered.add("team");
+                ChatChannels.all().forEach(channel -> {
+                    if (!offered.contains(channel.id())) {
+                        offered.add(channel.id());
+                    }
+                });
+            }
             if (mayTalkPrivately) {
                 offered.addAll(EVERYBODY);
             }

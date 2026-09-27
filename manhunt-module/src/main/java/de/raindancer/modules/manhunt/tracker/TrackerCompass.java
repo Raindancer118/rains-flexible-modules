@@ -154,39 +154,11 @@ public final class TrackerCompass {
      *                  {@link ManhuntSettings#trackerHunterMayChoose()} is off
      */
     public Aim aim(Point hunter, List<Candidate> runners, Following picked) {
-        return aim(hunter, runners, List.of(), picked);
-    }
-
-    /**
-     * The same, with the Hunter's teammates as well — the team compass
-     * ({@link ManhuntSettings#trackerTeamCompass()}). A teammate is only ever followed when picked:
-     * "whoever is nearest" always means the nearest Runner, because that is what the compass is for.
-     *
-     * @param teammates the other Hunters worth pointing at, without the asking Hunter; ignored while
-     *                  the team compass is off
-     */
-    public Aim aim(Point hunter, List<Candidate> runners, List<Candidate> teammates, Following picked) {
         ManhuntSettings config = settings;
-        if (hunter == null) {
-            return Aim.none();
-        }
-        Optional<Candidate> mate = pickedTeammate(config, teammates, picked);
-        if (mate.isPresent()) {
-            return aimAt(config, hunter, mate.get());
-        }
-        if (runners == null || runners.isEmpty()) {
+        if (hunter == null || runners == null || runners.isEmpty()) {
             return Aim.none();
         }
         return aimAt(config, hunter, chooseTarget(config, hunter, runners, picked));
-    }
-
-    private Optional<Candidate> pickedTeammate(ManhuntSettings config, List<Candidate> teammates,
-                                               Following picked) {
-        if (!config.trackerTeamCompass() || !config.trackerHunterMayChoose() || picked == null
-                || picked.isNearest() || teammates == null) {
-            return Optional.empty();
-        }
-        return find(teammates, picked.runner());
     }
 
     private Aim aimAt(ManhuntSettings config, Point hunter, Candidate chosen) {
@@ -197,9 +169,28 @@ public final class TrackerCompass {
         return acrossDimensions(config, hunter, chosen);
     }
 
-    /** Whether the Hunters' compass may follow each other too. */
-    public boolean allowsTeammates() {
-        return settings.trackerTeamCompass();
+    /** How far ahead the particle trail reaches, in blocks. */
+    public static final double TRAIL_LENGTH = 12;
+
+    /** Whether a Hunter holding the compass is shown the particle trail. */
+    public boolean showsTrail() {
+        return settings.trackerParticleTrail();
+    }
+
+    /**
+     * The particle trail for this aim: from the Hunter's chest towards the spot the needle points
+     * at — the Runner, or the door they took — over the first {@link #TRAIL_LENGTH} blocks. Nothing
+     * when there is no spot, or it is in another world. The geometry is Core's {@code PathTrail}.
+     */
+    public static List<de.raindancer.core.world.visual.PathTrail.Dot> trail(Point hunter, Aim aim) {
+        if (hunter == null || aim == null || !aim.hasDirection() || aim.at() == null
+                || !hunter.worldName().equals(aim.at().worldName())) {
+            return List.of();
+        }
+        return de.raindancer.core.world.visual.PathTrail.toward(
+                hunter.x(), hunter.y() + 1, hunter.z(),
+                aim.at().x(), aim.at().y() + 1, aim.at().z(),
+                1.5, 1.0, TRAIL_LENGTH);
     }
 
     private Candidate chooseTarget(ManhuntSettings config, Point hunter, List<Candidate> runners,
@@ -303,37 +294,21 @@ public final class TrackerCompass {
      * joins — and a click that visibly does nothing reads as broken.
      */
     public static Optional<Following> next(List<Candidate> runners, Following current) {
-        return next(runners, List.of(), current);
-    }
-
-    /**
-     * The same cycle with the team compass on: nearest → every Runner → every teammate → nearest.
-     * Pass an empty {@code teammates} while it is off.
-     */
-    public static Optional<Following> next(List<Candidate> runners, List<Candidate> teammates,
-                                           Following current) {
-        List<Candidate> everybody = new java.util.ArrayList<>();
-        if (runners != null) {
-            everybody.addAll(runners);
-        }
-        if (teammates != null) {
-            everybody.addAll(teammates);
-        }
-        if (everybody.isEmpty()) {
+        if (runners == null || runners.isEmpty()) {
             return Optional.empty();
         }
         if (current == null || current.isNearest()) {
-            return Optional.of(Following.of(everybody.get(0).id()));
+            return Optional.of(Following.of(runners.get(0).id()));
         }
-        for (int i = 0; i < everybody.size(); i++) {
-            if (everybody.get(i).id().equals(current.runner())) {
-                return Optional.of(i + 1 < everybody.size()
-                        ? Following.of(everybody.get(i + 1).id())
+        for (int i = 0; i < runners.size(); i++) {
+            if (runners.get(i).id().equals(current.runner())) {
+                return Optional.of(i + 1 < runners.size()
+                        ? Following.of(runners.get(i + 1).id())
                         : Following.NEAREST);
             }
         }
         // The one they were on has left the hunt: start the cycle over rather than dropping them
         // to the nearest, which is where the compass has already fallen back to on its own.
-        return Optional.of(Following.of(everybody.get(0).id()));
+        return Optional.of(Following.of(runners.get(0).id()));
     }
 }

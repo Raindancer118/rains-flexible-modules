@@ -78,11 +78,22 @@ public final class TrackerListener implements Listener {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
+        if (tracker.team().map(team -> team.isTeamCompass(event.getItem())).orElse(false)) {
+            // The team compass is a button too: cycle, or the list when sneaking.
+            event.setCancelled(true);
+            TeamCompassService team = tracker.team().get();
+            if (event.getPlayer().isSneaking()) {
+                team.openPicker(event.getPlayer());
+            } else {
+                team.cycle(event.getPlayer());
+            }
+            return;
+        }
         if (!tracker.isTracker(event.getItem())) {
             return;
         }
         Player player = event.getPlayer();
-        if (!hunt.isHunter(player.getUniqueId())) {
+        if (!tracker.isHolder(hunt, player.getUniqueId())) {
             return;
         }
         // The compass is a button here, not a block-placing item: a right-click on a lodestone would
@@ -115,6 +126,7 @@ public final class TrackerListener implements Listener {
     @EventHandler(priority = EventPriority.NORMAL)
     public void onDeath(PlayerDeathEvent event) {
         event.getDrops().removeIf(tracker::isTracker);
+        tracker.team().ifPresent(team -> event.getDrops().removeIf(team::isTeamCompass));
     }
 
     /**
@@ -128,6 +140,7 @@ public final class TrackerListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onRespawn(PlayerRespawnEvent event) {
         tracker.giveOnRespawn(event.getPlayer());
+        tracker.team().ifPresent(team -> team.giveOnRespawn(event.getPlayer()));
         tracker.resyncNeedle(event.getPlayer().getUniqueId());
     }
 
@@ -142,6 +155,7 @@ public final class TrackerListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
         tracker.forget(event.getPlayer().getUniqueId());
+        tracker.team().ifPresent(team -> team.forget(event.getPlayer().getUniqueId()));
     }
 
     public String describe() {
