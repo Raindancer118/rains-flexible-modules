@@ -1,0 +1,26 @@
+# Checked by BundleJarTest — see worldgate-standalone's descriptor for why every line here matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'A speedrun server: the speedrun lobby, Manhunt, and the world tools (/w, /dim, worlds and seeds, locking the Nether and the End).'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# No folia-supported: manhunt does not claim it (see manhunt-standalone), and a jar is as Folia-safe
+# as the least safe thing in it.
+
+# RainsCore only. Manhunt's RainsSpeedrun dependency is inside this jar now; declaring it would
+# make Paper refuse to load this without a second, conflicting RainsSpeedrun.
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

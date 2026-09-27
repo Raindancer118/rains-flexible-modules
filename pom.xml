@@ -65,7 +65,7 @@
         <chat-module.version>1.4.0</chat-module.version>
         <!-- Depends on speedrun-module's engine classes the same way chained-module does; see that
              module's own note in this file. -->
-        <manhunt-module.version>0.17.0</manhunt-module.version>
+        <manhunt-module.version>0.17.1</manhunt-module.version>
     </properties>
 
     <modules>
@@ -126,6 +126,8 @@
              speedrun-module's engine classes and a reactor builds in the order it is given. -->
         <module>manhunt-module</module>
         <module>manhunt-standalone</module>
+        <!-- After speedrun, manhunt, worldgate and worldutils: it shades all four. -->
+        <module>speedrun-bundle</module>
         <!--
           Archived 2026-08-14: not being worked on for a while, and there is no value in the reactor
           spending a build and 850+ tests on it every push in the meantime. The code is untouched on

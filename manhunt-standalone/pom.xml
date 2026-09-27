@@ -79,8 +79,10 @@
              the Hunters; a one-time structure compass for Runners (never strongholds); a particle
              trail every player can switch off (/manhunt trail, /profile); /manhunt here shares your
              position as a button that navigates the clicker there; team chat via RainsChat's
-             /chat team. Every one of these is a setting. Needs RainsCore 1.39.0, RainsSpeedrun 1.20.0. -->
-        <plugin.version>0.17.0</plugin.version>
+             /chat team. Every one of these is a setting. Needs RainsCore 1.39.0, RainsSpeedrun 1.20.0.
+             0.17.1: when shaded into one jar with speedrun, manhunt now starts after it and stops
+             before it. Nothing changes for this jar on its own. -->
+        <plugin.version>0.17.1</plugin.version>
     </properties>
 
     <dependencies>

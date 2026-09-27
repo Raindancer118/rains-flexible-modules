@@ -41,12 +41,15 @@ import java.util.List;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.17.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.17.1")
             .describedAs("Runners against Hunters, played in the speedrun lobby: the lobby's own "
                     + "goal is what the Runners race for, every Hunter carries a compass that "
                     + "follows a Runner through the portal they took, a caught Runner is out for "
                     + "good, and a Runner can open and close the server's door around a hunt.")
-            .by("Raindancer118");
+            .by("Raindancer118")
+            // Only matters when both are in one jar: the lobby is up before the mode is offered
+            // and still up while it is withdrawn. Standalone, speedrun is another plugin's module.
+            .wanting("speedrun");
 
     private ManhuntMode mode;
     private de.raindancer.core.RainsCore core;

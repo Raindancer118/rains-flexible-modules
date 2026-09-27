@@ -3,6 +3,7 @@ package de.raindancer.modules.manhunt;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -43,5 +44,19 @@ class SpeedrunCompatibilityTest {
     void unknownVersionStillSaysWhatIsNeeded() {
         assertThatThrownBy(() -> ManhuntModule.requireCurrentSpeedrun(null, null))
                 .hasMessageContaining("RainsSpeedrun 1.11.0");
+    }
+
+    /**
+     * In a bundle both modules share one registry, and without this manhunt sorts first: it would
+     * offer its mode before the lobby exists and, worse, be disabled after the lobby is gone.
+     * A wish rather than a requirement — standalone, speedrun lives in another plugin's registry.
+     */
+    @Test
+    @DisplayName("in a jar that also holds speedrun, speedrun starts first and stops last")
+    void speedrunGoesFirstInABundle() {
+        ManhuntModule module = new ManhuntModule();
+
+        assertThat(module.info().wants()).contains("speedrun");
+        assertThat(module.info().requires()).doesNotContain("speedrun");
     }
 }
