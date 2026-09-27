@@ -72,7 +72,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.18.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.19.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -105,6 +105,7 @@ public final class ModerationModule implements FlexModule {
     private WorldToolsService worldTools;
 
     private StaffChatListener staffChatListener;
+    private de.raindancer.modules.moderation.util.StaffChannel staffChannel;
     private ModerationServices services;
 
     @Override
@@ -247,6 +248,8 @@ public final class ModerationModule implements FlexModule {
                 settings::current, new LiveScreens());
 
         staffChatListener = new StaffChatListener(services);
+        staffChannel = new de.raindancer.modules.moderation.util.StaffChannel(server, staffChatListener::say);
+        de.raindancer.core.ui.chat.ChatChannels.register(staffChannel);
         StaffSessionListener session = new StaffSessionListener(services, pending)
                 .alsoTelling(staffChatListener);
 
@@ -444,6 +447,9 @@ public final class ModerationModule implements FlexModule {
     @Override
     public void disable() {
         ModerationCommands.stopped();
+        if (staffChannel != null) {
+            de.raindancer.core.ui.chat.ChatChannels.unregister(staffChannel);
+        }
         // Before anything else. A wave outliving its module is a wave nothing can stop: its tasks
         // would keep firing against services that have been stood down, and the only way out would be
         // a restart.

@@ -77,7 +77,9 @@ public final class ChatListener implements IChatListener {
             // Team chat and the like: the same cancel-and-deliver as a private chat, for the same
             // reasons — not in the console, not on Discord, not in the public /chathistory.
             event.setCancelled(true);
-            sayInChannel(sender, text, route.get());
+            if (!route.get().channel().deliver(sender, text)) {
+                sayInChannel(sender, text, route.get());
+            }
             return;
         }
         services.history().record(sender.getUniqueId(), sender.getName(), text);

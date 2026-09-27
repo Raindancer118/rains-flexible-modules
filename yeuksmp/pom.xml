@@ -385,8 +385,10 @@
           reaches the team only, tagged, never the console or /chathistory. Needs RainsCore 1.39.0.
           1.20.0: chat-module 1.5.0 — private chats by invitation: /chat private <name> sends a
           clickable [Accept] [Deny] only that player sees; joining offers [Leave].
+          1.21.0: moderation-module 2.19.0 + chat-module 1.6.0 — staff chat is a chat channel:
+          /staffchat, /chat staff and the channel picker are one switch. Needs RainsCore 1.40.0.
         -->
-        <plugin.version>1.20.0</plugin.version>
+        <plugin.version>1.21.0</plugin.version>
     </properties>
 
     <dependencies>

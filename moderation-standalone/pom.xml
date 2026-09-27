@@ -108,8 +108,11 @@
           attempt now bans through this module's real punishment pipeline when it is installed —
           mirrored to the vanilla ban list, kicking somebody already online, announced by this
           module's own settings — rather than a second, thinner idea of what banning does.
-        -->
-        <plugin.version>2.18.0</plugin.version>
+          2.19.0: staff chat is RainsCore's chat channel "staff": /staffchat, RainsChat's /chat staff and
+          its channel picker are one switch. With RainsChat installed, RainsChat routes the line and
+          moderation still says it (same format, still in the console). Needs RainsCore 1.40.0, and
+          RainsChat 1.6.0 or newer if RainsChat is installed. -->
+        <plugin.version>2.19.0</plugin.version>
     </properties>
 
     <dependencies>

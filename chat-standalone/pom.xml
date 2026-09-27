@@ -56,8 +56,11 @@
           sends an invitation only that player sees, with [Accept] [Deny] buttons, good for 60 seconds;
           /chat private accept|decline <name> answers by typing. Joining shows a [Leave] button.
           Someone who left may be invited back, since joining needs their yes.
+          1.6.0: staff chat is one of the channels — /chat staff and the picker reach the same room as
+          moderation's /staffchat; moderation still says the line (its format, the console record).
+          Needs RainsCore 1.40.0, and RainsModeration 2.19.0 or newer beside it (older says it twice).
         -->
-        <plugin.version>1.5.0</plugin.version>
+        <plugin.version>1.6.0</plugin.version>
     </properties>
 
     <dependencies>

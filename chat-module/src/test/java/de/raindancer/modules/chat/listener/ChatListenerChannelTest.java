@@ -137,4 +137,46 @@ class ChatListenerChannelTest {
         verify(event, never()).setCancelled(true);
         verify(event).renderer(any());
     }
+
+    @Test
+    @DisplayName("a channel that says its own lines (staff chat) gets the line, and chat says nothing")
+    void channelDeliversItself() {
+        java.util.List<String> delivered = new java.util.ArrayList<>();
+        ChatChannel staff = new ChatChannel() {
+            @Override
+            public String id() {
+                return "staff";
+            }
+
+            @Override
+            public String label() {
+                return "Staff";
+            }
+
+            @Override
+            public java.util.Optional<java.util.Set<UUID>> audienceFor(UUID speaker) {
+                return java.util.Optional.of(java.util.Set.of(alice.getUniqueId(), bob.getUniqueId()));
+            }
+
+            @Override
+            public boolean deliver(Player speaker, String text) {
+                delivered.add(speaker.getName() + ": " + text);
+                return true;
+            }
+        };
+        ChatChannels.register(staff);
+        try {
+            ChatChannels.select(alice.getUniqueId(), "staff");
+            AsyncChatEvent event = saying(alice, "ban him");
+
+            listener.onChat(event);
+
+            verify(event).setCancelled(true);
+            assertThat(delivered).containsExactly("Alice: ban him");
+            verify(bob, never()).sendMessage(any(Component.class));
+            verifyNoInteractions(history);
+        } finally {
+            ChatChannels.unregister(staff);
+        }
+    }
 }

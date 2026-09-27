@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.5.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.6.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -105,6 +105,9 @@ public final class ChatModule implements FlexModule {
         });
 
         context.listener(new ChatListener(services));
+        // From here on this module routes channel lines, so a module that could say its channel alone
+        // (moderation's staff chat) stands down and a line is said once.
+        de.raindancer.core.ui.chat.ChatChannels.claimRouting(this);
 
         // The commands were registered during bootstrap, long before any of this existed, and have
         // been answering "not started yet" until now. See ChatCommands.
@@ -122,6 +125,7 @@ public final class ChatModule implements FlexModule {
 
     @Override
     public void disable() {
+        de.raindancer.core.ui.chat.ChatChannels.releaseRouting(this);
         ChatCommands.stopped();
         if (history != null) {
             history.flush();

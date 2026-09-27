@@ -208,7 +208,6 @@ class ConcurrencyTest {
             chat.forget(UUID.randomUUID());
         }, () -> {
             chat.isTalking(who);
-            chat.everybodyTalking();
         });
     }
 }

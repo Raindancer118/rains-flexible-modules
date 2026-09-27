@@ -56,6 +56,11 @@ public final class StaffChatListener implements IModerationListener {
             services.messages().send(talking, "moderation.staff-chat.no-longer-yours");
             return;
         }
+        if (de.raindancer.core.ui.chat.ChatChannels.isRouted()) {
+            // A chat plugin routes channels and hands the line back through StaffChannel.deliver —
+            // saying it here as well would say it twice.
+            return;
+        }
         event.setCancelled(true);
         say(talking.getName(), PLAIN.serialize(event.message()));
     }
