@@ -104,8 +104,9 @@
              say the real reason.
              1.24.0: SpeedrunSession.addParticipant — a mode can bring a latecomer into a running run.
              A finished run can be resumed over without regenerating the world.
-             1.25.0: review — a stale reset timer can no longer regenerate a later run's world; a refused resume keeps the finished run; Folia-safe start-of-run reset; no regeneration while stopping. -->
-        <plugin.version>1.25.0</plugin.version>
+             1.25.0: review — a stale reset timer can no longer regenerate a later run's world; a refused resume keeps the finished run; Folia-safe start-of-run reset; no regeneration while stopping.
+             1.26.0: edge cases — only the run's own End counts for the dragon, resumed runs stay winnable, world pinned for the run, quitters dropped at zero, clean disable mid-run. Needs RainsCore 1.42.0. -->
+        <plugin.version>1.26.0</plugin.version>
     </properties>
 
     <dependencies>

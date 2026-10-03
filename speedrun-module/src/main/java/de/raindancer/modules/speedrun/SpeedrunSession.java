@@ -34,6 +34,7 @@ public final class SpeedrunSession {
     private final Set<UUID> participants;
     private final SpeedrunTimer timer;
     private final List<Consumer<SpeedrunOutcome>> listeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<UUID>> removalListeners = new CopyOnWriteArrayList<>();
     /** Copy-on-write: {@link #finish} walks it unlocked while a goal removal may change it from another
      *  thread, and a list that threw there would leave a finished run nobody was told about. */
     private final List<SpeedrunEndCondition> conditions = new CopyOnWriteArrayList<>();
@@ -175,6 +176,48 @@ public final class SpeedrunSession {
             }
         }
         return removed;
+    }
+
+    /**
+     * Takes {@code player} off the live roster mid-run — Manhunt's {@code leave}/{@code unassign}.
+     * False if they were not racing, the run is finished (the result's roster stands), or they are
+     * the last one: a run with nobody racing could never end — no participant left to reach the goal
+     * or die — and would pause on every stranger's quit without ever resuming.
+     *
+     * <p>Every armed condition is told, so one judged over the whole roster (everybody dead) can end
+     * the run now that the roster is smaller.
+     */
+    public boolean removeParticipant(UUID player) {
+        synchronized (this) {
+            if (player == null || state == SpeedrunState.FINISHED || participants.size() <= 1
+                    || !participants.remove(player)) {
+                return false;
+            }
+        }
+        // Outside the lock: a condition may finish the run from here, and finish() calls out to
+        // listeners that must not run under this session's monitor.
+        for (SpeedrunEndCondition condition : conditions) {
+            try {
+                condition.participantRemoved(player);
+            } catch (RuntimeException broken) {
+                log.error(broken, "'{}' failed on a participant being removed.", condition.describe());
+            }
+        }
+        for (Consumer<UUID> listener : removalListeners) {
+            try {
+                listener.accept(player);
+            } catch (RuntimeException broken) {
+                log.error(broken, "A speedrun roster listener threw for a removal.");
+            }
+        }
+        return true;
+    }
+
+    /** Told after {@link #removeParticipant} took somebody off — {@link SpeedrunOccupancyListener}'s hook. */
+    void onParticipantRemoved(Consumer<UUID> listener) {
+        if (listener != null) {
+            removalListeners.add(listener);
+        }
     }
 
     /** A latecomer added mid-run (Manhunt's {@code /manhunt assign}). False if already racing. */

@@ -4,6 +4,7 @@ import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.modules.speedrun.SpeedrunEndCondition;
 import de.raindancer.modules.speedrun.SpeedrunSession;
+import de.raindancer.modules.speedrun.SpeedrunWorlds;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.EnderDragon;
@@ -54,6 +55,10 @@ import java.util.function.Predicate;
  * portal in the End (leaving it) — Bukkit does not distinguish them by cause. What does distinguish
  * them is where the player already is: only the return trip has {@code event.getFrom()} in
  * {@link World.Environment#THE_END}.
+ *
+ * <h2>Only the run's own End</h2>
+ * Built with the run's {@link SpeedrunWorlds}, the dragon, the exit portal and the credits only count
+ * in the run's End: a dragon killed in the server's own End, by anybody, once armed the run's portal.
  */
 public final class DragonExitEndCondition implements SpeedrunEndCondition, Listener {
 
@@ -63,6 +68,8 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
     private final Plugin plugin;
     private final NamespacedKey dragonKill;
     private final Predicate<UUID> counts;
+    /** {@code null}: any End counts — the shape before the condition knew the run's worlds. */
+    private final SpeedrunWorlds runWorlds;
     private SpeedrunSession session;
     private volatile boolean dragonKilled;
 
@@ -77,9 +84,25 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
      *               is a fact about the world, and it is the walk out that is somebody's win.
      */
     public DragonExitEndCondition(Plugin plugin, NamespacedKey dragonKill, Predicate<UUID> counts) {
+        this(plugin, dragonKill, counts, null);
+    }
+
+    /** The same, counting only the dragon, the exit portal and the credits of {@code runWorlds}' End. */
+    public DragonExitEndCondition(Plugin plugin, NamespacedKey dragonKill, Predicate<UUID> counts,
+                                  SpeedrunWorlds runWorlds) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.dragonKill = Objects.requireNonNull(dragonKill, "dragonKill");
         this.counts = Objects.requireNonNull(counts, "counts");
+        this.runWorlds = runWorlds;
+    }
+
+    /**
+     * The dragon died before this condition was armed — a run resumed after a restart, in an End
+     * whose fight was already won. Without this the exit portal would end nothing and the run could
+     * never be won.
+     */
+    public void dragonAlreadyKilled() {
+        dragonKilled = true;
     }
 
     /** Whether leaving the End as {@code participant} ends the run — the game mode's answer. */
@@ -106,7 +129,8 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
         if (!dragonKill.equals(event.getAdvancement().getKey())) {
             return;
         }
-        if (!session.participants().contains(event.getPlayer().getUniqueId())) {
+        if (!session.participants().contains(event.getPlayer().getUniqueId())
+                || !inRunWorlds(event.getPlayer().getWorld())) {
             return;
         }
         dragonKilled = true;
@@ -125,7 +149,7 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDragonDeath(EntityDeathEvent event) {
-        if (event.getEntity() instanceof EnderDragon) {
+        if (event.getEntity() instanceof EnderDragon dragon && isRunsEnd(dragon.getWorld())) {
             dragonKilled = true;
         }
     }
@@ -139,7 +163,7 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
             return;
         }
         World from = event.getFrom().getWorld();
-        if (from == null || from.getEnvironment() != World.Environment.THE_END) {
+        if (from == null || from.getEnvironment() != World.Environment.THE_END || !isRunsEnd(from)) {
             return;
         }
         reached(event.getPlayer(), "the exit portal");
@@ -158,7 +182,8 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onEndCredits(PlayerRespawnEvent event) {
-        if (!dragonKilled || event.getRespawnReason() != PlayerRespawnEvent.RespawnReason.END_PORTAL) {
+        if (!dragonKilled || event.getRespawnReason() != PlayerRespawnEvent.RespawnReason.END_PORTAL
+                || !isRunsEnd(event.getPlayer().getWorld())) {
             return;
         }
         reached(event.getPlayer(), "the respawn after the end credits");
@@ -172,6 +197,14 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
         LOG.info("The run was finished by {} ({}): {} after the dragon died.",
                 player.getName(), player.getUniqueId(), how);
         session.finish("advancement:" + dragonKill);
+    }
+
+    private boolean isRunsEnd(World world) {
+        return runWorlds == null || (world != null && runWorlds.theEnd().equalsIgnoreCase(world.getName()));
+    }
+
+    private boolean inRunWorlds(World world) {
+        return runWorlds == null || (world != null && runWorlds.contains(world.getName()));
     }
 
     private boolean isGoalReacher(UUID player) {

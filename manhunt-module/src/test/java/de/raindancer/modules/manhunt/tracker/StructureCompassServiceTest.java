@@ -53,6 +53,7 @@ class StructureCompassServiceTest {
             new AtomicReference<>(ManhuntSettings.DEFAULTS.withRunnerStructureCompass(true));
     private final List<List<String>> searchedFor = new ArrayList<>();
     private final AtomicReference<Location> found = new AtomicReference<>();
+    private final java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong(1_000_000);
     private StructureCompassService service;
     private Player runner;
     private PlayerInventory inventory;
@@ -105,7 +106,7 @@ class StructureCompassServiceTest {
                 (origin, keys) -> {
                     searchedFor.add(keys);
                     return Optional.ofNullable(found.get());
-                });
+                }, now::get);
     }
 
     private StructureChoices.Choice village() {
@@ -134,6 +135,7 @@ class StructureCompassServiceTest {
         assertThat(service.choose(runner, village())).isFalse();
 
         verify(messages).send(eq(runner), eq("manhunt.structure.none"), any(Object[].class));
+        now.addAndGet(StructureCompassService.SEARCH_COOLDOWN_MILLIS);
         found.set(new Location(world, 10, 64, 10));
         assertThat(service.choose(runner, StructureChoices.byId("igloo").orElseThrow())).isTrue();
     }
@@ -203,5 +205,55 @@ class StructureCompassServiceTest {
         service.fit(hunt, runner);
 
         verify(inventory, never()).addItem(any(ItemStack.class));
+    }
+
+    @Test
+    @DisplayName("a search that found nothing cannot be repeated at once — every search can hold the server for seconds")
+    void searchCooldown() {
+        assertThat(service.choose(runner, village())).isFalse();
+
+        assertThat(service.choose(runner, village())).isFalse();
+
+        assertThat(searchedFor).hasSize(1);
+        verify(messages).send(eq(runner), eq("manhunt.structure.wait"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("one search per choice: variants of one kind are searched together, never one after another")
+    void onePassPerChoice() {
+        java.util.Map<String, String> types = java.util.Map.of(
+                "shipwreck", "shipwreck", "shipwreck_beached", "shipwreck",
+                "village_plains", "jigsaw", "village_desert", "jigsaw",
+                "bastion_remnant", "jigsaw", "fortress", "fortress");
+
+        assertThat(StructureCompassService.plan(List.of("fortress"), types::get))
+                .isEqualTo(StructureCompassService.SearchPlan.ONE);
+        assertThat(StructureCompassService.plan(List.of("shipwreck", "shipwreck_beached"), types::get))
+                .isEqualTo(StructureCompassService.SearchPlan.BY_TYPE);
+        assertThat(StructureCompassService.plan(List.of("village_plains", "village_desert"), types::get))
+                .as("villages share the jigsaw type with half the game — searched as villages")
+                .isEqualTo(StructureCompassService.SearchPlan.VILLAGES);
+        assertThat(StructureCompassService.plan(List.of("fortress", "bastion_remnant"), types::get))
+                .isEqualTo(StructureCompassService.SearchPlan.EACH);
+    }
+
+    @Test
+    @DisplayName("every multi-variant choice the compass offers is one search")
+    void everyOfferedChoiceIsOnePass() {
+        java.util.Map<String, String> types = new java.util.HashMap<>();
+        for (StructureChoices.Choice choice : StructureChoices.all()) {
+            for (String key : choice.structureKeys()) {
+                // Vanilla's own types for these ids.
+                types.put(key, key.startsWith("village_") ? "jigsaw"
+                        : key.startsWith("ruined_portal") ? "ruined_portal"
+                        : key.startsWith("shipwreck") ? "shipwreck"
+                        : key.startsWith("ocean_ruin") ? "ocean_ruin"
+                        : key.startsWith("mineshaft") ? "mineshaft" : key);
+            }
+        }
+        for (StructureChoices.Choice choice : StructureChoices.all()) {
+            assertThat(StructureCompassService.plan(choice.structureKeys(), types::get))
+                    .as(choice.id()).isNotEqualTo(StructureCompassService.SearchPlan.EACH);
+        }
     }
 }

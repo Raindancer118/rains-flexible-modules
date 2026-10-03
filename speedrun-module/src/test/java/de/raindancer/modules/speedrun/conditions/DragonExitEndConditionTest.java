@@ -2,6 +2,7 @@ package de.raindancer.modules.speedrun.conditions;
 
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import de.raindancer.modules.speedrun.SpeedrunState;
+import de.raindancer.modules.speedrun.SpeedrunWorlds;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -279,5 +280,120 @@ class DragonExitEndConditionTest {
             fresh.start();
         }
         return fresh;
+    }
+
+    /** The run's three worlds are speedrun / speedrun_nether / speedrun_the_end. */
+    @org.junit.jupiter.api.Nested
+    @org.junit.jupiter.api.DisplayName("only the run's own End counts")
+    class ScopedToTheRun {
+
+        private SpeedrunSession run;
+        private DragonExitEndCondition scoped;
+
+        @BeforeEach
+        void arm() {
+            Server server = mock(Server.class);
+            when(server.getPluginManager()).thenReturn(mock(PluginManager.class));
+            Plugin plugin = mock(Plugin.class);
+            when(plugin.getServer()).thenReturn(server);
+            run = new SpeedrunSession(Set.of(ALICE));
+            scoped = new DragonExitEndCondition(plugin, KEY, id -> true, SpeedrunWorlds.around("speedrun"));
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getAdvancement(KEY)).thenReturn(null);
+                run.addEndCondition(scoped);
+                run.start();
+            }
+        }
+
+        private World named(String name, World.Environment environment) {
+            World world = mock(World.class);
+            when(world.getName()).thenReturn(name);
+            when(world.getEnvironment()).thenReturn(environment);
+            return world;
+        }
+
+        private EnderDragon dragonIn(World world) {
+            EnderDragon dragon = mock(EnderDragon.class);
+            when(dragon.getWorld()).thenReturn(world);
+            return dragon;
+        }
+
+        private PlayerPortalEvent exitPortalOf(World end) {
+            Location from = mock(Location.class);
+            when(from.getWorld()).thenReturn(end);
+            return new PlayerPortalEvent(playerWithId(ALICE), from,
+                    in(World.Environment.NORMAL), PlayerTeleportEvent.TeleportCause.END_PORTAL);
+        }
+
+        @Test
+        @org.junit.jupiter.api.DisplayName("a dragon killed in the server's own End does not arm the run's exit portal")
+        void aDragonElsewhereDoesNotCount() {
+            World runEnd = named("speedrun_the_end", World.Environment.THE_END);
+            scoped.onDragonDeath(deathOf(dragonIn(named("world_the_end", World.Environment.THE_END))));
+
+            scoped.onExitPortal(exitPortalOf(runEnd));
+
+            assertThat(run.state()).isEqualTo(SpeedrunState.RUNNING);
+        }
+
+        @Test
+        @org.junit.jupiter.api.DisplayName("the dragon of the run's End arms it, and its exit portal ends the run")
+        void theRunsDragonCounts() {
+            World runEnd = named("speedrun_the_end", World.Environment.THE_END);
+            scoped.onDragonDeath(deathOf(dragonIn(runEnd)));
+
+            scoped.onExitPortal(exitPortalOf(runEnd));
+
+            assertThat(run.state()).isEqualTo(SpeedrunState.FINISHED);
+        }
+
+        @Test
+        @org.junit.jupiter.api.DisplayName("the server's own exit portal ends nothing, even once the run's dragon is dead")
+        void anotherExitPortalDoesNotCount() {
+            scoped.onDragonDeath(deathOf(dragonIn(named("speedrun_the_end", World.Environment.THE_END))));
+
+            scoped.onExitPortal(exitPortalOf(named("world_the_end", World.Environment.THE_END)));
+
+            assertThat(run.state()).isEqualTo(SpeedrunState.RUNNING);
+        }
+
+        @Test
+        @org.junit.jupiter.api.DisplayName("the end credits after the server's own End end nothing")
+        void anotherEndsCreditsDoNotCount() {
+            scoped.onDragonDeath(deathOf(dragonIn(named("speedrun_the_end", World.Environment.THE_END))));
+            Player alice = playerWithId(ALICE);
+            World serversEnd = named("world_the_end", World.Environment.THE_END);
+            when(alice.getWorld()).thenReturn(serversEnd);
+
+            scoped.onEndCredits(respawnAfter(alice,
+                    org.bukkit.event.player.PlayerRespawnEvent.RespawnReason.END_PORTAL));
+
+            assertThat(run.state()).isEqualTo(SpeedrunState.RUNNING);
+        }
+
+        @Test
+        @org.junit.jupiter.api.DisplayName("the end credits after the run's End end the run")
+        void theRunsEndCreditsCount() {
+            scoped.onDragonDeath(deathOf(dragonIn(named("speedrun_the_end", World.Environment.THE_END))));
+            Player alice = playerWithId(ALICE);
+            World runEnd = named("speedrun_the_end", World.Environment.THE_END);
+            when(alice.getWorld()).thenReturn(runEnd);
+
+            scoped.onEndCredits(respawnAfter(alice,
+                    org.bukkit.event.player.PlayerRespawnEvent.RespawnReason.END_PORTAL));
+
+            assertThat(run.state()).isEqualTo(SpeedrunState.FINISHED);
+        }
+
+        /** A run resumed after a restart, in an End whose dragon died before it: still winnable. */
+        @Test
+        @org.junit.jupiter.api.DisplayName("a dragon already dead before the run was resumed still arms the exit portal")
+        void anAlreadyDeadDragonArms() {
+            scoped.dragonAlreadyKilled();
+
+            scoped.onExitPortal(exitPortalOf(named("speedrun_the_end", World.Environment.THE_END)));
+
+            assertThat(run.state()).isEqualTo(SpeedrunState.FINISHED);
+        }
     }
 }

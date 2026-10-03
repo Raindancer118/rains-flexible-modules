@@ -27,6 +27,7 @@ import de.raindancer.modules.manhunt.service.PositionShare;
 import de.raindancer.modules.manhunt.service.SpectatorRestoreListener;
 import de.raindancer.modules.manhunt.service.WhitelistVips;
 import de.raindancer.modules.manhunt.tracker.CompassHandout;
+import de.raindancer.modules.manhunt.tracker.CompassKeeper;
 import de.raindancer.modules.manhunt.tracker.HuntCompasses;
 import de.raindancer.modules.manhunt.tracker.PortalMemory;
 import de.raindancer.modules.manhunt.tracker.StructureChoices;
@@ -64,7 +65,7 @@ import java.util.function.Supplier;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.21.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.22.0")
             .describedAs("Runners against Hunters, played in the speedrun lobby: the lobby's own "
                     + "goal is what the Runners race for, every Hunter carries a compass that "
                     + "follows a Runner through the portal they took, a caught Runner is out for "
@@ -120,7 +121,13 @@ public final class ManhuntModule implements FlexModule {
         // The few people a clear never sweeps up and a close always lets in — kept on disk beside the
         // module's own settings, because a list of players is not a settings field. See WhitelistVips.
         ManhuntWhitelistService whitelist = new ManhuntWhitelistService(server,
-                new WhitelistVips(context.dataFolder().resolve("whitelist-vips.yml")));
+                new WhitelistVips(context.dataFolder().resolve("whitelist-vips.yml")),
+                context.dataFolder().resolve("whitelist-state.yml"));
+        // No hunt survives a restart, so a door a hunt shut — and never got to open, because the
+        // server stopped or crashed under it — is opened now.
+        if (whitelist.reopenAfterHunt()) {
+            log.info("The whitelist a hunt had closed was left on by a restart; it is open again.");
+        }
 
         // Everything below reads the hunt through the mode, which is built last — it needs them.
         Supplier<Optional<Hunt>> liveHunt = () -> mode == null ? Optional.empty() : mode.current();
@@ -152,6 +159,9 @@ public final class ManhuntModule implements FlexModule {
         HuntCompasses compasses = new HuntCompasses(context.plugin(), liveHunt, tracker, teamCompass,
                 structures);
         context.listener(compasses);
+        context.listener(new CompassKeeper(compasses::isOurs));
+        // After the three services' own listeners, so they already hold the new settings.
+        settings.onChange(fresh -> compasses.settingsChanged());
 
         ManhuntServices[] holder = new ManhuntServices[1];
         ManhuntMode liveMode = new ManhuntMode(context.plugin(), teams, eliminations, compasses, portals,
@@ -207,7 +217,9 @@ public final class ManhuntModule implements FlexModule {
         // Registered for the life of the module, not of a hunt: its whole job is somebody whose hunt
         // no longer exists. Everything scoped to one hunt is registered through SpeedrunRun instead —
         // see ManhuntMode.onStart.
-        context.listener(new SpectatorRestoreListener(liveHunt, eliminations));
+        SpectatorRestoreListener spectators = new SpectatorRestoreListener(liveHunt, eliminations);
+        context.listener(spectators);
+        spectators.sweep(server.getOnlinePlayers());
 
         // Hunters only punching each other is one of Core's combat rules, not a damage listener of
         // our own — Core already traces arrows and pets back to a person and says how a hit landed.

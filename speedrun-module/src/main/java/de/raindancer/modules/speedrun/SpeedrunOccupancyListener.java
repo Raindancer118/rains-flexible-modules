@@ -30,6 +30,8 @@ public final class SpeedrunOccupancyListener implements Listener {
 
     public SpeedrunOccupancyListener(SpeedrunSession session) {
         this.session = session;
+        // Taking somebody off the roster is the other way the last online racer can go, without a quit.
+        session.onParticipantRemoved(removed -> pauseIfNobodyIsOnline(null));
     }
 
     /**
@@ -42,12 +44,16 @@ public final class SpeedrunOccupancyListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
+        pauseIfNobodyIsOnline(event.getPlayer().getUniqueId());
+    }
+
+    /** @param leaving somebody to count as gone already — the one quitting right now — or null */
+    private void pauseIfNobodyIsOnline(UUID leaving) {
         if (session.state() != SpeedrunState.RUNNING) {
             return;
         }
-        UUID quitting = event.getPlayer().getUniqueId();
         for (UUID participant : session.participants()) {
-            if (participant.equals(quitting)) {
+            if (participant.equals(leaving)) {
                 continue;   // the one leaving is not "still online" just because the event hasn't finished
             }
             if (Bukkit.getPlayer(participant) != null) {

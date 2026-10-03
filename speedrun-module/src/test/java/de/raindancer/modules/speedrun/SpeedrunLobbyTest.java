@@ -164,6 +164,13 @@ class SpeedrunLobbyTest {
         void startsForRealOnceTheCountdownCompletes() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                // Both still online at zero — whoever left during the countdown does not race.
+                Player alice = mock(Player.class);
+                Player bob = mock(Player.class);
+                runsItsOwnTasksImmediately(alice);
+                runsItsOwnTasksImmediately(bob);
+                bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+                bukkit.when(() -> Bukkit.getPlayer(BOB)).thenReturn(bob);
                 // A fake that finishes immediately, as if the countdown had reached zero.
                 SpeedrunLobby lobby = lobbyWithCountdown(
                         (participants, onComplete) -> onComplete.run());
@@ -213,11 +220,14 @@ class SpeedrunLobbyTest {
         @Test
         @DisplayName("refuses an empty roster")
         void refusesEmptyRoster() {
-            SpeedrunLobby lobby = lobby();
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                SpeedrunLobby lobby = lobby();
 
-            SpeedrunLobby.StartOutcome outcome = lobby.start(Set.of());
+                SpeedrunLobby.StartOutcome outcome = lobby.start(Set.of());
 
-            assertThat(outcome).isEqualTo(SpeedrunLobby.StartOutcome.NO_PARTICIPANTS);
+                assertThat(outcome).isEqualTo(SpeedrunLobby.StartOutcome.NO_PARTICIPANTS);
+            }
         }
 
         @Test

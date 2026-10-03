@@ -8,6 +8,7 @@ import de.raindancer.core.world.geometry.Ring;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.model.Hunt;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
+import de.raindancer.modules.manhunt.service.AbsentRunners;
 import de.raindancer.modules.manhunt.service.Eliminations;
 import de.raindancer.modules.manhunt.service.HuntDeathListener;
 import de.raindancer.modules.manhunt.service.HunterHoldListener;
@@ -38,7 +39,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
@@ -84,8 +84,6 @@ public final class ManhuntMode implements SpeedrunMode {
     public static final String RUNNERS_LEFT = "manhunt:runners-left";
     /** Nobody is left chasing: ended, won by nobody. */
     public static final String HUNTERS_LEFT = "manhunt:hunters-left";
-    /** Whether this hunt was the one that shut the door, so only it ever opens it again. */
-    private final AtomicBoolean closedTheWhitelist = new AtomicBoolean();
     /** Runs a task this many ticks later — the global scheduler, or a test's own list. */
     private BiConsumer<Long, Runnable> later;
 
@@ -179,8 +177,8 @@ public final class ManhuntMode implements SpeedrunMode {
     public enum LeaveOutcome { LEFT, NOT_IN_THE_HUNT, NO_HUNT }
 
     /**
-     * {@code /manhunt leave} mid-hunt: off the roster and off the team, a caught Runner out of
-     * spectator. The caller takes the compasses. A side left empty ends the hunt, won by nobody —
+     * {@code /manhunt leave} mid-hunt: off the roster, the team and the run's own participants, a
+     * caught Runner out of spectator. The caller takes the compasses. A side left empty ends the hunt, won by nobody —
      * unless every Runner still in it is already caught, which is the Hunters' win it always was.
      */
     public LeaveOutcome leaveHunt(UUID player) {
@@ -199,6 +197,10 @@ public final class ManhuntMode implements SpeedrunMode {
         }
         SpeedrunSession session = liveSession.get();
         if (session != null && live.get() == hunt) {
+            // Off the run's roster too, so the clock and the goal stop counting them. Refused only for
+            // the run's very last participant — and a hunt that small has just lost a whole side,
+            // which ends it right below.
+            session.removeParticipant(player);
             if (hunt.runners().isEmpty()) {
                 session.finish(RUNNERS_LEFT);
             } else if (hunt.allRunnersOut()) {
@@ -274,6 +276,7 @@ public final class ManhuntMode implements SpeedrunMode {
             if (session != null) {
                 session.addParticipant(player);
             }
+            whitelist.admit(player);
             moved = Hunt.SideChange.MOVED;
         } else {
             moved = side == Side.HUNTER
@@ -380,15 +383,22 @@ public final class ManhuntMode implements SpeedrunMode {
         compasses.armFor(hunt);
         run.listen(new TrackerListener(hunt, compasses.tracker(), portals));
         run.listen(new HuntDeathListener(plugin, hunt, run.session(), eliminations, messages));
+        AbsentRunners absent = new AbsentRunners(plugin, hunt, run.session(), () -> live.get() == hunt,
+                () -> settings.get().runnerOfflineGraceSecondsClamped(),
+                (ticks, task) -> later.accept(ticks, task), messages);
+        run.listen(absent);
+        // Somebody who logged out during the countdown is a participant who never quits again.
+        for (UUID runner : hunt.runners()) {
+            if (plugin.getServer().getPlayer(runner) == null) {
+                absent.away(runner);
+            }
+        }
         if (!run.resumed()) {
             holdTheHunters(run, hunt);
         }
 
-        if (settings.get().closeWhitelistOnStart() && !whitelist.isClosed()) {
-            // Only when it was open: a server whose owner runs it whitelisted all the time must not
-            // have its door thrown open by a hunt ending.
-            whitelist.close();
-            closedTheWhitelist.set(true);
+        if (settings.get().closeWhitelistOnStart()) {
+            whitelist.closeForHunt();
         }
 
         // Both paths, because they answer different failures. onFinish is the hunt ending properly —
@@ -445,9 +455,7 @@ public final class ManhuntMode implements SpeedrunMode {
         compasses.disarm(hunt);
         eliminations.restoreAll(hunt);
         portals.clear();
-        if (closedTheWhitelist.compareAndSet(true, false)) {
-            whitelist.open();
-        }
+        whitelist.reopenAfterHunt();
     }
 
     // ------------------------------------------------------------------------ how it ended

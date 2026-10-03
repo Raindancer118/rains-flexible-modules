@@ -223,4 +223,25 @@ class TeamCompassServiceTest {
         assertThat(TeamCompassService.materialFor(ManhuntSettings.TeamCompassItem.COMPASS))
                 .isEqualTo(org.bukkit.Material.COMPASS);
     }
+
+    @Test
+    @DisplayName("switched off mid-hunt, it is taken back at once and its needle cleared")
+    void switchedOffMidHunt() {
+        Player hunter = player(HUNTER_A);
+        ItemStack carried = mock(ItemStack.class);
+        when(carried.getType()).thenReturn(org.bukkit.Material.RECOVERY_COMPASS);
+        org.bukkit.persistence.PersistentDataContainer data = mock(org.bukkit.persistence.PersistentDataContainer.class);
+        when(carried.getPersistentDataContainer()).thenReturn(data);
+        when(data.get(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn("team-compass");
+        ItemStack[] contents = new ItemStack[36];
+        contents[5] = carried;
+        when(hunter.getInventory().getContents()).thenReturn(contents);
+        team.aimNeedle(hunter, Aim.tracking(HUNTER_B, new Point("hunt", 90, 64, 0), 80));
+        team.settings(ManhuntSettings.DEFAULTS.withTrackerTeamCompass(false));
+
+        team.fit(hunt, hunter);
+
+        verify(hunter.getInventory()).setItem(5, null);
+        verify(hunter).setLastDeathLocation(null);
+    }
 }

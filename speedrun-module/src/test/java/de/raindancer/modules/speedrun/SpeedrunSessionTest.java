@@ -327,4 +327,72 @@ class SpeedrunSessionTest {
         assertThatCode(() -> session.finish("goal")).doesNotThrowAnyException();
         assertThat(told).hasValue(1);
     }
+
+    @Nested
+    @DisplayName("removing a participant mid-run")
+    class RemovingAParticipant {
+
+        @Test
+        @DisplayName("takes them off the live roster — everywhere participants are read")
+        void removesFromTheLiveRoster() {
+            SpeedrunSession session = new SpeedrunSession(Set.of(ALICE, BOB));
+            session.start();
+
+            assertThat(session.removeParticipant(BOB)).isTrue();
+            assertThat(session.participants()).containsExactly(ALICE);
+        }
+
+        @Test
+        @DisplayName("false for somebody who is not racing, or null")
+        void falseWhenAbsent() {
+            SpeedrunSession session = new SpeedrunSession(Set.of(ALICE, BOB));
+            session.start();
+
+            assertThat(session.removeParticipant(UUID.randomUUID())).isFalse();
+            assertThat(session.removeParticipant(null)).isFalse();
+        }
+
+        @Test
+        @DisplayName("false once the run is finished — the result's roster stands")
+        void falseOnceFinished() {
+            SpeedrunSession session = new SpeedrunSession(Set.of(ALICE, BOB));
+            session.start();
+            session.finish("done");
+
+            assertThat(session.removeParticipant(BOB)).isFalse();
+            assertThat(session.participants()).containsExactlyInAnyOrder(ALICE, BOB);
+        }
+
+        /**
+         * A session never has an empty roster — the constructor refuses one. An empty roster would
+         * leave the run unendable (no death or goal of a participant can happen), pause the clock
+         * on every stranger's quit, and never resume it.
+         */
+        @Test
+        @DisplayName("refuses to remove the last participant — a run with nobody racing could never end")
+        void keepsTheLastOne() {
+            SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
+            session.start();
+
+            assertThat(session.removeParticipant(ALICE)).isFalse();
+            assertThat(session.participants()).containsExactly(ALICE);
+        }
+
+        @Test
+        @DisplayName("every armed condition is told, so a rule over the whole roster is re-judged")
+        void conditionsAreTold() {
+            SpeedrunSession session = new SpeedrunSession(Set.of(ALICE, BOB));
+            List<UUID> told = new CopyOnWriteArrayList<>();
+            session.addEndCondition(new SpeedrunEndCondition() {
+                public void arm(SpeedrunSession s) { }
+                public void disarm() { }
+                public void participantRemoved(UUID player) { told.add(player); }
+            });
+            session.start();
+
+            session.removeParticipant(BOB);
+
+            assertThat(told).containsExactly(BOB);
+        }
+    }
 }

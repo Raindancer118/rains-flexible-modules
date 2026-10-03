@@ -102,6 +102,41 @@ class DeathEndConditionTest {
             assertThat(session.outcome().get().reason()).isEqualTo("death-all");
         }
 
+        /** Bob is dead, Alice is taken off the roster: everybody left racing is dead, so it is over. */
+        @Test
+        @DisplayName("removing the last living participant ends an ALL run whose others are all dead")
+        void removalLeavingOnlyTheDeadFinishes() {
+            SpeedrunSession session = new SpeedrunSession(Set.of(ALICE, BOB));
+            DeathEndCondition condition =
+                    new DeathEndCondition(fakePlugin(), DeathEndCondition.DeathPolicy.ALL);
+            session.addEndCondition(condition);
+            session.start();
+            condition.onDeath(deathOf(BOB));
+
+            session.removeParticipant(ALICE);
+
+            assertThat(session.state()).isEqualTo(SpeedrunState.FINISHED);
+            assertThat(session.outcome().get().reason()).isEqualTo("death-all");
+        }
+
+        /** A removed participant's earlier death must not be counted toward the rest of the roster. */
+        @Test
+        @DisplayName("a removed participant's death no longer counts, and the others still have to die")
+        void removedDeathIsForgotten() {
+            UUID carol = UUID.nameUUIDFromBytes("carol".getBytes());
+            SpeedrunSession session = new SpeedrunSession(Set.of(ALICE, BOB, carol));
+            DeathEndCondition condition =
+                    new DeathEndCondition(fakePlugin(), DeathEndCondition.DeathPolicy.ALL);
+            session.addEndCondition(condition);
+            session.start();
+            condition.onDeath(deathOf(ALICE));
+            session.removeParticipant(ALICE);
+
+            condition.onDeath(deathOf(BOB));
+
+            assertThat(session.state()).isEqualTo(SpeedrunState.RUNNING);
+        }
+
         @Test
         void aNonParticipantDeathDoesNotCountTowardsTheGoal() {
             SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));

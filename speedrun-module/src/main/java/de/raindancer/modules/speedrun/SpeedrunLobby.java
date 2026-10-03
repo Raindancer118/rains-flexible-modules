@@ -17,12 +17,14 @@ import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
+import org.bukkit.boss.DragonBattle;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -200,6 +202,13 @@ public final class SpeedrunLobby {
     private SpeedrunCreeperOnContainerOpenListener creeperOnContainerOpen;
     /** Set the moment {@link #beginCountdown} launches one, cleared the moment it completes. */
     private volatile boolean countingDown;
+    /** The world the countdown or run under way is in — see {@link #config()}. {@code null} between runs. */
+    private volatile String runWorldName;
+    /** The mode the run under way was started in — the finish is announced by it, whatever
+     *  {@code game-mode} says by then. */
+    private volatile SpeedrunMode runMode;
+    /** The production launcher's countdown, so {@link #shutdown} can stop it. */
+    private volatile SpeedrunCountdown activeCountdown;
     /** Who {@code /lemmemove} has exempted from the READY/COUNTDOWN movement freeze — see {@link #release}.
      *  Thread-safe because the command that grants this may run on a different region thread under Folia
      *  than the move event checking it. */
@@ -227,8 +236,12 @@ public final class SpeedrunLobby {
                 actionBars == null ? null
                         : new SpeedrunTimerDisplay(actionBars, SpeedrunTimerDisplay.viaScheduling(plugin)),
                 players == null ? null : new SpeedrunPreparation(plugin, players));
-        this.countdownLauncher = (participants, onComplete) ->
-                new SpeedrunCountdown(plugin, bossBars, effects, participants, onComplete, released).begin();
+        this.countdownLauncher = (participants, onComplete) -> {
+            SpeedrunCountdown countdown =
+                    new SpeedrunCountdown(plugin, bossBars, effects, participants, onComplete, released);
+            activeCountdown = countdown;
+            countdown.begin();
+        };
         if (timerDisplay != null) {
             // Set here rather than handed to the constructor for the same reason as the launcher
             // above: this lambda reads the lobby's own configuration, and a this(...) call's argument
@@ -279,8 +292,17 @@ public final class SpeedrunLobby {
         this.later = later;
     }
 
+    /**
+     * The settings as they stand — except the world, which is the run's own from the moment a
+     * countdown begins until the run is reset or forgotten. {@code world-name} changed in
+     * {@code /settings} mid-run takes effect for the next run; until then every listener, the portal
+     * and respawn redirects and, above all, the reset keep meaning the world the run is played in.
+     * A reset pointed at the newly named world would delete a world nobody raced in.
+     */
     public SpeedrunSettings config() {
-        return settings.current();
+        SpeedrunSettings current = settings.current();
+        String pinned = runWorldName;
+        return pinned == null || pinned.equals(current.worldName()) ? current : current.withWorldName(pinned);
     }
 
     /** For the GUI: writing a setting goes through the store, so a click and a hand-edited
@@ -408,6 +430,7 @@ public final class SpeedrunLobby {
             return StartOutcome.NOT_READY;
         }
         Set<UUID> frozen = Set.copyOf(participants);
+        runWorldName = settings.current().worldName();
         teleportToStartPoint(frozen);
         countingDown = true;
         countdownLauncher.begin(frozen, () -> {
@@ -425,9 +448,22 @@ public final class SpeedrunLobby {
      * in thought with empty hands.
      */
     private void countdownReachedZero(Set<UUID> frozen) {
-        StartOutcome outcome = start(frozen);
+        activeCountdown = null;
+        // Whoever left during the countdown does not race: nothing of an offline player can be
+        // prepared, so they would come back with last round's gear — and with nobody online at all the
+        // clock would run for nobody.
+        Set<UUID> stillHere = new HashSet<>();
+        for (UUID id : frozen) {
+            if (Bukkit.getPlayer(id) != null) {
+                stillHere.add(id);
+            }
+        }
+        StartOutcome outcome = start(stillHere);
         if (outcome == StartOutcome.STARTED) {
             return;
+        }
+        if (session == null) {
+            runWorldName = null;
         }
         log.info("The countdown ended but the run did not start ({}); the lobby is ready again.", outcome);
         if (messages != null) {
@@ -593,17 +629,25 @@ public final class SpeedrunLobby {
      * on the start line with the items in their hands; reported as exactly that difference.
      */
     private void resetTheRun() {
-        World target = world().orElse(null);
+        World target = world().orElse(null);   // the run's world, while it is still pinned
+        String runWorld = config().worldName();
         worlds.rememberWhoIsIn();
         disarmSession();
         if (target == null) {
-            log.warn("The speedrun world '{}' is not loaded; nothing to regenerate.", config().worldName());
+            log.warn("The speedrun world '{}' is not loaded; nothing to regenerate.", runWorld);
             return;
         }
         // Before anything else: the point /starthere set is coordinates in the world about to be
         // deleted, and the one that comes back is a different world under the same name.
         clearStartPoint();
-        worlds.regenerate(target, this::announceReady);
+        worlds.regenerate(target, () -> {
+            if (!runWorld.equals(config().worldName())) {
+                // world-name was changed during the run: the next one is played in the new world,
+                // which nothing has made yet.
+                worlds.ensureExists();
+            }
+            announceReady();
+        });
     }
 
     /**
@@ -653,6 +697,7 @@ public final class SpeedrunLobby {
         SpeedrunSettings current = config();
         SpeedrunMode chosen = mode().orElse(null);
         SpeedrunSession fresh = new SpeedrunSession(Set.copyOf(participants));
+        SpeedrunWorlds runWorlds = SpeedrunWorlds.around(current.worldName());
         // Who reaching the goal actually ends the run. Every participant in a plain race; in Manhunt
         // only a Runner, since a Hunter killing the dragon has won the Runners nothing. Asked of the
         // mode at the moment it happens rather than snapshotted here, so a side changing mid-run —
@@ -663,7 +708,7 @@ public final class SpeedrunLobby {
             NamespacedKey key = NamespacedKey.fromString(current.advancementKey());
             if (key != null) {
                 fresh.addEndCondition(current.isDragonKillGoal() && current.requireExitPortalAfterDragon()
-                        ? new DragonExitEndCondition(plugin, key, countsForGoal)
+                        ? dragonExit(key, countsForGoal, runWorlds, resumed)
                         : new AdvancementEndCondition(plugin, key, countsForGoal));
             } else {
                 log.warn("'{}' is not a valid advancement key; the advancement goal was skipped.",
@@ -677,6 +722,8 @@ public final class SpeedrunLobby {
         }
 
         session = fresh;
+        runWorldName = current.worldName();
+        runMode = chosen;
         occupancy = new SpeedrunOccupancyListener(fresh);
         plugin.getServer().getPluginManager().registerEvents(occupancy, plugin);
         creeperOnBreak = new SpeedrunCreeperOnBreakListener(fresh, settings);
@@ -740,7 +787,7 @@ public final class SpeedrunLobby {
      * but the boss bar noticed.
      */
     private void announceFinish(SpeedrunSession finished, SpeedrunOutcome outcome) {
-        SpeedrunMode chosen = mode().orElse(null);
+        SpeedrunMode chosen = runMode;
         if (chosen != null) {
             try {
                 if (chosen.announceFinish(finished, outcome)) {
@@ -812,11 +859,13 @@ public final class SpeedrunLobby {
         if (!endable) {
             return StartOutcome.NO_END_CONDITION;
         }
-        if (participants == null || participants.isEmpty()) {
-            return StartOutcome.NO_PARTICIPANTS;
-        }
+        // The world before the roster: with it unloaded nobody can be "present", and "nobody is
+        // here" would send an admin looking for the wrong problem.
         if (world().isEmpty()) {
             return StartOutcome.WORLD_MISSING;
+        }
+        if (participants == null || participants.isEmpty()) {
+            return StartOutcome.NO_PARTICIPANTS;
         }
         if (chosen != null && chosen.refuseStart(current, Set.copyOf(participants)).isPresent()) {
             return StartOutcome.REFUSED_BY_MODE;
@@ -877,6 +926,45 @@ public final class SpeedrunLobby {
             run = null;
         }
         session = null;
+        runMode = null;
+        runWorldName = null;
+    }
+
+    /**
+     * The exit-portal goal, counting only the run's own End. A resumed run may be picked up after
+     * the dragon already died — the fight is won, the portal open — and is then armed as such, or it
+     * could never be won. An ordinary start never assumes it: its End was remade by the last reset.
+     */
+    private DragonExitEndCondition dragonExit(NamespacedKey key, Predicate<UUID> countsForGoal,
+                                              SpeedrunWorlds runWorlds, boolean resumed) {
+        DragonExitEndCondition condition = new DragonExitEndCondition(plugin, key, countsForGoal, runWorlds);
+        if (resumed) {
+            World end = Bukkit.getWorld(runWorlds.theEnd());
+            DragonBattle battle = end == null ? null : end.getEnderDragonBattle();
+            if (battle != null && battle.hasBeenPreviouslyKilled()) {
+                condition.dragonAlreadyKilled();
+            }
+        }
+        return condition;
+    }
+
+    /**
+     * The plugin is going away ({@code SpeedrunModule.disable}). Stops a countdown, takes the clock
+     * off everybody's action bar — both live in Core, which outlives this plugin, so neither would
+     * ever be cleared otherwise — and lets the game mode clean up after its run. Never touches the
+     * world: a disable is not a reset, and the run can be picked up with {@code /speedrunresume}.
+     */
+    public void shutdown() {
+        SpeedrunCountdown countdown = activeCountdown;
+        if (countdown != null) {
+            countdown.cancel();
+            activeCountdown = null;
+        }
+        countingDown = false;
+        if (timerDisplay != null) {
+            timerDisplay.clear();
+        }
+        disarmSession();
     }
 
     /**

@@ -75,7 +75,70 @@ class ManhuntWhitelistServiceTest {
     void setUp() {
         gateway = new FakeGateway();
         vips = new WhitelistVips(directory.resolve("whitelist-vips.yml"));
-        service = new ManhuntWhitelistService(gateway, vips);
+        service = new ManhuntWhitelistService(gateway, vips, directory.resolve("whitelist-state.yml"));
+    }
+
+    @Nested
+    @DisplayName("the door a hunt shut")
+    class ShutByAHunt {
+
+        @Test
+        @DisplayName("a hunt shuts an open door and opens it again at its end")
+        void shutAndReopened() {
+            assertThat(service.closeForHunt()).isTrue();
+            assertThat(gateway.enabled).isTrue();
+
+            assertThat(service.reopenAfterHunt()).isTrue();
+            assertThat(gateway.enabled).isFalse();
+        }
+
+        @Test
+        @DisplayName("a door that was already shut is never opened by a hunt ending")
+        void neverSomebodyElsesDoor() {
+            gateway.enabled = true;
+
+            assertThat(service.closeForHunt()).isFalse();
+            assertThat(service.reopenAfterHunt()).isFalse();
+            assertThat(gateway.enabled).isTrue();
+        }
+
+        @Test
+        @DisplayName("that a hunt shut it survives a restart, and the next start-up opens it")
+        void survivesARestart() {
+            service.closeForHunt();
+
+            ManhuntWhitelistService afterRestart = new ManhuntWhitelistService(gateway,
+                    new WhitelistVips(directory.resolve("whitelist-vips.yml")),
+                    directory.resolve("whitelist-state.yml"));
+
+            assertThat(afterRestart.reopenAfterHunt()).isTrue();
+            assertThat(gateway.enabled).isFalse();
+            assertThat(new ManhuntWhitelistService(gateway, vips, directory.resolve("whitelist-state.yml"))
+                    .reopenAfterHunt()).as("and only once").isFalse();
+        }
+
+        @Test
+        @DisplayName("a latecomer is let in through a shut door, and an open one is left alone")
+        void admit() {
+            UUID late = UUID.randomUUID();
+            service.admit(late);
+            assertThat(gateway.whitelisted).doesNotContain(late);
+
+            service.closeForHunt();
+            service.admit(late);
+            assertThat(gateway.whitelisted).contains(late);
+        }
+
+        @Test
+        @DisplayName("an admin opening or closing it by hand mid-hunt takes the door back from the hunt")
+        void handsOnTheDoor() {
+            service.closeForHunt();
+            service.open();
+            service.close();
+
+            assertThat(service.reopenAfterHunt()).isFalse();
+            assertThat(gateway.enabled).as("the admin's close stands").isTrue();
+        }
     }
 
     @Test

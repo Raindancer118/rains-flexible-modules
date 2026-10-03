@@ -15,6 +15,7 @@ import de.raindancer.modules.manhunt.tracker.TrackerCompass.Point;
 import de.raindancer.modules.manhunt.util.Threads;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Color;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -123,18 +124,27 @@ public final class TeamCompassService {
         needles.clear();
     }
 
-    /** Brings one player's team compass in line with the side they are on now — on their own thread. */
+    /**
+     * Brings one player's team compass in line with the side they are on and the settings as they
+     * are — on their own thread: handed over, taken back, or swapped for the other kind of item.
+     */
     public void fit(Hunt hunt, Player player) {
-        boolean aimed = needles.containsKey(player.getUniqueId());
-        forget(player.getUniqueId());
-        if (owes(hunt, player.getUniqueId())) {
-            give(player);
-        } else {
-            takeBack(player);
-            if (aimed) {
-                player.setLastDeathLocation(null);
+        UUID id = player.getUniqueId();
+        if (owes(hunt, id)) {
+            int slot = items.slotOf(player, OURS);
+            if (slot >= 0 && player.getInventory().getItem(slot) != null
+                    && player.getInventory().getItem(slot).getType() != materialFor(settings.trackerTeamCompassItem())) {
+                takeBack(player);
+                needles.remove(id);
             }
+            give(player);
+            return;
         }
+        takeBack(player);
+        if (needles.remove(id) != null) {
+            player.setLastDeathLocation(null);
+        }
+        forget(id);
     }
 
     /** A death took it — it never drops — so it is handed back on respawn, a tick later. */
@@ -167,7 +177,7 @@ public final class TeamCompassService {
             }
             inIt.put(id, player);
             names.put(id, player.getName());
-            if (!player.isDead()) {
+            if (!player.isDead() && player.getGameMode() != GameMode.SPECTATOR) {
                 alive.put(id, new Candidate(id, TrackerCompassService.pointOf(player)));
             }
         }
@@ -183,7 +193,7 @@ public final class TeamCompassService {
         Map<UUID, Candidate> alive = new LinkedHashMap<>();
         for (UUID id : hunt.everybody()) {
             Player mate = hunt.isEliminated(id) ? null : plugin.getServer().getPlayer(id);
-            if (mate != null && !mate.isDead()) {
+            if (mate != null && !mate.isDead() && mate.getGameMode() != GameMode.SPECTATOR) {
                 alive.put(id, new Candidate(id, TrackerCompassService.pointOf(mate)));
             }
         }

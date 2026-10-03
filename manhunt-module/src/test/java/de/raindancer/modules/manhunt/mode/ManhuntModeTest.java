@@ -59,6 +59,7 @@ class ManhuntModeTest {
     private ManhuntTeams teams;
     private ManhuntWhitelistService whitelist;
     private HuntCompasses compasses;
+    private Eliminations eliminations;
     private ManhuntMode mode;
     private AtomicReference<ManhuntSettings> settings;
 
@@ -80,8 +81,11 @@ class ManhuntModeTest {
         compasses = mock(HuntCompasses.class);
         when(compasses.tracker()).thenReturn(mock(TrackerCompassService.class));
         settings = new AtomicReference<>(ManhuntSettings.DEFAULTS);
-        mode = new ManhuntMode(plugin, teams, mock(Eliminations.class), compasses, portals, whitelist,
+        eliminations = mock(Eliminations.class);
+        mode = new ManhuntMode(plugin, teams, eliminations, compasses, portals, whitelist,
                 mock(Messages.class), settings::get, null);
+        // Every timer the mode sets — the head start, a Runner's grace — swallowed unless a test asks.
+        mode.laterWith((ticks, task) -> { });
     }
 
     private SpeedrunRun lastRun;
@@ -126,6 +130,25 @@ class ManhuntModeTest {
         @DisplayName("the lobby's own death policy is never used — a death eliminates instead")
         void noDeathPolicy() {
             assertThat(mode.usesDeathPolicy()).isFalse();
+        }
+
+        @Test
+        @DisplayName("the last Runner leaving their side during the countdown stops the start at zero")
+        void lastRunnerLeavesDuringTheCountdown() {
+            teams.joinRunners(ANNA);
+            teams.leave(ANNA);   // /manhunt leave before the hunt exists — the lobby asks again at zero
+
+            assertThat(mode.refuseStart(withGoal(true), Set.of(ANNA, BEN))).contains(StartRule.NO_RUNNER);
+        }
+
+        @Test
+        @DisplayName("an assign during the countdown is the side the hunt starts with")
+        void assignDuringTheCountdown() {
+            teams.joinRunners(BEN);   // what /manhunt assign does while no hunt is live
+
+            mode.onStart(runWith(Set.of(ANNA, BEN)));
+
+            assertThat(mode.current().orElseThrow().runners()).containsExactly(BEN);
         }
 
         @Test
@@ -194,15 +217,14 @@ class ManhuntModeTest {
         @DisplayName("the door is shut on start and opened again at the end, when the owner asked for it")
         void closesTheDoor() throws Exception {
             settings.set(ManhuntSettings.DEFAULTS.withCloseWhitelistOnStart(true));
-            when(whitelist.isClosed()).thenReturn(false);
             teams.joinRunners(ANNA);
             SpeedrunRun run = runWith(Set.of(ANNA, BEN));
 
             mode.onStart(run);
-            verify(whitelist).close();
+            verify(whitelist).closeForHunt();
 
             run.session().finish("advancement:minecraft:end/kill_dragon");
-            verify(whitelist).open();
+            verify(whitelist).reopenAfterHunt();
         }
 
         @Test
@@ -211,9 +233,10 @@ class ManhuntModeTest {
             settings.set(new ManhuntSettings(
                     de.raindancer.modules.manhunt.ManhuntSettings.CrossWorldTracking.LAST_PORTAL, true, true, 10,
                     false, de.raindancer.modules.manhunt.ManhuntSettings.TeamCompassItem.RECOVERY_COMPASS, true,
-                    false, true, false, true, false, false, 30, false));
+                    false, true, false, true, false, false, 30, false, 300));
             java.util.List<Long> waits = new java.util.ArrayList<>();
             mode.laterWith((ticks, task) -> waits.add(ticks));
+            when(plugin.getServer().getPlayer(ANNA)).thenReturn(mock(Player.class));
             teams.joinRunners(ANNA);
 
             mode.onStart(new SpeedrunRun(plugin, new SpeedrunSession(Set.of(ANNA, BEN)),
@@ -226,18 +249,30 @@ class ManhuntModeTest {
         }
 
         @Test
-        @DisplayName("a server that was already whitelisted is not thrown open by a hunt ending")
-        void neverOpensSomebodyElsesDoor() throws Exception {
-            settings.set(ManhuntSettings.DEFAULTS.withCloseWhitelistOnStart(true));
-            when(whitelist.isClosed()).thenReturn(true);
+        @DisplayName("a Runner who logged out during the countdown starts their grace the moment the hunt does")
+        void offlineAtTheStart() {
+            java.util.List<Runnable> timers = new java.util.ArrayList<>();
+            mode.laterWith((ticks, task) -> timers.add(task));
             teams.joinRunners(ANNA);
-            SpeedrunRun run = runWith(Set.of(ANNA, BEN));
+            teams.joinRunners(BEN);
+            when(plugin.getServer().getPlayer(BEN)).thenReturn(mock(Player.class));
+            when(plugin.getServer().getOfflinePlayer(ANNA)).thenReturn(mock(org.bukkit.OfflinePlayer.class));
+            mode.onStart(runWith(Set.of(ANNA, BEN, CARO)));
 
-            mode.onStart(run);
-            run.session().finish("advancement:minecraft:end/kill_dragon");
+            timers.forEach(Runnable::run);
 
-            verify(whitelist, never()).close();
-            verify(whitelist, never()).open();
+            assertThat(mode.current().orElseThrow().isEliminated(ANNA)).isTrue();
+            assertThat(mode.current().orElseThrow().isEliminated(BEN)).as("online all along").isFalse();
+        }
+
+        @Test
+        @DisplayName("with the setting off, a hunt never shuts the door")
+        void settingOffLeavesTheDoor() {
+            teams.joinRunners(ANNA);
+
+            mode.onStart(runWith(Set.of(ANNA, BEN)));
+
+            verify(whitelist, never()).closeForHunt();
         }
     }
 
@@ -272,6 +307,34 @@ class ManhuntModeTest {
         }
 
         @Test
+        @DisplayName("the goal and the last catch in the same tick: the first one stands, cleaned up once")
+        void twoEndingsAtOnce() {
+            teams.joinRunners(ANNA);
+            SpeedrunRun run = runWith(Set.of(ANNA, BEN));
+            mode.onStart(run);
+
+            run.session().finish("advancement:minecraft:end/kill_dragon");
+            run.session().finish(HuntDeathListener.HUNTERS_WIN);
+
+            assertThat(run.session().outcome().orElseThrow().reason()).startsWith("advancement:");
+            verify(compasses, org.mockito.Mockito.times(1)).disarm(any(Hunt.class));
+        }
+
+        @Test
+        @DisplayName("the plugin unloading and the lobby shutting down both clean up — once")
+        void disableAndLobbyShutdown() {
+            teams.joinRunners(ANNA);
+            SpeedrunRun run = runWith(Set.of(ANNA, BEN));
+            mode.onStart(run);
+
+            mode.forget();
+            run.disarm();
+
+            verify(compasses, org.mockito.Mockito.times(1)).disarm(any(Hunt.class));
+            verify(whitelist, org.mockito.Mockito.times(1)).reopenAfterHunt();
+        }
+
+        @Test
         @DisplayName("a run abandoned without ever finishing still puts everybody back")
         void abandonedRunIsCleanedUp() {
             teams.joinRunners(ANNA);
@@ -294,6 +357,112 @@ class ManhuntModeTest {
 
             assertThat(mode.isRunning()).isFalse();
             verify(compasses).disarm(any(Hunt.class));
+        }
+    }
+
+    /** {@code /manhunt leave} while a hunt is being played — see {@link ManhuntMode#leaveHunt}. */
+    @Nested
+    @DisplayName("leaving mid-hunt")
+    class Leaving {
+
+        private final UUID dan = UUID.nameUUIDFromBytes("dan".getBytes());
+
+        private void huntWith(Set<UUID> runners, Set<UUID> everybody) {
+            runners.forEach(teams::joinRunners);
+            mode.onStart(runWith(everybody));
+        }
+
+        @Test
+        @DisplayName("off the roster, off the team, and off the run itself — the clock no longer counts them")
+        void outOfEverything() {
+            huntWith(Set.of(ANNA, BEN), Set.of(ANNA, BEN, CARO, dan));
+
+            assertThat(mode.leaveHunt(ANNA)).isEqualTo(ManhuntMode.LeaveOutcome.LEFT);
+
+            assertThat(mode.current().orElseThrow().everybody()).doesNotContain(ANNA);
+            assertThat(teams.everybody()).doesNotContain(ANNA);
+            assertThat(lastRun.session().participants()).doesNotContain(ANNA);
+            assertThat(lastRun.session().outcome()).as("one Runner and two Hunters play on").isEmpty();
+            verify(compasses).forget(ANNA);
+        }
+
+        @Test
+        @DisplayName("a caught Runner who leaves is stood up again")
+        void caughtRunnerStandsUp() {
+            huntWith(Set.of(ANNA, BEN), Set.of(ANNA, BEN, CARO));
+            mode.current().orElseThrow().eliminate(ANNA);
+            Player anna = mock(Player.class);
+            when(plugin.getServer().getPlayer(ANNA)).thenReturn(anna);
+
+            mode.leaveHunt(ANNA);
+
+            verify(eliminations).restoreOnTheirThread(anna);
+        }
+
+        @Test
+        @DisplayName("the last Runner leaving ends it, won by nobody")
+        void lastRunner() {
+            huntWith(Set.of(ANNA), Set.of(ANNA, BEN));
+
+            mode.leaveHunt(ANNA);
+
+            assertThat(lastRun.session().outcome().orElseThrow().reason()).isEqualTo(ManhuntMode.RUNNERS_LEFT);
+            assertThat(mode.isRunning()).isFalse();
+        }
+
+        @Test
+        @DisplayName("the last Runner still running leaving, with the rest caught, is the Hunters' win")
+        void lastLivingRunner() {
+            huntWith(Set.of(ANNA, BEN), Set.of(ANNA, BEN, CARO));
+            mode.current().orElseThrow().eliminate(BEN);
+
+            mode.leaveHunt(ANNA);
+
+            assertThat(lastRun.session().outcome().orElseThrow().reason())
+                    .isEqualTo(HuntDeathListener.HUNTERS_WIN);
+        }
+
+        @Test
+        @DisplayName("the last Hunter leaving ends it, won by nobody")
+        void lastHunter() {
+            huntWith(Set.of(ANNA), Set.of(ANNA, BEN));
+
+            mode.leaveHunt(BEN);
+
+            assertThat(lastRun.session().outcome().orElseThrow().reason()).isEqualTo(ManhuntMode.HUNTERS_LEFT);
+        }
+
+        @Test
+        @DisplayName("the run's very last participant leaving still ends it, though the run keeps them on its roster")
+        void lastParticipant() {
+            huntWith(Set.of(ANNA), Set.of(ANNA, BEN));
+            mode.leaveHunt(BEN);   // ends it: nobody chasing
+
+            assertThat(mode.leaveHunt(ANNA)).isEqualTo(ManhuntMode.LeaveOutcome.NO_HUNT);
+        }
+
+        @Test
+        @DisplayName("somebody not in it, or no hunt at all, is said so and nothing moves")
+        void notInIt() {
+            assertThat(mode.leaveHunt(ANNA)).isEqualTo(ManhuntMode.LeaveOutcome.NO_HUNT);
+            huntWith(Set.of(ANNA), Set.of(ANNA, BEN));
+
+            assertThat(mode.leaveHunt(dan)).isEqualTo(ManhuntMode.LeaveOutcome.NOT_IN_THE_HUNT);
+            assertThat(lastRun.session().participants()).containsExactlyInAnyOrder(ANNA, BEN);
+        }
+
+        @Test
+        @DisplayName("once left, a player cannot put themselves back — only an admin's assign can")
+        void noWayBackButAssign() {
+            settings.set(ManhuntSettings.DEFAULTS.withSideSwitchingMidHunt(true));
+            huntWith(Set.of(ANNA, BEN), Set.of(ANNA, BEN, CARO));
+            mode.leaveHunt(BEN);
+
+            assertThat(mode.changeSide(BEN, ManhuntMode.Side.RUNNER, false))
+                    .isEqualTo(ManhuntMode.SideChange.NOT_IN_THE_HUNT);
+            assertThat(mode.changeSide(BEN, ManhuntMode.Side.RUNNER, true))
+                    .isEqualTo(ManhuntMode.SideChange.CHANGED);
+            assertThat(lastRun.session().participants()).contains(BEN);
         }
     }
 
@@ -489,6 +658,9 @@ class ManhuntModeTest {
             assertThat(teams.hunters()).contains(dan);
             assertThat(lastRun.session().participants()).contains(dan);
             verify(compasses).refit(mode.current().orElseThrow(), player);
+            // Somebody who was not online when a hunt shut the door could not get back in after a
+            // disconnect — the grace exists for exactly that.
+            verify(whitelist).admit(dan);
             verify(player).setGameMode(org.bukkit.GameMode.SURVIVAL);
         }
 
@@ -512,6 +684,8 @@ class ManhuntModeTest {
 
         @BeforeEach
         void noRealScheduler() {
+            // Online, so the only timer is the head start's — an offline Runner starts their grace.
+            when(plugin.getServer().getPlayer(ANNA)).thenReturn(mock(Player.class));
             mode.laterWith((ticks, task) -> {
                 delays.add(ticks);
                 releases.add(task);

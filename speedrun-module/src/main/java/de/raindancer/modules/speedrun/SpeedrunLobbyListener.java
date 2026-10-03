@@ -224,8 +224,8 @@ public final class SpeedrunLobbyListener implements Listener {
         if (!player.getWorld().getName().equals(lobby.config().worldName())) {
             return;
         }
-        if (lobby.isReleased(player.getUniqueId())) {
-            return;
+        if (lobby.isReleased(player.getUniqueId()) || lobby.isSpectator(player.getUniqueId())) {
+            return;   // released, or not racing at all (/speedrunspectate): no head start to guard
         }
         event.setCancelled(true);
     }

@@ -170,4 +170,24 @@ class SpeedrunCountdownTest {
     private MockedStatic<Bukkit> mockStatic() {
         return org.mockito.Mockito.mockStatic(Bukkit.class);
     }
+
+    /** The plugin going away mid-countdown: Core keeps the shared bar until somebody clears it. */
+    @Test
+    @DisplayName("cancelled mid-way, it stops ticking, clears the bar, unfreezes, and never completes")
+    void cancelMidway() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic()) {
+            Consumer<ScheduledTask> tick = captureTicker(bukkit);
+            AtomicInteger completions = new AtomicInteger();
+            SpeedrunCountdown countdown = new SpeedrunCountdown(plugin, bossBars, effects,
+                    Set.of(ALICE), completions::incrementAndGet, Set.of());
+            countdown.begin();
+            tick.accept(null);
+
+            countdown.cancel();
+
+            verify(fakeTask).cancel();
+            verify(bossBars).clearShared("core", "speedrun-countdown");
+            assertThat(completions.get()).isZero();
+        }
+    }
 }

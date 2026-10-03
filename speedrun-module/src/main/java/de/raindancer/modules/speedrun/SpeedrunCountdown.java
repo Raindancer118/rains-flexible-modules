@@ -6,6 +6,7 @@ import de.raindancer.core.ui.bossbar.BarStyle;
 import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.core.ui.effect.Effects;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -51,6 +52,8 @@ final class SpeedrunCountdown implements Listener {
     private final Set<UUID> released;
 
     private int secondsLeft;
+    private ScheduledTask ticking;
+    private boolean over;
 
     SpeedrunCountdown(Plugin plugin, BossBars bossBars, Effects effects, Set<UUID> participants,
                       Runnable onComplete, Set<UUID> released) {
@@ -67,7 +70,7 @@ final class SpeedrunCountdown implements Listener {
         secondsLeft = SECONDS;
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         announce();
-        Scheduling.globalTimer(plugin, 20L, 20L, task -> {
+        ticking = Scheduling.globalTimer(plugin, 20L, 20L, task -> {
             secondsLeft--;
             if (secondsLeft <= 0) {
                 task.cancel();
@@ -76,6 +79,23 @@ final class SpeedrunCountdown implements Listener {
                 announce();
             }
         });
+    }
+
+    /**
+     * Stops it without ever completing — the plugin going away mid-countdown. Core owns the shared
+     * bar and outlives this plugin, so a countdown that just stopped ticking would leave "3" on
+     * everybody's screen until Core itself restarted.
+     */
+    synchronized void cancel() {
+        if (over) {
+            return;
+        }
+        over = true;
+        if (ticking != null) {
+            ticking.cancel();
+        }
+        HandlerList.unregisterAll(this);
+        bossBars.clearShared(OWNER, BAR_ID);
     }
 
     private void announce() {
@@ -87,6 +107,12 @@ final class SpeedrunCountdown implements Listener {
     }
 
     private void finish() {
+        synchronized (this) {
+            if (over) {
+                return;
+            }
+            over = true;
+        }
         HandlerList.unregisterAll(this);
         bossBars.clearShared(OWNER, BAR_ID);
         effects.playForAll(participants, Cues.COUNTDOWN_DONE);

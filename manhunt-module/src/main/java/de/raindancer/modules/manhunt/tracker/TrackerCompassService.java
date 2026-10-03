@@ -16,6 +16,7 @@ import de.raindancer.modules.manhunt.util.Threads;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Color;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -179,16 +180,16 @@ public final class TrackerCompassService {
     }
 
     /**
-     * Brings one player's compass in line with the side they are on now — on their own thread. A
-     * holder is handed one if they lack it, anybody else has theirs taken; either way the old pick
-     * goes, since it named somebody on the side they may just have left.
+     * Brings one player's compass in line with the side they are on and the settings as they are —
+     * on their own thread. A holder is handed one if they lack it; anybody else has theirs taken,
+     * and whatever it was showing them goes with it.
      */
     public void fit(Hunt hunt, Player player) {
-        forget(player.getUniqueId());
         if (isHolder(hunt, player.getUniqueId())) {
             give(player);
         } else {
             takeBack(player);
+            forget(player.getUniqueId());
         }
     }
 
@@ -298,7 +299,8 @@ public final class TrackerCompassService {
         List<Candidate> alive = new ArrayList<>();
         for (UUID id : ids) {
             Player player = plugin.getServer().getPlayer(id);
-            if (player != null && !player.isDead()) {
+            // A spectator is somebody watching, not somebody to find — staff, or a Runner made to watch.
+            if (player != null && !player.isDead() && player.getGameMode() != GameMode.SPECTATOR) {
                 alive.add(new Candidate(id, pointOf(player)));
             }
         }

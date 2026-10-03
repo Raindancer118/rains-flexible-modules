@@ -106,11 +106,15 @@ final class SpeedrunPreparation {
     }
 
     private void resetPlayer(UUID id, Player player) {
-        players.heal(id);
-        players.feed(id);
-        players.cure(id);
-        players.extinguish(id);
-        player.setSaturation(FULL_SATURATION);
+        // Somebody still on the death screen: health put into a body the server has let go of makes a
+        // player alive to the server and dead on their own screen. The respawn fills them up anyway.
+        if (!player.isDead()) {
+            players.heal(id);
+            players.feed(id);
+            players.cure(id);
+            players.extinguish(id);
+            player.setSaturation(FULL_SATURATION);
+        }
         carryNothingOver(player);
     }
 

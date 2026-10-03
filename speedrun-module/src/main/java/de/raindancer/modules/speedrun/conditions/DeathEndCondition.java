@@ -69,6 +69,15 @@ public final class DeathEndCondition implements SpeedrunEndCondition, Listener {
         }
     }
 
+    /** A removed racer's death no longer counts; and if everybody still racing is dead, it is over. */
+    @Override
+    public void participantRemoved(UUID player) {
+        dead.remove(player);
+        if (policy == DeathPolicy.ALL && !dead.isEmpty() && dead.containsAll(session.participants())) {
+            session.finish("death-all");
+        }
+    }
+
     @Override
     public String describe() {
         return "death:" + policy;

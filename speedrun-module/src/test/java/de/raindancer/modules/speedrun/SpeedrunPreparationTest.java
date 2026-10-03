@@ -290,4 +290,29 @@ class SpeedrunPreparationTest {
         verify(alice).setAbsorptionAmount(0);
         verify(alice).setArrowsInBody(0);
     }
+
+    /**
+     * Somebody on the death screen as the run starts. Healing a dead player puts health back into a
+     * body the server has already let go of — a player who is alive to the server and dead on their
+     * own screen. Their respawn gives them full health anyway.
+     */
+    @Test
+    @DisplayName("a racer still on the death screen is not healed — the respawn does that")
+    void aDeadRacerIsNotHealed() {
+        PlayerAdmin players = mock(PlayerAdmin.class);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
+        Player dead = runningItsOwnTasks(mock(Player.class, org.mockito.Mockito.RETURNS_DEEP_STUBS));
+        when(dead.isDead()).thenReturn(true);
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(dead);
+
+            preparation.prepare(null, Set.of(ALICE));
+        }
+
+        verify(players, never()).heal(ALICE);
+        verify(players, never()).feed(ALICE);
+        verify(dead, never()).setSaturation(org.mockito.ArgumentMatchers.anyFloat());
+        verify(dead.getInventory()).clear();   // the rest of the clean slate still happens
+    }
 }

@@ -5,6 +5,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -80,11 +81,15 @@ final class CompassItems {
 
     /**
      * Into the inventory, or at their feet when it does not fit — {@code addItem} hands back what it
-     * could not place rather than throwing, and throwing that away loses the compass.
+     * could not place rather than throwing, and throwing that away loses the compass. A compass on
+     * the ground is owned by its holder, so nobody else — the other side least of all — picks it up.
      */
     static void handTo(Player player, ItemStack stack) {
         for (ItemStack leftover : player.getInventory().addItem(stack).values()) {
-            player.getWorld().dropItem(player.getLocation(), leftover);
+            Item dropped = player.getWorld().dropItem(player.getLocation(), leftover);
+            if (dropped != null) {
+                dropped.setOwner(player.getUniqueId());
+            }
         }
     }
 

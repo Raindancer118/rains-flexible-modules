@@ -88,6 +88,8 @@ manhunt:
     given: "<gold>You have a structure compass. <gray>Right-click it to choose what it finds — once."
     chosen: "<gold>Your compass points at the nearest <white><structure></white>."
     none: "<yellow>No <white><structure></white> anywhere near. Choose something else."
+    # Every search can hold the server for seconds, so the same Runner waits between two.
+    wait: "<yellow>Still looking around — try again in <white><seconds></white> second(s)."
     reached: "<green>You have reached the <white><structure></white>. Your compass is gone."
     dropped: "<gray>You threw your structure compass away. It is gone."
   # /manhunt trail, or the button on /profile — each player's own particle trail.
@@ -102,6 +104,8 @@ manhunt:
   # A Runner has been caught, told to both sides.
   caught: "<red><runner> has been caught. <white><left></white> Runner(s) left."
   last-runner: "<red><runner> was the last Runner."
+  # A Runner logged out longer than runner-offline-grace-seconds — see AbsentRunners.
+  caught-away: "<red><runner> stayed away too long and counts as caught. <white><left></white> Runner(s) left."
   finished:
     runners: "<green>The Runners made it. <white><time></white>."
     hunters: "<red>Every Runner was caught. <white><time></white>."

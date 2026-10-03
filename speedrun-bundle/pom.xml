@@ -43,8 +43,9 @@
              0.8.0: speedrun 1.23.0, manhunt 0.20.0 — /manhunt start, /manhunt resume [time].
              0.9.0: speedrun 1.24.0, manhunt 0.20.1 — /manhunt assign brings latecomers into a running hunt;
              /manhunt resume works over a finished run without a world reset.
-             0.10.0: speedrun 1.25.0, manhunt 0.21.0 — full review pass; wrapper 1.2.0 names the RainsCore version it needs. -->
-        <plugin.version>0.10.0</plugin.version>
+             0.10.0: speedrun 1.25.0, manhunt 0.21.0 — full review pass; wrapper 1.2.0 names the RainsCore version it needs.
+             0.11.0: speedrun 1.26.0, manhunt 0.22.0 — edge-case pass. Needs RainsCore 1.42.0. -->
+        <plugin.version>0.11.0</plugin.version>
     </properties>
 
     <dependencies>

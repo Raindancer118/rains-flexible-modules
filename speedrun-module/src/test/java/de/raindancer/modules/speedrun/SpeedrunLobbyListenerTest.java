@@ -352,6 +352,18 @@ class SpeedrunLobbyListenerTest {
             return player;
         }
 
+        private org.bukkit.event.player.PlayerMoveEvent stepInLobby() {
+            when(lobby.config()).thenReturn(
+                    new SpeedrunSettings("", "world", "minecraft:end/kill_dragon", true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                true, true, true, true, true, 10, true, 1000,
+                true, true, true, true, true, true, true, true, true, true,
+                false, false));
+            Player player = playerInWorld("world");
+            World world = player.getWorld();
+            return new org.bukkit.event.player.PlayerMoveEvent(player,
+                    new Location(world, 10, 64, 10), new Location(world, 11, 64, 10));
+        }
+
         @Test
         @DisplayName("cancels an actual step in the lobby world while READY")
         void cancelsStepsWhileReady() {
@@ -405,6 +417,18 @@ class SpeedrunLobbyListenerTest {
 
             org.bukkit.event.player.PlayerMoveEvent event =
                     new org.bukkit.event.player.PlayerMoveEvent(player, from, walked);
+            listener.onMove(event);
+
+            assertThat(event.isCancelled()).isFalse();
+        }
+
+        @Test
+        @DisplayName("somebody who said they are not racing (/speedrunspectate) is not frozen")
+        void aSpectatorIsNotFrozen() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            when(lobby.isSpectator(ALICE)).thenReturn(true);
+            org.bukkit.event.player.PlayerMoveEvent event = stepInLobby();
+
             listener.onMove(event);
 
             assertThat(event.isCancelled()).isFalse();
@@ -728,6 +752,104 @@ class SpeedrunLobbyListenerTest {
             listener.onDeath(deathDropping(drops));
 
             assertThat(drops).containsExactly(realLoot);
+        }
+    }
+
+    @Nested
+    @DisplayName("respawning into the lobby")
+    class Respawn {
+
+        private org.bukkit.event.player.PlayerRespawnEvent respawnIn(String worldName) {
+            when(lobby.config()).thenReturn(new SpeedrunSettings("", "world", "minecraft:end/kill_dragon",
+                    true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                    true, true, true, true, true, 10, true, 1000,
+                    true, true, true, true, true, true, true, true, true, true,
+                    false, false));
+            World world = mock(World.class);
+            when(world.getName()).thenReturn(worldName);
+            Player player = playerWithId(ALICE);
+            when(player.getScheduler()).thenReturn(mock(EntityScheduler.class));
+            return new org.bukkit.event.player.PlayerRespawnEvent(player, new Location(world, 0, 64, 0), false);
+        }
+
+        @Test
+        @DisplayName("READY: the kit is handed back a tick later, on the player's own thread")
+        void readyHandsTheKitBack() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            org.bukkit.event.player.PlayerRespawnEvent event = respawnIn("world");
+
+            listener.onRespawn(event);
+
+            verify(event.getPlayer().getScheduler()).runDelayed(any(), any(), any(), org.mockito.ArgumentMatchers.eq(1L));
+        }
+
+        @Test
+        @DisplayName("RUNNING: a racer respawning in the run gets no lobby items")
+        void runningHandsNothing() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
+            org.bukkit.event.player.PlayerRespawnEvent event = respawnIn("world");
+
+            listener.onRespawn(event);
+
+            verify(event.getPlayer().getScheduler(), never()).runDelayed(any(), any(), any(), org.mockito.ArgumentMatchers.anyLong());
+        }
+
+        @Test
+        @DisplayName("READY: a respawn anywhere else is none of the lobby's business")
+        void elsewhereHandsNothing() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.READY);
+            org.bukkit.event.player.PlayerRespawnEvent event = respawnIn("hub");
+
+            listener.onRespawn(event);
+
+            verify(event.getPlayer().getScheduler(), never()).runDelayed(any(), any(), any(), org.mockito.ArgumentMatchers.anyLong());
+        }
+    }
+
+    @Nested
+    @DisplayName("a late joiner while a run is on")
+    class LateJoiner {
+
+        @Test
+        @DisplayName("PAUSED or COUNTDOWN: joining into the lobby world hands out nothing")
+        void nothingWhileNotReady() {
+            when(lobby.config()).thenReturn(new SpeedrunSettings("", "world", "minecraft:end/kill_dragon",
+                    true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                    true, true, true, true, true, 10, true, 1000,
+                    true, true, true, true, true, true, true, true, true, true,
+                    false, false));
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            Player player = playerWithId(ALICE);
+            when(player.getWorld()).thenReturn(world);
+
+            for (SpeedrunLobbyState state : List.of(SpeedrunLobbyState.PAUSED, SpeedrunLobbyState.COUNTDOWN)) {
+                when(lobby.state()).thenReturn(state);
+                listener.onJoin(new PlayerJoinEvent(player, "hi"));
+            }
+
+            verify(items, never()).give(any(), anyBoolean());
+        }
+
+        @Test
+        @DisplayName("COUNTDOWN: somebody who arrived after the start was pressed is not frozen by the lobby")
+        void notFrozenDuringACountdown() {
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.COUNTDOWN);
+            when(lobby.config()).thenReturn(new SpeedrunSettings("", "world", "minecraft:end/kill_dragon",
+                    true, SpeedrunDeathPolicy.OFF, false, 100, 0, 100, 0, false, 0, 0, 0, 0, 0,
+                    true, true, true, true, true, 10, true, 1000,
+                    true, true, true, true, true, true, true, true, true, true,
+                    false, false));
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            Player player = playerWithId(ALICE);
+            when(player.getWorld()).thenReturn(world);
+            org.bukkit.event.player.PlayerMoveEvent event = new org.bukkit.event.player.PlayerMoveEvent(player,
+                    new Location(world, 10, 64, 10), new Location(world, 11, 64, 10));
+
+            listener.onMove(event);
+
+            assertThat(event.isCancelled()).isFalse();
         }
     }
 }

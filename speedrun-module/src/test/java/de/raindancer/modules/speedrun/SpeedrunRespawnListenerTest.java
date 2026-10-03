@@ -120,4 +120,63 @@ class SpeedrunRespawnListenerTest {
 
         assertThat(event.getRespawnLocation()).isEqualTo(untouched);
     }
+
+    private static PlayerRespawnEvent endCredits(World lastDeathIn, World leaving, World respawnIn) {
+        Player player = mock(Player.class);
+        when(player.getLastDeathLocation())
+                .thenReturn(lastDeathIn == null ? null : new Location(lastDeathIn, 9, 30, 9));
+        when(player.getWorld()).thenReturn(leaving);
+        return new PlayerRespawnEvent(player, new Location(respawnIn, 100, 64, 100), false, false, false,
+                PlayerRespawnEvent.RespawnReason.END_PORTAL);
+    }
+
+    /**
+     * The exit portal is not a death: the last death on record can be from any earlier day, in any
+     * world. Judged by it, a racer whose last death was in the server's own nether walked out of the
+     * run's End into the server's overworld.
+     */
+    @Test
+    @DisplayName("leaving the run's End through the exit portal comes back into the run, whatever the last death was")
+    void endCreditsAreJudgedByTheEndTheyLeft() {
+        PlayerRespawnEvent event = endCredits(worldNamed("world_nether"), worldNamed("speedrun_the_end"),
+                worldNamed("world"));
+
+        listener.onRespawn(event);
+
+        assertThat(event.getRespawnLocation()).isEqualTo(wayBackIn);
+    }
+
+    @Test
+    @DisplayName("leaving the server's own End is none of this module's business, even after a death in the run")
+    void someoneElsesEndCreditsAreLeftAlone() {
+        PlayerRespawnEvent event = endCredits(worldNamed("speedrun_nether"), worldNamed("world_the_end"),
+                worldNamed("world"));
+        Location untouched = event.getRespawnLocation();
+
+        listener.onRespawn(event);
+
+        assertThat(event.getRespawnLocation()).isEqualTo(untouched);
+    }
+
+    @Test
+    @DisplayName("after the credits, a bed in the run's overworld is kept")
+    void endCreditsKeepABedInTheRun() {
+        PlayerRespawnEvent event = endCredits(null, worldNamed("speedrun_the_end"), worldNamed("speedrun"));
+        Location bed = event.getRespawnLocation();
+
+        listener.onRespawn(event);
+
+        assertThat(event.getRespawnLocation()).isEqualTo(bed);
+    }
+
+    @Test
+    @DisplayName("a death in the run's overworld with an anchor in the run's nether keeps the anchor")
+    void anAnchorInTheRunsNetherIsKept() {
+        PlayerRespawnEvent event = death(worldNamed("speedrun"), worldNamed("speedrun_nether"));
+        Location anchor = event.getRespawnLocation();
+
+        listener.onRespawn(event);
+
+        assertThat(event.getRespawnLocation()).isEqualTo(anchor);
+    }
 }

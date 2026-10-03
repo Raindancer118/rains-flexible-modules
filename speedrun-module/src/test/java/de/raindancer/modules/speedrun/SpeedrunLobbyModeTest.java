@@ -153,6 +153,11 @@ class SpeedrunLobbyModeTest {
         bukkit = mockStatic(Bukkit.class);
         bukkit.when(() -> Bukkit.getWorld(anyString())).thenReturn(null);
         bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+        // Online at the countdown's zero — whoever has left by then does not race.
+        org.bukkit.entity.Player alice = playerRunningItsOwnTasks();
+        org.bukkit.entity.Player bob = playerRunningItsOwnTasks();
+        bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+        bukkit.when(() -> Bukkit.getPlayer(BOB)).thenReturn(bob);
         handlers = mockStatic(HandlerList.class);
     }
 
@@ -407,6 +412,27 @@ class SpeedrunLobbyModeTest {
                 (participants, onComplete) -> onComplete.run(), messages);
 
         lobby.beginCountdown(Set.of(ALICE));
+        lobby.session().orElseThrow().finish("advancement:minecraft:end/kill_dragon");
+
+        verify(messages, never()).send(any(), eq("speedrun.finished"), any(), any(), any(), any());
+    }
+
+    /**
+     * {@code game-mode} is a setting anybody with /settings can change at any time. A hunt whose
+     * mode was switched to a plain race mid-run used to be announced as a plain race — the mode that
+     * actually played it never got to say who won.
+     */
+    @Test
+    @DisplayName("game-mode changed mid-run: the finish is still the run's own mode's to announce")
+    void modeChangedMidRunStillAnnounces() {
+        settings.set("game-mode", "scripted");
+        mode.announces = true;
+        Messages messages = mock(Messages.class);
+        SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings,
+                (participants, onComplete) -> onComplete.run(), messages);
+        lobby.beginCountdown(Set.of(ALICE));
+
+        settings.set("game-mode", "");
         lobby.session().orElseThrow().finish("advancement:minecraft:end/kill_dragon");
 
         verify(messages, never()).send(any(), eq("speedrun.finished"), any(), any(), any(), any());

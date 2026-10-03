@@ -4,12 +4,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 
 /**
- * The structure compass' clicks, its drop, and a death. Registered for the life of the module — it
+ * The structure compass' clicks and its drop — a death is {@link CompassKeeper}'s. Registered for the life of the module — it
  * only ever acts on its own items, which exist only during a hunt.
  */
 public final class StructureCompassListener implements Listener {
@@ -38,10 +37,5 @@ public final class StructureCompassListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDrop(PlayerDropItemEvent event) {
         structures.onDrop(event);
-    }
-
-    @EventHandler(priority = EventPriority.NORMAL)
-    public void onDeath(PlayerDeathEvent event) {
-        event.getDrops().removeIf(structures::isStructureCompass);
     }
 }

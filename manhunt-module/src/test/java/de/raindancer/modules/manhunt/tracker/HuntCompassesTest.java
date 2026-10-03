@@ -64,6 +64,34 @@ class HuntCompassesTest {
         verify(tracker).fit(hunt, player);
         verify(team).fit(hunt, player);
         verify(structures).fit(hunt, player);
+        // A side change: the old pick named somebody on the side they just left.
+        verify(tracker).forget(RUNNER);
+        verify(team).forget(RUNNER);
+    }
+
+    @Test
+    @DisplayName("a setting changed mid-hunt refits everybody online at once, picks kept")
+    void settingsChangedMidHunt() {
+        org.bukkit.Server server = mock(org.bukkit.Server.class);
+        when(plugin.getServer()).thenReturn(server);
+        when(server.getPlayer(RUNNER)).thenReturn(player);
+        Hunt hunt = Hunt.of(Set.of(RUNNER, HUNTER), Set.of(RUNNER));
+        live.set(hunt);
+
+        compasses.settingsChanged();
+
+        verify(tracker).fit(hunt, player);
+        verify(team).fit(hunt, player);
+        verify(structures).fit(hunt, player);
+        verify(tracker, never()).forget(any());
+    }
+
+    @Test
+    @DisplayName("a setting changed between hunts touches nobody")
+    void settingsChangedInTheLobby() {
+        compasses.settingsChanged();
+
+        verify(tracker, never()).fit(any(), any());
     }
 
     @Test

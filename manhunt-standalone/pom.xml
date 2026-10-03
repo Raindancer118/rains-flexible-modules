@@ -92,8 +92,9 @@
              lobby was set to. Needs RainsSpeedrun 1.23.0.
              0.20.1: /manhunt assign mid-hunt brings in somebody who was not in the hunt (a latecomer, or
              somebody who left) instead of refusing. Needs RainsSpeedrun 1.24.0.
-             0.21.0: review — Hunters really join their team at start; side changes refit all three compasses; hunt cleanup works during shutdown; the last Hunter cannot switch away; rejoining players get their compasses back. Needs RainsSpeedrun 1.25.0. -->
-        <plugin.version>0.21.0</plugin.version>
+             0.21.0: review — Hunters really join their team at start; side changes refit all three compasses; hunt cleanup works during shutdown; the last Hunter cannot switch away; rejoining players get their compasses back. Needs RainsSpeedrun 1.25.0.
+             0.22.0: edge cases — offline Runners caught after runner-offline-grace-seconds, whitelist reopened after a restart, compasses never leave their holder, settings refit mid-hunt, faster structure search. Needs RainsSpeedrun 1.26.0, RainsCore 1.42.0. -->
+        <plugin.version>0.22.0</plugin.version>
     </properties>
 
     <dependencies>
@@ -117,6 +118,19 @@
             </resource>
         </resources>
         <plugins>
+            <!--
+              Always a fresh jar. Left to itself the jar plugin keeps the existing one when nothing in
+              this module's own (two-class) sources changed — and that existing jar is last build's
+              shaded one, so shade wraps the old module again and ships it. StandaloneJarTest's
+              theJarIsNotStale caught exactly that after a manhunt-module-only change.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <forceCreation>true</forceCreation>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>

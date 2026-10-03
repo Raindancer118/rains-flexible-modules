@@ -18,6 +18,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.StructureSearchResult;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,8 +28,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static de.raindancer.modules.manhunt.tracker.CompassItems.line;
 
@@ -48,8 +52,30 @@ public final class StructureCompassService {
     private static final String CHOSEN = "chosen";
     private static final Predicate<String> BLANK = UNCHOSEN::equals;
     private static final Predicate<String> EITHER = state -> UNCHOSEN.equals(state) || CHOSEN.equals(state);
-    /** How far the search reaches, in chunks — a mansion can be a long way off, and that is the Runner's call. */
+    /**
+     * How far the search reaches, in chunks — vanilla's own {@code /locate}. Not a bound on the time:
+     * measured on 26.2, radius 50 took as long as 100 (one desert pyramid 8.4 s at 50), because the
+     * search widens until it finds one whatever the radius says.
+     */
     private static final int SEARCH_RADIUS_CHUNKS = 100;
+
+    /**
+     * How long after a search the same Runner may search again. Measured on 26.2: a single search
+     * holds the Runner's region from a few ms to several seconds, and "none found" invites a retry.
+     */
+    static final long SEARCH_COOLDOWN_MILLIS = 10_000;
+
+    /** How one choice is searched — always one pass where the server can do it in one. */
+    enum SearchPlan {
+        /** A single structure. */
+        ONE,
+        /** Every variant shares one structure type of its own (shipwrecks, ruined portals): one pass by type. */
+        BY_TYPE,
+        /** Villages: their type, jigsaw, is shared with half the game, but the server knows "village". */
+        VILLAGES,
+        /** Nothing in common: one search per variant — none of the offered choices is this. */
+        EACH
+    }
 
     /** Finds the nearest of any of these structures; a seam so everything else is testable. */
     @FunctionalInterface
@@ -67,6 +93,8 @@ public final class StructureCompassService {
     private final Supplier<ManhuntSettings> settings;
     private final Locator locator;
     private final CompassItems items;
+    private final LongSupplier clockMillis;
+    private final Map<UUID, Long> lastSearch = new ConcurrentHashMap<>();
     private final Map<UUID, Destination> destinations = new ConcurrentHashMap<>();
     /** Runners who have used their one choice this hunt. */
     private final Set<UUID> chosen = ConcurrentHashMap.newKeySet();
@@ -74,6 +102,12 @@ public final class StructureCompassService {
 
     public StructureCompassService(Plugin plugin, Supplier<Optional<Hunt>> liveHunt, Messages messages,
                                    Supplier<ManhuntSettings> settings, Locator locator) {
+        this(plugin, liveHunt, messages, settings, locator, System::currentTimeMillis);
+    }
+
+    StructureCompassService(Plugin plugin, Supplier<Optional<Hunt>> liveHunt, Messages messages,
+                            Supplier<ManhuntSettings> settings, Locator locator, LongSupplier clockMillis) {
+        this.clockMillis = Objects.requireNonNull(clockMillis, "clockMillis");
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.liveHunt = Objects.requireNonNull(liveHunt, "liveHunt");
         this.messages = messages;
@@ -82,29 +116,59 @@ public final class StructureCompassService {
         this.items = new CompassItems(plugin, "manhunt-structure-compass", Material.COMPASS);
     }
 
-    /** The real search: every variant, the nearest of all. Runs on the caller's (the player's) thread. */
+    /**
+     * The real search, on the caller's (the Runner's) thread — Paper has no asynchronous one. Every
+     * variant of a choice in one pass: measured on 26.2, the five villages one after another took
+     * 3.3 s where one pass over all five took 0.6 s.
+     */
+    @SuppressWarnings("deprecation")   // the legacy VILLAGE type is the API's only one-pass village search
     public static Locator worldSearch() {
         return (origin, keys) -> {
             World world = origin.getWorld();
             if (world == null) {
                 return Optional.empty();
             }
-            Location best = null;
-            double bestDistance = Double.MAX_VALUE;
-            for (String key : keys) {
-                Structure structure = Registry.STRUCTURE.get(NamespacedKey.minecraft(key));
-                if (structure == null) {
-                    continue;
-                }
-                StructureSearchResult result = world.locateNearestStructure(origin, structure,
-                        SEARCH_RADIUS_CHUNKS, false);
-                if (result != null && result.getLocation().distanceSquared(origin) < bestDistance) {
-                    best = result.getLocation();
-                    bestDistance = best.distanceSquared(origin);
-                }
+            List<Structure> structures = keys.stream()
+                    .map(key -> Registry.STRUCTURE.get(NamespacedKey.minecraft(key)))
+                    .filter(Objects::nonNull).toList();
+            if (structures.isEmpty()) {
+                return Optional.empty();
             }
-            return Optional.ofNullable(best);
+            SearchPlan plan = plan(keys, key -> {
+                Structure structure = Registry.STRUCTURE.get(NamespacedKey.minecraft(key));
+                return structure == null ? key : structure.getStructureType().key().value();
+            });
+            return switch (plan) {
+                case ONE -> found(world.locateNearestStructure(origin, structures.getFirst(), SEARCH_RADIUS_CHUNKS, false));
+                case BY_TYPE -> found(world.locateNearestStructure(origin,
+                        structures.getFirst().getStructureType(), SEARCH_RADIUS_CHUNKS, false));
+                case VILLAGES -> Optional.ofNullable(world.locateNearestStructure(origin,
+                        org.bukkit.StructureType.VILLAGE, SEARCH_RADIUS_CHUNKS, false));
+                case EACH -> structures.stream()
+                        .map(structure -> world.locateNearestStructure(origin, structure, SEARCH_RADIUS_CHUNKS, false))
+                        .filter(Objects::nonNull).map(StructureSearchResult::getLocation)
+                        .min(Comparator.comparingDouble(at -> at.distanceSquared(origin)));
+            };
         };
+    }
+
+    private static Optional<Location> found(StructureSearchResult result) {
+        return result == null ? Optional.empty() : Optional.of(result.getLocation());
+    }
+
+    /** @param typeOf each structure id's own structure type id */
+    static SearchPlan plan(List<String> keys, Function<String, String> typeOf) {
+        if (keys.size() == 1) {
+            return SearchPlan.ONE;
+        }
+        if (keys.stream().allMatch(key -> key.startsWith("village_"))) {
+            return SearchPlan.VILLAGES;
+        }
+        Set<String> types = keys.stream().map(typeOf).collect(Collectors.toSet());
+        if (types.size() == 1 && !types.contains("jigsaw")) {
+            return SearchPlan.BY_TYPE;
+        }
+        return SearchPlan.EACH;
     }
 
     public void chooserScreen(Consumer<Player> opener) {
@@ -126,6 +190,7 @@ public final class StructureCompassService {
     public void arm() {
         destinations.clear();
         chosen.clear();
+        lastSearch.clear();
     }
 
     public void disarm(Hunt hunt) {
@@ -199,6 +264,14 @@ public final class StructureCompassService {
         if (slot < 0) {
             return false;
         }
+        long now = clockMillis.getAsLong();
+        Long previous = lastSearch.get(id);
+        if (previous != null && now - previous < SEARCH_COOLDOWN_MILLIS) {
+            say(runner, "manhunt.structure.wait",
+                    "seconds", String.valueOf((SEARCH_COOLDOWN_MILLIS - (now - previous) + 999) / 1000));
+            return false;
+        }
+        lastSearch.put(id, now);
         Optional<Location> nearest = locator.nearest(runner.getLocation(), choice.structureKeys());
         if (nearest.isEmpty()) {
             say(runner, "manhunt.structure.none", "structure", choice.label());

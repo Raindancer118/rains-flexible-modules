@@ -1,5 +1,7 @@
 package de.raindancer.modules.speedrun;
 
+import java.util.UUID;
+
 /**
  * A way a run can end: an advancement, a death, or anything else somebody can write a Bukkit
  * listener for.
@@ -27,6 +29,14 @@ public interface SpeedrunEndCondition {
 
     /** Detaches whatever {@link #arm} attached. Called once, when the run finishes. */
     void disarm();
+
+    /**
+     * {@code player} was taken off the roster mid-run ({@link SpeedrunSession#removeParticipant}). A
+     * condition judged over the whole roster — "everybody has died" — re-judges here, since the
+     * roster it waits on just got smaller. Nothing to do by default.
+     */
+    default void participantRemoved(UUID player) {
+    }
 
     /** A name for the log line and {@link SpeedrunOutcome#reason()} — see {@code IRule.describe()}. */
     default String describe() {

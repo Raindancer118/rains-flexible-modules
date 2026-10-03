@@ -45,7 +45,12 @@ public final class SpeedrunRespawnListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onRespawn(PlayerRespawnEvent event) {
         SpeedrunWorlds worlds = SpeedrunWorlds.around(lobby.config().worldName());
-        if (!worlds.contains(diedIn(event.getPlayer()))) {
+        // The exit portal is not a death: the last death on record may be from any earlier day, in any
+        // world. What counts is the End being left, which is still where the player is.
+        String leaving = event.getRespawnReason() == PlayerRespawnEvent.RespawnReason.END_PORTAL
+                ? event.getPlayer().getWorld().getName()
+                : diedIn(event.getPlayer());
+        if (!worlds.contains(leaving)) {
             return;
         }
         if (worlds.contains(nameOf(event.getRespawnLocation()))) {

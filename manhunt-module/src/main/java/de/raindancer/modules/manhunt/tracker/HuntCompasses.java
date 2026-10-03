@@ -7,6 +7,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Objects;
@@ -63,6 +64,11 @@ public final class HuntCompasses implements Listener {
         return structures;
     }
 
+    /** Whether {@code stack} is any of the three. */
+    public boolean isOurs(ItemStack stack) {
+        return tracker.isTracker(stack) || team.isTeamCompass(stack) || structures.isStructureCompass(stack);
+    }
+
     /** A hunt has started: nothing carries over, and everybody online in it is handed what they are owed. */
     public void armFor(Hunt hunt) {
         team.arm();
@@ -83,9 +89,33 @@ public final class HuntCompasses implements Listener {
         structures.disarm(hunt);
     }
 
-    /** {@code player}'s compasses in line with the side they are on now, on their own thread. */
+    /**
+     * {@code player}'s compasses in line with the side they are on now, on their own thread — after a
+     * side change, so whatever they had picked goes too: it named somebody on the side they left.
+     */
     public void refit(Hunt hunt, Player player) {
-        Threads.entity(plugin, player, () -> fit(hunt, player));
+        Threads.entity(plugin, player, () -> {
+            fit(hunt, player);
+            tracker.forget(player.getUniqueId());
+            team.forget(player.getUniqueId());
+        });
+    }
+
+    /**
+     * A setting changed: everybody in a running hunt gets — or loses — the compasses it decides at
+     * once, rather than at their next death. Picks stay; nobody changed sides.
+     */
+    public void settingsChanged() {
+        Hunt hunt = liveHunt.get().orElse(null);
+        if (hunt == null) {
+            return;
+        }
+        for (UUID id : hunt.everybody()) {
+            Player player = plugin.getServer().getPlayer(id);
+            if (player != null) {
+                Threads.entity(plugin, player, () -> fit(hunt, player));
+            }
+        }
     }
 
     private void fit(Hunt hunt, Player player) {

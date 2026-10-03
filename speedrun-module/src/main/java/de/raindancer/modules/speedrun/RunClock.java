@@ -12,9 +12,13 @@ public final class RunClock {
 
     private static final Pattern CLOCK = Pattern.compile("(?:(\\d+):)?(\\d+):(\\d{2})");
 
+    /** Far beyond any run, and far below where a clock's arithmetic would overflow. */
+    static final Duration LONGEST = Duration.ofHours(10_000);
+
     private RunClock() {
     }
 
+    /** Empty for anything that is not a clock reading between zero and {@link #LONGEST}. */
     public static Optional<Duration> parse(String typed) {
         if (typed == null) {
             return Optional.empty();
@@ -23,6 +27,15 @@ public final class RunClock {
         if (text.equals("0")) {
             return Optional.of(Duration.ZERO);
         }
+        try {
+            return read(text).filter(reading -> !reading.isNegative() && reading.compareTo(LONGEST) <= 0);
+        } catch (NumberFormatException | ArithmeticException tooBig) {
+            // Digits too many for a long, or hours too many for a Duration: not a clock reading.
+            return Optional.empty();
+        }
+    }
+
+    private static Optional<Duration> read(String text) {
         Matcher clock = CLOCK.matcher(text);
         if (clock.matches()) {
             long hours = clock.group(1) == null ? 0 : Long.parseLong(clock.group(1));

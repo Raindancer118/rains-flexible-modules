@@ -269,6 +269,19 @@ public record SpeedrunSettings(
             false, false);
 
     /** Whether a game mode is chosen at all — an empty id is the plain race. */
+    /** The same settings in {@code name} — how a run keeps its world while {@code world-name} changes. */
+    public SpeedrunSettings withWorldName(String name) {
+        return new SpeedrunSettings(gameMode, name, advancementKey, clearAdvancementsOnStart, deathPolicy,
+                requireExitPortalAfterDragon, creeperSpawnChanceOnBreakPercent,
+                chargedCreeperChanceOnBreakPercent, creeperSpawnChanceOnContainerPercent,
+                chargedCreeperChanceOnContainerPercent, startPointSet, startX, startY, startZ, startYaw,
+                startPitch, startBlockStaffOnly, lobbyProtected, lobbyExplosionsBlocked,
+                showTimerToOnlookers, restartWhenRunEnds, restartAfterSeconds, setTimeOnStart,
+                startTimeTicks, bedExplosionsInNether, bedExplosionsInTheEnd, anchorExplosionsInOverworld,
+                anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
+                endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns);
+    }
+
     public boolean hasGameMode() {
         return gameMode != null && !gameMode.isBlank();
     }

@@ -26,7 +26,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.25.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.26.0")
             .describedAs("A speedrun lobby: pick a game, an advancement goal and a death policy "
                     + "from the compass's menu, then press the green block to race. A countdown "
                     + "freezes everyone first, and the lobby world resets once the last racer has "
@@ -105,6 +105,9 @@ public final class SpeedrunModule implements FlexModule {
 
     @Override
     public void disable() {
+        if (lobby != null) {
+            lobby.shutdown();
+        }
         SpeedrunCommands.stopped();
         SpeedrunControl.stopped();
         // Whatever game mode a module offered goes with this module, not with theirs: on a reload
@@ -113,7 +116,7 @@ public final class SpeedrunModule implements FlexModule {
         SpeedrunModes.clear();
         // Nothing to flush: the configuration is already on disk through its own settings store, and
         // a run in progress does not survive a restart either way — see SpeedrunLobby's own class
-        // javadoc for why that is unchanged, deliberate scope rather than an oversight.
+        // javadoc. shutdown() above only clears what Core would otherwise keep showing.
         //
         // The listener is unregistered by the context, in the reverse order it was registered.
     }

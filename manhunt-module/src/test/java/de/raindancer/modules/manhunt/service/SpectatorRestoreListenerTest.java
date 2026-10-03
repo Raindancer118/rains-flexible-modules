@@ -70,4 +70,59 @@ class SpectatorRestoreListenerTest {
 
         verify(eliminations, never()).restore(staff);
     }
+
+    @Test
+    @DisplayName("a Runner caught while logged out comes back watching, not playing")
+    void caughtWhileAwayComesBackWatching() {
+        Eliminations eliminations = mock(Eliminations.class);
+        Player anna = marked(ANNA, eliminations, false);
+        Hunt hunt = Hunt.of(Set.of(ANNA, BEN), Set.of(ANNA));
+        hunt.eliminate(ANNA);
+        var listener = new SpectatorRestoreListener(() -> Optional.of(hunt), eliminations);
+
+        listener.onJoin(joinOf(anna));
+
+        verify(eliminations).spectate(anna);
+    }
+
+    @Test
+    @DisplayName("a Runner still in the hunt joins as they left")
+    void stillRunning() {
+        Eliminations eliminations = mock(Eliminations.class);
+        Player anna = marked(ANNA, eliminations, false);
+        Hunt hunt = Hunt.of(Set.of(ANNA, BEN), Set.of(ANNA));
+        var listener = new SpectatorRestoreListener(() -> Optional.of(hunt), eliminations);
+
+        listener.onJoin(joinOf(anna));
+
+        verify(eliminations, never()).spectate(anna);
+        verify(eliminations, never()).restore(anna);
+    }
+
+    @Test
+    @DisplayName("caught in an older hunt, joining while a new one runs without them: put back")
+    void markedFromAnOlderHunt() {
+        Eliminations eliminations = mock(Eliminations.class);
+        Player anna = marked(ANNA, eliminations, true);
+        Hunt newer = Hunt.of(Set.of(BEN, UUID.randomUUID()), Set.of(BEN));
+        var listener = new SpectatorRestoreListener(() -> Optional.of(newer), eliminations);
+
+        listener.onJoin(joinOf(anna));
+
+        verify(eliminations).restore(anna);
+    }
+
+    @Test
+    @DisplayName("after a reload, everybody already online and still marked is put back at once")
+    void sweepAtEnable() {
+        Eliminations eliminations = mock(Eliminations.class);
+        Player anna = marked(ANNA, eliminations, true);
+        Player staff = marked(BEN, eliminations, false);
+        var listener = new SpectatorRestoreListener(Optional::empty, eliminations);
+
+        listener.sweep(java.util.List.of(anna, staff));
+
+        verify(eliminations).restoreOnTheirThread(anna);
+        verify(eliminations, never()).restoreOnTheirThread(staff);
+    }
 }

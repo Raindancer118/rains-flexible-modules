@@ -338,6 +338,18 @@ class ManhuntCommandTest {
     }
 
     @Test
+    @DisplayName("assign names an online player — somebody offline is said, not guessed at")
+    void assignOffline() {
+        bukkit = mockStatic(Bukkit.class);
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+
+        command.execute(source, new String[]{"assign", "Gone", "runner"});
+
+        assertThat(fake.teams.runners()).isEmpty();
+        verify(fake.messages).send(eq(anna), eq("manhunt.no-such-player"), any(Object[].class));
+    }
+
+    @Test
     @DisplayName("assign without the node changes nobody")
     void assignIsGated() {
         when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(false);

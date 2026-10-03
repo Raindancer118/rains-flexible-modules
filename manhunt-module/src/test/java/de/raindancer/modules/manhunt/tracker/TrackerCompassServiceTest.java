@@ -90,10 +90,16 @@ class TrackerCompassServiceTest {
         HashMap<Integer, ItemStack> notFitted = new HashMap<>();
         notFitted.put(0, compass);
         when(inventory.addItem(compass)).thenReturn(notFitted);
+        org.bukkit.entity.Item dropped = mock(org.bukkit.entity.Item.class);
+        when(world.dropItem(location, compass)).thenReturn(dropped);
+        java.util.UUID id = java.util.UUID.randomUUID();
+        when(hunter.getUniqueId()).thenReturn(id);
 
         service.place(hunter, compass);
 
         verify(world).dropItem(location, compass);
+        // Owned, so a Runner walking past cannot pick up a working tracking compass.
+        verify(dropped).setOwner(id);
         verify(messages).send(hunter, "manhunt.tracker.given");
     }
 
@@ -174,6 +180,19 @@ class TrackerCompassServiceTest {
     }
 
     @Test
+    @DisplayName("a pick from a list left open past the end of the hunt changes nothing")
+    void pickAfterTheHunt() {
+        java.util.UUID someone = java.util.UUID.randomUUID();
+        when(hunter.getUniqueId()).thenReturn(someone);
+
+        service.pick(hunter, TrackerCompass.Following.of(java.util.UUID.randomUUID()));
+        service.cycleTarget(hunter);
+
+        assertThat(service.pickOf(someone)).isEmpty();
+        verify(messages, never()).send(any(Player.class), any(String.class), any(Object[].class));
+    }
+
+    @Test
     @DisplayName("ending a hunt while the plugin shuts down still takes every compass back")
     void disarmWhileShuttingDown() {
         // Paper refuses to schedule for a disabled plugin, and a module is disabled inside its
@@ -241,6 +260,49 @@ class TrackerCompassServiceTest {
         verify(bars).show(eq(hunterId), eq(TrackerCompassService.DISTANCE_OWNER), any(), any(), any());
 
         live.takeFrom(hunter);
+
+        verify(bars).clear(hunterId, TrackerCompassService.DISTANCE_OWNER);
+    }
+
+    @Test
+    @DisplayName("the distance switched off mid-hunt is gone at the very next redraw")
+    void distanceSwitchedOffMidHunt() {
+        java.util.UUID hunterId = java.util.UUID.nameUUIDFromBytes("hunter".getBytes());
+        java.util.UUID runnerId = java.util.UUID.nameUUIDFromBytes("runner".getBytes());
+        de.raindancer.modules.manhunt.model.Hunt hunt = de.raindancer.modules.manhunt.model.Hunt.of(
+                java.util.Set.of(hunterId, runnerId), java.util.Set.of(runnerId));
+        when(world.getName()).thenReturn("hunt");
+        when(world.getEnvironment()).thenReturn(World.Environment.NORMAL);
+        when(hunter.getUniqueId()).thenReturn(hunterId);
+        when(hunter.getLocation()).thenReturn(new Location(world, 0, 64, 0));
+        ItemStack held = trackerStack(mock(org.bukkit.inventory.meta.CompassMeta.class));
+        ItemStack[] contents = new ItemStack[36];
+        contents[0] = held;
+        when(inventory.getContents()).thenReturn(contents);
+        when(inventory.getItem(0)).thenReturn(held);
+        when(inventory.getItemInMainHand()).thenReturn(held);
+        Player runner = mock(Player.class);
+        when(runner.getUniqueId()).thenReturn(runnerId);
+        when(runner.getName()).thenReturn("Runner");
+        when(runner.getLocation()).thenReturn(new Location(world, 50, 64, 0));
+        org.bukkit.Server server = mock(org.bukkit.Server.class);
+        when(server.getPlayer(runnerId)).thenReturn(runner);
+        when(server.getPlayer(hunterId)).thenReturn(hunter);
+        Plugin plugin = mock(Plugin.class);
+        when(plugin.getName()).thenReturn("manhunt");
+        when(plugin.namespace()).thenReturn("manhunt");
+        when(plugin.getServer()).thenReturn(server);
+        de.raindancer.core.ui.actionbar.ActionBars bars = mock(de.raindancer.core.ui.actionbar.ActionBars.class);
+        ManhuntSettings noTrail = ManhuntSettings.DEFAULTS.withTrackerParticleTrail(false);
+        TrackerCompass compass = new TrackerCompass(noTrail, new PortalMemory());
+        TrackerCompassService live = new TrackerCompassService(plugin, () -> java.util.Optional.of(hunt),
+                compass, new PortalMemory(), messages, bars, noTrail);
+        live.pick(hunter, TrackerCompass.Following.of(runnerId));
+
+        ManhuntSettings off = noTrail.withTrackerShowDistance(false);
+        compass.settings(off);
+        live.settings(off);
+        live.pick(hunter, TrackerCompass.Following.of(runnerId));
 
         verify(bars).clear(hunterId, TrackerCompassService.DISTANCE_OWNER);
     }
@@ -404,6 +466,17 @@ class TrackerCompassServiceTest {
             assertThat(service.pickOf(runner)).isEmpty();
             service.pick(me, TrackerCompass.Following.of(hunterB));
             assertThat(service.pickOf(runner)).contains(TrackerCompass.Following.of(hunterB));
+        }
+
+        @Test
+        @DisplayName("somebody in spectator mode is nobody's target — creative still is")
+        void spectatorsAreNoTargets() {
+            TrackerCompassService service = serviceWith(ManhuntSettings.DEFAULTS.withRunnerCompass(true));
+            when(server.getPlayer(hunterA).getGameMode()).thenReturn(org.bukkit.GameMode.SPECTATOR);
+            when(server.getPlayer(hunterB).getGameMode()).thenReturn(org.bukkit.GameMode.CREATIVE);
+
+            assertThat(service.targetsFor(server.getPlayer(runner))).extracting(TrackerCompassService.Target::name)
+                    .containsExactlyInAnyOrder("Whoever is nearest", "HunterB");
         }
 
         @Test

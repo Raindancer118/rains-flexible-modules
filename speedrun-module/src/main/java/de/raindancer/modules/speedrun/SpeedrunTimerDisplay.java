@@ -136,6 +136,15 @@ public final class SpeedrunTimerDisplay {
         showing.clear();
     }
 
+    /** Stops the clock and takes it off every bar it is on — the plugin going away mid-run. */
+    public synchronized void clear() {
+        stop();
+        for (UUID viewer : showing) {
+            actionBars.clear(viewer, owner);
+        }
+        showing.clear();
+    }
+
     private void stop() {
         if (running == null) {
             return;

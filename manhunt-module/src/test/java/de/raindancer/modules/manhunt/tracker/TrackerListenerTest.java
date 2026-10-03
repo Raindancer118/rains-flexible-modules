@@ -86,6 +86,19 @@ class TrackerListenerTest {
     }
 
     @Test
+    @DisplayName("a caught Runner drifting through a portal as a spectator leaves no door behind")
+    void aSpectatorsCrossingIsNotRemembered() {
+        hunt.eliminate(RUNNER);
+        World nether = mock(World.class);
+        when(nether.getName()).thenReturn("speedrun_nether");
+        listener.onPortal(new PlayerPortalEvent(playerWithId(RUNNER),
+                new Location(overworld, 1, 64, 1), new Location(nether, 0, 64, 0),
+                PlayerTeleportEvent.TeleportCause.NETHER_PORTAL));
+
+        assertThat(portals.lastCrossingIn(RUNNER, "speedrun")).isEmpty();
+    }
+
+    @Test
     @DisplayName("somebody outside the hunt leaves no door behind")
     void anOutsidersCrossingIsNotRemembered() {
         UUID outsider = UUID.nameUUIDFromBytes("outsider".getBytes());
