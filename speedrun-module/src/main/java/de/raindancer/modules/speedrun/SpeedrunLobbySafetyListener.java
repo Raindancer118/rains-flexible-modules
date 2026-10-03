@@ -1,17 +1,27 @@
 package de.raindancer.modules.speedrun;
 
 import org.bukkit.World;
+import org.bukkit.entity.Hanging;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import de.raindancer.modules.speedrun.util.PermissionNodes;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
+import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 
 /**
  * The lobby as a safe room: while no run is under way, nobody standing in the lobby world can be
@@ -124,7 +134,7 @@ public final class SpeedrunLobbySafetyListener implements Listener {
      */
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
-    public void onPlace(org.bukkit.event.block.BlockPlaceEvent event) {
+    public void onPlace(BlockPlaceEvent event) {
         if (mayNotTouch(event.getPlayer())) {
             event.setCancelled(true);
         }
@@ -133,16 +143,16 @@ public final class SpeedrunLobbySafetyListener implements Listener {
     // Two handlers, not one on PlayerBucketEvent: that is abstract, has no handler list, and Bukkit
     // refuses the whole listener for it — see EveryHandlerIsRegistrableTest.
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
-    public void onBucketEmpty(org.bukkit.event.player.PlayerBucketEmptyEvent event) {
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
         onBucket(event);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
-    public void onBucketFill(org.bukkit.event.player.PlayerBucketFillEvent event) {
+    public void onBucketFill(PlayerBucketFillEvent event) {
         onBucket(event);
     }
 
-    void onBucket(org.bukkit.event.player.PlayerBucketEvent event) {
+    void onBucket(PlayerBucketEvent event) {
         if (mayNotTouch(event.getPlayer())) {
             event.setCancelled(true);
         }
@@ -153,19 +163,19 @@ public final class SpeedrunLobbySafetyListener implements Listener {
      * right-clicked too, and {@link SpeedrunLobbyListener} has to still hear them.
      */
     @EventHandler(priority = EventPriority.LOW)
-    public void onInteract(org.bukkit.event.player.PlayerInteractEvent event) {
+    public void onInteract(PlayerInteractEvent event) {
         if (!mayNotTouch(event.getPlayer())) {
             return;
         }
-        if (event.getAction() == org.bukkit.event.block.Action.PHYSICAL) {
+        if (event.getAction() == Action.PHYSICAL) {
             event.setCancelled(true);
-        } else if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
-            event.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
+        } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+            event.setUseInteractedBlock(Event.Result.DENY);
         }
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
-    public void onHangingBreak(org.bukkit.event.hanging.HangingBreakByEntityEvent event) {
+    public void onHangingBreak(HangingBreakByEntityEvent event) {
         if (event.getRemover() instanceof Player player && mayNotTouch(player)) {
             event.setCancelled(true);
         }
@@ -173,8 +183,8 @@ public final class SpeedrunLobbySafetyListener implements Listener {
 
     /** Turning an item frame, or taking what is in it. */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
-    public void onEntityInteract(org.bukkit.event.player.PlayerInteractEntityEvent event) {
-        if (event.getRightClicked() instanceof org.bukkit.entity.Hanging && mayNotTouch(event.getPlayer())) {
+    public void onEntityInteract(PlayerInteractEntityEvent event) {
+        if (event.getRightClicked() instanceof Hanging && mayNotTouch(event.getPlayer())) {
             event.setCancelled(true);
         }
     }

@@ -90,6 +90,7 @@ class StructureCompassServiceTest {
         when(compass.hasItemMeta()).thenReturn(true);
         when(compass.getItemMeta()).thenReturn(meta);
         when(meta.getPersistentDataContainer()).thenReturn(data);
+        when(compass.getPersistentDataContainer()).thenReturn(data);
         when(data.get(any(NamespacedKey.class), eq(PersistentDataType.STRING))).thenAnswer(call -> tag);
         org.mockito.Mockito.doAnswer(call -> tag = call.getArgument(2)).when(data)
                 .set(any(NamespacedKey.class), eq(PersistentDataType.STRING), any(String.class));
@@ -181,11 +182,25 @@ class StructureCompassServiceTest {
     }
 
     @Test
+    @DisplayName("a Runner turning Hunter has it taken back, and where it pointed forgotten")
+    void sideChangeTakesItBack() {
+        found.set(new Location(world, 300, 70, -120));
+        service.choose(runner, village());
+        Hunt bigger = Hunt.of(Set.of(RUNNER, HUNTER, UUID.randomUUID()), Set.of(RUNNER, HUNTER));
+        bigger.moveToHunters(RUNNER);
+
+        service.fit(bigger, runner);
+
+        verify(inventory).setItem(3, null);
+        assertThat(service.destinationOf(RUNNER)).isEmpty();
+    }
+
+    @Test
     @DisplayName("switched off, nobody is handed one")
     void offGivesNothing() {
         settings.set(ManhuntSettings.DEFAULTS.withRunnerStructureCompass(false));
 
-        service.armFor(hunt);
+        service.fit(hunt, runner);
 
         verify(inventory, never()).addItem(any(ItemStack.class));
     }

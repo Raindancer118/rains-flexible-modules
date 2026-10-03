@@ -100,7 +100,7 @@ public final class SpeedrunTimerDisplay {
      * {@link #stop} to be called the moment it finishes — a caller does not have to remember to clean
      * up after a run that ends on its own.
      */
-    public void start(SpeedrunSession session) {
+    public synchronized void start(SpeedrunSession session) {
         stop();
         show(session);
         running = ticker.everySecond(() -> show(session));
@@ -126,7 +126,7 @@ public final class SpeedrunTimerDisplay {
     }
 
     /** Cancels the tick and takes the clock off every bar it is on — called once a run finishes. */
-    private void stop(SpeedrunSession session) {
+    private synchronized void stop(SpeedrunSession session) {
         stop();
         Set<UUID> audience = new HashSet<>(showing);
         audience.addAll(session.participants());
@@ -156,7 +156,6 @@ public final class SpeedrunTimerDisplay {
     }
 
     public static Component format(Duration elapsed) {
-        long seconds = Math.max(0, elapsed.getSeconds());
-        return Component.text("%d:%02d".formatted(seconds / 60, seconds % 60), NamedTextColor.YELLOW);
+        return Component.text(plain(elapsed), NamedTextColor.YELLOW);
     }
 }

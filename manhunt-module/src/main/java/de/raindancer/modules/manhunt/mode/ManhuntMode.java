@@ -2,32 +2,45 @@ package de.raindancer.modules.manhunt.mode;
 
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.world.geometry.Ring;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.model.Hunt;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.service.Eliminations;
 import de.raindancer.modules.manhunt.service.HuntDeathListener;
+import de.raindancer.modules.manhunt.service.HunterHoldListener;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
+import de.raindancer.modules.manhunt.tracker.HuntCompasses;
 import de.raindancer.modules.manhunt.tracker.PortalMemory;
-import de.raindancer.modules.manhunt.tracker.TrackerCompassService;
 import de.raindancer.modules.manhunt.tracker.TrackerListener;
+import de.raindancer.modules.manhunt.util.Threads;
 import de.raindancer.modules.speedrun.SpeedrunMode;
 import de.raindancer.modules.speedrun.SpeedrunOutcome;
 import de.raindancer.modules.speedrun.SpeedrunRun;
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import de.raindancer.modules.speedrun.SpeedrunSettings;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 /**
@@ -56,7 +69,7 @@ public final class ManhuntMode implements SpeedrunMode {
     private final Plugin plugin;
     private final ManhuntTeams teams;
     private final Eliminations eliminations;
-    private final TrackerCompassService tracker;
+    private final HuntCompasses compasses;
     private final PortalMemory portals;
     private final ManhuntWhitelistService whitelist;
     private final Messages messages;
@@ -65,8 +78,7 @@ public final class ManhuntMode implements SpeedrunMode {
 
     /** The hunt in progress, or null between hunts. Read from the compass' timer and from events. */
     private final AtomicReference<Hunt> live = new AtomicReference<>();
-    private final AtomicReference<de.raindancer.modules.speedrun.SpeedrunSession> liveSession =
-            new AtomicReference<>();
+    private final AtomicReference<SpeedrunSession> liveSession = new AtomicReference<>();
 
     /** Nobody is left on the Runner side: ended, won by nobody. */
     public static final String RUNNERS_LEFT = "manhunt:runners-left";
@@ -75,30 +87,30 @@ public final class ManhuntMode implements SpeedrunMode {
     /** Whether this hunt was the one that shut the door, so only it ever opens it again. */
     private final AtomicBoolean closedTheWhitelist = new AtomicBoolean();
     /** Runs a task this many ticks later — the global scheduler, or a test's own list. */
-    private java.util.function.BiConsumer<Long, Runnable> later;
+    private BiConsumer<Long, Runnable> later;
 
     /** The gap between neighbours on the starting circle, and the smallest circle there is. */
     static final double CIRCLE_SPACING = 4;
     static final double CIRCLE_MIN_RADIUS = 5;
 
     public ManhuntMode(Plugin plugin, ManhuntTeams teams, Eliminations eliminations,
-                       TrackerCompassService tracker, PortalMemory portals,
+                       HuntCompasses compasses, PortalMemory portals,
                        ManhuntWhitelistService whitelist, Messages messages,
                        Supplier<ManhuntSettings> settings, Setup setup) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.teams = Objects.requireNonNull(teams, "teams");
         this.eliminations = Objects.requireNonNull(eliminations, "eliminations");
-        this.tracker = Objects.requireNonNull(tracker, "tracker");
+        this.compasses = Objects.requireNonNull(compasses, "compasses");
         this.portals = Objects.requireNonNull(portals, "portals");
         this.whitelist = Objects.requireNonNull(whitelist, "whitelist");
         this.messages = messages;
         this.settings = Objects.requireNonNull(settings, "settings");
         this.setup = setup;
-        this.later = (ticks, task) -> de.raindancer.core.platform.util.Scheduling.globalLater(plugin, ticks, task);
+        this.later = (ticks, task) -> Scheduling.globalLater(plugin, ticks, task);
     }
 
     /** For tests: how a delayed task is run instead of the server's scheduler. */
-    void laterWith(java.util.function.BiConsumer<Long, Runnable> runner) {
+    void laterWith(BiConsumer<Long, Runnable> runner) {
         this.later = Objects.requireNonNull(runner, "runner");
     }
 
@@ -180,12 +192,12 @@ public final class ManhuntMode implements SpeedrunMode {
             return LeaveOutcome.NOT_IN_THE_HUNT;
         }
         teams.evenWhileFrozen(() -> teams.leave(player));
-        tracker.forget(player);
+        compasses.forget(player);
         Player online = plugin.getServer().getPlayer(player);
         if (online != null) {
-            eliminations.restore(online);
+            eliminations.restoreOnTheirThread(online);
         }
-        de.raindancer.modules.speedrun.SpeedrunSession session = liveSession.get();
+        SpeedrunSession session = liveSession.get();
         if (session != null && live.get() == hunt) {
             if (hunt.runners().isEmpty()) {
                 session.finish(RUNNERS_LEFT);
@@ -201,26 +213,38 @@ public final class ManhuntMode implements SpeedrunMode {
     /** One of the two sides, as a command or a screen names it. */
     public enum Side { RUNNER, HUNTER }
 
-    /** What {@link #changeSide} answered, so the caller can say why nothing happened. */
+    /** What {@link #changeSide} answered, and the line that says so ({@code <player>}, {@code <side>}). */
     public enum SideChange {
-        /** Done: the hunt's roster, the team, and the compass are all in step again. */
-        CHANGED,
+        /** Done: the hunt's roster, the team, and the compasses are all in step again. */
+        CHANGED("manhunt.side.changed"),
         /** No hunt is running — the caller should do the ordinary lobby join instead. */
-        NO_HUNT,
+        NO_HUNT("manhunt.side.hunt-over"),
         /** Sides do not change mid-hunt on this server, and this was not an admin's call. */
-        FROZEN,
+        FROZEN("manhunt.sides-frozen"),
         /** Not in this hunt, and not an admin bringing them in — a latecomer may not add themselves. */
-        NOT_IN_THE_HUNT,
+        NOT_IN_THE_HUNT("manhunt.side.not-in-hunt"),
         /** They are already on that side. */
-        ALREADY,
+        ALREADY("manhunt.side.already"),
         /** Refused: they are the last Runner, and a hunt with nobody running is over by accident. */
-        LAST_RUNNER
+        LAST_RUNNER("manhunt.side.last-runner"),
+        /** Refused: they are the last Hunter, and a hunt with nobody chasing is over by accident. */
+        LAST_HUNTER("manhunt.side.last-hunter");
+
+        private final String messageKey;
+
+        SideChange(String messageKey) {
+            this.messageKey = messageKey;
+        }
+
+        public String messageKey() {
+            return messageKey;
+        }
     }
 
     /**
      * Moves somebody between the two sides <em>while a hunt is being played</em>, keeping the three
-     * things that have to agree in step: the hunt's own roster, the Core team they wear, and whether
-     * they are carrying a tracking compass.
+     * things that have to agree in step: the hunt's own roster, the Core team they wear, and the
+     * compasses they carry.
      *
      * <h2>Why all three move together, in one method</h2>
      * Because every bug in the module this replaced was two of them disagreeing. A Hunter without a
@@ -241,17 +265,14 @@ public final class ManhuntMode implements SpeedrunMode {
             return SideChange.FROZEN;
         }
         Hunt.SideChange moved;
-        if (force && !hunt.everybody().contains(player)) {
+        boolean latecomer = force && !hunt.everybody().contains(player);
+        if (latecomer) {
             // A latecomer, or somebody who left: an admin may bring them in. Into the run too, so the
             // clock, the goal and the finish line count them.
             hunt.join(player, side == Side.RUNNER);
-            de.raindancer.modules.speedrun.SpeedrunSession session = liveSession.get();
+            SpeedrunSession session = liveSession.get();
             if (session != null) {
                 session.addParticipant(player);
-            }
-            Player joining = plugin.getServer().getPlayer(player);
-            if (joining != null && joining.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
-                joining.setGameMode(org.bukkit.GameMode.SURVIVAL);
             }
             moved = Hunt.SideChange.MOVED;
         } else {
@@ -269,6 +290,9 @@ public final class ManhuntMode implements SpeedrunMode {
             case LAST_RUNNER -> {
                 return SideChange.LAST_RUNNER;
             }
+            case LAST_HUNTER -> {
+                return SideChange.LAST_HUNTER;
+            }
             default -> { }
         }
         teams.evenWhileFrozen(() -> side == Side.HUNTER
@@ -276,22 +300,24 @@ public final class ManhuntMode implements SpeedrunMode {
                 : teams.joinRunners(player));
         Player online = plugin.getServer().getPlayer(player);
         if (online == null) {
-            // Offline: the roster and the team are what matter, and the compass is handed out on
-            // their next respawn or by the sweep when they come back. Nothing to carry yet.
+            // Offline: the roster and the team are what matter. Their compasses are fitted when
+            // they log back in — see HuntCompasses.onJoin.
             return SideChange.CHANGED;
+        }
+        if (latecomer) {
+            // Somebody watching the hunt in spectator is playing it now.
+            Threads.entity(plugin, online, () -> {
+                if (online.getGameMode() == GameMode.SPECTATOR) {
+                    online.setGameMode(GameMode.SURVIVAL);
+                }
+            });
         }
         if (side == Side.HUNTER) {
             // A Runner who was already caught is standing in spectator; they are a Hunter now, and a
             // Hunter who cannot touch anything is not hunting.
-            eliminations.restore(online);
-            tracker.give(online);
-        } else if (settings.get().runnerCompass()) {
-            // Runners carry one too on this server: keep it, now pointing at the Hunters — only
-            // the old pick goes, since it named somebody on the side they just joined.
-            tracker.forget(online.getUniqueId());
-        } else {
-            tracker.takeFrom(online);
+            eliminations.restoreOnTheirThread(online);
         }
+        compasses.refit(hunt, online);
         if (messages != null) {
             messages.send(online, side == Side.HUNTER ? "manhunt.join.hunter" : "manhunt.join.runner");
         }
@@ -306,22 +332,21 @@ public final class ManhuntMode implements SpeedrunMode {
      * Core's ({@code Ring}); this only chooses the order and puts each spot on the ground.
      */
     @Override
-    public java.util.Map<UUID, org.bukkit.Location> startingSpots(org.bukkit.Location centre,
-                                                                 Set<UUID> participants) {
+    public Map<UUID, Location> startingSpots(Location centre, Set<UUID> participants) {
         if (!settings.get().startInCircle() || centre == null || centre.getWorld() == null) {
-            return java.util.Map.of();
+            return Map.of();
         }
-        org.bukkit.World world = centre.getWorld();
+        World world = centre.getWorld();
         List<UUID> order = circleOrder(participants);
-        List<de.raindancer.core.world.geometry.Ring.Spot> spots = de.raindancer.core.world.geometry.Ring
-                .around(centre.getX(), centre.getZ(), order.size(), CIRCLE_SPACING, CIRCLE_MIN_RADIUS);
-        java.util.Map<UUID, org.bukkit.Location> placed = new java.util.LinkedHashMap<>();
+        List<Ring.Spot> spots = Ring.around(centre.getX(), centre.getZ(), order.size(),
+                CIRCLE_SPACING, CIRCLE_MIN_RADIUS);
+        Map<UUID, Location> placed = new LinkedHashMap<>();
         for (int i = 0; i < order.size(); i++) {
-            var spot = spots.get(i);
+            Ring.Spot spot = spots.get(i);
             int blockX = (int) Math.floor(spot.x());
             int blockZ = (int) Math.floor(spot.z());
             // The middle of the block, one above whatever is highest there: on the ground, never in it.
-            placed.put(order.get(i), new org.bukkit.Location(world, blockX + 0.5,
+            placed.put(order.get(i), new Location(world, blockX + 0.5,
                     world.getHighestBlockYAt(blockX, blockZ) + 1, blockZ + 0.5, spot.yaw(), 0f));
         }
         return placed;
@@ -330,8 +355,8 @@ public final class ManhuntMode implements SpeedrunMode {
     /** Runners first and Hunters after, each side standing together; stable within a side. */
     List<UUID> circleOrder(Set<UUID> participants) {
         Set<UUID> runners = teams.runners();
-        java.util.Comparator<UUID> byId = java.util.Comparator.comparing(UUID::toString);
-        List<UUID> order = new java.util.ArrayList<>(participants.stream()
+        Comparator<UUID> byId = Comparator.comparing(UUID::toString);
+        List<UUID> order = new ArrayList<>(participants.stream()
                 .filter(runners::contains).sorted(byId).toList());
         order.addAll(participants.stream().filter(id -> !runners.contains(id)).sorted(byId).toList());
         return order;
@@ -345,13 +370,15 @@ public final class ManhuntMode implements SpeedrunMode {
         live.set(hunt);
         // The sides as the hunt actually is, not as the lobby left them: everybody racing who did not
         // choose to run is chasing (see Hunt), and the team is what gives them the colour above their
-        // head for the next twenty minutes. Written before anything reads the teams again.
-        for (UUID hunter : hunt.hunters()) {
-            teams.joinHunters(hunter);
-        }
+        // head for the next twenty minutes. Written before anything reads the teams again — through
+        // the freeze, which the line above has just closed.
+        teams.evenWhileFrozen(() -> {
+            hunt.hunters().forEach(teams::joinHunters);
+            return null;
+        });
         portals.clear();
-        tracker.armFor(hunt);
-        run.listen(new TrackerListener(hunt, tracker, portals));
+        compasses.armFor(hunt);
+        run.listen(new TrackerListener(hunt, compasses.tracker(), portals));
         run.listen(new HuntDeathListener(plugin, hunt, run.session(), eliminations, messages));
         if (!run.resumed()) {
             holdTheHunters(run, hunt);
@@ -383,9 +410,11 @@ public final class ManhuntMode implements SpeedrunMode {
         if (seconds <= 0) {
             return;
         }
-        de.raindancer.modules.manhunt.service.HunterHoldListener hold =
-                new de.raindancer.modules.manhunt.service.HunterHoldListener(hunt);
+        HunterHoldListener hold = new HunterHoldListener(hunt);
         run.listen(hold);
+        // A hunt over before the head start is leaves nobody frozen until the timer comes round.
+        run.session().onFinish(outcome -> hold.release());
+        run.onDisarm(hold::release);
         tell(hunt, "manhunt.head-start.begun", "seconds", String.valueOf(seconds));
         later.accept(seconds * 20L, () -> {
             hold.release();
@@ -413,7 +442,7 @@ public final class ManhuntMode implements SpeedrunMode {
             return;   // already ended, by whichever of the two paths got here first
         }
         liveSession.set(null);
-        tracker.disarm(hunt);
+        compasses.disarm(hunt);
         eliminations.restoreAll(hunt);
         portals.clear();
         if (closedTheWhitelist.compareAndSet(true, false)) {
@@ -455,7 +484,7 @@ public final class ManhuntMode implements SpeedrunMode {
         return true;
     }
 
-    static String formatted(java.time.Duration elapsed) {
+    static String formatted(Duration elapsed) {
         long seconds = elapsed == null ? 0 : elapsed.getSeconds();
         return "%d:%02d".formatted(seconds / 60, seconds % 60);
     }

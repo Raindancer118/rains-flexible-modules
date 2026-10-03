@@ -1,6 +1,9 @@
 package de.raindancer.modules.speedrun;
 
+import java.time.Duration;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * The lobby, for a game mode's own commands ({@code /manhunt start}, {@code resume}, {@code goal
@@ -41,23 +44,23 @@ public final class SpeedrunControl {
             return Optional.empty();
         }
         live.useMode(modeId);
-        java.util.Set<java.util.UUID> present = live.presentInLobbyWorld();
+        Set<UUID> present = live.presentInLobbyWorld();
         return Optional.of(answer(live, live.beginCountdown(present), present));
     }
 
     /** {@code /speedrunresume} in mode {@code modeId}: see {@link SpeedrunLobby#resume}. */
-    public static Optional<Answer> resume(java.time.Duration already, String modeId) {
+    public static Optional<Answer> resume(Duration already, String modeId) {
         SpeedrunLobby live = lobby;
         if (live == null) {
             return Optional.empty();
         }
         live.useMode(modeId);
-        java.util.Set<java.util.UUID> present = live.presentInRunWorlds();
+        Set<UUID> present = live.presentInRunWorlds();
         return Optional.of(answer(live, live.resume(present, already), present));
     }
 
     static Answer answer(SpeedrunLobby live, SpeedrunLobby.StartOutcome outcome,
-                         java.util.Set<java.util.UUID> present) {
+                         Set<UUID> present) {
         return new Answer(outcome, live.messageFor(outcome, present), present.size());
     }
 }

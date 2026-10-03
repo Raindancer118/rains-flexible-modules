@@ -7,6 +7,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import de.raindancer.core.content.items.BoundItems;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
@@ -79,7 +80,7 @@ public final class SpeedrunLobbyItems {
      * the run's gear, and wiping that on join destroyed a run that could otherwise be resumed. A real
      * start clears inventories itself (the start block's click and SpeedrunPreparation).
      */
-    void place(org.bukkit.inventory.PlayerInventory inventory, List<ItemStack> lobbyItems) {
+    void place(PlayerInventory inventory, List<ItemStack> lobbyItems) {
         take(inventory);
         for (ItemStack item : lobbyItems) {
             inventory.addItem(item);   // a full inventory goes without — nothing is pushed out for it
@@ -87,7 +88,7 @@ public final class SpeedrunLobbyItems {
     }
 
     /** Every lobby item off {@code inventory}, and nothing else. */
-    public void take(org.bukkit.inventory.PlayerInventory inventory) {
+    public void take(PlayerInventory inventory) {
         ItemStack[] contents = inventory.getContents();
         for (int slot = 0; slot < contents.length; slot++) {
             if (isMenu(contents[slot]) || isStart(contents[slot])) {
@@ -116,7 +117,7 @@ public final class SpeedrunLobbyItems {
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
         meta.displayName(MINI.deserialize(name).decoration(TextDecoration.ITALIC, false));
-        meta.lore(java.util.List.of(
+        meta.lore(List.of(
                 MINI.deserialize(loreOne).decoration(TextDecoration.ITALIC, false),
                 MINI.deserialize(loreTwo).decoration(TextDecoration.ITALIC, false)));
         meta.getPersistentDataContainer().set(marker, PersistentDataType.STRING, tag);

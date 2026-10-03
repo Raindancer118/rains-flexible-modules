@@ -3,6 +3,7 @@ package de.raindancer.modules.manhunt.screen;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.PaginatedMenu;
+import de.raindancer.modules.manhunt.tracker.TrackerCompass.Following;
 import de.raindancer.modules.manhunt.tracker.TrackerCompassService.Target;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -13,6 +14,8 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
  * Who a Hunter's compass follows, picked from a list rather than cycled to — opened by sneaking and
@@ -23,14 +26,12 @@ public final class ManhuntTrackerMenu extends PaginatedMenu<Target> {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
-    private final java.util.function.Function<Player, List<Target>> targets;
-    private final java.util.function.BiConsumer<Player, de.raindancer.modules.manhunt.tracker.TrackerCompass.Following> pick;
+    private final Function<Player, List<Target>> targets;
+    private final BiConsumer<Player, Following> pick;
     private final String title;
 
     /** The list for either compass — the tracking one or the team one — each bringing its own targets. */
-    public ManhuntTrackerMenu(java.util.function.Function<Player, List<Target>> targets,
-                              java.util.function.BiConsumer<Player,
-                                      de.raindancer.modules.manhunt.tracker.TrackerCompass.Following> pick,
+    public ManhuntTrackerMenu(Function<Player, List<Target>> targets, BiConsumer<Player, Following> pick,
                               Brand brand, String title, Player viewer) {
         super(viewer, brand, null);
         this.targets = targets;

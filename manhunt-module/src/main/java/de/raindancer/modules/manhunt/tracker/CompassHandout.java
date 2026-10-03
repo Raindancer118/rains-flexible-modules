@@ -1,9 +1,9 @@
 package de.raindancer.modules.manhunt.tracker;
 
-import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.ManhuntServices;
 import de.raindancer.modules.manhunt.model.Hunt;
+import de.raindancer.modules.manhunt.util.Threads;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -46,18 +46,14 @@ public final class CompassHandout implements ManhuntServices.Compasses {
 
     private final Plugin plugin;
     private final Supplier<Optional<Hunt>> liveHunt;
-    private final TrackerCompassService tracker;
-    private final TeamCompassService team;
-    private final StructureCompassService structures;
+    private final HuntCompasses compasses;
     private final Messages messages;
 
-    public CompassHandout(Plugin plugin, Supplier<Optional<Hunt>> liveHunt, TrackerCompassService tracker,
-                          TeamCompassService team, StructureCompassService structures, Messages messages) {
+    public CompassHandout(Plugin plugin, Supplier<Optional<Hunt>> liveHunt, HuntCompasses compasses,
+                          Messages messages) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.liveHunt = Objects.requireNonNull(liveHunt, "liveHunt");
-        this.tracker = Objects.requireNonNull(tracker, "tracker");
-        this.team = Objects.requireNonNull(team, "team");
-        this.structures = Objects.requireNonNull(structures, "structures");
+        this.compasses = Objects.requireNonNull(compasses, "compasses");
         this.messages = Objects.requireNonNull(messages, "messages");
     }
 
@@ -107,7 +103,7 @@ public final class CompassHandout implements ManhuntServices.Compasses {
     /** @param sayEverything every outcome, not only a hand-out or a full inventory */
     private void give(CommandSender sender, Player target, Optional<Kind> kind, boolean sayEverything) {
         // The inventory belongs to the target's region, which need not be the sender's.
-        Scheduling.entity(plugin, target, () -> {
+        Threads.entity(plugin, target, () -> {
             List<Kind> kinds = kind.map(List::of).orElse(List.of(Kind.values()));
             boolean handed = false;
             for (Kind each : kinds) {
@@ -133,12 +129,13 @@ public final class CompassHandout implements ManhuntServices.Compasses {
 
     @Override
     public void takeAll(Player player) {
-        tracker.takeFrom(player);
-        team.takeFrom(player);
-        structures.takeFrom(player);
+        compasses.takeAll(player);
     }
 
     private Outcome handOut(Player target, Kind kind) {
+        TrackerCompassService tracker = compasses.tracker();
+        TeamCompassService team = compasses.team();
+        StructureCompassService structures = compasses.structures();
         Hunt hunt = liveHunt.get().orElse(null);
         UUID id = target.getUniqueId();
         boolean inIt = hunt != null && hunt.everybody().contains(id) && !hunt.isEliminated(id);

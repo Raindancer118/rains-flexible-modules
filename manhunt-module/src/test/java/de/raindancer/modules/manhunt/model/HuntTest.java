@@ -94,12 +94,22 @@ class HuntTest {
         @Test
         @DisplayName("a Hunter who takes up running is a Runner")
         void hunterBecomesRunner() {
-            Hunt hunt = Hunt.of(Set.of(ANNA, BEN), Set.of(ANNA));
+            Hunt hunt = Hunt.of(Set.of(ANNA, BEN, CARO), Set.of(ANNA));
 
             assertThat(hunt.moveToRunners(BEN)).isEqualTo(Hunt.SideChange.MOVED);
 
             assertThat(hunt.runners()).containsExactlyInAnyOrder(ANNA, BEN);
-            assertThat(hunt.hunters()).isEmpty();
+            assertThat(hunt.hunters()).containsExactly(CARO);
+        }
+
+        @Test
+        @DisplayName("the last Hunter cannot walk off the side either — nobody would be chasing")
+        void theLastHunterIsRefused() {
+            Hunt hunt = Hunt.of(Set.of(ANNA, BEN), Set.of(ANNA));
+
+            assertThat(hunt.moveToRunners(BEN)).isEqualTo(Hunt.SideChange.LAST_HUNTER);
+
+            assertThat(hunt.hunters()).containsExactly(BEN);
         }
 
         @Test

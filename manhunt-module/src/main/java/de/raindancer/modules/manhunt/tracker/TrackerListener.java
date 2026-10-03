@@ -22,8 +22,9 @@ import java.util.Objects;
  * right-clicking their compass, a Hunter dying and respawning, and either of them leaving.
  *
  * <h2>Why the portal is recorded here rather than in {@link TrackerCompassService}</h2>
- * Same split the rest of this module already has: a listener turns an event into a plain fact — "this Runner left this spot in this world" — and {@link PortalMemory}
- * stores it without ever seeing a Bukkit type. That is what lets the compass be aimed at a door in
+ * Same split the rest of this module already has: a listener turns an event into a plain fact — "this
+ * Runner left this spot in this world" — and {@link PortalMemory} stores it without ever seeing a
+ * Bukkit type. That is what lets the compass be aimed at a door in
  * tests that never load a server.
  *
  * <h2>Registered for the life of one hunt, through {@code SpeedrunRun.listen}</h2>

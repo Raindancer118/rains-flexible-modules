@@ -1,5 +1,6 @@
 package de.raindancer.modules.manhunt.tracker;
 
+import de.raindancer.core.world.visual.PathTrail;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.ManhuntSettings.CrossWorldTracking;
 
@@ -172,22 +173,17 @@ public final class TrackerCompass {
     /** How far ahead the particle trail reaches, in blocks. */
     public static final double TRAIL_LENGTH = 12;
 
-    /** Whether a Hunter holding the compass is shown the particle trail. */
-    public boolean showsTrail() {
-        return settings.trackerParticleTrail();
-    }
-
     /**
      * The particle trail for this aim: from the Hunter's chest towards the spot the needle points
      * at — the Runner, or the door they took — over the first {@link #TRAIL_LENGTH} blocks. Nothing
      * when there is no spot, or it is in another world. The geometry is Core's {@code PathTrail}.
      */
-    public static List<de.raindancer.core.world.visual.PathTrail.Dot> trail(Point hunter, Aim aim) {
+    public static List<PathTrail.Dot> trail(Point hunter, Aim aim) {
         if (hunter == null || aim == null || !aim.hasDirection() || aim.at() == null
                 || !hunter.worldName().equals(aim.at().worldName())) {
             return List.of();
         }
-        return de.raindancer.core.world.visual.PathTrail.toward(
+        return PathTrail.toward(
                 hunter.x(), hunter.y() + 1, hunter.z(),
                 aim.at().x(), aim.at().y() + 1, aim.at().z(),
                 1.5, 1.0, TRAIL_LENGTH);

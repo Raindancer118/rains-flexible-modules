@@ -23,7 +23,7 @@ final class SpeedrunCreeperHazard {
      * charged roll runs, so a 0% spawn chance costs nothing beyond the one comparison.
      */
     static void maybeSpawn(Location location, int spawnChancePercent, int chargedChancePercent) {
-        if (ThreadLocalRandom.current().nextInt(100) >= spawnChancePercent) {
+        if (spawnChancePercent <= 0 || ThreadLocalRandom.current().nextInt(100) >= spawnChancePercent) {
             return;
         }
         Creeper creeper = (Creeper) location.getWorld().spawnEntity(location, EntityType.CREEPER);

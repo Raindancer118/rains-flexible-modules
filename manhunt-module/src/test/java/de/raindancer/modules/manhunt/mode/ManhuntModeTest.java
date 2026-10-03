@@ -7,8 +7,8 @@ import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.service.Eliminations;
 import de.raindancer.modules.manhunt.service.HuntDeathListener;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
+import de.raindancer.modules.manhunt.tracker.HuntCompasses;
 import de.raindancer.modules.manhunt.tracker.PortalMemory;
-import de.raindancer.modules.manhunt.tracker.TrackerCompass;
 import de.raindancer.modules.manhunt.tracker.TrackerCompassService;
 import de.raindancer.modules.speedrun.SpeedrunOutcome;
 import de.raindancer.modules.speedrun.SpeedrunRun;
@@ -58,7 +58,7 @@ class ManhuntModeTest {
     private PluginManager pluginManager;
     private ManhuntTeams teams;
     private ManhuntWhitelistService whitelist;
-    private TrackerCompassService tracker;
+    private HuntCompasses compasses;
     private ManhuntMode mode;
     private AtomicReference<ManhuntSettings> settings;
 
@@ -72,12 +72,15 @@ class ManhuntModeTest {
         when(plugin.getName()).thenReturn("manhunt");
         when(plugin.namespace()).thenReturn("manhunt");
 
-        teams = new ManhuntTeams(() -> false);
+        // Frozen exactly as the module wires it: for as long as a hunt is running. A test that never
+        // froze hid that the start itself wrote to the teams through the freeze and was refused.
+        teams = new ManhuntTeams(() -> mode != null && mode.isRunning());
         whitelist = mock(ManhuntWhitelistService.class);
         PortalMemory portals = new PortalMemory();
-        tracker = mock(TrackerCompassService.class);
+        compasses = mock(HuntCompasses.class);
+        when(compasses.tracker()).thenReturn(mock(TrackerCompassService.class));
         settings = new AtomicReference<>(ManhuntSettings.DEFAULTS);
-        mode = new ManhuntMode(plugin, teams, mock(Eliminations.class), tracker, portals, whitelist,
+        mode = new ManhuntMode(plugin, teams, mock(Eliminations.class), compasses, portals, whitelist,
                 mock(Messages.class), settings::get, null);
     }
 
@@ -160,7 +163,7 @@ class ManhuntModeTest {
 
             mode.onStart(runWith(Set.of(ANNA, BEN)));
 
-            verify(tracker).armFor(any(Hunt.class));
+            verify(compasses).armFor(any(Hunt.class));
             ArgumentCaptor<Listener> listeners = ArgumentCaptor.forClass(Listener.class);
             verify(pluginManager, atLeastOnce()).registerEvents(listeners.capture(), eq(plugin));
             assertThat(listeners.getAllValues())
@@ -251,7 +254,7 @@ class ManhuntModeTest {
 
             run.session().finish(HuntDeathListener.HUNTERS_WIN);
 
-            verify(tracker).disarm(any(Hunt.class));
+            verify(compasses).disarm(any(Hunt.class));
             assertThat(mode.current()).isEmpty();
         }
 
@@ -265,7 +268,7 @@ class ManhuntModeTest {
             run.session().finish(HuntDeathListener.HUNTERS_WIN);
             run.disarm();
 
-            verify(tracker, org.mockito.Mockito.times(1)).disarm(any(Hunt.class));
+            verify(compasses, org.mockito.Mockito.times(1)).disarm(any(Hunt.class));
         }
 
         @Test
@@ -277,7 +280,7 @@ class ManhuntModeTest {
 
             run.disarm();
 
-            verify(tracker).disarm(any(Hunt.class));
+            verify(compasses).disarm(any(Hunt.class));
             assertThat(mode.current()).isEmpty();
         }
 
@@ -290,7 +293,7 @@ class ManhuntModeTest {
             mode.forget();
 
             assertThat(mode.isRunning()).isFalse();
-            verify(tracker).disarm(any(Hunt.class));
+            verify(compasses).disarm(any(Hunt.class));
         }
     }
 
@@ -306,7 +309,7 @@ class ManhuntModeTest {
             messages = mock(Messages.class);
             player = mock(Player.class);
             when(plugin.getServer().getPlayer(ANNA)).thenReturn(player);
-            mode = new ManhuntMode(plugin, teams, mock(Eliminations.class), tracker,
+            mode = new ManhuntMode(plugin, teams, mock(Eliminations.class), compasses,
                     new PortalMemory(), whitelist, messages, settings::get, null);
         }
 
@@ -398,7 +401,7 @@ class ManhuntModeTest {
 
             assertThat(mode.current().orElseThrow().isHunter(ANNA)).isTrue();
             assertThat(teams.isHunter(ANNA)).as("the frozen team moved with the roster").isTrue();
-            verify(tracker).give(anna);
+            verify(compasses).refit(mode.current().orElseThrow(), anna);
         }
 
         @Test
@@ -411,8 +414,9 @@ class ManhuntModeTest {
             assertThat(mode.changeSide(ANNA, ManhuntMode.Side.HUNTER, false))
                     .isEqualTo(ManhuntMode.SideChange.CHANGED);
 
-            verify(tracker).give(anna);
-            verify(tracker, never()).takeFrom(anna);
+            // Every compass, not only the tracking one: the structure compass is a Runner's and the
+            // team compass points at a side — both used to stay as they were.
+            verify(compasses).refit(mode.current().orElseThrow(), anna);
             assertThat(teams.isHunter(ANNA)).isTrue();
         }
 
@@ -426,7 +430,7 @@ class ManhuntModeTest {
             assertThat(mode.changeSide(CARO, ManhuntMode.Side.RUNNER, false))
                     .isEqualTo(ManhuntMode.SideChange.CHANGED);
 
-            verify(tracker).takeFrom(caro);
+            verify(compasses).refit(mode.current().orElseThrow(), caro);
             assertThat(teams.isRunner(CARO)).isTrue();
             assertThat(mode.current().orElseThrow().isRunner(CARO)).isTrue();
         }
@@ -441,6 +445,21 @@ class ManhuntModeTest {
             assertThat(mode.changeSide(ANNA, ManhuntMode.Side.HUNTER, true))
                     .isEqualTo(ManhuntMode.SideChange.LAST_RUNNER);
             assertThat(mode.current().orElseThrow().isRunner(ANNA)).isTrue();
+        }
+
+        @Test
+        @DisplayName("the last Hunter is refused too — a hunt with nobody chasing is over by accident")
+        void theLastHunterIsRefused() {
+            allowSwitching(true);
+            teams.joinRunners(ANNA);
+            teams.joinRunners(BEN);
+            mode.onStart(runWith(Set.of(ANNA, BEN, CARO)));
+            online(CARO);
+
+            assertThat(mode.changeSide(CARO, ManhuntMode.Side.RUNNER, false))
+                    .isEqualTo(ManhuntMode.SideChange.LAST_HUNTER);
+            assertThat(mode.current().orElseThrow().isHunter(CARO)).isTrue();
+            verify(compasses, never()).refit(any(), any());
         }
 
         @Test
@@ -469,7 +488,7 @@ class ManhuntModeTest {
             assertThat(mode.current().orElseThrow().isHunter(dan)).isTrue();
             assertThat(teams.hunters()).contains(dan);
             assertThat(lastRun.session().participants()).contains(dan);
-            verify(tracker).give(player);
+            verify(compasses).refit(mode.current().orElseThrow(), player);
             verify(player).setGameMode(org.bukkit.GameMode.SURVIVAL);
         }
 
@@ -523,6 +542,19 @@ class ManhuntModeTest {
 
             releases.getFirst().run();
             assertThat(hold.isHolding()).isFalse();
+        }
+
+        @Test
+        @DisplayName("a hunt that ends during the head start lets the Hunters go at once")
+        void endedDuringTheHeadStart() {
+            settings.set(ManhuntSettings.DEFAULTS.withHunterHeadStartSeconds(30));
+            teams.joinRunners(ANNA);
+            mode.onStart(runWith(Set.of(ANNA, BEN)));
+            var hold = registeredHold();
+
+            lastRun.session().finish(HuntDeathListener.HUNTERS_WIN);
+
+            assertThat(hold.isHolding()).as("not frozen until a timer nobody needs any more").isFalse();
         }
 
         @Test

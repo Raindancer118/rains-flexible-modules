@@ -23,7 +23,6 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Joins, clicks and quits, for the one speedrun lobby.
@@ -213,6 +212,11 @@ public final class SpeedrunLobbyListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
+        // Cheapest first: nearly every move event on a server is a turn of the head or a step inside
+        // one block, and this runs for every player in every world.
+        if (event.getTo() == null || sameBlock(event.getFrom(), event.getTo())) {
+            return;
+        }
         if (lobby.state() != SpeedrunLobbyState.READY) {
             return;
         }
@@ -221,9 +225,6 @@ public final class SpeedrunLobbyListener implements Listener {
             return;
         }
         if (lobby.isReleased(player.getUniqueId())) {
-            return;
-        }
-        if (event.getTo() == null || sameBlock(event.getFrom(), event.getTo())) {
             return;
         }
         event.setCancelled(true);
@@ -265,15 +266,13 @@ public final class SpeedrunLobbyListener implements Listener {
             messages.send(clicker, "speedrun.start.wrong-world", "world", lobby.config().worldName());
             return;
         }
-        Set<UUID> present = lobbyWorld.getPlayers().stream()
-                .map(Player::getUniqueId)
-                .filter(id -> !lobby.isSpectator(id))
-                .collect(Collectors.toUnmodifiableSet());
+        Set<UUID> present = lobby.presentInLobbyWorld();
         SpeedrunLobby.StartOutcome outcome = lobby.beginCountdown(present);
         if (outcome == SpeedrunLobby.StartOutcome.STARTED) {
             for (Player racer : lobbyWorld.getPlayers()) {
                 if (present.contains(racer.getUniqueId())) {
-                    racer.getInventory().clear();
+                    // Folia: another racer's inventory belongs to their region, not the clicker's.
+                    Scheduling.entity(plugin, racer, () -> racer.getInventory().clear());
                 }
             }
             return;

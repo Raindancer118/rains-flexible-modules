@@ -6,7 +6,13 @@ import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.mode.ManhuntMode;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
+import de.raindancer.modules.manhunt.service.PositionShare;
+import de.raindancer.modules.manhunt.tracker.CompassHandout;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
  * What every command in this module needs, built once {@code ManhuntModule.enable} has the real
@@ -15,19 +21,17 @@ import org.bukkit.entity.Player;
 public record ManhuntServices(Messages messages, Brand brand, SettingsStore<ManhuntSettings> settings,
                               ManhuntTeams teams, ManhuntMode mode, ManhuntWhitelistService whitelist,
                               Screens screens,
-                              de.raindancer.modules.manhunt.service.PositionShare share,
+                              PositionShare share,
                               Compasses compasses) {
 
     /** Handing somebody a compass they lost — see {@code CompassHandout}. */
     public interface Compasses {
 
         /** @param kind one compass, or empty for every one {@code target} is owed and missing */
-        void give(org.bukkit.command.CommandSender sender, Player target,
-                  java.util.Optional<de.raindancer.modules.manhunt.tracker.CompassHandout.Kind> kind);
+        void give(CommandSender sender, Player target, Optional<CompassHandout.Kind> kind);
 
         /** {@code /manhunt give all}: everybody in the hunt, and only what was handed out is said. */
-        void giveEverybody(org.bukkit.command.CommandSender sender,
-                           java.util.Optional<de.raindancer.modules.manhunt.tracker.CompassHandout.Kind> kind);
+        void giveEverybody(CommandSender sender, Optional<CompassHandout.Kind> kind);
 
         /** Every compass of this module off {@code player} — they have left the hunt. */
         void takeAll(Player player);
@@ -45,8 +49,7 @@ public record ManhuntServices(Messages messages, Brand brand, SettingsStore<Manh
          * @param consequences what saying yes actually does, a line each, as MiniMessage
          * @param onYes        run on the confirming click
          */
-        void confirm(Player viewer, String question, java.util.List<String> consequences,
-                     Runnable onYes);
+        void confirm(Player viewer, String question, List<String> consequences, Runnable onYes);
     }
 
     public ManhuntSettings config() {

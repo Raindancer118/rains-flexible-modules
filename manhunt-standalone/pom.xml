@@ -91,8 +91,9 @@
              0.20.0: /manhunt start and /manhunt resume [time] — always in Manhunt mode, whatever the
              lobby was set to. Needs RainsSpeedrun 1.23.0.
              0.20.1: /manhunt assign mid-hunt brings in somebody who was not in the hunt (a latecomer, or
-             somebody who left) instead of refusing. Needs RainsSpeedrun 1.24.0. -->
-        <plugin.version>0.20.1</plugin.version>
+             somebody who left) instead of refusing. Needs RainsSpeedrun 1.24.0.
+             0.21.0: review — Hunters really join their team at start; side changes refit all three compasses; hunt cleanup works during shutdown; the last Hunter cannot switch away; rejoining players get their compasses back. Needs RainsSpeedrun 1.25.0. -->
+        <plugin.version>0.21.0</plugin.version>
     </properties>
 
     <dependencies>

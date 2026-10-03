@@ -17,6 +17,7 @@ import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -148,7 +149,7 @@ class TrackerCompassServiceTest {
         when(existing.getItemMeta()).thenReturn(meta);
         org.bukkit.persistence.PersistentDataContainer pdc =
                 mock(org.bukkit.persistence.PersistentDataContainer.class);
-        when(meta.getPersistentDataContainer()).thenReturn(pdc);
+        when(existing.getPersistentDataContainer()).thenReturn(pdc);
         when(pdc.get(any(), any())).thenReturn("tracker");
         ItemStack[] contents = new ItemStack[36];
         contents[0] = existing;
@@ -157,6 +158,108 @@ class TrackerCompassServiceTest {
         service.give(hunter);
 
         verify(inventory, never()).addItem(any(ItemStack.class));
+    }
+
+    /** One of our compasses, as a mock the service recognises by its tag. */
+    static ItemStack trackerStack(org.bukkit.inventory.meta.CompassMeta meta) {
+        ItemStack stack = mock(ItemStack.class);
+        when(stack.getType()).thenReturn(org.bukkit.Material.COMPASS);
+        when(stack.hasItemMeta()).thenReturn(true);
+        when(stack.getItemMeta()).thenReturn(meta);
+        org.bukkit.persistence.PersistentDataContainer pdc =
+                mock(org.bukkit.persistence.PersistentDataContainer.class);
+        when(stack.getPersistentDataContainer()).thenReturn(pdc);
+        when(pdc.get(any(), any())).thenReturn("tracker");
+        return stack;
+    }
+
+    @Test
+    @DisplayName("ending a hunt while the plugin shuts down still takes every compass back")
+    void disarmWhileShuttingDown() {
+        // Paper refuses to schedule for a disabled plugin, and a module is disabled inside its
+        // plugin's onDisable — so a hunt ended by a restart threw before anything was handed back.
+        java.util.UUID id = java.util.UUID.nameUUIDFromBytes("h".getBytes());
+        when(hunter.getUniqueId()).thenReturn(id);
+        ItemStack[] contents = new ItemStack[36];
+        contents[4] = trackerStack(mock(org.bukkit.inventory.meta.CompassMeta.class));
+        when(inventory.getContents()).thenReturn(contents);
+        io.papermc.paper.threadedregions.scheduler.EntityScheduler refusing =
+                mock(io.papermc.paper.threadedregions.scheduler.EntityScheduler.class);
+        when(refusing.run(any(), any(), any())).thenThrow(
+                new org.bukkit.plugin.IllegalPluginAccessException("Plugin attempted to register task while disabled"));
+        when(hunter.getScheduler()).thenReturn(refusing);
+        org.bukkit.Server server = mock(org.bukkit.Server.class);
+        when(server.getPlayer(id)).thenReturn(hunter);
+        Plugin disabled = mock(Plugin.class);
+        when(disabled.getName()).thenReturn("manhunt");
+        when(disabled.namespace()).thenReturn("manhunt");
+        when(disabled.getServer()).thenReturn(server);
+        when(disabled.isEnabled()).thenReturn(false);
+        TrackerCompassService stopping = new TrackerCompassService(disabled, java.util.Optional::empty,
+                new TrackerCompass(ManhuntSettings.DEFAULTS, new PortalMemory()), new PortalMemory(),
+                messages, null, ManhuntSettings.DEFAULTS);
+
+        stopping.disarm(de.raindancer.modules.manhunt.model.Hunt.of(java.util.Set.of(id), java.util.Set.of()));
+
+        verify(inventory).setItem(4, null);
+    }
+
+    @Test
+    @DisplayName("taking the compass off somebody also clears the distance it was showing")
+    void takeFromClearsTheDistance() {
+        java.util.UUID hunterId = java.util.UUID.nameUUIDFromBytes("hunter".getBytes());
+        java.util.UUID runnerId = java.util.UUID.nameUUIDFromBytes("runner".getBytes());
+        de.raindancer.modules.manhunt.model.Hunt hunt = de.raindancer.modules.manhunt.model.Hunt.of(
+                java.util.Set.of(hunterId, runnerId), java.util.Set.of(runnerId));
+        when(world.getName()).thenReturn("hunt");
+        when(world.getEnvironment()).thenReturn(World.Environment.NORMAL);
+        when(hunter.getUniqueId()).thenReturn(hunterId);
+        when(hunter.getLocation()).thenReturn(new Location(world, 0, 64, 0));
+        ItemStack held = trackerStack(mock(org.bukkit.inventory.meta.CompassMeta.class));
+        ItemStack[] contents = new ItemStack[36];
+        contents[0] = held;
+        when(inventory.getContents()).thenReturn(contents);
+        when(inventory.getItem(0)).thenReturn(held);
+        when(inventory.getItemInMainHand()).thenReturn(held);
+        Player runner = mock(Player.class);
+        when(runner.getUniqueId()).thenReturn(runnerId);
+        when(runner.isOnline()).thenReturn(true);
+        when(runner.getName()).thenReturn("Runner");
+        when(runner.getLocation()).thenReturn(new Location(world, 50, 64, 0));
+        org.bukkit.Server server = mock(org.bukkit.Server.class);
+        when(server.getPlayer(runnerId)).thenReturn(runner);
+        when(server.getPlayer(hunterId)).thenReturn(hunter);
+        Plugin plugin = mock(Plugin.class);
+        when(plugin.getName()).thenReturn("manhunt");
+        when(plugin.namespace()).thenReturn("manhunt");
+        when(plugin.getServer()).thenReturn(server);
+        de.raindancer.core.ui.actionbar.ActionBars bars = mock(de.raindancer.core.ui.actionbar.ActionBars.class);
+        ManhuntSettings noTrail = ManhuntSettings.DEFAULTS.withTrackerParticleTrail(false);
+        TrackerCompassService live = new TrackerCompassService(plugin, () -> java.util.Optional.of(hunt),
+                new TrackerCompass(noTrail, new PortalMemory()), new PortalMemory(), messages, bars, noTrail);
+        live.pick(hunter, TrackerCompass.Following.of(runnerId));
+        verify(bars).show(eq(hunterId), eq(TrackerCompassService.DISTANCE_OWNER), any(), any(), any());
+
+        live.takeFrom(hunter);
+
+        verify(bars).clear(hunterId, TrackerCompassService.DISTANCE_OWNER);
+    }
+
+    @Test
+    @DisplayName("refitted after a side change, somebody who no longer holds one has it taken")
+    void fitTakesFromANonHolder() {
+        java.util.UUID runnerId = java.util.UUID.nameUUIDFromBytes("runner".getBytes());
+        java.util.UUID hunterId = java.util.UUID.nameUUIDFromBytes("hunter".getBytes());
+        de.raindancer.modules.manhunt.model.Hunt hunt = de.raindancer.modules.manhunt.model.Hunt.of(
+                java.util.Set.of(hunterId, runnerId), java.util.Set.of(runnerId));
+        when(hunter.getUniqueId()).thenReturn(runnerId);
+        ItemStack[] contents = new ItemStack[36];
+        contents[2] = trackerStack(mock(org.bukkit.inventory.meta.CompassMeta.class));
+        when(inventory.getContents()).thenReturn(contents);
+
+        service.fit(hunt, hunter);
+
+        verify(inventory).setItem(2, null);
     }
 
     @org.junit.jupiter.api.Nested

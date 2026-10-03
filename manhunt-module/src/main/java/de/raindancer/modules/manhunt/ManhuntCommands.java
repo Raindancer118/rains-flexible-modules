@@ -49,10 +49,6 @@ public final class ManhuntCommands {
         services = null;
     }
 
-    public static boolean isRunning() {
-        return services != null;
-    }
-
     /**
      * The services, or an exception the host's guard turns into one red line — see
      * {@code ChainedCommands.require} for why this throws rather than returning null.

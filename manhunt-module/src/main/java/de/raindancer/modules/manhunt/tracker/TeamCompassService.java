@@ -12,31 +12,35 @@ import de.raindancer.modules.manhunt.tracker.TrackerCompass.Aim;
 import de.raindancer.modules.manhunt.tracker.TrackerCompass.Candidate;
 import de.raindancer.modules.manhunt.tracker.TrackerCompass.Following;
 import de.raindancer.modules.manhunt.tracker.TrackerCompass.Point;
+import de.raindancer.modules.manhunt.util.Threads;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.CompassMeta;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+
+import static de.raindancer.modules.manhunt.tracker.CompassItems.line;
+import static de.raindancer.modules.manhunt.tracker.CompassItems.safe;
 
 /**
  * The team compass ({@link ManhuntSettings#trackerTeamCompass()}): a second compass, for everybody in
@@ -53,8 +57,8 @@ import java.util.function.Supplier;
  */
 public final class TeamCompassService {
 
-    private static final MiniMessage MINI = MiniMessage.miniMessage();
     private static final String TAG = "team-compass";
+    private static final Predicate<String> OURS = TAG::equals;
     static final String DISTANCE_OWNER = "manhunt-team-compass";
 
     private final Plugin plugin;
@@ -62,11 +66,11 @@ public final class TeamCompassService {
     private final TrackerCompass compass;
     private final Messages messages;
     private final ActionBars actionBars;
-    private final NamespacedKey marker;
+    private final CompassItems items;
     private final Map<UUID, Following> picks = new ConcurrentHashMap<>();
     /** The last spot each holder's needle was set to, so an unchanged one is not sent again. */
     private final Map<UUID, Location> needles = new ConcurrentHashMap<>();
-    private final java.util.Set<UUID> showingDistance = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> showingDistance = ConcurrentHashMap.newKeySet();
 
     private volatile ManhuntSettings settings;
     private volatile Consumer<Player> pickerScreen;
@@ -79,7 +83,7 @@ public final class TeamCompassService {
         this.messages = messages;
         this.actionBars = actionBars;
         this.settings = Objects.requireNonNull(settings, "settings");
-        this.marker = new NamespacedKey(plugin, "manhunt-team-compass");
+        this.items = new CompassItems(plugin, "manhunt-team-compass", Material.RECOVERY_COMPASS, Material.COMPASS);
     }
 
     public void settings(ManhuntSettings fresh) {
@@ -90,24 +94,17 @@ public final class TeamCompassService {
         return settings.trackerTeamCompass();
     }
 
+    /** Whether {@code player} should be carrying one: anybody still in the hunt, with the setting on. */
+    boolean owes(Hunt hunt, UUID player) {
+        return enabled() && hunt.everybody().contains(player) && !hunt.isEliminated(player);
+    }
+
     // ------------------------------------------------------------------------ a hunt beginning and ending
 
-    /** Everybody still in the hunt gets one — if the owner has the team compass on. */
-    public void armFor(Hunt hunt) {
+    /** A new hunt: nobody's pick or needle carries over. Handing out is {@link HuntCompasses}'. */
+    public void arm() {
         picks.clear();
         needles.clear();
-        if (!enabled()) {
-            return;
-        }
-        for (UUID id : hunt.everybody()) {
-            if (hunt.isEliminated(id)) {
-                continue;
-            }
-            Player player = plugin.getServer().getPlayer(id);
-            if (player != null) {
-                give(player);
-            }
-        }
     }
 
     /** Every team compass back, every needle's spot cleared — whatever the setting says now. */
@@ -115,24 +112,36 @@ public final class TeamCompassService {
         for (UUID id : hunt.everybody()) {
             Player player = plugin.getServer().getPlayer(id);
             if (player != null) {
-                Scheduling.entity(plugin, player, () -> {
+                Threads.entity(plugin, player, () -> {
                     takeBack(player);
                     player.setLastDeathLocation(null);
                 });
             }
-            if (actionBars != null && showingDistance.remove(id)) {
-                actionBars.clear(id, DISTANCE_OWNER);
-            }
+            clearDistance(id);
         }
         picks.clear();
         needles.clear();
+    }
+
+    /** Brings one player's team compass in line with the side they are on now — on their own thread. */
+    public void fit(Hunt hunt, Player player) {
+        boolean aimed = needles.containsKey(player.getUniqueId());
+        forget(player.getUniqueId());
+        if (owes(hunt, player.getUniqueId())) {
+            give(player);
+        } else {
+            takeBack(player);
+            if (aimed) {
+                player.setLastDeathLocation(null);
+            }
+        }
     }
 
     /** A death took it — it never drops — so it is handed back on respawn, a tick later. */
     public void giveOnRespawn(Player player) {
         Hunt hunt = liveHunt.get().orElse(null);
         UUID id = player.getUniqueId();
-        if (!enabled() || hunt == null || !hunt.everybody().contains(id) || hunt.isEliminated(id)) {
+        if (hunt == null || !owes(hunt, id)) {
             return;
         }
         needles.remove(id);   // the server has just sent the real death spot; aim again
@@ -146,32 +155,47 @@ public final class TeamCompassService {
         if (!enabled()) {
             return;
         }
-        Map<UUID, String> names = new java.util.HashMap<>();
+        // Everybody's position and name read once, before any task is handed to another thread: the
+        // tasks only ever read this map, never a map still being filled.
+        Map<UUID, Player> inIt = new LinkedHashMap<>();
+        Map<UUID, Candidate> alive = new LinkedHashMap<>();
+        Map<UUID, String> names = new LinkedHashMap<>();
         for (UUID id : hunt.everybody()) {
-            if (hunt.isEliminated(id)) {
+            Player player = hunt.isEliminated(id) ? null : plugin.getServer().getPlayer(id);
+            if (player == null) {
                 continue;
             }
-            Player player = plugin.getServer().getPlayer(id);
-            if (player == null || !player.isOnline()) {
-                continue;
+            inIt.put(id, player);
+            names.put(id, player.getName());
+            if (!player.isDead()) {
+                alive.put(id, new Candidate(id, TrackerCompassService.pointOf(player)));
             }
-            names.putIfAbsent(id, player.getName());
-            Aim aim = aimFor(TrackerCompassService.pointOf(player), teammatesOf(hunt, id), picks.get(id));
-            Scheduling.entity(plugin, player, () -> apply(player, aim, names));
         }
+        Map<UUID, String> named = Map.copyOf(names);
+        inIt.forEach((id, player) -> {
+            Aim aim = aimFor(TrackerCompassService.pointOf(player), teammatesOf(hunt, id, alive), picks.get(id));
+            Scheduling.entity(plugin, player, () -> apply(player, aim, named));
+        });
     }
 
     /** Everybody on {@code player}'s side still worth pointing at, without them — stable order. */
     List<Candidate> teammatesOf(Hunt hunt, UUID player) {
-        java.util.Set<UUID> side = hunt.isRunner(player) ? hunt.livingRunners() : hunt.hunters();
-        List<Candidate> mates = new ArrayList<>();
-        for (UUID id : side) {
-            if (id.equals(player)) {
-                continue;
+        Map<UUID, Candidate> alive = new LinkedHashMap<>();
+        for (UUID id : hunt.everybody()) {
+            Player mate = hunt.isEliminated(id) ? null : plugin.getServer().getPlayer(id);
+            if (mate != null && !mate.isDead()) {
+                alive.put(id, new Candidate(id, TrackerCompassService.pointOf(mate)));
             }
-            Player mate = plugin.getServer().getPlayer(id);
-            if (mate != null && mate.isOnline() && !mate.isDead()) {
-                mates.add(new Candidate(id, TrackerCompassService.pointOf(mate)));
+        }
+        return teammatesOf(hunt, player, alive);
+    }
+
+    private static List<Candidate> teammatesOf(Hunt hunt, UUID player, Map<UUID, Candidate> alive) {
+        boolean runner = hunt.isRunner(player);
+        List<Candidate> mates = new ArrayList<>();
+        for (Candidate candidate : alive.values()) {
+            if (!candidate.id().equals(player) && hunt.isRunner(candidate.id()) == runner) {
+                mates.add(candidate);
             }
         }
         mates.sort(Comparator.comparing(candidate -> candidate.id().toString()));
@@ -192,17 +216,16 @@ public final class TeamCompassService {
     }
 
     private void apply(Player player, Aim aim, Map<UUID, String> names) {
-        Optional<Integer> slot = find(player);
-        if (slot.isEmpty()) {
+        int slot = items.slotOf(player, OURS);
+        if (slot < 0) {
             return;
         }
         String name = aim.target() == null ? null : names.getOrDefault(aim.target(), nameOf(aim.target()));
-        ItemStack stack = player.getInventory().getItem(slot.get());
+        ItemStack stack = player.getInventory().getItem(slot);
         if (stack != null) {
             ItemMeta meta = stack.getItemMeta();
             boolean changed = false;
-            if (meta instanceof org.bukkit.inventory.meta.CompassMeta compassMeta
-                    && stack.getType() == Material.COMPASS) {
+            if (meta instanceof CompassMeta compassMeta && stack.getType() == Material.COMPASS) {
                 changed = aimNeedle(player, aim, compassMeta);
             } else {
                 aimNeedle(player, aim);
@@ -218,10 +241,10 @@ public final class TeamCompassService {
             // re-sent, which is what keeps the recovery compass from ever redrawing.
             if (changed) {
                 stack.setItemMeta(meta);
-                player.getInventory().setItem(slot.get(), stack);
+                player.getInventory().setItem(slot, stack);
             }
         }
-        boolean holding = holding(player);
+        boolean holding = items.inHand(player, OURS);
         showDistance(player, aim, name, holding);
         if (holding && TrailPreference.shows(player, settings)) {
             List<PathTrail.Dot> dots = TrackerCompass.trail(TrackerCompassService.pointOf(player), aim);
@@ -256,7 +279,7 @@ public final class TeamCompassService {
      * client's compass target — the only other needle a plain compass has — already belongs to the
      * tracking compass. @return whether the item changed and has to be written back
      */
-    boolean aimNeedle(Player player, Aim aim, org.bukkit.inventory.meta.CompassMeta meta) {
+    boolean aimNeedle(Player player, Aim aim, CompassMeta meta) {
         Location spot = !aim.hasDirection() || aim.at() == null ? null
                 : new Location(player.getWorld(), Math.floor(aim.at().x()), Math.floor(aim.at().y()),
                         Math.floor(aim.at().z()));
@@ -278,15 +301,19 @@ public final class TeamCompassService {
         }
         UUID id = player.getUniqueId();
         if (!holding || !aim.hasDirection()) {
-            if (showingDistance.remove(id)) {
-                actionBars.clear(id, DISTANCE_OWNER);
-            }
+            clearDistance(id);
             return;
         }
         actionBars.show(id, DISTANCE_OWNER, messages.get("manhunt.team-compass.distance",
                         "teammate", safe(name), "blocks", String.valueOf(Math.round(aim.distance()))),
                 Duration.ofMillis(settings.trackerRefreshTicksClamped() * 50L + 1000L), ActionBarPriority.NORMAL);
         showingDistance.add(id);
+    }
+
+    private void clearDistance(UUID id) {
+        if (showingDistance.remove(id) && actionBars != null) {
+            actionBars.clear(id, DISTANCE_OWNER);
+        }
     }
 
     // ------------------------------------------------------------------------ picking
@@ -363,11 +390,11 @@ public final class TeamCompassService {
         return Optional.ofNullable(picks.get(player));
     }
 
-    /** Somebody left the server: forget what they were following. */
+    /** Somebody left the server or the side: forget what they were following and being shown. */
     public void forget(UUID player) {
         picks.remove(player);
         needles.remove(player);
-        showingDistance.remove(player);
+        clearDistance(player);
     }
 
     // ------------------------------------------------------------------------ the item
@@ -377,11 +404,11 @@ public final class TeamCompassService {
     }
 
     public boolean carries(Player player) {
-        return find(player).isPresent();
+        return items.slotOf(player, OURS) >= 0;
     }
 
     public void give(Player player) {
-        if (find(player).isPresent()) {
+        if (carries(player)) {
             return;
         }
         ItemStack stack = new ItemStack(materialFor(settings.trackerTeamCompassItem()));
@@ -390,51 +417,25 @@ public final class TeamCompassService {
         meta.lore(List.of(line("<gray>Points at your own side."),
                 line("<dark_gray>Right-click for the next teammate."),
                 line("<dark_gray>Sneak + right-click to pick from a list.")));
-        meta.getPersistentDataContainer().set(marker, PersistentDataType.STRING, TAG);
+        items.tag(meta, TAG);
         stack.setItemMeta(meta);
-        BoundItems.bind(stack);
-        for (ItemStack leftover : player.getInventory().addItem(stack).values()) {
-            player.getWorld().dropItem(player.getLocation(), leftover);
-        }
+        CompassItems.handTo(player, BoundItems.bind(stack));
         say(player, "manhunt.team-compass.given");
     }
 
     /** Somebody who left the hunt: the compass back, their pick forgotten. */
     public void takeFrom(Player player) {
-        Scheduling.entity(plugin, player, () -> takeBack(player));
+        Threads.entity(plugin, player, () -> takeBack(player));
         forget(player.getUniqueId());
     }
 
-    private void takeBack(Player player) {
-        ItemStack[] contents = player.getInventory().getContents();
-        for (int slot = 0; slot < contents.length; slot++) {
-            if (isTeamCompass(contents[slot])) {
-                player.getInventory().setItem(slot, null);
-            }
-        }
-    }
-
-    private Optional<Integer> find(Player player) {
-        ItemStack[] contents = player.getInventory().getContents();
-        for (int slot = 0; slot < contents.length; slot++) {
-            if (isTeamCompass(contents[slot])) {
-                return Optional.of(slot);
-            }
-        }
-        return Optional.empty();
-    }
-
-    private boolean holding(Player player) {
-        return isTeamCompass(player.getInventory().getItemInMainHand())
-                || isTeamCompass(player.getInventory().getItemInOffHand());
+    /** Every team compass off {@code player} — on their own thread. */
+    public void takeBack(Player player) {
+        items.removeAll(player, OURS);
     }
 
     public boolean isTeamCompass(ItemStack stack) {
-        if (stack == null || (stack.getType() != Material.RECOVERY_COMPASS && stack.getType() != Material.COMPASS)
-                || !stack.hasItemMeta()) {
-            return false;
-        }
-        return TAG.equals(stack.getItemMeta().getPersistentDataContainer().get(marker, PersistentDataType.STRING));
+        return items.is(stack, OURS);
     }
 
     private String nameOf(UUID id) {
@@ -446,13 +447,5 @@ public final class TeamCompassService {
         if (messages != null) {
             messages.send(player, key, (Object[]) placeholders);
         }
-    }
-
-    private static Component line(String mini) {
-        return MINI.deserialize(mini).decoration(TextDecoration.ITALIC, false);
-    }
-
-    private static String safe(String raw) {
-        return raw == null ? "somebody" : raw.replace("<", "").replace(">", "");
     }
 }

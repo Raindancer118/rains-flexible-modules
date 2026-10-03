@@ -4,6 +4,7 @@ import org.bukkit.World;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * The structures a Runner's structure compass can point at, per dimension — strongholds deliberately
@@ -50,12 +51,15 @@ public final class StructureChoices {
     private static final List<Choice> END = List.of(
             new Choice("end_city", "End city", "PURPUR_BLOCK", List.of("end_city")));
 
+    private static final List<Choice> ALL =
+            Stream.of(OVERWORLD, NETHER, END).flatMap(List::stream).toList();
+
     private StructureChoices() {
     }
 
     /** Every choice in every dimension. */
     public static List<Choice> all() {
-        return java.util.stream.Stream.of(OVERWORLD, NETHER, END).flatMap(List::stream).toList();
+        return ALL;
     }
 
     /** What can be chosen standing in {@code environment}. */
@@ -68,8 +72,7 @@ public final class StructureChoices {
     }
 
     public static Optional<Choice> byId(String id) {
-        return java.util.stream.Stream.of(OVERWORLD, NETHER, END).flatMap(List::stream)
-                .filter(choice -> choice.id().equals(id)).findFirst();
+        return ALL.stream().filter(choice -> choice.id().equals(id)).findFirst();
     }
 
     /** Whether somebody at {@code (x, z)} has reached a destination at {@code (tx, tz)}. */

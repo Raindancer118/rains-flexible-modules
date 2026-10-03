@@ -1,12 +1,9 @@
 package de.raindancer.modules.manhunt.tracker;
 
-import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.model.Hunt;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+import de.raindancer.modules.manhunt.util.Threads;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -18,11 +15,11 @@ import org.bukkit.generator.structure.Structure;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.CompassMeta;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.StructureSearchResult;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,7 +27,10 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+
+import static de.raindancer.modules.manhunt.tracker.CompassItems.line;
 
 /**
  * The Runners' structure compass ({@link ManhuntSettings#runnerStructureCompass()}): every Runner is
@@ -44,9 +44,10 @@ import java.util.function.Supplier;
  */
 public final class StructureCompassService {
 
-    private static final MiniMessage MINI = MiniMessage.miniMessage();
     private static final String UNCHOSEN = "unchosen";
     private static final String CHOSEN = "chosen";
+    private static final Predicate<String> BLANK = UNCHOSEN::equals;
+    private static final Predicate<String> EITHER = state -> UNCHOSEN.equals(state) || CHOSEN.equals(state);
     /** How far the search reaches, in chunks — a mansion can be a long way off, and that is the Runner's call. */
     private static final int SEARCH_RADIUS_CHUNKS = 100;
 
@@ -65,7 +66,7 @@ public final class StructureCompassService {
     private final Messages messages;
     private final Supplier<ManhuntSettings> settings;
     private final Locator locator;
-    private final NamespacedKey marker;
+    private final CompassItems items;
     private final Map<UUID, Destination> destinations = new ConcurrentHashMap<>();
     /** Runners who have used their one choice this hunt. */
     private final Set<UUID> chosen = ConcurrentHashMap.newKeySet();
@@ -78,7 +79,7 @@ public final class StructureCompassService {
         this.messages = messages;
         this.settings = Objects.requireNonNull(settings, "settings");
         this.locator = Objects.requireNonNull(locator, "locator");
-        this.marker = new NamespacedKey(plugin, "manhunt-structure-compass");
+        this.items = new CompassItems(plugin, "manhunt-structure-compass", Material.COMPASS);
     }
 
     /** The real search: every variant, the nearest of all. Runs on the caller's (the player's) thread. */
@@ -114,31 +115,45 @@ public final class StructureCompassService {
         return settings.get().runnerStructureCompass();
     }
 
+    /** Whether {@code player} should be carrying one: a Runner still in it, with the setting on. */
+    boolean owes(Hunt hunt, UUID player) {
+        return enabled() && hunt.isRunner(player) && !hunt.isEliminated(player);
+    }
+
     // ------------------------------------------------------------------------ a hunt beginning and ending
 
-    public void armFor(Hunt hunt) {
+    /** A new hunt: every Runner has their one choice again. Handing out is {@link HuntCompasses}'. */
+    public void arm() {
         destinations.clear();
         chosen.clear();
-        if (!enabled()) {
-            return;
-        }
-        for (UUID id : hunt.livingRunners()) {
-            Player runner = plugin.getServer().getPlayer(id);
-            if (runner != null) {
-                give(runner);
-            }
-        }
     }
 
     public void disarm(Hunt hunt) {
         for (UUID id : hunt.everybody()) {
             Player player = plugin.getServer().getPlayer(id);
             if (player != null) {
-                Scheduling.entity(plugin, player, () -> takeBack(player));
+                Threads.entity(plugin, player, () -> takeBack(player));
             }
         }
         destinations.clear();
         chosen.clear();
+    }
+
+    /**
+     * Brings one player's structure compass in line with the side they are on now — on their own
+     * thread. A Runner who has not used their choice yet gets one; anybody else has theirs taken,
+     * and where it pointed is forgotten.
+     */
+    public void fit(Hunt hunt, Player player) {
+        UUID id = player.getUniqueId();
+        if (owes(hunt, id)) {
+            if (!chosen.contains(id)) {
+                give(player);
+            }
+            return;
+        }
+        takeBack(player);
+        destinations.remove(id);
     }
 
     /** Takes the compass off anybody who has got within reach of where it points. */
@@ -153,7 +168,7 @@ public final class StructureCompassService {
             String world = at.getWorld() == null ? null : at.getWorld().getName();
             if (StructureChoices.reached(world, at.getX(), at.getZ(), goal.world(), goal.x(), goal.z())) {
                 destinations.remove(entry.getKey());
-                Scheduling.entity(plugin, runner, () -> takeBack(runner));
+                Threads.entity(plugin, runner, () -> takeBack(runner));
                 say(runner, "manhunt.structure.reached", "structure", goal.label());
             }
         }
@@ -180,8 +195,8 @@ public final class StructureCompassService {
         if (!enabled() || hunt == null || !hunt.isRunner(id) || hunt.isEliminated(id) || chosen.contains(id)) {
             return false;
         }
-        Optional<Integer> slot = find(runner, UNCHOSEN);
-        if (slot.isEmpty()) {
+        int slot = items.slotOf(runner, BLANK);
+        if (slot < 0) {
             return false;
         }
         Optional<Location> nearest = locator.nearest(runner.getLocation(), choice.structureKeys());
@@ -191,15 +206,15 @@ public final class StructureCompassService {
         }
         Location target = nearest.get();
         World world = target.getWorld() != null ? target.getWorld() : runner.getWorld();
-        ItemStack stack = runner.getInventory().getItem(slot.get());
+        ItemStack stack = runner.getInventory().getItem(slot);
         if (stack != null && stack.getItemMeta() instanceof CompassMeta meta) {
             meta.setLodestoneTracked(false);
             meta.setLodestone(new Location(world, target.getBlockX(), target.getBlockY(), target.getBlockZ()));
-            meta.displayName(line("<gold>Compass to the nearest " + choice.label().toLowerCase(java.util.Locale.ROOT)));
+            meta.displayName(line("<gold>Compass to the nearest " + choice.label().toLowerCase(Locale.ROOT)));
             meta.lore(List.of(line("<gray>Gone once you are within 20 blocks,"), line("<gray>or if you drop it.")));
-            meta.getPersistentDataContainer().set(marker, PersistentDataType.STRING, CHOSEN);
+            items.tag(meta, CHOSEN);
             stack.setItemMeta(meta);
-            runner.getInventory().setItem(slot.get(), stack);
+            runner.getInventory().setItem(slot, stack);
         }
         chosen.add(id);
         destinations.put(id, new Destination(world.getName(), target.getX(), target.getZ(), choice.label()));
@@ -229,7 +244,7 @@ public final class StructureCompassService {
     }
 
     public boolean carries(Player runner) {
-        return find(runner, UNCHOSEN).isPresent() || find(runner, CHOSEN).isPresent();
+        return items.slotOf(runner, EITHER) >= 0;
     }
 
     /**
@@ -246,7 +261,7 @@ public final class StructureCompassService {
     }
 
     public void give(Player runner) {
-        if (find(runner, UNCHOSEN).isPresent() || find(runner, CHOSEN).isPresent()) {
+        if (carries(runner)) {
             return;
         }
         ItemStack stack = new ItemStack(Material.COMPASS);
@@ -254,62 +269,34 @@ public final class StructureCompassService {
         meta.displayName(line("<gold>Structure compass"));
         meta.lore(List.of(line("<gray>Right-click to choose what it finds."),
                 line("<dark_gray>Once per hunt. Never a stronghold.")));
-        meta.getPersistentDataContainer().set(marker, PersistentDataType.STRING, UNCHOSEN);
+        items.tag(meta, UNCHOSEN);
         stack.setItemMeta(meta);
-        for (ItemStack leftover : runner.getInventory().addItem(stack).values()) {
-            runner.getWorld().dropItem(runner.getLocation(), leftover);
-        }
+        CompassItems.handTo(runner, stack);
         say(runner, "manhunt.structure.given");
     }
 
     /** Somebody who left the hunt: the compass back, its destination forgotten. */
     public void takeFrom(Player player) {
-        Scheduling.entity(plugin, player, () -> takeBack(player));
+        Threads.entity(plugin, player, () -> takeBack(player));
         destinations.remove(player.getUniqueId());
     }
 
-    private void takeBack(Player player) {
-        ItemStack[] contents = player.getInventory().getContents();
-        for (int slot = 0; slot < contents.length; slot++) {
-            if (isStructureCompass(contents[slot])) {
-                player.getInventory().setItem(slot, null);
-            }
-        }
-    }
-
-    private Optional<Integer> find(Player player, String state) {
-        ItemStack[] contents = player.getInventory().getContents();
-        for (int slot = 0; slot < contents.length; slot++) {
-            if (state.equals(stateOf(contents[slot]))) {
-                return Optional.of(slot);
-            }
-        }
-        return Optional.empty();
-    }
-
-    private String stateOf(ItemStack stack) {
-        if (stack == null || stack.getType() != Material.COMPASS || !stack.hasItemMeta()) {
-            return null;
-        }
-        return stack.getItemMeta().getPersistentDataContainer().get(marker, PersistentDataType.STRING);
+    /** Every structure compass off {@code player} — on their own thread. */
+    public void takeBack(Player player) {
+        items.removeAll(player, EITHER);
     }
 
     public boolean isStructureCompass(ItemStack stack) {
-        String state = stateOf(stack);
-        return UNCHOSEN.equals(state) || CHOSEN.equals(state);
+        return items.is(stack, EITHER);
     }
 
     public boolean isBlank(ItemStack stack) {
-        return UNCHOSEN.equals(stateOf(stack));
+        return items.is(stack, BLANK);
     }
 
     private void say(Player player, String key, String... placeholders) {
         if (messages != null) {
             messages.send(player, key, (Object[]) placeholders);
         }
-    }
-
-    private static Component line(String mini) {
-        return MINI.deserialize(mini).decoration(TextDecoration.ITALIC, false);
     }
 }

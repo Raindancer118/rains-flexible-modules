@@ -75,6 +75,7 @@ class SpeedrunLobbyTest {
         pluginManager = mock(PluginManager.class);
         when(plugin.getServer()).thenReturn(server);
         when(server.getPluginManager()).thenReturn(pluginManager);
+        when(plugin.isEnabled()).thenReturn(true);
 
         settings = new SettingsStore<>(
                 SettingsSchema.of(SpeedrunSettings.class, SpeedrunSettings.DEFAULTS),
@@ -333,6 +334,10 @@ class SpeedrunLobbyTest {
                 World world = mock(World.class);
                 when(world.getEntities()).thenReturn(List.of());
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                Player alice = mock(Player.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+                runsItsOwnTasksImmediately(alice);
+                bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+                bukkit.when(Bukkit::advancementIterator).thenReturn(java.util.Collections.emptyIterator());
                 de.raindancer.core.moderation.players.PlayerAdmin players =
                         mock(de.raindancer.core.moderation.players.PlayerAdmin.class);
                 SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
@@ -1089,6 +1094,128 @@ class SpeedrunLobbyTest {
 
                 assertThatCode(() -> scheduled.get(200L).run()).doesNotThrowAnyException();
                 assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.READY);
+            }
+        }
+
+        /**
+         * A finished run's wait belongs to that run. A resume over it, and a quick finish of the
+         * resumed one, used to let the first run's wait remake the world under the second — seconds
+         * before its own wait was up, and without the players having been told.
+         */
+        @Test
+        @DisplayName("the wait of a run that was resumed over does not reset the run that replaced it")
+        void aStaleWaitLeavesALaterRunAlone() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                SpeedrunLobby lobby = lobby();
+                List<Runnable> scheduled = new java.util.ArrayList<>();
+                lobby.schedulesLaterWith((ticks, task) -> scheduled.add(task));
+                lobby.start(Set.of(ALICE));
+                lobby.session().orElseThrow().finish("first");
+                lobby.resume(Set.of(ALICE), java.time.Duration.ZERO);
+                SpeedrunSession second = lobby.session().orElseThrow();
+                second.finish("second");
+
+                scheduled.getFirst().run();
+
+                assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.FINISHED);
+                assertThat(lobby.session()).containsSame(second);
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("edges of the state machine")
+    class StateMachineEdges {
+
+        /**
+         * The menu and /settings stay usable during a countdown, and the goal can be removed by a
+         * mode's own command. The racers' inventories were cleared when the countdown began, so a
+         * refusal at zero used to leave them standing in a READY lobby with nothing in their hands
+         * and nobody told why.
+         */
+        @Test
+        @DisplayName("a countdown refused at zero hands the lobby back and says why")
+        void refusalAtZeroHandsTheLobbyBack() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                Player alice = mock(Player.class);
+                bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+                Messages messages = mock(Messages.class);
+                java.util.concurrent.atomic.AtomicReference<Runnable> atZero =
+                        new java.util.concurrent.atomic.AtomicReference<>();
+                SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings,
+                        (participants, onComplete) -> atZero.set(onComplete), messages);
+                java.util.concurrent.atomic.AtomicInteger ready = new java.util.concurrent.atomic.AtomicInteger();
+                lobby.onReady(ready::incrementAndGet);
+
+                assertThat(lobby.beginCountdown(Set.of(ALICE))).isEqualTo(SpeedrunLobby.StartOutcome.STARTED);
+                settings.set("advancement-key", "");   // nothing can end the run any more
+                atZero.get().run();
+
+                assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.READY);
+                assertThat(ready).hasValue(1);
+                verify(messages).send(eq(alice), eq("speedrun.start.no-end-condition"), any(Object[].class));
+            }
+        }
+
+        /**
+         * A resume over a finished run used to forget the finished run before asking whether the
+         * resume could happen at all. A refused resume then left a READY lobby over a played world,
+         * with the pending automatic reset cancelled by it.
+         */
+        @Test
+        @DisplayName("a refused resume over a finished run leaves that run finished")
+        void refusedResumeKeepsTheFinishedRun() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                SpeedrunLobby lobby = lobby();
+                lobby.start(Set.of(ALICE));
+                SpeedrunSession finished = lobby.session().orElseThrow();
+                finished.finish("done");
+
+                assertThat(lobby.resume(Set.of(), java.time.Duration.ZERO))
+                        .isEqualTo(SpeedrunLobby.StartOutcome.NO_PARTICIPANTS);
+
+                assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.FINISHED);
+                assertThat(lobby.session()).containsSame(finished);
+            }
+        }
+
+        /** Being kicked by a stopping server is not "everybody left": nothing is deleted on the way down. */
+        @Test
+        @DisplayName("a finished run is not regenerated by the quits of a server shutting down")
+        void noRegenerationWhileStopping() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                bukkit.when(Bukkit::isStopping).thenReturn(true);
+                settings.set("restart-when-run-ends", "false");
+                SpeedrunLobby lobby = lobby();
+                lobby.start(Set.of(ALICE));
+                lobby.session().orElseThrow().finish("done");
+
+                lobby.resetIfAbandoned(ALICE);
+
+                assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.FINISHED);
+                bukkit.verify(Bukkit::getGlobalRegionScheduler, never());
+            }
+        }
+
+        @Test
+        @DisplayName("nor by quits arriving while the plugin itself is being disabled")
+        void noRegenerationWhileDisabled() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                when(plugin.isEnabled()).thenReturn(false);
+                settings.set("restart-when-run-ends", "false");
+                SpeedrunLobby lobby = lobby();
+                lobby.start(Set.of(ALICE));
+                lobby.session().orElseThrow().finish("done");
+
+                lobby.resetIfAbandoned(ALICE);
+
+                assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.FINISHED);
+                bukkit.verify(Bukkit::getGlobalRegionScheduler, never());
             }
         }
     }

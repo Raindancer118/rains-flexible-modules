@@ -273,13 +273,5 @@ class TrackerCompassTest {
 
             assertThat(TrackerCompass.trail(HUNTER, elsewhere)).isEmpty();
         }
-
-        @Test
-        @DisplayName("follows the setting")
-        void setting() {
-            assertThat(compass().showsTrail()).isTrue();
-            assertThat(compass(ManhuntSettings.DEFAULTS.withTrackerParticleTrail(false), new PortalMemory())
-                    .showsTrail()).isFalse();
-        }
     }
 }

@@ -49,6 +49,9 @@ public final class SpeedrunCreeperOnBreakListener implements Listener {
             return;
         }
         SpeedrunSettings current = settings.current();
+        if (current.creeperSpawnChanceOnBreakPercent() <= 0) {
+            return;   // the hazard is off on most servers; every block broken in a run comes through here
+        }
         Block block = event.getBlock();
         Location spawnAt = block.getLocation().add(0.5, 0, 0.5);
         SpeedrunCreeperHazard.maybeSpawn(spawnAt, current.creeperSpawnChanceOnBreakPercent(),

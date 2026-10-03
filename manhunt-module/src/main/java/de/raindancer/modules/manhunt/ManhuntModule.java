@@ -1,29 +1,52 @@
 package de.raindancer.modules.manhunt;
 
+import de.raindancer.core.RainsCore;
 import de.raindancer.core.data.settings.SettingsStore;
-import de.raindancer.core.ui.menu.ConfirmMenu;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.ui.chat.ChatChannels;
+import de.raindancer.core.ui.menu.ConfirmMenu;
+import de.raindancer.core.ui.profile.ProfileExtensions;
+import de.raindancer.core.world.visual.Navigator;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.manhunt.mode.ManhuntMode;
+import de.raindancer.modules.manhunt.model.Hunt;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.screen.ManhuntSidesMenu;
+import de.raindancer.modules.manhunt.screen.ManhuntTrackerMenu;
+import de.raindancer.modules.manhunt.screen.StructureChoiceMenu;
+import de.raindancer.modules.manhunt.screen.TrailProfileButton;
 import de.raindancer.modules.manhunt.service.Eliminations;
 import de.raindancer.modules.manhunt.service.HuntersByDefaultListener;
 import de.raindancer.modules.manhunt.service.HuntersFistsOnly;
+import de.raindancer.modules.manhunt.service.ManhuntTeamChannel;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
-import de.raindancer.modules.manhunt.service.WhitelistVips;
+import de.raindancer.modules.manhunt.service.PositionShare;
 import de.raindancer.modules.manhunt.service.SpectatorRestoreListener;
+import de.raindancer.modules.manhunt.service.WhitelistVips;
+import de.raindancer.modules.manhunt.tracker.CompassHandout;
+import de.raindancer.modules.manhunt.tracker.HuntCompasses;
 import de.raindancer.modules.manhunt.tracker.PortalMemory;
+import de.raindancer.modules.manhunt.tracker.StructureChoices;
+import de.raindancer.modules.manhunt.tracker.StructureCompassListener;
+import de.raindancer.modules.manhunt.tracker.StructureCompassService;
+import de.raindancer.modules.manhunt.tracker.TeamCompassService;
 import de.raindancer.modules.manhunt.tracker.TrackerCompass;
 import de.raindancer.modules.manhunt.tracker.TrackerCompassService;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
 import de.raindancer.modules.speedrun.SpeedrunModes;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.Server;
+import org.bukkit.entity.Player;
 
+import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * "RainsManhunt", as a module.
@@ -41,7 +64,7 @@ import java.util.List;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.20.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.21.0")
             .describedAs("Runners against Hunters, played in the speedrun lobby: the lobby's own "
                     + "goal is what the Runners race for, every Hunter carries a compass that "
                     + "follows a Runner through the portal they took, a caught Runner is out for "
@@ -52,11 +75,11 @@ public final class ManhuntModule implements FlexModule {
             .wanting("speedrun");
 
     private ManhuntMode mode;
-    private de.raindancer.core.RainsCore core;
+    private RainsCore core;
     private HuntersFistsOnly fistsOnly;
-    private de.raindancer.modules.manhunt.service.PositionShare navigation;
-    private de.raindancer.modules.manhunt.screen.TrailProfileButton trailButton;
-    private de.raindancer.modules.manhunt.service.ManhuntTeamChannel teamChannel;
+    private PositionShare navigation;
+    private TrailProfileButton trailButton;
+    private ManhuntTeamChannel teamChannel;
 
     @Override
     public ModuleInfo info() {
@@ -99,51 +122,39 @@ public final class ManhuntModule implements FlexModule {
         ManhuntWhitelistService whitelist = new ManhuntWhitelistService(server,
                 new WhitelistVips(context.dataFolder().resolve("whitelist-vips.yml")));
 
+        // Everything below reads the hunt through the mode, which is built last — it needs them.
+        Supplier<Optional<Hunt>> liveHunt = () -> mode == null ? Optional.empty() : mode.current();
+
         PortalMemory portals = new PortalMemory();
         TrackerCompass compass = new TrackerCompass(settings.current(), portals);
         settings.onChange(compass::settings);
-        TrackerCompassService tracker = new TrackerCompassService(context.plugin(),
-                () -> mode == null ? java.util.Optional.empty() : mode.current(),
+        TrackerCompassService tracker = new TrackerCompassService(context.plugin(), liveHunt,
                 compass, portals, context.core().messages(), context.core().actionBars(),
                 settings.current());
         settings.onChange(tracker::settings);
-        tracker.pickerScreen(viewer -> new de.raindancer.modules.manhunt.screen.ManhuntTrackerMenu(
-                tracker::targetsFor, tracker::pick, context.chat().brand(),
-                context.core().messages().raw("manhunt.tracker.picker-title"), viewer).open());
+        tracker.pickerScreen(viewer -> new ManhuntTrackerMenu(tracker::targetsFor, tracker::pick,
+                context.chat().brand(), context.core().messages().raw("manhunt.tracker.picker-title"),
+                viewer).open());
         // The second compass, pointing at your own side — see TeamCompassService.
-        de.raindancer.modules.manhunt.tracker.TeamCompassService teamCompass =
-                new de.raindancer.modules.manhunt.tracker.TeamCompassService(context.plugin(),
-                        () -> mode == null ? java.util.Optional.empty() : mode.current(),
-                        compass, context.core().messages(), context.core().actionBars(), settings.current());
+        TeamCompassService teamCompass = new TeamCompassService(context.plugin(), liveHunt, compass,
+                context.core().messages(), context.core().actionBars(), settings.current());
         settings.onChange(teamCompass::settings);
-        teamCompass.pickerScreen(viewer -> new de.raindancer.modules.manhunt.screen.ManhuntTrackerMenu(
-                teamCompass::targetsFor, teamCompass::pick, context.chat().brand(),
+        teamCompass.pickerScreen(viewer -> new ManhuntTrackerMenu(teamCompass::targetsFor,
+                teamCompass::pick, context.chat().brand(),
                 context.core().messages().raw("manhunt.team-compass.picker-title"), viewer).open());
-        tracker.teamCompass(teamCompass);
         // The Runners' structure compass — see StructureCompassService.
-        de.raindancer.modules.manhunt.tracker.StructureCompassService structures =
-                new de.raindancer.modules.manhunt.tracker.StructureCompassService(context.plugin(),
-                        () -> mode == null ? java.util.Optional.empty() : mode.current(),
-                        context.core().messages(), settings::current,
-                        de.raindancer.modules.manhunt.tracker.StructureCompassService.worldSearch());
-        structures.chooserScreen(viewer -> new de.raindancer.modules.manhunt.screen.StructureChoiceMenu(
-                structures, context.chat().brand(), viewer).open());
-        tracker.companion(structures::armFor, structures::disarm, structures::sweep);
-        // A structure id this server does not know would silently find nothing — say so at startup.
-        for (var choice : de.raindancer.modules.manhunt.tracker.StructureChoices.all()) {
-            for (String key : choice.structureKeys()) {
-                if (org.bukkit.Registry.STRUCTURE.get(org.bukkit.NamespacedKey.minecraft(key)) == null) {
-                    log.warn("The structure compass knows '{}' but this server has no such structure.", key);
-                }
-            }
-            if (org.bukkit.Material.matchMaterial(choice.icon()) == null) {
-                log.warn("The structure compass' icon '{}' is not an item on this server.", choice.icon());
-            }
-        }
-        context.listener(new de.raindancer.modules.manhunt.tracker.StructureCompassListener(structures));
+        StructureCompassService structures = new StructureCompassService(context.plugin(), liveHunt,
+                context.core().messages(), settings::current, StructureCompassService.worldSearch());
+        structures.chooserScreen(viewer -> new StructureChoiceMenu(structures, context.chat().brand(),
+                viewer).open());
+        warnAboutUnknownStructures(log);
+        context.listener(new StructureCompassListener(structures));
+        HuntCompasses compasses = new HuntCompasses(context.plugin(), liveHunt, tracker, teamCompass,
+                structures);
+        context.listener(compasses);
 
         ManhuntServices[] holder = new ManhuntServices[1];
-        ManhuntMode liveMode = new ManhuntMode(context.plugin(), teams, eliminations, tracker, portals,
+        ManhuntMode liveMode = new ManhuntMode(context.plugin(), teams, eliminations, compasses, portals,
                 whitelist, context.core().messages(), settings::current,
                 // The sides page, opened from the speedrun compass' own menu. A lambda rather than a
                 // reference to the services, which are built a line below this and cannot be handed
@@ -153,31 +164,26 @@ public final class ManhuntModule implements FlexModule {
 
         // /manhunt here: everybody told where you are, the coordinates a button that walks the clicker
         // there with Core's Navigator — see PositionShare.
-        navigation = new de.raindancer.modules.manhunt.service.PositionShare(context.plugin(),
-                () -> mode == null ? java.util.Optional.empty() : mode.current(), context.core().buttons(),
-                context.core().messages(),
-                new de.raindancer.core.world.visual.Navigator(context.plugin(), context.core().actionBars(),
-                        context.core().messages()),
+        navigation = new PositionShare(context.plugin(), context.core().buttons(), context.core().messages(),
+                new Navigator(context.plugin(), context.core().actionBars(), context.core().messages()),
                 settings::current);
-        trailButton = new de.raindancer.modules.manhunt.screen.TrailProfileButton(settings::current,
-                context.core().messages());
-        de.raindancer.core.ui.profile.ProfileExtensions.register(trailButton);
+        trailButton = new TrailProfileButton(settings::current, context.core().messages());
+        ProfileExtensions.register(trailButton);
         // Team chat — /chat team — is the chat plugin's to route; this only says who is on your side.
-        teamChannel = new de.raindancer.modules.manhunt.service.ManhuntTeamChannel(teams,
-                () -> mode == null ? java.util.Optional.empty() : mode.current());
-        de.raindancer.core.ui.chat.ChatChannels.register(teamChannel);
+        teamChannel = new ManhuntTeamChannel(teams, liveHunt);
+        ChatChannels.register(teamChannel);
 
         ManhuntServices services = new ManhuntServices(context.core().messages(),
                 context.chat().brand(), settings, teams, liveMode, whitelist,
                 new ManhuntServices.Screens() {
                     @Override
-                    public void sides(org.bukkit.entity.Player viewer) {
+                    public void sides(Player viewer) {
                         new ManhuntSidesMenu(holder[0], viewer, null).open();
                     }
 
                     @Override
-                    public void confirm(org.bukkit.entity.Player viewer, String question,
-                                        List<String> consequences, Runnable onYes) {
+                    public void confirm(Player viewer, String question, List<String> consequences,
+                                        Runnable onYes) {
                         // Core's own page, rather than a fourth copy of "are you sure?" — see
                         // ConfirmMenu's javadoc for why no plugin writes its own any more. The
                         // closing line is this module's, because nothing here is undone by saying no.
@@ -185,9 +191,7 @@ public final class ManhuntModule implements FlexModule {
                                 "<dark_gray>The hunt carries on either way.", onYes).open();
                     }
                 }, navigation,
-                new de.raindancer.modules.manhunt.tracker.CompassHandout(context.plugin(),
-                        () -> mode == null ? java.util.Optional.empty() : mode.current(),
-                        tracker, teamCompass, structures, context.core().messages()));
+                new CompassHandout(context.plugin(), liveHunt, compasses, context.core().messages()));
         holder[0] = services;
 
         // With the Runners hand-picked, everybody who has not been named is hunting — said up front
@@ -203,15 +207,13 @@ public final class ManhuntModule implements FlexModule {
         // Registered for the life of the module, not of a hunt: its whole job is somebody whose hunt
         // no longer exists. Everything scoped to one hunt is registered through SpeedrunRun instead —
         // see ManhuntMode.onStart.
-        context.listener(new SpectatorRestoreListener(
-                () -> mode == null ? java.util.Optional.empty() : mode.current(), eliminations));
+        context.listener(new SpectatorRestoreListener(liveHunt, eliminations));
 
         // Hunters only punching each other is one of Core's combat rules, not a damage listener of
         // our own — Core already traces arrows and pets back to a person and says how a hit landed.
         // The refusal is Core's combat.fists-only, said in Manhunt's own words for Manhunt only.
         core = context.core();
-        fistsOnly = new HuntersFistsOnly(
-                () -> mode == null ? java.util.Optional.empty() : mode.current(), settings::current);
+        fistsOnly = new HuntersFistsOnly(liveHunt, settings::current);
         core.combat().alsoAsk(ManhuntMode.ID, fistsOnly);
         core.messages().overrideFor(ManhuntMode.ID, "combat.fists-only", "manhunt.teammate-hit");
 
@@ -224,6 +226,20 @@ public final class ManhuntModule implements FlexModule {
 
         log.info("Manhunt is up, as a game the speedrun lobby can play: {} Runner(s) waiting.",
                 teams.runners().size());
+    }
+
+    /** A structure id this server does not know would silently find nothing — said at startup. */
+    private static void warnAboutUnknownStructures(LogChannel log) {
+        for (StructureChoices.Choice choice : StructureChoices.all()) {
+            for (String key : choice.structureKeys()) {
+                if (Registry.STRUCTURE.get(NamespacedKey.minecraft(key)) == null) {
+                    log.warn("The structure compass knows '{}' but this server has no such structure.", key);
+                }
+            }
+            if (Material.matchMaterial(choice.icon()) == null) {
+                log.warn("The structure compass' icon '{}' is not an item on this server.", choice.icon());
+            }
+        }
     }
 
     private static void requireCurrentSpeedrun(Server server) {
@@ -255,7 +271,7 @@ public final class ManhuntModule implements FlexModule {
      * shaded into a bundle under another plugin name still passes, because the class is what counts.
      */
     static void requireCurrentSpeedrun(Class<?> speedrunModes, String foundVersion) {
-        if (speedrunModes != null && java.lang.reflect.Modifier.isPublic(speedrunModes.getModifiers())) {
+        if (speedrunModes != null && Modifier.isPublic(speedrunModes.getModifiers())) {
             return;
         }
         throw new IllegalStateException("Manhunt needs RainsSpeedrun " + SPEEDRUN_NEEDED + " or newer, "
@@ -276,10 +292,10 @@ public final class ManhuntModule implements FlexModule {
         // that is no longer loaded.
         SpeedrunModes.withdraw(ManhuntMode.ID);
         if (teamChannel != null) {
-            de.raindancer.core.ui.chat.ChatChannels.unregister(teamChannel);
+            ChatChannels.unregister(teamChannel);
         }
         if (trailButton != null) {
-            de.raindancer.core.ui.profile.ProfileExtensions.unregister(trailButton);
+            ProfileExtensions.unregister(trailButton);
         }
         if (navigation != null) {
             navigation.stopAll();

@@ -1,10 +1,13 @@
 package de.raindancer.modules.speedrun.conditions;
 
+import de.raindancer.core.platform.log.Log;
+import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.modules.speedrun.SpeedrunEndCondition;
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.EnderDragon;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.EventPriority;
@@ -54,8 +57,8 @@ import java.util.function.Predicate;
  */
 public final class DragonExitEndCondition implements SpeedrunEndCondition, Listener {
 
-    private static final de.raindancer.core.platform.log.LogChannel LOG =
-            de.raindancer.core.platform.log.Log.of("speedrun");
+    private static final LogChannel LOG =
+            Log.of("speedrun");
 
     private final Plugin plugin;
     private final NamespacedKey dragonKill;
@@ -161,7 +164,7 @@ public final class DragonExitEndCondition implements SpeedrunEndCondition, Liste
         reached(event.getPlayer(), "the respawn after the end credits");
     }
 
-    private void reached(org.bukkit.entity.Player player, String how) {
+    private void reached(Player player, String how) {
         if (!isGoalReacher(player.getUniqueId())) {
             return;
         }

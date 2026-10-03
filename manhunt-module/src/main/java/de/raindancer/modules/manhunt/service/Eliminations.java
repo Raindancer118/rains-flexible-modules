@@ -1,7 +1,7 @@
 package de.raindancer.modules.manhunt.service;
 
-import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.manhunt.model.Hunt;
+import de.raindancer.modules.manhunt.util.Threads;
 import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -69,14 +69,20 @@ public final class Eliminations {
                 : player.getWorld().getSpawnLocation());
     }
 
+    /**
+     * {@link #restore}, on the thread owning {@code player} — for a caller on somebody else's: a
+     * hunt finishing where the last death landed, an admin's assign, a menu click.
+     */
+    public void restoreOnTheirThread(Player player) {
+        Threads.entity(plugin, player, () -> restore(player));
+    }
+
     /** Everybody the Hunters caught, put back — the hunt is over. */
     public void restoreAll(Hunt hunt) {
         for (UUID id : hunt.eliminated()) {
             Player player = plugin.getServer().getPlayer(id);
             if (player != null) {
-                // Folia: a hunt finishes on whatever thread the last death landed on, which is not
-                // necessarily the one owning each of the others.
-                Scheduling.entity(plugin, player, () -> restore(player));
+                restoreOnTheirThread(player);
             }
         }
     }

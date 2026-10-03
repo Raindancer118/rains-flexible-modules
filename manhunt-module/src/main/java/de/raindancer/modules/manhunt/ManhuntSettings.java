@@ -11,9 +11,9 @@ import org.bukkit.Material;
 /**
  * What a server owner can change about a hunt.
  *
- * <h2>Why this is six settings and not forty-five</h2>
- * The module this replaces had forty-five, and most of them existed because it owned things the
- * speedrun lobby already owns: its own world, its own spawn, its own seed, its own countdown, its own
+ * <h2>Why so few</h2>
+ * The module this replaces had forty-five settings, and most of them existed because it owned things
+ * the speedrun lobby already owns: its own world, its own spawn, its own seed, its own countdown, its own
  * map reset. A mode owns none of that any more — the world, the goal, the countdown, the hazard and
  * the reset are {@code speedrun.yml}'s, in one place, for both games. What is left here is what only
  * a hunt has: the compass, who may pick a side, and the door.
@@ -125,9 +125,11 @@ public record ManhuntSettings(
 
     /**
      * A fresh install: the needle follows the Runner through the door they took, every Hunter aims
-     * their own, distance shown, twice a second, the two sides fixed for the length of a hunt,
-     * anybody may run, no team compass, a particle trail, Hunters may fight each other however they like, no head start, nobody arranged in a circle, and the server's own door is left exactly as the owner set it — a plugin that quietly whitelists a server is a plugin that locked
-     * somebody out of their own.
+     * their own, distance shown, twice a second, no team compass, a particle trail, no compasses for
+     * the Runners, the two sides fixed for the length of a hunt, anybody may run, Hunters may fight
+     * each other however they like, no head start, nobody arranged in a circle, and the server's own
+     * door left exactly as the owner set it — a plugin that quietly whitelists a server is a plugin
+     * that locked somebody out of their own.
      */
     public static final ManhuntSettings DEFAULTS = new ManhuntSettings(
             CrossWorldTracking.LAST_PORTAL, true, true, 10, false, TeamCompassItem.RECOVERY_COMPASS, true,

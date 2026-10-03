@@ -1,10 +1,12 @@
 package de.raindancer.modules.speedrun;
 
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import de.raindancer.core.ui.menu.Menu;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -92,9 +94,9 @@ public interface SpeedrunMode {
      * to the start point as usual; an empty map (the default) leaves the lobby's own placement alone.
      * Asked as the countdown begins, so nobody is moved again at "go".
      */
-    default java.util.Map<UUID, org.bukkit.Location> startingSpots(org.bukkit.Location centre,
+    default Map<UUID, Location> startingSpots(Location centre,
                                                                   Set<UUID> participants) {
-        return java.util.Map.of();
+        return Map.of();
     }
 
     /**

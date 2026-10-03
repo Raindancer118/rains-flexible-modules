@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -79,6 +80,37 @@ class ManhuntCommandTest {
 
         assertThat(fake.teams.runners()).isEmpty();
         assertThat(fake.teams.hunters()).containsExactly(ANNA);
+    }
+
+    @Test
+    @DisplayName("a join refused by the freeze is said as refused, never as joined")
+    void joinRefusedByTheFreeze() {
+        // A hunt that began between the command's own check and the join: the teams refuse it, and
+        // the player used to be told "You are running" anyway.
+        fake.frozen.set(true);
+
+        command.execute(source, new String[]{"join", "runner"});
+
+        assertThat(fake.teams.runners()).isEmpty();
+        verify(fake.messages).send(eq(anna), eq("manhunt.sides-frozen"), any(Object[].class));
+        verify(fake.messages, never()).send(eq(anna), eq("manhunt.join.runner"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("an assign refused by the freeze tells nobody they moved")
+    void assignRefusedByTheFreeze() {
+        Player ben = mock(Player.class);
+        when(ben.getUniqueId()).thenReturn(BEN);
+        when(ben.getName()).thenReturn("Ben");
+        bukkit = mockStatic(Bukkit.class);
+        bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        fake.frozen.set(true);
+
+        command.execute(source, new String[]{"assign", "Ben", "runner"});
+
+        verify(fake.messages).send(eq(anna), eq("manhunt.sides-frozen"), any(Object[].class));
+        verify(fake.messages, never()).send(eq(ben), eq("manhunt.join.runner"), any(Object[].class));
     }
 
     @Test

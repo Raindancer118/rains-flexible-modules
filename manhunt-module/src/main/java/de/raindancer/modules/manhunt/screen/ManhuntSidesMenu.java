@@ -4,6 +4,7 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.manhunt.ManhuntServices;
+import de.raindancer.modules.manhunt.mode.ManhuntMode;
 import de.raindancer.modules.manhunt.model.Hunt;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -12,6 +13,7 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * The sides: who is running, who is chasing, and the two buttons that change that.
@@ -79,30 +81,24 @@ public final class ManhuntSidesMenu extends Menu {
                         "<gray>Give up the chase and race the goal.",
                         "<dark_gray>Your compass goes back."),
                 click -> {
-                    switchTo(de.raindancer.modules.manhunt.mode.ManhuntMode.Side.RUNNER);
+                    switchTo(ManhuntMode.Side.RUNNER);
                     refresh();
                 });
         band(MenuLayout.RULES, 5, Icons.of(Material.IRON_SWORD, "<white>Hunt instead",
                         "<gray>Stop running and join the pack.",
                         "<dark_gray>You are handed a tracking compass."),
                 click -> {
-                    switchTo(de.raindancer.modules.manhunt.mode.ManhuntMode.Side.HUNTER);
+                    switchTo(ManhuntMode.Side.HUNTER);
                     refresh();
                 });
     }
 
-    private void switchTo(de.raindancer.modules.manhunt.mode.ManhuntMode.Side side) {
-        var outcome = services.mode().changeSide(viewer.getUniqueId(), side, false);
-        switch (outcome) {
-            case CHANGED -> { }   // the mode already told them which side they are on
-            case FROZEN -> services.messages().send(viewer, "manhunt.sides-frozen");
-            case ALREADY -> services.messages().send(viewer, "manhunt.side.already",
-                    "player", viewer.getName());
-            case LAST_RUNNER -> services.messages().send(viewer, "manhunt.side.last-runner",
-                    "player", viewer.getName());
-            case NOT_IN_THE_HUNT -> services.messages().send(viewer, "manhunt.side.not-in-hunt",
-                    "player", viewer.getName());
-            case NO_HUNT -> services.messages().send(viewer, "manhunt.side.hunt-over");
+    private void switchTo(ManhuntMode.Side side) {
+        ManhuntMode.SideChange outcome = services.mode().changeSide(viewer.getUniqueId(), side, false);
+        // A change itself is already said by the mode, in the words of the side they joined.
+        if (outcome != ManhuntMode.SideChange.CHANGED) {
+            services.messages().send(viewer, outcome.messageKey(), "player", viewer.getName(),
+                    "side", side.name().toLowerCase(Locale.ROOT));
         }
     }
 
@@ -138,29 +134,29 @@ public final class ManhuntSidesMenu extends Menu {
             band(MenuLayout.RULES, 4, Icons.of(Material.IRON_SWORD, "<white>Hunt",
                             "<gray>Everybody here hunts.",
                             "<dark_gray>An admin picks the Runners on this server."),
-                    click -> {
-                        services.teams().joinHunters(viewer.getUniqueId());
-                        services.messages().send(viewer, "manhunt.join.hunter");
-                        refresh();
-                    });
+                    click -> join(false));
             return;
         }
         band(MenuLayout.RULES, 3, Icons.of(Material.FEATHER, "<white>Run",
                         "<gray>Race the goal with the Hunters behind you.",
                         "<dark_gray>Click to join the Runners."),
-                click -> {
-                    services.teams().joinRunners(viewer.getUniqueId());
-                    services.messages().send(viewer, "manhunt.join.runner");
-                    refresh();
-                });
+                click -> join(true));
         band(MenuLayout.RULES, 5, Icons.of(Material.IRON_SWORD, "<white>Hunt",
                         "<gray>Chase whoever is running.",
                         "<dark_gray>Click to leave the Runners."),
-                click -> {
-                    services.teams().joinHunters(viewer.getUniqueId());
-                    services.messages().send(viewer, "manhunt.join.hunter");
-                    refresh();
-                });
+                click -> join(false));
+    }
+
+    /** A page drawn before a hunt began, or before the Runners were locked, can still be clicked after. */
+    private void join(boolean runner) {
+        if (runner && !services.config().runnerSelfJoin()) {
+            services.messages().send(viewer, "manhunt.join.runners-locked");
+        } else if (services.teams().join(viewer.getUniqueId(), runner)) {
+            services.messages().send(viewer, runner ? "manhunt.join.runner" : "manhunt.join.hunter");
+        } else {
+            services.messages().send(viewer, "manhunt.sides-frozen");
+        }
+        refresh();
     }
 
     private static String count(int howMany) {

@@ -182,7 +182,7 @@ class TeamCompassServiceTest {
             team.settings(off);
             Player hunter = player(HUNTER_A);
 
-            team.armFor(hunt);
+            team.fit(hunt, hunter);
             team.sweep(hunt);
 
             verify(hunter.getInventory(), never()).addItem(org.mockito.ArgumentMatchers.any(ItemStack.class));

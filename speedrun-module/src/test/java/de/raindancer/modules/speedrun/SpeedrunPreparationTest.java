@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -33,6 +34,62 @@ class SpeedrunPreparationTest {
     private static final UUID ALICE = UUID.nameUUIDFromBytes("alice".getBytes());
     private static final UUID BOB = UUID.nameUUIDFromBytes("bob".getBytes());
 
+    /** The entity's own scheduler, running what it is handed straight away. */
+    private static <E extends Entity> E runningItsOwnTasks(E entity) {
+        io.papermc.paper.threadedregions.scheduler.EntityScheduler scheduler =
+                mock(io.papermc.paper.threadedregions.scheduler.EntityScheduler.class);
+        when(scheduler.run(any(), any(), any())).thenAnswer(invocation -> {
+            invocation.getArgument(1, java.util.function.Consumer.class).accept(null);
+            return null;
+        });
+        when(entity.getScheduler()).thenReturn(scheduler);
+        return entity;
+    }
+
+    /**
+     * Folia: a run starts on the countdown's global thread, which owns no player and no mob. Every
+     * write to a racer or an entity has to land on that entity's own scheduler, or it throws there.
+     */
+    @Test
+    @DisplayName("touches a racer and a mob only from their own scheduler")
+    void touchesEntitiesOnlyFromTheirOwnThread() {
+        PlayerAdmin players = mock(PlayerAdmin.class);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
+        World world = mock(World.class);
+        Entity zombie = mock(Zombie.class);
+        when(world.getEntities()).thenReturn(List.of(zombie));
+        Player alice = mock(Player.class);
+        org.bukkit.inventory.PlayerInventory inventory = mock(org.bukkit.inventory.PlayerInventory.class);
+        when(alice.getInventory()).thenReturn(inventory);
+        when(alice.getEnderChest()).thenReturn(mock(org.bukkit.inventory.Inventory.class));
+        List<java.util.function.Consumer<Object>> queued = new java.util.ArrayList<>();
+        for (Entity entity : List.of(alice, zombie)) {
+            io.papermc.paper.threadedregions.scheduler.EntityScheduler scheduler =
+                    mock(io.papermc.paper.threadedregions.scheduler.EntityScheduler.class);
+            when(scheduler.run(any(), any(), any())).thenAnswer(invocation -> {
+                queued.add(invocation.getArgument(1, java.util.function.Consumer.class));
+                return null;
+            });
+            when(entity.getScheduler()).thenReturn(scheduler);
+        }
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+
+            preparation.prepare(world, Set.of(ALICE));
+
+            verify(inventory, never()).clear();
+            verify(players, never()).heal(ALICE);
+            verify(zombie, never()).remove();
+
+            queued.forEach(task -> task.accept(null));
+        }
+
+        verify(inventory).clear();
+        verify(players).heal(ALICE);
+        verify(zombie).remove();
+    }
+
     @Test
     @DisplayName("heals, feeds, cures and extinguishes every participant")
     void resetsEveryParticipant() {
@@ -41,9 +98,12 @@ class SpeedrunPreparationTest {
         World world = mock(World.class);
         when(world.getEntities()).thenReturn(List.of());
 
+        Player alice = runningItsOwnTasks(mock(Player.class, org.mockito.Mockito.RETURNS_DEEP_STUBS));
+        Player bob = runningItsOwnTasks(mock(Player.class, org.mockito.Mockito.RETURNS_DEEP_STUBS));
+
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(null);
-            bukkit.when(() -> Bukkit.getPlayer(BOB)).thenReturn(null);
+            bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+            bukkit.when(() -> Bukkit.getPlayer(BOB)).thenReturn(bob);
 
             preparation.prepare(world, Set.of(ALICE, BOB));
         }
@@ -65,7 +125,7 @@ class SpeedrunPreparationTest {
         SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
         when(world.getEntities()).thenReturn(List.of());
-        Player onlineAlice = mock(Player.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+        Player onlineAlice = runningItsOwnTasks(mock(Player.class, org.mockito.Mockito.RETURNS_DEEP_STUBS));
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(onlineAlice);
@@ -97,9 +157,9 @@ class SpeedrunPreparationTest {
         PlayerAdmin players = mock(PlayerAdmin.class);
         SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
-        Entity zombie = mock(Zombie.class);
-        Entity droppedItem = mock(Item.class);
-        Entity innocentCow = mock(Entity.class);
+        Entity zombie = runningItsOwnTasks(mock(Zombie.class));
+        Entity droppedItem = runningItsOwnTasks(mock(Item.class));
+        Entity innocentCow = runningItsOwnTasks(mock(Entity.class));
         when(world.getEntities()).thenReturn(List.of(zombie, droppedItem, innocentCow));
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
@@ -117,8 +177,10 @@ class SpeedrunPreparationTest {
         PlayerAdmin players = mock(PlayerAdmin.class);
         SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
 
+        Player alice = runningItsOwnTasks(mock(Player.class, org.mockito.Mockito.RETURNS_DEEP_STUBS));
+
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(null);
+            bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
 
             preparation.prepare(null, Set.of(ALICE));
         }
@@ -201,7 +263,7 @@ class SpeedrunPreparationTest {
         SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
         World world = mock(World.class);
         when(world.getEntities()).thenReturn(List.of());
-        Player alice = mock(Player.class);
+        Player alice = runningItsOwnTasks(mock(Player.class));
         org.bukkit.inventory.PlayerInventory inventory = mock(org.bukkit.inventory.PlayerInventory.class);
         org.bukkit.inventory.Inventory enderChest = mock(org.bukkit.inventory.Inventory.class);
         when(alice.getInventory()).thenReturn(inventory);

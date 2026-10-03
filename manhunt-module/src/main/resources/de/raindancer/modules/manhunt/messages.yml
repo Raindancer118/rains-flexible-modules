@@ -47,6 +47,7 @@ manhunt:
     changed: "<green><player> is now on the <white><side></white> side."
     already: "<yellow><player> is already on that side."
     last-runner: "<yellow>Somebody has to be running — <white><player></white> is the last Runner left."
+    last-hunter: "<yellow>Somebody has to be chasing — <white><player></white> is the last Hunter left."
     not-in-hunt: "<yellow><player> is not in this hunt — an admin can bring them in with /manhunt assign."
     hunt-over: "<yellow>That hunt is over — the sides are yours to pick again."
   reset:

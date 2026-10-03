@@ -79,7 +79,9 @@ public final class Hunt {
         /** They are not in this hunt at all — a spectator, or somebody who joined after it began. */
         NOT_IN_THE_HUNT,
         /** Refused: they are the only Runner left, and a hunt with nobody running is over by accident. */
-        LAST_RUNNER
+        LAST_RUNNER,
+        /** Refused: they are the only Hunter left, and a hunt with nobody chasing is over by accident. */
+        LAST_HUNTER
     }
 
     /**
@@ -113,7 +115,11 @@ public final class Hunt {
         return SideChange.MOVED;
     }
 
-    /** The mirror: a Hunter takes up running. See {@link #moveToHunters} for why this is allowed. */
+    /**
+     * The mirror: a Hunter takes up running. See {@link #moveToHunters} for why this is allowed, and
+     * why the last one may not — {@code /manhunt leave} ends a hunt left without Hunters, and a side
+     * change must not leave one running with nobody chasing.
+     */
     public SideChange moveToRunners(UUID player) {
         if (runners.contains(player)) {
             return SideChange.ALREADY_THERE;
@@ -121,17 +127,14 @@ public final class Hunt {
         if (!hunters.contains(player)) {
             return SideChange.NOT_IN_THE_HUNT;
         }
+        if (hunters.size() <= 1) {
+            return SideChange.LAST_HUNTER;
+        }
         hunters.remove(player);
         runners.add(player);
         return SideChange.MOVED;
     }
 
-    /**
-     * Takes {@code runner} out of the hunt.
-     *
-     * @return true the first time, so the caller can tell a real elimination from a second death
-     *         event for somebody already out — a spectator cannot die, but a plugin can fire one
-     */
     /** A latecomer into the running hunt, on the side named. False if they were already in it. */
     public boolean join(UUID player, boolean asRunner) {
         if (runners.contains(player) || hunters.contains(player)) {
@@ -148,6 +151,12 @@ public final class Hunt {
         return was;
     }
 
+    /**
+     * Takes {@code runner} out of the hunt.
+     *
+     * @return true the first time, so the caller can tell a real elimination from a second death
+     *         event for somebody already out — a spectator cannot die, but a plugin can fire one
+     */
     public boolean eliminate(UUID runner) {
         return isRunner(runner) && eliminated.add(runner);
     }

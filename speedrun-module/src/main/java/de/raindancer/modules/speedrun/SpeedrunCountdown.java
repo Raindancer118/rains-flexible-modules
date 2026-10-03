@@ -9,6 +9,7 @@ import de.raindancer.core.ui.effect.Effects;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
@@ -109,7 +110,7 @@ final class SpeedrunCountdown implements Listener {
         event.setCancelled(true);
     }
 
-    private static boolean sameBlock(org.bukkit.Location from, org.bukkit.Location to) {
+    private static boolean sameBlock(Location from, Location to) {
         return from.getWorld() == to.getWorld()
                 && from.getBlockX() == to.getBlockX()
                 && from.getBlockY() == to.getBlockY()

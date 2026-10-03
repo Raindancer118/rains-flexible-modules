@@ -10,7 +10,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerBucketEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -77,12 +79,12 @@ public final class HunterHoldListener implements Listener {
 
     // Two handlers, not one on the abstract PlayerBucketEvent, which Bukkit cannot register.
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
-    public void onBucketEmpty(org.bukkit.event.player.PlayerBucketEmptyEvent event) {
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
         onBucket(event);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
-    public void onBucketFill(org.bukkit.event.player.PlayerBucketFillEvent event) {
+    public void onBucketFill(PlayerBucketFillEvent event) {
         onBucket(event);
     }
 

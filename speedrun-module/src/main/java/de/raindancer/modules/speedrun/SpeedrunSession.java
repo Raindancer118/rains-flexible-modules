@@ -5,16 +5,17 @@ import de.raindancer.core.platform.log.LogChannel;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * One live speedrun: a roster, a clock, and whatever is watching for the moment it ends.
@@ -33,7 +34,9 @@ public final class SpeedrunSession {
     private final Set<UUID> participants;
     private final SpeedrunTimer timer;
     private final List<Consumer<SpeedrunOutcome>> listeners = new CopyOnWriteArrayList<>();
-    private final List<SpeedrunEndCondition> conditions = new ArrayList<>();
+    /** Copy-on-write: {@link #finish} walks it unlocked while a goal removal may change it from another
+     *  thread, and a list that threw there would leave a finished run nobody was told about. */
+    private final List<SpeedrunEndCondition> conditions = new CopyOnWriteArrayList<>();
 
     private volatile SpeedrunState state = SpeedrunState.NOT_STARTED;
     /** Set exactly once, by whichever {@link #finish} call wins the race — see the class javadoc. */
@@ -47,7 +50,7 @@ public final class SpeedrunSession {
         if (participants == null || participants.isEmpty()) {
             throw new IllegalArgumentException("A speedrun needs at least one participant.");
         }
-        this.participants = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        this.participants = ConcurrentHashMap.newKeySet();
         this.participants.addAll(participants);
         this.timer = Objects.requireNonNull(timer, "timer");
     }
@@ -163,11 +166,10 @@ public final class SpeedrunSession {
     }
 
     /** Disarms and drops every condition {@code which} matches — a goal removed mid-run. */
-    public synchronized int removeEndConditions(java.util.function.Predicate<SpeedrunEndCondition> which) {
+    public synchronized int removeEndConditions(Predicate<SpeedrunEndCondition> which) {
         int removed = 0;
-        for (SpeedrunEndCondition condition : List.copyOf(conditions)) {
-            if (which.test(condition)) {
-                conditions.remove(condition);
+        for (SpeedrunEndCondition condition : conditions) {
+            if (which.test(condition) && conditions.remove(condition)) {
                 condition.disarm();
                 removed++;
             }

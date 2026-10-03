@@ -8,6 +8,7 @@ import de.raindancer.core.ui.messages.Messages;
 import io.papermc.paper.advancement.AdvancementDisplay;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -21,6 +22,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Every advancement the server knows, to pick the one that ends a speedrun — grouped into vanilla's
@@ -78,7 +80,7 @@ public final class SpeedrunAdvancementChooser extends PaginatedMenu<SpeedrunAdva
     @Override
     protected List<Category> entries() {
         Set<String> present = allKeys().stream().map(SpeedrunAdvancementChooser::categoryIdOf)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         List<Category> found = new ArrayList<>();
         for (Category known : KNOWN) {
             if (present.contains(known.id())) {
@@ -129,7 +131,7 @@ public final class SpeedrunAdvancementChooser extends PaginatedMenu<SpeedrunAdva
         if (display == null) {
             return rawKey;
         }
-        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+        return PlainTextComponentSerializer
                 .plainText().serialize(display.displayName());
     }
 
@@ -183,7 +185,7 @@ public final class SpeedrunAdvancementChooser extends PaginatedMenu<SpeedrunAdva
         protected List<NamespacedKey> entries() {
             List<NamespacedKey> keys = allKeys().stream()
                     .filter(key -> categoryIdOf(key).equals(category.id()))
-                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+                    .collect(Collectors.toCollection(ArrayList::new));
             keys.sort(Comparator.comparing(NamespacedKey::asString));
             return keys;
         }
@@ -198,7 +200,7 @@ public final class SpeedrunAdvancementChooser extends PaginatedMenu<SpeedrunAdva
                 return Icons.of(Material.PAPER, "<white>" + entry.asString());
             }
             Material material = display.icon().getType();
-            String name = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+            String name = PlainTextComponentSerializer
                     .plainText().serialize(display.displayName());
             return Icons.of(material, "<white>" + name,
                     "<gray>" + entry.asString(), "", "<gray>" + frameLabel(display.frame()));

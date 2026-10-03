@@ -293,4 +293,38 @@ class SpeedrunSessionTest {
         assertThat(session.addParticipant(BOB)).isFalse();
         assertThat(session.participants()).containsExactlyInAnyOrder(ALICE, BOB);
     }
+    /**
+     * The conditions are read by a finish on one thread while a goal removal changes them on another
+     * (Folia: an advancement on a racer's region, {@code /manhunt goal remove} on the sender's). Here
+     * the change happens from inside the finish itself, which is the same overlap made deterministic.
+     * A plain list threw there — after the outcome was written, before anybody was told — so the
+     * clock, the announcement and the automatic reset never heard the run had ended.
+     */
+    @Test
+    @DisplayName("a finish still reaches its listeners when the conditions change underneath it")
+    void finishSurvivesConditionsChangingDuringIt() {
+        SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
+        SpeedrunEndCondition other = new SpeedrunEndCondition() {
+            public void arm(SpeedrunSession s) { }
+            public void disarm() { }
+        };
+        SpeedrunEndCondition removesTheOther = new SpeedrunEndCondition() {
+            public void arm(SpeedrunSession s) { }
+            public void disarm() {
+                session.removeEndConditions(condition -> condition == other);
+            }
+        };
+        session.addEndCondition(removesTheOther);
+        session.addEndCondition(other);
+        session.addEndCondition(new SpeedrunEndCondition() {
+            public void arm(SpeedrunSession s) { }
+            public void disarm() { }
+        });
+        session.start();
+        AtomicInteger told = new AtomicInteger();
+        session.onFinish(outcome -> told.incrementAndGet());
+
+        assertThatCode(() -> session.finish("goal")).doesNotThrowAnyException();
+        assertThat(told).hasValue(1);
+    }
 }

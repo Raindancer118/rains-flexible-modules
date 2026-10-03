@@ -480,11 +480,15 @@ class SpeedrunLobbyListenerTest {
         @Test
         @DisplayName("begins the countdown with everybody currently in the lobby world, and clears their inventories")
         void startsAndClearsInventoriesOnSuccess() {
-            Player other = playerWithId(UUID.nameUUIDFromBytes("bob".getBytes()));
+            UUID bob = UUID.nameUUIDFromBytes("bob".getBytes());
+            Player other = playerWithId(bob);
             PlayerInventory otherInv = mock(PlayerInventory.class);
             when(other.getInventory()).thenReturn(otherInv);
             when(lobbyWorld.getPlayers()).thenReturn(List.of(clicker, other));
+            when(lobby.presentInLobbyWorld()).thenReturn(java.util.Set.of(ALICE, bob));
             when(lobby.beginCountdown(any())).thenReturn(SpeedrunLobby.StartOutcome.STARTED);
+            runsItsOwnTasksImmediately(clicker);
+            runsItsOwnTasksImmediately(other);
 
             PlayerInteractEvent event = new PlayerInteractEvent(clicker, Action.RIGHT_CLICK_BLOCK,
                     startBlock, null, null, EquipmentSlot.HAND);
@@ -494,6 +498,28 @@ class SpeedrunLobbyListenerTest {
             verify(lobby).beginCountdown(java.util.Set.of(ALICE, other.getUniqueId()));
             verify(clicker.getInventory()).clear();
             verify(other.getInventory()).clear();
+        }
+
+        /** Folia: the other racers' inventories belong to their own regions, not the clicker's. */
+        @Test
+        @DisplayName("clears another racer's inventory only on that racer's own scheduler")
+        void clearsOnEachRacersOwnThread() {
+            UUID bob = UUID.nameUUIDFromBytes("bob".getBytes());
+            Player other = playerWithId(bob);
+            PlayerInventory otherInv = mock(PlayerInventory.class);
+            when(other.getInventory()).thenReturn(otherInv);
+            EntityScheduler queued = mock(EntityScheduler.class);
+            when(other.getScheduler()).thenReturn(queued);
+            runsItsOwnTasksImmediately(clicker);
+            when(lobbyWorld.getPlayers()).thenReturn(List.of(clicker, other));
+            when(lobby.presentInLobbyWorld()).thenReturn(java.util.Set.of(ALICE, bob));
+            when(lobby.beginCountdown(any())).thenReturn(SpeedrunLobby.StartOutcome.STARTED);
+
+            listener.onInteract(new PlayerInteractEvent(clicker, Action.RIGHT_CLICK_BLOCK,
+                    startBlock, null, null, EquipmentSlot.HAND));
+
+            verify(otherInv, never()).clear();
+            verify(queued).run(any(), any(), any());
         }
 
         @Test
@@ -649,7 +675,9 @@ class SpeedrunLobbyListenerTest {
             PlayerInventory inventory = mock(PlayerInventory.class);
             when(clicker.getInventory()).thenReturn(inventory);
             when(clicker.getWorld().getPlayers()).thenReturn(List.of(clicker));
+            when(lobby.presentInLobbyWorld()).thenReturn(java.util.Set.of(ALICE));
             when(lobby.beginCountdown(any())).thenReturn(SpeedrunLobby.StartOutcome.STARTED);
+            runsItsOwnTasksImmediately(clicker);
             ItemStack startBlock = mock(ItemStack.class);
             when(items.isStart(startBlock)).thenReturn(true);
 

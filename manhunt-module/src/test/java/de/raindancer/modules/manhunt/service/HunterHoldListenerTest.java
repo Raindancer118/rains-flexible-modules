@@ -131,7 +131,8 @@ class HunterHoldListenerTest {
     @Test
     @DisplayName("a Runner who turns Hunter mid head start is held too — the roster is asked, not copied")
     void sideChangeIsFollowed() {
-        hunt.moveToRunners(HUNTER);
+        // Two Runners, so one of them may give up running.
+        hunt.join(UUID.randomUUID(), true);
         hunt.moveToHunters(RUNNER);
         PlayerMoveEvent formerRunner = step(RUNNER, 3.5);
 

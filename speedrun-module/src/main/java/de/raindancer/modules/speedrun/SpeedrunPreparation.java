@@ -1,6 +1,7 @@
 package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.moderation.players.PlayerAdmin;
+import de.raindancer.core.platform.util.Scheduling;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -36,6 +37,11 @@ import java.util.UUID;
  * platform, is a hazard for whoever is racing regardless of who dropped it or who it is standing near
  * — narrowing "hostile mobs" or "items on the ground" to some radius would leave exactly the kind of
  * leftover clutter this exists to remove.
+ *
+ * <h2>Folia</h2>
+ * A run starts on the countdown's global thread, which owns no player and no mob. Every write to a
+ * racer or an entity hops onto that entity's own scheduler — queued there ahead of whatever the game
+ * mode hands out in its own start, so what a mode gives survives the clear.
  */
 final class SpeedrunPreparation {
 
@@ -57,10 +63,14 @@ final class SpeedrunPreparation {
         this.players = players;
     }
 
-    /** The same, at {@link #DAY_START}, leaving advancements alone — what every caller wanted
-     *  before either became a setting. */
+    /** At {@link #DAY_START}, leaving advancements alone. */
     void prepare(World world, Set<UUID> participants) {
         prepare(world, participants, DAY_START, false);
+    }
+
+    /** At {@code timeOfDay}, leaving advancements alone. */
+    void prepare(World world, Set<UUID> participants, long timeOfDay) {
+        prepare(world, participants, timeOfDay, false);
     }
 
     /**
@@ -74,14 +84,13 @@ final class SpeedrunPreparation {
      * on the start line, is simply the last run leaking into this one. {@code clearAdvancements} is
      * the same kind of choice, for the same kind of reason — see {@link SpeedrunAdvancements}.
      */
-    /** The same, leaving everybody's advancements alone — the shape before that became a setting. */
-    void prepare(World world, Set<UUID> participants, long timeOfDay) {
-        prepare(world, participants, timeOfDay, false);
-    }
-
     void prepare(World world, Set<UUID> participants, long timeOfDay, boolean clearAdvancements) {
         for (UUID id : participants) {
-            resetPlayer(id);
+            // Offline: nothing of theirs is loaded to reset, and PlayerAdmin would answer NOT_ONLINE.
+            Player online = Bukkit.getPlayer(id);
+            if (online != null) {
+                Scheduling.entity(plugin, online, () -> resetPlayer(id, online));
+            }
         }
         if (clearAdvancements) {
             // The one half of this that is a racer's own saved progress rather than the last run
@@ -96,23 +105,19 @@ final class SpeedrunPreparation {
         }
     }
 
-    private void resetPlayer(UUID id) {
+    private void resetPlayer(UUID id, Player player) {
         players.heal(id);
         players.feed(id);
         players.cure(id);
         players.extinguish(id);
-        Player online = Bukkit.getPlayer(id);
-        if (online != null) {
-            online.setSaturation(FULL_SATURATION);
-            carryNothingOver(online);
-        }
+        player.setSaturation(FULL_SATURATION);
+        carryNothingOver(player);
     }
 
     /**
      * Everything else a player could bring from the last round into this one — asked for as "a new
      * round means XP reset, all reset essentially". The inventory is cleared here too, not only when
      * the start block is clicked, because a run started by command never went through that click.
-     * Runs before the game mode's own start, so what a mode hands out (Manhunt's compass) survives.
      *
      * <p>The ender chest is part of it: it is the one place a racer could stash last round's
      * diamonds. The respawn point goes because a bed from the last round points into a world that
@@ -137,7 +142,7 @@ final class SpeedrunPreparation {
     private void clearHostilesAndItems(World world) {
         for (Entity entity : List.copyOf(world.getEntities())) {
             if (entity instanceof Monster || entity instanceof Item) {
-                entity.remove();
+                Scheduling.entity(plugin, entity, entity::remove);
             }
         }
     }

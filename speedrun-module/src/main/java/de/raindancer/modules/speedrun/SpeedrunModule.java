@@ -1,11 +1,14 @@
 package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.speedrun.util.PermissionNodes;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Locale;
@@ -23,7 +26,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.24.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.25.0")
             .describedAs("A speedrun lobby: pick a game, an advancement goal and a death policy "
                     + "from the compass's menu, then press the green block to race. A countdown "
                     + "freezes everyone first, and the lobby world resets once the last racer has "
@@ -57,9 +60,9 @@ public final class SpeedrunModule implements FlexModule {
         lobby.ensureWorldExists();
         SpeedrunLobbyItems lobbyItems = new SpeedrunLobbyItems(context.plugin());
         lobby.takeLobbyItemsWith(id -> {
-            org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(id);
+            Player player = Bukkit.getPlayer(id);
             if (player != null) {
-                de.raindancer.core.platform.util.Scheduling.entity(context.plugin(), player,
+                Scheduling.entity(context.plugin(), player,
                         () -> lobbyItems.take(player.getInventory()));
             }
         });

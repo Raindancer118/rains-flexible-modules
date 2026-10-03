@@ -185,7 +185,7 @@ public final class SpeedrunLobbyMenu extends Menu {
         }
         List<String> lore = new ArrayList<>();
         lore.add("<gray>" + session.participants().size() + " racing.");
-        lore.add("<gray>" + formatted(session.elapsed()));
+        lore.add("<gray>" + SpeedrunTimerDisplay.plain(session.elapsed()));
         band(MenuLayout.WHO, 4, Icons.of(Material.CLOCK, "<white>" + label, lore));
     }
 
@@ -197,15 +197,12 @@ public final class SpeedrunLobbyMenu extends Menu {
         SpeedrunOutcome outcome = session.outcome().orElse(null);
         List<String> lore = new ArrayList<>();
         lore.add("<gray>Ended by: " + (outcome == null ? "?" : outcome.reason()));
-        lore.add("<gray>Time: " + formatted(session.elapsed()));
+        lore.add("<gray>Time: " + SpeedrunTimerDisplay.plain(session.elapsed()));
         lore.add("");
-        lore.add("<dark_gray>Resets once everybody here has left.");
+        lore.add(lobby.config().restartWhenRunEnds()
+                ? "<dark_gray>The world resets for the next run in a moment."
+                : "<dark_gray>Resets once everybody here has left.");
         band(MenuLayout.WHO, 4, Icons.of(Material.NETHER_STAR, "<white>Finished!", lore));
-    }
-
-    private static String formatted(java.time.Duration elapsed) {
-        long seconds = elapsed.getSeconds();
-        return "%d:%02d".formatted(seconds / 60, seconds % 60);
     }
 
     private static Material deathIcon(SpeedrunDeathPolicy policy) {

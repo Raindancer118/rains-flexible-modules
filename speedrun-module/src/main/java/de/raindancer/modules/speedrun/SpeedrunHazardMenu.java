@@ -9,6 +9,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 /**
  * The creeper hazard, on a page of its own: how often mining or looting spawns one, and how often the
@@ -95,14 +96,14 @@ public final class SpeedrunHazardMenu extends Menu {
                         config.chargedCreeperChanceOnContainerPercent()));
     }
 
-    private org.bukkit.inventory.ItemStack chance(Material icon, String name, int percent, String what) {
+    private ItemStack chance(Material icon, String name, int percent, String what) {
         return Icons.of(percent > 0 ? icon : Material.BARRIER,
                 "<white>" + name + ": " + (percent > 0 ? "<green>" + percent + "%" : "<red>off"),
                 what,
                 "<dark_gray>Click to choose a number.");
     }
 
-    private org.bukkit.inventory.ItemStack charged(String name, int percent, int spawnChance) {
+    private ItemStack charged(String name, int percent, int spawnChance) {
         if (spawnChance == 0) {
             return Icons.of(Material.GRAY_DYE,
                     "<gray>" + name + ": <dark_gray>nothing to charge",

@@ -5,35 +5,45 @@ import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.actionbar.ActionBarPriority;
 import de.raindancer.core.ui.actionbar.ActionBars;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.world.visual.PathTrail;
 import de.raindancer.modules.manhunt.ManhuntSettings;
 import de.raindancer.modules.manhunt.model.Hunt;
 import de.raindancer.modules.manhunt.tracker.TrackerCompass.Aim;
 import de.raindancer.modules.manhunt.tracker.TrackerCompass.Candidate;
 import de.raindancer.modules.manhunt.tracker.TrackerCompass.Following;
 import de.raindancer.modules.manhunt.tracker.TrackerCompass.Point;
+import de.raindancer.modules.manhunt.util.Threads;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
-import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.CompassMeta;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+
+import static de.raindancer.modules.manhunt.tracker.CompassItems.line;
+import static de.raindancer.modules.manhunt.tracker.CompassItems.safe;
 
 /**
  * The tracking compass' Bukkit half: hands one to every Hunter when a hunt starts, re-aims all of
@@ -50,7 +60,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * In the Nether and the End, where a plain compass only spins, from a lodestone set with
  * {@link CompassMeta#setLodestoneTracked(boolean) tracked = false} (a tracked one insists on a real
  * lodestone block at the target), rewritten only when the target leaves a block. See
- * {@link #needleFromCompassTarget}. The distance is on the action bar, not in the lore, for the same
+ * {@link #needleFor}. The distance is on the action bar, not in the lore, for the same
  * reason.
  *
  * <h2>Why the timer restarts on a settings change</h2>
@@ -60,36 +70,34 @@ import java.util.concurrent.ConcurrentHashMap;
  * once a tick.
  *
  * <h2>Thread notes</h2>
- * The sweep reads every Runner's position from the global region thread, the same way
- * {@code ManhuntService}'s own clock tick and {@code ChaosService} already read the whole roster;
- * each Hunter's inventory is then written on that Hunter's own entity scheduler, so the actual item
- * mutation is always on the thread owning them even under Folia.
+ * The sweep reads every Runner's position from the global region thread; each Hunter's inventory is
+ * then written on that Hunter's own entity scheduler, so the item mutation is always on the thread
+ * owning them even under Folia.
  */
 public final class TrackerCompassService {
 
-    private static final MiniMessage MINI = MiniMessage.miniMessage();
     private static final String TAG = "tracker";
+    private static final Predicate<String> OURS = TAG::equals;
 
     private final Plugin plugin;
     /** The hunt in progress, or empty between hunts — held by the mode, never copied here. */
-    private final java.util.function.Supplier<Optional<Hunt>> liveHunt;
+    private final Supplier<Optional<Hunt>> liveHunt;
     private final TrackerCompass compass;
     private final PortalMemory portals;
     private final Messages messages;
     private final ActionBars actionBars;
-    private final NamespacedKey marker;
+    private final CompassItems items;
 
     /** The action bar slot the distance is shown in — its own, so it never takes turns with the clock. */
     static final String DISTANCE_OWNER = "manhunt-tracker";
 
     /** Hunters currently being shown a distance, so the slot is cleared once and not every sweep. */
-    private final java.util.Set<UUID> showingDistance = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> showingDistance = ConcurrentHashMap.newKeySet();
 
     /**
      * What each Hunter has set their own compass to. Never a {@code Player} — see
-     * {@link PortalMemory}. An absent entry is a Hunter who has never right-clicked it, which is not
-     * the same as one who cycled back to {@link Following#NEAREST}: the first takes whatever
-     * {@code tracker-targets} says, the second has said it themselves and outranks it.
+     * {@link PortalMemory}. An absent entry is a Hunter who has never right-clicked it; both that and
+     * {@link Following#NEAREST} follow whoever is nearest.
      */
     private final Map<UUID, Following> picks = new ConcurrentHashMap<>();
 
@@ -98,11 +106,11 @@ public final class TrackerCompassService {
 
     private volatile ManhuntSettings settings;
     /** Opens the list a Hunter picks from — set by the module, which has the brand a menu needs. */
-    private volatile java.util.function.Consumer<Player> pickerScreen;
+    private volatile Consumer<Player> pickerScreen;
     private volatile ScheduledTask sweep;
     private volatile int sweepPeriod;
 
-    public TrackerCompassService(Plugin plugin, java.util.function.Supplier<Optional<Hunt>> liveHunt,
+    public TrackerCompassService(Plugin plugin, Supplier<Optional<Hunt>> liveHunt,
                                  TrackerCompass compass, PortalMemory portals, Messages messages,
                                  ActionBars actionBars, ManhuntSettings settings) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
@@ -112,7 +120,7 @@ public final class TrackerCompassService {
         this.messages = messages;
         this.actionBars = actionBars;
         this.settings = Objects.requireNonNull(settings, "settings");
-        this.marker = new NamespacedKey(plugin, "manhunt-tracker");
+        this.items = new CompassItems(plugin, "manhunt-tracker", Material.COMPASS);
     }
 
     /** Told the live settings whenever they change — re-arms the sweep if its beat or its very
@@ -131,19 +139,14 @@ public final class TrackerCompassService {
     // ------------------------------------------------------------------------ a hunt beginning and ending
 
     /**
-     * A hunt has started: everybody's doors are forgotten, every online Hunter is handed a compass,
-     * and the sweep begins. Called by {@code ManhuntMode} as the run is built.
+     * A hunt has started: every pick and door is forgotten and the sweep begins. Handing the compasses
+     * out is {@link HuntCompasses}', on each player's own thread.
      */
-    public void armFor(Hunt hunt) {
+    public void arm() {
         picks.clear();
         portals.clear();
-        for (UUID id : holders(hunt)) {
-            Player holder = plugin.getServer().getPlayer(id);
-            if (holder != null) {
-                give(holder);
-            }
-        }
-        arms.forEach(arm -> arm.accept(hunt));
+        compassTargets.clear();
+        stopSweep();
         startSweep();
     }
 
@@ -156,26 +159,37 @@ public final class TrackerCompassService {
     public void disarm(Hunt hunt) {
         stopSweep();
         for (UUID id : hunt.everybody()) {
-            Player hunter = plugin.getServer().getPlayer(id);
-            if (hunter != null) {
-                Scheduling.entity(plugin, hunter, () -> {
-                    takeBack(hunter);
-                    // Every ordinary compass this Hunter carries points at the compass target too, so it
-                    // is handed back to the world's spawn, where vanilla keeps it.
+            Player holder = plugin.getServer().getPlayer(id);
+            if (holder != null) {
+                Threads.entity(plugin, holder, () -> {
+                    takeBack(holder);
+                    // Every ordinary compass this player carries points at the compass target too, so
+                    // it is handed back to the world's spawn, where vanilla keeps it.
                     List<World> worlds = plugin.getServer().getWorlds();
                     if (!worlds.isEmpty()) {
-                        hunter.setCompassTarget(worlds.getFirst().getSpawnLocation());
+                        holder.setCompassTarget(worlds.getFirst().getSpawnLocation());
                     }
                 });
             }
-            if (actionBars != null && showingDistance.remove(id)) {
-                actionBars.clear(id, DISTANCE_OWNER);
-            }
+            clearDistance(id);
         }
         picks.clear();
         portals.clear();
         compassTargets.clear();
-        disarms.forEach(disarm -> disarm.accept(hunt));
+    }
+
+    /**
+     * Brings one player's compass in line with the side they are on now — on their own thread. A
+     * holder is handed one if they lack it, anybody else has theirs taken; either way the old pick
+     * goes, since it named somebody on the side they may just have left.
+     */
+    public void fit(Hunt hunt, Player player) {
+        forget(player.getUniqueId());
+        if (isHolder(hunt, player.getUniqueId())) {
+            give(player);
+        } else {
+            takeBack(player);
+        }
     }
 
     /**
@@ -218,45 +232,31 @@ public final class TrackerCompassService {
         Map<UUID, String> names = namesOf(runners, hunters);
         for (UUID id : holders(hunt)) {
             Player holder = plugin.getServer().getPlayer(id);
-            if (holder == null || !holder.isOnline()) {
+            if (holder == null) {
                 continue;
             }
             Aim aim = compass.aim(pointOf(holder), hunt.isRunner(id) ? hunters : runners, picks.get(id));
             Scheduling.entity(plugin, holder, () -> applyTo(holder, aim, names));
         }
-        if (afterSweep != null) {
-            afterSweep.accept(hunt);
+        Consumer<Hunt> then = afterSweep;
+        if (then != null) {
+            then.accept(hunt);
         }
     }
 
-    /** Run after every sweep, on the same beat — the team compass rides on this timer. */
-    private volatile java.util.function.Consumer<Hunt> afterSweep;
+    /** Run after every sweep, on the same beat — the other two compasses ride on this timer. */
+    private volatile Consumer<Hunt> afterSweep;
 
-    /** The second compass, armed and disarmed with this one. Null where nothing wired it. */
+    /** The team compass, for the listener that answers its clicks. Null where nothing wired it. */
     private volatile TeamCompassService team;
 
-    public void afterSweep(java.util.function.Consumer<Hunt> then) {
+    public void afterSweep(Consumer<Hunt> then) {
         this.afterSweep = then;
     }
 
-    /** Wires the team compass to this one's hunt start, end and timer. */
     public void teamCompass(TeamCompassService companion) {
         this.team = companion;
-        companion(companion::armFor, companion::disarm, companion::sweep);
     }
-
-    /** Anything else riding on this compass' hunt start, end and timer — the structure compass. */
-    public void companion(java.util.function.Consumer<Hunt> onArm, java.util.function.Consumer<Hunt> onDisarm,
-                          java.util.function.Consumer<Hunt> onSweep) {
-        arms.add(onArm);
-        disarms.add(onDisarm);
-        sweeps.add(onSweep);
-        this.afterSweep = hunt -> sweeps.forEach(sweep -> sweep.accept(hunt));
-    }
-
-    private final List<java.util.function.Consumer<Hunt>> arms = new java.util.concurrent.CopyOnWriteArrayList<>();
-    private final List<java.util.function.Consumer<Hunt>> disarms = new java.util.concurrent.CopyOnWriteArrayList<>();
-    private final List<java.util.function.Consumer<Hunt>> sweeps = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public Optional<TeamCompassService> team() {
         return Optional.ofNullable(team);
@@ -271,8 +271,8 @@ public final class TrackerCompassService {
                 || (settings.runnerCompass() && hunt.isRunner(player) && !hunt.isEliminated(player));
     }
 
-    private java.util.Set<UUID> holders(Hunt hunt) {
-        java.util.Set<UUID> holders = new java.util.LinkedHashSet<>(hunt.hunters());
+    private Set<UUID> holders(Hunt hunt) {
+        Set<UUID> holders = new LinkedHashSet<>(hunt.hunters());
         if (settings.runnerCompass()) {
             holders.addAll(hunt.livingRunners());
         }
@@ -286,43 +286,35 @@ public final class TrackerCompassService {
 
     /** Every Hunter online and alive, stable order — what a Runner's compass points at. */
     private List<Candidate> livingHunters(Hunt hunt) {
-        List<Candidate> alive = new ArrayList<>();
-        for (UUID id : hunt.hunters()) {
-            Player hunter = plugin.getServer().getPlayer(id);
-            if (hunter != null && hunter.isOnline() && !hunter.isDead()) {
-                alive.add(new Candidate(id, pointOf(hunter)));
-            }
-        }
-        alive.sort(java.util.Comparator.comparing(candidate -> candidate.id().toString()));
-        return List.copyOf(alive);
+        return alive(hunt.hunters());
     }
 
     /** Every Runner still worth pointing at, in a stable order so cycling is repeatable. */
     private List<Candidate> livingRunners(Hunt hunt) {
+        return alive(hunt.livingRunners());
+    }
+
+    private List<Candidate> alive(Set<UUID> ids) {
         List<Candidate> alive = new ArrayList<>();
-        for (UUID id : hunt.livingRunners()) {
-            Player runner = plugin.getServer().getPlayer(id);
-            if (runner != null && runner.isOnline() && !runner.isDead()) {
-                alive.add(new Candidate(id, pointOf(runner)));
+        for (UUID id : ids) {
+            Player player = plugin.getServer().getPlayer(id);
+            if (player != null && !player.isDead()) {
+                alive.add(new Candidate(id, pointOf(player)));
             }
         }
-        alive.sort(java.util.Comparator.comparing(candidate -> candidate.id().toString()));
+        alive.sort(Comparator.comparing(candidate -> candidate.id().toString()));
         return List.copyOf(alive);
     }
 
-    private Map<UUID, String> namesOf(List<Candidate> runners) {
-        return namesOf(runners, List.of());
-    }
-
-    private Map<UUID, String> namesOf(List<Candidate> runners, List<Candidate> hunters) {
+    @SafeVarargs
+    private Map<UUID, String> namesOf(List<Candidate>... sides) {
         Map<UUID, String> names = new LinkedHashMap<>();
-        for (List<Candidate> side : List.of(runners, hunters)) {
+        for (List<Candidate> side : sides) {
             for (Candidate candidate : side) {
-                Player player = plugin.getServer().getPlayer(candidate.id());
-                names.put(candidate.id(), player != null ? player.getName() : "somebody");
+                names.put(candidate.id(), nameOf(candidate.id()));
             }
         }
-        return names;
+        return Map.copyOf(names);
     }
 
     static Point pointOf(Player player) {
@@ -334,35 +326,25 @@ public final class TrackerCompassService {
     // ------------------------------------------------------------------------ the item
 
     public boolean carries(Player hunter) {
-        return findTracker(hunter).isPresent();
+        return items.slotOf(hunter, OURS) >= 0;
     }
 
     /** Gives {@code hunter} a compass, unless they are already carrying one of ours. */
     public void give(Player hunter) {
-        if (findTracker(hunter).isPresent()) {
+        if (carries(hunter)) {
             return;
         }
         place(hunter, freshCompass());
     }
 
     /**
-     * Puts {@code compass} into {@code hunter}'s inventory, or at their feet when it does not fit.
-     *
-     * <p>{@code Inventory.addItem} does not throw when there is no room — it hands back whatever it
-     * could not place. That return value used to be thrown away here, so a Hunter whose inventory
-     * happened to be full was told "you have been handed a tracking compass" while nothing landed
-     * anywhere: the compass was never dropped, never kept, and the message claimed otherwise. Split
-     * out from {@link #give} so the decision is testable without the real Material registry
+     * Puts {@code compass} into {@code hunter}'s inventory, or at their feet when it does not fit, and
+     * says so. Split out from {@link #give} so it is testable without the real Material registry
      * {@link #freshCompass} needs — see {@code TrackerCompassServiceTest}'s own note on why.
      */
     void place(Player hunter, ItemStack compass) {
-        java.util.Map<Integer, ItemStack> notFitted = hunter.getInventory().addItem(compass);
-        for (ItemStack leftover : notFitted.values()) {
-            hunter.getWorld().dropItem(hunter.getLocation(), leftover);
-        }
-        if (messages != null) {
-            messages.send(hunter, "manhunt.tracker.given");
-        }
+        CompassItems.handTo(hunter, compass);
+        say(hunter, "manhunt.tracker.given");
     }
 
     /**
@@ -371,21 +353,13 @@ public final class TrackerCompassService {
      * the same for everybody, at the end) is far too big a hammer.
      */
     public void takeFrom(Player hunter) {
-        UUID id = hunter.getUniqueId();
-        Scheduling.entity(plugin, hunter, () -> takeBack(hunter));
-        forget(id);
-        if (actionBars != null && showingDistance.remove(id)) {
-            actionBars.clear(id, DISTANCE_OWNER);
-        }
+        Threads.entity(plugin, hunter, () -> takeBack(hunter));
+        forget(hunter.getUniqueId());
     }
 
-    private void takeBack(Player hunter) {
-        ItemStack[] contents = hunter.getInventory().getContents();
-        for (int slot = 0; slot < contents.length; slot++) {
-            if (isTracker(contents[slot])) {
-                hunter.getInventory().setItem(slot, null);
-            }
-        }
+    /** Every tracking compass off {@code holder} — on their own thread. */
+    public void takeBack(Player holder) {
+        items.removeAll(holder, OURS);
     }
 
     private ItemStack freshCompass() {
@@ -393,24 +367,27 @@ public final class TrackerCompassService {
         ItemMeta meta = stack.getItemMeta();
         meta.displayName(line("<gold>Tracking compass"));
         meta.lore(List.of(line("<gray>Looking for somebody to follow…")));
-        meta.getPersistentDataContainer().set(marker, PersistentDataType.STRING, TAG);
+        items.tag(meta, TAG);
         stack.setItemMeta(meta);
         // A dropped compass is a working compass in a Runner's hands; Core refuses the drop.
         return BoundItems.bind(stack);
     }
 
     private void applyTo(Player hunter, Aim aim, Map<UUID, String> names) {
-        Optional<Integer> slot = findTracker(hunter);
-        if (slot.isEmpty()) {
+        int slot = items.slotOf(hunter, OURS);
+        if (slot < 0) {
             return;
         }
-        ItemStack stack = hunter.getInventory().getItem(slot.get());
+        ItemStack stack = hunter.getInventory().getItem(slot);
         if (stack == null || !(stack.getItemMeta() instanceof CompassMeta meta)) {
             return;
         }
         String targetName = aim.target() == null ? null : names.getOrDefault(aim.target(), "a Runner");
-        showDistance(hunter, aim, targetName);
-        showTrail(hunter, aim);
+        boolean holding = holdingTracker(hunter);
+        showDistance(hunter, aim, targetName, holding);
+        if (holding) {
+            showTrail(hunter, aim);
+        }
         String heading = "<gold>Tracking <white>" + safe(targetName);
 
         switch (aim.kind()) {
@@ -431,7 +408,7 @@ public final class TrackerCompassService {
                         // Back from the Nether or the End — or back from following a door — with a
                         // lodestone still on it. A lodestone compass ignores the compass target
                         // entirely, so it is swapped once for a plain one.
-                        replaceWithPlain(hunter, slot.get(), meta);
+                        replaceWithPlain(hunter, slot, meta);
                         return;
                     }
                 } else {
@@ -461,7 +438,7 @@ public final class TrackerCompassService {
             return;
         }
         stack.setItemMeta(meta);
-        hunter.getInventory().setItem(slot.get(), stack);
+        hunter.getInventory().setItem(slot, stack);
     }
 
     /** Where a Hunter's needle comes from: the client's compass target, or a lodestone in the item. */
@@ -522,16 +499,14 @@ public final class TrackerCompassService {
      * hunt's clock owns the bar the rest of the time, and this sits above it only while there is a
      * reason to.
      */
-    private void showDistance(Player hunter, Aim aim, String targetName) {
+    private void showDistance(Player hunter, Aim aim, String targetName, boolean holding) {
         if (actionBars == null || messages == null) {
             return;
         }
         UUID id = hunter.getUniqueId();
         boolean pointing = aim.kind() == Aim.Kind.TRACKING || aim.kind() == Aim.Kind.PORTAL;
-        if (!compass.showsDistance() || !pointing || !holdingTracker(hunter)) {
-            if (showingDistance.remove(id)) {
-                actionBars.clear(id, DISTANCE_OWNER);
-            }
+        if (!compass.showsDistance() || !pointing || !holding) {
+            clearDistance(id);
             return;
         }
         actionBars.show(id, DISTANCE_OWNER,
@@ -542,26 +517,30 @@ public final class TrackerCompassService {
         showingDistance.add(id);
     }
 
+    private void clearDistance(UUID id) {
+        if (showingDistance.remove(id) && actionBars != null) {
+            actionBars.clear(id, DISTANCE_OWNER);
+        }
+    }
+
     /**
      * The particle trail, drawn to this Hunter alone while they hold the compass — every sweep, so it
      * follows a moving Runner. Lime for a Runner, purple for a door.
      */
     private void showTrail(Player hunter, Aim aim) {
-        if (!TrailPreference.shows(hunter, settings) || !holdingTracker(hunter)) {
+        if (!TrailPreference.shows(hunter, settings)) {
             return;
         }
-        var dots = TrackerCompass.trail(pointOf(hunter), aim);
+        List<PathTrail.Dot> dots = TrackerCompass.trail(pointOf(hunter), aim);
         if (dots.isEmpty()) {
             return;
         }
-        org.bukkit.Color colour = aim.kind() == Aim.Kind.PORTAL ? org.bukkit.Color.PURPLE : org.bukkit.Color.LIME;
-        de.raindancer.core.world.visual.PathTrail.draw(hunter, hunter.getWorld(), dots,
-                new org.bukkit.Particle.DustOptions(colour, 1.0f));
+        Color colour = aim.kind() == Aim.Kind.PORTAL ? Color.PURPLE : Color.LIME;
+        PathTrail.draw(hunter, hunter.getWorld(), dots, new Particle.DustOptions(colour, 1.0f));
     }
 
     boolean holdingTracker(Player hunter) {
-        return isTracker(hunter.getInventory().getItemInMainHand())
-                || isTracker(hunter.getInventory().getItemInOffHand());
+        return items.inHand(hunter, OURS);
     }
 
     /**
@@ -597,8 +576,8 @@ public final class TrackerCompassService {
     }
 
     /** The item's lore: what the needle means, and how to change it. No distance — see showDistance. */
-    List<net.kyori.adventure.text.Component> loreFor(String first) {
-        List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+    List<Component> loreFor(String first) {
+        List<Component> lore = new ArrayList<>();
         lore.add(line(first));
         if (compass.allowsPicking()) {
             lore.add(line("<dark_gray>Right-click for the next one, or the nearest."));
@@ -607,32 +586,9 @@ public final class TrackerCompassService {
         return lore;
     }
 
-    private static net.kyori.adventure.text.Component line(String mini) {
-        return MINI.deserialize(mini).decoration(TextDecoration.ITALIC, false);
-    }
-
-    /** A player-supplied name never reaches MiniMessage as markup — see {@code Chat}'s own rule. */
-    private static String safe(String raw) {
-        return raw == null ? "somebody" : raw.replace("<", "").replace(">", "");
-    }
-
-    private Optional<Integer> findTracker(Player hunter) {
-        ItemStack[] contents = hunter.getInventory().getContents();
-        for (int slot = 0; slot < contents.length; slot++) {
-            if (isTracker(contents[slot])) {
-                return Optional.of(slot);
-            }
-        }
-        return Optional.empty();
-    }
-
     /** Whether {@code stack} is one of the compasses this module handed out. */
     public boolean isTracker(ItemStack stack) {
-        if (stack == null || stack.getType() != Material.COMPASS || !stack.hasItemMeta()) {
-            return false;
-        }
-        return TAG.equals(stack.getItemMeta().getPersistentDataContainer()
-                .get(marker, PersistentDataType.STRING));
+        return items.is(stack, OURS);
     }
 
     // ------------------------------------------------------------------------ picking a Runner
@@ -717,7 +673,7 @@ public final class TrackerCompassService {
     }
 
     /** Tells the service how to open the pick list — the module owns the brand a menu needs. */
-    public void pickerScreen(java.util.function.Consumer<Player> opener) {
+    public void pickerScreen(Consumer<Player> opener) {
         this.pickerScreen = opener;
     }
 
@@ -731,7 +687,7 @@ public final class TrackerCompassService {
             say(hunter, "manhunt.tracker.picking-off");
             return;
         }
-        java.util.function.Consumer<Player> opener = pickerScreen;
+        Consumer<Player> opener = pickerScreen;
         if (opener == null) {
             cycleTarget(hunter);   // no screen wired (tests, or a host without menus): cycling still works
             return;
@@ -769,11 +725,11 @@ public final class TrackerCompassService {
         compassTargets.forget(hunter);
     }
 
-    /** Forgets a Hunter's pick — they left the side, or the server. */
+    /** Forgets a Hunter's pick and clears what they were being shown — they left the side, or the server. */
     public void forget(UUID hunter) {
         picks.remove(hunter);
-        showingDistance.remove(hunter);
         compassTargets.forget(hunter);
+        clearDistance(hunter);
     }
 
     /** What {@code hunter} has set their own compass to, if they have set it at all. */

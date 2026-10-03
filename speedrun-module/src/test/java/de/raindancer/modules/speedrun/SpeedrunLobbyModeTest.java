@@ -315,6 +315,33 @@ class SpeedrunLobbyModeTest {
         assertThat(lobby.useMode("nonexistent")).isFalse();
     }
 
+    /** {@code /manhunt resume} over a finished plain race used to resume a plain race. */
+    @Test
+    @DisplayName("a mode's own resume over a finished run is played in that mode")
+    void resumeInAModeOverAFinishedRun() {
+        settings.set("game-mode", "");
+        SpeedrunLobby lobby = lobby();
+        lobby.start(Set.of(ALICE));
+        lobby.session().orElseThrow().finish("done");
+
+        assertThat(lobby.useMode("scripted")).isTrue();
+        assertThat(lobby.resume(Set.of(ALICE), java.time.Duration.ZERO))
+                .isEqualTo(SpeedrunLobby.StartOutcome.STARTED);
+
+        assertThat(mode.started).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("a running run keeps the mode it began with")
+    void noModeChangeMidRun() {
+        settings.set("game-mode", "");
+        SpeedrunLobby lobby = lobby();
+        lobby.start(Set.of(ALICE));
+
+        assertThat(lobby.useMode("scripted")).isFalse();
+        assertThat(lobby.config().gameMode()).isEmpty();
+    }
+
     @Test
     @DisplayName("the mode is told when a run is a resumed one, and an ordinary start is not")
     void modeKnowsAResume() {

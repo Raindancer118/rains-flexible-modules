@@ -1,14 +1,14 @@
 package de.raindancer.modules.manhunt.command;
 
-import de.raindancer.core.social.team.Teams;
 import de.raindancer.modules.manhunt.ManhuntServices;
 import de.raindancer.modules.manhunt.mode.ManhuntMode;
 import de.raindancer.modules.manhunt.model.Hunt;
 import de.raindancer.modules.manhunt.tracker.CompassHandout;
-import de.raindancer.modules.speedrun.SpeedrunControl;
-import de.raindancer.modules.speedrun.RunClock;
-import de.raindancer.modules.speedrun.SpeedrunLobby;
+import de.raindancer.modules.manhunt.tracker.TrailPreference;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
+import de.raindancer.modules.speedrun.RunClock;
+import de.raindancer.modules.speedrun.SpeedrunControl;
+import de.raindancer.modules.speedrun.SpeedrunLobby;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -16,13 +16,16 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * {@code /manhunt} — the sides, and nothing else.
@@ -47,7 +50,7 @@ public final class ManhuntCommand implements IManhuntCommand {
 
         Optional<SpeedrunControl.Answer> start();
 
-        Optional<SpeedrunControl.Answer> resume(java.time.Duration already);
+        Optional<SpeedrunControl.Answer> resume(Duration already);
     }
 
     private static final Lobby REAL = new Lobby() {
@@ -62,7 +65,7 @@ public final class ManhuntCommand implements IManhuntCommand {
         }
 
         @Override
-        public Optional<SpeedrunControl.Answer> resume(java.time.Duration already) {
+        public Optional<SpeedrunControl.Answer> resume(Duration already) {
             return SpeedrunControl.resume(already, ManhuntMode.ID);
         }
     };
@@ -105,7 +108,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             live.messages().send(sender, "manhunt.not-yours");
             return;
         }
-        say(live, sender, lobby.start(), "speedrun.start.started", java.time.Duration.ZERO);
+        say(live, sender, lobby.start(), "speedrun.start.started", Duration.ZERO);
     }
 
     /**
@@ -117,9 +120,9 @@ public final class ManhuntCommand implements IManhuntCommand {
             live.messages().send(sender, "manhunt.not-yours");
             return;
         }
-        java.time.Duration already = java.time.Duration.ZERO;
+        Duration already = Duration.ZERO;
         if (args.length > 1) {
-            Optional<java.time.Duration> parsed = RunClock.parse(args[1]);
+            Optional<Duration> parsed = RunClock.parse(args[1]);
             if (parsed.isEmpty()) {
                 live.messages().send(sender, "speedrun.time.unreadable", "time", args[1]);
                 return;
@@ -130,7 +133,7 @@ public final class ManhuntCommand implements IManhuntCommand {
     }
 
     private void say(ManhuntServices live, CommandSender sender, Optional<SpeedrunControl.Answer> answer,
-                     String startedKey, java.time.Duration at) {
+                     String startedKey, Duration at) {
         if (answer.isEmpty()) {
             live.messages().send(sender, "manhunt.goal.no-lobby");
             return;
@@ -211,8 +214,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             live.messages().send(sender, "manhunt.only-a-player");
             return;
         }
-        live.messages().send(player, de.raindancer.modules.manhunt.tracker.TrailPreference.messageKey(
-                de.raindancer.modules.manhunt.tracker.TrailPreference.toggle(player, live.config())));
+        live.messages().send(player, TrailPreference.messageKey(TrailPreference.toggle(player, live.config())));
     }
 
     private void open(ManhuntServices live, CommandSender sender) {
@@ -263,15 +265,22 @@ public final class ManhuntCommand implements IManhuntCommand {
                     live.messages().send(sender, "manhunt.join.runners-locked");
                     return;
                 }
-                live.teams().joinRunners(player.getUniqueId());
-                live.messages().send(sender, "manhunt.join.runner");
+                joinOrSayFrozen(live, sender, player, true);
             }
-            case HUNTER -> {
-                live.teams().joinHunters(player.getUniqueId());
-                live.messages().send(sender, "manhunt.join.hunter");
-            }
+            case HUNTER -> joinOrSayFrozen(live, sender, player, false);
             default -> live.messages().send(sender, "manhunt.join.which-side");
         }
+    }
+
+    /** @return whether they joined — a hunt that began a moment ago has frozen the sides */
+    private static boolean joinOrSayFrozen(ManhuntServices live, CommandSender sender, Player who,
+                                           boolean runner) {
+        if (!live.teams().join(who.getUniqueId(), runner)) {
+            live.messages().send(sender, "manhunt.sides-frozen");
+            return false;
+        }
+        live.messages().send(who, runner ? "manhunt.join.runner" : "manhunt.join.hunter");
+        return true;
     }
 
     private void leave(ManhuntServices live, CommandSender sender) {
@@ -321,17 +330,13 @@ public final class ManhuntCommand implements IManhuntCommand {
             assignMidHunt(live, sender, target, side);
             return;
         }
-        Teams.MembershipChange change = switch (side) {
-            case RUNNER -> live.teams().joinRunners(target.getUniqueId());
-            case HUNTER -> live.teams().joinHunters(target.getUniqueId());
-            default -> null;
-        };
-        if (change == null) {
+        if (!RUNNER.equals(side) && !HUNTER.equals(side)) {
             live.messages().send(sender, "manhunt.assign.usage");
             return;
         }
-        live.messages().send(sender, "manhunt.assign.done", "player", target.getName(), "side", side);
-        live.messages().send(target, RUNNER.equals(side) ? "manhunt.join.runner" : "manhunt.join.hunter");
+        if (joinOrSayFrozen(live, sender, target, RUNNER.equals(side))) {
+            live.messages().send(sender, "manhunt.assign.done", "player", target.getName(), "side", side);
+        }
     }
 
     /**
@@ -374,18 +379,7 @@ public final class ManhuntCommand implements IManhuntCommand {
     /** Says what a mid-hunt side change did, in the hunt's own words rather than a generic refusal. */
     private void report(ManhuntServices live, CommandSender sender, String who,
                         ManhuntMode.SideChange outcome, String side) {
-        switch (outcome) {
-            case CHANGED -> live.messages().send(sender, "manhunt.side.changed",
-                    "player", who, "side", side);
-            case FROZEN -> live.messages().send(sender, "manhunt.sides-frozen");
-            case ALREADY -> live.messages().send(sender, "manhunt.side.already", "player", who);
-            case LAST_RUNNER -> live.messages().send(sender, "manhunt.side.last-runner", "player", who);
-            case NOT_IN_THE_HUNT -> live.messages().send(sender, "manhunt.side.not-in-hunt",
-                    "player", who);
-            // A hunt that ended between the click and the move — nothing was changed, and the sides
-            // are the lobby's again.
-            case NO_HUNT -> live.messages().send(sender, "manhunt.side.hunt-over");
-        }
+        live.messages().send(sender, outcome.messageKey(), "player", who, "side", side);
     }
 
     /**
@@ -452,13 +446,12 @@ public final class ManhuntCommand implements IManhuntCommand {
         }
         if (word.equals("give") && args.length == 3) {
             String typed = args[2].toLowerCase(Locale.ROOT);
-            return java.util.Arrays.stream(CompassHandout.Kind.values()).map(CompassHandout.Kind::word)
+            return Arrays.stream(CompassHandout.Kind.values()).map(CompassHandout.Kind::word)
                     .filter(kind -> kind.startsWith(typed)).toList();
         }
         if (word.equals("assign") || (word.equals("give") && args.length == 2)) {
             if (args.length == 2) {
-                return java.util.stream.Stream.concat(word.equals("give") ? java.util.stream.Stream.of("all")
-                                : java.util.stream.Stream.empty(),
+                return Stream.concat(word.equals("give") ? Stream.of("all") : Stream.empty(),
                                 Bukkit.getOnlinePlayers().stream().map(Player::getName))
                         .filter(name -> name.toLowerCase(Locale.ROOT)
                                 .startsWith(args[1].toLowerCase(Locale.ROOT)))

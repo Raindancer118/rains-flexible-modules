@@ -61,8 +61,7 @@ speedrun:
   # /speedrunresume — a run over the world as it stands, after a restart.
   resume:
     done: "<green>Run resumed at <white><time></white> with <white><players></white> player(s), where they stand and with what they carry."
-    not-ready: "<yellow>A run is already under way or counting down — only a ready lobby can be resumed."
-    refused: "<red>The run could not be resumed: the game mode refused it. Check its sides first."
+    not-ready: "<yellow>A run is already under way or counting down — only a ready or finished lobby can be resumed."
   # /speedruntime and /speedrunresume's time.
   time:
     usage: "<yellow>/speedruntime <time> — e.g. 42:05, 1:02:03 or 1h30m"

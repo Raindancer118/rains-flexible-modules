@@ -103,8 +103,9 @@
              1.23.0: SpeedrunControl lets a mode start or resume the lobby in its own mode; refusals
              say the real reason.
              1.24.0: SpeedrunSession.addParticipant — a mode can bring a latecomer into a running run.
-             A finished run can be resumed over without regenerating the world. -->
-        <plugin.version>1.24.0</plugin.version>
+             A finished run can be resumed over without regenerating the world.
+             1.25.0: review — a stale reset timer can no longer regenerate a later run's world; a refused resume keeps the finished run; Folia-safe start-of-run reset; no regeneration while stopping. -->
+        <plugin.version>1.25.0</plugin.version>
     </properties>
 
     <dependencies>

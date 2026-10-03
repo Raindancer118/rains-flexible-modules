@@ -26,6 +26,8 @@ final class FakeServices {
 
     final Messages messages = mock(Messages.class);
     final ManhuntTeams teams;
+    /** The freeze the teams answer to — set by a test to stand in for a hunt that has just begun. */
+    final java.util.concurrent.atomic.AtomicBoolean frozen = new java.util.concurrent.atomic.AtomicBoolean();
     final ManhuntMode mode = mock(ManhuntMode.class);
     final ManhuntWhitelistService whitelist = mock(ManhuntWhitelistService.class);
     final de.raindancer.modules.manhunt.service.PositionShare share =
@@ -41,7 +43,7 @@ final class FakeServices {
     final ManhuntServices services;
 
     FakeServices(Path directory) {
-        this.teams = new ManhuntTeams(() -> false);
+        this.teams = new ManhuntTeams(frozen::get);
         this.settings = new SettingsStore<>(
                 SettingsSchema.of(ManhuntSettings.class, ManhuntSettings.DEFAULTS),
                 directory.resolve("manhunt.yml"));

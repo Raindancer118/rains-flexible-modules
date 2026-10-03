@@ -3,12 +3,17 @@ package de.raindancer.modules.manhunt.model;
 import de.raindancer.core.social.team.Team;
 import de.raindancer.core.social.team.TeamColour;
 import de.raindancer.core.social.team.TeamId;
+import de.raindancer.core.social.team.TeamOutcome;
 import de.raindancer.core.social.team.TeamPolicy;
 import de.raindancer.core.social.team.Teams;
 
+import java.util.LinkedHashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /**
  * The two sides of a Manhunt, on top of {@link Teams} rather than a module-private pair of sets —
@@ -40,8 +45,7 @@ public final class ManhuntTeams {
     /** Set for the length of one deliberate change that is allowed through the freeze — see
      *  {@link #evenWhileFrozen}. A plain field rather than a thread-local: every path that reaches
      *  it is a command or a menu click, and both land on the server's own thread. */
-    private final java.util.concurrent.atomic.AtomicBoolean letThisOneThrough =
-            new java.util.concurrent.atomic.AtomicBoolean();
+    private final AtomicBoolean letThisOneThrough = new AtomicBoolean();
 
     /**
      * @param frozen whether roles may be changed right now — false the whole time no run is going,
@@ -84,6 +88,16 @@ public final class ManhuntTeams {
     }
 
     /**
+     * Puts {@code player} on a side from the lobby. False only when the sides froze under the
+     * caller — a hunt that began between a page being drawn, or a command's own check, and the
+     * join. Already being on that side is not a refusal.
+     */
+    public boolean join(UUID player, boolean runner) {
+        Teams.MembershipChange change = runner ? joinRunners(player) : joinHunters(player);
+        return change.status() != TeamOutcome.FROZEN;
+    }
+
+    /**
      * Runs one membership change even while the sides are frozen — the single door a mid-hunt side
      * change goes through, and nothing else.
      *
@@ -94,7 +108,7 @@ public final class ManhuntTeams {
      * keeps the hunt's own roster in step. Unfreezing wholesale would make every one of those paths
      * work and leave a Hunter with no compass, or a Runner carrying one.
      */
-    public <T> T evenWhileFrozen(java.util.function.Supplier<T> change) {
+    public <T> T evenWhileFrozen(Supplier<T> change) {
         letThisOneThrough.set(true);
         try {
             return change.get();
@@ -122,7 +136,7 @@ public final class ManhuntTeams {
     }
 
     /** Takes {@code player} off whichever side they were on. Empty if they were on neither. */
-    public java.util.Optional<TeamId> leave(UUID player) {
+    public Optional<TeamId> leave(UUID player) {
         return teams.leave(player).oldTeam();
     }
 
@@ -144,7 +158,7 @@ public final class ManhuntTeams {
 
     /** Everybody on either side. */
     public Set<UUID> everybody() {
-        Set<UUID> both = new java.util.LinkedHashSet<>(runners());
+        Set<UUID> both = new LinkedHashSet<>(runners());
         both.addAll(hunters());
         return Set.copyOf(both);
     }

@@ -21,10 +21,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <h2>UUIDs, never {@code Player}</h2>
  * A live {@code Player} held in a long-lived map pins their inventory and their chunks in the heap for
- * as long as the map does — see the module's own note on the same rule in {@code ManhuntTeams}. This
- * class never sees a Bukkit type at all: {@code RunnerPortalListener} converts a real
- * {@code Location} into a {@link Point} at the door, which is also what makes the whole thing testable
- * without a server.
+ * as long as the map does. This class never sees a Bukkit type at all: {@code TrackerListener}
+ * converts a real {@code Location} into a {@link Point} at the door, which is also what makes the
+ * whole thing testable without a server.
  *
  * <h2>Thread safety</h2>
  * Written from a Bukkit event and read from the compass' own timer, which on Folia are not the same
