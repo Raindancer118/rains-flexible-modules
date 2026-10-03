@@ -39,8 +39,9 @@
              0.5.0: chat 1.7.0 — the latest choice wins between a private chat and a channel. Needs RainsCore 1.41.0.
              0.6.0: speedrun 1.21.0, manhunt 0.18.0 — /manhunt give, goal remove, leave mid-hunt, a hunt without a goal.
              0.7.0: speedrun 1.22.0, manhunt 0.19.0 — /speedrunresume, /speedruntime, /manhunt give all,
-             lobby items no longer clear inventories. -->
-        <plugin.version>0.7.0</plugin.version>
+             lobby items no longer clear inventories.
+             0.8.0: speedrun 1.23.0, manhunt 0.20.0 — /manhunt start, /manhunt resume [time]. -->
+        <plugin.version>0.8.0</plugin.version>
     </properties>
 
     <dependencies>

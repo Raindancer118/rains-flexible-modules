@@ -90,6 +90,62 @@ public final class SpeedrunLobby {
     }
 
     /** What {@link #forceReset} answered. */
+    /**
+     * Sets the lobby to the installed mode {@code id} — {@code /manhunt start} means a hunt whatever the
+     * lobby was last set to. Only while READY: a running run keeps the mode it began with.
+     *
+     * @return whether the lobby is now set to it
+     */
+    public boolean useMode(String id) {
+        if (SpeedrunModes.find(id).isEmpty() || state() != SpeedrunLobbyState.READY) {
+            return false;
+        }
+        if (!id.equalsIgnoreCase(config().gameMode())) {
+            settings.set("game-mode", id);
+        }
+        return true;
+    }
+
+    /** Everybody in the lobby world who is racing — what the start block sweeps up. */
+    public Set<UUID> presentInLobbyWorld() {
+        World lobbyWorld = Bukkit.getWorld(config().worldName());
+        if (lobbyWorld == null) {
+            return Set.of();
+        }
+        return lobbyWorld.getPlayers().stream()
+                .map(Player::getUniqueId)
+                .filter(id -> !isSpectator(id))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /** Everybody in any of the run's three worlds who is racing — what a resume picks up. */
+    public Set<UUID> presentInRunWorlds() {
+        SpeedrunWorlds worlds = SpeedrunWorlds.around(config().worldName());
+        return Bukkit.getOnlinePlayers().stream()
+                .filter(player -> worlds.contains(player.getWorld().getName()))
+                .map(Player::getUniqueId)
+                .filter(id -> !isSpectator(id))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * The wording key for {@code outcome} — the mode's own sentence for a refusal of its own, so
+     * "somebody has to be running" is said rather than a generic "not right now". Sent with a
+     * {@code mode} placeholder, which only MODE_MISSING uses.
+     */
+    public String messageFor(StartOutcome outcome, Collection<UUID> participants) {
+        return switch (outcome) {
+            case STARTED -> "speedrun.start.started";
+            case NOT_READY -> "speedrun.start.not-ready";
+            case NO_END_CONDITION -> "speedrun.start.no-end-condition";
+            case NO_PARTICIPANTS -> "speedrun.start.no-participants";
+            case WORLD_MISSING -> "speedrun.start.world-missing";
+            case MODE_MISSING -> "speedrun.start.mode-missing";
+            case MODE_FAILED -> "speedrun.start.mode-failed";
+            case REFUSED_BY_MODE -> refusalFor(participants).orElse("speedrun.start.not-ready");
+        };
+    }
+
     public enum GoalRemoval { NONE_SET, REMOVED, REMOVED_FROM_RUN }
 
     /**

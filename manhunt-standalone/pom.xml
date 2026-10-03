@@ -87,8 +87,10 @@
              it ends when the last Runner is caught, or by reset. /manhunt goal remove (also mid-hunt);
              /manhunt leave mid-hunt takes you out of the hunt entirely. Needs RainsSpeedrun 1.21.0.
              0.19.0: /manhunt give all; a resumed hunt (/speedrunresume) gives no head start.
-             Needs RainsSpeedrun 1.22.0. -->
-        <plugin.version>0.19.0</plugin.version>
+             Needs RainsSpeedrun 1.22.0.
+             0.20.0: /manhunt start and /manhunt resume [time] — always in Manhunt mode, whatever the
+             lobby was set to. Needs RainsSpeedrun 1.23.0. -->
+        <plugin.version>0.20.0</plugin.version>
     </properties>
 
     <dependencies>

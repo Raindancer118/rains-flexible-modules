@@ -501,6 +501,7 @@ class SpeedrunLobbyListenerTest {
         void refusedStartLeavesInventoriesAlone() {
             when(lobbyWorld.getPlayers()).thenReturn(List.of(clicker));
             when(lobby.beginCountdown(any())).thenReturn(SpeedrunLobby.StartOutcome.NO_END_CONDITION);
+            when(lobby.messageFor(any(), any())).thenReturn("speedrun.start.no-end-condition");
 
             PlayerInteractEvent event = new PlayerInteractEvent(clicker, Action.RIGHT_CLICK_BLOCK,
                     startBlock, null, null, EquipmentSlot.HAND);
@@ -508,7 +509,9 @@ class SpeedrunLobbyListenerTest {
 
             assertThat(event.useItemInHand()).isEqualTo(org.bukkit.event.Event.Result.DENY);
             verify(clicker.getInventory(), never()).clear();
-            verify(messages).send(clicker, "speedrun.start.no-end-condition");
+            verify(messages).send(org.mockito.ArgumentMatchers.eq(clicker),
+                    org.mockito.ArgumentMatchers.eq("speedrun.start.no-end-condition"),
+                    any(Object[].class));
         }
     }
 

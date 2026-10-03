@@ -278,31 +278,7 @@ public final class SpeedrunLobbyListener implements Listener {
             }
             return;
         }
-        // A mode's own refusal is its own sentence — "somebody has to be running" reads as an answer
-        // where a generic "not right now" reads as a bug. Asked of the mode rather than mapped here,
-        // since this module has never heard of whatever game is being refused.
-        if (outcome == SpeedrunLobby.StartOutcome.REFUSED_BY_MODE) {
-            messages.send(clicker, lobby.refusalFor(present).orElse("speedrun.start.not-ready"));
-            return;
-        }
-        // The one refusal with something to fill in: which mode the lobby is set to and cannot find.
-        if (outcome == SpeedrunLobby.StartOutcome.MODE_MISSING) {
-            messages.send(clicker, refusalKey(outcome), "mode", lobby.config().gameMode());
-            return;
-        }
-        messages.send(clicker, refusalKey(outcome));
+        messages.send(clicker, lobby.messageFor(outcome, present), "mode", lobby.config().gameMode());
     }
 
-    private static String refusalKey(SpeedrunLobby.StartOutcome outcome) {
-        return switch (outcome) {
-            case NOT_READY -> "speedrun.start.not-ready";
-            case NO_END_CONDITION -> "speedrun.start.no-end-condition";
-            case NO_PARTICIPANTS -> "speedrun.start.no-participants";
-            case WORLD_MISSING -> "speedrun.start.world-missing";
-            case MODE_MISSING -> "speedrun.start.mode-missing";
-            case MODE_FAILED -> "speedrun.start.mode-failed";
-            case REFUSED_BY_MODE -> throw new IllegalStateException("the mode's own wording is used");
-            case STARTED -> throw new IllegalStateException("STARTED is not a refusal");
-        };
-    }
 }

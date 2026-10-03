@@ -8,14 +8,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** A run time typed by an admin: {@code 42:05}, {@code 1:02:03}, or Core's {@code 1h30m}. */
-final class RunClock {
+public final class RunClock {
 
     private static final Pattern CLOCK = Pattern.compile("(?:(\\d+):)?(\\d+):(\\d{2})");
 
     private RunClock() {
     }
 
-    static Optional<Duration> parse(String typed) {
+    public static Optional<Duration> parse(String typed) {
         if (typed == null) {
             return Optional.empty();
         }

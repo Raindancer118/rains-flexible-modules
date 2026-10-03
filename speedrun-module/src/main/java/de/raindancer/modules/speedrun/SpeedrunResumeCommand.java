@@ -1,15 +1,12 @@
 package de.raindancer.modules.speedrun;
 
 import io.papermc.paper.command.brigadier.CommandSourceStack;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 /**
  * {@code /speedrunresume [time]} — a run started over the world as it stands, after a restart lost the
@@ -36,21 +33,15 @@ public final class SpeedrunResumeCommand implements ISpeedrunCommand {
             }
             already = parsed.get();
         }
-        SpeedrunWorlds worlds = SpeedrunWorlds.around(live.lobby().config().worldName());
-        Set<UUID> present = Bukkit.getOnlinePlayers().stream()
-                .filter(player -> worlds.contains(player.getWorld().getName()))
-                .map(Player::getUniqueId)
-                .filter(id -> !live.lobby().isSpectator(id))
-                .collect(Collectors.toUnmodifiableSet());
+        Set<UUID> present = live.lobby().presentInRunWorlds();
         SpeedrunLobby.StartOutcome outcome = live.lobby().resume(present, already);
-        live.messages().send(source.getSender(), switch (outcome) {
-            case STARTED -> "speedrun.resume.done";
-            case NOT_READY -> "speedrun.resume.not-ready";
-            case NO_PARTICIPANTS -> "speedrun.start.no-participants";
-            case NO_END_CONDITION -> "speedrun.start.no-end-condition";
-            case WORLD_MISSING -> "speedrun.start.world-missing";
-            default -> "speedrun.resume.refused";
-        }, "players", String.valueOf(present.size()), "time", SpeedrunTimerDisplay.plain(already));
+        live.messages().send(source.getSender(), outcome == SpeedrunLobby.StartOutcome.STARTED
+                        ? "speedrun.resume.done"
+                        : outcome == SpeedrunLobby.StartOutcome.NOT_READY
+                        ? "speedrun.resume.not-ready"
+                        : live.lobby().messageFor(outcome, present),
+                "players", String.valueOf(present.size()), "time", SpeedrunTimerDisplay.plain(already),
+                "mode", live.lobby().config().gameMode());
     }
 
     @Override

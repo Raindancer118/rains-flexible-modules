@@ -4,6 +4,7 @@
 # does a host's bundled wording. See Messages.defineFrom.
 speedrun:
   start:
+    started: "<green>The countdown has begun for <white><players></white> player(s)."
     # The start block was pressed somewhere other than the lobby world it is bound to.
     wrong-world: "<yellow>This only starts a run in <white><world></white>."
     # A run is already counting down, running, paused or waiting to reset.

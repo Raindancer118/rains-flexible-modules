@@ -4,7 +4,7 @@
 # does a host's bundled wording. See Messages.defineFrom.
 manhunt:
   # Somebody typed a word /manhunt does not have.
-  unknown-word: "<yellow>No such thing as <white><word></white>. Try join, leave, assign, reset, status, trail, here, give or goal."
+  unknown-word: "<yellow>No such thing as <white><word></white>. Try join, leave, assign, reset, status, trail, here, give, goal, start or resume."
   # A command that only makes sense for somebody standing in the world.
   only-a-player: "<red>Only a player can do that."
   # /manhunt assign, without the permission for it.
@@ -18,6 +18,9 @@ manhunt:
   # /manhunt leave while a hunt is being played — out of it entirely.
   left-hunt: "<gray>You have left the hunt. You are on no side and carry none of its compasses."
   not-in-hunt: "<yellow>You are not part of the hunt being played."
+  # /manhunt resume [time] — a hunt picked up after a restart.
+  resume:
+    done: "<green>Hunt resumed at <white><time></white> with <white><players></white> player(s), where they stand and with what they carry."
   # /manhunt goal remove — also mid-hunt.
   goal:
     usage: "<yellow>/manhunt goal remove"

@@ -5,7 +5,8 @@ import de.raindancer.modules.manhunt.ManhuntServices;
 import de.raindancer.modules.manhunt.mode.ManhuntMode;
 import de.raindancer.modules.manhunt.model.Hunt;
 import de.raindancer.modules.manhunt.tracker.CompassHandout;
-import de.raindancer.modules.speedrun.SpeedrunGoal;
+import de.raindancer.modules.speedrun.SpeedrunControl;
+import de.raindancer.modules.speedrun.RunClock;
 import de.raindancer.modules.speedrun.SpeedrunLobby;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -38,15 +39,41 @@ public final class ManhuntCommand implements IManhuntCommand {
     private static final String HUNTER = "hunter";
 
     private final Supplier<ManhuntServices> services;
-    private final Supplier<Optional<SpeedrunLobby.GoalRemoval>> goalRemover;
+    private final Lobby lobby;
 
-    public ManhuntCommand(Supplier<ManhuntServices> services) {
-        this(services, SpeedrunGoal::remove);
+    /** The speedrun lobby, as far as this command drives it — always in Manhunt's own mode. */
+    interface Lobby {
+        Optional<SpeedrunLobby.GoalRemoval> removeGoal();
+
+        Optional<SpeedrunControl.Answer> start();
+
+        Optional<SpeedrunControl.Answer> resume(java.time.Duration already);
     }
 
-    ManhuntCommand(Supplier<ManhuntServices> services, Supplier<Optional<SpeedrunLobby.GoalRemoval>> goalRemover) {
+    private static final Lobby REAL = new Lobby() {
+        @Override
+        public Optional<SpeedrunLobby.GoalRemoval> removeGoal() {
+            return SpeedrunControl.removeGoal();
+        }
+
+        @Override
+        public Optional<SpeedrunControl.Answer> start() {
+            return SpeedrunControl.start(ManhuntMode.ID);
+        }
+
+        @Override
+        public Optional<SpeedrunControl.Answer> resume(java.time.Duration already) {
+            return SpeedrunControl.resume(already, ManhuntMode.ID);
+        }
+    };
+
+    public ManhuntCommand(Supplier<ManhuntServices> services) {
+        this(services, REAL);
+    }
+
+    ManhuntCommand(Supplier<ManhuntServices> services, Lobby lobby) {
         this.services = services;
-        this.goalRemover = goalRemover;
+        this.lobby = lobby;
     }
 
     @Override
@@ -66,8 +93,54 @@ public final class ManhuntCommand implements IManhuntCommand {
             case "here" -> here(live, sender, args);
             case "give" -> give(live, sender, args);
             case "goal" -> goal(live, sender, args);
+            case "start" -> start(live, sender);
+            case "resume" -> resume(live, sender, args);
             default -> live.messages().send(sender, "manhunt.unknown-word", "word", word);
         }
+    }
+
+    /** {@code /manhunt start} — what the lobby's start block does, with the lobby set to Manhunt. */
+    private void start(ManhuntServices live, CommandSender sender) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        say(live, sender, lobby.start(), "speedrun.start.started", java.time.Duration.ZERO);
+    }
+
+    /**
+     * {@code /manhunt resume [time]} — a hunt picked up over the world as it stands, after a restart:
+     * see {@code SpeedrunLobby.resume}. The Runners must be on their side first; everybody else hunts.
+     */
+    private void resume(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        java.time.Duration already = java.time.Duration.ZERO;
+        if (args.length > 1) {
+            Optional<java.time.Duration> parsed = RunClock.parse(args[1]);
+            if (parsed.isEmpty()) {
+                live.messages().send(sender, "speedrun.time.unreadable", "time", args[1]);
+                return;
+            }
+            already = parsed.get();
+        }
+        say(live, sender, lobby.resume(already), "manhunt.resume.done", already);
+    }
+
+    private void say(ManhuntServices live, CommandSender sender, Optional<SpeedrunControl.Answer> answer,
+                     String startedKey, java.time.Duration at) {
+        if (answer.isEmpty()) {
+            live.messages().send(sender, "manhunt.goal.no-lobby");
+            return;
+        }
+        SpeedrunControl.Answer said = answer.get();
+        long seconds = at.getSeconds();
+        live.messages().send(sender, said.started() ? startedKey : said.messageKey(),
+                "players", String.valueOf(said.players()),
+                "time", "%d:%02d".formatted(seconds / 60, seconds % 60),
+                "mode", ManhuntMode.ID);
     }
 
     /** {@code /manhunt goal remove} — also mid-hunt, which then ends by catching or by reset. */
@@ -80,7 +153,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             live.messages().send(sender, "manhunt.goal.usage");
             return;
         }
-        String key = goalRemover.get().map(removal -> switch (removal) {
+        String key = lobby.removeGoal().map(removal -> switch (removal) {
             case NONE_SET -> "manhunt.goal.none-set";
             case REMOVED -> "manhunt.goal.removed";
             case REMOVED_FROM_RUN -> "manhunt.goal.removed-mid-hunt";
@@ -363,7 +436,7 @@ public final class ManhuntCommand implements IManhuntCommand {
                                                String @NotNull [] args) {
         if (args.length <= 1) {
             String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
-            return List.of("join", "leave", "assign", "reset", "status", "trail", "here", "give", "goal").stream()
+            return List.of("join", "leave", "assign", "reset", "status", "trail", "here", "give", "goal", "start", "resume").stream()
                     .filter(word -> word.startsWith(typed))
                     .toList();
         }

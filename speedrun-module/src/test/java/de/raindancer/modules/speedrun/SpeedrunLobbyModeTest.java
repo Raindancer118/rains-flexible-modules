@@ -303,6 +303,19 @@ class SpeedrunLobbyModeTest {
     }
 
     @Test
+    @DisplayName("a mode's own resume switches the lobby to that mode first — a plain race is not a hunt")
+    void resumeInAMode() {
+        settings.set("game-mode", "");
+        SpeedrunLobby lobby = lobby();
+
+        assertThat(lobby.useMode("scripted")).isTrue();
+        lobby.resume(Set.of(ALICE), java.time.Duration.ZERO);
+
+        assertThat(mode.started).hasSize(1);
+        assertThat(lobby.useMode("nonexistent")).isFalse();
+    }
+
+    @Test
     @DisplayName("the mode is told when a run is a resumed one, and an ordinary start is not")
     void modeKnowsAResume() {
         settings.set("game-mode", "scripted");

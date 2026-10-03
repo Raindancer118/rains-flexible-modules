@@ -147,6 +147,9 @@ check "/manhunt give names a missing player" bash -c "grep -q 'No online player'
 check "/speedruntime with no run says so" bash -c "grep -q 'No run is being played' <<<\"$(rcon 'speedruntime 10:00')\""
 check "/speedrunresume with nobody there refuses" bash -c "grep -q 'Nobody is here to race' <<<\"$(rcon 'speedrunresume 42:05')\""
 check "/manhunt give all without a hunt says so" bash -c "grep -q 'No hunt is being played' <<<\"$(rcon 'manhunt give all')\""
+check "/manhunt start with nobody there refuses in speedrun's words" bash -c "grep -q 'Nobody is here to race' <<<\"$(rcon 'manhunt start')\""
+check "/manhunt resume reads no nonsense time" bash -c "grep -q 'is not a time' <<<\"$(rcon 'manhunt resume soon')\""
+check "/manhunt resume with nobody there refuses" bash -c "grep -q 'Nobody is here to race' <<<\"$(rcon 'manhunt resume 42:05')\""
 check "/worlds info answers about the primary world" bash -c "grep -q 'seed' <<<\"$(rcon 'worlds info world')\""
 
 log "Speedrun: /speedrunreset must still regenerate the run's worlds from inside the bundle …"

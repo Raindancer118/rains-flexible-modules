@@ -99,8 +99,10 @@
              1.21.0: a game mode may end its own run (SpeedrunMode.endsItself), so it can start
              without a goal.
              1.22.0: /speedrunresume [time] starts a run over the world as it stands — nobody moved,
-             healed or cleared; /speedruntime sets the clock. Lobby items no longer clear an inventory. -->
-        <plugin.version>1.22.0</plugin.version>
+             healed or cleared; /speedruntime sets the clock. Lobby items no longer clear an inventory.
+             1.23.0: SpeedrunControl lets a mode start or resume the lobby in its own mode; refusals
+             say the real reason. -->
+        <plugin.version>1.23.0</plugin.version>
     </properties>
 
     <dependencies>

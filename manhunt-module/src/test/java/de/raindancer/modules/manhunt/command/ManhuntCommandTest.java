@@ -186,12 +186,85 @@ class ManhuntCommandTest {
     @DisplayName("goal remove clears the goal, also in the middle of a hunt — an admin's call")
     void goalRemove() {
         when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
-        command = new ManhuntCommand(() -> fake.services,
-                () -> Optional.of(de.raindancer.modules.speedrun.SpeedrunLobby.GoalRemoval.REMOVED_FROM_RUN));
+        command = new ManhuntCommand(() -> fake.services, new FakeLobby());
 
         command.execute(source, new String[]{"goal", "remove"});
 
         verify(fake.messages).send(eq(anna), eq("manhunt.goal.removed-mid-hunt"), any(Object[].class));
+    }
+
+    /** The speedrun lobby as the command sees it, answering whatever a test sets. */
+    static final class FakeLobby implements ManhuntCommand.Lobby {
+        java.time.Duration resumedAt;
+        boolean started;
+        de.raindancer.modules.speedrun.SpeedrunControl.Answer answer =
+                new de.raindancer.modules.speedrun.SpeedrunControl.Answer(
+                        de.raindancer.modules.speedrun.SpeedrunLobby.StartOutcome.STARTED, "speedrun.start.started", 3);
+
+        @Override
+        public Optional<de.raindancer.modules.speedrun.SpeedrunLobby.GoalRemoval> removeGoal() {
+            return Optional.of(de.raindancer.modules.speedrun.SpeedrunLobby.GoalRemoval.REMOVED_FROM_RUN);
+        }
+
+        @Override
+        public Optional<de.raindancer.modules.speedrun.SpeedrunControl.Answer> start() {
+            started = true;
+            return Optional.of(answer);
+        }
+
+        @Override
+        public Optional<de.raindancer.modules.speedrun.SpeedrunControl.Answer> resume(java.time.Duration already) {
+            resumedAt = already;
+            return Optional.of(answer);
+        }
+    }
+
+    @Test
+    @DisplayName("start begins a hunt from the command, as the start block would")
+    void start() {
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        FakeLobby lobby = new FakeLobby();
+        command = new ManhuntCommand(() -> fake.services, lobby);
+
+        command.execute(source, new String[]{"start"});
+
+        assertThat(lobby.started).isTrue();
+        verify(fake.messages).send(eq(anna), eq("speedrun.start.started"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("resume picks the hunt up at the given time; a refusal is said in its own words")
+    void resume() {
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        FakeLobby lobby = new FakeLobby();
+        command = new ManhuntCommand(() -> fake.services, lobby);
+
+        command.execute(source, new String[]{"resume", "42:05"});
+        assertThat(lobby.resumedAt).isEqualTo(java.time.Duration.ofMinutes(42).plusSeconds(5));
+        verify(fake.messages).send(eq(anna), eq("manhunt.resume.done"), any(Object[].class));
+
+        lobby.answer = new de.raindancer.modules.speedrun.SpeedrunControl.Answer(
+                de.raindancer.modules.speedrun.SpeedrunLobby.StartOutcome.REFUSED_BY_MODE, "manhunt.start.no-runner", 2);
+        command.execute(source, new String[]{"resume"});
+        assertThat(lobby.resumedAt).isEqualTo(java.time.Duration.ZERO);
+        verify(fake.messages).send(eq(anna), eq("manhunt.start.no-runner"), any(Object[].class));
+
+        command.execute(source, new String[]{"resume", "soon"});
+        verify(fake.messages).send(eq(anna), eq("speedrun.time.unreadable"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("start and resume are an admin's")
+    void startAdminOnly() {
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(false);
+        FakeLobby lobby = new FakeLobby();
+        command = new ManhuntCommand(() -> fake.services, lobby);
+
+        command.execute(source, new String[]{"start"});
+        command.execute(source, new String[]{"resume", "10:00"});
+
+        assertThat(lobby.started).isFalse();
+        assertThat(lobby.resumedAt).isNull();
     }
 
     @Test
