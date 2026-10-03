@@ -4,7 +4,7 @@
 # does a host's bundled wording. See Messages.defineFrom.
 manhunt:
   # Somebody typed a word /manhunt does not have.
-  unknown-word: "<yellow>No such thing as <white><word></white>. Try join, leave, assign, reset, status, trail or here."
+  unknown-word: "<yellow>No such thing as <white><word></white>. Try join, leave, assign, reset, status, trail, here, give or goal."
   # A command that only makes sense for somebody standing in the world.
   only-a-player: "<red>Only a player can do that."
   # /manhunt assign, without the permission for it.
@@ -15,11 +15,20 @@ manhunt:
   sides-frozen: "<yellow>A hunt is under way. Sides go back to being yours to pick once it ends."
   # /manhunt leave — leaving the Runners is joining the pack, which is what this says.
   left: "<green>You are hunting with everybody else again."
+  # /manhunt leave while a hunt is being played — out of it entirely.
+  left-hunt: "<gray>You have left the hunt. You are on no side and carry none of its compasses."
+  not-in-hunt: "<yellow>You are not part of the hunt being played."
+  # /manhunt goal remove — also mid-hunt.
+  goal:
+    usage: "<yellow>/manhunt goal remove"
+    none-set: "<yellow>There is no goal set."
+    removed: "<green>The goal is removed. The next hunt ends when the last Runner is caught, or by reset."
+    removed-mid-hunt: "<green>The goal is removed from this hunt. It now ends when the last Runner is caught, or by reset."
+    no-lobby: "<red>The speedrun lobby is not running."
   start:
     # Refusals the speedrun lobby shows whoever pressed the start block — see StartRule.
     no-runner: "<yellow>Nobody is running. Somebody has to take the Runner side first — /manhunt join runner."
     no-hunter: "<yellow>Everybody here is a Runner. Somebody has to chase them."
-    no-goal: "<yellow>There is no goal for the Runners to race for. Pick one in the lobby menu first."
   join:
     which-side: "<yellow>Which side? /manhunt join <runner|hunter>."
     runner: "<green>You are running. Everybody else will be chasing you."
@@ -53,6 +62,17 @@ manhunt:
     now-nearest: "<aqua>Your team compass follows whichever teammate is nearest."
     alone: "<yellow>Nobody else is on your side to point at."
     picker-title: "Find a teammate"
+  # /manhunt give <player> [tracker|team|structure] — never replaces or drops anything.
+  give:
+    usage: "<yellow>/manhunt give <player> [tracker|team|structure]"
+    unknown-kind: "<red>There is no <white><compass></white> compass. Try tracker, team or structure."
+    no-hunt: "<yellow>No hunt is being played, so there is nothing for a compass to point at."
+    given: "<green><white><player></white> has been handed the <white><compass></white> compass."
+    switched-off: "<yellow>The <white><compass></white> compass is switched off in the settings."
+    not-theirs: "<yellow>The <white><compass></white> compass is not for <white><player></white> — wrong side, or out of the hunt."
+    already-has: "<yellow><white><player></white> already carries the <white><compass></white> compass."
+    no-room: "<red><white><player></white>'s inventory is full — clear a slot, nothing is pushed out for the <white><compass></white> compass."
+    nothing-missing: "<yellow><white><player></white> is not missing any compass."
   # /manhunt here — the coordinates follow this line as a button.
   here:
     shared: "<white><player></white> <gray>is here, in the <white><world></white>:"

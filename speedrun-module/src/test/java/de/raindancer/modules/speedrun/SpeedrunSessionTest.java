@@ -264,4 +264,22 @@ class SpeedrunSessionTest {
             disarmCount++;
         }
     }
+
+    @Test
+    @DisplayName("an end condition can be taken off a running session — disarmed, and never disarmed twice")
+    void removeEndCondition() {
+        SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
+        AtomicInteger disarmed = new AtomicInteger();
+        SpeedrunEndCondition goal = new SpeedrunEndCondition() {
+            @Override public void arm(SpeedrunSession s) { }
+            @Override public void disarm() { disarmed.incrementAndGet(); }
+        };
+        session.addEndCondition(goal);
+        session.start();
+
+        assertThat(session.removeEndConditions(c -> c == goal)).isEqualTo(1);
+        session.finish("manual");
+
+        assertThat(disarmed).hasValue(1);
+    }
 }

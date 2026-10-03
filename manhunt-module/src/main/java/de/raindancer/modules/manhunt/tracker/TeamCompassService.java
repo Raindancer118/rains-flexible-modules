@@ -372,6 +372,14 @@ public final class TeamCompassService {
 
     // ------------------------------------------------------------------------ the item
 
+    public boolean enabledNow() {
+        return enabled();
+    }
+
+    public boolean carries(Player player) {
+        return find(player).isPresent();
+    }
+
     public void give(Player player) {
         if (find(player).isPresent()) {
             return;
@@ -389,6 +397,12 @@ public final class TeamCompassService {
             player.getWorld().dropItem(player.getLocation(), leftover);
         }
         say(player, "manhunt.team-compass.given");
+    }
+
+    /** Somebody who left the hunt: the compass back, their pick forgotten. */
+    public void takeFrom(Player player) {
+        Scheduling.entity(plugin, player, () -> takeBack(player));
+        forget(player.getUniqueId());
     }
 
     private void takeBack(Player player) {

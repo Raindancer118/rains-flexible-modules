@@ -24,9 +24,11 @@ public final class ManhuntCommands {
                 ModuleCommand.of("manhunt", "Pick a side for the next hunt",
                                 new ManhuntCommand(ManhuntCommands::require))
                         .taking("join <runner|hunter> — put yourself on a side",
-                                "leave — go back to hunting with everybody else",
+                                "leave — off the Runners; mid-hunt, out of the hunt entirely",
                                 "assign <player> <runner|hunter> — put somebody else on a side (admin)",
-                                "status — who is on which side, and how the hunt is going")
+                                "status — who is on which side, and how the hunt is going",
+                                "give <player> [tracker|team|structure] — a lost compass back (admin)",
+                                "goal remove — no goal, also mid-hunt (admin)")
                         .needing(PermissionNodes.USE),
                 ModuleCommand.of("whitelist",
                                 "Open and close the server whitelist for a hunt; everything else "

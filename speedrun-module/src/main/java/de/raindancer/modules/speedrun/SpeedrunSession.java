@@ -147,6 +147,19 @@ public final class SpeedrunSession {
         condition.arm(this);
     }
 
+    /** Disarms and drops every condition {@code which} matches — a goal removed mid-run. */
+    public synchronized int removeEndConditions(java.util.function.Predicate<SpeedrunEndCondition> which) {
+        int removed = 0;
+        for (SpeedrunEndCondition condition : List.copyOf(conditions)) {
+            if (which.test(condition)) {
+                conditions.remove(condition);
+                condition.disarm();
+                removed++;
+            }
+        }
+        return removed;
+    }
+
     // ---------------------------------------------------------------------------- reading
 
     /** Unmodifiable view of who is running this. */

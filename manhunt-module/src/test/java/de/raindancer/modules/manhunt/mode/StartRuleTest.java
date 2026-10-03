@@ -17,13 +17,13 @@ class StartRuleTest {
     @Test
     @DisplayName("one Runner and somebody chasing them is a hunt")
     void enough() {
-        assertThat(StartRule.refuse(true, Set.of(ANNA, BEN), Set.of(ANNA))).isEmpty();
+        assertThat(StartRule.refuse(Set.of(ANNA, BEN), Set.of(ANNA))).isEmpty();
     }
 
     @Test
     @DisplayName("nobody on the Runner side is refused by name")
     void noRunner() {
-        assertThat(StartRule.refuse(true, Set.of(ANNA, BEN), Set.of())).contains(StartRule.NO_RUNNER);
+        assertThat(StartRule.refuse(Set.of(ANNA, BEN), Set.of())).contains(StartRule.NO_RUNNER);
     }
 
     @Test
@@ -31,26 +31,26 @@ class StartRuleTest {
     void runnerNotPresent() {
         UUID somebodyElse = UUID.nameUUIDFromBytes("caro".getBytes());
 
-        assertThat(StartRule.refuse(true, Set.of(ANNA, BEN), Set.of(somebodyElse)))
+        assertThat(StartRule.refuse(Set.of(ANNA, BEN), Set.of(somebodyElse)))
                 .contains(StartRule.NO_RUNNER);
     }
 
     @Test
     @DisplayName("everybody on the Runner side leaves nobody to chase them")
     void noHunter() {
-        assertThat(StartRule.refuse(true, Set.of(ANNA, BEN), Set.of(ANNA, BEN)))
+        assertThat(StartRule.refuse(Set.of(ANNA, BEN), Set.of(ANNA, BEN)))
                 .contains(StartRule.NO_HUNTER);
     }
 
     @Test
-    @DisplayName("without a goal the Runners could never win, whoever is on which side")
+    @DisplayName("a hunt without a goal starts — it ends when the last Runner is caught, or by reset")
     void noGoal() {
-        assertThat(StartRule.refuse(false, Set.of(ANNA, BEN), Set.of(ANNA))).contains(StartRule.NO_GOAL);
+        assertThat(StartRule.refuse(Set.of(ANNA, BEN), Set.of(ANNA))).isEmpty();
     }
 
     @Test
     @DisplayName("an empty lobby is refused rather than asked about sides")
     void nobodyAtAll() {
-        assertThat(StartRule.refuse(true, Set.of(), Set.of(ANNA))).contains(StartRule.NO_RUNNER);
+        assertThat(StartRule.refuse(Set.of(), Set.of(ANNA))).contains(StartRule.NO_RUNNER);
     }
 }

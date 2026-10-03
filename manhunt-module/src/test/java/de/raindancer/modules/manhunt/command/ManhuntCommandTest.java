@@ -169,6 +169,42 @@ class ManhuntCommandTest {
     }
 
     @Test
+    @DisplayName("leave mid-hunt takes you out of the hunt entirely, compasses and all")
+    void leaveMidHunt() {
+        when(fake.mode.isRunning()).thenReturn(true);
+        when(fake.mode.leaveHunt(ANNA)).thenReturn(
+                de.raindancer.modules.manhunt.mode.ManhuntMode.LeaveOutcome.LEFT);
+
+        command.execute(source, new String[]{"leave"});
+
+        verify(fake.mode).leaveHunt(ANNA);
+        assertThat(fake.compassesTaken).containsExactly(anna);
+        verify(fake.messages).send(eq(anna), eq("manhunt.left-hunt"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("goal remove clears the goal, also in the middle of a hunt — an admin's call")
+    void goalRemove() {
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        command = new ManhuntCommand(() -> fake.services,
+                () -> Optional.of(de.raindancer.modules.speedrun.SpeedrunLobby.GoalRemoval.REMOVED_FROM_RUN));
+
+        command.execute(source, new String[]{"goal", "remove"});
+
+        verify(fake.messages).send(eq(anna), eq("manhunt.goal.removed-mid-hunt"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("goal remove is not for players")
+    void goalRemoveAdminOnly() {
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(false);
+
+        command.execute(source, new String[]{"goal", "remove"});
+
+        verify(fake.messages).send(eq(anna), eq("manhunt.not-yours"), any(Object[].class));
+    }
+
+    @Test
     @DisplayName("reset is refused while a hunt is being played")
     void resetIsRefusedMidHunt() {
         fake.teams.joinRunners(ANNA);
@@ -409,6 +445,77 @@ class ManhuntCommandTest {
         void completes() {
             assertThat(command.suggest(source, new String[]{"he"})).containsExactly("here");
             assertThat(command.suggest(source, new String[]{"here", ""})).containsExactly("stop");
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("/manhunt give")
+    class Give {
+
+        private Player ben;
+
+        @BeforeEach
+        void ben() {
+            ben = mock(Player.class);
+            when(ben.getName()).thenReturn("Ben");
+            bukkit = mockStatic(Bukkit.class);
+            bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+        }
+
+        @Test
+        @DisplayName("hands the named compass to the named player")
+        void oneKind() {
+            when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+
+            command.execute(source, new String[]{"give", "Ben", "structure"});
+
+            assertThat(fake.compassesGiven).hasSize(1);
+            assertThat(fake.compassesGiven.getFirst()).containsExactly(ben,
+                    de.raindancer.modules.manhunt.tracker.CompassHandout.Kind.STRUCTURE);
+        }
+
+        @Test
+        @DisplayName("without a kind, every compass they are owed")
+        void everyKind() {
+            when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+
+            command.execute(source, new String[]{"give", "Ben"});
+
+            assertThat(fake.compassesGiven.getFirst()).containsExactly(ben, null);
+        }
+
+        @Test
+        @DisplayName("is an admin's to do")
+        void adminOnly() {
+            when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(false);
+
+            command.execute(source, new String[]{"give", "Ben", "tracker"});
+
+            assertThat(fake.compassesGiven).isEmpty();
+            verify(fake.messages).send(eq(anna), eq("manhunt.not-yours"), any(Object[].class));
+        }
+
+        @Test
+        @DisplayName("an unknown kind or player is said, not guessed at")
+        void refusals() {
+            when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+
+            command.execute(source, new String[]{"give", "Ben", "sword"});
+            command.execute(source, new String[]{"give", "Nobody", "tracker"});
+            command.execute(source, new String[]{"give"});
+
+            assertThat(fake.compassesGiven).isEmpty();
+            verify(fake.messages).send(eq(anna), eq("manhunt.give.unknown-kind"), any(Object[].class));
+            verify(fake.messages).send(eq(anna), eq("manhunt.no-such-player"), any(Object[].class));
+            verify(fake.messages).send(eq(anna), eq("manhunt.give.usage"), any(Object[].class));
+        }
+
+        @Test
+        @DisplayName("completes the kinds")
+        void completes() {
+            when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+            assertThat(command.suggest(source, new String[]{"give", "Ben", "t"}))
+                    .containsExactly("tracker", "team");
         }
     }
 }

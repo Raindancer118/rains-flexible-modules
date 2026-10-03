@@ -4,6 +4,9 @@ import de.raindancer.core.social.team.Teams;
 import de.raindancer.modules.manhunt.ManhuntServices;
 import de.raindancer.modules.manhunt.mode.ManhuntMode;
 import de.raindancer.modules.manhunt.model.Hunt;
+import de.raindancer.modules.manhunt.tracker.CompassHandout;
+import de.raindancer.modules.speedrun.SpeedrunGoal;
+import de.raindancer.modules.speedrun.SpeedrunLobby;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Bukkit;
@@ -16,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -34,9 +38,15 @@ public final class ManhuntCommand implements IManhuntCommand {
     private static final String HUNTER = "hunter";
 
     private final Supplier<ManhuntServices> services;
+    private final Supplier<Optional<SpeedrunLobby.GoalRemoval>> goalRemover;
 
     public ManhuntCommand(Supplier<ManhuntServices> services) {
+        this(services, SpeedrunGoal::remove);
+    }
+
+    ManhuntCommand(Supplier<ManhuntServices> services, Supplier<Optional<SpeedrunLobby.GoalRemoval>> goalRemover) {
         this.services = services;
+        this.goalRemover = goalRemover;
     }
 
     @Override
@@ -54,8 +64,54 @@ public final class ManhuntCommand implements IManhuntCommand {
             case "status" -> status(live, sender);
             case "trail" -> trail(live, sender);
             case "here" -> here(live, sender, args);
+            case "give" -> give(live, sender, args);
+            case "goal" -> goal(live, sender, args);
             default -> live.messages().send(sender, "manhunt.unknown-word", "word", word);
         }
+    }
+
+    /** {@code /manhunt goal remove} — also mid-hunt, which then ends by catching or by reset. */
+    private void goal(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        if (args.length < 2 || !args[1].equalsIgnoreCase("remove")) {
+            live.messages().send(sender, "manhunt.goal.usage");
+            return;
+        }
+        String key = goalRemover.get().map(removal -> switch (removal) {
+            case NONE_SET -> "manhunt.goal.none-set";
+            case REMOVED -> "manhunt.goal.removed";
+            case REMOVED_FROM_RUN -> "manhunt.goal.removed-mid-hunt";
+        }).orElse("manhunt.goal.no-lobby");
+        live.messages().send(sender, key);
+    }
+
+    /** {@code /manhunt give <player> [tracker|team|structure]} — a lost compass back, see CompassHandout. */
+    private void give(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        if (args.length < 2) {
+            live.messages().send(sender, "manhunt.give.usage");
+            return;
+        }
+        Optional<CompassHandout.Kind> kind = Optional.empty();
+        if (args.length > 2) {
+            kind = CompassHandout.Kind.parse(args[2]);
+            if (kind.isEmpty()) {
+                live.messages().send(sender, "manhunt.give.unknown-kind", "compass", args[2]);
+                return;
+            }
+        }
+        Player target = Bukkit.getPlayerExact(args[1]);
+        if (target == null) {
+            live.messages().send(sender, "manhunt.no-such-player", "player", args[1]);
+            return;
+        }
+        live.compasses().give(sender, target, kind);
     }
 
     /** Says where you are to everybody, the coordinates a button that walks the clicker there. */
@@ -147,7 +203,18 @@ public final class ManhuntCommand implements IManhuntCommand {
             return;
         }
         if (live.mode().isRunning()) {
-            live.messages().send(sender, "manhunt.sides-frozen");
+            switch (live.mode().leaveHunt(player.getUniqueId())) {
+                case LEFT -> {
+                    live.compasses().takeAll(player);
+                    live.messages().send(sender, "manhunt.left-hunt");
+                }
+                case NOT_IN_THE_HUNT -> live.messages().send(sender, "manhunt.not-in-hunt");
+                // Ended between the check and the leave: the lobby's ordinary leave below.
+                case NO_HUNT -> {
+                    live.teams().leave(player.getUniqueId());
+                    live.messages().send(sender, "manhunt.left");
+                }
+            }
             return;
         }
         live.teams().leave(player.getUniqueId());
@@ -292,7 +359,7 @@ public final class ManhuntCommand implements IManhuntCommand {
                                                String @NotNull [] args) {
         if (args.length <= 1) {
             String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
-            return List.of("join", "leave", "assign", "reset", "status", "trail", "here").stream()
+            return List.of("join", "leave", "assign", "reset", "status", "trail", "here", "give", "goal").stream()
                     .filter(word -> word.startsWith(typed))
                     .toList();
         }
@@ -303,7 +370,15 @@ public final class ManhuntCommand implements IManhuntCommand {
         if (word.equals("join") && args.length == 2) {
             return sides(args[1]);
         }
-        if (word.equals("assign")) {
+        if (word.equals("goal") && args.length == 2) {
+            return "remove".startsWith(args[1].toLowerCase(Locale.ROOT)) ? List.of("remove") : List.of();
+        }
+        if (word.equals("give") && args.length == 3) {
+            String typed = args[2].toLowerCase(Locale.ROOT);
+            return java.util.Arrays.stream(CompassHandout.Kind.values()).map(CompassHandout.Kind::word)
+                    .filter(kind -> kind.startsWith(typed)).toList();
+        }
+        if (word.equals("assign") || (word.equals("give") && args.length == 2)) {
             if (args.length == 2) {
                 return Bukkit.getOnlinePlayers().stream()
                         .map(Player::getName)

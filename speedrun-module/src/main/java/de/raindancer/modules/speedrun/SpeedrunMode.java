@@ -69,6 +69,14 @@ public interface SpeedrunMode {
     }
 
     /**
+     * Whether the mode can end its own run without the lobby's goal — Manhunt's last Runner caught.
+     * True lets a run start with neither a goal nor a death policy; it then ends that way or by reset.
+     */
+    default boolean endsItself() {
+        return false;
+    }
+
+    /**
      * Whether reaching the goal as {@code participant} ends the run. Every participant by default; in
      * Manhunt only a Runner, because a Hunter who kills the dragon has not won anything for the Runners.
      *

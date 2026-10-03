@@ -143,4 +143,19 @@ class HuntTest {
             assertThat(hunt.moveToHunters(BEN)).isEqualTo(Hunt.SideChange.ALREADY_THERE);
         }
     }
+
+    @Test
+    @DisplayName("somebody who leaves is out of the hunt entirely — no side, not counted as caught")
+    void leave() {
+        Hunt hunt = Hunt.of(Set.of(ANNA, BEN, CARO), Set.of(ANNA, BEN));
+        hunt.eliminate(BEN);
+
+        assertThat(hunt.remove(BEN)).isTrue();
+        assertThat(hunt.remove(CARO)).isTrue();
+        assertThat(hunt.remove(DAN)).isFalse();
+
+        assertThat(hunt.everybody()).containsExactly(ANNA);
+        assertThat(hunt.eliminated()).isEmpty();
+        assertThat(hunt.hunters()).isEmpty();
+    }
 }

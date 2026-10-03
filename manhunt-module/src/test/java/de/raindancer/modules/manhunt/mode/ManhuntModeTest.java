@@ -121,6 +121,15 @@ class ManhuntModeTest {
         void noDeathPolicy() {
             assertThat(mode.usesDeathPolicy()).isFalse();
         }
+
+        @Test
+        @DisplayName("no goal is needed: catching the last Runner ends a hunt by itself")
+        void noGoalNeeded() {
+            teams.joinRunners(ANNA);
+
+            assertThat(mode.endsItself()).isTrue();
+            assertThat(mode.refuseStart(withGoal(false), Set.of(ANNA, BEN))).isEmpty();
+        }
     }
 
     @Nested

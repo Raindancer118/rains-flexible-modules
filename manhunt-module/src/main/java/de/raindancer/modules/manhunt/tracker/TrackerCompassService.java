@@ -333,6 +333,10 @@ public final class TrackerCompassService {
 
     // ------------------------------------------------------------------------ the item
 
+    public boolean carries(Player hunter) {
+        return findTracker(hunter).isPresent();
+    }
+
     /** Gives {@code hunter} a compass, unless they are already carrying one of ours. */
     public void give(Player hunter) {
         if (findTracker(hunter).isPresent()) {

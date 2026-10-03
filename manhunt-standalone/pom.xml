@@ -81,8 +81,12 @@
              position as a button that navigates the clicker there; team chat via RainsChat's
              /chat team. Every one of these is a setting. Needs RainsCore 1.39.0, RainsSpeedrun 1.20.0.
              0.17.1: when shaded into one jar with speedrun, manhunt now starts after it and stops
-             before it. Nothing changes for this jar on its own. -->
-        <plugin.version>0.17.1</plugin.version>
+             before it. Nothing changes for this jar on its own.
+             0.18.0: /manhunt give <player> [tracker|team|structure] hands back a lost compass — into
+             a free slot only, never replacing or dropping anything. A hunt may start without a goal:
+             it ends when the last Runner is caught, or by reset. /manhunt goal remove (also mid-hunt);
+             /manhunt leave mid-hunt takes you out of the hunt entirely. Needs RainsSpeedrun 1.21.0. -->
+        <plugin.version>0.18.0</plugin.version>
     </properties>
 
     <dependencies>

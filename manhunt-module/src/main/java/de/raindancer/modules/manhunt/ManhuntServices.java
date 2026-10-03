@@ -15,7 +15,19 @@ import org.bukkit.entity.Player;
 public record ManhuntServices(Messages messages, Brand brand, SettingsStore<ManhuntSettings> settings,
                               ManhuntTeams teams, ManhuntMode mode, ManhuntWhitelistService whitelist,
                               Screens screens,
-                              de.raindancer.modules.manhunt.service.PositionShare share) {
+                              de.raindancer.modules.manhunt.service.PositionShare share,
+                              Compasses compasses) {
+
+    /** Handing somebody a compass they lost — see {@code CompassHandout}. */
+    public interface Compasses {
+
+        /** @param kind one compass, or empty for every one {@code target} is owed and missing */
+        void give(org.bukkit.command.CommandSender sender, Player target,
+                  java.util.Optional<de.raindancer.modules.manhunt.tracker.CompassHandout.Kind> kind);
+
+        /** Every compass of this module off {@code player} — they have left the hunt. */
+        void takeAll(Player player);
+    }
 
     /** Opening this module's screens. An interface so the commands never import a menu class. */
     public interface Screens {

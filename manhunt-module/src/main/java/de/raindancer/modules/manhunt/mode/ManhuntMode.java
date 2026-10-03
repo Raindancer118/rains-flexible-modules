@@ -65,6 +65,13 @@ public final class ManhuntMode implements SpeedrunMode {
 
     /** The hunt in progress, or null between hunts. Read from the compass' timer and from events. */
     private final AtomicReference<Hunt> live = new AtomicReference<>();
+    private final AtomicReference<de.raindancer.modules.speedrun.SpeedrunSession> liveSession =
+            new AtomicReference<>();
+
+    /** Nobody is left on the Runner side: ended, won by nobody. */
+    public static final String RUNNERS_LEFT = "manhunt:runners-left";
+    /** Nobody is left chasing: ended, won by nobody. */
+    public static final String HUNTERS_LEFT = "manhunt:hunters-left";
     /** Whether this hunt was the one that shut the door, so only it ever opens it again. */
     private final AtomicBoolean closedTheWhitelist = new AtomicBoolean();
     /** Runs a task this many ticks later — the global scheduler, or a test's own list. */
@@ -120,7 +127,12 @@ public final class ManhuntMode implements SpeedrunMode {
 
     @Override
     public Optional<String> refuseStart(SpeedrunSettings config, Set<UUID> participants) {
-        return StartRule.refuse(config.hasAdvancementGoal(), participants, teams.runners());
+        return StartRule.refuse(participants, teams.runners());
+    }
+
+    @Override
+    public boolean endsItself() {
+        return true;   // the last Runner caught — a hunt without a goal is the Runners surviving
     }
 
     /** A death eliminates a Runner and leaves the Hunters playing — never the lobby's own policy. */
@@ -151,6 +163,40 @@ public final class ManhuntMode implements SpeedrunMode {
     }
 
     // ------------------------------------------------------------------------ changing sides
+
+    public enum LeaveOutcome { LEFT, NOT_IN_THE_HUNT, NO_HUNT }
+
+    /**
+     * {@code /manhunt leave} mid-hunt: off the roster and off the team, a caught Runner out of
+     * spectator. The caller takes the compasses. A side left empty ends the hunt, won by nobody —
+     * unless every Runner still in it is already caught, which is the Hunters' win it always was.
+     */
+    public LeaveOutcome leaveHunt(UUID player) {
+        Hunt hunt = live.get();
+        if (hunt == null) {
+            return LeaveOutcome.NO_HUNT;
+        }
+        if (!hunt.remove(player)) {
+            return LeaveOutcome.NOT_IN_THE_HUNT;
+        }
+        teams.evenWhileFrozen(() -> teams.leave(player));
+        tracker.forget(player);
+        Player online = plugin.getServer().getPlayer(player);
+        if (online != null) {
+            eliminations.restore(online);
+        }
+        de.raindancer.modules.speedrun.SpeedrunSession session = liveSession.get();
+        if (session != null && live.get() == hunt) {
+            if (hunt.runners().isEmpty()) {
+                session.finish(RUNNERS_LEFT);
+            } else if (hunt.allRunnersOut()) {
+                session.finish(HuntDeathListener.HUNTERS_WIN);
+            } else if (hunt.hunters().isEmpty()) {
+                session.finish(HUNTERS_LEFT);
+            }
+        }
+        return LeaveOutcome.LEFT;
+    }
 
     /** One of the two sides, as a command or a screen names it. */
     public enum Side { RUNNER, HUNTER }
@@ -304,6 +350,7 @@ public final class ManhuntMode implements SpeedrunMode {
         // the compasses go and the spectators stand up the moment it is over, not when somebody
         // eventually leaves the world. onDisarm is the lobby forgetting the run at all, which also
         // covers a run abandoned without ever finishing; it is written to be safe to run twice.
+        liveSession.set(run.session());
         run.session().onFinish(outcome -> endTheHunt(hunt));
         run.onDisarm(() -> endTheHunt(hunt));
     }
@@ -347,6 +394,7 @@ public final class ManhuntMode implements SpeedrunMode {
         if (!live.compareAndSet(hunt, null)) {
             return;   // already ended, by whichever of the two paths got here first
         }
+        liveSession.set(null);
         tracker.disarm(hunt);
         eliminations.restoreAll(hunt);
         portals.clear();

@@ -33,6 +33,9 @@ final class FakeServices {
     final SettingsStore<ManhuntSettings> settings;
     final List<Player> screensOpenedFor = new ArrayList<>();
     final List<Player> confirmationsAskedOf = new ArrayList<>();
+    /** Every /manhunt give that got through to the compasses: who, and which kind (null for all). */
+    final List<Object[]> compassesGiven = new ArrayList<>();
+    final List<Player> compassesTaken = new ArrayList<>();
     /** What the last confirmation page would do on "yes" — run by a test that wants the click. */
     Runnable lastConfirmation;
     final ManhuntServices services;
@@ -58,6 +61,17 @@ final class FakeServices {
                         confirmationsAskedOf.add(viewer);
                         lastConfirmation = onYes;
                     }
-                }, share);
+                }, share, new ManhuntServices.Compasses() {
+                    @Override
+                    public void give(org.bukkit.command.CommandSender sender, Player target,
+                                     java.util.Optional<de.raindancer.modules.manhunt.tracker.CompassHandout.Kind> kind) {
+                        compassesGiven.add(new Object[]{target, kind.orElse(null)});
+                    }
+
+                    @Override
+                    public void takeAll(Player player) {
+                        compassesTaken.add(player);
+                    }
+                });
     }
 }

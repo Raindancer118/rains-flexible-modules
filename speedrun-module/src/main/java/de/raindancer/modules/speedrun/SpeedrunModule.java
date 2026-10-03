@@ -23,7 +23,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.20.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.21.0")
             .describedAs("A speedrun lobby: pick a game, an advancement goal and a death policy "
                     + "from the compass's menu, then press the green block to race. A countdown "
                     + "freezes everyone first, and the lobby world resets once the last racer has "
@@ -86,6 +86,7 @@ public final class SpeedrunModule implements FlexModule {
         // The commands were registered during bootstrap, long before any of this existed, and have
         // been answering "not running yet" until now. See SpeedrunCommands.
         SpeedrunCommands.ready(new SpeedrunAdminServices(lobby, context.core().messages()));
+        SpeedrunGoal.ready(lobby);
 
         context.log().info("Speedrun lobby is up: {}.",
                 lobby.state().name().toLowerCase(Locale.ROOT));
@@ -94,6 +95,7 @@ public final class SpeedrunModule implements FlexModule {
     @Override
     public void disable() {
         SpeedrunCommands.stopped();
+        SpeedrunGoal.stopped();
         // Whatever game mode a module offered goes with this module, not with theirs: on a reload
         // this one may come back before they do, and a shelf that survived the unload would hand the
         // next start to a plugin that has not been rebuilt yet.

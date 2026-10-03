@@ -142,6 +142,8 @@ for cmd in speedrun manhunt chathistory worldgate worlds dim w; do
   log "  /$cmd → $(echo "$answer" | head -1)"
   check "/$cmd exists" bash -c "! grep -qiE 'Unknown (or incomplete )?command' <<<\"$answer\""
 done
+check "/manhunt give asks for a player" bash -c "grep -q 'manhunt give' <<<\"$(rcon 'manhunt give')\""
+check "/manhunt give names a missing player" bash -c "grep -q 'No online player' <<<\"$(rcon 'manhunt give Nobody tracker')\""
 check "/worlds info answers about the primary world" bash -c "grep -q 'seed' <<<\"$(rcon 'worlds info world')\""
 
 log "Speedrun: /speedrunreset must still regenerate the run's worlds from inside the bundle …"

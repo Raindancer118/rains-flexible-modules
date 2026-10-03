@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.17.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.18.0")
             .describedAs("Runners against Hunters, played in the speedrun lobby: the lobby's own "
                     + "goal is what the Runners race for, every Hunter carries a compass that "
                     + "follows a Runner through the portal they took, a caught Runner is out for "
@@ -184,7 +184,10 @@ public final class ManhuntModule implements FlexModule {
                         new ConfirmMenu(viewer, context.chat().brand(), null, question, consequences,
                                 "<dark_gray>The hunt carries on either way.", onYes).open();
                     }
-                }, navigation);
+                }, navigation,
+                new de.raindancer.modules.manhunt.tracker.CompassHandout(context.plugin(),
+                        () -> mode == null ? java.util.Optional.empty() : mode.current(),
+                        tracker, teamCompass, structures, context.core().messages()));
         holder[0] = services;
 
         // With the Runners hand-picked, everybody who has not been named is hunting — said up front

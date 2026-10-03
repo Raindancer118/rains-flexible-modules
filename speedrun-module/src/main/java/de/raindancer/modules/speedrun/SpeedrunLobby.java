@@ -90,6 +90,26 @@ public final class SpeedrunLobby {
     }
 
     /** What {@link #forceReset} answered. */
+    public enum GoalRemoval { NONE_SET, REMOVED, REMOVED_FROM_RUN }
+
+    /**
+     * Clears the advancement goal — also mid-run, where the running goal is disarmed with it. The run
+     * then ends by its other ways: the death policy, the mode's own end, or a reset.
+     */
+    public GoalRemoval removeGoal() {
+        if (!config().hasAdvancementGoal()) {
+            return GoalRemoval.NONE_SET;
+        }
+        settings.set("advancement-key", "");
+        SpeedrunSession running = session;
+        if (running == null || running.state() == SpeedrunState.FINISHED) {
+            return GoalRemoval.REMOVED;
+        }
+        running.removeEndConditions(condition -> condition instanceof AdvancementEndCondition
+                || condition instanceof DragonExitEndCondition);
+        return GoalRemoval.REMOVED_FROM_RUN;
+    }
+
     public enum ResetOutcome {
         /** Whatever run there was is ended, and the world is being deleted and remade. */
         RESET,
@@ -719,7 +739,7 @@ public final class SpeedrunLobby {
         // Runners would have nothing to win by.
         boolean endable = chosen == null || chosen.usesDeathPolicy()
                 ? current.hasEndCondition()
-                : current.hasAdvancementGoal();
+                : current.hasAdvancementGoal() || chosen.endsItself();
         if (!endable) {
             return StartOutcome.NO_END_CONDITION;
         }

@@ -224,6 +224,27 @@ public final class StructureCompassService {
         say(event.getPlayer(), "manhunt.structure.dropped");
     }
 
+    public boolean enabledNow() {
+        return enabled();
+    }
+
+    public boolean carries(Player runner) {
+        return find(runner, UNCHOSEN).isPresent() || find(runner, CHOSEN).isPresent();
+    }
+
+    /**
+     * A fresh blank compass from an admin, after the first was dropped or used up — so the
+     * once-per-hunt choice is handed back with it, or the new compass could never be pointed anywhere.
+     */
+    public void giveAgain(Player runner) {
+        if (carries(runner)) {
+            return;
+        }
+        chosen.remove(runner.getUniqueId());
+        destinations.remove(runner.getUniqueId());
+        give(runner);
+    }
+
     public void give(Player runner) {
         if (find(runner, UNCHOSEN).isPresent() || find(runner, CHOSEN).isPresent()) {
             return;
@@ -239,6 +260,12 @@ public final class StructureCompassService {
             runner.getWorld().dropItem(runner.getLocation(), leftover);
         }
         say(runner, "manhunt.structure.given");
+    }
+
+    /** Somebody who left the hunt: the compass back, its destination forgotten. */
+    public void takeFrom(Player player) {
+        Scheduling.entity(plugin, player, () -> takeBack(player));
+        destinations.remove(player.getUniqueId());
     }
 
     private void takeBack(Player player) {

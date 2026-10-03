@@ -67,6 +67,7 @@ class SpeedrunLobbyModeTest {
     private static final class ScriptedMode implements SpeedrunMode {
         Optional<String> refusal = Optional.empty();
         boolean usesDeathPolicy = true;
+        boolean endsItself = false;
         boolean announces = false;
         Consumer<SpeedrunRun> whenStarted = run -> { };
         final List<SpeedrunRun> started = new ArrayList<>();
@@ -105,6 +106,11 @@ class SpeedrunLobbyModeTest {
         @Override
         public boolean usesDeathPolicy() {
             return usesDeathPolicy;
+        }
+
+        @Override
+        public boolean endsItself() {
+            return endsItself;
         }
 
         @Override
@@ -265,6 +271,35 @@ class SpeedrunLobbyModeTest {
         mode.usesDeathPolicy = false;
 
         assertThat(lobby().beginCountdown(Set.of(ALICE))).isEqualTo(SpeedrunLobby.StartOutcome.NO_END_CONDITION);
+    }
+
+    @Test
+    @DisplayName("a mode with its own way to end — Manhunt's catch — starts without any goal")
+    void endsItselfNoGoal() {
+        settings.set("game-mode", "scripted");
+        settings.set("advancement-key", "");
+        settings.set("death-policy", "OFF");
+        mode.usesDeathPolicy = false;
+        mode.endsItself = true;
+
+        assertThat(lobby().beginCountdown(Set.of(ALICE))).isEqualTo(SpeedrunLobby.StartOutcome.STARTED);
+    }
+
+    @Test
+    @DisplayName("the goal can be removed mid-run: the setting is cleared and the run's goal is disarmed")
+    void goalRemovedMidRun() {
+        settings.set("game-mode", "scripted");
+        settings.set("advancement-key", "minecraft:end/kill_dragon");
+        settings.set("death-policy", "OFF");
+        mode.usesDeathPolicy = false;
+        mode.endsItself = true;
+        SpeedrunLobby lobby = lobby();
+        lobby.beginCountdown(Set.of(ALICE));
+
+        assertThat(lobby.removeGoal()).isEqualTo(SpeedrunLobby.GoalRemoval.REMOVED_FROM_RUN);
+
+        assertThat(lobby.config().hasAdvancementGoal()).isFalse();
+        assertThat(lobby.removeGoal()).isEqualTo(SpeedrunLobby.GoalRemoval.NONE_SET);
     }
 
     @Test
