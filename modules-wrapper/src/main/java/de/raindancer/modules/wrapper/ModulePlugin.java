@@ -42,6 +42,7 @@ public final class ModulePlugin extends JavaPlugin {
             return;
         }
 
+        warnIfCoreIsOlder();
         ModuleHost host = ModuleHosts.standalone(this, Modules.registry());
         Modules.registry().enableAll(module -> new LiveModuleSession(host, module));
 
@@ -129,6 +130,21 @@ public final class ModulePlugin extends JavaPlugin {
      * <p>A module that did not start is the thing an operator most needs to know and the thing least likely to
      * be noticed: the server comes up, the plugin says enabled, and one feature is simply absent.
      */
+    /** Not a refusal: most modules run fine on an older Core, and one that does not fails on its own. */
+    private void warnIfCoreIsOlder() {
+        var core = getServer().getPluginManager().getPlugin("RainsCore");
+        String built = CoreVersion.builtAgainst().orElse(null);
+        if (core == null || built == null) {
+            return;
+        }
+        String running = core.getPluginMeta().getVersion();
+        if (CoreVersion.isOlder(running, built)) {
+            getSLF4JLogger().error("This jar was built against RainsCore {}, but RainsCore {} is running. "
+                    + "Modules that need the newer Core will fail with NoSuchMethodError — put RainsCore {} "
+                    + "or newer on the server.", built, running, built);
+        }
+    }
+
     private void report() {
         for (FlexModule module : Modules.registry().declared()) {
             String id = module.info().id();

@@ -28,4 +28,14 @@
             <artifactId>modules-api</artifactId>
         </dependency>
     </dependencies>
+
+    <build>
+        <resources>
+            <!-- Filtered for built-against.properties: the RainsCore version this jar compiled against. -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+    </build>
 </project>
