@@ -659,6 +659,11 @@ public final class SpeedrunLobby {
     private volatile java.util.function.Consumer<UUID> lobbyItemTaker = id -> { };
 
     private StartOutcome start(Collection<UUID> participants, boolean resumed, java.time.Duration already) {
+        if (resumed && state() == SpeedrunLobbyState.FINISHED) {
+            // A finished run is otherwise only cleared by regenerating the world — the very thing a
+            // resume is for avoiding. The pending automatic reset finds a running session and does nothing.
+            disarmSession();
+        }
         StartOutcome problem = validate(participants);
         if (problem != null) {
             return problem;

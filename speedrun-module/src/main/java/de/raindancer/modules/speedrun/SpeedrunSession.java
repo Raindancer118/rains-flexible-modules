@@ -47,7 +47,8 @@ public final class SpeedrunSession {
         if (participants == null || participants.isEmpty()) {
             throw new IllegalArgumentException("A speedrun needs at least one participant.");
         }
-        this.participants = Set.copyOf(participants);
+        this.participants = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        this.participants.addAll(participants);
         this.timer = Objects.requireNonNull(timer, "timer");
     }
 
@@ -172,6 +173,11 @@ public final class SpeedrunSession {
             }
         }
         return removed;
+    }
+
+    /** A latecomer added mid-run (Manhunt's {@code /manhunt assign}). False if already racing. */
+    public boolean addParticipant(UUID player) {
+        return state != SpeedrunState.FINISHED && participants.add(player);
     }
 
     // ---------------------------------------------------------------------------- reading

@@ -60,7 +60,7 @@ public final class SpeedrunRun {
         return session;
     }
 
-    /** Everybody racing, fixed when the run started. */
+    /** Everybody racing — those it started with, plus anybody a mode added since. */
     public Set<UUID> participants() {
         return session.participants();
     }

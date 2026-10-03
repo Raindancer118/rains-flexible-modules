@@ -158,4 +158,17 @@ class HuntTest {
         assertThat(hunt.eliminated()).isEmpty();
         assertThat(hunt.hunters()).isEmpty();
     }
+
+    @Test
+    @DisplayName("a latecomer joins on the side named, once")
+    void join() {
+        Hunt hunt = Hunt.of(Set.of(ANNA, BEN), Set.of(ANNA));
+
+        assertThat(hunt.join(DAN, false)).isTrue();
+        assertThat(hunt.join(CARO, true)).isTrue();
+        assertThat(hunt.join(ANNA, false)).isFalse();
+
+        assertThat(hunt.isHunter(DAN)).isTrue();
+        assertThat(hunt.livingRunners()).containsExactlyInAnyOrder(ANNA, CARO);
+    }
 }

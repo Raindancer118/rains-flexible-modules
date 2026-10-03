@@ -132,6 +132,15 @@ public final class Hunt {
      * @return true the first time, so the caller can tell a real elimination from a second death
      *         event for somebody already out — a spectator cannot die, but a plugin can fire one
      */
+    /** A latecomer into the running hunt, on the side named. False if they were already in it. */
+    public boolean join(UUID player, boolean asRunner) {
+        if (runners.contains(player) || hunters.contains(player)) {
+            return false;
+        }
+        (asRunner ? runners : hunters).add(player);
+        return true;
+    }
+
     /** Out of the hunt entirely — {@code /manhunt leave} mid-hunt. False if they were not in it. */
     public boolean remove(UUID player) {
         boolean was = runners.remove(player) | hunters.remove(player);

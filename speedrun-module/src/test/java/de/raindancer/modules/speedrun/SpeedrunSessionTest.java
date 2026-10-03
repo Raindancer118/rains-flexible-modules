@@ -282,4 +282,15 @@ class SpeedrunSessionTest {
 
         assertThat(disarmed).hasValue(1);
     }
+
+    @Test
+    @DisplayName("somebody can join a running session — counted from then on, everywhere participants are read")
+    void joinMidRun() {
+        SpeedrunSession session = new SpeedrunSession(Set.of(ALICE));
+        session.start();
+
+        assertThat(session.addParticipant(BOB)).isTrue();
+        assertThat(session.addParticipant(BOB)).isFalse();
+        assertThat(session.participants()).containsExactlyInAnyOrder(ALICE, BOB);
+    }
 }

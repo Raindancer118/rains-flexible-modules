@@ -209,7 +209,7 @@ public final class ManhuntMode implements SpeedrunMode {
         NO_HUNT,
         /** Sides do not change mid-hunt on this server, and this was not an admin's call. */
         FROZEN,
-        /** They are not in this hunt: a spectator, or somebody who joined after it began. */
+        /** Not in this hunt, and not an admin bringing them in — a latecomer may not add themselves. */
         NOT_IN_THE_HUNT,
         /** They are already on that side. */
         ALREADY,
@@ -240,9 +240,25 @@ public final class ManhuntMode implements SpeedrunMode {
         if (!force && !settings.get().sideSwitchingMidHunt()) {
             return SideChange.FROZEN;
         }
-        Hunt.SideChange moved = side == Side.HUNTER
-                ? hunt.moveToHunters(player)
-                : hunt.moveToRunners(player);
+        Hunt.SideChange moved;
+        if (force && !hunt.everybody().contains(player)) {
+            // A latecomer, or somebody who left: an admin may bring them in. Into the run too, so the
+            // clock, the goal and the finish line count them.
+            hunt.join(player, side == Side.RUNNER);
+            de.raindancer.modules.speedrun.SpeedrunSession session = liveSession.get();
+            if (session != null) {
+                session.addParticipant(player);
+            }
+            Player joining = plugin.getServer().getPlayer(player);
+            if (joining != null && joining.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
+                joining.setGameMode(org.bukkit.GameMode.SURVIVAL);
+            }
+            moved = Hunt.SideChange.MOVED;
+        } else {
+            moved = side == Side.HUNTER
+                    ? hunt.moveToHunters(player)
+                    : hunt.moveToRunners(player);
+        }
         switch (moved) {
             case ALREADY_THERE -> {
                 return SideChange.ALREADY;

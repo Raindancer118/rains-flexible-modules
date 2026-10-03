@@ -370,6 +370,25 @@ class SpeedrunLobbyTest {
         }
 
         @Test
+        @DisplayName("a finished run can be resumed over — no reset, no regeneration — and an ordinary start still cannot")
+        void resumeOverAFinishedRun() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(mock(World.class));
+                SpeedrunLobby lobby = lobby();
+                lobby.start(Set.of(ALICE));
+                SpeedrunSession finished = lobby.session().orElseThrow();
+                finished.finish("manhunt:runners-left");
+
+                assertThat(lobby.start(Set.of(ALICE))).isEqualTo(SpeedrunLobby.StartOutcome.NOT_READY);
+                assertThat(lobby.resume(Set.of(ALICE, BOB), java.time.Duration.ofMinutes(5)))
+                        .isEqualTo(SpeedrunLobby.StartOutcome.STARTED);
+
+                assertThat(lobby.session().orElseThrow()).isNotSameAs(finished);
+                assertThat(lobby.state()).isEqualTo(SpeedrunLobbyState.RUNNING);
+            }
+        }
+
+        @Test
         @DisplayName("refuses a second start while a run is already under way")
         void refusesWhileAlreadyRunning() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {

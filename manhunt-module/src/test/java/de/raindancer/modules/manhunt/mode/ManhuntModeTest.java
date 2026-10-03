@@ -81,10 +81,13 @@ class ManhuntModeTest {
                 mock(Messages.class), settings::get, null);
     }
 
+    private SpeedrunRun lastRun;
+
     /** A run the lobby would have handed the mode, built without a lobby. */
     private SpeedrunRun runWith(Set<UUID> participants) {
-        return new SpeedrunRun(plugin, new SpeedrunSession(participants),
+        lastRun = new SpeedrunRun(plugin, new SpeedrunSession(participants),
                 SpeedrunWorlds.around("speedrun"));
+        return lastRun;
     }
 
     private static SpeedrunSettings withGoal(boolean goal) {
@@ -441,14 +444,33 @@ class ManhuntModeTest {
         }
 
         @Test
-        @DisplayName("somebody who is not in this hunt is refused")
+        @DisplayName("somebody who is not in this hunt may not put themselves in it")
         void notInTheHunt() {
             allowSwitching(true);
             huntWith(ANNA, BEN);
             UUID stranger = UUID.nameUUIDFromBytes("dan".getBytes());
 
-            assertThat(mode.changeSide(stranger, ManhuntMode.Side.HUNTER, true))
+            assertThat(mode.changeSide(stranger, ManhuntMode.Side.HUNTER, false))
                     .isEqualTo(ManhuntMode.SideChange.NOT_IN_THE_HUNT);
+            assertThat(mode.current().orElseThrow().everybody()).doesNotContain(stranger);
+        }
+
+        @Test
+        @DisplayName("an admin's assign brings a latecomer into the running hunt, compass and clock included")
+        void latecomerAssigned() {
+            huntWith(ANNA, BEN);
+            UUID dan = UUID.nameUUIDFromBytes("dan".getBytes());
+            Player player = online(dan);
+            when(player.getGameMode()).thenReturn(org.bukkit.GameMode.SPECTATOR);
+
+            assertThat(mode.changeSide(dan, ManhuntMode.Side.HUNTER, true))
+                    .isEqualTo(ManhuntMode.SideChange.CHANGED);
+
+            assertThat(mode.current().orElseThrow().isHunter(dan)).isTrue();
+            assertThat(teams.hunters()).contains(dan);
+            assertThat(lastRun.session().participants()).contains(dan);
+            verify(tracker).give(player);
+            verify(player).setGameMode(org.bukkit.GameMode.SURVIVAL);
         }
 
         @Test
