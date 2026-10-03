@@ -2,6 +2,8 @@ package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Material;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
@@ -11,6 +13,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * One run as a {@link SpeedrunMode} sees it: the session, the worlds it is played in, and a place to
@@ -32,6 +36,7 @@ public final class SpeedrunRun {
     private final boolean resumed;
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> onDisarm = new CopyOnWriteArrayList<>();
+    private final SpeedrunSplitTracker splits;
 
     /**
      * Built by {@link SpeedrunLobby#start} and handed to the mode. Public so a mode's own tests can
@@ -42,10 +47,54 @@ public final class SpeedrunRun {
     }
 
     public SpeedrunRun(Plugin plugin, SpeedrunSession session, SpeedrunWorlds worlds, boolean resumed) {
+        this(plugin, session, worlds, resumed, null);
+    }
+
+    /** The lobby's own: the run shares the tracker the lobby splits, records and draws from. */
+    SpeedrunRun(Plugin plugin, SpeedrunSession session, SpeedrunWorlds worlds, boolean resumed,
+                SpeedrunSplitTracker splits) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.session = Objects.requireNonNull(session, "session");
         this.worlds = Objects.requireNonNull(worlds, "worlds");
         this.resumed = resumed;
+        this.splits = splits == null ? new SpeedrunSplitTracker(session) : splits;
+    }
+
+    /**
+     * A milestone of the mode's own — "First Runner caught" — to split at with {@link #split}. It is
+     * listed after the built-in ones, kept in the run's history under its id, and compared against
+     * the same milestone of earlier runs like any other.
+     */
+    public SpeedrunMilestone declareMilestone(String id, String label, Material icon) {
+        return splits.declare(id, label, icon);
+    }
+
+    /**
+     * {@code who} reached {@code milestoneId} — a built-in one or one {@link #declareMilestone declared}.
+     * The first to reach it splits the run; it is announced, drawn and kept like every other split.
+     *
+     * @return whether this was the split
+     */
+    public boolean split(String milestoneId, UUID who) {
+        return splits.reach(milestoneId, who);
+    }
+
+    /** Told about every split of this run as it happens — a mode's own reaction to one. */
+    public void onSplit(Consumer<SpeedrunSplitTracker.Split> listener) {
+        splits.onSplit(listener);
+    }
+
+    /**
+     * Lines of the mode's own on every viewer's splits sidebar, asked per viewer each time it is
+     * drawn — "Runners left: 2", "Nearest Hunter: 84 m".
+     */
+    public void hudLines(Function<UUID, List<Component>> lines) {
+        splits.addHudLines(lines);
+    }
+
+    /** The run's splits — what is reached, what is next, how each compares. */
+    public SpeedrunSplitTracker splits() {
+        return splits;
     }
 
     /**

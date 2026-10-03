@@ -25,9 +25,10 @@ public final class SpeedrunCommands {
     /** The eight commands this module brings, beyond the compass and the block. */
     public static List<ModuleCommand> declared() {
         return List.of(
-                ModuleCommand.of("speedrun", "Teleport to the speedrun lobby world",
+                ModuleCommand.of("speedrun", "The speedrun menu — and every speedrun action by name",
                                 new SpeedrunJoinCommand(SpeedrunCommands::require))
-                        .needing(PermissionNodes.JOIN),
+                        .needing(PermissionNodes.JOIN)
+                        .taking("[menu|join|start|check|stats|top|history|hud|spectate|resume|time|reset|seed|setup|help]"),
                 ModuleCommand.of("lemmemove", "Escape the speedrun movement freeze",
                                 new SpeedrunLemmemoveCommand(SpeedrunCommands::require))
                         .needing(PermissionNodes.LEMMEMOVE_SELF)

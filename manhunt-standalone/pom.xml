@@ -93,8 +93,9 @@
              0.20.1: /manhunt assign mid-hunt brings in somebody who was not in the hunt (a latecomer, or
              somebody who left) instead of refusing. Needs RainsSpeedrun 1.24.0.
              0.21.0: review — Hunters really join their team at start; side changes refit all three compasses; hunt cleanup works during shutdown; the last Hunter cannot switch away; rejoining players get their compasses back. Needs RainsSpeedrun 1.25.0.
-             0.22.0: edge cases — offline Runners caught after runner-offline-grace-seconds, whitelist reopened after a restart, compasses never leave their holder, settings refit mid-hunt, faster structure search. Needs RainsSpeedrun 1.26.0, RainsCore 1.42.0. -->
-        <plugin.version>0.22.0</plugin.version>
+             0.22.0: edge cases — offline Runners caught after runner-offline-grace-seconds, whitelist reopened after a restart, compasses never leave their holder, settings refit mid-hunt, faster structure search. Needs RainsSpeedrun 1.26.0, RainsCore 1.42.0.
+             0.23.0: hub, pre-flight check, setup wizard, sidebar HUD, milestone titles, stats and Elo-style ratings with auto-balance, hunt timeline and summaries, variants (lives, hunter respawn delay, glowing runners, scaling head start). Needs RainsSpeedrun 1.27.0, RainsCore 1.43.0. -->
+        <plugin.version>0.23.0</plugin.version>
     </properties>
 
     <dependencies>

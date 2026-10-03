@@ -118,6 +118,15 @@ public interface SpeedrunMode {
     }
 
     /**
+     * Whether a run that ended with {@code outcome} counts as reaching the goal — and so may be a
+     * personal best, a record, a leaderboard place. By default exactly when the lobby's own goal
+     * ended it; a mode whose win is something else (the last Runner standing) answers for itself.
+     */
+    default boolean leaderboardEligible(SpeedrunOutcome outcome) {
+        return outcome != null && outcome.reason() != null && outcome.reason().startsWith("advancement:");
+    }
+
+    /**
      * A page of the mode's own, reached from a button on the lobby menu — Manhunt's sides. Empty for
      * a mode with nothing to set up.
      */

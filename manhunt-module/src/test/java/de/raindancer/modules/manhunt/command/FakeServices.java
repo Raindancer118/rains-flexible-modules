@@ -34,6 +34,19 @@ final class FakeServices {
             mock(de.raindancer.modules.manhunt.service.PositionShare.class);
     final SettingsStore<ManhuntSettings> settings;
     final List<Player> screensOpenedFor = new ArrayList<>();
+    /** Every page a command opened, as {@code name:PAGE}. */
+    final List<String> pages = new ArrayList<>();
+    final List<String> statsPages = new ArrayList<>();
+    final List<Integer> summaryPages = new ArrayList<>();
+    /** Who a start would sweep up — the desk's lobby. */
+    final java.util.Set<java.util.UUID> present = new java.util.LinkedHashSet<>();
+    final java.util.Map<java.util.UUID, String> names = new java.util.HashMap<>();
+    final de.raindancer.core.data.settings.SettingsRegistry registry = new de.raindancer.core.data.settings.SettingsRegistry();
+    final de.raindancer.modules.manhunt.stats.StatsStore stats;
+    final de.raindancer.modules.manhunt.stats.HistoryStore history;
+    final de.raindancer.modules.manhunt.stats.HuntChronicle chronicle;
+    final de.raindancer.modules.manhunt.setup.HuntDesk desk;
+    final de.raindancer.modules.manhunt.setup.SetupState setup;
     final List<Player> confirmationsAskedOf = new ArrayList<>();
     /** Every /manhunt give that got through to the compasses: who, and which kind (null for all). */
     final List<Object[]> compassesGiven = new ArrayList<>();
@@ -48,11 +61,39 @@ final class FakeServices {
                 SettingsSchema.of(ManhuntSettings.class, ManhuntSettings.DEFAULTS),
                 directory.resolve("manhunt.yml"));
         this.settings.load();
+        de.raindancer.core.data.settings.SettingsStore<de.raindancer.modules.speedrun.SpeedrunSettings> speedrun =
+                new de.raindancer.core.data.settings.SettingsStore<>(SettingsSchema.of(
+                        de.raindancer.modules.speedrun.SpeedrunSettings.class,
+                        de.raindancer.modules.speedrun.SpeedrunSettings.DEFAULTS), directory.resolve("speedrun.yml"));
+        speedrun.load();
+        registry.add(settings);
+        registry.add(speedrun);
+        this.stats = new de.raindancer.modules.manhunt.stats.StatsStore(directory.resolve("stats.yml"));
+        this.history = new de.raindancer.modules.manhunt.stats.HistoryStore(directory.resolve("hunts.yml"));
+        org.bukkit.plugin.Plugin plugin = mock(org.bukkit.plugin.Plugin.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
+        this.chronicle = new de.raindancer.modules.manhunt.stats.HuntChronicle(plugin, settings::current, stats,
+                history, messages, null, null, () -> 0L, null, null);
+        this.desk = new de.raindancer.modules.manhunt.setup.HuntDesk(() -> present,
+                id -> names.getOrDefault(id, "somebody"), settings, () -> registry, teams, mode::isRunning,
+                whitelist::isClosed, stats, java.util.Set.of("minecraft:end/kill_dragon",
+                        "minecraft:story/enter_the_nether")::contains, new java.util.Random(5));
+        this.setup = new de.raindancer.modules.manhunt.setup.SetupState(directory.resolve("setup.yml"));
         this.services = new ManhuntServices(messages, mock(Brand.class), settings, teams, mode,
                 whitelist, new ManhuntServices.Screens() {
                     @Override
-                    public void sides(Player viewer) {
+                    public void open(Player viewer, ManhuntServices.Page page) {
                         screensOpenedFor.add(viewer);
+                        pages.add(viewer.getName() + ":" + page);
+                    }
+
+                    @Override
+                    public void stats(Player viewer, java.util.UUID whose) {
+                        statsPages.add(viewer.getName() + ":" + whose);
+                    }
+
+                    @Override
+                    public void summary(Player viewer, int number) {
+                        summaryPages.add(number);
                     }
 
                     @Override
@@ -80,6 +121,6 @@ final class FakeServices {
                     public void takeAll(Player player) {
                         compassesTaken.add(player);
                     }
-                });
+                }, desk, chronicle, setup);
     }
 }

@@ -278,8 +278,11 @@ class ManhuntCommandTest {
         lobby.answer = new de.raindancer.modules.speedrun.SpeedrunControl.Answer(
                 de.raindancer.modules.speedrun.SpeedrunLobby.StartOutcome.REFUSED_BY_MODE, "manhunt.start.no-runner", 2);
         command.execute(source, new String[]{"resume"});
+        assertThat(fake.pages).as("no time typed: the page that asks for one").containsExactly("Anna:RESUME");
+        command.execute(source, new String[]{"resume", "0:00"});
         assertThat(lobby.resumedAt).isEqualTo(java.time.Duration.ZERO);
         verify(fake.messages).send(eq(anna), eq("manhunt.start.no-runner"), any(Object[].class));
+        verify(fake.messages).send(eq(anna), eq("manhunt.start.what-is-missing"), any(Object[].class));
 
         command.execute(source, new String[]{"resume", "soon"});
         verify(fake.messages).send(eq(anna), eq("speedrun.time.unreadable"), any(Object[].class));
@@ -365,7 +368,7 @@ class ManhuntCommandTest {
     void noArgumentOpensTheScreen() {
         command.execute(source, new String[]{});
 
-        assertThat(fake.screensOpenedFor).containsExactly(anna);
+        assertThat(fake.pages).containsExactly("Anna:HUB");
     }
 
     @Test
@@ -407,8 +410,9 @@ class ManhuntCommandTest {
     @Test
     @DisplayName("tab completion offers the sides, and the online players for assign")
     void completion() {
-        assertThat(command.suggest(source, new String[]{""}))
-                .contains("join", "leave", "assign", "status");
+        assertThat(command.suggest(source, new String[]{""})).contains("join", "leave", "status");
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        assertThat(command.suggest(source, new String[]{""})).contains("assign");
         assertThat(command.suggest(source, new String[]{"join", "r"})).containsExactly("runner");
     }
 

@@ -19,6 +19,7 @@ import org.bukkit.event.player.PlayerMoveEvent;
 
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.LongSupplier;
 
 /**
  * The Runners' head start ({@code ManhuntSettings.hunterHeadStartSeconds}): until {@link #release},
@@ -28,14 +29,43 @@ import java.util.UUID;
  * <p>Who is a Hunter is asked of the hunt on every event rather than copied, so a Runner turning
  * Hunter mid head start is held too — the same "re-derive, never cache" rule as the rest of the module.
  * Brought back from before the 0.11 rebuild, where the hold was only a movement freeze.
+ *
+ * <p>The same hold also keeps one Hunter still on their own for a while ({@link #holdFor}) — the
+ * respawn wait — which is why it is registered for every run, head start or not.
  */
 public final class HunterHoldListener implements Listener {
 
     private final Hunt hunt;
+    private final LongSupplier clockMillis;
+    private final java.util.Map<UUID, Long> heldUntil = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile boolean released;
 
     public HunterHoldListener(Hunt hunt) {
+        this(hunt, System::currentTimeMillis);
+    }
+
+    public HunterHoldListener(Hunt hunt, LongSupplier clockMillis) {
         this.hunt = Objects.requireNonNull(hunt, "hunt");
+        this.clockMillis = Objects.requireNonNull(clockMillis, "clockMillis");
+    }
+
+    /** Keeps {@code player} still on their own for {@code seconds}, whatever the head start does. */
+    public void holdFor(UUID player, int seconds) {
+        if (seconds > 0) {
+            heldUntil.put(player, clockMillis.getAsLong() + seconds * 1000L);
+        }
+    }
+
+    /** Whether {@code player} is held right now, by the head start or on their own. */
+    public boolean isHeld(UUID player) {
+        return held(player);
+    }
+
+    /** How long {@code player}'s own hold has to go, rounded up — 0 when they are free. */
+    public int secondsLeft(UUID player) {
+        Long until = heldUntil.get(player);
+        long left = until == null ? 0 : until - clockMillis.getAsLong();
+        return left <= 0 ? 0 : (int) ((left + 999) / 1000);
     }
 
     /** The head start is over. */
@@ -48,7 +78,21 @@ public final class HunterHoldListener implements Listener {
     }
 
     private boolean held(UUID player) {
-        return !released && player != null && hunt.isHunter(player);
+        if (player == null) {
+            return false;
+        }
+        if (!released && hunt.isHunter(player)) {
+            return true;
+        }
+        Long until = heldUntil.get(player);
+        if (until == null) {
+            return false;
+        }
+        if (until > clockMillis.getAsLong()) {
+            return true;
+        }
+        heldUntil.remove(player, until);
+        return false;
     }
 
     /** An actual step, not a look around, at {@code HIGHEST} — the last priority that can still refuse it. */

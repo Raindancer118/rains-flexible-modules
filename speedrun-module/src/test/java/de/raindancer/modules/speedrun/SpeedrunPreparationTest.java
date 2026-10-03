@@ -29,7 +29,13 @@ import static org.mockito.Mockito.when;
  */
 class SpeedrunPreparationTest {
 
-    private final Plugin plugin = mock(Plugin.class);
+    private final Plugin plugin = live(mock(Plugin.class));
+
+    /** A live plugin schedules; a disabled one (a bare mock) runs in place — see Scheduling.isLive. */
+    private static Plugin live(Plugin plugin) {
+        org.mockito.Mockito.when(plugin.isEnabled()).thenReturn(true);
+        return plugin;
+    }
 
     private static final UUID ALICE = UUID.nameUUIDFromBytes("alice".getBytes());
     private static final UUID BOB = UUID.nameUUIDFromBytes("bob".getBytes());
@@ -314,5 +320,40 @@ class SpeedrunPreparationTest {
         verify(players, never()).feed(ALICE);
         verify(dead, never()).setSaturation(org.mockito.ArgumentMatchers.anyFloat());
         verify(dead.getInventory()).clear();   // the rest of the clean slate still happens
+    }
+
+    @Test
+    @DisplayName("a practice kit is handed to every online racer, on their own thread, in full")
+    void handsOutTheKit() {
+        java.util.List<String> made = new java.util.ArrayList<>();
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, mock(PlayerAdmin.class),
+                (material, amount) -> {
+                    made.add(material + " x" + amount);
+                    return mock(org.bukkit.inventory.ItemStack.class);
+                });
+        Player alice = runningItsOwnTasks(mock(Player.class));
+        org.bukkit.inventory.PlayerInventory inventory = mock(org.bukkit.inventory.PlayerInventory.class);
+        when(alice.getInventory()).thenReturn(inventory);
+        when(inventory.addItem(any(org.bukkit.inventory.ItemStack[].class))).thenReturn(new java.util.HashMap<>());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
+            bukkit.when(() -> Bukkit.getPlayer(BOB)).thenReturn(null);
+
+            preparation.handOut(Set.of(ALICE, BOB), SpeedrunPracticeKit.EYES_OF_ENDER);
+        }
+
+        verify(inventory).addItem(any(org.bukkit.inventory.ItemStack[].class));
+        org.assertj.core.api.Assertions.assertThat(made).containsExactly("ENDER_EYE x14");
+    }
+
+    @Test
+    @DisplayName("no kit hands out nothing")
+    void noKit() {
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, mock(PlayerAdmin.class));
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            preparation.handOut(Set.of(ALICE), SpeedrunPracticeKit.NONE);
+            bukkit.verify(() -> Bukkit.getPlayer(ALICE), never());
+        }
     }
 }

@@ -56,14 +56,19 @@ speedrun:
     # deletes, and the one that comes back is generated from a new seed.
     done: "<green>Start point set — every racer will be teleported here when a countdown begins. <gray>It is forgotten when the world resets."
   reset:
+    # Chat confirmation, with a [Yes] button after it that expires.
+    confirm: "<red>This deletes <white><world></white>, its nether and its End and makes new ones. Sure?"
+    console-confirm: "<yellow>This deletes the run's worlds. Type <white>/speedrun reset confirm</white> to do it."
     done: "<green>The run has been ended and the world is being deleted and remade."
     countdown-in-progress: "<yellow>A countdown is already under way; let it finish, or let it start, then reset."
   # /speedrunresume — a run over the world as it stands, after a restart.
   resume:
+    ask: "<yellow>Type the time the run had reached, e.g. <white>42:05</white> or <white>0</white>."
     done: "<green>Run resumed at <white><time></white> with <white><players></white> player(s), where they stand and with what they carry."
     not-ready: "<yellow>A run is already under way or counting down — only a ready or finished lobby can be resumed."
   # /speedruntime and /speedrunresume's time.
   time:
+    ask: "<yellow>Type the time the clock should read, e.g. <white>42:05</white>."
     usage: "<yellow>/speedruntime <time> — e.g. 42:05, 1:02:03 or 1h30m"
     unreadable: "<red><white><time></white> is not a time. Try 42:05, 1:02:03 or 1h30m."
     set: "<green>The run's clock now reads <white><time></white>."
@@ -74,4 +79,68 @@ speedrun:
     off: "<green>You are racing again — pressing the start block will include you."
   join:
     only-a-player: "<red>Only a player can go to the speedrun lobby."
+    # Sent after /speedrun took somebody to the lobby; a button to the menu follows it.
+    welcome: "<green>Welcome to the speedrun lobby."
     world-missing: "<red>The lobby world <white><world></white> is not loaded. Somebody should look at speedrun.yml."
+  # Asking somebody to type something in chat.
+  ask:
+    cancel-hint: "<gray>Type <white>cancel</white> to leave it."
+    cancelled: "<gray>Left as it was."
+    busy: "<red>You are already being asked something — answer that first, or type cancel."
+  # /speedrun with a word after it.
+  command:
+    unknown: "<yellow><white><word></white> is not something /speedrun does. Here is what it does:"
+    staff-only: "<red>/speedrun <word> is for staff."
+    only-a-player: "<red>That one opens a menu — it needs a player."
+    no-such-player: "<red>Nobody called <white><player></white> has played here."
+    help-header: "<gold>/speedrun — everything the lobby does:"
+    help-line: "<white><usage></white> <gray>— <what>"
+  # /speedrun check: one line per check.
+  check:
+    clear: "<green>Everything a run needs is in place."
+    not-clear: "<yellow>Not ready yet:"
+    ok: "<green>✔ <white><check></white> <gray><detail>"
+    problem: "<red>✘ <white><check></white> <gray><detail>"
+    warning: "<yellow>! <white><check></white> <gray><detail>"
+  # What a one-click fix says once it is done.
+  fix:
+    worlds-created: "<green>The run's worlds are there now."
+    plain-race: "<green>The lobby plays a plain race now."
+    dragon-goal: "<green>The goal is killing the dragon now."
+    brought: "<green><players> player(s) sent to the lobby."
+    no-kit: "<green>The practice kit is off; runs are ranked again."
+    random-seed: "<green>Every new world gets a new random seed."
+  # Where somebody sees their splits.
+  hud:
+    now: "<green>Your splits are shown: <white><place></white>."
+    unknown: "<red><white><place></white> is not a place — sidebar, bossbar, actionbar or off."
+  # Every split, the moment it happens; how it compares follows in colour.
+  split:
+    reached: "<gray>Split <white><milestone></white> at <yellow><time></yellow>"
+    reached-by: "<gray>Split <white><milestone></white> at <yellow><time></yellow> by <white><player></white>"
+    gold-title: "<gold>Gold split!"
+    gold-subtitle: "<yellow><milestone></yellow> <white><time></white> — faster than ever"
+  # What a racer is told once a run is over and kept.
+  result:
+    record: "<gold>New server record: <white><time></white> in <category>!"
+    personal-best: "<green>New personal best: <white><time></white> in <category>!"
+    behind: "<gray>Your best in <category> is <white><best></white> — this one was <white><behind></white> slower."
+    not-ranked: "<gray>Kept in the history, but not ranked: <reason>."
+    seed: "<gray>Seed: <white><seed></white>"
+  seed:
+    ask: "<yellow>Type the seed — a number, or a word the way the create-world screen takes one."
+    ask-pool: "<yellow>Type the seeds of the pool, separated by commas."
+    set: "<green>Every new world is made from seed <white><seed></white>."
+    pool-set: "<green>Every new world gets one of <white><count></white> seeds."
+    same-next: "<green>The next reset remakes this exact map. It is ranked as a set seed."
+    this-world: "<gray>This world's seed: <white><seed></white>"
+  setup:
+    offer: "<gold>The speedrun lobby has not been set up yet."
+  stats:
+    none: "<gray><player> has not raced here yet."
+    header: "<gold><player></gold> <gray>— <runs> run(s), <finished> reached the goal"
+    best: "<white><category></white> <gray>best <gold><time></gold>, record <white><record></white>"
+  top:
+    header: "<gold>Leaderboard — <category>"
+    line: "<gold>#<place></gold> <white><time></white> <gray><players>"
+    empty: "<gray>No ranked run in this category yet."

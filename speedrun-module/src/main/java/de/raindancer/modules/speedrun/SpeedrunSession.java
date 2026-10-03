@@ -35,6 +35,7 @@ public final class SpeedrunSession {
     private final SpeedrunTimer timer;
     private final List<Consumer<SpeedrunOutcome>> listeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<UUID>> removalListeners = new CopyOnWriteArrayList<>();
+    private final SpeedrunTimeline timeline = new SpeedrunTimeline();
     /** Copy-on-write: {@link #finish} walks it unlocked while a goal removal may change it from another
      *  thread, and a list that threw there would leave a finished run nobody was told about. */
     private final List<SpeedrunEndCondition> conditions = new CopyOnWriteArrayList<>();
@@ -80,7 +81,9 @@ public final class SpeedrunSession {
         if (state == SpeedrunState.FINISHED || state == SpeedrunState.NOT_STARTED) {
             return false;
         }
+        String before = SpeedrunTimerDisplay.plain(timer.elapsed());
         timer.set(reading);
+        timeline.record(SpeedrunTimeline.Kind.CLOCK_EDIT, reading, null, before);
         return true;
     }
 
@@ -96,6 +99,7 @@ public final class SpeedrunSession {
         }
         timer.pause();
         state = SpeedrunState.PAUSED;
+        timeline.record(SpeedrunTimeline.Kind.PAUSE, timer.elapsed(), null, "");
     }
 
     /**
@@ -107,6 +111,7 @@ public final class SpeedrunSession {
         }
         timer.resume();
         state = SpeedrunState.RUNNING;
+        timeline.record(SpeedrunTimeline.Kind.UNPAUSE, timer.elapsed(), null, "");
     }
 
     /**
@@ -127,6 +132,7 @@ public final class SpeedrunSession {
             return;
         }
         state = SpeedrunState.FINISHED;
+        timeline.record(SpeedrunTimeline.Kind.FINISH, candidate.elapsed(), null, reason);
         for (SpeedrunEndCondition condition : conditions) {
             try {
                 condition.disarm();
@@ -193,6 +199,7 @@ public final class SpeedrunSession {
                     || !participants.remove(player)) {
                 return false;
             }
+            timeline.record(SpeedrunTimeline.Kind.LEFT, timer.elapsed(), player, "");
         }
         // Outside the lock: a condition may finish the run from here, and finish() calls out to
         // listeners that must not run under this session's monitor.
@@ -222,7 +229,19 @@ public final class SpeedrunSession {
 
     /** A latecomer added mid-run (Manhunt's {@code /manhunt assign}). False if already racing. */
     public boolean addParticipant(UUID player) {
-        return state != SpeedrunState.FINISHED && participants.add(player);
+        if (state == SpeedrunState.FINISHED || player == null || !participants.add(player)) {
+            return false;
+        }
+        timeline.record(SpeedrunTimeline.Kind.JOINED, timer.elapsed(), player, "");
+        return true;
+    }
+
+    /**
+     * Everything that happened in this run — splits, deaths, pauses, clock edits — against its own
+     * clock. See {@link SpeedrunTimeline}.
+     */
+    public SpeedrunTimeline timeline() {
+        return timeline;
     }
 
     // ---------------------------------------------------------------------------- reading

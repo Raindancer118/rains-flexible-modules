@@ -3,6 +3,17 @@ package de.raindancer.modules.manhunt.command;
 import de.raindancer.modules.manhunt.ManhuntServices;
 import de.raindancer.modules.manhunt.mode.ManhuntMode;
 import de.raindancer.modules.manhunt.model.Hunt;
+import de.raindancer.modules.manhunt.hud.Announcer;
+import de.raindancer.modules.manhunt.hud.HuntTicker;
+import de.raindancer.modules.manhunt.setup.Goals;
+import de.raindancer.modules.manhunt.setup.HuntDesk;
+import de.raindancer.modules.manhunt.setup.Preflight;
+import de.raindancer.modules.manhunt.setup.Preset;
+import de.raindancer.modules.manhunt.stats.HuntRecord;
+import de.raindancer.modules.manhunt.stats.HuntSummary;
+import de.raindancer.modules.manhunt.stats.PlayerStats;
+import de.raindancer.modules.manhunt.stats.StatsFormat;
+import de.raindancer.modules.manhunt.stats.StatsStore;
 import de.raindancer.modules.manhunt.tracker.CompassHandout;
 import de.raindancer.modules.manhunt.tracker.TrailPreference;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
@@ -86,7 +97,20 @@ public final class ManhuntCommand implements IManhuntCommand {
         String word = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
 
         switch (word) {
-            case "" -> open(live, sender);
+            case "", "hub" -> open(live, sender);
+            case "sides" -> sides(live, sender);
+            case "preflight" -> preflight(live, sender);
+            case "balance" -> balance(live, sender);
+            case "random" -> random(live, sender, args);
+            case "unassign" -> unassign(live, sender, args);
+            case "door" -> door(live, sender, args);
+            case "setup" -> setup(live, sender, args);
+            case "stats" -> stats(live, sender, args);
+            case "top" -> top(live, sender, args);
+            case "history" -> history(live, sender);
+            case "summary" -> summary(live, sender, args);
+            case "hud" -> hud(live, sender);
+            case "announcements" -> announcements(live, sender);
             case "join" -> join(live, sender, args);
             case "leave" -> leave(live, sender);
             case "assign" -> assign(live, sender, args);
@@ -120,6 +144,10 @@ public final class ManhuntCommand implements IManhuntCommand {
             live.messages().send(sender, "manhunt.not-yours");
             return;
         }
+        if (args.length < 2 && sender instanceof Player viewer) {
+            live.screens().open(viewer, ManhuntServices.Page.RESUME);
+            return;
+        }
         Duration already = Duration.ZERO;
         if (args.length > 1) {
             Optional<Duration> parsed = RunClock.parse(args[1]);
@@ -144,12 +172,32 @@ public final class ManhuntCommand implements IManhuntCommand {
                 "players", String.valueOf(said.players()),
                 "time", "%d:%02d".formatted(seconds / 60, seconds % 60),
                 "mode", ManhuntMode.ID);
+        if (!said.started()) {
+            // Whatever the lobby refused, the pre-flight page names it with its fix.
+            live.messages().send(sender, "manhunt.start.what-is-missing");
+        }
     }
 
-    /** {@code /manhunt goal remove} — also mid-hunt, which then ends by catching or by reset. */
+    /**
+     * {@code /manhunt goal [remove|set <advancement>]} — the goal page with nothing after it; remove
+     * works mid-hunt too, which then ends by catching or by reset; set is for the next hunt.
+     */
     private void goal(ManhuntServices live, CommandSender sender, String[] args) {
         if (!sender.hasPermission(PermissionNodes.ADMIN)) {
             live.messages().send(sender, "manhunt.not-yours");
+            return;
+        }
+        if (args.length < 2 && sender instanceof Player viewer) {
+            live.screens().open(viewer, ManhuntServices.Page.GOAL);
+            return;
+        }
+        if (args.length >= 3 && args[1].equalsIgnoreCase("set")) {
+            if (live.desk().setGoal(args[2])) {
+                live.messages().send(sender, live.mode().isRunning() ? "manhunt.goal.set-next" : "manhunt.goal.set",
+                        "goal", Goals.byKey(args[2]).map(Goals.Goal::label).orElse(args[2]));
+            } else {
+                live.messages().send(sender, "manhunt.goal.unknown", "goal", args[2]);
+            }
             return;
         }
         if (args.length < 2 || !args[1].equalsIgnoreCase("remove")) {
@@ -219,10 +267,285 @@ public final class ManhuntCommand implements IManhuntCommand {
 
     private void open(ManhuntServices live, CommandSender sender) {
         if (sender instanceof Player viewer) {
-            live.screens().sides(viewer);
+            live.screens().open(viewer, ManhuntServices.Page.HUB);
             return;
         }
         status(live, sender);
+    }
+
+    private static boolean admin(ManhuntServices live, CommandSender sender) {
+        if (sender.hasPermission(PermissionNodes.ADMIN)) {
+            return true;
+        }
+        live.messages().send(sender, "manhunt.not-yours");
+        return false;
+    }
+
+    /** An admin's page for a player, or {@code inWords} for the console. */
+    private static void page(ManhuntServices live, CommandSender sender, ManhuntServices.Page page, Runnable inWords) {
+        if (!admin(live, sender)) {
+            return;
+        }
+        if (sender instanceof Player viewer) {
+            live.screens().open(viewer, page);
+        } else {
+            inWords.run();
+        }
+    }
+
+    /** {@code /manhunt sides}: the editor for an admin; anybody else picks their own side on the hub. */
+    private void sides(ManhuntServices live, CommandSender sender) {
+        if (!(sender instanceof Player viewer)) {
+            status(live, sender);
+            return;
+        }
+        live.screens().open(viewer, sender.hasPermission(PermissionNodes.ADMIN)
+                ? ManhuntServices.Page.SIDES : ManhuntServices.Page.HUB);
+    }
+
+    /** {@code /manhunt preflight}: everything worth knowing before the start, each with its fix. */
+    private void preflight(ManhuntServices live, CommandSender sender) {
+        page(live, sender, ManhuntServices.Page.PREFLIGHT, () -> preflightInWords(live, sender));
+    }
+
+    static void preflightInWords(ManhuntServices live, CommandSender sender) {
+        List<Preflight.Check> checks = live.desk().preflight();
+        live.messages().send(sender, "manhunt.preflight.header");
+        for (Preflight.Check check : checks) {
+            live.messages().send(sender, "manhunt.preflight." + check.key(), "value", check.placeholder());
+        }
+        live.messages().send(sender, Preflight.ready(checks) ? "manhunt.preflight.all-clear" : "manhunt.preflight.blocked");
+    }
+
+    private void balance(ManhuntServices live, CommandSender sender) {
+        if (admin(live, sender)) {
+            report(live, sender, live.desk().balance(), "manhunt.balance.done");
+        }
+    }
+
+    private void random(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!admin(live, sender)) {
+            return;
+        }
+        int count = 1;
+        if (args.length > 1) {
+            try {
+                count = Integer.parseInt(args[1]);
+            } catch (NumberFormatException notANumber) {
+                count = 0;
+            }
+            if (count < 1) {
+                live.messages().send(sender, "manhunt.random.usage");
+                return;
+            }
+        }
+        report(live, sender, live.desk().randomRunners(count), "manhunt.random.done");
+    }
+
+    private static void report(ManhuntServices live, CommandSender sender, HuntDesk.Result result, String doneKey) {
+        if (!result.done()) {
+            live.messages().send(sender, result.refusal());
+            return;
+        }
+        live.messages().send(sender, doneKey, "runners", String.join(", ", result.runners()),
+                "hunters", String.valueOf(result.hunters()),
+                "chance", String.valueOf(Math.round(result.runnersExpected() * 100)));
+    }
+
+    /** {@code /manhunt unassign <player>}: off whichever side they were on — before a hunt. */
+    private void unassign(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!admin(live, sender)) {
+            return;
+        }
+        if (args.length < 2) {
+            live.messages().send(sender, "manhunt.unassign.usage");
+            return;
+        }
+        UUID who = resolve(live, args[1]).orElse(null);
+        if (who == null) {
+            live.messages().send(sender, "manhunt.no-such-player", "player", args[1]);
+            return;
+        }
+        if (live.mode().isRunning()) {
+            live.messages().send(sender, "manhunt.sides-frozen");
+            return;
+        }
+        live.teams().leave(who);
+        live.messages().send(sender, "manhunt.unassign.done", "player", args[1]);
+    }
+
+    /** An online name first, then anybody this server's hunts remember. */
+    private static Optional<UUID> resolve(ManhuntServices live, String name) {
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) {
+            return Optional.of(online.getUniqueId());
+        }
+        return live.chronicle().stats().byName(name);
+    }
+
+    /** {@code /manhunt door keep-open|close-on-start}: what a start does to the whitelist. */
+    private void door(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!admin(live, sender)) {
+            return;
+        }
+        String how = args.length < 2 ? "" : args[1].toLowerCase(Locale.ROOT);
+        switch (how) {
+            case "keep-open" -> {
+                live.desk().keepDoorOpen();
+                live.messages().send(sender, "manhunt.door.kept-open");
+            }
+            case "close-on-start" -> {
+                live.desk().closeDoorOnStart();
+                live.messages().send(sender, "manhunt.door.closes");
+            }
+            default -> live.messages().send(sender, "manhunt.door.usage");
+        }
+    }
+
+    /** {@code /manhunt setup [preset|skip]}: the wizard, or one of its answers typed straight in. */
+    private void setup(ManhuntServices live, CommandSender sender, String[] args) {
+        if (!admin(live, sender)) {
+            return;
+        }
+        if (args.length < 2) {
+            if (sender instanceof Player viewer) {
+                live.screens().open(viewer, ManhuntServices.Page.SETUP);
+            } else {
+                live.messages().send(sender, "manhunt.setup.usage");
+            }
+            return;
+        }
+        if (args[1].equalsIgnoreCase("skip")) {
+            live.setup().markDone();
+            live.messages().send(sender, "manhunt.setup.skipped");
+            return;
+        }
+        Optional<Preset> preset = Preset.byId(args[1]);
+        if (preset.isEmpty()) {
+            live.messages().send(sender, "manhunt.setup.usage");
+            return;
+        }
+        preset.get().applyTo(live.settings());
+        live.setup().markDone();
+        live.messages().send(sender, "manhunt.setup.applied", "preset", preset.get().id());
+    }
+
+    /** {@code /manhunt stats [player]}: a page for a player, words for the console. */
+    private void stats(ManhuntServices live, CommandSender sender, String[] args) {
+        UUID whose;
+        if (args.length < 2) {
+            if (!(sender instanceof Player self)) {
+                live.messages().send(sender, "manhunt.stats.usage");
+                return;
+            }
+            whose = self.getUniqueId();
+        } else {
+            whose = resolve(live, args[1]).orElse(null);
+            if (whose == null || !live.chronicle().stats().has(whose) && Bukkit.getPlayerExact(args[1]) == null) {
+                live.messages().send(sender, "manhunt.stats.unknown", "player", args[1]);
+                return;
+            }
+        }
+        if (sender instanceof Player viewer) {
+            live.screens().stats(viewer, whose);
+            return;
+        }
+        PlayerStats stats = live.chronicle().stats().get(whose);
+        live.messages().send(sender, "manhunt.stats.in-words", "player", stats.name(),
+                "rating", String.valueOf(Math.round(stats.rating())), "hunts", String.valueOf(stats.hunts()),
+                "runner-wins", String.valueOf(stats.runnerWins()), "hunter-wins", String.valueOf(stats.hunterWins()),
+                "catches", String.valueOf(stats.catches()), "caught", String.valueOf(stats.timesCaught()),
+                "best", HuntSummary.clock(stats.bestSurvivalMillis()),
+                "distance", String.valueOf(Math.round(stats.distance())));
+    }
+
+    /** {@code /manhunt top [board]}: the leaderboard. */
+    private void top(ManhuntServices live, CommandSender sender, String[] args) {
+        Optional<StatsStore.Board> board = args.length < 2 ? Optional.of(StatsStore.Board.RATING)
+                : StatsStore.Board.byId(args[1]);
+        if (board.isEmpty()) {
+            live.messages().send(sender, "manhunt.top.usage");
+            return;
+        }
+        if (sender instanceof Player viewer) {
+            live.screens().open(viewer, ManhuntServices.Page.LEADERBOARD);
+            return;
+        }
+        List<PlayerStats> top = live.chronicle().stats().top(board.get(), 10);
+        if (top.isEmpty()) {
+            live.messages().send(sender, "manhunt.top.empty");
+            return;
+        }
+        live.messages().send(sender, "manhunt.top.header", "board", board.get().id());
+        int rank = 1;
+        for (PlayerStats entry : top) {
+            live.messages().send(sender, "manhunt.top.entry", "rank", String.valueOf(rank++),
+                    "player", entry.name(), "value", StatsFormat.value(board.get(), entry));
+        }
+    }
+
+    /** {@code /manhunt history}: the hunts this server kept. */
+    private void history(ManhuntServices live, CommandSender sender) {
+        if (sender instanceof Player viewer) {
+            live.screens().open(viewer, ManhuntServices.Page.HISTORY);
+            return;
+        }
+        List<HuntRecord> hunts = live.chronicle().history().all();
+        if (hunts.isEmpty()) {
+            live.messages().send(sender, "manhunt.history.none");
+            return;
+        }
+        for (HuntRecord hunt : hunts.subList(0, Math.min(10, hunts.size()))) {
+            live.messages().send(sender, "manhunt.history.entry", "number", String.valueOf(hunt.number()),
+                    "winner", live.messages().raw("manhunt.history.winner-" + hunt.winner().name().toLowerCase(Locale.ROOT)),
+                    "time", HuntSummary.clock(hunt.durationMillis()));
+        }
+    }
+
+    /** {@code /manhunt summary [number]}: one past hunt, the newest by default. */
+    private void summary(ManhuntServices live, CommandSender sender, String[] args) {
+        Optional<HuntRecord> record;
+        String asked = args.length < 2 ? "" : args[1];
+        if (asked.isEmpty()) {
+            record = live.chronicle().history().latest();
+        } else {
+            try {
+                record = live.chronicle().history().find(Integer.parseInt(asked));
+            } catch (NumberFormatException notANumber) {
+                record = Optional.empty();
+            }
+        }
+        if (record.isEmpty()) {
+            live.messages().send(sender, "manhunt.summary.none", "number", asked.isEmpty() ? "?" : asked);
+            return;
+        }
+        if (sender instanceof Player viewer) {
+            live.screens().summary(viewer, record.get().number());
+            return;
+        }
+        live.chronicle().summaryLines(HuntSummary.of(record.get())).forEach(sender::sendMessage);
+    }
+
+    /** {@code /manhunt hud}: this player's own sidebar on or off. */
+    private void hud(ManhuntServices live, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "manhunt.only-a-player");
+            return;
+        }
+        if (!live.config().hudSidebar()) {
+            live.messages().send(player, "manhunt.hud.server-off");
+            return;
+        }
+        live.messages().send(player, HuntTicker.SIDEBAR.toggle(player) ? "manhunt.hud.on" : "manhunt.hud.off");
+    }
+
+    /** {@code /manhunt announcements}: this player's own milestone titles and sounds on or off. */
+    private void announcements(ManhuntServices live, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "manhunt.only-a-player");
+            return;
+        }
+        live.messages().send(player, Announcer.SWITCH.toggle(player) ? "manhunt.announcements.on" : "manhunt.announcements.off");
     }
 
     private void join(ManhuntServices live, CommandSender sender, String[] args) {
@@ -428,41 +751,115 @@ public final class ManhuntCommand implements IManhuntCommand {
     @Override
     public @NotNull Collection<String> suggest(@NotNull CommandSourceStack source,
                                                String @NotNull [] args) {
+        boolean admin = source.getSender().hasPermission(PermissionNodes.ADMIN);
         if (args.length <= 1) {
-            String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
-            return List.of("join", "leave", "assign", "reset", "status", "trail", "here", "give", "goal", "start", "resume").stream()
-                    .filter(word -> word.startsWith(typed))
-                    .toList();
+            List<String> words = new ArrayList<>(PLAYER_WORDS);
+            if (admin) {
+                words.addAll(ADMIN_WORDS);
+            }
+            return starting(words, args.length == 0 ? "" : args[0]);
         }
         String word = args[0].toLowerCase(Locale.ROOT);
-        if (word.equals("here") && args.length == 2) {
-            return "stop".startsWith(args[1].toLowerCase(Locale.ROOT)) ? List.of("stop") : List.of();
-        }
-        if (word.equals("join") && args.length == 2) {
-            return sides(args[1]);
-        }
-        if (word.equals("goal") && args.length == 2) {
-            return "remove".startsWith(args[1].toLowerCase(Locale.ROOT)) ? List.of("remove") : List.of();
-        }
-        if (word.equals("give") && args.length == 3) {
-            String typed = args[2].toLowerCase(Locale.ROOT);
-            return Arrays.stream(CompassHandout.Kind.values()).map(CompassHandout.Kind::word)
-                    .filter(kind -> kind.startsWith(typed)).toList();
-        }
-        if (word.equals("assign") || (word.equals("give") && args.length == 2)) {
-            if (args.length == 2) {
-                return Stream.concat(word.equals("give") ? Stream.of("all") : Stream.empty(),
-                                Bukkit.getOnlinePlayers().stream().map(Player::getName))
-                        .filter(name -> name.toLowerCase(Locale.ROOT)
-                                .startsWith(args[1].toLowerCase(Locale.ROOT)))
-                        .limit(50)
-                        .toList();
+        String typed = args[args.length - 1];
+        if (args.length == 2) {
+            switch (word) {
+                case "here" -> {
+                    return starting(List.of("stop"), typed);
+                }
+                case "join" -> {
+                    return sides(typed);
+                }
+                case "stats" -> {
+                    return starting(knownNames(), typed);
+                }
+                case "top" -> {
+                    return starting(Arrays.stream(StatsStore.Board.values()).map(StatsStore.Board::id).toList(), typed);
+                }
+                case "summary" -> {
+                    return starting(services.get().chronicle().history().all().stream()
+                            .map(hunt -> String.valueOf(hunt.number())).toList(), typed);
+                }
+                default -> { }
             }
-            if (args.length == 3) {
-                return sides(args[2]);
+        }
+        if (!admin) {
+            return List.of();
+        }
+        if (args.length == 2) {
+            switch (word) {
+                case "goal" -> {
+                    return starting(List.of("remove", "set"), typed);
+                }
+                case "door" -> {
+                    return starting(List.of("keep-open", "close-on-start"), typed);
+                }
+                case "setup" -> {
+                    List<String> answers = new ArrayList<>(Arrays.stream(Preset.values()).map(Preset::id).toList());
+                    answers.add("skip");
+                    return starting(answers, typed);
+                }
+                case "random" -> {
+                    return starting(List.of("1", "2", "3"), typed);
+                }
+                case "resume" -> {
+                    return starting(List.of("0:00", "10:00", "30:00", "1:00:00"), typed);
+                }
+                case "assign", "unassign" -> {
+                    return starting(onlineNames(), typed);
+                }
+                case "give" -> {
+                    List<String> targets = new ArrayList<>(List.of("all"));
+                    targets.addAll(onlineNames());
+                    return starting(targets, typed);
+                }
+                default -> {
+                    return List.of();
+                }
+            }
+        }
+        if (args.length == 3) {
+            switch (word) {
+                case "goal" -> {
+                    return args[1].equalsIgnoreCase("set")
+                            ? starting(Goals.all().stream().map(Goals.Goal::key).toList(), typed) : List.of();
+                }
+                case "assign" -> {
+                    return sides(typed);
+                }
+                case "give" -> {
+                    return starting(Arrays.stream(CompassHandout.Kind.values()).map(CompassHandout.Kind::word).toList(),
+                            typed);
+                }
+                default -> {
+                    return List.of();
+                }
             }
         }
         return List.of();
+    }
+
+    private static final List<String> PLAYER_WORDS = List.of("hub", "join", "leave", "status", "stats", "top",
+            "history", "summary", "trail", "here", "hud", "announcements");
+    private static final List<String> ADMIN_WORDS = List.of("sides", "assign", "unassign", "balance", "random",
+            "preflight", "start", "resume", "give", "goal", "door", "reset", "setup");
+
+    private static List<String> starting(Collection<String> options, String typed) {
+        String prefix = typed.toLowerCase(Locale.ROOT);
+        return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(prefix)).limit(50).toList();
+    }
+
+    private static List<String> onlineNames() {
+        return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+    }
+
+    private List<String> knownNames() {
+        List<String> names = new ArrayList<>(onlineNames());
+        for (PlayerStats stats : services.get().chronicle().stats().top(StatsStore.Board.RATING, 200)) {
+            if (!names.contains(stats.name())) {
+                names.add(stats.name());
+            }
+        }
+        return names;
     }
 
     private static List<String> sides(String typed) {

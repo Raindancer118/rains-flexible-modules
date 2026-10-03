@@ -32,6 +32,8 @@ public final class Hunt {
     private final Set<UUID> hunters = ConcurrentHashMap.newKeySet();
     /** Runners who have died. Written from a death event, read from the end condition's own check. */
     private final Set<UUID> eliminated = ConcurrentHashMap.newKeySet();
+    /** Deaths per player, for Runners with more than one life. */
+    private final java.util.Map<UUID, Integer> deaths = new ConcurrentHashMap<>();
 
     private Hunt(Set<UUID> runners, Set<UUID> hunters) {
         this.runners.addAll(runners);
@@ -159,6 +161,15 @@ public final class Hunt {
      */
     public boolean eliminate(UUID runner) {
         return isRunner(runner) && eliminated.add(runner);
+    }
+
+    /** One more death for {@code player}. @return how many they have died now */
+    public int recordDeath(UUID player) {
+        return deaths.merge(player, 1, Integer::sum);
+    }
+
+    public int deathsOf(UUID player) {
+        return deaths.getOrDefault(player, 0);
     }
 
     public boolean isEliminated(UUID player) {

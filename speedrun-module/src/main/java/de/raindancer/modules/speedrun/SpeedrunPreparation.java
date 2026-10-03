@@ -3,16 +3,20 @@ package de.raindancer.modules.speedrun;
 import de.raindancer.core.moderation.players.PlayerAdmin;
 import de.raindancer.core.platform.util.Scheduling;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiFunction;
 
 /**
  * Puts every racer, and the map itself, back to a standard starting point the instant a run begins —
@@ -58,9 +62,18 @@ final class SpeedrunPreparation {
     private final Plugin plugin;
     private final PlayerAdmin players;
 
+    /** Makes a kit's stacks — a real {@link ItemStack} needs a running server's item registry. */
+    private final BiFunction<Material, Integer, ItemStack> stacks;
+
     SpeedrunPreparation(Plugin plugin, PlayerAdmin players) {
+        this(plugin, players, (material, amount) -> new ItemStack(material, amount));
+    }
+
+    /** For tests: stacks made without a server. */
+    SpeedrunPreparation(Plugin plugin, PlayerAdmin players, BiFunction<Material, Integer, ItemStack> stacks) {
         this.plugin = plugin;
         this.players = players;
+        this.stacks = stacks;
     }
 
     /** At {@link #DAY_START}, leaving advancements alone. */
@@ -102,6 +115,31 @@ final class SpeedrunPreparation {
                 world.setTime(timeOfDay);
             }
             clearHostilesAndItems(world);
+        }
+    }
+
+    /**
+     * Hands every online racer {@code kit} — after the clean slate above, on the same per-player
+     * queue, so the clear can never take it back. What does not fit is dropped at their feet rather
+     * than lost.
+     */
+    void handOut(Set<UUID> participants, SpeedrunPracticeKit kit) {
+        if (kit == null || !kit.isPractice()) {
+            return;
+        }
+        for (UUID id : participants) {
+            Player online = Bukkit.getPlayer(id);
+            if (online == null) {
+                continue;
+            }
+            Scheduling.entity(plugin, online, () -> {
+                for (Map.Entry<Material, Integer> item : kit.items()) {
+                    for (ItemStack leftover : online.getInventory()
+                            .addItem(stacks.apply(item.getKey(), item.getValue())).values()) {
+                        online.getWorld().dropItem(online.getLocation(), leftover);
+                    }
+                }
+            });
         }
     }
 

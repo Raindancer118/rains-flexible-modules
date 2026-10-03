@@ -148,4 +148,78 @@ class HuntDeathListenerTest {
         when(event.getPlayer()).thenReturn(player);
         return event;
     }
+
+    /** A listener for a hunt played with {@code lives} lives and a respawn wait, reporting to a recorder. */
+    private final java.util.List<String> reported = new java.util.ArrayList<>();
+    private HunterHoldListener hold;
+
+    private HuntDeathListener withLives(int lives, int respawnWait) {
+        hold = new HunterHoldListener(hunt, () -> 0L);
+        hold.release();
+        HuntWatcher watcher = new HuntWatcher() {
+            @Override
+            public void died(Hunt h, UUID who, String name, UUID by, String byName, Death death, int livesLeft) {
+                reported.add(death + ":" + name + ":" + byName + ":" + livesLeft);
+            }
+        };
+        return new HuntDeathListener(mock(Plugin.class, org.mockito.Answers.RETURNS_DEEP_STUBS), hunt, session,
+                eliminations, messages, () -> lives, hold, () -> respawnWait, watcher);
+    }
+
+    private final Messages messages = mock(Messages.class);
+
+    @Test
+    @DisplayName("with two lives, a Runner's first death costs a life and the second catches them")
+    void lives() {
+        HuntDeathListener twoLives = withLives(2, 0);
+        Player anna = playerWithId(ANNA);
+        Player caro = playerWithId(CARO);
+        when(anna.getKiller()).thenReturn(caro);
+
+        twoLives.onDeath(deathOf(anna));
+        assertThat(hunt.isEliminated(ANNA)).isFalse();
+        twoLives.onRespawn(respawnOf(anna));
+        verify(eliminations, never()).spectate(anna);
+
+        twoLives.onDeath(deathOf(anna));
+        assertThat(hunt.isEliminated(ANNA)).isTrue();
+        assertThat(reported).containsExactly(
+                "LIFE_LOST:" + anna.getName() + ":" + caro.getName() + ":1",
+                "CAUGHT:" + anna.getName() + ":" + caro.getName() + ":0");
+    }
+
+    @Test
+    @DisplayName("a Hunter's death is reported, killer and all, and costs nothing")
+    void hunterDeathReported() {
+        HuntDeathListener listening = withLives(1, 0);
+        Player caro = playerWithId(CARO);
+        Player anna = playerWithId(ANNA);
+        when(caro.getKiller()).thenReturn(anna);
+
+        listening.onDeath(deathOf(caro));
+
+        assertThat(reported).containsExactly("HUNTER_DIED:" + caro.getName() + ":" + anna.getName() + ":0");
+    }
+
+    @Test
+    @DisplayName("a Hunter back from dying waits out the respawn delay before rejoining")
+    void respawnWait() {
+        HuntDeathListener waiting = withLives(1, 5);
+        Player caro = playerWithId(CARO);
+
+        waiting.onRespawn(respawnOf(caro));
+
+        assertThat(hold.isHeld(CARO)).isTrue();
+        assertThat(hold.isHeld(ANNA)).as("a Runner never waits").isFalse();
+    }
+
+    @Test
+    @DisplayName("no respawn delay, no wait")
+    void noRespawnWait() {
+        HuntDeathListener waiting = withLives(1, 0);
+
+        waiting.onRespawn(respawnOf(playerWithId(CARO)));
+
+        assertThat(hold.isHeld(CARO)).isFalse();
+    }
 }

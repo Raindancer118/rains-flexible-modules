@@ -1,6 +1,7 @@
 package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
@@ -11,6 +12,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.Locale;
 
 /**
@@ -26,7 +28,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.26.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.27.0")
             .describedAs("A speedrun lobby: pick a game, an advancement goal and a death policy "
                     + "from the compass's menu, then press the green block to race. A countdown "
                     + "freezes everyone first, and the lobby world resets once the last racer has "
@@ -58,6 +60,19 @@ public final class SpeedrunModule implements FlexModule {
         // Main thread only, same as everything else here in enable() — creating a world is a
         // main-thread operation in Paper, and nobody is on yet for it to visibly stall.
         lobby.ensureWorldExists();
+        // History, the HUD and the chat buttons: the lobby works without them (a test builds one
+        // bare), so they are handed in rather than built inside it.
+        Executor disk = task -> Scheduling.async(context.plugin(), task);
+        SpeedrunHistory history = new SpeedrunHistory(new YamlStore(context.dataFolder().resolve("history.yml")), disk);
+        history.load();
+        SpeedrunPlayerPrefs prefs = new SpeedrunPlayerPrefs(new YamlStore(context.dataFolder().resolve("players.yml")), disk);
+        prefs.load();
+        SpeedrunHud hud = new SpeedrunHud(context.core().scoreboards(), context.core().bossBars(), prefs,
+                lobby::config, SpeedrunTimerDisplay.viaScheduling(context.plugin()));
+        lobby.equip(new SpeedrunToolkit(context.plugin(), context.chat().brand(), context.chat(),
+                context.core().messages(), context.core().settingsNavigation(), context.core().prompts(),
+                context.core().buttons(), context.core().effects(), history, prefs, hud));
+        context.log().info("{} past run(s) in the speedrun history.", history.size());
         SpeedrunLobbyItems lobbyItems = new SpeedrunLobbyItems(context.plugin());
         lobby.takeLobbyItemsWith(id -> {
             Player player = Bukkit.getPlayer(id);

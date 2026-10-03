@@ -42,6 +42,15 @@ import org.bukkit.Material;
         @Topic(path = "speedrun/lobby", title = "The lobby itself", icon = Material.LIME_CONCRETE,
                 description = "Who may start a run, what can hurt anybody waiting for one, and what "
                         + "happens the moment one ends."),
+        @Topic(path = "speedrun/seeds", title = "Seeds", icon = Material.WHEAT_SEEDS,
+                description = "Which seed the next world is made from: a new one each time, always the "
+                        + "same, or one of a pool. Set-seed runs are ranked apart from random ones."),
+        @Topic(path = "speedrun/splits", title = "Splits and records", icon = Material.CLOCK,
+                description = "The milestones a run is split at, how they are shown, and which runs "
+                        + "count toward personal bests and records."),
+        @Topic(path = "speedrun/practice", title = "Practice", icon = Material.TARGET,
+                description = "Start a run with a kit to practise one part of it. Practice runs are "
+                        + "kept, and ranked on their own."),
 })
 public record SpeedrunSettings(
 
@@ -227,9 +236,83 @@ public record SpeedrunSettings(
         @Describe("Whether a mob may pick a player as its target while no run is under way, anywhere "
                 + "on the server. Off — the default — everything ignores everybody until the clock "
                 + "starts, so waiting for a race is not a fight.")
-        boolean monstersHuntBeforeRuns
+        boolean monstersHuntBeforeRuns,
+
+        @In("speedrun/seeds") @Title("Seed mode")
+        @Describe("RANDOM makes every new world from a fresh seed. FIXED always uses 'seed'. POOL picks "
+                + "one of 'seed-pool' at random for each new world.")
+        SpeedrunSeedMode seedMode,
+
+        @In("speedrun/seeds") @Title("Seed")
+        @Describe("The seed FIXED uses — a number, or a word the way the create-world screen reads one.")
+        String seed,
+
+        @In("speedrun/seeds") @Title("Seed pool")
+        @Describe("The seeds POOL picks from, separated by commas or spaces.")
+        String seedPool,
+
+        @In("speedrun/splits") @Title("Pearls to collect") @Range(min = 1, max = 64)
+        @Describe("How many ender pearls the racers together have to pick up for the 'Pearls' split.")
+        int pearlTarget,
+
+        @In("speedrun/splits") @Title("Where splits are shown")
+        @Describe("SIDEBAR, BOSSBAR, ACTIONBAR or OFF — for everybody who has not picked their own "
+                + "with the button in the menu.")
+        SpeedrunHudMode hudDefault,
+
+        @In("speedrun/splits") @Title("Announce splits in chat")
+        @Describe("Whether every split is said in chat, with how it compares to your personal best and "
+                + "the server record.")
+        boolean splitAnnouncements,
+
+        @In("speedrun/splits") @Title("Celebrate gold splits")
+        @Describe("A title and a sound when a split beats the best time anybody ever reached it in.")
+        boolean goldSplitCelebration,
+
+        @In("speedrun/splits") @Title("Resumed and edited runs rank")
+        @Describe("Whether a run picked up with /speedrunresume, or whose clock was set by hand, counts "
+                + "toward personal bests and records. Off — the default — keeps them in the history, "
+                + "flagged, and off the leaderboards.")
+        boolean rankEditedRuns,
+
+        @In("speedrun/practice") @Title("Practice kit")
+        @Describe("NONE for a real run. Any kit is handed to every racer at the start and makes the run "
+                + "a practice run: BLAZE_AND_PEARLS, EYES_OF_ENDER or DRAGON_FIGHT.")
+        SpeedrunPracticeKit practiceKit,
+
+        @In("speedrun/lobby") @Title("Setup finished")
+        @Describe("Set by the setup assistant. Off, every admin is offered the assistant when they join.")
+        boolean setupDone
 
 ) {
+
+    /** The settings as they stood before seeds, splits and practice existed — every new one at its default. */
+    public SpeedrunSettings(String gameMode, String worldName, String advancementKey,
+                            boolean clearAdvancementsOnStart, SpeedrunDeathPolicy deathPolicy,
+                            boolean requireExitPortalAfterDragon, int creeperSpawnChanceOnBreakPercent,
+                            int chargedCreeperChanceOnBreakPercent, int creeperSpawnChanceOnContainerPercent,
+                            int chargedCreeperChanceOnContainerPercent, boolean startPointSet, double startX,
+                            double startY, double startZ, double startYaw, double startPitch,
+                            boolean startBlockStaffOnly, boolean lobbyProtected, boolean lobbyExplosionsBlocked,
+                            boolean showTimerToOnlookers, boolean restartWhenRunEnds, int restartAfterSeconds,
+                            boolean setTimeOnStart, int startTimeTicks, boolean bedExplosionsInNether,
+                            boolean bedExplosionsInTheEnd, boolean anchorExplosionsInOverworld,
+                            boolean anchorExplosionsInTheEnd, boolean tntInOverworld, boolean tntInNether,
+                            boolean tntInTheEnd, boolean endCrystalsInOverworld, boolean endCrystalsInNether,
+                            boolean endCrystalsInTheEnd, boolean breakingBlocksBeforeRuns,
+                            boolean monstersHuntBeforeRuns) {
+        this(gameMode, worldName, advancementKey, clearAdvancementsOnStart, deathPolicy,
+                requireExitPortalAfterDragon, creeperSpawnChanceOnBreakPercent,
+                chargedCreeperChanceOnBreakPercent, creeperSpawnChanceOnContainerPercent,
+                chargedCreeperChanceOnContainerPercent, startPointSet, startX, startY, startZ, startYaw,
+                startPitch, startBlockStaffOnly, lobbyProtected, lobbyExplosionsBlocked,
+                showTimerToOnlookers, restartWhenRunEnds, restartAfterSeconds, setTimeOnStart,
+                startTimeTicks, bedExplosionsInNether, bedExplosionsInTheEnd, anchorExplosionsInOverworld,
+                anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
+                endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns,
+                SpeedrunSeedMode.RANDOM, "", "", 12, SpeedrunHudMode.SIDEBAR, true, true, false,
+                SpeedrunPracticeKit.NONE, false);
+    }
 
     /** The advancement key {@link #requireExitPortalAfterDragon} looks for — vanilla's own dragon kill. */
     public static final String DRAGON_KILL_ADVANCEMENT = "minecraft:end/kill_dragon";
@@ -266,7 +349,9 @@ public record SpeedrunSettings(
             false, 0, 0, 0, 0, 0,
             true, true, true, true, true, 10, true, (int) SpeedrunPreparation.DAY_START,
             true, true, true, true, true, true, true, true, true, true,
-            false, false);
+            false, false,
+            SpeedrunSeedMode.RANDOM, "", "", 12, SpeedrunHudMode.SIDEBAR, true, true, false,
+            SpeedrunPracticeKit.NONE, false);
 
     /** Whether a game mode is chosen at all — an empty id is the plain race. */
     /** The same settings in {@code name} — how a run keeps its world while {@code world-name} changes. */
@@ -279,7 +364,9 @@ public record SpeedrunSettings(
                 showTimerToOnlookers, restartWhenRunEnds, restartAfterSeconds, setTimeOnStart,
                 startTimeTicks, bedExplosionsInNether, bedExplosionsInTheEnd, anchorExplosionsInOverworld,
                 anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
-                endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns);
+                endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns,
+                seedMode, seed, seedPool, pearlTarget, hudDefault, splitAnnouncements, goldSplitCelebration,
+                rankEditedRuns, practiceKit, setupDone);
     }
 
     public boolean hasGameMode() {
@@ -320,6 +407,19 @@ public record SpeedrunSettings(
     }
 
     /** The wait before a finished run remakes the world, in ticks — see {@link #restartWhenRunEnds}. */
+    /** The ender pearls the 'Pearls' split waits for, kept within its range. */
+    public int pearlsToCollect() {
+        return Math.max(1, Math.min(64, pearlTarget));
+    }
+
+    public SpeedrunHudMode hudDefaultOrSidebar() {
+        return hudDefault == null ? SpeedrunHudMode.SIDEBAR : hudDefault;
+    }
+
+    public SpeedrunPracticeKit kit() {
+        return practiceKit == null ? SpeedrunPracticeKit.NONE : practiceKit;
+    }
+
     public long restartDelayTicks() {
         return Math.max(0, Math.min(300, restartAfterSeconds)) * 20L;
     }

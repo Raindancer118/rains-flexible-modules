@@ -29,6 +29,8 @@ class ReuseTest implements ReuseContract {
     @Override
     public Map<String, String> allowed() {
         return Map.of("SpeedrunLobbyItems.java :: new ItemStack(",
-                "the lobby items are real items handed to a racer, not menu buttons");
+                "the lobby items are real items handed to a racer, not menu buttons",
+                "SpeedrunPreparation.java :: new ItemStack(",
+                "a practice kit is real blaze rods and pearls in a racer's inventory, not a menu button");
     }
 }

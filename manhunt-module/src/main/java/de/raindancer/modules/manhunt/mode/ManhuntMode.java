@@ -11,6 +11,7 @@ import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.service.AbsentRunners;
 import de.raindancer.modules.manhunt.service.Eliminations;
 import de.raindancer.modules.manhunt.service.HuntDeathListener;
+import de.raindancer.modules.manhunt.service.HuntWatcher;
 import de.raindancer.modules.manhunt.service.HunterHoldListener;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
 import de.raindancer.modules.manhunt.tracker.HuntCompasses;
@@ -84,6 +85,9 @@ public final class ManhuntMode implements SpeedrunMode {
     public static final String RUNNERS_LEFT = "manhunt:runners-left";
     /** Nobody is left chasing: ended, won by nobody. */
     public static final String HUNTERS_LEFT = "manhunt:hunters-left";
+    /** Told everything that happens to a hunt — the record and the HUD. */
+    private volatile HuntWatcher watcher = HuntWatcher.NONE;
+
     /** Runs a task this many ticks later — the global scheduler, or a test's own list. */
     private BiConsumer<Long, Runnable> later;
 
@@ -105,6 +109,11 @@ public final class ManhuntMode implements SpeedrunMode {
         this.settings = Objects.requireNonNull(settings, "settings");
         this.setup = setup;
         this.later = (ticks, task) -> Scheduling.globalLater(plugin, ticks, task);
+    }
+
+    /** Who is told everything that happens to a hunt — see {@link HuntWatcher}. */
+    public void watch(HuntWatcher watcher) {
+        this.watcher = Objects.requireNonNull(watcher, "watcher");
     }
 
     /** For tests: how a delayed task is run instead of the server's scheduler. */
@@ -191,6 +200,7 @@ public final class ManhuntMode implements SpeedrunMode {
         }
         teams.evenWhileFrozen(() -> teams.leave(player));
         compasses.forget(player);
+        watcher.left(hunt, player);
         Player online = plugin.getServer().getPlayer(player);
         if (online != null) {
             eliminations.restoreOnTheirThread(online);
@@ -301,6 +311,7 @@ public final class ManhuntMode implements SpeedrunMode {
         teams.evenWhileFrozen(() -> side == Side.HUNTER
                 ? teams.joinHunters(player)
                 : teams.joinRunners(player));
+        watcher.sideChanged(hunt, player, side == Side.RUNNER, latecomer);
         Player online = plugin.getServer().getPlayer(player);
         if (online == null) {
             // Offline: the roster and the team are what matter. Their compasses are fitted when
@@ -382,10 +393,18 @@ public final class ManhuntMode implements SpeedrunMode {
         portals.clear();
         compasses.armFor(hunt);
         run.listen(new TrackerListener(hunt, compasses.tracker(), portals));
-        run.listen(new HuntDeathListener(plugin, hunt, run.session(), eliminations, messages));
+        HuntWatcher watching = watcher;
+        // One hold for the run, head start or not: it is also where a Hunter waits after dying.
+        HunterHoldListener hold = new HunterHoldListener(hunt);
+        run.listen(hold);
+        run.session().onFinish(outcome -> hold.release());
+        run.onDisarm(hold::release);
+        run.listen(new HuntDeathListener(plugin, hunt, run.session(), eliminations, messages,
+                () -> settings.get().runnerLivesClamped(), hold,
+                () -> settings.get().hunterRespawnDelayClamped(), watching));
         AbsentRunners absent = new AbsentRunners(plugin, hunt, run.session(), () -> live.get() == hunt,
                 () -> settings.get().runnerOfflineGraceSecondsClamped(),
-                (ticks, task) -> later.accept(ticks, task), messages);
+                (ticks, task) -> later.accept(ticks, task), messages, watching);
         run.listen(absent);
         // Somebody who logged out during the countdown is a participant who never quits again.
         for (UUID runner : hunt.runners()) {
@@ -393,9 +412,8 @@ public final class ManhuntMode implements SpeedrunMode {
                 absent.away(runner);
             }
         }
-        if (!run.resumed()) {
-            holdTheHunters(run, hunt);
-        }
+        int headStart = run.resumed() ? 0 : settings.get().headStartFor(hunt.runners().size(), hunt.hunters().size());
+        holdTheHunters(hunt, hold, headStart);
 
         if (settings.get().closeWhitelistOnStart()) {
             whitelist.closeForHunt();
@@ -408,23 +426,19 @@ public final class ManhuntMode implements SpeedrunMode {
         liveSession.set(run.session());
         run.session().onFinish(outcome -> endTheHunt(hunt));
         run.onDisarm(() -> endTheHunt(hunt));
+        watching.started(hunt, run, hold, headStart);
     }
 
     /**
      * The Runners' head start: the Hunters stand still and touch nothing for
-     * {@link ManhuntSettings#hunterHeadStartSeconds()}. The hold goes with the run through
+     * {@link ManhuntSettings#headStartFor} seconds. The hold goes with the run through
      * {@code run.listen}, so a hunt ending early never leaves anybody frozen.
      */
-    private void holdTheHunters(SpeedrunRun run, Hunt hunt) {
-        int seconds = settings.get().hunterHeadStartSecondsClamped();
+    private void holdTheHunters(Hunt hunt, HunterHoldListener hold, int seconds) {
         if (seconds <= 0) {
+            hold.release();
             return;
         }
-        HunterHoldListener hold = new HunterHoldListener(hunt);
-        run.listen(hold);
-        // A hunt over before the head start is leaves nobody frozen until the timer comes round.
-        run.session().onFinish(outcome -> hold.release());
-        run.onDisarm(hold::release);
         tell(hunt, "manhunt.head-start.begun", "seconds", String.valueOf(seconds));
         later.accept(seconds * 20L, () -> {
             hold.release();
@@ -451,7 +465,8 @@ public final class ManhuntMode implements SpeedrunMode {
         if (!live.compareAndSet(hunt, null)) {
             return;   // already ended, by whichever of the two paths got here first
         }
-        liveSession.set(null);
+        SpeedrunSession ended = liveSession.getAndSet(null);
+        watcher.ended(hunt, ended == null ? Optional.empty() : ended.outcome());
         compasses.disarm(hunt);
         eliminations.restoreAll(hunt);
         portals.clear();

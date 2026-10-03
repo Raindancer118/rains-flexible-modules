@@ -29,6 +29,12 @@ import org.bukkit.Material;
                 description = "What a hunt does to the server whitelist."),
         @Topic(path = "manhunt/start", title = "The start", icon = Material.CLOCK,
                 description = "Where everybody stands, and how long the Runners get before the chase."),
+        @Topic(path = "manhunt/variants", title = "Variants", icon = Material.TOTEM_OF_UNDYING,
+                description = "Lives, respawn waits, glowing Runners — the rules a hunt can be played by."),
+        @Topic(path = "manhunt/show", title = "What everybody sees", icon = Material.SPYGLASS,
+                description = "The sidebar, the head-start bar, the milestone titles and the summary."),
+        @Topic(path = "manhunt/stats", title = "Stats and ratings", icon = Material.WRITABLE_BOOK,
+                description = "What is remembered about every hunt, and how the sides are balanced."),
 })
 public record ManhuntSettings(
 
@@ -120,7 +126,65 @@ public record ManhuntSettings(
                 + "the last of them ends the hunt as the Hunters' win. Coming back in time costs "
                 + "nothing. 0 never catches anybody for being away. Hunters may be away as long as "
                 + "they like: the hunt simply goes on without them.")
-        int runnerOfflineGraceSeconds
+        int runnerOfflineGraceSeconds,
+
+        @In("manhunt/variants") @Title("Runner lives") @Range(min = 1, max = 10)
+        @Describe("How many deaths it takes to catch a Runner. 1 is the classic hunt: the first death "
+                + "is the last. A Runner with lives to spare respawns and runs on.")
+        int runnerLives,
+
+        @In("manhunt/variants") @Title("Hunter respawn wait (seconds)") @Range(min = 0, max = 60)
+        @Describe("How long a Hunter who died stands still after respawning — no step, no block, no "
+                + "hit — before rejoining the chase. 0 sends them straight back.")
+        int hunterRespawnDelaySeconds,
+
+        @In("manhunt/variants") @Title("Runners glow every (minutes)") @Range(min = 0, max = 60)
+        @Describe("Every this many minutes every Runner glows through walls for a few seconds, and "
+                + "everybody is warned ten seconds before. 0 never.")
+        int glowingRunnersEveryMinutes,
+
+        @In("manhunt/variants") @Title("Glow lasts (seconds)") @Range(min = 1, max = 60)
+        @Describe("How long each glow lasts.")
+        int glowingRunnersSeconds,
+
+        @In("manhunt/start") @Title("Extra head start per extra Hunter (seconds)") @Range(min = 0, max = 60)
+        @Describe("Added to the head start for every Hunter beyond the number of Runners, so a big pack "
+                + "gives the Runners more room. 0 keeps the head start fixed.")
+        int headStartPerHunterSeconds,
+
+        @In("manhunt/show") @Title("Sidebar")
+        @Describe("Whether everybody in a hunt sees a sidebar: the clock, every Runner with their "
+                + "dimension, lives and distance, and the Hunters. Each player can hide it for "
+                + "themselves with /manhunt hud.")
+        boolean hudSidebar,
+
+        @In("manhunt/show") @Title("Head-start bar")
+        @Describe("Whether a boss bar counts the Runners' head start down for everybody.")
+        boolean hudHeadStartBar,
+
+        @In("manhunt/show") @Title("Milestone titles")
+        @Describe("Whether everybody gets a title and a sound when a Runner first reaches the Nether, a "
+                + "fortress, a blaze rod, the stronghold, the End, and when the dragon is half dead. "
+                + "Each player can mute them with /manhunt announcements.")
+        boolean announceMilestones,
+
+        @In("manhunt/show") @Title("Summary in chat")
+        @Describe("Whether everybody in a hunt gets its summary in chat at the end: who caught whom, "
+                + "the splits and the MVPs, with a button to the full page.")
+        boolean summaryInChat,
+
+        @In("manhunt/stats") @Title("Keep stats and ratings")
+        @Describe("Whether every hunt is added to each player's stats and moves their rating. Off, "
+                + "nothing new is remembered; what was is kept.")
+        boolean statsEnabled,
+
+        @In("manhunt/stats") @Title("Past hunts kept") @Range(min = 0, max = 200)
+        @Describe("How many finished hunts are kept with their whole timeline, for /manhunt history.")
+        int historyKept,
+
+        @In("manhunt/stats") @Title("Most Runners when balancing") @Range(min = 0, max = 10)
+        @Describe("The most Runners auto-balance may pick. 0 lets it choose, up to a third of the lobby.")
+        int balanceMaxRunners
 
 ) {
 
@@ -135,12 +199,15 @@ public record ManhuntSettings(
      * their own, distance shown, twice a second, no team compass, a particle trail, no compasses for
      * the Runners, the two sides fixed for the length of a hunt, anybody may run, Hunters may fight
      * each other however they like, no head start, nobody arranged in a circle, a Runner caught after
-     * five minutes away, and the server's own door left exactly as the owner set it — a plugin that
-     * quietly whitelists a server is a plugin that locked somebody out of their own.
+     * five minutes away, one life, no respawn wait, nobody glowing, the sidebar, the head-start bar,
+     * milestone titles and a summary on, stats kept with the last twenty hunts, and the server's own
+     * door left exactly as the owner set it — a plugin that quietly whitelists a server is a plugin
+     * that locked somebody out of their own.
      */
     public static final ManhuntSettings DEFAULTS = new ManhuntSettings(
             CrossWorldTracking.LAST_PORTAL, true, true, 10, false, TeamCompassItem.RECOVERY_COMPASS, true,
-            false, true, false, true, false, false, 0, false, 300);
+            false, true, false, true, false, false, 0, false, 300,
+            1, 0, 0, 10, 0, true, true, true, true, true, 20, 0);
 
     // Every with… takes its parameter named after the component it replaces, so the parameter shadows
     // exactly that field and a swapped argument does not compile. ManhuntSettingsContractTest walks
@@ -153,7 +220,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withTrackerHunterMayChoose(boolean trackerHunterMayChoose) {
@@ -161,7 +231,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withTrackerShowDistance(boolean trackerShowDistance) {
@@ -169,7 +242,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withTrackerRefreshTicks(int trackerRefreshTicks) {
@@ -177,7 +253,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withTrackerTeamCompass(boolean trackerTeamCompass) {
@@ -185,7 +264,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withTrackerTeamCompassItem(TeamCompassItem trackerTeamCompassItem) {
@@ -193,7 +275,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withTrackerParticleTrail(boolean trackerParticleTrail) {
@@ -201,7 +286,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withRunnerCompass(boolean runnerCompass) {
@@ -209,7 +297,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withRunnerStructureCompass(boolean runnerStructureCompass) {
@@ -217,7 +308,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withSideSwitchingMidHunt(boolean sideSwitchingMidHunt) {
@@ -225,7 +319,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withRunnerSelfJoin(boolean runnerSelfJoin) {
@@ -233,7 +330,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withHuntersFistsOnly(boolean huntersFistsOnly) {
@@ -241,7 +341,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withCloseWhitelistOnStart(boolean closeWhitelistOnStart) {
@@ -249,7 +352,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withHunterHeadStartSeconds(int hunterHeadStartSeconds) {
@@ -257,7 +363,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withStartInCircle(boolean startInCircle) {
@@ -265,7 +374,10 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     public ManhuntSettings withRunnerOfflineGraceSeconds(int runnerOfflineGraceSeconds) {
@@ -273,12 +385,176 @@ public record ManhuntSettings(
                 trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
                 runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
                 huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
-                runnerOfflineGraceSeconds);
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withRunnerLives(int runnerLives) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withHunterRespawnDelaySeconds(int hunterRespawnDelaySeconds) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withGlowingRunnersEveryMinutes(int glowingRunnersEveryMinutes) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withGlowingRunnersSeconds(int glowingRunnersSeconds) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withHeadStartPerHunterSeconds(int headStartPerHunterSeconds) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withHudSidebar(boolean hudSidebar) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withHudHeadStartBar(boolean hudHeadStartBar) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withAnnounceMilestones(boolean announceMilestones) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withSummaryInChat(boolean summaryInChat) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withStatsEnabled(boolean statsEnabled) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withHistoryKept(int historyKept) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
+    }
+
+    public ManhuntSettings withBalanceMaxRunners(int balanceMaxRunners) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds, hudSidebar,
+                hudHeadStartBar, announceMilestones, summaryInChat, statsEnabled, historyKept,
+                balanceMaxRunners);
     }
 
     /** The head start, inside the range the settings screen offers. */
     public int hunterHeadStartSecondsClamped() {
         return Math.max(0, Math.min(600, hunterHeadStartSeconds));
+    }
+
+    /**
+     * The head start for a hunt of this shape: the base, plus {@link #headStartPerHunterSeconds} for
+     * every Hunter beyond the number of Runners — inside the 600 seconds the screen offers.
+     */
+    public int headStartFor(int runners, int hunters) {
+        int extra = Math.max(0, Math.min(60, headStartPerHunterSeconds)) * Math.max(0, hunters - runners);
+        return Math.min(600, hunterHeadStartSecondsClamped() + extra);
+    }
+
+    public int runnerLivesClamped() {
+        return Math.max(1, Math.min(10, runnerLives));
+    }
+
+    public int hunterRespawnDelayClamped() {
+        return Math.max(0, Math.min(60, hunterRespawnDelaySeconds));
+    }
+
+    public int glowEveryMinutesClamped() {
+        return Math.max(0, Math.min(60, glowingRunnersEveryMinutes));
+    }
+
+    public int glowSecondsClamped() {
+        return Math.max(1, Math.min(60, glowingRunnersSeconds));
+    }
+
+    public int historyKeptClamped() {
+        return Math.max(0, Math.min(200, historyKept));
     }
 
     /** The grace, inside the range the settings screen offers; 0 (or a hand-edited negative) is never. */

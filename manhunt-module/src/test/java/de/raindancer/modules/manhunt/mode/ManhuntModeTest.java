@@ -233,7 +233,8 @@ class ManhuntModeTest {
             settings.set(new ManhuntSettings(
                     de.raindancer.modules.manhunt.ManhuntSettings.CrossWorldTracking.LAST_PORTAL, true, true, 10,
                     false, de.raindancer.modules.manhunt.ManhuntSettings.TeamCompassItem.RECOVERY_COMPASS, true,
-                    false, true, false, true, false, false, 30, false, 300));
+                    false, true, false, true, false, false, 30, false, 300,
+                    1, 0, 0, 10, 0, true, true, true, true, true, 20, 0));
             java.util.List<Long> waits = new java.util.ArrayList<>();
             mode.laterWith((ticks, task) -> waits.add(ticks));
             when(plugin.getServer().getPlayer(ANNA)).thenReturn(mock(Player.class));
@@ -738,8 +739,39 @@ class ManhuntModeTest {
 
             mode.onStart(runWith(Set.of(ANNA, BEN)));
 
-            assertThat(registeredHold()).isNull();
+            // Registered all the same: it is also the respawn wait.
+            assertThat(registeredHold().isHolding()).isFalse();
             assertThat(delays).isEmpty();
+        }
+
+        @Test
+        @DisplayName("a bigger pack gives the Runners a longer head start")
+        void headStartScalesWithThePack() {
+            settings.set(ManhuntSettings.DEFAULTS.withHunterHeadStartSeconds(30).withHeadStartPerHunterSeconds(10));
+            teams.joinRunners(ANNA);
+
+            mode.onStart(runWith(Set.of(ANNA, BEN, CARO, UUID.randomUUID())));
+
+            assertThat(delays).containsExactly((30L + 2 * 10) * 20);
+        }
+
+        @Test
+        @DisplayName("whoever watches the hunt is told it began, with the hold and the head start")
+        void watcherStarted() {
+            settings.set(ManhuntSettings.DEFAULTS.withHunterHeadStartSeconds(30));
+            int[] told = {-1};
+            mode.watch(new de.raindancer.modules.manhunt.service.HuntWatcher() {
+                @Override
+                public void started(Hunt hunt, SpeedrunRun run,
+                                    de.raindancer.modules.manhunt.service.HunterHoldListener hold, int headStart) {
+                    told[0] = headStart;
+                }
+            });
+            teams.joinRunners(ANNA);
+
+            mode.onStart(runWith(Set.of(ANNA, BEN)));
+
+            assertThat(told[0]).isEqualTo(30);
         }
     }
 

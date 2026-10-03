@@ -1,6 +1,8 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.core.data.settings.SettingsMenu;
 import de.raindancer.core.ui.chat.Brand;
+import de.raindancer.modules.speedrun.util.PermissionNodes;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -72,6 +74,101 @@ public final class SpeedrunLobbyMenu extends Menu {
         }
         renderHazardDoor();
         renderModeDoor();
+        renderHub();
+    }
+
+    /**
+     * Everything else, one click away — the hub. Seeds, splits and "am I racing" beside the hazard;
+     * stats, leaderboards and history below; and for staff a toolbar that does everything a command
+     * would: start (through the pre-flight check), resume, set the clock, the roster, all settings,
+     * the setup assistant, and — on the danger slot, behind a confirmation — the reset.
+     *
+     * <p>A button somebody may not use is shown greyed with the reason rather than left out, so the
+     * page is the same page for everybody and says who to ask.
+     */
+    private void renderHub() {
+        SpeedrunToolkit kit = lobby.toolkit().orElse(null);
+        boolean admin = viewer.hasPermission(PermissionNodes.ADMIN);
+        SpeedrunActions actions = new SpeedrunActions(lobby);
+        SpeedrunLobbyState state = lobby.state();
+
+        band(MenuLayout.RULES, 3, admin, Icons.of(Material.WHEAT_SEEDS, "<white>Seeds",
+                        "<gray>" + seedLine(), "<dark_gray>Click to choose."),
+                "Staff choose the seed",
+                click -> new SpeedrunSeedMenu(lobby, viewer, this).open());
+        if (kit != null && kit.hud() != null) {
+            SpeedrunHudMode mode = kit.hud().modeOf(viewer.getUniqueId());
+            band(MenuLayout.RULES, 5, Icons.of(Material.CLOCK, "<white>My splits: " + mode.label(),
+                            "<gray>Where you see the run's splits.", "<dark_gray>Click for the next place."),
+                    click -> {
+                        actions.cycleHud(viewer);
+                        refresh();
+                    });
+        }
+        boolean spectating = lobby.isSpectator(viewer.getUniqueId());
+        band(MenuLayout.RULES, 7, viewer.hasPermission(PermissionNodes.SPECTATE),
+                Icons.of(spectating ? Material.ENDER_EYE : Material.LEATHER_BOOTS,
+                        spectating ? "<gray>You are not racing" : "<green>You are racing",
+                        "<gray>Pressing start sweeps up everybody", "<gray>racing in the lobby world.",
+                        "<dark_gray>Click to switch."),
+                "Not offered on this server",
+                click -> {
+                    lobby.toggleSpectator(viewer.getUniqueId());
+                    refresh();
+                });
+
+        if (kit != null && kit.history() != null) {
+            band(MenuLayout.LAND, 2, Icons.head(viewer.getUniqueId(), "<white>My stats",
+                            "<gray>Personal bests, runs, deaths.", "<dark_gray>Click to open."),
+                    click -> new SpeedrunStatsMenu(lobby, viewer, this, viewer.getUniqueId(), viewer.getName()).open());
+            band(MenuLayout.LAND, 4, Icons.of(Material.GOLDEN_HELMET, "<gold>Leaderboards",
+                            "<gray>Per goal, seed, game and player count.", "<dark_gray>Click to open."),
+                    click -> new SpeedrunLeaderboardMenu(lobby, viewer, this, null).open());
+            band(MenuLayout.LAND, 6, Icons.of(Material.BOOK, "<white>Past runs",
+                            "<gray>" + kit.history().size() + " kept, every split of each.", "<dark_gray>Click to open."),
+                    click -> new SpeedrunHistoryMenu(lobby, viewer, this, null, "").open());
+        }
+
+        boolean mayStart = SpeedrunScreens.mayStart(lobby, viewer);
+        toolbar(1, mayStart && state == SpeedrunLobbyState.READY,
+                Icons.of(Material.LIME_CONCRETE, "<green>Start", "<gray>Checks everything first,",
+                        "<gray>with a one-click fix for each problem."),
+                !mayStart ? "Only staff can start a run here" : "A run is already under way",
+                click -> new SpeedrunPreflightMenu(lobby, viewer, this).open());
+        toolbar(2, admin && (state == SpeedrunLobbyState.READY || state == SpeedrunLobbyState.FINISHED),
+                Icons.of(Material.RECOVERY_COMPASS, "<white>Resume a run", "<gray>Over the world as it stands,",
+                        "<gray>at a time you type — after a restart."),
+                admin ? "Only from a ready or finished lobby" : "Staff resume runs",
+                click -> actions.askForTime(viewer, "speedrun.resume.ask", time -> actions.resume(viewer, time)));
+        boolean running = state == SpeedrunLobbyState.RUNNING || state == SpeedrunLobbyState.PAUSED;
+        toolbar(3, admin && running, Icons.of(Material.COMPARATOR, "<white>Set the clock",
+                        "<gray>Type the time it should read.", "<gray>Kept on the run's record."),
+                admin ? "No run is being played" : "Staff set the clock",
+                click -> actions.askForTime(viewer, "speedrun.time.ask", time -> actions.setClock(viewer, time)));
+        toolbar(5, Icons.of(Material.PLAYER_HEAD, "<white>Who is here", "<gray>Racing, not racing, released."),
+                click -> new SpeedrunRosterMenu(lobby, viewer, this).open());
+        toolbar(6, admin && kit != null && kit.navigation() != null && kit.chat() != null,
+                Icons.of(Material.COMPARATOR, "<white>All settings", "<gray>Every speedrun setting, explained."),
+                "Staff change the settings",
+                click -> new SettingsMenu(viewer, brand(), kit.chat(), kit.navigation(), "speedrun", this).open());
+        toolbar(7, admin, Icons.of(Material.WRITABLE_BOOK, lobby.config().setupDone() ? "<white>Setup assistant"
+                                : "<gold>Setup assistant", "<gray>One question a page."),
+                "Staff set the lobby up",
+                click -> new SpeedrunSetupMenu(lobby, viewer, this, 0).open());
+        if (admin) {
+            danger(Icons.of(Material.TNT, "<red>Reset the world", "<gray>Ends any run and remakes all",
+                            "<gray>three worlds. Asks first."),
+                    click -> actions.confirmReset(viewer, this));
+        }
+    }
+
+    private String seedLine() {
+        SpeedrunSettings config = lobby.config();
+        return switch (config.seedMode() == null ? SpeedrunSeedMode.RANDOM : config.seedMode()) {
+            case RANDOM -> lobby.replayingSeed() ? "This map again, then random" : "A new seed every run";
+            case FIXED -> "Always " + (config.seed().isBlank() ? "(not set)" : config.seed());
+            case POOL -> "One of " + SpeedrunSeeds.pool(config.seedPool()).size() + " seeds";
+        };
     }
 
     /**
@@ -166,7 +263,7 @@ public final class SpeedrunLobbyMenu extends Menu {
         SpeedrunSettings config = lobby.config();
         boolean on = config.creeperSpawnChanceOnBreakPercent() > 0
                 || config.creeperSpawnChanceOnContainerPercent() > 0;
-        band(MenuLayout.RULES, 4,
+        band(MenuLayout.RULES, 1,
                 Icons.of(on ? Material.CREEPER_HEAD : Material.BARRIER,
                         on ? "<gold>Creeper hazard" : "<gray>Creeper hazard",
                         "<gray>Creepers where a racer mines or loots.",
@@ -203,6 +300,9 @@ public final class SpeedrunLobbyMenu extends Menu {
                 ? "<dark_gray>The world resets for the next run in a moment."
                 : "<dark_gray>Resets once everybody here has left.");
         band(MenuLayout.WHO, 4, Icons.of(Material.NETHER_STAR, "<white>Finished!", lore));
+        lobby.lastRun().ifPresent(run -> band(MenuLayout.WHO, 6, Icons.of(Material.FILLED_MAP,
+                        "<white>This run's summary", "<gray>Every split, death and pause.", "<dark_gray>Click to open."),
+                click -> new SpeedrunRunSummaryMenu(lobby, run, viewer, this).open()));
     }
 
     private static Material deathIcon(SpeedrunDeathPolicy policy) {

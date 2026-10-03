@@ -49,7 +49,9 @@ class SpeedrunLobbyListenerTest {
         lobby = mock(SpeedrunLobby.class);
         items = mock(SpeedrunLobbyItems.class);
         messages = mock(Messages.class);
-        listener = new SpeedrunLobbyListener(mock(Plugin.class), lobby, items, null, messages);
+        Plugin plugin = mock(Plugin.class);
+        when(plugin.isEnabled()).thenReturn(true);   // a live plugin schedules; a disabled one runs in place
+        listener = new SpeedrunLobbyListener(plugin, lobby, items, null, messages);
     }
 
     private Player playerWithId(UUID id) {

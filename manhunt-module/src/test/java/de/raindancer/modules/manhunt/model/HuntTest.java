@@ -181,4 +181,15 @@ class HuntTest {
         assertThat(hunt.isHunter(DAN)).isTrue();
         assertThat(hunt.livingRunners()).containsExactlyInAnyOrder(ANNA, CARO);
     }
+
+    @Test
+    @DisplayName("deaths are counted per Runner, for lives")
+    void deathsCount() {
+        Hunt hunt = Hunt.of(Set.of(ANNA, BEN), Set.of(ANNA));
+
+        assertThat(hunt.recordDeath(ANNA)).isEqualTo(1);
+        assertThat(hunt.recordDeath(ANNA)).isEqualTo(2);
+        assertThat(hunt.deathsOf(ANNA)).isEqualTo(2);
+        assertThat(hunt.deathsOf(BEN)).isZero();
+    }
 }

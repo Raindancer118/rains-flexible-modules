@@ -62,6 +62,8 @@ class ChainServiceTest {
     @BeforeEach
     void setUp() {
         plugin = mock(Plugin.class);
+        // A live plugin schedules; a disabled one (a bare mock) runs in place — see Scheduling.isLive.
+        org.mockito.Mockito.lenient().when(plugin.isEnabled()).thenReturn(true);
         server = mock(Server.class);
         pluginManager = mock(PluginManager.class);
         // lenient: not every test in this class reaches an end condition or a world reset, so not

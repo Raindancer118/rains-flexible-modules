@@ -9,6 +9,7 @@ import de.raindancer.core.ui.actionbar.ActionBars;
 import de.raindancer.core.ui.bossbar.BossBars;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.world.manage.WorldSeed;
 import de.raindancer.modules.speedrun.conditions.AdvancementEndCondition;
 import de.raindancer.modules.speedrun.conditions.DeathEndCondition;
 import de.raindancer.modules.speedrun.conditions.DragonExitEndCondition;
@@ -28,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -209,6 +211,17 @@ public final class SpeedrunLobby {
     private volatile SpeedrunMode runMode;
     /** The production launcher's countdown, so {@link #shutdown} can stop it. */
     private volatile SpeedrunCountdown activeCountdown;
+    /** The run's milestones — registered with the session, gone with it. */
+    private SpeedrunMilestoneListener milestones;
+    /** The splits of the run under way, or of the finished one until it is reset. */
+    private volatile SpeedrunSplitTracker splits;
+    /** History, HUD, buttons — see {@link SpeedrunToolkit}; {@code null} for a bare lobby. */
+    private volatile SpeedrunToolkit toolkit;
+    /** The run that ended last, as the history keeps it — for the finished page's summary button. */
+    private volatile SpeedrunRunRecord lastRun;
+    /** "Same seed again": the next reset reuses the run's seed, once. */
+    private volatile boolean replaySeed;
+    private final Random seedPicker = new Random();
     /** Who {@code /lemmemove} has exempted from the READY/COUNTDOWN movement freeze — see {@link #release}.
      *  Thread-safe because the command that grants this may run on a different region thread under Folia
      *  than the move event checking it. */
@@ -287,9 +300,61 @@ public final class SpeedrunLobby {
         this.later = (ticks, task) -> Scheduling.globalLater(plugin, ticks, task);
     }
 
+    /**
+     * Hands the lobby its history, HUD and chat buttons — called once by the module. Without it a
+     * run is still a run; it is just not recorded, split on screen, or offered buttons.
+     */
+    public void equip(SpeedrunToolkit toolkit) {
+        this.toolkit = toolkit;
+        if (timerDisplay != null && toolkit != null && toolkit.hud() != null) {
+            timerDisplay.alsoAppend(toolkit.hud()::actionBarSuffix);
+        }
+        if (toolkit != null && toolkit.history() != null) {
+            toolkit.history().editedRunsRankBy(() -> config().rankEditedRuns());
+        }
+    }
+
+    public Optional<SpeedrunToolkit> toolkit() {
+        return Optional.ofNullable(toolkit);
+    }
+
+    /** The splits of the run under way — or of the finished one, until it is reset. */
+    public Optional<SpeedrunSplitTracker> splits() {
+        return Optional.ofNullable(splits);
+    }
+
+    /** The run that ended last, as kept in the history — empty before any ended since the start. */
+    public Optional<SpeedrunRunRecord> lastRun() {
+        return Optional.ofNullable(lastRun);
+    }
+
+    /** "Same seed again": the next reset remakes the run's worlds from the seed they have now. */
+    public void replaySeedNextReset() {
+        replaySeed = true;
+    }
+
+    /** Whether the next reset will reuse the seed — shown on the seed page. */
+    public boolean replayingSeed() {
+        return replaySeed;
+    }
+
+    /** The seed the next reset will use, and forgets a one-off "same seed again". */
+    WorldSeed nextSeed() {
+        if (replaySeed) {
+            replaySeed = false;
+            return WorldSeed.same();
+        }
+        return SpeedrunSeeds.next(config(), seedPicker);
+    }
+
     /** For tests: runs the waits by hand instead of through Paper's scheduler. */
     void schedulesLaterWith(DelayedTask later) {
         this.later = later;
+    }
+
+    /** The plugin this lobby runs inside. */
+    public Plugin plugin() {
+        return plugin;
     }
 
     /**
@@ -640,11 +705,11 @@ public final class SpeedrunLobby {
         // Before anything else: the point /starthere set is coordinates in the world about to be
         // deleted, and the one that comes back is a different world under the same name.
         clearStartPoint();
-        worlds.regenerate(target, () -> {
+        worlds.regenerate(target, nextSeed(), () -> {
             if (!runWorld.equals(config().worldName())) {
                 // world-name was changed during the run: the next one is played in the new world,
                 // which nothing has made yet.
-                worlds.ensureExists();
+                worlds.ensureExists(nextSeed());
             }
             announceReady();
         });
@@ -724,6 +789,29 @@ public final class SpeedrunLobby {
         session = fresh;
         runWorldName = current.worldName();
         runMode = chosen;
+        SpeedrunSplitTracker tracker = new SpeedrunSplitTracker(fresh);
+        splits = tracker;
+        World playedIn = world().orElse(null);
+        long seed = playedIn == null ? 0L : playedIn.getSeed();
+        long startedAt = System.currentTimeMillis();
+        SpeedrunToolkit kit = toolkit;
+        SpeedrunHistory history = kit == null ? null : kit.history();
+        SpeedrunCategory category = new SpeedrunCategory(
+                current.hasAdvancementGoal() ? current.advancementKey() : "",
+                SpeedrunSeeds.typeOf(seed, current, history),
+                chosen == null ? "" : chosen.id(),
+                current.kit().isPractice() ? current.kit().name() : "");
+        tracker.compareWith(history, category);
+        if (resumed) {
+            fresh.timeline().record(SpeedrunTimeline.Kind.RESUMED, already, null, "");
+        }
+        milestones = new SpeedrunMilestoneListener(fresh, tracker, runWorlds, () -> config().pearlsToCollect());
+        plugin.getServer().getPluginManager().registerEvents(milestones, plugin);
+        if (kit != null) {
+            SpeedrunSplitAnnouncer announcer = new SpeedrunSplitAnnouncer(kit, this::config, fresh, tracker,
+                    this::onlookers);
+            tracker.onSplit(announcer::announce);
+        }
         occupancy = new SpeedrunOccupancyListener(fresh);
         plugin.getServer().getPluginManager().registerEvents(occupancy, plugin);
         creeperOnBreak = new SpeedrunCreeperOnBreakListener(fresh, settings);
@@ -732,6 +820,12 @@ public final class SpeedrunLobby {
         plugin.getServer().getPluginManager().registerEvents(creeperOnContainerOpen, plugin);
         fresh.onFinish(outcome -> announceFinish(fresh, outcome));
         fresh.onFinish(outcome -> restartAfterFinish(fresh));
+        if (kit != null) {
+            SpeedrunRunRecorder recorder = new SpeedrunRunRecorder(this, kit);
+            fresh.onFinish(outcome -> lastRun = recorder.record(fresh, tracker, outcome, category, seed, startedAt,
+                    chosen == null ? outcome.reason() != null && outcome.reason().startsWith("advancement:")
+                            : chosen.leaderboardEligible(outcome)));
+        }
         if (preparation != null && !resumed) {
             preparation.prepare(world().orElse(null), fresh.participants(), current.timeAtStart(),
                     current.clearAdvancementsOnStart());
@@ -755,10 +849,12 @@ public final class SpeedrunLobby {
         }
         if (resumed) {
             fresh.participants().forEach(lobbyItemTaker);
+        } else if (preparation != null && current.kit().isPractice()) {
+            preparation.handOut(fresh.participants(), current.kit());
         }
         if (chosen != null) {
             SpeedrunRun theRun = new SpeedrunRun(plugin, fresh, SpeedrunWorlds.around(current.worldName()),
-                    resumed);
+                    resumed, tracker);
             run = theRun;
             try {
                 chosen.onStart(theRun);
@@ -776,6 +872,9 @@ public final class SpeedrunLobby {
         }
         if (timerDisplay != null) {
             timerDisplay.start(fresh);
+        }
+        if (kit != null && kit.hud() != null) {
+            kit.hud().start(fresh, tracker, this::onlookers);
         }
         fresh.start(already);
         return StartOutcome.STARTED;
@@ -812,7 +911,7 @@ public final class SpeedrunLobby {
     }
 
     /** {@code "advancement:minecraft:end/kill_dragon"} → the advancement's own display name, and so on. */
-    private static String friendlyReason(String reason) {
+    static String friendlyReason(String reason) {
         if (reason == null) {
             return "?";
         }
@@ -917,6 +1016,15 @@ public final class SpeedrunLobby {
         if (creeperOnContainerOpen != null) {
             HandlerList.unregisterAll(creeperOnContainerOpen);
             creeperOnContainerOpen = null;
+        }
+        if (milestones != null) {
+            HandlerList.unregisterAll(milestones);
+            milestones = null;
+        }
+        splits = null;
+        SpeedrunToolkit kit = toolkit;
+        if (kit != null && kit.hud() != null) {
+            kit.hud().stop();
         }
         if (run != null) {
             // Whatever the mode hung on the run — its listeners, its compasses, its spectators —
@@ -1023,6 +1131,6 @@ public final class SpeedrunLobby {
 
     /** Called once, from {@code SpeedrunModule.enable} — see {@link SpeedrunWorldReset#ensureExists}. */
     public void ensureWorldExists() {
-        worlds.ensureExists();
+        worlds.ensureExists(SpeedrunSeeds.next(config(), seedPicker));
     }
 }

@@ -140,4 +140,23 @@ class HunterHoldListenerTest {
 
         assertThat(formerRunner.isCancelled()).isTrue();
     }
+
+    @Test
+    @DisplayName("after the head start, one Hunter can be held on their own until their time is up")
+    void personalHold() {
+        java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong(0);
+        HunterHoldListener timed = new HunterHoldListener(hunt, now::get);
+        timed.release();
+
+        timed.holdFor(HUNTER, 5);
+        PlayerMoveEvent walking = step(HUNTER, 3.5);
+        timed.onMove(walking);
+        assertThat(walking.isCancelled()).isTrue();
+        assertThat(timed.secondsLeft(HUNTER)).isEqualTo(5);
+
+        now.set(5_001);
+        PlayerMoveEvent later = step(HUNTER, 3.5);
+        timed.onMove(later);
+        assertThat(later.isCancelled()).isFalse();
+    }
 }

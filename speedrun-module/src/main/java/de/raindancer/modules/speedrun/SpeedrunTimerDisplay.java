@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -56,6 +57,8 @@ public final class SpeedrunTimerDisplay {
 
     /** Who else is shown the clock, asked again on every tick — see {@link #alsoShowTo}. */
     private volatile Supplier<Collection<UUID>> onlookers = Set::of;
+    /** What follows the time on one viewer's bar — the last split, for somebody who chose the action bar. */
+    private volatile Function<UUID, Component> suffix = viewer -> Component.empty();
     /** Exactly whose bar the clock is on right now, so it can be taken off again — the audience is
      *  not a fixed roster, so "everybody who was ever shown it" is the only safe thing to clear. */
     private final Set<UUID> showing = ConcurrentHashMap.newKeySet();
@@ -87,6 +90,14 @@ public final class SpeedrunTimerDisplay {
         this.onlookers = onlookers == null ? Set::of : onlookers;
     }
 
+    /**
+     * Something to show after the time, per viewer — asked on every tick. The splits HUD hangs the
+     * last split's delta here for whoever chose the action bar.
+     */
+    public void alsoAppend(Function<UUID, Component> suffix) {
+        this.suffix = suffix == null ? viewer -> Component.empty() : suffix;
+    }
+
     /** The real ticker: onto Core's own repeating scheduler, once a second. */
     public static Ticker viaScheduling(Plugin plugin) {
         return task -> {
@@ -111,8 +122,11 @@ public final class SpeedrunTimerDisplay {
         Component text = format(session.elapsed());
         Set<UUID> audience = new HashSet<>(session.participants());
         audience.addAll(onlookers.get());
+        Function<UUID, Component> after = suffix;
         for (UUID viewer : audience) {
-            actionBars.show(viewer, owner, text, ActionBars.UNTIL_CLEARED, ActionBarPriority.LOW);
+            Component extra = after.apply(viewer);
+            actionBars.show(viewer, owner, extra == null ? text : text.append(extra),
+                    ActionBars.UNTIL_CLEARED, ActionBarPriority.LOW);
         }
         // Whoever was watching a second ago and is not in the audience now — they walked out of the
         // lobby world — gets their own bar back rather than a clock frozen at the moment they left.

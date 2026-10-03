@@ -53,7 +53,7 @@ final class SpeedrunWorldReset {
      * when the configured name is the primary world: every reset on it will fail, and a warning up
      * front is easier to notice than a log line during a race.
      */
-    void ensureExists() {
+    void ensureExists(WorldSeed seed) {
         String name = worldName.get();
         World existing = Bukkit.getWorld(name);
         if (existing != null) {
@@ -63,17 +63,17 @@ final class SpeedrunWorldReset {
                         + "will always fail on it — set world-name to a dedicated world instead.", name);
             }
         } else {
-            regenerator().create(name);
+            regenerator().create(name, World.Environment.NORMAL, seed);
         }
         // Minecraft only links dimensions for the primary level's own folder layout, never for a world
         // made at runtime, so without these a nether portal in the speedrun world drops the racer into
         // the server's nether. See SpeedrunPortalListener.
         SpeedrunWorlds worlds = SpeedrunWorlds.around(name);
         if (Bukkit.getWorld(worlds.nether()) == null) {
-            regenerator().create(worlds.nether(), World.Environment.NETHER);
+            regenerator().create(worlds.nether(), World.Environment.NETHER, seed);
         }
         if (Bukkit.getWorld(worlds.theEnd()) == null) {
-            regenerator().create(worlds.theEnd(), World.Environment.THE_END);
+            regenerator().create(worlds.theEnd(), World.Environment.THE_END, seed);
         }
     }
 
@@ -105,7 +105,7 @@ final class SpeedrunWorldReset {
      * <p>Folia: unloading, deleting and recreating a world are global-region operations, and callers
      * reach this from whatever thread a command or a quit event ran on.
      */
-    void regenerate(World target, Runnable onBack) {
+    void regenerate(World target, WorldSeed seed, Runnable onBack) {
         SpeedrunWorlds worlds = SpeedrunWorlds.around(worldName.get());
         List<World> group = new ArrayList<>();
         group.add(target);
@@ -115,7 +115,7 @@ final class SpeedrunWorldReset {
                 group.add(loaded);
             }
         }
-        Scheduling.global(plugin, () -> regenerator().regenerateAll(group, WorldSeed.random(), ok -> {
+        Scheduling.global(plugin, () -> regenerator().regenerateAll(group, seed, ok -> {
             if (!ok) {
                 log.warn("Not every world of the run could be regenerated ({}); the server log says "
                         + "which, and that one still holds whatever the last run left in it.",

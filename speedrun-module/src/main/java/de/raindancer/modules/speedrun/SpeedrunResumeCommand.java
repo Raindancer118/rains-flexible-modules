@@ -33,15 +33,8 @@ public final class SpeedrunResumeCommand implements ISpeedrunCommand {
             }
             already = parsed.get();
         }
-        Set<UUID> present = live.lobby().presentInRunWorlds();
-        SpeedrunLobby.StartOutcome outcome = live.lobby().resume(present, already);
-        live.messages().send(source.getSender(), outcome == SpeedrunLobby.StartOutcome.STARTED
-                        ? "speedrun.resume.done"
-                        : outcome == SpeedrunLobby.StartOutcome.NOT_READY
-                        ? "speedrun.resume.not-ready"
-                        : live.lobby().messageFor(outcome, present),
-                "players", String.valueOf(present.size()), "time", SpeedrunTimerDisplay.plain(already),
-                "mode", live.lobby().config().gameMode());
+        // Said with the buttons that fix a refusal — the same path the menu's Resume takes.
+        new SpeedrunActions(live.lobby(), live.messages()).resume(source.getSender(), already);
     }
 
     @Override

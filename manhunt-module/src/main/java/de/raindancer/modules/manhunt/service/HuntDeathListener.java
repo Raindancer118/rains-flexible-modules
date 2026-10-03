@@ -14,6 +14,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.IntSupplier;
 
 /**
  * A death, in a hunt: a Runner is out for good, a Hunter is back in a moment.
@@ -40,14 +41,33 @@ public final class HuntDeathListener implements Listener {
     private final SpeedrunSession session;
     private final Eliminations eliminations;
     private final Messages messages;
+    private final IntSupplier lives;
+    private final HunterHoldListener hold;
+    private final IntSupplier respawnWaitSeconds;
+    private final HuntWatcher watcher;
 
     public HuntDeathListener(Plugin plugin, Hunt hunt, SpeedrunSession session,
                              Eliminations eliminations, Messages messages) {
+        this(plugin, hunt, session, eliminations, messages, () -> 1, null, () -> 0, HuntWatcher.NONE);
+    }
+
+    /**
+     * @param lives              how many deaths catch a Runner, read at each death
+     * @param hold               where a Hunter waits out {@code respawnWaitSeconds}; null for no wait
+     * @param watcher            told every death and what it cost
+     */
+    public HuntDeathListener(Plugin plugin, Hunt hunt, SpeedrunSession session, Eliminations eliminations,
+                             Messages messages, IntSupplier lives, HunterHoldListener hold,
+                             IntSupplier respawnWaitSeconds, HuntWatcher watcher) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.hunt = Objects.requireNonNull(hunt, "hunt");
         this.session = Objects.requireNonNull(session, "session");
         this.eliminations = Objects.requireNonNull(eliminations, "eliminations");
         this.messages = messages;
+        this.lives = Objects.requireNonNull(lives, "lives");
+        this.hold = hold;
+        this.respawnWaitSeconds = Objects.requireNonNull(respawnWaitSeconds, "respawnWaitSeconds");
+        this.watcher = Objects.requireNonNull(watcher, "watcher");
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -56,10 +76,26 @@ public final class HuntDeathListener implements Listener {
             return;
         }
         Player dead = event.getEntity();
-        if (!hunt.eliminate(dead.getUniqueId())) {
-            return;   // a Hunter, somebody not in this hunt, or a Runner already out
+        UUID id = dead.getUniqueId();
+        Player killer = dead.getKiller();
+        UUID by = killer == null ? null : killer.getUniqueId();
+        String byName = killer == null ? null : killer.getName();
+        if (hunt.isHunter(id)) {
+            watcher.died(hunt, id, dead.getName(), by, byName, HuntWatcher.Death.HUNTER_DIED, 0);
+            return;
         }
+        if (!hunt.isRunner(id) || hunt.isEliminated(id)) {
+            return;   // somebody not in this hunt, or a Runner already out
+        }
+        int left = lives.getAsInt() - hunt.recordDeath(id);
+        if (left > 0) {
+            tell("manhunt.life-lost", "runner", dead.getName(), "lives", String.valueOf(left));
+            watcher.died(hunt, id, dead.getName(), by, byName, HuntWatcher.Death.LIFE_LOST, left);
+            return;
+        }
+        hunt.eliminate(id);
         announceCaught(dead.getName(), hunt.livingRunners().size());
+        watcher.died(hunt, id, dead.getName(), by, byName, HuntWatcher.Death.CAUGHT, 0);
         if (hunt.allRunnersOut()) {
             session.finish(HUNTERS_WIN);
         }
@@ -74,6 +110,26 @@ public final class HuntDeathListener implements Listener {
         Player player = event.getPlayer();
         if (hunt.isEliminated(player.getUniqueId())) {
             eliminations.spectate(player);
+            return;
+        }
+        int wait = respawnWaitSeconds.getAsInt();
+        if (hold != null && wait > 0 && hunt.isHunter(player.getUniqueId())) {
+            hold.holdFor(player.getUniqueId(), wait);
+            if (messages != null) {
+                messages.send(player, "manhunt.respawn-hold", "seconds", String.valueOf(wait));
+            }
+        }
+    }
+
+    private void tell(String key, String... placeholders) {
+        if (messages == null) {
+            return;
+        }
+        for (UUID id : hunt.everybody()) {
+            Player player = plugin.getServer().getPlayer(id);
+            if (player != null) {
+                messages.send(player, key, (Object[]) placeholders);
+            }
         }
     }
 

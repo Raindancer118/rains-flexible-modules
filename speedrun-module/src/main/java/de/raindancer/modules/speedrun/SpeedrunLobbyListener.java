@@ -4,6 +4,7 @@ import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.speedrun.util.PermissionNodes;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -87,6 +88,7 @@ public final class SpeedrunLobbyListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        offerSetup(player);
         if (player.getWorld().getName().equals(lobby.config().worldName())) {
             giveItemsIfReady(player);
             return;
@@ -100,6 +102,21 @@ public final class SpeedrunLobbyListener implements Listener {
         if (lobbyWorld != null) {
             player.teleportAsync(lobbyWorld.getSpawnLocation());
         }
+    }
+
+    /**
+     * An admin joining a lobby nobody has set up yet is offered the assistant — one button, no
+     * command to remember. Never again once it was finished ({@code setup-done}).
+     */
+    private void offerSetup(Player player) {
+        if (lobby.config().setupDone() || !player.hasPermission(PermissionNodes.ADMIN)) {
+            return;
+        }
+        lobby.toolkit().map(SpeedrunToolkit::buttons).ifPresent(buttons -> player.sendMessage(
+                messages.prefixed("speedrun.setup.offer").append(Component.text(" ")).append(buttons.row(
+                        buttons.label("<gold>[Set it up]</gold>").tooltip("<gray>One question a page, a click each")
+                                .runs("/speedrun setup"),
+                        buttons.label("<gray>[Check what a start needs]</gray>").runs("/speedrun check")))));
     }
 
     /** What {@link #onJoin}'s teleport lands on, and what {@code /speedrun} lands on too. */
@@ -275,6 +292,10 @@ public final class SpeedrunLobbyListener implements Listener {
                     Scheduling.entity(plugin, racer, () -> racer.getInventory().clear());
                 }
             }
+            return;
+        }
+        if (lobby.toolkit().isPresent()) {
+            new SpeedrunActions(lobby).refuse(clicker, outcome, present);   // with the buttons that fix it
             return;
         }
         messages.send(clicker, lobby.messageFor(outcome, present), "mode", lobby.config().gameMode());

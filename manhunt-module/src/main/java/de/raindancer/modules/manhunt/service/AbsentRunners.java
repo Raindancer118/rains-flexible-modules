@@ -37,10 +37,18 @@ public final class AbsentRunners implements Listener {
     private final IntSupplier graceSeconds;
     private final BiConsumer<Long, Runnable> later;
     private final Messages messages;
+    private final HuntWatcher watcher;
     private final Map<UUID, Long> absences = new ConcurrentHashMap<>();
 
     public AbsentRunners(Plugin plugin, Hunt hunt, SpeedrunSession session, BooleanSupplier stillThisHunt,
                          IntSupplier graceSeconds, BiConsumer<Long, Runnable> later, Messages messages) {
+        this(plugin, hunt, session, stillThisHunt, graceSeconds, later, messages, HuntWatcher.NONE);
+    }
+
+    public AbsentRunners(Plugin plugin, Hunt hunt, SpeedrunSession session, BooleanSupplier stillThisHunt,
+                         IntSupplier graceSeconds, BiConsumer<Long, Runnable> later, Messages messages,
+                         HuntWatcher watcher) {
+        this.watcher = Objects.requireNonNull(watcher, "watcher");
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.hunt = Objects.requireNonNull(hunt, "hunt");
         this.session = Objects.requireNonNull(session, "session");
@@ -84,8 +92,9 @@ public final class AbsentRunners implements Listener {
             return;
         }
         int left = hunt.livingRunners().size();
+        String name = plugin.getServer().getOfflinePlayer(runner).getName();
+        watcher.caughtAway(hunt, runner, name == null ? "A Runner" : name);
         if (messages != null) {
-            String name = plugin.getServer().getOfflinePlayer(runner).getName();
             for (UUID id : hunt.everybody()) {
                 Player player = plugin.getServer().getPlayer(id);
                 if (player != null) {

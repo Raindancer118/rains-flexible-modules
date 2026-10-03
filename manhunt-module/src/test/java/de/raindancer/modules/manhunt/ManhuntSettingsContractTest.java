@@ -104,4 +104,17 @@ class ManhuntSettingsContractTest {
         throw new IllegalStateException("no distinct value known for " + type
                 + " — teach this test about it rather than skipping the component");
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("the head start grows with every Hunter beyond the Runners, inside ten minutes")
+    void headStartScales() {
+        ManhuntSettings scaled = ManhuntSettings.DEFAULTS.withHunterHeadStartSeconds(30)
+                .withHeadStartPerHunterSeconds(10);
+
+        org.assertj.core.api.Assertions.assertThat(scaled.headStartFor(1, 1)).isEqualTo(30);
+        org.assertj.core.api.Assertions.assertThat(scaled.headStartFor(1, 5)).isEqualTo(70);
+        org.assertj.core.api.Assertions.assertThat(scaled.withHunterHeadStartSeconds(590).headStartFor(1, 9))
+                .isEqualTo(600);
+        org.assertj.core.api.Assertions.assertThat(ManhuntSettings.DEFAULTS.headStartFor(1, 9)).isZero();
+    }
 }

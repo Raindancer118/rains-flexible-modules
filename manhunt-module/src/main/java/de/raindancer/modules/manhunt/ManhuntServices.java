@@ -7,12 +7,16 @@ import de.raindancer.modules.manhunt.mode.ManhuntMode;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
 import de.raindancer.modules.manhunt.service.ManhuntWhitelistService;
 import de.raindancer.modules.manhunt.service.PositionShare;
+import de.raindancer.modules.manhunt.setup.HuntDesk;
+import de.raindancer.modules.manhunt.setup.SetupState;
+import de.raindancer.modules.manhunt.stats.HuntChronicle;
 import de.raindancer.modules.manhunt.tracker.CompassHandout;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * What every command in this module needs, built once {@code ManhuntModule.enable} has the real
@@ -22,7 +26,7 @@ public record ManhuntServices(Messages messages, Brand brand, SettingsStore<Manh
                               ManhuntTeams teams, ManhuntMode mode, ManhuntWhitelistService whitelist,
                               Screens screens,
                               PositionShare share,
-                              Compasses compasses) {
+                              Compasses compasses, HuntDesk desk, HuntChronicle chronicle, SetupState setup) {
 
     /** Handing somebody a compass they lost — see {@code CompassHandout}. */
     public interface Compasses {
@@ -37,10 +41,19 @@ public record ManhuntServices(Messages messages, Brand brand, SettingsStore<Manh
         void takeAll(Player player);
     }
 
+    /** The pages a command can open — see the hub, which reaches every one of them. */
+    public enum Page { HUB, SIDES, PREFLIGHT, GOAL, RESUME, LEADERBOARD, HISTORY, SETUP }
+
     /** Opening this module's screens. An interface so the commands never import a menu class. */
     public interface Screens {
 
-        void sides(Player viewer);
+        void open(Player viewer, Page page);
+
+        /** One player's stats page. */
+        void stats(Player viewer, UUID whose);
+
+        /** One past hunt's summary page. */
+        void summary(Player viewer, int number);
 
         /**
          * Core's own "are you sure?" page, for the one thing in this module worth asking about: an

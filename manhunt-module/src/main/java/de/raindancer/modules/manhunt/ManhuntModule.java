@@ -4,7 +4,6 @@ import de.raindancer.core.RainsCore;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.chat.ChatChannels;
-import de.raindancer.core.ui.menu.ConfirmMenu;
 import de.raindancer.core.ui.profile.ProfileExtensions;
 import de.raindancer.core.world.visual.Navigator;
 import de.raindancer.modules.api.FlexModule;
@@ -14,7 +13,16 @@ import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.manhunt.mode.ManhuntMode;
 import de.raindancer.modules.manhunt.model.Hunt;
 import de.raindancer.modules.manhunt.model.ManhuntTeams;
-import de.raindancer.modules.manhunt.screen.ManhuntSidesMenu;
+import de.raindancer.modules.manhunt.hud.Announcer;
+import de.raindancer.modules.manhunt.hud.HuntTicker;
+import de.raindancer.modules.manhunt.screen.Pages;
+import de.raindancer.modules.manhunt.setup.HuntDesk;
+import de.raindancer.modules.manhunt.setup.SetupOffer;
+import de.raindancer.modules.manhunt.setup.SetupState;
+import de.raindancer.modules.manhunt.stats.HistoryStore;
+import de.raindancer.modules.manhunt.stats.HuntChronicle;
+import de.raindancer.modules.manhunt.stats.HuntRecorder;
+import de.raindancer.modules.manhunt.stats.StatsStore;
 import de.raindancer.modules.manhunt.screen.ManhuntTrackerMenu;
 import de.raindancer.modules.manhunt.screen.StructureChoiceMenu;
 import de.raindancer.modules.manhunt.screen.TrailProfileButton;
@@ -38,15 +46,25 @@ import de.raindancer.modules.manhunt.tracker.TrackerCompass;
 import de.raindancer.modules.manhunt.tracker.TrackerCompassService;
 import de.raindancer.modules.manhunt.util.PermissionNodes;
 import de.raindancer.modules.speedrun.SpeedrunModes;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Server;
+import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -65,7 +83,7 @@ import java.util.function.Supplier;
  */
 public final class ManhuntModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.22.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("manhunt", "Manhunt", "0.23.0")
             .describedAs("Runners against Hunters, played in the speedrun lobby: the lobby's own "
                     + "goal is what the Runners race for, every Hunter carries a compass that "
                     + "follows a Runner through the portal they took, a caught Runner is out for "
@@ -164,13 +182,34 @@ public final class ManhuntModule implements FlexModule {
         settings.onChange(fresh -> compasses.settingsChanged());
 
         ManhuntServices[] holder = new ManhuntServices[1];
+        Pages pages = new Pages(context.plugin(), () -> holder[0], context.chat(),
+                () -> context.core().settingsNavigation(), context.core().prompts());
         ManhuntMode liveMode = new ManhuntMode(context.plugin(), teams, eliminations, compasses, portals,
                 whitelist, context.core().messages(), settings::current,
-                // The sides page, opened from the speedrun compass' own menu. A lambda rather than a
-                // reference to the services, which are built a line below this and cannot be handed
-                // in before they exist.
-                (viewer, parent) -> new ManhuntSidesMenu(holder[0], viewer, parent).open());
+                // The hub, opened from the speedrun compass' own menu — the same page /manhunt opens.
+                (viewer, parent) -> pages.open(viewer, ManhuntServices.Page.HUB, parent));
         this.mode = liveMode;
+
+        // What every hunt leaves behind, and what everybody sees while one runs — see HuntChronicle.
+        StatsStore stats = new StatsStore(context.dataFolder().resolve("stats.yml"));
+        HistoryStore history = new HistoryStore(context.dataFolder().resolve("hunts.yml"));
+        Announcer announcer = new Announcer(context.plugin(), context.core().messages(), context.core().effects(),
+                settings::current, Announcer.SWITCH::isOn);
+        HuntChronicle chronicle = new HuntChronicle(context.plugin(), settings::current, stats, history,
+                context.core().messages(), context.core().buttons(), announcer, System::currentTimeMillis,
+                (hunt, record, run, hold, headStart) -> new HuntTicker(context.plugin(), hunt, record,
+                        run.session()::elapsed, hold, headStart, System.currentTimeMillis(), settings::current,
+                        context.core().messages(), context.core().scoreboards(), context.core().bossBars(),
+                        HuntTicker.SIDEBAR::isOn, runner -> runner.addPotionEffect(new PotionEffect(
+                                PotionEffectType.GLOWING, settings.current().glowSecondsClamped() * 20, 0,
+                                false, false))),
+                (hunt, run, keeping) -> run.listen(new HuntRecorder(hunt, run::isRunWorld, keeping::reached,
+                        keeping::portal, ManhuntModule::maxHealth)));
+        liveMode.watch(chronicle);
+        SetupState setup = new SetupState(context.dataFolder().resolve("setup.yml"));
+        HuntDesk desk = new HuntDesk(() -> present(server, context.core()), id -> nameOf(server, id), settings,
+                () -> context.core().settingsNavigation().registry(), teams, liveMode::isRunning,
+                whitelist::isClosed, stats, ManhuntModule::advancementExists, new Random());
 
         // /manhunt here: everybody told where you are, the coordinates a button that walks the clicker
         // there with Core's Navigator — see PositionShare.
@@ -184,25 +223,12 @@ public final class ManhuntModule implements FlexModule {
         ChatChannels.register(teamChannel);
 
         ManhuntServices services = new ManhuntServices(context.core().messages(),
-                context.chat().brand(), settings, teams, liveMode, whitelist,
-                new ManhuntServices.Screens() {
-                    @Override
-                    public void sides(Player viewer) {
-                        new ManhuntSidesMenu(holder[0], viewer, null).open();
-                    }
-
-                    @Override
-                    public void confirm(Player viewer, String question, List<String> consequences,
-                                        Runnable onYes) {
-                        // Core's own page, rather than a fourth copy of "are you sure?" — see
-                        // ConfirmMenu's javadoc for why no plugin writes its own any more. The
-                        // closing line is this module's, because nothing here is undone by saying no.
-                        new ConfirmMenu(viewer, context.chat().brand(), null, question, consequences,
-                                "<dark_gray>The hunt carries on either way.", onYes).open();
-                    }
-                }, navigation,
-                new CompassHandout(context.plugin(), liveHunt, compasses, context.core().messages()));
+                context.chat().brand(), settings, teams, liveMode, whitelist, pages, navigation,
+                new CompassHandout(context.plugin(), liveHunt, compasses, context.core().messages()),
+                desk, chronicle, setup);
         holder[0] = services;
+        // A server that has never set Manhunt up offers it to the first admin who logs in.
+        context.listener(new SetupOffer(setup, stats, history, context.core().messages()));
 
         // With the Runners hand-picked, everybody who has not been named is hunting — said up front
         // rather than at the start whistle. See HuntersByDefaultListener.
@@ -238,6 +264,38 @@ public final class ManhuntModule implements FlexModule {
 
         log.info("Manhunt is up, as a game the speedrun lobby can play: {} Runner(s) waiting.",
                 teams.runners().size());
+    }
+
+    /** Everybody a start would sweep up: who is in the speedrun lobby's world — everybody online without one. */
+    private static java.util.Set<UUID> present(Server server, RainsCore core) {
+        String world = core.settingsNavigation().registry().display("speedrun:world-name").trim();
+        World lobby = world.isEmpty() ? null : server.getWorld(world);
+        java.util.Set<UUID> here = new java.util.LinkedHashSet<>();
+        for (Player player : lobby != null ? lobby.getPlayers() : List.copyOf(server.getOnlinePlayers())) {
+            if (player.getGameMode() != GameMode.SPECTATOR) {
+                here.add(player.getUniqueId());
+            }
+        }
+        return here;
+    }
+
+    private static String nameOf(Server server, UUID id) {
+        Player online = server.getPlayer(id);
+        if (online != null) {
+            return online.getName();
+        }
+        String name = server.getOfflinePlayer(id).getName();
+        return name == null ? "somebody" : name;
+    }
+
+    private static boolean advancementExists(String key) {
+        NamespacedKey parsed = NamespacedKey.fromString(key);
+        return parsed != null && Bukkit.getAdvancement(parsed) != null;
+    }
+
+    private static double maxHealth(LivingEntity entity) {
+        AttributeInstance max = entity.getAttribute(Attribute.MAX_HEALTH);
+        return max == null ? entity.getHealth() : max.getValue();
     }
 
     /** A structure id this server does not know would silently find nothing — said at startup. */

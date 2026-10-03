@@ -40,7 +40,7 @@ public final class PositionShare {
         this.settings = Objects.requireNonNull(settings, "settings");
     }
 
-    static String dimension(World.Environment environment) {
+    public static String dimension(World.Environment environment) {
         return switch (environment) {
             case NETHER -> "Nether";
             case THE_END -> "End";
