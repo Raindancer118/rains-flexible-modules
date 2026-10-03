@@ -11,6 +11,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -70,11 +71,28 @@ public final class SpeedrunLobbyItems {
      * was dropped, traded or kept from before a host changed the setting.
      */
     public void give(Player player, boolean withStartBlock) {
-        player.getInventory().clear();
-        if (withStartBlock) {
-            player.getInventory().addItem(menuCompass(), startBlock());
-        } else {
-            player.getInventory().addItem(menuCompass());
+        place(player.getInventory(), withStartBlock ? List.of(menuCompass(), startBlock()) : List.of(menuCompass()));
+    }
+
+    /**
+     * Never clears: after a restart the lobby is READY while people still stand in the run's world with
+     * the run's gear, and wiping that on join destroyed a run that could otherwise be resumed. A real
+     * start clears inventories itself (the start block's click and SpeedrunPreparation).
+     */
+    void place(org.bukkit.inventory.PlayerInventory inventory, List<ItemStack> lobbyItems) {
+        take(inventory);
+        for (ItemStack item : lobbyItems) {
+            inventory.addItem(item);   // a full inventory goes without — nothing is pushed out for it
+        }
+    }
+
+    /** Every lobby item off {@code inventory}, and nothing else. */
+    public void take(org.bukkit.inventory.PlayerInventory inventory) {
+        ItemStack[] contents = inventory.getContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            if (isMenu(contents[slot]) || isStart(contents[slot])) {
+                inventory.setItem(slot, null);
+            }
         }
     }
 

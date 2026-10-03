@@ -57,6 +57,17 @@ speedrun:
   reset:
     done: "<green>The run has been ended and the world is being deleted and remade."
     countdown-in-progress: "<yellow>A countdown is already under way; let it finish, or let it start, then reset."
+  # /speedrunresume — a run over the world as it stands, after a restart.
+  resume:
+    done: "<green>Run resumed at <white><time></white> with <white><players></white> player(s), where they stand and with what they carry."
+    not-ready: "<yellow>A run is already under way or counting down — only a ready lobby can be resumed."
+    refused: "<red>The run could not be resumed: the game mode refused it. Check its sides first."
+  # /speedruntime and /speedrunresume's time.
+  time:
+    usage: "<yellow>/speedruntime <time> — e.g. 42:05, 1:02:03 or 1h30m"
+    unreadable: "<red><white><time></white> is not a time. Try 42:05, 1:02:03 or 1h30m."
+    set: "<green>The run's clock now reads <white><time></white>."
+    no-run: "<yellow>No run is being played, so there is no clock to set."
   spectate:
     only-a-player: "<red>Only a player can register as not racing."
     on: "<yellow>You are now registered as not racing — pressing the start block will skip you."

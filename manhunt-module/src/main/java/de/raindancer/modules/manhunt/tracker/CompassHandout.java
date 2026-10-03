@@ -83,6 +83,29 @@ public final class CompassHandout implements ManhuntServices.Compasses {
      */
     @Override
     public void give(CommandSender sender, Player target, Optional<Kind> kind) {
+        give(sender, target, kind, kind.isPresent());
+    }
+
+    @Override
+    public void giveEverybody(CommandSender sender, Optional<Kind> kind) {
+        Hunt hunt = liveHunt.get().orElse(null);
+        if (hunt == null) {
+            messages.send(sender, "manhunt.give.no-hunt");
+            return;
+        }
+        int online = 0;
+        for (UUID id : hunt.everybody()) {
+            Player player = plugin.getServer().getPlayer(id);
+            if (player != null && !hunt.isEliminated(id)) {
+                give(sender, player, kind, false);
+                online++;
+            }
+        }
+        messages.send(sender, "manhunt.give.everybody", "players", String.valueOf(online));
+    }
+
+    /** @param sayEverything every outcome, not only a hand-out or a full inventory */
+    private void give(CommandSender sender, Player target, Optional<Kind> kind, boolean sayEverything) {
         // The inventory belongs to the target's region, which need not be the sender's.
         Scheduling.entity(plugin, target, () -> {
             List<Kind> kinds = kind.map(List::of).orElse(List.of(Kind.values()));
@@ -96,13 +119,13 @@ public final class CompassHandout implements ManhuntServices.Compasses {
                 if (outcome == Outcome.GIVEN) {
                     handed = true;
                 }
-                if (kind.isPresent() || outcome == Outcome.GIVEN || outcome == Outcome.NO_ROOM) {
+                if (sayEverything || outcome == Outcome.GIVEN || outcome == Outcome.NO_ROOM) {
                     messages.send(sender, "manhunt.give." + outcome.name().toLowerCase(Locale.ROOT)
                                     .replace('_', '-'),
                             "player", target.getName(), "compass", each.word());
                 }
             }
-            if (kind.isEmpty() && !handed) {
+            if (!sayEverything && kind.isEmpty() && !handed) {
                 messages.send(sender, "manhunt.give.nothing-missing", "player", target.getName());
             }
         });

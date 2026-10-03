@@ -34,6 +34,20 @@ public final class SpeedrunTimer {
         running = true;
     }
 
+    /** Starts timing as if {@code already} had passed — a run resumed after a restart. */
+    public synchronized void start(Duration already) {
+        start();
+        accumulatedNanos = Math.max(0L, already.toNanos());
+    }
+
+    /** Sets the reading to {@code reading}, running or not. */
+    public synchronized void set(Duration reading) {
+        accumulatedNanos = Math.max(0L, reading.toNanos());
+        if (running) {
+            startedAt = System.nanoTime();
+        }
+    }
+
     /** Stops timing without discarding what has accumulated. A no-op if not running. */
     public synchronized void pause() {
         if (!running) {

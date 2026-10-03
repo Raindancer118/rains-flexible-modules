@@ -347,6 +347,29 @@ class SpeedrunLobbyTest {
         }
 
         @Test
+        @DisplayName("a resumed run touches nobody — no reset, no clock of day — and starts at the given time")
+        void resumeTouchesNobody() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                de.raindancer.core.moderation.players.PlayerAdmin players =
+                        mock(de.raindancer.core.moderation.players.PlayerAdmin.class);
+                SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
+                SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings,
+                        (participants, onComplete) -> onComplete.run(), preparation);
+
+                assertThat(lobby.resume(Set.of(ALICE), java.time.Duration.ofMinutes(30)))
+                        .isEqualTo(SpeedrunLobby.StartOutcome.STARTED);
+
+                org.mockito.Mockito.verifyNoInteractions(players);
+                verify(world, org.mockito.Mockito.never()).setTime(org.mockito.ArgumentMatchers.anyLong());
+                bukkit.verify(() -> Bukkit.getPlayer(ALICE), org.mockito.Mockito.never());
+                assertThat(lobby.session().orElseThrow().elapsed())
+                        .isGreaterThanOrEqualTo(java.time.Duration.ofMinutes(30));
+            }
+        }
+
+        @Test
         @DisplayName("refuses a second start while a run is already under way")
         void refusesWhileAlreadyRunning() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {

@@ -303,6 +303,16 @@ class SpeedrunLobbyModeTest {
     }
 
     @Test
+    @DisplayName("the mode is told when a run is a resumed one, and an ordinary start is not")
+    void modeKnowsAResume() {
+        settings.set("game-mode", "scripted");
+        SpeedrunLobby lobby = lobby();
+        lobby.resume(Set.of(ALICE), java.time.Duration.ZERO);
+
+        assertThat(mode.started.getFirst().resumed()).isTrue();
+    }
+
+    @Test
     @DisplayName("what a mode listens to through the run is unregistered when the run is forgotten")
     void runListenersGoWithTheRun() {
         settings.set("game-mode", "scripted");

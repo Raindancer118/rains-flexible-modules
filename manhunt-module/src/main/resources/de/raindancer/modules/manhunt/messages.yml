@@ -64,7 +64,8 @@ manhunt:
     picker-title: "Find a teammate"
   # /manhunt give <player> [tracker|team|structure] — never replaces or drops anything.
   give:
-    usage: "<yellow>/manhunt give <player> [tracker|team|structure]"
+    usage: "<yellow>/manhunt give <player|all> [tracker|team|structure]"
+    everybody: "<gray>Checked <white><players></white> player(s) in the hunt; whatever was handed out is listed above."
     unknown-kind: "<red>There is no <white><compass></white> compass. Try tracker, team or structure."
     no-hunt: "<yellow>No hunt is being played, so there is nothing for a compass to point at."
     given: "<green><white><player></white> has been handed the <white><compass></white> compass."

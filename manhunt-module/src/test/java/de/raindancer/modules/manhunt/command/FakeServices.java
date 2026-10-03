@@ -69,6 +69,12 @@ final class FakeServices {
                     }
 
                     @Override
+                    public void giveEverybody(org.bukkit.command.CommandSender sender,
+                                              java.util.Optional<de.raindancer.modules.manhunt.tracker.CompassHandout.Kind> kind) {
+                        compassesGiven.add(new Object[]{"all", kind.orElse(null)});
+                    }
+
+                    @Override
                     public void takeAll(Player player) {
                         compassesTaken.add(player);
                     }

@@ -25,6 +25,10 @@ public record ManhuntServices(Messages messages, Brand brand, SettingsStore<Manh
         void give(org.bukkit.command.CommandSender sender, Player target,
                   java.util.Optional<de.raindancer.modules.manhunt.tracker.CompassHandout.Kind> kind);
 
+        /** {@code /manhunt give all}: everybody in the hunt, and only what was handed out is said. */
+        void giveEverybody(org.bukkit.command.CommandSender sender,
+                           java.util.Optional<de.raindancer.modules.manhunt.tracker.CompassHandout.Kind> kind);
+
         /** Every compass of this module off {@code player} — they have left the hunt. */
         void takeAll(Player player);
     }

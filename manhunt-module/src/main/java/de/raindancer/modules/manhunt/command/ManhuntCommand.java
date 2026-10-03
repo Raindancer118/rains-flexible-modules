@@ -88,7 +88,7 @@ public final class ManhuntCommand implements IManhuntCommand {
         live.messages().send(sender, key);
     }
 
-    /** {@code /manhunt give <player> [tracker|team|structure]} — a lost compass back, see CompassHandout. */
+    /** {@code /manhunt give <player|all> [tracker|team|structure]} — a lost compass back, see CompassHandout. */
     private void give(ManhuntServices live, CommandSender sender, String[] args) {
         if (!sender.hasPermission(PermissionNodes.ADMIN)) {
             live.messages().send(sender, "manhunt.not-yours");
@@ -105,6 +105,10 @@ public final class ManhuntCommand implements IManhuntCommand {
                 live.messages().send(sender, "manhunt.give.unknown-kind", "compass", args[2]);
                 return;
             }
+        }
+        if (args[1].equalsIgnoreCase("all")) {
+            live.compasses().giveEverybody(sender, kind);
+            return;
         }
         Player target = Bukkit.getPlayerExact(args[1]);
         if (target == null) {
@@ -380,8 +384,9 @@ public final class ManhuntCommand implements IManhuntCommand {
         }
         if (word.equals("assign") || (word.equals("give") && args.length == 2)) {
             if (args.length == 2) {
-                return Bukkit.getOnlinePlayers().stream()
-                        .map(Player::getName)
+                return java.util.stream.Stream.concat(word.equals("give") ? java.util.stream.Stream.of("all")
+                                : java.util.stream.Stream.empty(),
+                                Bukkit.getOnlinePlayers().stream().map(Player::getName))
                         .filter(name -> name.toLowerCase(Locale.ROOT)
                                 .startsWith(args[1].toLowerCase(Locale.ROOT)))
                         .limit(50)

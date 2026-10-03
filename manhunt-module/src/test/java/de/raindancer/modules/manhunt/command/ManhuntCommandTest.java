@@ -485,6 +485,17 @@ class ManhuntCommandTest {
         }
 
         @Test
+        @DisplayName("all — everybody in the hunt")
+        void everybody() {
+            when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+
+            command.execute(source, new String[]{"give", "all", "tracker"});
+
+            assertThat(fake.compassesGiven.getFirst()).containsExactly("all",
+                    de.raindancer.modules.manhunt.tracker.CompassHandout.Kind.TRACKER);
+        }
+
+        @Test
         @DisplayName("is an admin's to do")
         void adminOnly() {
             when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(false);

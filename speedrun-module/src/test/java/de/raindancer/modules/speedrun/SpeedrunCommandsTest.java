@@ -22,14 +22,14 @@ class SpeedrunCommandsTest {
     class Declaring {
 
         @Test
-        @DisplayName("there are exactly six commands, with the names asked for")
-        void sixCommands() {
+        @DisplayName("there are exactly eight commands, with the names asked for")
+        void eightCommands() {
             List<ModuleCommand> declared = SpeedrunCommands.declared();
 
-            assertThat(declared).hasSize(6);
+            assertThat(declared).hasSize(8);
             assertThat(declared.stream().map(ModuleCommand::name)).containsExactlyInAnyOrder(
                     "speedrun", "lemmemove", "freezeagain", "starthere", "speedrunreset",
-                    "speedrunspectate");
+                    "speedrunresume", "speedruntime", "speedrunspectate");
         }
 
         @Test

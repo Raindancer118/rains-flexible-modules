@@ -29,6 +29,7 @@ public final class SpeedrunRun {
     private final Plugin plugin;
     private final SpeedrunSession session;
     private final SpeedrunWorlds worlds;
+    private final boolean resumed;
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> onDisarm = new CopyOnWriteArrayList<>();
 
@@ -37,9 +38,22 @@ public final class SpeedrunRun {
      * build one without a lobby, which is the only way to test a mode at all from the other module.
      */
     public SpeedrunRun(Plugin plugin, SpeedrunSession session, SpeedrunWorlds worlds) {
+        this(plugin, session, worlds, false);
+    }
+
+    public SpeedrunRun(Plugin plugin, SpeedrunSession session, SpeedrunWorlds worlds, boolean resumed) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.session = Objects.requireNonNull(session, "session");
         this.worlds = Objects.requireNonNull(worlds, "worlds");
+        this.resumed = resumed;
+    }
+
+    /**
+     * A run picked up after a restart ({@code /speedrunresume}): everybody is mid-game where they stand.
+     * A mode skips whatever belongs to a fresh start — head starts, hand-outs of once-only items.
+     */
+    public boolean resumed() {
+        return resumed;
     }
 
     public SpeedrunSession session() {

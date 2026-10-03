@@ -337,7 +337,9 @@ public final class ManhuntMode implements SpeedrunMode {
         tracker.armFor(hunt);
         run.listen(new TrackerListener(hunt, tracker, portals));
         run.listen(new HuntDeathListener(plugin, hunt, run.session(), eliminations, messages));
-        holdTheHunters(run, hunt);
+        if (!run.resumed()) {
+            holdTheHunters(run, hunt);
+        }
 
         if (settings.get().closeWhitelistOnStart() && !whitelist.isClosed()) {
             // Only when it was open: a server whose owner runs it whitelisted all the time must not

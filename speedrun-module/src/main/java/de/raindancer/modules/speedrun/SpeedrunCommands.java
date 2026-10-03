@@ -22,7 +22,7 @@ public final class SpeedrunCommands {
     private SpeedrunCommands() {
     }
 
-    /** The six commands this module brings, beyond the compass and the block. */
+    /** The eight commands this module brings, beyond the compass and the block. */
     public static List<ModuleCommand> declared() {
         return List.of(
                 ModuleCommand.of("speedrun", "Teleport to the speedrun lobby world",
@@ -44,6 +44,17 @@ public final class SpeedrunCommands {
                 ModuleCommand.of("speedrunreset", "Force-end the current run and regenerate the world",
                                 new SpeedrunResetCommand(SpeedrunCommands::require))
                         .needing(PermissionNodes.ADMIN)
+                        .auditUsage(),
+                ModuleCommand.of("speedrunresume",
+                                "Start a run over the world as it stands — nobody moved or cleared",
+                                new SpeedrunResumeCommand(SpeedrunCommands::require))
+                        .needing(PermissionNodes.ADMIN)
+                        .taking("[time, e.g. 42:05]")
+                        .auditUsage(),
+                ModuleCommand.of("speedruntime", "Set the running clock",
+                                new SpeedrunTimeCommand(SpeedrunCommands::require))
+                        .needing(PermissionNodes.ADMIN)
+                        .taking("<time, e.g. 42:05>")
                         .auditUsage(),
                 ModuleCommand.of("speedrunspectate", "Toggle not racing the next speedrun",
                                 new SpeedrunSpectateCommand(SpeedrunCommands::require))

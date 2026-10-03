@@ -23,7 +23,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.21.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.22.0")
             .describedAs("A speedrun lobby: pick a game, an advancement goal and a death policy "
                     + "from the compass's menu, then press the green block to race. A countdown "
                     + "freezes everyone first, and the lobby world resets once the last racer has "
@@ -55,8 +55,16 @@ public final class SpeedrunModule implements FlexModule {
         // Main thread only, same as everything else here in enable() — creating a world is a
         // main-thread operation in Paper, and nobody is on yet for it to visibly stall.
         lobby.ensureWorldExists();
+        SpeedrunLobbyItems lobbyItems = new SpeedrunLobbyItems(context.plugin());
+        lobby.takeLobbyItemsWith(id -> {
+            org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(id);
+            if (player != null) {
+                de.raindancer.core.platform.util.Scheduling.entity(context.plugin(), player,
+                        () -> lobbyItems.take(player.getInventory()));
+            }
+        });
         SpeedrunLobbyListener listener = new SpeedrunLobbyListener(context.plugin(), lobby,
-                new SpeedrunLobbyItems(context.plugin()), context.chat().brand(), context.core().messages());
+                lobbyItems, context.chat().brand(), context.core().messages());
         context.listener(listener);
         // Portal travel out of a runtime-made world falls back to the server's own dimensions, which
         // is how a racer walked out of a nether portal into the server's overworld mid-run.

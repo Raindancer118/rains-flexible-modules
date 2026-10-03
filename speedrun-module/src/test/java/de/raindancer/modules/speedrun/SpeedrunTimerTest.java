@@ -104,4 +104,25 @@ class SpeedrunTimerTest {
         assertThat(timer.elapsed()).isEqualTo(atStop);
         assertThat(timer.isRunning()).isFalse();
     }
+
+    @Test
+    void startsFromAGivenReading() {
+        SpeedrunTimer timer = new SpeedrunTimer();
+        timer.start(Duration.ofMinutes(42));
+
+        assertThat(timer.elapsed()).isBetween(Duration.ofMinutes(42), Duration.ofMinutes(42).plusSeconds(1));
+        assertThat(timer.isRunning()).isTrue();
+    }
+
+    @Test
+    void canBeSetMidRun() {
+        SpeedrunTimer timer = new SpeedrunTimer();
+        timer.start();
+        timer.set(Duration.ofMinutes(10));
+
+        assertThat(timer.elapsed()).isBetween(Duration.ofMinutes(10), Duration.ofMinutes(10).plusSeconds(1));
+        timer.pause();
+        timer.set(Duration.ofMinutes(5));
+        assertThat(timer.elapsed()).isEqualTo(Duration.ofMinutes(5));
+    }
 }

@@ -200,6 +200,26 @@ class ManhuntModeTest {
         }
 
         @Test
+        @DisplayName("a resumed hunt holds nobody — the head start was given in the hunt it continues")
+        void resumedHuntHasNoHeadStart() {
+            settings.set(new ManhuntSettings(
+                    de.raindancer.modules.manhunt.ManhuntSettings.CrossWorldTracking.LAST_PORTAL, true, true, 10,
+                    false, de.raindancer.modules.manhunt.ManhuntSettings.TeamCompassItem.RECOVERY_COMPASS, true,
+                    false, true, false, true, false, false, 30, false));
+            java.util.List<Long> waits = new java.util.ArrayList<>();
+            mode.laterWith((ticks, task) -> waits.add(ticks));
+            teams.joinRunners(ANNA);
+
+            mode.onStart(new SpeedrunRun(plugin, new SpeedrunSession(Set.of(ANNA, BEN)),
+                    SpeedrunWorlds.around("speedrun"), true));
+            assertThat(waits).isEmpty();
+
+            mode.forget();
+            mode.onStart(runWith(Set.of(ANNA, BEN)));
+            assertThat(waits).containsExactly(600L);
+        }
+
+        @Test
         @DisplayName("a server that was already whitelisted is not thrown open by a hunt ending")
         void neverOpensSomebodyElsesDoor() throws Exception {
             settings.set(ManhuntSettings.DEFAULTS.withCloseWhitelistOnStart(true));

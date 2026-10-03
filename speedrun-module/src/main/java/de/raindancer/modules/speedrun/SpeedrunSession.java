@@ -58,11 +58,25 @@ public final class SpeedrunSession {
      * say) does not restart the clock out from under a run in progress.
      */
     public synchronized void start() {
+        start(Duration.ZERO);
+    }
+
+    /** Starts with {@code already} on the clock — a run resumed after a restart. */
+    public synchronized void start(Duration already) {
         if (state != SpeedrunState.NOT_STARTED) {
             return;
         }
-        timer.start();
+        timer.start(already);
         state = SpeedrunState.RUNNING;
+    }
+
+    /** {@code /speedruntime}: the clock set by hand. Ignored once finished — the result stands. */
+    public synchronized boolean setElapsed(Duration reading) {
+        if (state == SpeedrunState.FINISHED || state == SpeedrunState.NOT_STARTED) {
+            return false;
+        }
+        timer.set(reading);
+        return true;
     }
 
     /**

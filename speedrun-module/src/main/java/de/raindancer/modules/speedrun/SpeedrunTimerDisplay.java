@@ -149,6 +149,12 @@ public final class SpeedrunTimerDisplay {
         running = null;
     }
 
+    /** The same reading as text: {@code 42:05}. */
+    public static String plain(Duration elapsed) {
+        long seconds = Math.max(0, elapsed.getSeconds());
+        return "%d:%02d".formatted(seconds / 60, seconds % 60);
+    }
+
     public static Component format(Duration elapsed) {
         long seconds = Math.max(0, elapsed.getSeconds());
         return Component.text("%d:%02d".formatted(seconds / 60, seconds % 60), NamedTextColor.YELLOW);

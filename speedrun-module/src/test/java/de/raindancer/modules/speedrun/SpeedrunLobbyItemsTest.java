@@ -89,4 +89,23 @@ class SpeedrunLobbyItemsTest {
         assertThat(items.isMenu(null)).isFalse();
         assertThat(items.isStart(null)).isFalse();
     }
+
+    @Test
+    @DisplayName("handing out the lobby items never clears what somebody carries — only old lobby items go")
+    void placeKeepsTheInventory() {
+        ItemStack diamonds = mock(ItemStack.class);
+        ItemStack oldCompass = taggedWith("menu");
+        ItemStack freshCompass = mock(ItemStack.class);
+        org.bukkit.inventory.PlayerInventory inventory = mock(org.bukkit.inventory.PlayerInventory.class);
+        when(inventory.getContents()).thenReturn(new ItemStack[]{diamonds, oldCompass, null});
+        when(inventory.addItem(org.mockito.ArgumentMatchers.any(ItemStack[].class)))
+                .thenReturn(new java.util.HashMap<>());
+
+        items.place(inventory, java.util.List.of(freshCompass));
+
+        org.mockito.Mockito.verify(inventory, org.mockito.Mockito.never()).clear();
+        org.mockito.Mockito.verify(inventory).setItem(1, null);
+        org.mockito.Mockito.verify(inventory, org.mockito.Mockito.never()).setItem(0, null);
+        org.mockito.Mockito.verify(inventory).addItem(freshCompass);
+    }
 }

@@ -97,8 +97,10 @@
              leaving the End any other way (dying, a command, the join handler) no longer does, and
              the log names who finished it. A racer reconnecting in the run's Nether or End stays there.
              1.21.0: a game mode may end its own run (SpeedrunMode.endsItself), so it can start
-             without a goal. -->
-        <plugin.version>1.21.0</plugin.version>
+             without a goal.
+             1.22.0: /speedrunresume [time] starts a run over the world as it stands — nobody moved,
+             healed or cleared; /speedruntime sets the clock. Lobby items no longer clear an inventory. -->
+        <plugin.version>1.22.0</plugin.version>
     </properties>
 
     <dependencies>

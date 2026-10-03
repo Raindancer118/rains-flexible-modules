@@ -583,6 +583,26 @@ public final class SpeedrunLobby {
      * from the same standard conditions, whatever state the map was left in.
      */
     public StartOutcome start(Collection<UUID> participants) {
+        return start(participants, false, java.time.Duration.ZERO);
+    }
+
+    /**
+     * {@code /speedrunresume}: a run started over a world already being played — after a restart lost
+     * the old one. No countdown, nobody moved, healed or cleared, the world's time and mobs left alone,
+     * and the clock starting at {@code already}. The lobby items are taken back, nothing else.
+     */
+    public StartOutcome resume(Collection<UUID> participants, java.time.Duration already) {
+        return start(participants, true, already);
+    }
+
+    /** Takes the lobby items off whoever a resumed run picked up — set by the module, which has them. */
+    public void takeLobbyItemsWith(java.util.function.Consumer<UUID> taker) {
+        this.lobbyItemTaker = taker == null ? id -> { } : taker;
+    }
+
+    private volatile java.util.function.Consumer<UUID> lobbyItemTaker = id -> { };
+
+    private StartOutcome start(Collection<UUID> participants, boolean resumed, java.time.Duration already) {
         StartOutcome problem = validate(participants);
         if (problem != null) {
             return problem;
@@ -622,7 +642,7 @@ public final class SpeedrunLobby {
         plugin.getServer().getPluginManager().registerEvents(creeperOnContainerOpen, plugin);
         fresh.onFinish(outcome -> announceFinish(fresh, outcome));
         fresh.onFinish(outcome -> restartAfterFinish());
-        if (preparation != null) {
+        if (preparation != null && !resumed) {
             preparation.prepare(world().orElse(null), fresh.participants(), current.timeAtStart(),
                     current.clearAdvancementsOnStart());
         }
@@ -635,15 +655,20 @@ public final class SpeedrunLobby {
         // Folia: a countdown reaching zero runs on whatever thread its timer owns, which is not the
         // one owning each racer — reading a player's location and writing their respawn point from
         // anywhere else throws. Each hop lands on the racer's own thread.
-        for (UUID id : fresh.participants()) {
+        // A resumed run keeps whatever respawn point each of them had — their bed is part of the game.
+        for (UUID id : resumed ? Set.<UUID>of() : fresh.participants()) {
             Player player = Bukkit.getPlayer(id);
             if (player != null) {
                 Scheduling.entity(plugin, player,
                         () -> player.setRespawnLocation(player.getLocation(), true));
             }
         }
+        if (resumed) {
+            fresh.participants().forEach(lobbyItemTaker);
+        }
         if (chosen != null) {
-            SpeedrunRun theRun = new SpeedrunRun(plugin, fresh, SpeedrunWorlds.around(current.worldName()));
+            SpeedrunRun theRun = new SpeedrunRun(plugin, fresh, SpeedrunWorlds.around(current.worldName()),
+                    resumed);
             run = theRun;
             try {
                 chosen.onStart(theRun);
@@ -662,7 +687,7 @@ public final class SpeedrunLobby {
         if (timerDisplay != null) {
             timerDisplay.start(fresh);
         }
-        fresh.start();
+        fresh.start(already);
         return StartOutcome.STARTED;
     }
 
