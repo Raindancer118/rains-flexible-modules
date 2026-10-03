@@ -25,6 +25,7 @@ import org.bukkit.inventory.ItemStack;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.IntSupplier;
+import java.util.function.Predicate;
 import java.util.function.ToDoubleFunction;
 
 /**
@@ -56,20 +57,38 @@ public final class SpeedrunMilestoneListener implements Listener {
     private final SpeedrunWorlds worlds;
     private final IntSupplier pearlTarget;
     private final ToDoubleFunction<EnderDragon> maxHealth;
+    private final Predicate<UUID> counts;
 
     public SpeedrunMilestoneListener(SpeedrunSession session, SpeedrunSplitTracker tracker,
                                      SpeedrunWorlds worlds, IntSupplier pearlTarget) {
-        this(session, tracker, worlds, pearlTarget, SpeedrunMilestoneListener::maxHealthOf);
+        this(session, tracker, worlds, pearlTarget, SpeedrunMilestoneListener::maxHealthOf, racer -> true);
+    }
+
+    /**
+     * @param counts whose progress splits the run — every racer in a race; in Manhunt only a Runner
+     *               still running ({@code SpeedrunMode.countsForGoal}), since a Hunter in the Nether is
+     *               no news about the Runners' run
+     */
+    public SpeedrunMilestoneListener(SpeedrunSession session, SpeedrunSplitTracker tracker,
+                                     SpeedrunWorlds worlds, IntSupplier pearlTarget, Predicate<UUID> counts) {
+        this(session, tracker, worlds, pearlTarget, SpeedrunMilestoneListener::maxHealthOf, counts);
     }
 
     /** For tests: the attribute registry needs a running server. */
     SpeedrunMilestoneListener(SpeedrunSession session, SpeedrunSplitTracker tracker, SpeedrunWorlds worlds,
                               IntSupplier pearlTarget, ToDoubleFunction<EnderDragon> maxHealth) {
+        this(session, tracker, worlds, pearlTarget, maxHealth, racer -> true);
+    }
+
+    SpeedrunMilestoneListener(SpeedrunSession session, SpeedrunSplitTracker tracker, SpeedrunWorlds worlds,
+                              IntSupplier pearlTarget, ToDoubleFunction<EnderDragon> maxHealth,
+                              Predicate<UUID> counts) {
         this.session = session;
         this.tracker = tracker;
         this.worlds = worlds;
         this.pearlTarget = pearlTarget;
         this.maxHealth = maxHealth;
+        this.counts = counts == null ? racer -> true : counts;
     }
 
     private static double maxHealthOf(EnderDragon dragon) {
@@ -138,7 +157,8 @@ public final class SpeedrunMilestoneListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
-        if (!racing(player) || session.state() == SpeedrunState.FINISHED) {
+        // Every racer's death is on the record, whoever counts for the splits.
+        if (!session.participants().contains(player.getUniqueId()) || session.state() == SpeedrunState.FINISHED) {
             return;
         }
         Component message = event.deathMessage();
@@ -147,7 +167,7 @@ public final class SpeedrunMilestoneListener implements Listener {
     }
 
     private boolean racing(Player player) {
-        return session.participants().contains(player.getUniqueId());
+        return session.participants().contains(player.getUniqueId()) && counts.test(player.getUniqueId());
     }
 
     private boolean inRunsEnd(Entity entity) {

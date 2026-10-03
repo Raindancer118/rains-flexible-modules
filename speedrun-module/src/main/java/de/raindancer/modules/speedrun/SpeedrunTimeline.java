@@ -36,7 +36,17 @@ public final class SpeedrunTimeline {
         /** Somebody joined mid-run. */
         JOINED,
         /** The run ended — the detail is why. */
-        FINISH
+        FINISH,
+        /** A Runner was caught for good — {@link Entry#other()} by whom, if anybody. */
+        CAUGHT,
+        /** A Runner lost one of several lives — the detail is how many are left. */
+        LIFE_LOST,
+        /** A Runner was away too long and counted as caught. */
+        CAUGHT_AWAY,
+        /** A Hunter died — {@link Entry#other()} to whom, if anybody. */
+        HUNTER_DIED,
+        /** Somebody moved between sides — the detail is the side they are on now. */
+        SIDE_CHANGED
     }
 
     /**
@@ -44,13 +54,19 @@ public final class SpeedrunTimeline {
      * @param at     the run's clock when it did
      * @param who    whose doing it was, or {@code null} for nobody's (a pause, the run itself)
      * @param detail the milestone id, the death message, the old clock reading, or the reason
+     * @param other  a second player it was about — the catcher of a caught Runner — or {@code null}
      */
-    public record Entry(Kind kind, Duration at, UUID who, String detail) {
+    public record Entry(Kind kind, Duration at, UUID who, String detail, UUID other) {
 
         public Entry {
             Objects.requireNonNull(kind, "kind");
             at = at == null || at.isNegative() ? Duration.ZERO : at;
             detail = detail == null ? "" : detail;
+        }
+
+        /** An entry about one player only. */
+        public Entry(Kind kind, Duration at, UUID who, String detail) {
+            this(kind, at, who, detail, null);
         }
     }
 
@@ -72,10 +88,15 @@ public final class SpeedrunTimeline {
 
     /** Adds anything other than a split. */
     public void record(Kind kind, Duration at, UUID who, String detail) {
+        record(kind, at, who, detail, null);
+    }
+
+    /** The same, with a second player — the Hunter who caught a Runner, say. */
+    public void record(Kind kind, Duration at, UUID who, String detail, UUID other) {
         if (kind == Kind.SPLIT) {
             throw new IllegalArgumentException("A split goes through split(), which keeps the first only.");
         }
-        entries.add(new Entry(kind, at, who, detail));
+        entries.add(new Entry(kind, at, who, detail, other));
     }
 
     /** When {@code milestoneId} was split, if it has been. */

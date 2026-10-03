@@ -15,8 +15,9 @@
 
     <name>Rain's Speedrun</name>
     <description>
-        Rain's Speedrun, as a plugin of its own. Nothing here but a build file and a descriptor: the
-        speedrun module and the standard wrapper are shaded together, and that is the whole plugin.
+        Rain's Speedrun, as a plugin of its own, Manhunt included. Nothing here but a build file and a
+        descriptor: the speedrun module and the standard wrapper are shaded together, and that is the
+        whole plugin. A server coming from RainsManhunt has its files moved in on the first start.
     </description>
 
     <properties>
@@ -106,8 +107,9 @@
              A finished run can be resumed over without regenerating the world.
              1.25.0: review — a stale reset timer can no longer regenerate a later run's world; a refused resume keeps the finished run; Folia-safe start-of-run reset; no regeneration while stopping.
              1.26.0: edge cases — only the run's own End counts for the dragon, resumed runs stay winnable, world pinned for the run, quitters dropped at zero, clean disable mid-run. Needs RainsCore 1.42.0.
-             1.27.0: one menu for everything, pre-flight check, setup assistant, live splits vs personal best and record, run history and leaderboards, seed control, practice kits. Needs RainsCore 1.43.0. -->
-        <plugin.version>1.27.0</plugin.version>
+             1.27.0: one menu for everything, pre-flight check, setup assistant, live splits vs personal best and record, run history and leaderboards, seed control, practice kits. Needs RainsCore 1.43.0.
+             1.28.0: Manhunt is built in — one plugin, one menu, one setup, one preflight, one HUD, one history; RainsManhunt's data is moved over on first start (backup kept). Security: every subcommand and button checks its own permission, player text is escaped, whitelist clear/vip need rainsmanhunt.manhunt.whitelist.admin. Needs RainsCore 1.43.0. -->
+        <plugin.version>1.28.0</plugin.version>
     </properties>
 
     <dependencies>

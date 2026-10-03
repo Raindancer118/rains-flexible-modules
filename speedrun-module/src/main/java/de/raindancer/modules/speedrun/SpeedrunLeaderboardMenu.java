@@ -76,10 +76,10 @@ public final class SpeedrunLeaderboardMenu extends PaginatedMenu<SpeedrunRunReco
 
     @Override
     protected void decorate() {
-        set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.GOLDEN_HELMET, "<gold>" + category.label(),
+        set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.GOLDEN_HELMET, "<gold>" + SpeedrunScreens.text(category.label()),
                 "<gray>" + (count == 0 ? "Any number of players" : count + " player(s)")));
         toolbar(1, Icons.of(Material.WRITABLE_BOOK, "<white>Goal",
-                        "<gray>" + (category.goal().isEmpty() ? "No goal" : SpeedrunAdvancementChooser.friendlyName(category.goal())),
+                        "<gray>" + SpeedrunScreens.text(category.goal().isEmpty() ? "No goal" : SpeedrunAdvancementChooser.friendlyName(category.goal())),
                         "<dark_gray>Click for the next one."),
                 click -> {
                     category = new SpeedrunCategory(next(goals(), category.goal()), category.seeds(),
@@ -93,7 +93,7 @@ public final class SpeedrunLeaderboardMenu extends PaginatedMenu<SpeedrunRunReco
                             ? SpeedrunSeedType.SET : SpeedrunSeedType.RANDOM, category.mode(), category.practice());
                     refresh();
                 });
-        toolbar(3, Icons.of(Material.NETHER_STAR, "<white>Game: " + (category.mode().isEmpty() ? "Speedrun" : category.mode()),
+        toolbar(3, Icons.of(Material.NETHER_STAR, "<white>Game: " + SpeedrunScreens.text(category.mode().isEmpty() ? "Speedrun" : category.mode()),
                         "<dark_gray>Click for the next one."),
                 click -> {
                     category = new SpeedrunCategory(category.goal(), category.seeds(), next(modes(), category.mode()),
@@ -112,8 +112,14 @@ public final class SpeedrunLeaderboardMenu extends PaginatedMenu<SpeedrunRunReco
                     count = COUNTS[(at + 1) % COUNTS.length];
                     refresh();
                 });
+        SpeedrunHistory history = history();
+        if (history != null && history.modesWithStandings().contains(category.mode())) {
+            toolbar(7, Icons.of(Material.PLAYER_HEAD, "<gold>Players", "<gray>Rating, wins, catches, survival.",
+                            "<dark_gray>Click for the players' board."),
+                    click -> new SpeedrunStandingsMenu(lobby, viewer, this, category.mode(), SpeedrunBoard.RATING).open());
+        }
         toolbar(6, Icons.of(category.isPractice() ? Material.TARGET : Material.DIAMOND_SWORD,
-                        "<white>" + (category.isPractice() ? "Practice: " + category.practice() : "Real runs"),
+                        "<white>" + SpeedrunScreens.text(category.isPractice() ? "Practice: " + category.practice() : "Real runs"),
                         "<dark_gray>Click for the next one."),
                 click -> {
                     category = new SpeedrunCategory(category.goal(), category.seeds(), category.mode(),
@@ -170,7 +176,7 @@ public final class SpeedrunLeaderboardMenu extends PaginatedMenu<SpeedrunRunReco
             default -> Material.PAPER;
         };
         return Icons.of(medal, "<gold>#" + place + " <white>" + SpeedrunTimerDisplay.plain(run.time()),
-                "<gray>" + String.join(", ", run.participants().values()),
+                "<gray>" + SpeedrunScreens.text(String.join(", ", run.participants().values())),
                 "<gray>" + SpeedrunRunSummaryMenu.WHEN.format(java.time.Instant.ofEpochMilli(run.startedAt())),
                 "<gray>Seed " + run.seed(),
                 "",

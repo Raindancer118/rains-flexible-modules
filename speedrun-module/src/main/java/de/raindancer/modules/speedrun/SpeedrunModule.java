@@ -7,10 +7,13 @@ import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
+import de.raindancer.modules.speedrun.manhunt.ManhuntGame;
+import de.raindancer.modules.speedrun.manhunt.ManhuntMigration;
 import de.raindancer.modules.speedrun.util.PermissionNodes;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.Locale;
@@ -28,7 +31,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.27.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.28.0")
             .describedAs("A speedrun lobby: pick a game, an advancement goal and a death policy "
                     + "from the compass's menu, then press the green block to race. A countdown "
                     + "freezes everyone first, and the lobby world resets once the last racer has "
@@ -37,6 +40,7 @@ public final class SpeedrunModule implements FlexModule {
             .by("Raindancer118");
 
     private SpeedrunLobby lobby;
+    private ManhuntGame manhunt;
 
     @Override
     public ModuleInfo info() {
@@ -51,6 +55,9 @@ public final class SpeedrunModule implements FlexModule {
         context.core().messages().defineFrom(
                 SpeedrunModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+
+        // Before anything reads a file: Manhunt's data from the plugin it used to be, carried over once.
+        ManhuntMigration.run(context.dataFolder());
 
         SettingsStore<SpeedrunSettings> settings = context.settings(SpeedrunSettings.class,
                 SpeedrunSettings.DEFAULTS);
@@ -114,12 +121,21 @@ public final class SpeedrunModule implements FlexModule {
         SpeedrunCommands.ready(new SpeedrunAdminServices(lobby, context.core().messages()));
         SpeedrunControl.ready(lobby);
 
+        // Manhunt, the game built in: after the lobby, because it is offered to it.
+        manhunt = new ManhuntGame();
+        manhunt.enable(context, lobby);
+
         context.log().info("Speedrun lobby is up: {}.",
                 lobby.state().name().toLowerCase(Locale.ROOT));
     }
 
     @Override
     public void disable() {
+        if (manhunt != null) {
+            // First: the game is withdrawn while the lobby it was offered to is still there.
+            manhunt.disable();
+            manhunt = null;
+        }
         if (lobby != null) {
             lobby.shutdown();
         }
@@ -138,7 +154,9 @@ public final class SpeedrunModule implements FlexModule {
 
     @Override
     public List<ModuleCommand> commands() {
-        return SpeedrunCommands.declared();
+        List<ModuleCommand> all = new ArrayList<>(SpeedrunCommands.declared());
+        all.addAll(ManhuntGame.commands());
+        return all;
     }
 
     /** The lobby on this server, for a host that wants to show its state. */

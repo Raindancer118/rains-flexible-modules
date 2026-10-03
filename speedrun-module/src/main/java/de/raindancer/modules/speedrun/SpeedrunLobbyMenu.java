@@ -88,14 +88,13 @@ public final class SpeedrunLobbyMenu extends Menu {
      */
     private void renderHub() {
         SpeedrunToolkit kit = lobby.toolkit().orElse(null);
-        boolean admin = viewer.hasPermission(PermissionNodes.ADMIN);
         SpeedrunActions actions = new SpeedrunActions(lobby);
         SpeedrunLobbyState state = lobby.state();
 
-        band(MenuLayout.RULES, 3, admin, Icons.of(Material.WHEAT_SEEDS, "<white>Seeds",
-                        "<gray>" + seedLine(), "<dark_gray>Click to choose."),
+        band(MenuLayout.RULES, 3, SpeedrunAccess.SEEDS.allows(lobby, viewer), Icons.of(Material.WHEAT_SEEDS,
+                        "<white>Seeds", "<gray>" + SpeedrunScreens.text(seedLine()), "<dark_gray>Click to choose."),
                 "Staff choose the seed",
-                click -> new SpeedrunSeedMenu(lobby, viewer, this).open());
+                SpeedrunAccess.SEEDS.guard(lobby, viewer, click -> new SpeedrunSeedMenu(lobby, viewer, this).open()));
         if (kit != null && kit.hud() != null) {
             SpeedrunHudMode mode = kit.hud().modeOf(viewer.getUniqueId());
             band(MenuLayout.RULES, 5, Icons.of(Material.CLOCK, "<white>My splits: " + mode.label(),
@@ -106,16 +105,16 @@ public final class SpeedrunLobbyMenu extends Menu {
                     });
         }
         boolean spectating = lobby.isSpectator(viewer.getUniqueId());
-        band(MenuLayout.RULES, 7, viewer.hasPermission(PermissionNodes.SPECTATE),
+        band(MenuLayout.RULES, 7, SpeedrunAccess.SPECTATE.allows(lobby, viewer),
                 Icons.of(spectating ? Material.ENDER_EYE : Material.LEATHER_BOOTS,
                         spectating ? "<gray>You are not racing" : "<green>You are racing",
                         "<gray>Pressing start sweeps up everybody", "<gray>racing in the lobby world.",
                         "<dark_gray>Click to switch."),
                 "Not offered on this server",
-                click -> {
+                SpeedrunAccess.SPECTATE.guard(lobby, viewer, click -> {
                     lobby.toggleSpectator(viewer.getUniqueId());
                     refresh();
-                });
+                }));
 
         if (kit != null && kit.history() != null) {
             band(MenuLayout.LAND, 2, Icons.head(viewer.getUniqueId(), "<white>My stats",
@@ -129,36 +128,47 @@ public final class SpeedrunLobbyMenu extends Menu {
                     click -> new SpeedrunHistoryMenu(lobby, viewer, this, null, "").open());
         }
 
-        boolean mayStart = SpeedrunScreens.mayStart(lobby, viewer);
+        boolean mayStart = SpeedrunAccess.START.allows(lobby, viewer);
         toolbar(1, mayStart && state == SpeedrunLobbyState.READY,
                 Icons.of(Material.LIME_CONCRETE, "<green>Start", "<gray>Checks everything first,",
                         "<gray>with a one-click fix for each problem."),
                 !mayStart ? "Only staff can start a run here" : "A run is already under way",
-                click -> new SpeedrunPreflightMenu(lobby, viewer, this).open());
-        toolbar(2, admin && (state == SpeedrunLobbyState.READY || state == SpeedrunLobbyState.FINISHED),
+                SpeedrunAccess.START.guard(lobby, viewer, click -> new SpeedrunPreflightMenu(lobby, viewer, this).open()));
+        toolbar(2, SpeedrunAccess.RESUME.allows(lobby, viewer) && (state == SpeedrunLobbyState.READY || state == SpeedrunLobbyState.FINISHED),
                 Icons.of(Material.RECOVERY_COMPASS, "<white>Resume a run", "<gray>Over the world as it stands,",
                         "<gray>at a time you type — after a restart."),
-                admin ? "Only from a ready or finished lobby" : "Staff resume runs",
-                click -> actions.askForTime(viewer, "speedrun.resume.ask", time -> actions.resume(viewer, time)));
+                SpeedrunAccess.RESUME.allows(lobby, viewer) ? "Only from a ready or finished lobby" : "Staff resume runs",
+                SpeedrunAccess.RESUME.guard(lobby, viewer, click -> actions.askForTime(viewer, "speedrun.resume.ask",
+                        time -> {
+                            if (SpeedrunAccess.RESUME.allows(lobby, viewer)) {
+                                actions.resume(viewer, time);
+                            }
+                        })));
         boolean running = state == SpeedrunLobbyState.RUNNING || state == SpeedrunLobbyState.PAUSED;
-        toolbar(3, admin && running, Icons.of(Material.COMPARATOR, "<white>Set the clock",
+        toolbar(3, SpeedrunAccess.SET_CLOCK.allows(lobby, viewer) && running, Icons.of(Material.COMPARATOR, "<white>Set the clock",
                         "<gray>Type the time it should read.", "<gray>Kept on the run's record."),
-                admin ? "No run is being played" : "Staff set the clock",
-                click -> actions.askForTime(viewer, "speedrun.time.ask", time -> actions.setClock(viewer, time)));
+                SpeedrunAccess.SET_CLOCK.allows(lobby, viewer) ? "No run is being played" : "Staff set the clock",
+                SpeedrunAccess.SET_CLOCK.guard(lobby, viewer, click -> actions.askForTime(viewer, "speedrun.time.ask",
+                        time -> {
+                            if (SpeedrunAccess.SET_CLOCK.allows(lobby, viewer)) {
+                                actions.setClock(viewer, time);
+                            }
+                        })));
         toolbar(5, Icons.of(Material.PLAYER_HEAD, "<white>Who is here", "<gray>Racing, not racing, released."),
                 click -> new SpeedrunRosterMenu(lobby, viewer, this).open());
-        toolbar(6, admin && kit != null && kit.navigation() != null && kit.chat() != null,
+        toolbar(6, SpeedrunAccess.SETTINGS.allows(lobby, viewer) && kit != null && kit.navigation() != null && kit.chat() != null,
                 Icons.of(Material.COMPARATOR, "<white>All settings", "<gray>Every speedrun setting, explained."),
                 "Staff change the settings",
-                click -> new SettingsMenu(viewer, brand(), kit.chat(), kit.navigation(), "speedrun", this).open());
-        toolbar(7, admin, Icons.of(Material.WRITABLE_BOOK, lobby.config().setupDone() ? "<white>Setup assistant"
+                SpeedrunAccess.SETTINGS.guard(lobby, viewer,
+                        click -> new SettingsMenu(viewer, brand(), kit.chat(), kit.navigation(), "speedrun", this).open()));
+        toolbar(7, SpeedrunAccess.SETUP.allows(lobby, viewer), Icons.of(Material.WRITABLE_BOOK, lobby.config().setupDone() ? "<white>Setup assistant"
                                 : "<gold>Setup assistant", "<gray>One question a page."),
                 "Staff set the lobby up",
-                click -> new SpeedrunSetupMenu(lobby, viewer, this, 0).open());
-        if (admin) {
+                SpeedrunAccess.SETUP.guard(lobby, viewer, click -> new SpeedrunSetupMenu(lobby, viewer, this, 0).open()));
+        if (SpeedrunAccess.RESET.allows(lobby, viewer)) {
             danger(Icons.of(Material.TNT, "<red>Reset the world", "<gray>Ends any run and remakes all",
                             "<gray>three worlds. Asks first."),
-                    click -> actions.confirmReset(viewer, this));
+                    SpeedrunAccess.RESET.guard(lobby, viewer, click -> actions.confirmReset(viewer, this)));
         }
     }
 
@@ -186,7 +196,7 @@ public final class SpeedrunLobbyMenu extends Menu {
         SpeedrunMode mode = lobby.mode().orElseThrow();
         List<String> lore = new ArrayList<>(mode.description());
         lore.add("<dark_gray>Click to open.");
-        band(MenuLayout.WHO, 7, Icons.of(mode.icon(), "<white>" + mode.label(), lore),
+        band(MenuLayout.WHO, 7, Icons.of(mode.icon(), "<white>" + SpeedrunScreens.text(mode.label()), lore),
                 click -> setup.get().open(viewer, this));
     }
 
@@ -215,7 +225,7 @@ public final class SpeedrunLobbyMenu extends Menu {
         lore.add("<gray>Click to cycle.");
         band(MenuLayout.WHO, 1,
                 Icons.of(chosen.map(SpeedrunMode::icon).orElse(Material.NETHER_STAR),
-                        "<white>Game: " + label, lore),
+                        "<white>Game: " + SpeedrunScreens.text(label), lore),
                 click -> {
                     lobby.settings().set("game-mode", SpeedrunModes.next(current));
                     refresh();
@@ -231,8 +241,8 @@ public final class SpeedrunLobbyMenu extends Menu {
         SpeedrunSettings config = lobby.config();
         renderModeButton();
         band(MenuLayout.WHO, 3,
-                Icons.of(Material.WRITABLE_BOOK, "<white>Goal: " + goalLabel(config), advancementLore(config)),
-                click -> new SpeedrunAdvancementChooser(lobby, messages, brand(), viewer, this).open());
+                Icons.of(Material.WRITABLE_BOOK, "<white>Goal: " + SpeedrunScreens.text(goalLabel(config)), advancementLore(config)),
+                click -> new SpeedrunGoalMenu(lobby, viewer, this).open());
         // Not drawn at all for a mode with its own rules about dying — Manhunt eliminates a Runner
         // where a race would end. A button that silently does nothing to the game being played is
         // worse than a page that does not offer it; see the class javadoc on why nothing is greyed.
@@ -293,7 +303,7 @@ public final class SpeedrunLobbyMenu extends Menu {
         }
         SpeedrunOutcome outcome = session.outcome().orElse(null);
         List<String> lore = new ArrayList<>();
-        lore.add("<gray>Ended by: " + (outcome == null ? "?" : outcome.reason()));
+        lore.add("<gray>Ended by: " + SpeedrunScreens.text(outcome == null ? "?" : SpeedrunLobby.friendlyReason(outcome.reason())));
         lore.add("<gray>Time: " + SpeedrunTimerDisplay.plain(session.elapsed()));
         lore.add("");
         lore.add(lobby.config().restartWhenRunEnds()
@@ -320,7 +330,7 @@ public final class SpeedrunLobbyMenu extends Menu {
         if (!config.hasAdvancementGoal()) {
             return List.of("<gray>None set.", "<gray>Click to pick one.");
         }
-        return List.of("<gray>" + config.advancementKey(), "", "<gray>Click to change it.");
+        return List.of("<gray>" + SpeedrunScreens.text(config.advancementKey()), "", "<gray>Click to change it.");
     }
 
     private static List<String> deathLore(SpeedrunDeathPolicy policy) {

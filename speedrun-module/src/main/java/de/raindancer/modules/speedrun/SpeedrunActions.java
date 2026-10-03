@@ -118,11 +118,12 @@ public final class SpeedrunActions {
         List<ChatButton> row = new ArrayList<>();
         boolean admin = player.hasPermission(PermissionNodes.ADMIN);
         for (SpeedrunPreflight.Fix fix : fixes) {
-            if (admin && fix != SpeedrunPreflight.Fix.NONE && fix != SpeedrunPreflight.Fix.MODE_SETUP) {
+            if (admin && fix != SpeedrunPreflight.Fix.NONE && fix != SpeedrunPreflight.Fix.MODE_SETUP
+                    && fix != SpeedrunPreflight.Fix.MODE) {
                 row.add(buttons.label("<green>[" + fixLabel(fix) + "]</green>")
                         .tooltip("<gray>" + fixTooltip(fix))
                         .forOnly(player.getUniqueId()).expiringIn(BUTTONS_LAST)
-                        .does(clicker -> onTheirThread(clicker, who -> apply(fix, who, null))));
+                        .does(clicker -> onTheirThread(clicker, who -> applyIfAllowed(fix, who, null))));
             }
         }
         row.add(buttons.label("<aqua>[Pre-flight check]</aqua>")
@@ -142,6 +143,7 @@ public final class SpeedrunActions {
             case MODE_SETUP -> "Open the game's page";
             case NO_KIT -> "Switch the kit off";
             case RANDOM_SEED -> "Use random seeds";
+            case MODE -> "Fix it";
         };
     }
 
@@ -156,7 +158,74 @@ public final class SpeedrunActions {
             case MODE_SETUP -> "Opens the game mode's own page";
             case NO_KIT -> "Sets practice-kit to NONE, so the run is ranked";
             case RANDOM_SEED -> "Sets seed-mode to RANDOM";
+            case MODE -> "The game's own fix";
         };
+    }
+
+    /**
+     * The fix of {@code check} — the lobby's own, or the game mode's — for somebody still allowed to
+     * use it. A mode's fix needs the node of the mode's own command.
+     */
+    public void applyCheck(SpeedrunPreflight.Check check, Player by, Menu parent) {
+        if (check.fix() == SpeedrunPreflight.Fix.MODE && check.modeFix() != null) {
+            SpeedrunPreflight.ModeFix fix = check.modeFix();
+            if (fix.node() == null || by.hasPermission(fix.node())) {
+                fix.apply().accept(by);
+            } else {
+                say(by, "speedrun.command.staff-only", "word", fix.label());
+            }
+            return;
+        }
+        applyIfAllowed(check.fix(), by, parent);
+    }
+
+    /** Whether {@code by} may use {@code check}'s fix at all — what decides whether it is offered. */
+    public boolean mayFix(SpeedrunPreflight.Check check, Player by) {
+        if (check.fix() == SpeedrunPreflight.Fix.MODE) {
+            return check.modeFix() != null && (check.modeFix().node() == null || by.hasPermission(check.modeFix().node()));
+        }
+        return check.fix() != SpeedrunPreflight.Fix.NONE && (check.fix() == SpeedrunPreflight.Fix.RESET
+                ? SpeedrunAccess.RESET : SpeedrunAccess.FIX).allows(lobby, by);
+    }
+
+    /** The pre-flight check said in chat, a line per check, each red one with its fix as a button. */
+    public void checkInWords(CommandSender to) {
+        Messages messages = messages();
+        if (messages == null) {
+            return;
+        }
+        SpeedrunPreflight preflight = SpeedrunPreflight.of(lobby, lobby.presentInLobbyWorld());
+        messages.send(to, preflight.clear() ? "speedrun.check.clear" : "speedrun.check.not-clear");
+        ChatButtons buttons = kit().map(SpeedrunToolkit::buttons).orElse(null);
+        for (SpeedrunPreflight.Check check : preflight.checks()) {
+            String key = check.ok() ? "speedrun.check.ok" : check.blocking() ? "speedrun.check.problem"
+                    : "speedrun.check.warning";
+            Component line = messages.get(key, "check", check.label(), "detail", check.detail());
+            if (!check.ok() && to instanceof Player player && buttons != null && mayFix(check, player)) {
+                String label = check.fix() == SpeedrunPreflight.Fix.MODE ? check.modeFix().label() : fixLabel(check.fix());
+                String tooltip = check.fix() == SpeedrunPreflight.Fix.MODE ? check.modeFix().tooltip()
+                        : fixTooltip(check.fix());
+                line = line.append(Component.text(" ")).append(buttons.row(
+                        buttons.label("<green>[" + SpeedrunScreens.text(label) + "]</green>")
+                                .tooltip("<gray>" + SpeedrunScreens.text(tooltip))
+                                .forOnly(player.getUniqueId()).expiringIn(BUTTONS_LAST)
+                                .does(clicker -> onTheirThread(clicker, who -> applyCheck(check, who, null)))));
+            }
+            to.sendMessage(line);
+        }
+    }
+
+    /**
+     * {@link #apply}, for somebody still allowed to — a chat button outlives the moment it was sent,
+     * and a permission taken away in between must count.
+     */
+    public void applyIfAllowed(SpeedrunPreflight.Fix fix, Player by, Menu parent) {
+        SpeedrunAccess needed = fix == SpeedrunPreflight.Fix.RESET ? SpeedrunAccess.RESET : SpeedrunAccess.FIX;
+        if (needed.allows(lobby, by)) {
+            apply(fix, by, parent);
+        } else {
+            say(by, "speedrun.command.staff-only", "word", fixLabel(fix));
+        }
     }
 
     /**
@@ -165,7 +234,7 @@ public final class SpeedrunActions {
      */
     public void apply(SpeedrunPreflight.Fix fix, Player by, Menu parent) {
         switch (fix) {
-            case NONE, MODE_SETUP -> { }
+            case NONE, MODE_SETUP, MODE -> { }
             case RESET -> confirmReset(by, parent);
             case CREATE_WORLDS -> Scheduling.global(lobby.plugin(), () -> {
                 lobby.ensureWorldExists();
@@ -216,13 +285,17 @@ public final class SpeedrunActions {
     public void confirmReset(Player by, Menu parent) {
         List<String> consequences = List.of(
                 "<gray>Ends whatever run is under way.",
-                "<gray>Deletes <white>" + lobby.config().worldName() + "</white>, its nether and its End,",
+                "<gray>Deletes <white>" + SpeedrunScreens.text(lobby.config().worldName()) + "</white>, its nether and its End,",
                 "<gray>and makes new ones from the next seed.",
                 "<gray>Everybody in them is put back in the fresh lobby.");
         SpeedrunToolkit tools = kit().orElse(null);
         if (parent != null && tools != null && tools.brand() != null) {
             new ConfirmMenu(by, tools.brand(), parent, "<red>Regenerate the world?", consequences,
-                    () -> reset(by)).open();
+                    () -> {
+                        if (SpeedrunAccess.RESET.allows(lobby, by)) {
+                            reset(by);
+                        }
+                    }).open();
             return;
         }
         ChatButtons buttons = tools == null ? null : tools.buttons();
@@ -236,7 +309,11 @@ public final class SpeedrunActions {
                 .append(buttons.row(buttons.label("<red>[Yes, regenerate it]</red>")
                         .tooltip("<gray>The world is deleted. This cannot be undone.")
                         .forOnly(by.getUniqueId()).expiringIn(Duration.ofSeconds(30))
-                        .does(clicker -> onTheirThread(clicker, this::reset)))));
+                        .does(clicker -> onTheirThread(clicker, who -> {
+                            if (SpeedrunAccess.RESET.allows(lobby, who)) {
+                                reset(who);
+                            }
+                        })))));
     }
 
     /** The reset itself, said to whoever asked for it. */

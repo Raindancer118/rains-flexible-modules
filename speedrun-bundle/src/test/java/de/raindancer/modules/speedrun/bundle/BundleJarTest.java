@@ -45,7 +45,6 @@ class BundleJarTest {
 
     private static final List<Bundled> BUNDLE = List.of(
             new Bundled("speedrun", "speedrun-module", "speedrun", "SpeedrunModule"),
-            new Bundled("manhunt", "manhunt-module", "manhunt", "ManhuntModule"),
             new Bundled("chat", "chat-module", "chat", "ChatModule"),
             new Bundled("worldgate", "worldgate-module", "worldgate", "WorldGateModule"),
             new Bundled("worldutils", "worldutils-module", "worldutils", "WorldUtilsModule"));
@@ -239,6 +238,9 @@ class BundleJarTest {
         // Speedrun is inside this jar. Requiring the RainsSpeedrun plugin as well would refuse to load
         // without a second copy of the lobby beside this one.
         assertThat(yaml).doesNotContain("RainsSpeedrun:");
+        // Every module in here claims Folia on its own — Manhunt too, since its whitelist writes went
+        // onto the global region — and a jar is as Folia-safe as the least safe thing in it.
+        assertThat(yaml).contains("\nfolia-supported: true");
     }
 
     @Test

@@ -31,6 +31,12 @@ class ReuseTest implements ReuseContract {
         return Map.of("SpeedrunLobbyItems.java :: new ItemStack(",
                 "the lobby items are real items handed to a racer, not menu buttons",
                 "SpeedrunPreparation.java :: new ItemStack(",
-                "a practice kit is real blaze rods and pearls in a racer's inventory, not a menu button");
+                "a practice kit is real blaze rods and pearls in a racer's inventory, not a menu button",
+                "manhunt/tracker/TrackerCompassService.java :: new ItemStack(",
+                "Manhunt's tracking compass is a real item in a Hunter's hand",
+                "manhunt/tracker/TeamCompassService.java :: new ItemStack(",
+                "Manhunt's team compass is a real item in a racer's hand",
+                "manhunt/tracker/StructureCompassService.java :: new ItemStack(",
+                "the Runners' structure compass is a real item in their hand");
     }
 }

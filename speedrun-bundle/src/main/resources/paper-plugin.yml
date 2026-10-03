@@ -8,11 +8,13 @@ description: 'A speedrun server: the speedrun lobby, Manhunt, the chat, and the 
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
-# No folia-supported: manhunt does not claim it (see manhunt-standalone), and a jar is as Folia-safe
-# as the least safe thing in it.
+# A jar is as Folia-safe as the least safe thing in it, and every module here claims it on its own:
+# speedrun (Manhunt included — /whitelist and the hunt's door run on the global region), the chat,
+# the world gate and the world tools.
+folia-supported: true
 
-# RainsCore only. Manhunt's RainsSpeedrun dependency is inside this jar now; declaring it would
-# make Paper refuse to load this without a second, conflicting RainsSpeedrun.
+# RainsCore only. Speedrun, and Manhunt with it, is inside this jar; requiring RainsSpeedrun as well
+# would make Paper refuse to load this without a second, conflicting lobby.
 dependencies:
   bootstrap:
     RainsCore:

@@ -805,11 +805,12 @@ public final class SpeedrunLobby {
         if (resumed) {
             fresh.timeline().record(SpeedrunTimeline.Kind.RESUMED, already, null, "");
         }
-        milestones = new SpeedrunMilestoneListener(fresh, tracker, runWorlds, () -> config().pearlsToCollect());
+        milestones = new SpeedrunMilestoneListener(fresh, tracker, runWorlds, () -> config().pearlsToCollect(),
+                countsForGoal);
         plugin.getServer().getPluginManager().registerEvents(milestones, plugin);
         if (kit != null) {
             SpeedrunSplitAnnouncer announcer = new SpeedrunSplitAnnouncer(kit, this::config, fresh, tracker,
-                    this::onlookers);
+                    this::onlookers, chosen != null && chosen.titlesOnSplits());
             tracker.onSplit(announcer::announce);
         }
         occupancy = new SpeedrunOccupancyListener(fresh);
@@ -824,7 +825,7 @@ public final class SpeedrunLobby {
             SpeedrunRunRecorder recorder = new SpeedrunRunRecorder(this, kit);
             fresh.onFinish(outcome -> lastRun = recorder.record(fresh, tracker, outcome, category, seed, startedAt,
                     chosen == null ? outcome.reason() != null && outcome.reason().startsWith("advancement:")
-                            : chosen.leaderboardEligible(outcome)));
+                            : chosen.leaderboardEligible(outcome), chosen));
         }
         if (preparation != null && !resumed) {
             preparation.prepare(world().orElse(null), fresh.participants(), current.timeAtStart(),

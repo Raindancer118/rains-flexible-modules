@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.modules.speedrun.manhunt.stats.PlayerResult;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -124,6 +125,62 @@ public interface SpeedrunMode {
      */
     default boolean leaderboardEligible(SpeedrunOutcome outcome) {
         return outcome != null && outcome.reason() != null && outcome.reason().startsWith("advancement:");
+    }
+
+    /**
+     * This game's own pre-flight checks, beside the lobby's — "nobody is running" — each with a fix
+     * of its own where there is one. Asked fresh every time the check is shown; must change nothing.
+     * The lobby's own goal, world and roster checks are not repeated here.
+     */
+    default List<SpeedrunPreflight.Check> preflight(SpeedrunSettings config, Set<UUID> racers) {
+        return List.of();
+    }
+
+    /** One question of the setup assistant, asked right after the game is chosen. */
+    record SetupQuestion(String question, List<SetupAnswer> answers) {
+
+        public SetupQuestion {
+            answers = List.copyOf(answers == null ? List.of() : answers);
+        }
+    }
+
+    /** One answer: what it is called, what it means, whether it is how things are now, and what picking it does. */
+    record SetupAnswer(Material icon, String label, String detail, boolean current, Runnable pick) {
+    }
+
+    /** This game's own questions for the setup assistant — none by default. */
+    default List<SetupQuestion> setupQuestions() {
+        return List.of();
+    }
+
+    /**
+     * Whether every split is a title on everybody's screen, not only a gold one — a hunt's milestones
+     * are news for both sides. Each player can still turn split titles off for themselves.
+     */
+    default boolean titlesOnSplits() {
+        return false;
+    }
+
+    /**
+     * What each player did in a run of a game with sides — and which side won — kept with the run in
+     * the one history, and, when {@code rated}, moving everybody's standing and rating in this game.
+     *
+     * @param winner {@link SpeedrunHistory#RUNNERS}, {@link SpeedrunHistory#HUNTERS}, or empty for nobody
+     */
+    record Results(List<PlayerResult> players, String winner, boolean rated) {
+
+        public Results {
+            players = List.copyOf(players == null ? List.of() : players);
+            winner = winner == null ? "" : winner;
+        }
+    }
+
+    /**
+     * This run's per-player results, asked once as it ends, before the mode's own finish listeners
+     * run. Empty — the default — for a game without sides.
+     */
+    default Optional<Results> results(SpeedrunSession session, SpeedrunOutcome outcome) {
+        return Optional.empty();
     }
 
     /**

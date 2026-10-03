@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Boots RainsSpeedrunServer (speedrun, manhunt, chat, worldgate, worldutils in one jar) beside RainsCore on a
-# real, unmodified Paper server and checks what BundleJarTest cannot: that all five modules come up in
-# one plugin, speedrun before manhunt, that each answers its commands, that /speedrunreset still makes
-# the run's worlds, and that a second boot and both shutdowns are clean.
+# Boots RainsSpeedrunServer (speedrun with Manhunt inside, chat, worldgate, worldutils in one jar) beside
+# RainsCore on a real, unmodified Paper server and checks what BundleJarTest cannot: that all four modules
+# come up in one plugin, that Manhunt comes up inside speedrun and /manhunt still answers, that an old
+# bundle's modules/manhunt/ data is moved into modules/speedrun/ (backup kept, ratings intact), that
+# /speedrunreset still makes the run's worlds, and that a second boot and both shutdowns are clean.
 #
 # Uses the jars already built in target/ (`mvn clean install` in RainsCore and the reactor first).
 #
@@ -125,17 +126,49 @@ wait_until_count() {
 
 stage "$REACTOR_ROOT/speedrun-bundle/target" 'RainsSpeedrunServer-*.jar'
 
+# An older bundle's Manhunt data, where the separate manhunt module kept it. ManhuntMigration moves it
+# into speedrun's folder on the first start, and ManhuntImport folds the ratings into the one history.
+OLD_MANHUNT="$SERVER/plugins/RainsSpeedrunServer/modules/manhunt"
+NEW_SPEEDRUN="$SERVER/plugins/RainsSpeedrunServer/modules/speedrun"
+mkdir -p "$OLD_MANHUNT"
+cat > "$OLD_MANHUNT/stats.yml" <<'STATS'
+players:
+  11111111-1111-1111-1111-111111111111:
+    name: Anna
+    rating: 1043.5
+    hunts: 3
+    runner-hunts: 2
+    runner-wins: 1
+    hunter-hunts: 1
+    hunter-wins: 1
+    catches: 2
+    deaths: 1
+    times-caught: 1
+    survived-millis: 900000
+    best-survival-millis: 600000
+    distance: 1234.5
+    portals: 4
+STATS
+cp "$OLD_MANHUNT/stats.yml" "$WORKDIR/stats-original.yml"
+
 # ─────────────────────────────────────────────────────────────── boot 1
 boot first
 
 check "the speedrun lobby is up" wait_for 'Speedrun lobby is up' 5
-check "manhunt is up and offered to the lobby" wait_for 'Manhunt is up' 5
+check "manhunt is up inside the lobby" wait_for 'Manhunt is up, as a game the speedrun lobby can play' 5
 check "the chat is up" wait_for 'Chat is up' 5
 check "the world gate is up" wait_for 'World Gate is up' 5
 check "world utils is up" wait_for 'World Utils is up' 5
-speedrun_line="$(plain | grep -nE 'Speedrun lobby is up' | head -1 | cut -d: -f1)"
-manhunt_line="$(plain | grep -nE 'Manhunt is up' | head -1 | cut -d: -f1)"
-check "speedrun started before manhunt" bash -c "[ -n '$speedrun_line' ] && [ -n '$manhunt_line' ] && [ '$speedrun_line' -lt '$manhunt_line' ]"
+
+log "Migration: the old modules/manhunt/ data must now be speedrun's …"
+check "the old stats were moved out of modules/manhunt" test ! -e "$OLD_MANHUNT/stats.yml"
+check "a note says where they went" test -f "$OLD_MANHUNT/MOVED-TO-RAINSSPEEDRUN.txt"
+check "a byte-identical backup was kept" cmp -s "$WORKDIR/stats-original.yml" "$NEW_SPEEDRUN/backup/manhunt/stats.yml"
+check "the moved stats were imported once, and kept" cmp -s "$WORKDIR/stats-original.yml" "$NEW_SPEEDRUN/stats.yml.imported"
+check "the rating is in the one history, unchanged" grep -q '1043.5' "$NEW_SPEEDRUN/history.yml"
+anna="$(rcon 'manhunt stats Anna')"
+log "  /manhunt stats Anna → $(echo "$anna" | head -1)"
+check "/manhunt stats reads the imported rating" bash -c "grep -q 'Anna' <<<\"$anna\" && grep -qE 'rating 104[34]' <<<\"$anna\""
 
 for cmd in speedrun manhunt chathistory worldgate worlds dim w; do
   answer="$(rcon "$cmd")"
@@ -166,8 +199,10 @@ log "Boot 1 stopped."
 
 # ─────────────────────────────────────────────────────────────── boot 2
 boot second
-check "all five come up again" bash -c "for l in 'Speedrun lobby is up' 'Manhunt is up' 'Chat is up' 'World Gate is up' 'World Utils is up'; do sed -E 's/\x1b\[[0-9;]*m//g' '$LOG' | grep -q \"\$l\" || exit 1; done"
-check "the data lives in per-module subfolders" test -d "$SERVER/plugins/RainsSpeedrunServer"
+check "all four come up again, Manhunt inside speedrun" bash -c "for l in 'Speedrun lobby is up' 'Manhunt is up' 'Chat is up' 'World Gate is up' 'World Utils is up'; do sed -E 's/\x1b\[[0-9;]*m//g' '$LOG' | grep -q \"\$l\" || exit 1; done"
+check "the data lives in per-module subfolders" test -d "$NEW_SPEEDRUN"
+check "the second start imports nothing twice" bash -c "[ \"\$(grep -c '11111111-1111-1111-1111-111111111111:' '$NEW_SPEEDRUN/history.yml')\" = 1 ]"
+check "the second start brings back nothing it moved" test ! -e "$OLD_MANHUNT/stats.yml"
 log "  data folder: $(ls "$SERVER/plugins/RainsSpeedrunServer" 2>/dev/null | tr '\n' ' ')"
 stop
 check "no ERROR line from our plugins in boot 2, shutdown included" \

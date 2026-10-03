@@ -41,7 +41,7 @@ class SpeedrunMilestoneListenerTest {
         session.start();
         tracker = new SpeedrunSplitTracker(session);
         listener = new SpeedrunMilestoneListener(session, tracker, SpeedrunWorlds.around("speedrun"), () -> 12,
-                dragon -> 200.0);
+                (java.util.function.ToDoubleFunction<EnderDragon>) dragon -> 200.0);
     }
 
     private static World world(String name) {
@@ -186,5 +186,31 @@ class SpeedrunMilestoneListenerTest {
             assertThat(entry.who()).isEqualTo(ALICE);
             assertThat(entry.detail()).isEqualTo("Alice was slain by Zombie");
         });
+    }
+
+    /**
+     * In a hunt only a Runner still running makes news — a Hunter in the Nether, or a caught Runner
+     * walking into the End, splits nothing. The game says who counts (ManhuntMode.countsForGoal).
+     */
+    @Test
+    @DisplayName("only whoever the game counts splits the run — every racer in a race, a Runner still running in a hunt")
+    void onlyWhoTheGameCounts() {
+        UUID hunter = UUID.nameUUIDFromBytes("hunter".getBytes());
+        SpeedrunSession hunt = new SpeedrunSession(Set.of(ALICE, hunter));
+        hunt.start();
+        SpeedrunSplitTracker splits = new SpeedrunSplitTracker(hunt);
+        java.util.concurrent.atomic.AtomicBoolean aliceCaught = new java.util.concurrent.atomic.AtomicBoolean();
+        SpeedrunMilestoneListener listener = new SpeedrunMilestoneListener(hunt, splits,
+                SpeedrunWorlds.around("speedrun"), () -> 12,
+                (java.util.function.Predicate<UUID>) id -> ALICE.equals(id) && !aliceCaught.get());
+
+        listener.onWorldChange(new PlayerChangedWorldEvent(player(hunter, world("speedrun_the_end")), world("speedrun")));
+        assertThat(hunt.timeline().splitAt("enter-end")).as("a Hunter is no news").isEmpty();
+        aliceCaught.set(true);
+        listener.onWorldChange(new PlayerChangedWorldEvent(player(ALICE, world("speedrun_the_end")), world("speedrun")));
+        assertThat(hunt.timeline().splitAt("enter-end")).as("a caught Runner is no news").isEmpty();
+        aliceCaught.set(false);
+        listener.onWorldChange(new PlayerChangedWorldEvent(player(ALICE, world("speedrun_nether")), world("speedrun")));
+        assertThat(hunt.timeline().splitAt("enter-nether")).isPresent();
     }
 }

@@ -24,17 +24,26 @@ public final class SpeedrunHistoryMenu extends PaginatedMenu<SpeedrunRunRecord> 
     /** {@code null}: every run. */
     private final UUID whose;
     private final String whoseName;
+    /** {@code null}: every game; otherwise only runs of this game mode ("" for the plain race). */
+    private final String mode;
 
     public SpeedrunHistoryMenu(SpeedrunLobby lobby, Player viewer, Menu parent, UUID whose, String whoseName) {
+        this(lobby, viewer, parent, whose, whoseName, null);
+    }
+
+    /** Only the runs of one game — {@code /manhunt history}'s page. */
+    public SpeedrunHistoryMenu(SpeedrunLobby lobby, Player viewer, Menu parent, UUID whose, String whoseName,
+                               String mode) {
         super(viewer, SpeedrunScreens.brandOf(lobby), parent);
         this.lobby = lobby;
         this.whose = whose;
         this.whoseName = whoseName;
+        this.mode = mode;
     }
 
     @Override
     protected Component title() {
-        return MINI.deserialize("<dark_gray>" + (whose == null ? "Past runs" : "Runs of " + whoseName));
+        return MINI.deserialize("<dark_gray>" + (whose == null ? "Past runs" : "Runs of " + SpeedrunScreens.text(whoseName)));
     }
 
     @Override
@@ -48,7 +57,8 @@ public final class SpeedrunHistoryMenu extends PaginatedMenu<SpeedrunRunRecord> 
         if (history == null) {
             return List.of();
         }
-        return whose == null ? history.newestFirst() : history.runsOf(whose);
+        List<SpeedrunRunRecord> runs = whose == null ? history.newestFirst() : history.runsOf(whose);
+        return mode == null ? runs : runs.stream().filter(run -> run.category().mode().equals(mode)).toList();
     }
 
     @Override
@@ -60,9 +70,9 @@ public final class SpeedrunHistoryMenu extends PaginatedMenu<SpeedrunRunRecord> 
     protected ItemStack icon(SpeedrunRunRecord run) {
         boolean ranked = run.ranked(lobby.config().rankEditedRuns());
         List<String> lore = new ArrayList<>();
-        lore.add("<gray>" + run.category().label());
+        lore.add("<gray>" + SpeedrunScreens.text(run.category().label()));
         lore.add("<gray>" + SpeedrunRunSummaryMenu.WHEN.format(Instant.ofEpochMilli(run.startedAt())));
-        lore.add("<gray>" + String.join(", ", run.participants().values()));
+        lore.add("<gray>" + SpeedrunScreens.text(String.join(", ", run.participants().values())));
         lore.add("<gray>" + run.splits().size() + " split(s), " + run.deaths() + " death(s)");
         if (run.resumed()) {
             lore.add("<yellow>Resumed after a restart");
@@ -75,7 +85,7 @@ public final class SpeedrunHistoryMenu extends PaginatedMenu<SpeedrunRunRecord> 
         lore.add("<dark_gray>Click for every split.");
         return Icons.of(run.completed() ? Material.NETHER_STAR : Material.PAPER,
                 (run.completed() ? "<gold>" : "<gray>") + SpeedrunTimerDisplay.plain(run.time())
-                        + (run.completed() ? "" : " <dark_gray>(" + SpeedrunLobby.friendlyReason(run.outcome()) + ")"),
+                        + (run.completed() ? "" : " <dark_gray>(" + SpeedrunScreens.text(SpeedrunLobby.friendlyReason(run.outcome())) + ")"),
                 lore);
     }
 

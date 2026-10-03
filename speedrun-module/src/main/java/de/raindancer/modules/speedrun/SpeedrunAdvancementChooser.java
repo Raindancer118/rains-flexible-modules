@@ -96,7 +96,7 @@ public final class SpeedrunAdvancementChooser extends PaginatedMenu<SpeedrunAdva
     @Override
     protected ItemStack icon(Category category) {
         long count = allKeys().stream().filter(key -> categoryIdOf(key).equals(category.id())).count();
-        return Icons.of(category.icon(), "<white>" + category.title(),
+        return Icons.of(category.icon(), "<white>" + SpeedrunScreens.text(category.title()),
                 "<gray>" + count + " to choose from", "", "<gray>Click to open");
     }
 
@@ -173,7 +173,7 @@ public final class SpeedrunAdvancementChooser extends PaginatedMenu<SpeedrunAdva
 
         @Override
         protected Component title() {
-            return MINI.deserialize("<dark_gray>" + category.title());
+            return MINI.deserialize("<dark_gray>" + SpeedrunScreens.text(category.title()));
         }
 
         @Override
@@ -197,13 +197,13 @@ public final class SpeedrunAdvancementChooser extends PaginatedMenu<SpeedrunAdva
             if (display == null) {
                 // Totally hidden advancements have no display at all — see the interface javadoc.
                 // Still pickable (the key is real), just without the usual dressing.
-                return Icons.of(Material.PAPER, "<white>" + entry.asString());
+                return Icons.of(Material.PAPER, "<white>" + SpeedrunScreens.text(entry.asString()));
             }
             Material material = display.icon().getType();
             String name = PlainTextComponentSerializer
                     .plainText().serialize(display.displayName());
-            return Icons.of(material, "<white>" + name,
-                    "<gray>" + entry.asString(), "", "<gray>" + frameLabel(display.frame()));
+            return Icons.of(material, "<white>" + SpeedrunScreens.text(name),
+                    "<gray>" + SpeedrunScreens.text(entry.asString()), "", "<gray>" + frameLabel(display.frame()));
         }
 
         /**

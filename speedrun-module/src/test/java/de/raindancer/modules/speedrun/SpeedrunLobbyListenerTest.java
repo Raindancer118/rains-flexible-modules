@@ -1,6 +1,7 @@
 package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.modules.speedrun.util.PermissionNodes;
 import io.papermc.paper.threadedregions.scheduler.EntityScheduler;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -852,6 +853,75 @@ class SpeedrunLobbyListenerTest {
             listener.onMove(event);
 
             assertThat(event.isCancelled()).isFalse();
+        }
+    }
+
+    /**
+     * The one setup offer, for every game the lobby plays — Manhunt's own offer is gone with its own
+     * wizard. Only an admin is asked, and only until the setup is done.
+     */
+    @Nested
+    @DisplayName("the setup offer on join")
+    class SetupOffer {
+
+        private Player joining(boolean admin) {
+            Player player = playerWithId(ALICE);
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            when(player.getWorld()).thenReturn(world);
+            when(player.hasPermission(PermissionNodes.ADMIN)).thenReturn(admin);
+            return player;
+        }
+
+        private void lobbyWith(boolean setupDone) {
+            SpeedrunSettings d = SpeedrunSettings.DEFAULTS;
+            when(lobby.config()).thenReturn(new SpeedrunSettings(d.gameMode(), "world", d.advancementKey(),
+                    true, SpeedrunDeathPolicy.OFF, false, 0, 0, 0, 0, false, 0, 0, 0, 0, 0,
+                    true, true, true, true, true, 10, true, 1000,
+                    true, true, true, true, true, true, true, true, true, true, false, false,
+                    SpeedrunSeedMode.RANDOM, "", "", 12, SpeedrunHudMode.SIDEBAR, true, true, false,
+                    SpeedrunPracticeKit.NONE, setupDone));
+            when(lobby.state()).thenReturn(SpeedrunLobbyState.RUNNING);
+            when(lobby.toolkit()).thenReturn(java.util.Optional.of(new SpeedrunToolkit(null, null, null, messages, null,
+                    null, new de.raindancer.core.ui.chat.ChatButtons(
+                            new de.raindancer.core.ui.chat.ClickActions(System::currentTimeMillis), ""),
+                    null, null, null, null)));
+            when(messages.prefixed(org.mockito.ArgumentMatchers.anyString(), any(Object[].class)))
+                    .thenReturn(net.kyori.adventure.text.Component.text("offer"));
+        }
+
+        @Test
+        @DisplayName("an admin on a lobby nobody set up is offered the assistant, with a button")
+        void adminIsOffered() {
+            lobbyWith(false);
+            Player admin = joining(true);
+
+            listener.onJoin(new PlayerJoinEvent(admin, "hi"));
+
+            verify(messages).prefixed(org.mockito.ArgumentMatchers.eq("speedrun.setup.offer"), any(Object[].class));
+            verify(admin).sendMessage(any(net.kyori.adventure.text.Component.class));
+        }
+
+        @Test
+        @DisplayName("a player is not")
+        void playerIsNot() {
+            lobbyWith(false);
+            Player player = joining(false);
+
+            listener.onJoin(new PlayerJoinEvent(player, "hi"));
+
+            verify(player, never()).sendMessage(any(net.kyori.adventure.text.Component.class));
+        }
+
+        @Test
+        @DisplayName("once set up — or skipped — never again")
+        void notOnceDone() {
+            lobbyWith(true);
+            Player admin = joining(true);
+
+            listener.onJoin(new PlayerJoinEvent(admin, "hi"));
+
+            verify(admin, never()).sendMessage(any(net.kyori.adventure.text.Component.class));
         }
     }
 }

@@ -54,7 +54,7 @@ public final class SpeedrunRunSummaryMenu extends PaginatedMenu<SpeedrunTimeline
     @Override
     protected void decorate() {
         List<String> lore = new ArrayList<>();
-        lore.add("<gray>" + run.category().label());
+        lore.add("<gray>" + SpeedrunScreens.text(run.category().label()));
         lore.add("<gray>" + WHEN.format(Instant.ofEpochMilli(run.startedAt())) + " · "
                 + run.playerCount() + " racing");
         lore.add("<gray>Seed <white>" + run.seed());
@@ -76,31 +76,63 @@ public final class SpeedrunRunSummaryMenu extends PaginatedMenu<SpeedrunTimeline
         set(MenuLayout.HEADER_SUBJECT, Icons.of(run.completed() ? Material.NETHER_STAR : Material.BARRIER,
                 (run.completed() ? "<gold>" : "<gray>") + SpeedrunTimerDisplay.plain(run.time()), lore));
         set(MenuLayout.HEADER_RIGHT, Icons.of(Material.PLAYER_HEAD, "<white>Who raced",
-                run.participants().values().stream().map(name -> "<gray>" + name).toList()));
+                run.participants().values().stream().map(name -> "<gray>" + SpeedrunScreens.text(name)).toList()));
         super.decorate();
     }
 
     @Override
     protected ItemStack icon(SpeedrunTimeline.Entry entry) {
+        List<String> lines = lines(run, entry);
+        Material icon = switch (entry.kind()) {
+            case SPLIT -> SpeedrunMilestones.builtIn(entry.detail()).map(SpeedrunMilestone::icon).orElse(Material.PAPER);
+            case DEATH -> Material.SKELETON_SKULL;
+            case PAUSE, UNPAUSE -> Material.CLOCK;
+            case CLOCK_EDIT -> Material.COMPARATOR;
+            case RESUMED -> Material.RECOVERY_COMPASS;
+            case JOINED -> Material.LIME_DYE;
+            case LEFT -> Material.GRAY_DYE;
+            case FINISH -> Material.NETHER_STAR;
+            case CAUGHT, CAUGHT_AWAY -> Material.IRON_BARS;
+            case LIFE_LOST -> Material.RED_DYE;
+            case HUNTER_DIED -> Material.IRON_SWORD;
+            case SIDE_CHANGED -> Material.LIME_BANNER;
+        };
+        return Icons.of(icon, lines.getFirst(), lines.subList(1, lines.size()));
+    }
+
+    /**
+     * One timeline entry as MiniMessage: its title first, then its lore. Everything recorded — a
+     * name, a death message with a renamed item in it, a mode's milestone label — goes in as text.
+     */
+    static List<String> lines(SpeedrunRunRecord run, SpeedrunTimeline.Entry entry) {
         String at = SpeedrunTimerDisplay.plain(entry.at());
-        String who = entry.who() == null ? "" : run.nameOf(entry.who());
+        String who = entry.who() == null ? "" : SpeedrunScreens.text(run.nameOf(entry.who()));
+        String detail = SpeedrunScreens.text(entry.detail());
+        String by = entry.other() == null ? "" : SpeedrunScreens.text(run.nameOf(entry.other()));
         return switch (entry.kind()) {
-            case SPLIT -> Icons.of(SpeedrunMilestones.builtIn(entry.detail()).map(SpeedrunMilestone::icon)
-                            .orElse(Material.PAPER),
-                    "<yellow>" + at + " <white>" + run.labelOf(entry.detail()),
-                    who.isEmpty() ? List.of() : List.of("<gray>by " + who));
-            case DEATH -> Icons.of(Material.SKELETON_SKULL, "<red>" + at + " <white>" + who + " died",
-                    entry.detail().isEmpty() ? List.of() : List.of("<gray>" + entry.detail()));
-            case PAUSE -> Icons.of(Material.CLOCK, "<gray>" + at + " Paused", "<gray>Everybody was offline.");
-            case UNPAUSE -> Icons.of(Material.CLOCK, "<gray>" + at + " Running again");
-            case CLOCK_EDIT -> Icons.of(Material.COMPARATOR, "<gold>" + at + " Clock set by hand",
-                    "<gray>It read " + entry.detail() + " before.");
-            case RESUMED -> Icons.of(Material.RECOVERY_COMPASS, "<gold>" + at + " Resumed",
-                    "<gray>Picked up over a world already played in.");
-            case JOINED -> Icons.of(Material.LIME_DYE, "<gray>" + at + " " + who + " joined");
-            case LEFT -> Icons.of(Material.GRAY_DYE, "<gray>" + at + " " + who + " left the race");
-            case FINISH -> Icons.of(Material.NETHER_STAR, "<gold>" + at + " Over",
-                    "<gray>" + SpeedrunLobby.friendlyReason(entry.detail()));
+            case SPLIT -> who.isEmpty()
+                    ? List.of("<yellow>" + at + " <white>" + SpeedrunScreens.text(run.labelOf(entry.detail())))
+                    : List.of("<yellow>" + at + " <white>" + SpeedrunScreens.text(run.labelOf(entry.detail())),
+                            "<gray>by " + who);
+            case DEATH -> entry.detail().isEmpty() ? List.of("<red>" + at + " <white>" + who + " died")
+                    : List.of("<red>" + at + " <white>" + who + " died", "<gray>" + detail);
+            case PAUSE -> List.of("<gray>" + at + " Paused", "<gray>Everybody was offline.");
+            case UNPAUSE -> List.of("<gray>" + at + " Running again");
+            case CLOCK_EDIT -> List.of("<gold>" + at + " Clock set by hand", "<gray>It read " + detail + " before.");
+            case RESUMED -> List.of("<gold>" + at + " Resumed", "<gray>Picked up over a world already played in.");
+            case JOINED -> List.of("<gray>" + at + " " + who + " joined");
+            case LEFT -> List.of("<gray>" + at + " " + who + " left the race");
+            case FINISH -> List.of("<gold>" + at + " Over",
+                    "<gray>" + SpeedrunScreens.text(SpeedrunLobby.friendlyReason(entry.detail())));
+            case CAUGHT -> by.isEmpty() ? List.of("<red>" + at + " <white>" + who + " was caught")
+                    : List.of("<red>" + at + " <white>" + who + " was caught", "<gray>by " + by);
+            case CAUGHT_AWAY -> List.of("<red>" + at + " <white>" + who + " was away too long",
+                    "<gray>Counted as caught.");
+            case LIFE_LOST -> List.of("<gold>" + at + " <white>" + who + " lost a life",
+                    "<gray>" + detail + " left" + (by.isEmpty() ? "" : ", taken by " + by));
+            case HUNTER_DIED -> by.isEmpty() ? List.of("<gray>" + at + " <white>" + who + " (hunting) died")
+                    : List.of("<gray>" + at + " <white>" + who + " (hunting) died", "<gray>to " + by);
+            case SIDE_CHANGED -> List.of("<gray>" + at + " <white>" + who + " now " + detail);
         };
     }
 

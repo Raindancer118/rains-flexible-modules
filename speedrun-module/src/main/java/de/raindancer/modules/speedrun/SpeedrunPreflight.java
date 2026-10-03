@@ -4,11 +4,13 @@ import de.raindancer.core.world.manage.WorldRegenerator;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Everything that has to be true before a run can start — and, for each thing that is not, what
@@ -38,7 +40,18 @@ public final class SpeedrunPreflight {
         /** Switch the practice kit off. */
         NO_KIT,
         /** Switch seed-mode back to RANDOM. */
-        RANDOM_SEED
+        RANDOM_SEED,
+        /** The game mode's own fix — see {@link Check#modeFix()}. */
+        MODE
+    }
+
+    /**
+     * A fix a game mode brings for a check of its own — "pick a Runner at random".
+     *
+     * @param node  the permission a player needs to use it — the node of the mode's own command
+     * @param apply what it does, on the clicking player's own thread
+     */
+    public record ModeFix(String label, String tooltip, String node, Consumer<Player> apply) {
     }
 
     /**
@@ -47,7 +60,18 @@ public final class SpeedrunPreflight {
      * @param label    what is checked, a few words
      * @param detail   what is wrong and what to do about it, or what is right
      */
-    public record Check(String id, boolean ok, boolean blocking, String label, String detail, Fix fix) {
+    public record Check(String id, boolean ok, boolean blocking, String label, String detail, Fix fix,
+                        ModeFix modeFix) {
+
+        public Check(String id, boolean ok, boolean blocking, String label, String detail, Fix fix) {
+            this(id, ok, blocking, label, detail, fix, null);
+        }
+
+        /** A game mode's own check, with its own fix — or none. */
+        public static Check ofMode(String id, boolean ok, boolean blocking, String label, String detail,
+                                   ModeFix fix) {
+            return new Check(id, ok, blocking, label, detail, fix == null ? Fix.NONE : Fix.MODE, fix);
+        }
 
         public boolean stopsTheStart() {
             return !ok && blocking;
@@ -125,7 +149,9 @@ public final class SpeedrunPreflight {
         checks.add(new Check("racers", !racers.isEmpty(), true, "Somebody to race",
                 racers.isEmpty() ? "Nobody racing is standing in the lobby world."
                         : racers.size() + " racing.", Fix.BRING_EVERYBODY));
-        if (mode != null && !racers.isEmpty()) {
+        List<Check> fromMode = mode == null ? List.of() : mode.preflight(config, racers);
+        checks.addAll(fromMode);
+        if (mode != null && !racers.isEmpty() && fromMode.isEmpty()) {
             String refusal = mode.refuseStart(config, racers).orElse(null);
             checks.add(new Check("mode-ready", refusal == null, true, mode.label() + " is set up",
                     refusal == null ? "Ready to play." : "Not yet — open its page to set it up.",

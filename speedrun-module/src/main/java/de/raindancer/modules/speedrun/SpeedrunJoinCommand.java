@@ -37,25 +37,30 @@ import java.util.function.Supplier;
 public final class SpeedrunJoinCommand implements ISpeedrunCommand {
 
     /** Each word, whether it is staff's, and what it does — the help page and tab completion read this. */
-    record Word(String name, boolean staff, String usage, String what) {
+    record Word(String name, SpeedrunAccess access, String usage, String what) {
+
+        /** Whether the word is staff's — shown to staff only. */
+        boolean staff() {
+            return PermissionNodes.ADMIN.equals(access.node());
+        }
     }
 
     static final List<Word> WORDS = List.of(
-            new Word("menu", false, "menu", "open the speedrun menu"),
-            new Word("join", false, "join", "go to the lobby"),
-            new Word("start", false, "start", "check everything and start a run"),
-            new Word("check", false, "check", "what a start needs, with fixes"),
-            new Word("stats", false, "stats [player]", "personal bests and runs"),
-            new Word("top", false, "top", "the leaderboard"),
-            new Word("history", false, "history [player]", "past runs, every split"),
-            new Word("hud", false, "hud [sidebar|bossbar|actionbar|off]", "where you see your splits"),
-            new Word("spectate", false, "spectate", "switch between racing and not"),
-            new Word("resume", true, "resume [time]", "pick a run up after a restart"),
-            new Word("time", true, "time <time>", "set the running clock"),
-            new Word("reset", true, "reset", "remake the run's worlds"),
-            new Word("seed", true, "seed [seed|random|same]", "the next world's seed"),
-            new Word("setup", true, "setup", "the setup assistant"),
-            new Word("help", false, "help", "this list"));
+            new Word("menu", SpeedrunAccess.VIEW, "menu", "open the speedrun menu"),
+            new Word("join", SpeedrunAccess.VIEW, "join", "go to the lobby"),
+            new Word("start", SpeedrunAccess.START, "start", "check everything and start a run"),
+            new Word("check", SpeedrunAccess.VIEW, "check", "what a start needs, with fixes"),
+            new Word("stats", SpeedrunAccess.VIEW, "stats [player]", "personal bests and runs"),
+            new Word("top", SpeedrunAccess.VIEW, "top", "the leaderboard"),
+            new Word("history", SpeedrunAccess.VIEW, "history [player]", "past runs, every split"),
+            new Word("hud", SpeedrunAccess.HUD, "hud [sidebar|bossbar|actionbar|off]", "where you see your splits"),
+            new Word("spectate", SpeedrunAccess.SPECTATE, "spectate", "switch between racing and not"),
+            new Word("resume", SpeedrunAccess.RESUME, "resume [time]", "pick a run up after a restart"),
+            new Word("time", SpeedrunAccess.SET_CLOCK, "time <time>", "set the running clock"),
+            new Word("reset", SpeedrunAccess.RESET, "reset", "remake the run's worlds"),
+            new Word("seed", SpeedrunAccess.SEEDS, "seed [seed|random|same]", "the next world's seed"),
+            new Word("setup", SpeedrunAccess.SETUP, "setup", "the setup assistant"),
+            new Word("help", SpeedrunAccess.VIEW, "help", "this list"));
 
     private final Supplier<SpeedrunAdminServices> services;
 
@@ -78,8 +83,13 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
             help(live, sender);
             return;
         }
-        if (known.get().staff() && !sender.hasPermission(PermissionNodes.ADMIN)) {
-            live.messages().send(sender, "speedrun.command.staff-only", "word", word);
+        // The node of the command the word duplicates — the console holds every node. The start's
+        // own rule (staff-only or not) is a question for a player, answered below.
+        SpeedrunAccess access = known.get().access();
+        String node = access.node();
+        if (node != null && access != SpeedrunAccess.START && !sender.hasPermission(node)) {
+            live.messages().send(sender, access.staff() ? "speedrun.command.staff-only"
+                    : "speedrun.command.no-permission", "word", word);
             return;
         }
         String[] rest = Arrays.copyOfRange(args, 1, args.length);
@@ -90,7 +100,7 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
             case "join" -> withPlayer(live, sender, player -> teleport(live, player));
             case "start" -> {
                 if (sender instanceof Player player) {
-                    if (!SpeedrunScreens.mayStart(lobby, player)) {
+                    if (!SpeedrunAccess.START.allows(lobby, player)) {
                         live.messages().send(player, "speedrun.start.not-allowed");
                         return;
                     }
@@ -196,17 +206,7 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
 
     /** The pre-flight checks in chat, each red one with its fix as a button. */
     private void check(SpeedrunAdminServices live, CommandSender sender) {
-        SpeedrunLobby lobby = live.lobby();
-        SpeedrunActions actions = new SpeedrunActions(lobby, live.messages());
-        SpeedrunPreflight preflight = SpeedrunPreflight.of(lobby, lobby.presentInLobbyWorld());
-        live.messages().send(sender, preflight.clear() ? "speedrun.check.clear" : "speedrun.check.not-clear");
-        for (SpeedrunPreflight.Check check : preflight.checks()) {
-            String key = check.ok() ? "speedrun.check.ok" : check.blocking() ? "speedrun.check.problem"
-                    : "speedrun.check.warning";
-            Component line = live.messages().get(key, "check", check.label(), "detail", check.detail());
-            sender.sendMessage(check.ok() || check.fix() == SpeedrunPreflight.Fix.NONE ? line
-                    : actions.withButtons(sender, line, List.of(check.fix())));
-        }
+        new SpeedrunActions(live.lobby(), live.messages()).checkInWords(sender);
     }
 
     private void stats(SpeedrunAdminServices live, CommandSender sender, String[] rest) {
@@ -291,9 +291,9 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
     private void help(SpeedrunAdminServices live, CommandSender sender) {
         live.messages().send(sender, "speedrun.command.help-header");
         ChatButtons buttons = live.lobby().toolkit().map(SpeedrunToolkit::buttons).orElse(null);
-        boolean admin = sender.hasPermission(PermissionNodes.ADMIN);
         for (Word word : WORDS) {
-            if (word.staff() && !admin) {
+            String node = word.access().node();
+            if (node != null && word.access() != SpeedrunAccess.START && !sender.hasPermission(node)) {
                 continue;
             }
             Component line = live.messages().get("speedrun.command.help-line", "usage", "/speedrun " + word.usage(),
@@ -329,7 +329,10 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
         boolean admin = sender.hasPermission(PermissionNodes.ADMIN);
         if (args.length <= 1) {
             String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
-            return WORDS.stream().filter(word -> admin || !word.staff()).map(Word::name)
+            return WORDS.stream()
+                    .filter(word -> word.access().node() == null || word.access() == SpeedrunAccess.START
+                            || sender.hasPermission(word.access().node()))
+                    .map(Word::name)
                     .filter(name -> name.startsWith(typed)).toList();
         }
         String typed = args[args.length - 1].toLowerCase(Locale.ROOT);

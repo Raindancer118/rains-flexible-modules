@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.modules.speedrun.manhunt.stats.PlayerResult;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.time.Duration;
@@ -28,7 +29,7 @@ import java.util.UUID;
 public record SpeedrunRunRecord(String id, SpeedrunCategory category, long startedAt, Duration time,
                                 String outcome, boolean completed, long seed,
                                 Map<UUID, String> participants, List<SpeedrunTimeline.Entry> timeline,
-                                Map<String, String> labels) {
+                                Map<String, String> labels, List<PlayerResult> players, String winner) {
 
     public SpeedrunRunRecord {
         Objects.requireNonNull(id, "id");
@@ -38,6 +39,20 @@ public record SpeedrunRunRecord(String id, SpeedrunCategory category, long start
         participants = Map.copyOf(participants == null ? Map.of() : participants);
         timeline = List.copyOf(timeline == null ? List.of() : timeline);
         labels = Map.copyOf(labels == null ? Map.of() : labels);
+        players = List.copyOf(players == null ? List.of() : players);
+        winner = winner == null ? "" : winner;
+    }
+
+    /** A run of a game without sides — no per-player results, no winning side. */
+    public SpeedrunRunRecord(String id, SpeedrunCategory category, long startedAt, Duration time, String outcome,
+                             boolean completed, long seed, Map<UUID, String> participants,
+                             List<SpeedrunTimeline.Entry> timeline, Map<String, String> labels) {
+        this(id, category, startedAt, time, outcome, completed, seed, participants, timeline, labels, List.of(), "");
+    }
+
+    /** One player's own result, for a game with sides — empty for a plain race. */
+    public Optional<PlayerResult> resultOf(UUID player) {
+        return players.stream().filter(result -> result.id().equals(player)).findFirst();
     }
 
     public boolean resumed() {
@@ -109,8 +124,8 @@ public record SpeedrunRunRecord(String id, SpeedrunCategory category, long start
         section.set("outcome", outcome);
         section.set("completed", completed);
         section.set("seed", seed);
-        ConfigurationSection players = section.createSection("players");
-        participants.forEach((uuid, name) -> players.set(uuid.toString(), name));
+        ConfigurationSection racers = section.createSection("players");
+        participants.forEach((uuid, name) -> racers.set(uuid.toString(), name));
         List<Map<String, Object>> entries = new ArrayList<>();
         for (SpeedrunTimeline.Entry entry : timeline) {
             Map<String, Object> written = new LinkedHashMap<>();
@@ -118,11 +133,28 @@ public record SpeedrunRunRecord(String id, SpeedrunCategory category, long start
             written.put("at", entry.at().toMillis());
             written.put("who", entry.who() == null ? "" : entry.who().toString());
             written.put("detail", entry.detail());
+            if (entry.other() != null) {
+                written.put("other", entry.other().toString());
+            }
             entries.add(written);
         }
         section.set("timeline", entries);
         ConfigurationSection named = section.createSection("labels");
         labels.forEach(named::set);
+        section.set("winner", winner);
+        ConfigurationSection results = section.createSection("results");
+        for (PlayerResult p : players) {
+            ConfigurationSection r = results.createSection(p.id().toString());
+            r.set("name", p.name());
+            r.set("runner", p.runner());
+            r.set("won", p.won());
+            r.set("caught", p.caught());
+            r.set("catches", p.catches());
+            r.set("deaths", p.deaths());
+            r.set("survived-millis", p.survivedMillis());
+            r.set("distance", p.distance());
+            r.set("portals", p.portals());
+        }
     }
 
     /** Empty for a section that is not a run — a hand edit gone wrong is skipped, not fatal. */
@@ -148,8 +180,9 @@ public record SpeedrunRunRecord(String id, SpeedrunCategory category, long start
                 long at = raw.get("at") instanceof Number number ? number.longValue() : 0L;
                 UUID who = uuid(String.valueOf(raw.get("who"))).orElse(null);
                 Object detail = raw.get("detail");
+                UUID other = raw.get("other") == null ? null : uuid(String.valueOf(raw.get("other"))).orElse(null);
                 entries.add(new SpeedrunTimeline.Entry(kind, Duration.ofMillis(at), who,
-                        detail == null ? "" : String.valueOf(detail)));
+                        detail == null ? "" : String.valueOf(detail), other));
             } catch (IllegalArgumentException unknownKind) {
                 // an entry kind from a newer version: skipped, the rest of the run still reads
             }
@@ -161,9 +194,23 @@ public record SpeedrunRunRecord(String id, SpeedrunCategory category, long start
                 labels.put(key, named.getString(key, key));
             }
         }
+        List<PlayerResult> results = new ArrayList<>();
+        ConfigurationSection resultSection = section.getConfigurationSection("results");
+        if (resultSection != null) {
+            for (String key : resultSection.getKeys(false)) {
+                ConfigurationSection r = resultSection.getConfigurationSection(key);
+                Optional<UUID> who = uuid(key);
+                if (r != null && who.isPresent()) {
+                    results.add(new PlayerResult(who.get(), r.getString("name", ""), r.getBoolean("runner"),
+                            r.getBoolean("won"), r.getBoolean("caught"), r.getInt("catches"), r.getInt("deaths"),
+                            r.getLong("survived-millis"), r.getDouble("distance"), r.getInt("portals")));
+                }
+            }
+        }
         return Optional.of(new SpeedrunRunRecord(id, category.get(), section.getLong("started"),
                 Duration.ofMillis(section.getLong("millis")), section.getString("outcome", ""),
-                section.getBoolean("completed"), section.getLong("seed"), participants, entries, labels));
+                section.getBoolean("completed"), section.getLong("seed"), participants, entries, labels,
+                results, section.getString("winner", "")));
     }
 
     private static Optional<UUID> uuid(String text) {

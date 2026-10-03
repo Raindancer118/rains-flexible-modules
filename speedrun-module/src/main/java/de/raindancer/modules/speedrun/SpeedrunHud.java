@@ -156,8 +156,12 @@ public final class SpeedrunHud {
 
     Sidebar sidebar(UUID viewer, SpeedrunSession now, SpeedrunSplitTracker splits) {
         List<Component> lines = new ArrayList<>();
+        // A game's own lines (Manhunt's Runners) are what the viewer most needs; the splits get the room
+        // that is left, always at least the last one.
+        List<Component> modeLines = splits.hudLinesFor(viewer);
+        int room = Math.max(1, Math.min(SPLITS_SHOWN, Sidebar.MAX_LINES - modeLines.size() - 2));
         List<SpeedrunSplitTracker.Split> done = splits.splits();
-        for (SpeedrunSplitTracker.Split split : done.subList(Math.max(0, done.size() - SPLITS_SHOWN), done.size())) {
+        for (SpeedrunSplitTracker.Split split : done.subList(Math.max(0, done.size() - room), done.size())) {
             lines.add(splitLine(split, splits.compare(split, viewer)));
         }
         if (now.state() != SpeedrunState.FINISHED) {
@@ -167,7 +171,7 @@ public final class SpeedrunHud {
                         NamedTextColor.DARK_AQUA));
             }
         }
-        lines.addAll(splits.hudLinesFor(viewer));
+        lines.addAll(modeLines);
         Component title = Component.text("Speedrun ", NamedTextColor.GOLD)
                 .append(SpeedrunTimerDisplay.format(now.elapsed()));
         return Sidebar.of(title, lines.subList(0, Math.min(lines.size(), Sidebar.MAX_LINES)));

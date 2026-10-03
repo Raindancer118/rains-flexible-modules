@@ -2,6 +2,7 @@ package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.ui.chat.ChatButton;
 import de.raindancer.core.ui.chat.ChatButtons;
+import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.speedrun.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
@@ -38,7 +39,8 @@ final class SpeedrunRunRecorder {
 
     /** Keeps {@code session} in the history and tells everybody who raced in it. */
     SpeedrunRunRecord record(SpeedrunSession session, SpeedrunSplitTracker splits, SpeedrunOutcome outcome,
-                             SpeedrunCategory category, long seed, long startedAt, boolean completed) {
+                             SpeedrunCategory category, long seed, long startedAt, boolean completed,
+                             SpeedrunMode mode) {
         if (completed) {
             splits.reach(SpeedrunMilestones.FINISH.id(), null);
         }
@@ -47,9 +49,19 @@ final class SpeedrunRunRecorder {
             OfflinePlayer player = Bukkit.getOfflinePlayer(id);
             names.put(id, player.getName() == null ? id.toString().substring(0, 8) : player.getName());
         }
+        Optional<SpeedrunMode.Results> results = Optional.empty();
+        if (mode != null) {
+            try {
+                results = mode.results(session, outcome);
+            } catch (RuntimeException broken) {
+                Log.of("speedrun").error(broken, "The game mode '{}' failed to say how the run went; it is kept "
+                        + "without per-player results.", mode.id());
+            }
+        }
         SpeedrunRunRecord record = new SpeedrunRunRecord(UUID.randomUUID().toString(), category, startedAt,
                 outcome.elapsed(), outcome.reason(), completed, seed, names, session.timeline().entries(),
-                splits.labels());
+                splits.labels(), results.map(SpeedrunMode.Results::players).orElse(List.of()),
+                results.map(SpeedrunMode.Results::winner).orElse(""));
         SpeedrunHistory history = kit.history();
         if (history == null) {
             return record;
@@ -57,7 +69,7 @@ final class SpeedrunRunRecorder {
         Optional<SpeedrunRunRecord> recordBefore = history.record(category);
         Map<UUID, Optional<SpeedrunRunRecord>> bestBefore = new HashMap<>();
         names.keySet().forEach(id -> bestBefore.put(id, history.personalBest(id, category)));
-        history.add(record);
+        history.add(record, results.map(SpeedrunMode.Results::rated).orElse(false));
         boolean ranked = record.ranked(lobby.config().rankEditedRuns());
         for (UUID id : names.keySet()) {
             Player player = Bukkit.getPlayer(id);
@@ -107,11 +119,12 @@ final class SpeedrunRunRecorder {
                     .tooltip("<gray>The next reset remakes this exact map. It is ranked as a set seed.")
                     .forOnly(viewer).expiringIn(BUTTONS_LAST)
                     .does(clicker -> {
-                        lobby.replaySeedNextReset();
                         Player who = Bukkit.getPlayer(clicker);
-                        if (who != null) {
-                            kit.messages().send(who, "speedrun.seed.same-next");
+                        if (who == null || !SpeedrunAccess.SEEDS.allows(lobby, who)) {
+                            return;   // asked again at the click: the button outlives the moment it was sent
                         }
+                        lobby.replaySeedNextReset();
+                        kit.messages().send(who, "speedrun.seed.same-next");
                     }));
         }
         player.sendMessage(seedLine.append(Component.text(" ")).append(buttons.row(row.toArray(ChatButton[]::new))));

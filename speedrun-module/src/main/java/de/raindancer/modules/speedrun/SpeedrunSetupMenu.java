@@ -7,6 +7,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,8 @@ public final class SpeedrunSetupMenu extends Menu {
     /** The questions, in the order they are asked. */
     public enum Step {
         GAME("Which game?"),
+        /** The chosen game's own questions — Manhunt's preset and door — one page each. */
+        RULES("The game's own rules"),
         GOAL("What ends a run?"),
         DEATHS("What does a death do?"),
         SEEDS("Which seeds?"),
@@ -49,12 +52,33 @@ public final class SpeedrunSetupMenu extends Menu {
             if (step == Step.GAME && SpeedrunModes.offered().isEmpty()) {
                 continue;
             }
+            if (step == Step.RULES && lobby.mode().map(SpeedrunMode::setupQuestions).orElse(List.of()).isEmpty()) {
+                continue;
+            }
             if (step == Step.DEATHS && !lobby.mode().map(SpeedrunMode::usesDeathPolicy).orElse(true)) {
                 continue;
             }
             steps.add(step);
         }
         return steps;
+    }
+
+    /** One page of the assistant: a built-in step, or — for {@link Step#RULES} — one of the game's questions. */
+    public record Page(Step step, SpeedrunMode.SetupQuestion question) {
+    }
+
+    /** Every page, in order: the steps, with the game's questions where {@link Step#RULES} stands. */
+    public static List<Page> pages(SpeedrunLobby lobby) {
+        List<Page> pages = new ArrayList<>();
+        for (Step step : steps(lobby)) {
+            if (step == Step.RULES) {
+                lobby.mode().map(SpeedrunMode::setupQuestions).orElse(List.of())
+                        .forEach(question -> pages.add(new Page(step, question)));
+            } else {
+                pages.add(new Page(step, null));
+            }
+        }
+        return pages;
     }
 
     private final SpeedrunLobby lobby;
@@ -66,15 +90,26 @@ public final class SpeedrunSetupMenu extends Menu {
         this.at = at;
     }
 
-    private Step step() {
-        List<Step> steps = steps(lobby);
-        return steps.get(Math.max(0, Math.min(at, steps.size() - 1)));
+    private Page page() {
+        List<Page> pages = pages(lobby);
+        return pages.get(Math.max(0, Math.min(at, pages.size() - 1)));
     }
 
     @Override
     protected Component title() {
-        List<Step> steps = steps(lobby);
-        return MINI.deserialize("<dark_gray>Setup " + (Math.min(at, steps.size() - 1) + 1) + "/" + steps.size());
+        List<Page> pages = pages(lobby);
+        return MINI.deserialize("<dark_gray>Setup " + (Math.min(at, pages.size() - 1) + 1) + "/" + pages.size());
+    }
+
+    /** Every click asks again: a page left open outlives a permission taken away in between. */
+    @Override
+    public void handleClick(InventoryClickEvent event) {
+        if (!SpeedrunAccess.SETUP.allows(lobby, viewer)) {
+            event.setCancelled(true);
+            viewer.closeInventory();
+            return;
+        }
+        super.handleClick(event);
     }
 
     @Override
@@ -84,9 +119,11 @@ public final class SpeedrunSetupMenu extends Menu {
 
     @Override
     protected void render() {
-        Step step = step();
+        Page page = page();
+        Step step = page.step();
         SpeedrunSettings config = lobby.config();
-        set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.WRITABLE_BOOK, "<gold>" + step.question(),
+        String question = page.question() != null ? page.question().question() : step.question();
+        set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.WRITABLE_BOOK, "<gold>" + SpeedrunScreens.text(question),
                 "<gray>Click an answer; it is saved at once.", "<gray>Everything can be changed later in the menu."));
         switch (step) {
             case GAME -> {
@@ -97,6 +134,14 @@ public final class SpeedrunSetupMenu extends Menu {
                     choice(column, mode.icon(), mode.label(), "<gray>Another game in the same lobby.",
                             mode.id().equalsIgnoreCase(config.gameMode()),
                             () -> lobby.settings().set("game-mode", mode.id()));
+                    column = Math.min(7, column + 2);
+                }
+            }
+            case RULES -> {
+                int column = 1;
+                for (SpeedrunMode.SetupAnswer answer : page.question().answers()) {
+                    choice(column, answer.icon(), answer.label(), "<gray>" + SpeedrunScreens.text(answer.detail()),
+                            answer.current(), answer.pick());
                     column = Math.min(7, column + 2);
                 }
             }
@@ -130,6 +175,9 @@ public final class SpeedrunSetupMenu extends Menu {
                 band(MenuLayout.WHO, 5, Icons.of(Material.FILLED_MAP, "<white>A seed of my choice",
                                 "<gray>Type it in chat next."),
                         click -> new SpeedrunActions(lobby).ask(viewer, "speedrun.seed.ask", typed -> {
+                            if (!SpeedrunAccess.SETUP.allows(lobby, viewer)) {
+                                return;
+                            }
                             lobby.settings().set("seed", typed);
                             lobby.settings().set("seed-mode", SpeedrunSeedMode.FIXED.name());
                             new SpeedrunSetupMenu(lobby, viewer, parent(), at + 1).open();
@@ -190,7 +238,7 @@ public final class SpeedrunSetupMenu extends Menu {
 
     private void choice(int column, Material icon, String name, String detail, boolean current, Runnable pick) {
         band(MenuLayout.WHO, column, Icons.of(current ? Material.LIME_DYE : icon,
-                        (current ? "<green>" : "<white>") + name, detail,
+                        (current ? "<green>" : "<white>") + SpeedrunScreens.text(name), detail,
                         current ? "<dark_gray>This is how it is now." : "<dark_gray>Click to choose."),
                 click -> {
                     pick.run();

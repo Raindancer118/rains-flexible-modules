@@ -3,17 +3,23 @@ package de.raindancer.modules.speedrun;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.modules.speedrun.manhunt.stats.PlayerResult;
+import de.raindancer.modules.speedrun.manhunt.stats.PlayerStats;
+import de.raindancer.modules.speedrun.manhunt.stats.Rating;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.function.BooleanSupplier;
@@ -44,6 +50,12 @@ public final class SpeedrunHistory {
     private final YamlStore store;
     private final Executor writer;
     private final List<SpeedrunRunRecord> runs = new CopyOnWriteArrayList<>();
+    /**
+     * Per game with sides, each player's standing — rating, wins on each side, catches and the rest.
+     * Kept rather than worked out from the runs: a rating is the sum of every rated run ever played,
+     * and the runs themselves may predate this file (see {@link #importStandings}).
+     */
+    private final Map<String, Map<UUID, PlayerStats>> standings = new ConcurrentHashMap<>();
     private volatile BooleanSupplier editedRunsRank = () -> false;
     /** Set when the file could not be read: writing would replace whatever is in it with one run. */
     private volatile boolean readOnly;
@@ -56,6 +68,7 @@ public final class SpeedrunHistory {
     /** Reads {@code history.yml}; a run that cannot be read is skipped with a warning, never fatal. */
     public void load() {
         runs.clear();
+        standings.clear();
         readOnly = false;
         if (store == null || !store.exists()) {
             return;
@@ -82,6 +95,12 @@ public final class SpeedrunHistory {
             }
         }
         runs.sort(Comparator.comparingLong(SpeedrunRunRecord::startedAt));
+        ConfigurationSection kept = file.getConfigurationSection("standings");
+        if (kept != null) {
+            for (String mode : kept.getKeys(false)) {
+                standings.put(mode, readStandings(kept.getConfigurationSection(mode)));
+            }
+        }
         if (skipped > 0) {
             log.warn("{} run(s) in the speedrun history could not be read and were skipped.", skipped);
         }
@@ -99,15 +118,168 @@ public final class SpeedrunHistory {
 
     /** Keeps {@code run} and writes it out. */
     public void add(SpeedrunRunRecord run) {
+        add(run, false);
+    }
+
+    /**
+     * Keeps {@code run}, and — when {@code rated} — moves every player's standing in its game: wins,
+     * catches, and a rating that rises for the winning side and falls for the losing one. A run with
+     * nobody winning, or with one side empty, moves no rating.
+     */
+    public void add(SpeedrunRunRecord run, boolean rated) {
         runs.add(run);
+        String mode = run.category().mode();
+        boolean moves = rated && !run.players().isEmpty();
+        if (moves) {
+            rate(mode, run);
+        }
         if (store == null || readOnly) {
             return;
         }
+        Map<UUID, PlayerStats> snapshot = moves ? Map.copyOf(standingsOf(mode)) : Map.of();
         writer.execute(() -> {
-            boolean written = store.update(file -> run.writeTo(file.createSection("runs." + run.id())));
+            boolean written = store.update(file -> {
+                run.writeTo(file.createSection("runs." + run.id()));
+                if (moves) {
+                    writeStandings(file.createSection("standings." + mode), snapshot);
+                }
+            });
             if (!written) {
                 log.warn("The run {} could not be written to the speedrun history.", run.id());
             }
+        });
+    }
+
+    private synchronized void rate(String mode, SpeedrunRunRecord run) {
+        Map<UUID, PlayerStats> table = standingsOf(mode);
+        Map<UUID, Double> runners = new LinkedHashMap<>();
+        Map<UUID, Double> hunters = new LinkedHashMap<>();
+        for (PlayerResult result : run.players()) {
+            (result.runner() ? runners : hunters).put(result.id(), rating(mode, result.id()));
+        }
+        boolean decided = RUNNERS.equals(run.winner()) || HUNTERS.equals(run.winner());
+        Map<UUID, Double> after = !decided || runners.isEmpty() || hunters.isEmpty() ? new LinkedHashMap<>()
+                : Rating.afterHunt(runners, hunters, RUNNERS.equals(run.winner()));
+        for (PlayerResult result : run.players()) {
+            PlayerStats before = table.getOrDefault(result.id(), PlayerStats.fresh(result.name()));
+            table.put(result.id(), before.plus(result, after.getOrDefault(result.id(), before.rating())));
+        }
+    }
+
+    /** The winning side of a game with sides, as {@link SpeedrunRunRecord#winner()} names it. */
+    public static final String RUNNERS = "runners";
+    public static final String HUNTERS = "hunters";
+
+    private Map<UUID, PlayerStats> standingsOf(String mode) {
+        return standings.computeIfAbsent(mode, key -> new ConcurrentHashMap<>());
+    }
+
+    /** {@code player}'s standing in {@code mode}, if they ever played a rated run of it. */
+    public Optional<PlayerStats> standing(String mode, UUID player) {
+        return Optional.ofNullable(standings.getOrDefault(mode, Map.of()).get(player));
+    }
+
+    /** {@code player}'s rating in {@code mode} — the starting rating for somebody new. */
+    public double rating(String mode, UUID player) {
+        return standing(mode, player).map(PlayerStats::rating).orElse(Rating.START);
+    }
+
+    /** Everybody with a standing in {@code mode}, best first by {@code board}. */
+    public List<UUID> ranked(String mode, SpeedrunBoard board) {
+        Map<UUID, PlayerStats> table = standings.getOrDefault(mode, Map.of());
+        return table.entrySet().stream()
+                .sorted(Comparator.comparingDouble((Map.Entry<UUID, PlayerStats> e) -> board.scoreOf(e.getValue()))
+                        .reversed().thenComparing(e -> e.getValue().name()))
+                .map(Map.Entry::getKey).toList();
+    }
+
+    /** The {@code limit} best standings in {@code mode} by {@code board}. */
+    public List<PlayerStats> top(String mode, SpeedrunBoard board, int limit) {
+        Map<UUID, PlayerStats> table = standings.getOrDefault(mode, Map.of());
+        return ranked(mode, board).stream().limit(Math.max(0, limit)).map(table::get).toList();
+    }
+
+    /** Whoever in {@code mode}'s standings goes by {@code name}. */
+    public Optional<UUID> byName(String mode, String name) {
+        return standings.getOrDefault(mode, Map.of()).entrySet().stream()
+                .filter(entry -> entry.getValue().name().equalsIgnoreCase(name))
+                .map(Map.Entry::getKey).findFirst();
+    }
+
+    /** Every game anybody has a standing in. */
+    public Set<String> modesWithStandings() {
+        return Set.copyOf(standings.keySet());
+    }
+
+    /**
+     * Standings carried over from before this file kept them — Manhunt's own {@code stats.yml} — taken
+     * as they are, so nobody's rating moves by the move. Somebody who already has a standing here
+     * keeps theirs.
+     */
+    public void importStandings(String mode, Map<UUID, PlayerStats> imported) {
+        Map<UUID, PlayerStats> table = standingsOf(mode);
+        imported.forEach(table::putIfAbsent);
+        if (store == null || readOnly) {
+            return;
+        }
+        Map<UUID, PlayerStats> snapshot = Map.copyOf(table);
+        writer.execute(() -> store.update(file -> writeStandings(file.createSection("standings." + mode), snapshot)));
+    }
+
+    /** The run numbered {@code number} — the first run ever is 1. */
+    public Optional<SpeedrunRunRecord> byNumber(int number) {
+        List<SpeedrunRunRecord> all = all();
+        return number < 1 || number > all.size() ? Optional.empty() : Optional.of(all.get(number - 1));
+    }
+
+    /** {@code run}'s number, 1 for the first run ever kept — 0 for one not in here. */
+    public int numberOf(SpeedrunRunRecord run) {
+        return all().indexOf(run) + 1;
+    }
+
+    private static Map<UUID, PlayerStats> readStandings(ConfigurationSection section) {
+        Map<UUID, PlayerStats> table = new ConcurrentHashMap<>();
+        if (section == null) {
+            return table;
+        }
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection p = section.getConfigurationSection(key);
+            try {
+                table.put(UUID.fromString(key), readStanding(p));
+            } catch (IllegalArgumentException | NullPointerException notOne) {
+                log.warn("A standing in the speedrun history could not be read and was skipped: {}", key);
+            }
+        }
+        return table;
+    }
+
+    /** One player's standing, as both this file and Manhunt's old {@code stats.yml} wrote it. */
+    public static PlayerStats readStanding(ConfigurationSection p) {
+        return new PlayerStats(p.getString("name", "somebody"),
+                p.getDouble("rating", Rating.START), p.getInt("hunts"), p.getInt("runner-hunts"),
+                p.getInt("runner-wins"), p.getInt("hunter-hunts"), p.getInt("hunter-wins"),
+                p.getInt("catches"), p.getInt("deaths"), p.getInt("times-caught"),
+                p.getLong("survived-millis"), p.getLong("best-survival-millis"), p.getDouble("distance"),
+                p.getInt("portals"));
+    }
+
+    private static void writeStandings(ConfigurationSection section, Map<UUID, PlayerStats> table) {
+        table.forEach((id, stats) -> {
+            ConfigurationSection p = section.createSection(id.toString());
+            p.set("name", stats.name());
+            p.set("rating", stats.rating());
+            p.set("hunts", stats.hunts());
+            p.set("runner-hunts", stats.runnerHunts());
+            p.set("runner-wins", stats.runnerWins());
+            p.set("hunter-hunts", stats.hunterHunts());
+            p.set("hunter-wins", stats.hunterWins());
+            p.set("catches", stats.catches());
+            p.set("deaths", stats.deaths());
+            p.set("times-caught", stats.timesCaught());
+            p.set("survived-millis", stats.survivedMillis());
+            p.set("best-survival-millis", stats.bestSurvivalMillis());
+            p.set("distance", stats.distance());
+            p.set("portals", stats.portals());
         });
     }
 

@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
 
 /**
  * Where the next world comes from: a new seed each time, always one, or one of a pool — and the
@@ -31,6 +32,17 @@ public final class SpeedrunSeedMenu extends Menu {
     @Override
     protected Component title() {
         return MINI.deserialize("<dark_gray>Seeds");
+    }
+
+    /** Every click asks again: a page left open outlives a permission taken away in between. */
+    @Override
+    public void handleClick(InventoryClickEvent event) {
+        if (!SpeedrunAccess.SEEDS.allows(lobby, viewer)) {
+            event.setCancelled(true);
+            viewer.closeInventory();
+            return;
+        }
+        super.handleClick(event);
     }
 
     @Override
@@ -59,12 +71,15 @@ public final class SpeedrunSeedMenu extends Menu {
         mode(1, SpeedrunSeedMode.RANDOM, Material.ENDER_EYE, "A new seed every time",
                 "<gray>Nobody has seen the next map.");
         mode(3, SpeedrunSeedMode.FIXED, Material.FILLED_MAP, "Always the same seed",
-                "<gray>Seed: <white>" + (config.seed().isBlank() ? "not set" : config.seed()));
+                "<gray>Seed: <white>" + (config.seed().isBlank() ? "not set" : SpeedrunScreens.text(config.seed())));
         mode(5, SpeedrunSeedMode.POOL, Material.CHEST, "One of a pool",
                 "<gray>" + SpeedrunSeeds.pool(config.seedPool()).size() + " seed(s) in the pool");
         band(MenuLayout.LAND, 2, Icons.of(Material.NAME_TAG, "<white>Type the seed",
                         "<gray>A number, or a word like the create-world", "<gray>screen takes. Also sets FIXED."),
                 click -> actions.ask(viewer, "speedrun.seed.ask", typed -> {
+                    if (!SpeedrunAccess.SEEDS.allows(lobby, viewer)) {
+                        return;
+                    }
                     lobby.settings().set("seed", typed);
                     lobby.settings().set("seed-mode", SpeedrunSeedMode.FIXED.name());
                     lobby.toolkit().map(SpeedrunToolkit::messages)
@@ -74,6 +89,9 @@ public final class SpeedrunSeedMenu extends Menu {
         band(MenuLayout.LAND, 4, Icons.of(Material.BUNDLE, "<white>Type the pool",
                         "<gray>Seeds separated by commas.", "<gray>Also sets POOL."),
                 click -> actions.ask(viewer, "speedrun.seed.ask-pool", typed -> {
+                    if (!SpeedrunAccess.SEEDS.allows(lobby, viewer)) {
+                        return;
+                    }
                     lobby.settings().set("seed-pool", typed);
                     lobby.settings().set("seed-mode", SpeedrunSeedMode.POOL.name());
                     lobby.toolkit().map(SpeedrunToolkit::messages).ifPresent(messages -> messages.send(viewer,

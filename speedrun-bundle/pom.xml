@@ -25,11 +25,13 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <!--
           Its own name, not RainsSpeedrun's: installed beside a RainsSpeedrun, RainsManhunt,
-          RainsChat or RainsWorldUtils jar, two copies of a module would be two lobbies, two portal listeners.
-          Replace those jars with this one, never add it to them.
+          RainsChat or RainsWorldUtils jar, two copies of a module would be two lobbies, two portal
+          listeners. Replace those jars with this one, never add it to them.
 
-          Five modules, so each gets a subfolder: plugins/RainsSpeedrunServer/modules/<id>/. A server
-          coming from the single jars moves each plugin's files into the matching subfolder.
+          Four modules (speedrun with Manhunt inside, chat, worldgate, worldutils), so each gets a
+          subfolder: plugins/RainsSpeedrunServer/modules/<id>/. A server coming from the single jars
+          moves each plugin's files into the matching subfolder. Manhunt's old modules/manhunt/ is
+          moved into modules/speedrun/ by the module itself on the first start (ManhuntMigration).
         -->
         <plugin.name>RainsSpeedrunServer</plugin.name>
         <!-- 0.1.0: speedrun 1.20.0, manhunt 0.17.1, worldgate 1.1.0, worldutils 0.1.1. Needs RainsCore 1.39.0.
@@ -45,20 +47,16 @@
              /manhunt resume works over a finished run without a world reset.
              0.10.0: speedrun 1.25.0, manhunt 0.21.0 — full review pass; wrapper 1.2.0 names the RainsCore version it needs.
              0.11.0: speedrun 1.26.0, manhunt 0.22.0 — edge-case pass. Needs RainsCore 1.42.0.
-             0.12.0: speedrun 1.27.0, manhunt 0.23.0 — hubs, splits, stats, history. Needs RainsCore 1.43.0. -->
-        <plugin.version>0.12.0</plugin.version>
+             0.12.0: speedrun 1.27.0, manhunt 0.23.0 — hubs, splits, stats, history. Needs RainsCore 1.43.0.
+             0.13.0: speedrun 1.28.0 with Manhunt built in; security fixes. Needs RainsCore 1.43.0. -->
+        <plugin.version>0.13.0</plugin.version>
     </properties>
 
     <dependencies>
-        <!-- Compile scope here, unlike in manhunt-standalone: one jar, one classloader, one
-             SpeedrunSession — the reason RainsManhunt.jar must not shade it does not apply. -->
+        <!-- Manhunt comes with it: it is part of speedrun-module now. -->
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>speedrun-module</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>de.raindancer.modules</groupId>
-            <artifactId>manhunt-module</artifactId>
         </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>

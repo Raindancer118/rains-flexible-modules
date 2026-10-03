@@ -116,6 +116,17 @@ class StandaloneJarTest {
     }
 
     @Test
+    @DisplayName("Manhunt comes with it — its game, its migration and its wording in the one file")
+    void manhuntIsInside() {
+        assertThat(entries()).contains(
+                "de/raindancer/modules/speedrun/manhunt/ManhuntGame.class",
+                "de/raindancer/modules/speedrun/manhunt/ManhuntMigration.class",
+                "de/raindancer/modules/speedrun/manhunt/command/ManhuntCommand.class");
+        assertThat(entries()).noneMatch(entry -> entry.startsWith("de/raindancer/modules/manhunt/"));
+        assertThat(read(MESSAGES)).contains("\nmanhunt:");
+    }
+
+    @Test
     @DisplayName("the shaded module is the module that was just built")
     void theJarIsNotStale() throws IOException {
         // A stale shade is the worst kind of build mistake: the jar is newer than the source, it

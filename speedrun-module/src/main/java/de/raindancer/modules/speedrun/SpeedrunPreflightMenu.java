@@ -4,7 +4,6 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.core.ui.menu.PaginatedMenu;
-import de.raindancer.modules.speedrun.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
@@ -54,7 +53,7 @@ public final class SpeedrunPreflightMenu extends PaginatedMenu<SpeedrunPreflight
     @Override
     protected void decorate() {
         SpeedrunPreflight preflight = now();
-        boolean mayStart = SpeedrunScreens.mayStart(lobby, viewer);
+        boolean mayStart = SpeedrunAccess.START.allows(lobby, viewer);
         set(MenuLayout.HEADER_SUBJECT, Icons.of(preflight.clear() ? Material.LIME_CONCRETE : Material.RED_CONCRETE,
                 preflight.clear() ? "<green>Ready to start" : "<red>Not ready yet",
                 preflight.clear() ? "<gray>Everything a run needs is in place."
@@ -64,39 +63,41 @@ public final class SpeedrunPreflightMenu extends PaginatedMenu<SpeedrunPreflight
                         "<gray>Everybody racing in the lobby world races.",
                         "<gray>Their hands are emptied for it."),
                 !mayStart ? "Only staff can start a run here" : "Fix the red checks first",
-                click -> {
+                SpeedrunAccess.START.guard(lobby, viewer, click -> {
                     viewer.closeInventory();
                     actions.start(viewer);
-                });
+                }));
         super.decorate();
     }
 
     @Override
     protected ItemStack icon(SpeedrunPreflight.Check check) {
         List<String> lore = new ArrayList<>();
-        lore.add("<gray>" + check.detail());
+        lore.add("<gray>" + SpeedrunScreens.text(check.detail()));
         if (!check.ok()) {
             lore.add(check.blocking() ? "<red>Stops the start." : "<yellow>A warning only.");
-            if (check.fix() != SpeedrunPreflight.Fix.NONE && viewer.hasPermission(PermissionNodes.ADMIN)) {
+            if (actions.mayFix(check, viewer)) {
                 lore.add("");
-                lore.add("<green>Click: " + SpeedrunActions.fixLabel(check.fix()));
+                lore.add("<green>Click: " + SpeedrunScreens.text(check.fix() == SpeedrunPreflight.Fix.MODE
+                        ? check.modeFix().label() : SpeedrunActions.fixLabel(check.fix())));
             }
         }
         Material icon = check.ok() ? Material.LIME_DYE : check.blocking() ? Material.RED_DYE : Material.YELLOW_DYE;
-        return Icons.of(icon, (check.ok() ? "<green>" : check.blocking() ? "<red>" : "<yellow>") + check.label(), lore);
+        return Icons.of(icon, (check.ok() ? "<green>" : check.blocking() ? "<red>" : "<yellow>")
+                + SpeedrunScreens.text(check.label()), lore);
     }
 
     @Override
     protected void onClick(SpeedrunPreflight.Check check, InventoryClickEvent event) {
-        if (check.ok() || !viewer.hasPermission(PermissionNodes.ADMIN)) {
-            return;
+        if (check.ok() || !actions.mayFix(check, viewer)) {
+            return;   // asked at the click: the page may have been open since a permission was taken
         }
         if (check.fix() == SpeedrunPreflight.Fix.MODE_SETUP) {
             lobby.mode().flatMap(SpeedrunMode::setup).ifPresent(setup -> setup.open(viewer, this));
             return;
         }
-        actions.apply(check.fix(), viewer, this);
-        if (check.fix() != SpeedrunPreflight.Fix.RESET) {
+        actions.applyCheck(check, viewer, this);
+        if (check.fix() != SpeedrunPreflight.Fix.RESET && check.fix() != SpeedrunPreflight.Fix.MODE) {
             refresh();
         }
     }
