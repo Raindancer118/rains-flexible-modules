@@ -2,6 +2,8 @@ package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.chat.ChatButton;
+import de.raindancer.core.ui.checklist.Checklist;
+import de.raindancer.core.ui.checklist.ChecklistChat;
 import de.raindancer.core.ui.chat.ChatButtons;
 import de.raindancer.core.ui.menu.ConfirmMenu;
 import de.raindancer.core.ui.menu.Menu;
@@ -28,8 +30,6 @@ import java.util.function.Consumer;
  */
 public final class SpeedrunActions {
 
-    /** How long a typed answer is waited for. */
-    static final Duration ASK_FOR = Duration.ofSeconds(60);
     /** How long a suggested-fix button keeps working. */
     static final Duration BUTTONS_LAST = Duration.ofMinutes(5);
 
@@ -118,8 +118,7 @@ public final class SpeedrunActions {
         List<ChatButton> row = new ArrayList<>();
         boolean admin = player.hasPermission(PermissionNodes.ADMIN);
         for (SpeedrunPreflight.Fix fix : fixes) {
-            if (admin && fix != SpeedrunPreflight.Fix.NONE && fix != SpeedrunPreflight.Fix.MODE_SETUP
-                    && fix != SpeedrunPreflight.Fix.MODE) {
+            if (admin && fix != SpeedrunPreflight.Fix.NONE && fix != SpeedrunPreflight.Fix.MODE_SETUP) {
                 row.add(buttons.label("<green>[" + fixLabel(fix) + "]</green>")
                         .tooltip("<gray>" + fixTooltip(fix))
                         .forOnly(player.getUniqueId()).expiringIn(BUTTONS_LAST)
@@ -143,7 +142,6 @@ public final class SpeedrunActions {
             case MODE_SETUP -> "Open the game's page";
             case NO_KIT -> "Switch the kit off";
             case RANDOM_SEED -> "Use random seeds";
-            case MODE -> "Fix it";
         };
     }
 
@@ -158,61 +156,18 @@ public final class SpeedrunActions {
             case MODE_SETUP -> "Opens the game mode's own page";
             case NO_KIT -> "Sets practice-kit to NONE, so the run is ranked";
             case RANDOM_SEED -> "Sets seed-mode to RANDOM";
-            case MODE -> "The game's own fix";
         };
     }
 
-    /**
-     * The fix of {@code check} — the lobby's own, or the game mode's — for somebody still allowed to
-     * use it. A mode's fix needs the node of the mode's own command.
-     */
-    public void applyCheck(SpeedrunPreflight.Check check, Player by, Menu parent) {
-        if (check.fix() == SpeedrunPreflight.Fix.MODE && check.modeFix() != null) {
-            SpeedrunPreflight.ModeFix fix = check.modeFix();
-            if (fix.node() == null || by.hasPermission(fix.node())) {
-                fix.apply().accept(by);
-            } else {
-                say(by, "speedrun.command.staff-only", "word", fix.label());
-            }
-            return;
-        }
-        applyIfAllowed(check.fix(), by, parent);
+    /** The pre-flight check as it stands, for {@code viewer} — null for the console. */
+    public Checklist checklist(Player viewer) {
+        return SpeedrunPreflight.of(lobby, lobby.presentInLobbyWorld(), this, viewer);
     }
 
-    /** Whether {@code by} may use {@code check}'s fix at all — what decides whether it is offered. */
-    public boolean mayFix(SpeedrunPreflight.Check check, Player by) {
-        if (check.fix() == SpeedrunPreflight.Fix.MODE) {
-            return check.modeFix() != null && (check.modeFix().node() == null || by.hasPermission(check.modeFix().node()));
-        }
-        return check.fix() != SpeedrunPreflight.Fix.NONE && (check.fix() == SpeedrunPreflight.Fix.RESET
-                ? SpeedrunAccess.RESET : SpeedrunAccess.FIX).allows(lobby, by);
-    }
-
-    /** The pre-flight check said in chat, a line per check, each red one with its fix as a button. */
+    /** The pre-flight check said in chat — Core's checklist lines, each red one with its fix as a button. */
     public void checkInWords(CommandSender to) {
-        Messages messages = messages();
-        if (messages == null) {
-            return;
-        }
-        SpeedrunPreflight preflight = SpeedrunPreflight.of(lobby, lobby.presentInLobbyWorld());
-        messages.send(to, preflight.clear() ? "speedrun.check.clear" : "speedrun.check.not-clear");
-        ChatButtons buttons = kit().map(SpeedrunToolkit::buttons).orElse(null);
-        for (SpeedrunPreflight.Check check : preflight.checks()) {
-            String key = check.ok() ? "speedrun.check.ok" : check.blocking() ? "speedrun.check.problem"
-                    : "speedrun.check.warning";
-            Component line = messages.get(key, "check", check.label(), "detail", check.detail());
-            if (!check.ok() && to instanceof Player player && buttons != null && mayFix(check, player)) {
-                String label = check.fix() == SpeedrunPreflight.Fix.MODE ? check.modeFix().label() : fixLabel(check.fix());
-                String tooltip = check.fix() == SpeedrunPreflight.Fix.MODE ? check.modeFix().tooltip()
-                        : fixTooltip(check.fix());
-                line = line.append(Component.text(" ")).append(buttons.row(
-                        buttons.label("<green>[" + SpeedrunScreens.text(label) + "]</green>")
-                                .tooltip("<gray>" + SpeedrunScreens.text(tooltip))
-                                .forOnly(player.getUniqueId()).expiringIn(BUTTONS_LAST)
-                                .does(clicker -> onTheirThread(clicker, who -> applyCheck(check, who, null)))));
-            }
-            to.sendMessage(line);
-        }
+        ChecklistChat.tell(to, checklist(to instanceof Player player ? player : null),
+                kit().map(SpeedrunToolkit::buttons).orElse(null));
     }
 
     /**
@@ -234,7 +189,8 @@ public final class SpeedrunActions {
      */
     public void apply(SpeedrunPreflight.Fix fix, Player by, Menu parent) {
         switch (fix) {
-            case NONE, MODE_SETUP, MODE -> { }
+            case NONE -> { }
+            case MODE_SETUP -> lobby.mode().flatMap(SpeedrunMode::setup).ifPresent(setup -> setup.open(by, parent));
             case RESET -> confirmReset(by, parent);
             case CREATE_WORLDS -> Scheduling.global(lobby.plugin(), () -> {
                 lobby.ensureWorldExists();
@@ -347,37 +303,57 @@ public final class SpeedrunActions {
         return set;
     }
 
-    /**
-     * Asks {@code player} to type a time in chat, then runs {@code then} on their own thread with
-     * it. Unreadable input is said and asked again — never guessed at.
-     */
-    public void askForTime(Player player, String questionKey, Consumer<Duration> then) {
-        ask(player, questionKey, typed -> {
-            Optional<Duration> reading = RunClock.parse(typed);
-            if (reading.isEmpty()) {
-                say(player, "speedrun.time.unreadable", "time", typed);
-                askForTime(player, questionKey, then);
-                return;
-            }
-            then.accept(reading.get());
-        });
+    /** Asks {@code player} for a time in a window — from a menu; {@code then} gets it parsed. */
+    public void askTime(Player player, String titleKey, Consumer<Duration> then) {
+        lobby.input().ifPresent(input -> input.window(player, text(titleKey), "", SpeedrunInput.TIME, then));
     }
 
-    /** Asks {@code player} for a line of chat; {@code then} runs on their own thread. */
-    public void ask(Player player, String questionKey, Consumer<String> then) {
-        SpeedrunToolkit tools = kit().orElse(null);
-        if (tools == null || tools.prompts() == null) {
-            return;
-        }
-        player.closeInventory();
-        say(player, questionKey);
-        say(player, "speedrun.ask.cancel-hint");
-        boolean asked = tools.prompts().ask(player.getUniqueId(), "Speedrun", ASK_FOR,
-                typed -> Scheduling.entity(lobby.plugin(), player, () -> then.accept(typed.trim())),
-                () -> say(player, "speedrun.ask.cancelled"));
-        if (!asked) {
-            say(player, "speedrun.ask.busy");
-        }
+    /** The same in chat — from a command typed without the time. */
+    public void askTimeInChat(Player player, String promptKey, Consumer<Duration> then) {
+        lobby.input().ifPresent(input -> input.chat(player, text(promptKey), SpeedrunInput.TIME,
+                List.of("0", "42:05", "1:02:03"), then));
+    }
+
+    /** The seed page's "type the seed": the answer becomes the fixed seed, for somebody with SEEDS. */
+    public void askSeed(Player player, Runnable after) {
+        askSeed(player, SpeedrunAccess.SEEDS, after);
+    }
+
+    /**
+     * Asks for one seed in a window; the answer becomes the fixed seed — asked again for {@code access}
+     * at the moment it is typed, as every prompt's answer is.
+     */
+    public void askSeed(Player player, SpeedrunAccess access, Runnable after) {
+        lobby.input().ifPresent(input -> input.window(player, text("speedrun.seed.ask"), lobby.config().seed(),
+                SpeedrunInput.SEED, typed -> {
+                    if (!access.allows(lobby, player)) {
+                        return;
+                    }
+                    lobby.settings().set("seed", typed);
+                    lobby.settings().set("seed-mode", SpeedrunSeedMode.FIXED.name());
+                    say(player, "speedrun.seed.set", "seed", typed);
+                    after.run();
+                }));
+    }
+
+    /** Asks for a pool of seeds in a window; the answer becomes the pool, for somebody with SEEDS. */
+    public void askSeedPool(Player player, Runnable after) {
+        lobby.input().ifPresent(input -> input.window(player, text("speedrun.seed.ask-pool"),
+                lobby.config().seedPool(), SpeedrunInput.SEED_POOL, typed -> {
+                    if (!SpeedrunAccess.SEEDS.allows(lobby, player)) {
+                        return;
+                    }
+                    lobby.settings().set("seed-pool", typed);
+                    lobby.settings().set("seed-mode", SpeedrunSeedMode.POOL.name());
+                    say(player, "speedrun.seed.pool-set", "count", String.valueOf(SpeedrunSeeds.pool(typed).size()));
+                    after.run();
+                }));
+    }
+
+    /** A message as plain text — what a window title or a chat question takes. */
+    private String text(String key) {
+        Messages messages = messages();
+        return messages == null ? key : de.raindancer.core.ui.text.Text.plain(messages.get(key));
     }
 
     // ---------------------------------------------------------------------------- the HUD

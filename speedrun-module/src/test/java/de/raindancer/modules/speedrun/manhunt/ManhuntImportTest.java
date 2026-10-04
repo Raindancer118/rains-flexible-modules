@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt;
 
+import de.raindancer.modules.speedrun.Histories;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.modules.speedrun.SpeedrunHistory;
 import de.raindancer.modules.speedrun.SpeedrunRunRecord;
@@ -26,12 +27,24 @@ class ManhuntImportTest {
     private static final UUID ANNA = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID BEN = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
+    private de.raindancer.core.data.sql.Database database;
+
+    @org.junit.jupiter.api.BeforeEach
+    void openDatabase() {
+        database = de.raindancer.core.data.sql.Database.open(folder.resolve("core.db"),
+                de.raindancer.core.data.sql.CoreSchema.CORE, () -> false);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void closeDatabase() {
+        database.close();
+    }
+
     @TempDir
     Path folder;
 
     private SpeedrunHistory history() {
-        SpeedrunHistory history = new SpeedrunHistory(new YamlStore(folder.resolve("history.yml")), Runnable::run);
-        history.load();
+        SpeedrunHistory history = Histories.onDisk(database, folder);
         return history;
     }
 

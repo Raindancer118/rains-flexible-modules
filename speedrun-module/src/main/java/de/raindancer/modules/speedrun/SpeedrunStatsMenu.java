@@ -121,6 +121,12 @@ public final class SpeedrunStatsMenu extends PaginatedMenu<SpeedrunCategory> {
 
     @Override
     protected void onClick(SpeedrunCategory category, InventoryClickEvent event) {
-        new SpeedrunLeaderboardMenu(lobby, viewer, this, category).open();
+        SpeedrunHistory history = history();
+        int mostPlayed = history.runsOf(whose).stream().filter(run -> run.category().equals(category))
+                .collect(java.util.stream.Collectors.groupingBy(SpeedrunRunRecord::playerCount,
+                        java.util.stream.Collectors.counting()))
+                .entrySet().stream().max(java.util.Map.Entry.comparingByValue())
+                .map(java.util.Map.Entry::getKey).orElse(0);
+        SpeedrunLeaderboardMenu.open(lobby, viewer, this, category, mostPlayed);
     }
 }

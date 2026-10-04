@@ -1,6 +1,11 @@
 package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.ui.chat.ChatButton;
+import de.raindancer.core.data.runs.Run;
+import de.raindancer.core.data.runs.RunHistory;
+import de.raindancer.core.data.runs.RunText;
+import de.raindancer.core.platform.util.Closest;
+import de.raindancer.core.ui.text.Text;
 import de.raindancer.core.ui.chat.ChatButtons;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.speedrun.util.PermissionNodes;
@@ -79,6 +84,11 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
         String word = args[0].toLowerCase(Locale.ROOT);
         Optional<Word> known = WORDS.stream().filter(w -> w.name().equals(word)).findFirst();
         if (known.isEmpty()) {
+            List<String> guesses = Closest.to(word, usable(sender).map(Word::name).toList(), 1);
+            if (!guesses.isEmpty()) {
+                live.messages().send(sender, "speedrun.command.did-you-mean", "word", args[0], "guess", guesses.getFirst());
+                return;
+            }
             live.messages().send(sender, "speedrun.command.unknown", "word", args[0]);
             help(live, sender);
             return;
@@ -138,7 +148,15 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
             }
             case "time" -> {
                 if (rest.length == 0) {
-                    live.messages().send(sender, "speedrun.time.usage");
+                    if (sender instanceof Player player) {
+                        actions.askTimeInChat(player, "speedrun.time.ask", time -> {
+                            if (SpeedrunAccess.SET_CLOCK.allows(lobby, player)) {
+                                actions.setClock(player, time);
+                            }
+                        });
+                    } else {
+                        live.messages().send(sender, "speedrun.time.usage");
+                    }
                     return;
                 }
                 RunClock.parse(rest[0]).ifPresentOrElse(time -> actions.setClock(sender, time),
@@ -242,24 +260,19 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
     }
 
     private void top(SpeedrunAdminServices live, CommandSender sender) {
+        SpeedrunLobby lobby = live.lobby();
         if (sender instanceof Player player) {
-            new SpeedrunLeaderboardMenu(live.lobby(), player, null, null).open();
+            SpeedrunLeaderboardMenu.open(lobby, player, null, null, lobby.presentInLobbyWorld().size());
             return;
         }
-        SpeedrunHistory history = live.lobby().toolkit().map(SpeedrunToolkit::history).orElse(null);
-        SpeedrunCategory category = SpeedrunLeaderboardMenu.currentCategory(live.lobby());
-        List<SpeedrunRunRecord> board = history == null ? List.of()
-                : history.leaderboard(new SpeedrunHistory.Filter(category, SpeedrunHistory.Filter.ANY_COUNT));
-        live.messages().send(sender, "speedrun.top.header", "category", category.label());
-        for (int place = 0; place < Math.min(10, board.size()); place++) {
-            SpeedrunRunRecord run = board.get(place);
-            live.messages().send(sender, "speedrun.top.line", "place", String.valueOf(place + 1),
-                    "time", SpeedrunTimerDisplay.plain(run.time()),
-                    "players", String.join(", ", run.participants().values()));
-        }
-        if (board.isEmpty()) {
-            live.messages().send(sender, "speedrun.top.empty");
-        }
+        SpeedrunHistory history = lobby.toolkit().map(SpeedrunToolkit::history).orElse(null);
+        String board = history == null ? SpeedrunLeaderboardMenu.currentCategory(lobby).boardName(1)
+                : SpeedrunLeaderboardMenu.boardOf(history, SpeedrunLeaderboardMenu.currentCategory(lobby), 0);
+        live.messages().send(sender, "speedrun.top.header", "category", board);
+        List<Run> best = history == null ? List.of()
+                : history.runs().leaderboard(board, RunHistory.Board.onePerPlayer().top(10));
+        // Core's chat lines: place, who, time — every name shown as text, whatever it contains.
+        RunText.boardLines(best, null, RunText::score).forEach(line -> sender.sendMessage(Text.render(line)));
     }
 
     private void seed(SpeedrunAdminServices live, CommandSender sender, String[] rest) {
@@ -291,11 +304,7 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
     private void help(SpeedrunAdminServices live, CommandSender sender) {
         live.messages().send(sender, "speedrun.command.help-header");
         ChatButtons buttons = live.lobby().toolkit().map(SpeedrunToolkit::buttons).orElse(null);
-        for (Word word : WORDS) {
-            String node = word.access().node();
-            if (node != null && word.access() != SpeedrunAccess.START && !sender.hasPermission(node)) {
-                continue;
-            }
+        for (Word word : usable(sender).toList()) {
             Component line = live.messages().get("speedrun.command.help-line", "usage", "/speedrun " + word.usage(),
                     "what", word.what());
             if (buttons != null && sender instanceof Player) {
@@ -304,6 +313,12 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
             }
             sender.sendMessage(line);
         }
+    }
+
+    /** The words this sender may use — the start's own rule is asked when it is used, not here. */
+    private static java.util.stream.Stream<Word> usable(CommandSender sender) {
+        return WORDS.stream().filter(word -> word.access().node() == null || word.access() == SpeedrunAccess.START
+                || sender.hasPermission(word.access().node()));
     }
 
     /** The named player, or the sender themselves for no name. */
@@ -329,9 +344,7 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
         boolean admin = sender.hasPermission(PermissionNodes.ADMIN);
         if (args.length <= 1) {
             String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
-            return WORDS.stream()
-                    .filter(word -> word.access().node() == null || word.access() == SpeedrunAccess.START
-                            || sender.hasPermission(word.access().node()))
+            return usable(sender)
                     .map(Word::name)
                     .filter(name -> name.startsWith(typed)).toList();
         }

@@ -1,7 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.service;
 
 import de.raindancer.modules.speedrun.manhunt.model.Hunt;
-import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
@@ -15,6 +14,7 @@ import org.bukkit.event.player.PlayerBucketEvent;
 import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import de.raindancer.core.world.movement.Moves;
 import org.bukkit.event.player.PlayerMoveEvent;
 
 import java.util.Objects;
@@ -101,10 +101,10 @@ public final class HunterHoldListener implements Listener {
         if (!held(event.getPlayer().getUniqueId())) {
             return;
         }
-        if (event.getTo() == null || sameBlock(event.getFrom(), event.getTo())) {
+        if (!Moves.changedBlock(event)) {
             return;
         }
-        event.setCancelled(true);
+        Moves.holdInPlace(event);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
@@ -170,10 +170,4 @@ public final class HunterHoldListener implements Listener {
         }
     }
 
-    private static boolean sameBlock(Location from, Location to) {
-        return from.getWorld() == to.getWorld()
-                && from.getBlockX() == to.getBlockX()
-                && from.getBlockY() == to.getBlockY()
-                && from.getBlockZ() == to.getBlockZ();
-    }
 }

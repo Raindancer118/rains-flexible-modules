@@ -379,13 +379,15 @@ class SpeedrunLobbyListenerTest {
             Player player = playerInWorld("world");
             World world = player.getWorld();
             Location from = new Location(world, 10, 64, 10, 90f, 0f);
-            Location walked = new Location(world, 11, 64, 10);
+            Location walked = new Location(world, 11, 64, 10, 45f, 10f);
 
             org.bukkit.event.player.PlayerMoveEvent event =
                     new org.bukkit.event.player.PlayerMoveEvent(player, from, walked);
             listener.onMove(event);
 
-            assertThat(event.isCancelled()).isTrue();
+            assertThat(Steps.held(event)).isTrue();
+            // Held in the block, still free to look around: no head snapping back every tick.
+            assertThat(Steps.heldLookingAround(event, 45f)).isTrue();
         }
 
         @Test
@@ -407,6 +409,7 @@ class SpeedrunLobbyListenerTest {
             listener.onMove(event);
 
             assertThat(event.isCancelled()).isFalse();
+            assertThat(event.getTo()).isSameAs(lookedAround);
         }
 
         @Test
@@ -422,7 +425,7 @@ class SpeedrunLobbyListenerTest {
                     new org.bukkit.event.player.PlayerMoveEvent(player, from, walked);
             listener.onMove(event);
 
-            assertThat(event.isCancelled()).isFalse();
+            assertThat(Steps.held(event)).isFalse();
         }
 
         @Test
@@ -434,7 +437,7 @@ class SpeedrunLobbyListenerTest {
 
             listener.onMove(event);
 
-            assertThat(event.isCancelled()).isFalse();
+            assertThat(Steps.held(event)).isFalse();
         }
 
         @Test
@@ -456,7 +459,7 @@ class SpeedrunLobbyListenerTest {
                     new org.bukkit.event.player.PlayerMoveEvent(player, from, walked);
             listener.onMove(event);
 
-            assertThat(event.isCancelled()).isFalse();
+            assertThat(Steps.held(event)).isFalse();
         }
     }
 
@@ -852,7 +855,7 @@ class SpeedrunLobbyListenerTest {
 
             listener.onMove(event);
 
-            assertThat(event.isCancelled()).isFalse();
+            assertThat(Steps.held(event)).isFalse();
         }
     }
 

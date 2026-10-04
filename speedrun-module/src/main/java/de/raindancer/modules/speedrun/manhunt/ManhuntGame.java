@@ -146,7 +146,7 @@ public final class ManhuntGame {
                 context.core().messages().raw("manhunt.team-compass.picker-title"), viewer).open());
         // The Runners' structure compass — see StructureCompassService.
         StructureCompassService structures = new StructureCompassService(context.plugin(), liveHunt,
-                context.core().messages(), settings::current, StructureCompassService.worldSearch());
+                context.core().messages(), settings::current, StructureCompassService.coreSearch(context.core().structures()));
         structures.chooserScreen(viewer -> new StructureChoiceMenu(structures, context.chat().brand(),
                 viewer).open());
         warnAboutUnknownStructures(log);

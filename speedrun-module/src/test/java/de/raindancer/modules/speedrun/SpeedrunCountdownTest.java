@@ -129,14 +129,16 @@ class SpeedrunCountdownTest {
             PlayerMoveEvent lookOnly = new PlayerMoveEvent(alice, from, lookedAround);
             countdown.onMove(lookOnly);
             assertThat(lookOnly.isCancelled()).isFalse();
+            assertThat(lookOnly.getTo()).isSameAs(lookedAround);
 
             PlayerMoveEvent aliceWalks = new PlayerMoveEvent(alice, from, walked);
             countdown.onMove(aliceWalks);
-            assertThat(aliceWalks.isCancelled()).isTrue();
+            assertThat(Steps.held(aliceWalks)).isTrue();
+            assertThat(Steps.heldLookingAround(aliceWalks, walked.getYaw())).isTrue();
 
             PlayerMoveEvent bobWalks = new PlayerMoveEvent(bob, from, walked);
             countdown.onMove(bobWalks);
-            assertThat(bobWalks.isCancelled()).isFalse();
+            assertThat(Steps.held(bobWalks)).isFalse();
         }
     }
 
@@ -163,7 +165,7 @@ class SpeedrunCountdownTest {
             PlayerMoveEvent aliceWalks = new PlayerMoveEvent(alice, from, walked);
             countdown.onMove(aliceWalks);
 
-            assertThat(aliceWalks.isCancelled()).isFalse();
+            assertThat(Steps.held(aliceWalks)).isFalse();
         }
     }
 

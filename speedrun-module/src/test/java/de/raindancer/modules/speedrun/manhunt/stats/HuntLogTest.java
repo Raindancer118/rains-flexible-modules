@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.stats;
 
+import de.raindancer.modules.speedrun.Histories;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.modules.speedrun.SpeedrunBoard;
 import de.raindancer.modules.speedrun.SpeedrunCategory;
@@ -131,6 +132,21 @@ class HuntLogTest {
     }
 
     @Test
+    @DisplayName("a Runner caught by a death nobody dealt fell, burned or drowned — they did not stay away")
+    void caughtWithoutAKiller() {
+        minutes(3);
+        log.caught(RUNNER, "Runner", null, null);
+        minutes(1);
+        log.caughtAway(SECOND, "Second");
+
+        HuntSummary summary = HuntSummary.of(run(SpeedrunHistory.HUNTERS, "manhunt:caught"));
+
+        assertThat(summary.catches()).extracting(HuntSummary.Catch::how)
+                .containsExactly(HuntSummary.How.DIED, HuntSummary.How.STAYED_AWAY);
+        assertThat(summary.catches().getFirst().byName()).isNull();
+    }
+
+    @Test
     @DisplayName("Runners still running at a Runners' win survived the whole hunt, and won")
     void runnersWin() {
         minutes(30);
@@ -167,11 +183,13 @@ class HuntLogTest {
     @Test
     @DisplayName("stats add up across hunts and the ratings move — in the one history, saved and read back")
     void standings() {
-        SpeedrunHistory history = new SpeedrunHistory(new YamlStore(directory.resolve("history.yml")), Runnable::run);
+        try (de.raindancer.core.data.sql.Database database = de.raindancer.core.data.sql.Database.open(
+                directory.resolve("core.db"), de.raindancer.core.data.sql.CoreSchema.CORE, () -> false)) {
+        SpeedrunHistory history = Histories.onDisk(database, directory);
         history.add(huntersWin(), true);
+        history.flush();
 
-        SpeedrunHistory reread = new SpeedrunHistory(new YamlStore(directory.resolve("history.yml")), Runnable::run);
-        reread.load();
+        SpeedrunHistory reread = Histories.onDisk(database, directory);
         StatsStore stats = new StatsStore(() -> reread, ManhuntMode.ID);
         PlayerStats hunter = stats.get(HUNTER);
         assertThat(hunter.name()).isEqualTo("Hunter");
@@ -190,12 +208,13 @@ class HuntLogTest {
             assertThat(run.winner()).isEqualTo(SpeedrunHistory.HUNTERS);
             assertThat(run.timeline()).isEqualTo(timeline.entries());
         });
+        }
     }
 
     @Test
     @DisplayName("a hunt nobody won counts as played, and moves no rating")
     void nobodysWin() {
-        SpeedrunHistory history = new SpeedrunHistory(null, Runnable::run);
+        SpeedrunHistory history = Histories.inMemory();
         history.add(run("", "admin-reset"), true);
         StatsStore stats = new StatsStore(() -> history, ManhuntMode.ID);
 
@@ -206,7 +225,7 @@ class HuntLogTest {
     @Test
     @DisplayName("with stats off, a hunt is kept in the history and moves nobody's standing")
     void unrated() {
-        SpeedrunHistory history = new SpeedrunHistory(null, Runnable::run);
+        SpeedrunHistory history = Histories.inMemory();
         history.add(huntersWin(), false);
 
         assertThat(history.all()).hasSize(1);
@@ -216,7 +235,7 @@ class HuntLogTest {
     @Test
     @DisplayName("runs are numbered in the order they were played, for /manhunt summary")
     void numbering() {
-        SpeedrunHistory history = new SpeedrunHistory(null, Runnable::run);
+        SpeedrunHistory history = Histories.inMemory();
         SpeedrunRunRecord first = huntersWin();
         history.add(first, false);
 

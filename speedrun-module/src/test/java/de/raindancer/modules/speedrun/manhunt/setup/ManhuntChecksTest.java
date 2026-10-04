@@ -3,7 +3,7 @@ package de.raindancer.modules.speedrun.manhunt.setup;
 import de.raindancer.core.data.settings.SettingsSchema;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.modules.speedrun.SpeedrunMode;
-import de.raindancer.modules.speedrun.SpeedrunPreflight;
+import de.raindancer.core.ui.checklist.Checklist;
 import de.raindancer.modules.speedrun.manhunt.ManhuntSettings;
 import de.raindancer.modules.speedrun.manhunt.util.PermissionNodes;
 import org.bukkit.entity.Player;
@@ -70,15 +70,16 @@ class ManhuntChecksTest {
                 false, false, 0.5);
     }
 
-    private Optional<SpeedrunPreflight.Check> check(String id) {
-        return checks.checks().stream().filter(c -> c.id().equals(id)).findFirst();
+    private Optional<Checklist.Check> check(String id) {
+        return checks.checks().byId(id);
     }
 
     private void click(String id) {
-        SpeedrunPreflight.Check check = check(id).orElseThrow();
-        assertThat(check.fix()).isEqualTo(SpeedrunPreflight.Fix.MODE);
-        assertThat(check.modeFix().node()).as("the node of /manhunt's own words").isEqualTo(PermissionNodes.ADMIN);
-        check.modeFix().apply().accept(mock(Player.class));
+        Checklist.Check check = check(id).orElseThrow();
+        assertThat(check.group()).as("under Manhunt's own heading").isEqualTo("Manhunt");
+        Checklist.Fix fix = check.fixIfAny().orElseThrow();
+        assertThat(fix.permission()).as("the node of /manhunt's own words").isEqualTo(PermissionNodes.ADMIN);
+        fix.action().accept(mock(Player.class));
     }
 
     @Test
@@ -86,7 +87,7 @@ class ManhuntChecksTest {
     void ready() {
         situation.set(good());
 
-        assertThat(checks.checks()).isNotEmpty().allMatch(SpeedrunPreflight.Check::ok);
+        assertThat(checks.checks().checks()).isNotEmpty().allMatch(Checklist.Check::ok);
     }
 
     @Test
@@ -94,7 +95,7 @@ class ManhuntChecksTest {
     void noRunner() {
         situation.set(new Preflight.Situation(true, false, 4, 0, List.of(), "x:y", true, false, false, 0.5));
 
-        assertThat(check("manhunt-runner").orElseThrow().stopsTheStart()).isTrue();
+        assertThat(check("manhunt-runner").orElseThrow().blocks()).isTrue();
         click("manhunt-runner");
         assertThat(done).containsExactly("random");
     }
@@ -104,7 +105,7 @@ class ManhuntChecksTest {
     void noHunter() {
         situation.set(new Preflight.Situation(true, false, 3, 3, List.of(), "x:y", true, false, false, 0.5));
 
-        assertThat(check("manhunt-hunter").orElseThrow().stopsTheStart()).isTrue();
+        assertThat(check("manhunt-hunter").orElseThrow().blocks()).isTrue();
         click("manhunt-hunter");
         assertThat(done).containsExactly("balance");
     }
@@ -115,9 +116,9 @@ class ManhuntChecksTest {
         situation.set(new Preflight.Situation(true, false, 4, 1, List.of("Away"), "x:y", true, true, false, 0.1));
 
         for (String id : List.of("manhunt-away", "manhunt-door", "manhunt-even")) {
-            SpeedrunPreflight.Check check = check(id).orElseThrow();
+            Checklist.Check check = check(id).orElseThrow();
             assertThat(check.ok()).as(id).isFalse();
-            assertThat(check.blocking()).as(id).isFalse();
+            assertThat(check.severity()).as(id).isEqualTo(Checklist.Severity.WARNING);
         }
         assertThat(check("manhunt-away").orElseThrow().detail()).contains("Away");
         click("manhunt-away");
@@ -139,9 +140,9 @@ class ManhuntChecksTest {
     void alone() {
         situation.set(new Preflight.Situation(true, false, 1, 1, List.of(), "", false, false, false, 0.5));
 
-        assertThat(checks.checks()).singleElement().satisfies(check -> {
+        assertThat(checks.checks().checks()).singleElement().satisfies(check -> {
             assertThat(check.id()).isEqualTo("manhunt-two");
-            assertThat(check.stopsTheStart()).isTrue();
+            assertThat(check.blocks()).isTrue();
         });
     }
 
@@ -150,7 +151,7 @@ class ManhuntChecksTest {
     void huntOn() {
         situation.set(new Preflight.Situation(true, true, 4, 1, List.of(), "", false, false, false, 0.5));
 
-        assertThat(checks.checks()).isEmpty();
+        assertThat(checks.checks().checks()).isEmpty();
     }
 
     @Test
@@ -158,7 +159,7 @@ class ManhuntChecksTest {
     void noGoalCheck() {
         situation.set(new Preflight.Situation(true, false, 4, 1, List.of(), "minecraft:nope", false, false, false, 0.5));
 
-        assertThat(checks.checks()).extracting(SpeedrunPreflight.Check::id).noneMatch(id -> id.contains("goal"));
+        assertThat(checks.checks().checks()).extracting(Checklist.Check::id).noneMatch(id -> id.contains("goal"));
     }
 
     @Test

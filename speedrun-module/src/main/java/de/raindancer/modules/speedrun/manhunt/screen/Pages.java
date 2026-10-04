@@ -123,7 +123,7 @@ public final class Pages implements ManhuntServices.Screens {
         viewer.performCommand(command);
     }
 
-    /** Asks for the time a resumed hunt had reached, in chat, then resumes at it. */
+    /** Asks for the time a resumed hunt had reached, in a window, then resumes at it. */
     @Override
     public void askResumeTime(Player viewer) {
         SpeedrunLobby lobby = services().lobby().get();
@@ -131,9 +131,9 @@ public final class Pages implements ManhuntServices.Screens {
             services().messages().send(viewer, "manhunt.goal.no-lobby");
             return;
         }
-        // The lobby's own question; the answer goes through /manhunt resume, so it is asked for the
-        // same node again at the moment it is answered.
-        new SpeedrunActions(lobby, services().messages()).askForTime(viewer, "speedrun.resume.ask",
+        // The lobby's own question, in a window; the answer goes through /manhunt resume, so it is
+        // asked for the same node again at the moment it is answered.
+        new SpeedrunActions(lobby, services().messages()).askTime(viewer, "speedrun.resume.ask",
                 time -> run(viewer, "manhunt resume " + SpeedrunTimerDisplay.plain(time)));
     }
 }

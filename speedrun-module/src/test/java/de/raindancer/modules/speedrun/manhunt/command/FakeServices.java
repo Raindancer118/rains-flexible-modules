@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.command;
 
+import de.raindancer.modules.speedrun.Histories;
 import de.raindancer.core.data.settings.SettingsSchema;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.ui.chat.Brand;
@@ -44,7 +45,7 @@ final class FakeServices {
     final de.raindancer.core.data.settings.SettingsRegistry registry = new de.raindancer.core.data.settings.SettingsRegistry();
     /** The lobby's one history, which keeps Manhunt's standings too — no file, written straight through. */
     final de.raindancer.modules.speedrun.SpeedrunHistory history =
-            new de.raindancer.modules.speedrun.SpeedrunHistory(null, Runnable::run);
+            de.raindancer.modules.speedrun.Histories.inMemory();
     final de.raindancer.modules.speedrun.manhunt.stats.StatsStore stats;
     final de.raindancer.modules.speedrun.manhunt.stats.HuntChronicle chronicle;
     final de.raindancer.modules.speedrun.manhunt.setup.HuntDesk desk;

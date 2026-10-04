@@ -98,7 +98,7 @@ class SpeedrunRecordingTest {
         when(messages.prefixed(anyString(), any(Object[].class))).thenReturn(Component.text("line"));
         when(messages.get(anyString(), any(Object[].class))).thenReturn(Component.text("title"));
         effects = mock(Effects.class);
-        history = new SpeedrunHistory(new YamlStore(folder.resolve("history.yml")), Runnable::run);
+        history = Histories.inMemory(folder);
     }
 
     @AfterEach

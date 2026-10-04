@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.setup;
 
+import de.raindancer.modules.speedrun.Histories;
 import de.raindancer.modules.speedrun.manhunt.mode.ManhuntMode;
 
 import de.raindancer.core.data.settings.SettingsRegistry;
@@ -47,7 +48,7 @@ class HuntDeskTest {
     private SettingsRegistry registry;
     private StatsStore stats;
     private final de.raindancer.modules.speedrun.SpeedrunHistory history =
-            new de.raindancer.modules.speedrun.SpeedrunHistory(null, Runnable::run);
+            de.raindancer.modules.speedrun.Histories.inMemory();
     private HuntDesk desk;
 
     @BeforeEach

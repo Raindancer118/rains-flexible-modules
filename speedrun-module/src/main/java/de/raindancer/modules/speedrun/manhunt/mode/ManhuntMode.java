@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.mode;
 
+import de.raindancer.core.ui.checklist.Checklist;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.platform.util.Scheduling;
@@ -20,7 +21,6 @@ import de.raindancer.modules.speedrun.manhunt.tracker.TrackerListener;
 import de.raindancer.modules.speedrun.manhunt.util.Threads;
 import de.raindancer.modules.speedrun.SpeedrunMode;
 import de.raindancer.modules.speedrun.SpeedrunOutcome;
-import de.raindancer.modules.speedrun.SpeedrunPreflight;
 import de.raindancer.modules.speedrun.SpeedrunRun;
 import de.raindancer.modules.speedrun.SpeedrunSession;
 import de.raindancer.modules.speedrun.SpeedrunSettings;
@@ -161,12 +161,12 @@ public final class ManhuntMode implements SpeedrunMode {
         return false;
     }
 
-    private volatile Supplier<List<SpeedrunPreflight.Check>> preflight = List::of;
+    private volatile Supplier<Checklist> preflight = () -> Checklist.titled("Manhunt");
     private volatile Supplier<List<SetupQuestion>> questions = List::of;
 
     /** Manhunt's own pre-flight checks — set once by {@code ManhuntGame}, which has what they read. */
-    public void preflightBy(Supplier<List<SpeedrunPreflight.Check>> checks) {
-        this.preflight = checks == null ? List::of : checks;
+    public void preflightBy(Supplier<Checklist> checks) {
+        this.preflight = checks == null ? () -> Checklist.titled("Manhunt") : checks;
     }
 
     /** Manhunt's own setup questions — set once by {@code ManhuntGame}. */
@@ -175,7 +175,7 @@ public final class ManhuntMode implements SpeedrunMode {
     }
 
     @Override
-    public List<SpeedrunPreflight.Check> preflight(SpeedrunSettings config, Set<UUID> racers) {
+    public Checklist preflight(SpeedrunSettings config, Set<UUID> racers) {
         return preflight.get();
     }
 
@@ -366,6 +366,33 @@ public final class ManhuntMode implements SpeedrunMode {
             messages.send(online, side == Side.HUNTER ? "manhunt.join.hunter" : "manhunt.join.runner");
         }
         return SideChange.CHANGED;
+    }
+
+    // ------------------------------------------------------------------------ joining late
+
+    /**
+     * Somebody joined the hunt under way as a racer ({@code late-join: RACE}): onto the side
+     * {@code late-joiner-side} says — a Hunter unless the server asked otherwise — through the one door
+     * every mid-hunt side change takes, so the roster, the team and the compasses agree and the door
+     * lets them back in. A late Runner gets every life and the same offline grace as anybody running;
+     * a late Hunter in the head start waits it out like every Hunter.
+     */
+    @Override
+    public void lateJoined(SpeedrunRun run, Player player) {
+        Hunt hunt = live.get();
+        if (hunt == null) {
+            return;
+        }
+        changeSide(player.getUniqueId(), sideFor(hunt, settings.get().lateJoinerSideOrHunter()), true);
+    }
+
+    /** The side a latecomer joins on: as configured, or the smaller one — a tie goes to the Hunters. */
+    static Side sideFor(Hunt hunt, ManhuntSettings.LateJoinerSide rule) {
+        return switch (rule == null ? ManhuntSettings.LateJoinerSide.HUNTER : rule) {
+            case HUNTER -> Side.HUNTER;
+            case RUNNER -> Side.RUNNER;
+            case SMALLER_SIDE -> hunt.runners().size() < hunt.hunters().size() ? Side.RUNNER : Side.HUNTER;
+        };
     }
 
     // ------------------------------------------------------------------------ where everybody stands

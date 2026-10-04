@@ -130,6 +130,37 @@ class TrackerListenerTest {
         verify(tracker, org.mockito.Mockito.never()).openPicker(hunter);
     }
 
+    /**
+     * Found by the e2e run: a right-click into the air did nothing on a real server. Bukkit fires that
+     * event already cancelled (there is no block to use), so a handler that skips cancelled events
+     * never hears the commonest click there is.
+     */
+    @Test
+    @DisplayName("a right-click into the air is heard: Bukkit fires it already cancelled")
+    void aRightClickIntoTheAirIsHeard() throws Exception {
+        org.bukkit.event.player.PlayerInteractEvent intoTheAir = rightClick(playerWithId(HUNTER));
+        assertThat(intoTheAir.isCancelled()).as("how Bukkit fires a click into the air").isTrue();
+
+        org.bukkit.event.EventHandler handler = TrackerListener.class
+                .getMethod("onInteract", org.bukkit.event.player.PlayerInteractEvent.class)
+                .getAnnotation(org.bukkit.event.EventHandler.class);
+
+        assertThat(handler.ignoreCancelled()).as("the handler skips cancelled clicks").isFalse();
+    }
+
+    @Test
+    @DisplayName("a click whose item use another plugin denied is left alone")
+    void aDeniedItemUseIsLeftAlone() {
+        Player hunter = playerWithId(HUNTER);
+        org.bukkit.event.player.PlayerInteractEvent denied = rightClick(hunter);
+        denied.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+
+        listener.onInteract(denied);
+
+        verify(tracker, org.mockito.Mockito.never()).cycleTarget(hunter);
+        verify(tracker, org.mockito.Mockito.never()).openPicker(hunter);
+    }
+
     @Test
     @DisplayName("sneaking, the same click opens the list instead")
     void sneakRightClickOpensTheList() {

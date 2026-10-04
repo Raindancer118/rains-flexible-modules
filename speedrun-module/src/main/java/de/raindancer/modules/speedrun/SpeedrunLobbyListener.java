@@ -16,6 +16,7 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import de.raindancer.core.world.movement.Moves;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -89,6 +90,12 @@ public final class SpeedrunLobbyListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         offerSetup(player);
+        // A run under way: late-join decides what they are to it — and places them itself when they
+        // race or watch. See SpeedrunLateJoin.
+        SpeedrunLatecomers.Arrival arrival = lobby.arrive(player);
+        if (arrival == SpeedrunLatecomers.Arrival.RACE || arrival == SpeedrunLatecomers.Arrival.WATCH) {
+            return;
+        }
         if (player.getWorld().getName().equals(lobby.config().worldName())) {
             giveItemsIfReady(player);
             return;
@@ -225,13 +232,13 @@ public final class SpeedrunLobbyListener implements Listener {
      * here.
      *
      * <p>Block-quantised, the same trick {@link SpeedrunCountdown#onMove} uses, so looking around
-     * still works — only an actual step is cancelled.
+     * still works — only an actual step is held back (Moves.holdInPlace), the head turn kept.
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
         // Cheapest first: nearly every move event on a server is a turn of the head or a step inside
         // one block, and this runs for every player in every world.
-        if (event.getTo() == null || sameBlock(event.getFrom(), event.getTo())) {
+        if (!Moves.changedBlock(event)) {
             return;
         }
         if (lobby.state() != SpeedrunLobbyState.READY) {
@@ -244,15 +251,9 @@ public final class SpeedrunLobbyListener implements Listener {
         if (lobby.isReleased(player.getUniqueId()) || lobby.isSpectator(player.getUniqueId())) {
             return;   // released, or not racing at all (/speedrunspectate): no head start to guard
         }
-        event.setCancelled(true);
+        Moves.holdInPlace(event);
     }
 
-    private static boolean sameBlock(Location from, Location to) {
-        return from.getWorld() == to.getWorld()
-                && from.getBlockX() == to.getBlockX()
-                && from.getBlockY() == to.getBlockY()
-                && from.getBlockZ() == to.getBlockZ();
-    }
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onInteract(PlayerInteractEvent event) {

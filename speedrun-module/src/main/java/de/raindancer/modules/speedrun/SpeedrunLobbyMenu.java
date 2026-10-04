@@ -122,7 +122,7 @@ public final class SpeedrunLobbyMenu extends Menu {
                     click -> new SpeedrunStatsMenu(lobby, viewer, this, viewer.getUniqueId(), viewer.getName()).open());
             band(MenuLayout.LAND, 4, Icons.of(Material.GOLDEN_HELMET, "<gold>Leaderboards",
                             "<gray>Per goal, seed, game and player count.", "<dark_gray>Click to open."),
-                    click -> new SpeedrunLeaderboardMenu(lobby, viewer, this, null).open());
+                    click -> SpeedrunLeaderboardMenu.open(lobby, viewer, this, null, racersNow()));
             band(MenuLayout.LAND, 6, Icons.of(Material.BOOK, "<white>Past runs",
                             "<gray>" + kit.history().size() + " kept, every split of each.", "<dark_gray>Click to open."),
                     click -> new SpeedrunHistoryMenu(lobby, viewer, this, null, "").open());
@@ -138,7 +138,7 @@ public final class SpeedrunLobbyMenu extends Menu {
                 Icons.of(Material.RECOVERY_COMPASS, "<white>Resume a run", "<gray>Over the world as it stands,",
                         "<gray>at a time you type — after a restart."),
                 SpeedrunAccess.RESUME.allows(lobby, viewer) ? "Only from a ready or finished lobby" : "Staff resume runs",
-                SpeedrunAccess.RESUME.guard(lobby, viewer, click -> actions.askForTime(viewer, "speedrun.resume.ask",
+                SpeedrunAccess.RESUME.guard(lobby, viewer, click -> actions.askTime(viewer, "speedrun.resume.ask",
                         time -> {
                             if (SpeedrunAccess.RESUME.allows(lobby, viewer)) {
                                 actions.resume(viewer, time);
@@ -148,7 +148,7 @@ public final class SpeedrunLobbyMenu extends Menu {
         toolbar(3, SpeedrunAccess.SET_CLOCK.allows(lobby, viewer) && running, Icons.of(Material.COMPARATOR, "<white>Set the clock",
                         "<gray>Type the time it should read.", "<gray>Kept on the run's record."),
                 SpeedrunAccess.SET_CLOCK.allows(lobby, viewer) ? "No run is being played" : "Staff set the clock",
-                SpeedrunAccess.SET_CLOCK.guard(lobby, viewer, click -> actions.askForTime(viewer, "speedrun.time.ask",
+                SpeedrunAccess.SET_CLOCK.guard(lobby, viewer, click -> actions.askTime(viewer, "speedrun.time.ask",
                         time -> {
                             if (SpeedrunAccess.SET_CLOCK.allows(lobby, viewer)) {
                                 actions.setClock(viewer, time);
@@ -343,5 +343,11 @@ public final class SpeedrunLobbyMenu extends Menu {
 
     private static List<String> deathLore(SpeedrunSettings config) {
         return deathLore(config.deathPolicy());
+    }
+
+    /** How many race now — the board a leaderboard opens on. */
+    private int racersNow() {
+        return lobby.session().map(session -> session.participants().size())
+                .orElseGet(() -> lobby.presentInLobbyWorld().size());
     }
 }

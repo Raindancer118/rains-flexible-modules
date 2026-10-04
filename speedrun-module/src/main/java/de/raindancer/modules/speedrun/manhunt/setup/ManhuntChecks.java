@@ -1,14 +1,13 @@
 package de.raindancer.modules.speedrun.manhunt.setup;
 
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.ui.checklist.Checklist;
 import de.raindancer.modules.speedrun.SpeedrunMode;
-import de.raindancer.modules.speedrun.SpeedrunPreflight;
 import de.raindancer.modules.speedrun.manhunt.ManhuntSettings;
 import de.raindancer.modules.speedrun.manhunt.util.PermissionNodes;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -19,6 +18,9 @@ import java.util.function.Consumer;
  * checks — the world, the goal, a run already under way — are never repeated here.
  */
 public final class ManhuntChecks {
+
+    /** The heading Manhunt's checks are shown under. */
+    static final String HEADING = "Manhunt";
 
     /** What the fixes do — the same as {@code /manhunt random 1}, {@code balance} and {@code door}. */
     public interface Desk {
@@ -69,44 +71,39 @@ public final class ManhuntChecks {
         };
     }
 
-    /** Manhunt's checks for a start with the lobby as it stands. */
-    public List<SpeedrunPreflight.Check> checks() {
+    /** Manhunt's checks for a start with the lobby as it stands, under Manhunt's own heading. */
+    public Checklist checks() {
         Preflight.Situation s = desk.situation();
-        List<SpeedrunPreflight.Check> checks = new ArrayList<>();
+        Checklist checks = Checklist.titled(HEADING);
         if (s.huntRunning()) {
             return checks;   // the lobby's own "a run is under way" says it
         }
-        SpeedrunPreflight.ModeFix balance = fix("Balance the sides", "Splits everybody here by rating",
-                player -> desk.balance());
-        checks.add(SpeedrunPreflight.Check.ofMode("manhunt-two", s.present() >= 2, true, "Two players or more",
-                s.present() >= 2 ? s.present() + " here." : "Only " + s.present()
-                        + " here — a hunt needs somebody to run and somebody to chase.", null));
+        checks = checks.check(Checklist.Check.of("manhunt-two", "Two players or more", s.present() >= 2)
+                .because(s.present() >= 2 ? s.present() + " here." : "Only " + s.present()
+                        + " here — a hunt needs somebody to run and somebody to chase.").in(HEADING));
         if (s.present() < 2) {
             return checks;
         }
         boolean runners = s.runnersPresent() > 0;
         boolean hunters = s.runnersPresent() < s.present();
-        checks.add(SpeedrunPreflight.Check.ofMode("manhunt-runner", runners, true, "Somebody runs",
-                runners ? s.runnersPresent() + " running." : "Nobody is on the Runner side.",
-                fix("Pick a Runner at random", "One Runner drawn by lot, everybody else hunts",
-                        player -> desk.randomRunner())));
-        checks.add(SpeedrunPreflight.Check.ofMode("manhunt-hunter", hunters, true, "Somebody hunts",
-                hunters ? (s.present() - s.runnersPresent()) + " hunting." : "Everybody here is a Runner.", balance));
-        checks.add(SpeedrunPreflight.Check.ofMode("manhunt-away", s.runnersAway().isEmpty(), false,
-                "Every Runner is here", s.runnersAway().isEmpty() ? "Nobody on the Runner side is missing."
+        checks = checks.check(fixed(Checklist.Check.of("manhunt-runner", "Somebody runs", runners)
+                .because(runners ? s.runnersPresent() + " running." : "Nobody is on the Runner side."),
+                "Pick a Runner at random", player -> desk.randomRunner()));
+        checks = checks.check(fixed(Checklist.Check.of("manhunt-hunter", "Somebody hunts", hunters)
+                .because(hunters ? (s.present() - s.runnersPresent()) + " hunting." : "Everybody here is a Runner."),
+                "Balance the sides", player -> desk.balance()));
+        checks = checks.check(fixed(Checklist.Check.warning("manhunt-away", "Every Runner is here", s.runnersAway().isEmpty())
+                .because(s.runnersAway().isEmpty() ? "Nobody on the Runner side is missing."
                         : "On the Runner side but not here: " + String.join(", ", s.runnersAway())
-                        + " — they will not be in this hunt.",
-                new SpeedrunPreflight.ModeFix("Open the sides", "Move players between the sides",
-                        PermissionNodes.ADMIN, openSides)));
+                        + " — they will not be in this hunt."), "Open the sides", openSides));
         boolean closes = s.closesWhitelist() && !s.whitelistClosed();
-        checks.add(SpeedrunPreflight.Check.ofMode("manhunt-door", !closes, false, "The door stays open",
-                closes ? "The server will close to everybody not here once the hunt starts."
-                        : "Nobody is shut out by the start.",
-                fix("Keep it open", "Leaves the whitelist alone this time and from now on",
-                        player -> desk.keepDoorOpen())));
+        checks = checks.check(fixed(Checklist.Check.warning("manhunt-door", "The door stays open", !closes)
+                .because(closes ? "The server will close to everybody not here once the hunt starts."
+                        : "Nobody is shut out by the start."), "Keep it open", player -> desk.keepDoorOpen()));
         boolean even = !runners || !hunters || (s.runnersExpected() >= 0.2 && s.runnersExpected() <= 0.8);
-        checks.add(SpeedrunPreflight.Check.ofMode("manhunt-even", even, false, "Even sides",
-                "By the ratings the Runners have a " + Math.round(s.runnersExpected() * 100) + "% chance.", balance));
+        checks = checks.check(fixed(Checklist.Check.warning("manhunt-even", "Even sides", even)
+                .because("By the ratings the Runners have a " + Math.round(s.runnersExpected() * 100) + "% chance."),
+                "Balance the sides", player -> desk.balance()));
         return checks;
     }
 
@@ -129,7 +126,8 @@ public final class ManhuntChecks {
                 new SpeedrunMode.SetupQuestion("What does a start do to the door?", door));
     }
 
-    private static SpeedrunPreflight.ModeFix fix(String label, String tooltip, Consumer<Player> apply) {
-        return new SpeedrunPreflight.ModeFix(label, tooltip, PermissionNodes.ADMIN, apply);
+    /** Under Manhunt's heading, fixed by {@code what} — for somebody with /manhunt's own admin node. */
+    private static Checklist.Check fixed(Checklist.Check check, String label, Consumer<Player> what) {
+        return check.in(HEADING).fixedBy(label, what, PermissionNodes.ADMIN);
     }
 }

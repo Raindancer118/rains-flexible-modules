@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.command;
 
+import de.raindancer.core.platform.util.Closest;
 import de.raindancer.modules.speedrun.SpeedrunBoard;
 import de.raindancer.modules.speedrun.manhunt.ManhuntServices;
 import de.raindancer.modules.speedrun.manhunt.mode.ManhuntMode;
@@ -124,7 +125,18 @@ public final class ManhuntCommand implements IManhuntCommand {
             case "goal" -> goal(live, sender, args);
             case "start" -> start(live, sender);
             case "resume" -> resume(live, sender, args);
-            default -> live.messages().send(sender, "manhunt.unknown-word", "word", word);
+            default -> {
+                List<String> mine = new ArrayList<>(PLAYER_WORDS);
+                if (sender.hasPermission(PermissionNodes.ADMIN)) {
+                    mine.addAll(ADMIN_WORDS);
+                }
+                List<String> guesses = Closest.to(word, mine, 1);
+                if (guesses.isEmpty()) {
+                    live.messages().send(sender, "manhunt.unknown-word", "word", word);
+                } else {
+                    live.messages().send(sender, "manhunt.did-you-mean", "word", word, "guess", guesses.getFirst());
+                }
+            }
         }
     }
 
@@ -900,5 +912,11 @@ public final class ManhuntCommand implements IManhuntCommand {
     @Override
     public String describe() {
         return "pick a side for the next hunt, or see who is on which";
+    }
+
+    /** What Paper asks before running this — the node the command is declared with. */
+    @Override
+    public String permission() {
+        return PermissionNodes.USE;
     }
 }

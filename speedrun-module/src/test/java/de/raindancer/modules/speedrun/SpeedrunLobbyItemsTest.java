@@ -1,10 +1,13 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.core.content.items.BoundItems;
+import de.raindancer.core.testkit.TestInventories;
+import de.raindancer.core.testkit.TestItems;
+import de.raindancer.core.testkit.TestPlayers;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,97 +18,108 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Recognition only — {@link SpeedrunLobbyItems#menuCompass()} and {@code startBlock()} need a live
- * server's item factory to build a real {@code ItemMeta}, the same reason {@code ItemFactory} itself
- * has no unit test of its item-building half. What can be tested without one is the PDC-key
- * recognition, which is the whole point of tagging by key rather than by material or name.
+ * The lobby's two items, built for real with Core's testkit: what they are, that they are recognised
+ * by their tag rather than by material or name, and that handing them out leaves everything else a
+ * player carries alone.
  */
 class SpeedrunLobbyItemsTest {
 
-    private Plugin plugin;
     private SpeedrunLobbyItems items;
     private NamespacedKey marker;
 
     @BeforeEach
     void setUp() {
-        plugin = mock(Plugin.class);
+        Plugin plugin = mock(Plugin.class);
         when(plugin.getName()).thenReturn("RainsCore");
         when(plugin.namespace()).thenReturn("rainscore");
-        marker = new NamespacedKey(plugin, "speedrun-lobby-item");
+        marker = new NamespacedKey(plugin, SpeedrunLobbyItems.MARKER_KEY);
         items = new SpeedrunLobbyItems(plugin);
     }
 
-    private ItemStack taggedWith(String tag) {
-        PersistentDataContainer pdc = mock(PersistentDataContainer.class);
-        when(pdc.get(marker, PersistentDataType.STRING)).thenReturn(tag);
-        ItemMeta meta = mock(ItemMeta.class);
-        when(meta.getPersistentDataContainer()).thenReturn(pdc);
-        ItemStack stack = mock(ItemStack.class);
-        when(stack.hasItemMeta()).thenReturn(true);
-        when(stack.getItemMeta()).thenReturn(meta);
-        return stack;
+    @Test
+    @DisplayName("the menu compass is a bound compass, recognised as the menu and nothing else")
+    void menuCompass() {
+        ItemStack compass = items.menuCompass();
+
+        assertThat(compass.getType()).isEqualTo(Material.COMPASS);
+        assertThat(BoundItems.isBound(compass)).isTrue();
+        assertThat(items.isMenu(compass)).isTrue();
+        assertThat(items.isStart(compass)).isFalse();
     }
 
     @Test
-    @DisplayName("a stack tagged 'menu' is recognised as the menu compass")
-    void recognisesMenuTag() {
-        ItemStack stack = taggedWith("menu");
+    @DisplayName("the start block is a bound lime block, recognised as the start and nothing else")
+    void startBlock() {
+        ItemStack block = items.startBlock();
 
-        assertThat(items.isMenu(stack)).isTrue();
-        assertThat(items.isStart(stack)).isFalse();
+        assertThat(block.getType()).isEqualTo(Material.LIME_CONCRETE);
+        assertThat(BoundItems.isBound(block)).isTrue();
+        assertThat(items.isStart(block)).isTrue();
+        assertThat(items.isMenu(block)).isFalse();
     }
 
     @Test
-    @DisplayName("a stack tagged 'start' is recognised as the start block")
-    void recognisesStartTag() {
-        ItemStack stack = taggedWith("start");
+    @DisplayName("recognised by the tag: a plain compass is neither, a renamed lobby compass still is")
+    void byTagNotByLook() {
+        ItemStack plain = TestItems.of(Material.COMPASS);
+        ItemStack renamed = items.menuCompass();
+        renamed.editMeta(meta -> meta.displayName(net.kyori.adventure.text.Component.text("Anything")));
 
-        assertThat(items.isStart(stack)).isTrue();
-        assertThat(items.isMenu(stack)).isFalse();
+        assertThat(items.isMenu(plain)).isFalse();
+        assertThat(items.isMenu(renamed)).isTrue();
     }
 
     @Test
-    @DisplayName("a stack with no meta at all is neither")
-    void noMetaIsNeither() {
-        ItemStack stack = mock(ItemStack.class);
-        when(stack.hasItemMeta()).thenReturn(false);
+    @DisplayName("a stack tagged for something else entirely, or null, is neither")
+    void unrelatedOrNull() {
+        ItemStack other = TestItems.tagged(Material.COMPASS, marker, "something-else");
 
-        assertThat(items.isMenu(stack)).isFalse();
-        assertThat(items.isStart(stack)).isFalse();
-    }
-
-    @Test
-    @DisplayName("a stack tagged for something else entirely is neither")
-    void unrelatedTagIsNeither() {
-        ItemStack stack = taggedWith("something-else");
-
-        assertThat(items.isMenu(stack)).isFalse();
-        assertThat(items.isStart(stack)).isFalse();
-    }
-
-    @Test
-    @DisplayName("null is neither, without throwing")
-    void nullIsNeither() {
+        assertThat(items.isMenu(other)).isFalse();
+        assertThat(items.isStart(other)).isFalse();
         assertThat(items.isMenu(null)).isFalse();
         assertThat(items.isStart(null)).isFalse();
     }
 
     @Test
     @DisplayName("handing out the lobby items never clears what somebody carries — only old lobby items go")
-    void placeKeepsTheInventory() {
-        ItemStack diamonds = mock(ItemStack.class);
-        ItemStack oldCompass = taggedWith("menu");
-        ItemStack freshCompass = mock(ItemStack.class);
-        org.bukkit.inventory.PlayerInventory inventory = mock(org.bukkit.inventory.PlayerInventory.class);
-        when(inventory.getContents()).thenReturn(new ItemStack[]{diamonds, oldCompass, null});
-        when(inventory.addItem(org.mockito.ArgumentMatchers.any(ItemStack[].class)))
-                .thenReturn(new java.util.HashMap<>());
+    void giveKeepsTheInventory() {
+        Player player = TestPlayers.player("Alex");
+        ItemStack diamonds = TestItems.of(Material.DIAMOND, 5);
+        player.getInventory().setItem(0, diamonds);
+        player.getInventory().setItem(1, items.menuCompass());
 
-        items.place(inventory, java.util.List.of(freshCompass));
+        items.give(player, true);
 
-        org.mockito.Mockito.verify(inventory, org.mockito.Mockito.never()).clear();
-        org.mockito.Mockito.verify(inventory).setItem(1, null);
-        org.mockito.Mockito.verify(inventory, org.mockito.Mockito.never()).setItem(0, null);
-        org.mockito.Mockito.verify(inventory).addItem(freshCompass);
+        assertThat(player.getInventory().getItem(0)).isEqualTo(diamonds);
+        assertThat(TestInventories.stacksIn(player.getInventory()))
+                .filteredOn(items::isMenu).hasSize(1);
+        assertThat(TestInventories.stacksIn(player.getInventory()))
+                .filteredOn(items::isStart).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("without the start block, only the compass is handed out")
+    void withoutStartBlock() {
+        Player player = TestPlayers.player("Alex");
+
+        items.give(player, false);
+
+        assertThat(TestInventories.stacksIn(player.getInventory())).singleElement()
+                .satisfies(stack -> assertThat(items.isMenu(stack)).isTrue());
+    }
+
+    @Test
+    @DisplayName("take() takes the lobby items, the one on the cursor included, and nothing else")
+    void take() {
+        Player player = TestPlayers.player("Alex");
+        ItemStack bread = TestItems.of(Material.BREAD, 3);
+        player.getInventory().setItem(4, bread);
+        items.give(player, true);
+        player.setItemOnCursor(items.startBlock());
+
+        items.take(player);
+
+        assertThat(TestInventories.stacksIn(player.getInventory())).containsExactly(bread);
+        assertThat(items.isStart(player.getItemOnCursor())).isFalse();
     }
 }

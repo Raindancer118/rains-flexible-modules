@@ -299,6 +299,210 @@ jobs:
             gh release delete "$tag" --yes --cleanup-tag --repo "${{ github.repository }}" || true
           done
 
+  # ── what a plugin tag publishes ─────────────────────────────────────────────────────────────────
+  #
+  # Its own job, after the build AND the end-to-end run: a tag whose plugin does not play on a real
+  # server is not released. It publishes exactly the jars the build job tested, from its artifact.
+  release:
+    name: Publish a versioned release
+    needs: [build, e2e]
+    if: startsWith(github.ref, 'refs/tags/claims-v') || startsWith(github.ref, 'refs/tags/moderation-v') || startsWith(github.ref, 'refs/tags/names-v') || startsWith(github.ref, 'refs/tags/warps-v') || startsWith(github.ref, 'refs/tags/homes-v') || startsWith(github.ref, 'refs/tags/tpa-v') || startsWith(github.ref, 'refs/tags/yeuk-v') || startsWith(github.ref, 'refs/tags/speedrunserver-v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch the jars the build tested
+        uses: actions/download-artifact@v4
+        with:
+          name: plugins-${{ github.sha }}
+          path: incoming
+
+      # A permanent release for one plugin. The tag names it because the two version independently, and
+      # the version in the tag has to match the one in that plugin's pom — a release whose tag says
+      # 2.1.0 and whose jar says 2.0.0 is one nobody can reason about afterwards.
+      - name: Publish a versioned release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # The jars the build job tested, as it uploaded them — never rebuilt here.
+          jar_of() { find incoming -name "$1-*.jar" ! -name 'original-*' | head -1; }
+          which="${TAG%%-v*}"
+          wanted="${TAG#*-v}"
+
+          case "$which" in
+            claims)     jar="$(jar_of RainsExtendedClaims)"
+                        sha="$(sha256sum "$jar" | cut -d' ' -f1)"
+                        title="Rain's Extended Claims" ;;
+            moderation) jar="$(jar_of RainsModeration)"
+                        sha="$(sha256sum "$jar" | cut -d' ' -f1)"
+                        title="Rain's Moderation" ;;
+            names)      jar="$(jar_of RainsColouredNames)"
+                        sha="$(sha256sum "$jar" | cut -d' ' -f1)"
+                        title="Rain's Coloured Names" ;;
+            # The tag says "warps" and the directory is "warp-standalone", so the pom lookup below
+            # needs the directory name rather than the tag's.
+            warps)      jar="$(jar_of RainsWarps)"
+                        sha="$(sha256sum "$jar" | cut -d' ' -f1)"
+                        title="Rain's Warps"
+                        which=warp ;;
+            homes)      jar="$(jar_of RainsHomes)"
+                        sha="$(sha256sum "$jar" | cut -d' ' -f1)"
+                        title="Rain's Homes" ;;
+            tpa)        jar="$(jar_of RainsTPA)"
+                        sha="$(sha256sum "$jar" | cut -d' ' -f1)"
+                        title="Rain's TPA" ;;
+            # The bundle, which is not a `<something>-standalone` — six modules in one jar, in its
+            # own directory. Hence `pom` below rather than a name the path is built from.
+            yeuk)       jar="$(jar_of YeukSMP)"
+                        sha="$(sha256sum "$jar" | cut -d' ' -f1)"
+                        title="YeukSMP"
+                        pom=yeuksmp/pom.xml ;;
+            # Also a bundle, in speedrun-bundle/. It replaces RainsSpeedrun, RainsManhunt,
+            # RainsChat and RainsWorldUtils, so the notes say so rather than only "alongside RainsCore".
+            speedrunserver) jar="$(jar_of RainsSpeedrunServer)"
+                        sha="$(sha256sum "$jar" | cut -d' ' -f1)"
+                        title="Rain's Speedrun Server"
+                        replaces="It replaces RainsSpeedrun, RainsManhunt, RainsChat and RainsWorldUtils — remove those jars first."
+                        pom=speedrun-bundle/pom.xml ;;
+            *)          echo "::error::$TAG names no plugin I know about"; exit 1 ;;
+          esac
+
+          # Straight out of the pom, so the tag is checked against the thing that actually built.
+          built="$(grep -oPm1 '(?<=<plugin.version>)[^<]+' "${pom:-$which-standalone/pom.xml}")"
+          if [ "$built" != "$wanted" ]; then
+            echo "::error::$TAG says $wanted but ${pom:-$which-standalone/pom.xml} says $built. Bump the pom or fix the tag."
+            exit 1
+          fi
+
+          {
+            printf '%s\n' \
+              "$title $built." \
+              "" \
+              "### Installing" \
+              "" \
+              "Drop \`$(basename "$jar")\` into \`plugins/\` alongside \`RainsCore.jar\`, which it needs" \
+              "and never carries a copy of. Restart the server." \
+              ${replaces:+"" "$replaces"} \
+              "" \
+              "\`sha256: $sha\`" \
+              "" \
+              "---"
+          } > release-notes.md
+
+          sha256sum "$jar" | sed "s#  .*/#  #" > "$jar.sha256"
+          gh release create "$TAG" \
+            "$jar" "$jar.sha256" \
+            --repo "${{ github.repository }}" \
+            --title "$title $built" \
+            --notes-file release-notes.md \
+            --generate-notes
+
+
+  # ── the end-to-end run ──────────────────────────────────────────────────────────────────────────
+  #
+  # RainsSpeedrun played on a real Paper server by headless bots — every command, page, button,
+  # setting and chat button (scripts/e2e.sh). On every push, pull request and tag; a tag's release
+  # waits for it. On a tag it also takes the menu screenshots with the real client (Xvfb + Mesa).
+  # Logs, coverage reports and screenshots are uploaded whatever the outcome.
+  e2e:
+    name: End-to-end (real server, bots)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      REPOSILITE_USERNAME: ci-deploy
+      REPOSILITE_PASSWORD: ${{ secrets.REPOSILITE_PASSWORD }}
+      RAINS_E2E_CACHE: ${{ github.workspace }}/.e2e-cache
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          server-id: packages-releases
+          server-username: REPOSILITE_USERNAME
+          server-password: REPOSILITE_PASSWORD
+
+      # Paper, the vanilla server and client jars and the game's assets: fetched once, then cached.
+      - name: Cache what the game needs
+        uses: actions/cache@v4
+        with:
+          path: .e2e-cache
+          key: rains-e2e-${{ hashFiles('e2e-harness/src/main/java/de/raindancer/e2e/E2e.java') }}
+
+      - name: A display and software OpenGL, for the screenshots
+        if: startsWith(github.ref, 'refs/tags/')
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri libglx-mesa0 imagemagick libxtst6 libxi6 libxrender1
+
+      - name: Play every scenario
+        run: scripts/e2e.sh ${{ startsWith(github.ref, 'refs/tags/') && '--screenshots' || '' }}
+
+      - name: Upload the logs and the coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs-${{ github.sha }}
+          path: |
+            speedrun-e2e/target/e2e/logs/
+            speedrun-e2e/target/e2e/*.txt
+            speedrun-e2e/target/e2e/covered.log
+            speedrun-e2e/target/e2e/client-*/*.log
+            e2e-harness/target/e2e/logs/
+            speedrun-e2e/target/surefire-reports/
+            e2e-harness/target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload the menu screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ github.sha }}
+          path: docs/screenshots/
+          if-no-files-found: ignore
+          retention-days: 90
+
+  # ── what goes to packages.tstieh.de ─────────────────────────────────────────────────────────
+  #
+  # After the build AND the end-to-end run, like a plugin release: a module version whose plugin does
+  # not play on a real server is not published. Rebuilt here (tests skipped, the build job ran them)
+  # because a job starts with an empty ~/.m2 and a deploy needs the module's dependencies installed.
+  modules:
+    name: Publish module versions
+    needs: [build, e2e]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || contains(github.ref_name, '-module-v') || startsWith(github.ref_name, 'modules-api-v') || startsWith(github.ref_name, 'modules-wrapper-v'))
+    runs-on: ubuntu-latest
+    env:
+      REPOSILITE_USERNAME: ci-deploy
+      REPOSILITE_PASSWORD: ${{ secrets.REPOSILITE_PASSWORD }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          server-id: packages-releases
+          server-username: REPOSILITE_USERNAME
+          server-password: REPOSILITE_PASSWORD
+
+      - name: Install the reactor
+        run: mvn --batch-mode --no-transfer-progress -q clean install -DskipTests
+
       # ── auto-publish every module version that has no tag yet ──────────────────────────────────
       #
       # The tag-triggered path below requires remembering `git tag <module>-vX.Y.Z && git push --tags`
@@ -354,86 +558,6 @@ jobs:
           done
 
       # ── what a tag publishes ────────────────────────────────────────────────────────────────────
-
-      # A permanent release for one plugin. The tag names it because the two version independently, and
-      # the version in the tag has to match the one in that plugin's pom — a release whose tag says
-      # 2.1.0 and whose jar says 2.0.0 is one nobody can reason about afterwards.
-      - name: Publish a versioned release
-        if: startsWith(github.ref, 'refs/tags/claims-v') || startsWith(github.ref, 'refs/tags/moderation-v') || startsWith(github.ref, 'refs/tags/names-v') || startsWith(github.ref, 'refs/tags/warps-v') || startsWith(github.ref, 'refs/tags/homes-v') || startsWith(github.ref, 'refs/tags/tpa-v') || startsWith(github.ref, 'refs/tags/yeuk-v') || startsWith(github.ref, 'refs/tags/speedrunserver-v')
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          which="${TAG%%-v*}"
-          wanted="${TAG#*-v}"
-
-          case "$which" in
-            claims)     jar='${{ steps.jars.outputs.claims_jar }}'
-                        sha='${{ steps.jars.outputs.claims_sha }}'
-                        title="Rain's Extended Claims" ;;
-            moderation) jar='${{ steps.jars.outputs.moderation_jar }}'
-                        sha='${{ steps.jars.outputs.moderation_sha }}'
-                        title="Rain's Moderation" ;;
-            names)      jar='${{ steps.jars.outputs.names_jar }}'
-                        sha='${{ steps.jars.outputs.names_sha }}'
-                        title="Rain's Coloured Names" ;;
-            # The tag says "warps" and the directory is "warp-standalone", so the pom lookup below
-            # needs the directory name rather than the tag's.
-            warps)      jar='${{ steps.jars.outputs.warp_jar }}'
-                        sha='${{ steps.jars.outputs.warp_sha }}'
-                        title="Rain's Warps"
-                        which=warp ;;
-            homes)      jar='${{ steps.jars.outputs.homes_jar }}'
-                        sha='${{ steps.jars.outputs.homes_sha }}'
-                        title="Rain's Homes" ;;
-            tpa)        jar='${{ steps.jars.outputs.tpa_jar }}'
-                        sha='${{ steps.jars.outputs.tpa_sha }}'
-                        title="Rain's TPA" ;;
-            # The bundle, which is not a `<something>-standalone` — six modules in one jar, in its
-            # own directory. Hence `pom` below rather than a name the path is built from.
-            yeuk)       jar='${{ steps.jars.outputs.yeuk_jar }}'
-                        sha='${{ steps.jars.outputs.yeuk_sha }}'
-                        title="YeukSMP"
-                        pom=yeuksmp/pom.xml ;;
-            # Also a bundle, in speedrun-bundle/. It replaces RainsSpeedrun, RainsManhunt,
-            # RainsChat and RainsWorldUtils, so the notes say so rather than only "alongside RainsCore".
-            speedrunserver) jar='${{ steps.jars.outputs.speedrunserver_jar }}'
-                        sha='${{ steps.jars.outputs.speedrunserver_sha }}'
-                        title="Rain's Speedrun Server"
-                        replaces="It replaces RainsSpeedrun, RainsManhunt, RainsChat and RainsWorldUtils — remove those jars first."
-                        pom=speedrun-bundle/pom.xml ;;
-            *)          echo "::error::$TAG names no plugin I know about"; exit 1 ;;
-          esac
-
-          # Straight out of the pom, so the tag is checked against the thing that actually built.
-          built="$(grep -oPm1 '(?<=<plugin.version>)[^<]+' "${pom:-$which-standalone/pom.xml}")"
-          if [ "$built" != "$wanted" ]; then
-            echo "::error::$TAG says $wanted but ${pom:-$which-standalone/pom.xml} says $built. Bump the pom or fix the tag."
-            exit 1
-          fi
-
-          {
-            printf '%s\n' \
-              "$title $built." \
-              "" \
-              "### Installing" \
-              "" \
-              "Drop \`$(basename "$jar")\` into \`plugins/\` alongside \`RainsCore.jar\`, which it needs" \
-              "and never carries a copy of. Restart the server." \
-              ${replaces:+"" "$replaces"} \
-              "" \
-              "\`sha256: $sha\`" \
-              "" \
-              "---"
-          } > release-notes.md
-
-          gh release create "$TAG" \
-            "$jar" "$jar.sha256" \
-            --repo "${{ github.repository }}" \
-            --title "$title $built" \
-            --notes-file release-notes.md \
-            --generate-notes
 
       # ── what a <module>-v tag publishes ───────────────────────────────────────────────────────
       #

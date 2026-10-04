@@ -168,9 +168,19 @@ public record ManhuntSettings(
 
         @In("speedrun/manhunt/stats") @Title("Most Runners when balancing") @Range(min = 0, max = 10)
         @Describe("The most Runners auto-balance may pick. 0 lets it choose, up to a third of the lobby.")
-        int balanceMaxRunners
+        int balanceMaxRunners,
+
+        @In("speedrun/manhunt/start") @Title("A latecomer's side")
+        @Describe("Which side somebody joins on when they join a hunt under way with the lobby's late-join "
+                + "set to RACE. HUNTER — the default — never hands a stranger the run; RUNNER makes every "
+                + "latecomer another Runner; SMALLER_SIDE puts them where there are fewer, a tie going to "
+                + "the Hunters. A late Runner gets the lives and the offline grace every Runner gets.")
+        LateJoinerSide lateJoinerSide
 
 ) {
+
+    /** Which side a latecomer races on — see {@code late-joiner-side}. */
+    public enum LateJoinerSide { HUNTER, RUNNER, SMALLER_SIDE }
 
     /** Which item the team compass is — see {@code TeamCompassService}. */
     public enum TeamCompassItem { RECOVERY_COMPASS, COMPASS }
@@ -191,7 +201,7 @@ public record ManhuntSettings(
     public static final ManhuntSettings DEFAULTS = new ManhuntSettings(
             CrossWorldTracking.LAST_PORTAL, true, true, 10, false, TeamCompassItem.RECOVERY_COMPASS, true,
             false, true, false, true, false, false, 0, false, 300,
-            1, 0, 0, 10, 0, true, true, true, 0);
+            1, 0, 0, 10, 0, true, true, true, 0, LateJoinerSide.HUNTER);
 
     // Every with… takes its parameter named after the component it replaces, so the parameter shadows
     // exactly that field and a swapped argument does not compile. ManhuntSettingsContractTest walks
@@ -207,7 +217,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withTrackerHunterMayChoose(boolean trackerHunterMayChoose) {
@@ -218,7 +228,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withTrackerShowDistance(boolean trackerShowDistance) {
@@ -229,7 +239,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withTrackerRefreshTicks(int trackerRefreshTicks) {
@@ -240,7 +250,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withTrackerTeamCompass(boolean trackerTeamCompass) {
@@ -251,7 +261,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withTrackerTeamCompassItem(TeamCompassItem trackerTeamCompassItem) {
@@ -262,7 +272,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withTrackerParticleTrail(boolean trackerParticleTrail) {
@@ -273,7 +283,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withRunnerCompass(boolean runnerCompass) {
@@ -284,7 +294,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withRunnerStructureCompass(boolean runnerStructureCompass) {
@@ -295,7 +305,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withSideSwitchingMidHunt(boolean sideSwitchingMidHunt) {
@@ -306,7 +316,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withRunnerSelfJoin(boolean runnerSelfJoin) {
@@ -317,7 +327,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withHuntersFistsOnly(boolean huntersFistsOnly) {
@@ -328,7 +338,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withCloseWhitelistOnStart(boolean closeWhitelistOnStart) {
@@ -339,7 +349,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withHunterHeadStartSeconds(int hunterHeadStartSeconds) {
@@ -350,7 +360,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withStartInCircle(boolean startInCircle) {
@@ -361,7 +371,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withRunnerOfflineGraceSeconds(int runnerOfflineGraceSeconds) {
@@ -372,7 +382,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withRunnerLives(int runnerLives) {
@@ -383,7 +393,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withHunterRespawnDelaySeconds(int hunterRespawnDelaySeconds) {
@@ -394,7 +404,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withGlowingRunnersEveryMinutes(int glowingRunnersEveryMinutes) {
@@ -405,7 +415,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withGlowingRunnersSeconds(int glowingRunnersSeconds) {
@@ -416,7 +426,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withHeadStartPerHunterSeconds(int headStartPerHunterSeconds) {
@@ -427,7 +437,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withHudHeadStartBar(boolean hudHeadStartBar) {
@@ -438,7 +448,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withSummaryInChat(boolean summaryInChat) {
@@ -449,7 +459,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withStatsEnabled(boolean statsEnabled) {
@@ -460,7 +470,7 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
     }
 
     public ManhuntSettings withBalanceMaxRunners(int balanceMaxRunners) {
@@ -471,7 +481,22 @@ public record ManhuntSettings(
                 runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
                 glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
                 hudHeadStartBar, summaryInChat, statsEnabled,
-                balanceMaxRunners);
+                balanceMaxRunners, lateJoinerSide);
+    }
+
+    public ManhuntSettings withLateJoinerSide(LateJoinerSide lateJoinerSide) {
+        return new ManhuntSettings(trackerCrossWorld, trackerHunterMayChoose, trackerShowDistance,
+                trackerRefreshTicks, trackerTeamCompass, trackerTeamCompassItem, trackerParticleTrail,
+                runnerCompass, runnerStructureCompass, sideSwitchingMidHunt, runnerSelfJoin,
+                huntersFistsOnly, closeWhitelistOnStart, hunterHeadStartSeconds, startInCircle,
+                runnerOfflineGraceSeconds, runnerLives, hunterRespawnDelaySeconds,
+                glowingRunnersEveryMinutes, glowingRunnersSeconds, headStartPerHunterSeconds,
+                hudHeadStartBar, summaryInChat, statsEnabled,
+                balanceMaxRunners, lateJoinerSide);
+    }
+
+    public LateJoinerSide lateJoinerSideOrHunter() {
+        return lateJoinerSide == null ? LateJoinerSide.HUNTER : lateJoinerSide;
     }
 
     /** The head start, inside the range the settings screen offers. */

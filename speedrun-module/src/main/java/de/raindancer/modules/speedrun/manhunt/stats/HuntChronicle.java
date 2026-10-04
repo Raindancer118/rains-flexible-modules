@@ -203,11 +203,13 @@ public final class HuntChronicle implements HuntWatcher {
         lines.add(messages.prefixed("manhunt.summary.header-" + summary.winner().name().toLowerCase(Locale.ROOT),
                 "number", String.valueOf(number), "time", HuntSummary.clock(run.time().toMillis())));
         for (HuntSummary.Catch caught : summary.catches()) {
-            lines.add(caught.byName() == null
-                    ? messages.get("manhunt.summary.catch-away", "time", HuntSummary.clock(caught.atMillis()),
-                            "runner", caught.runnerName())
-                    : messages.get("manhunt.summary.catch", "time", HuntSummary.clock(caught.atMillis()),
-                            "runner", caught.runnerName(), "by", caught.byName()));
+            String time = HuntSummary.clock(caught.atMillis());
+            lines.add(switch (caught.how()) {
+                case STAYED_AWAY -> messages.get("manhunt.summary.catch-away", "time", time, "runner", caught.runnerName());
+                case DIED -> messages.get("manhunt.summary.catch-died", "time", time, "runner", caught.runnerName());
+                case BY_A_HUNTER -> messages.get("manhunt.summary.catch", "time", time, "runner", caught.runnerName(),
+                        "by", caught.byName());
+            });
         }
         summary.hunterMvp().ifPresent(mvp -> lines.add(messages.get("manhunt.summary.mvp-hunter",
                 "name", mvp.name(), "catches", String.valueOf(mvp.catches()))));

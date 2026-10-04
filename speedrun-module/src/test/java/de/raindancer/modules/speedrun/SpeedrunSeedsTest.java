@@ -58,7 +58,7 @@ class SpeedrunSeedsTest {
     @Test
     @DisplayName("a world is a set seed when it is the configured seed, in the pool, or was played before")
     void seedType() {
-        SpeedrunHistory history = new SpeedrunHistory(new YamlStore(folder.resolve("h.yml")), Runnable::run);
+        SpeedrunHistory history = Histories.inMemory(folder);
         assertThat(SpeedrunSeeds.typeOf(99, with(SpeedrunSeedMode.RANDOM, "", ""), history))
                 .isEqualTo(SpeedrunSeedType.RANDOM);
         assertThat(SpeedrunSeeds.typeOf(99, with(SpeedrunSeedMode.RANDOM, "99", ""), history))

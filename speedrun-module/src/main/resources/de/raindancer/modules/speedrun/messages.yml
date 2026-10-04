@@ -63,46 +63,39 @@ speedrun:
     countdown-in-progress: "<yellow>A countdown is already under way; let it finish, or let it start, then reset."
   # /speedrunresume — a run over the world as it stands, after a restart.
   resume:
-    ask: "<yellow>Type the time the run had reached, e.g. <white>42:05</white> or <white>0</white>."
+    # Plain text: the title of the window it is typed into.
+    ask: "Time the run had reached"
     done: "<green>Run resumed at <white><time></white> with <white><players></white> player(s), where they stand and with what they carry."
     not-ready: "<yellow>A run is already under way or counting down — only a ready or finished lobby can be resumed."
   # /speedruntime and /speedrunresume's time.
   time:
-    ask: "<yellow>Type the time the clock should read, e.g. <white>42:05</white>."
+    # Plain text: a window's title from the hub, the question in chat from /speedrun time.
+    ask: "Time the clock should read"
     usage: "<yellow>/speedruntime <time> — e.g. 42:05, 1:02:03 or 1h30m"
     unreadable: "<red><white><time></white> is not a time. Try 42:05, 1:02:03 or 1h30m."
     set: "<green>The run's clock now reads <white><time></white>."
     no-run: "<yellow>No run is being played, so there is no clock to set."
   spectate:
     only-a-player: "<red>Only a player can register as not racing."
-    on: "<yellow>You are now registered as not racing — pressing the start block will skip you."
-    off: "<green>You are racing again — pressing the start block will include you."
+    "on": "<yellow>You are now registered as not racing — pressing the start block will skip you."
+    "off": "<green>You are racing again — pressing the start block will include you."
   join:
     only-a-player: "<red>Only a player can go to the speedrun lobby."
     # Sent after /speedrun took somebody to the lobby; a button to the menu follows it.
     welcome: "<green>Welcome to the speedrun lobby."
     world-missing: "<red>The lobby world <white><world></white> is not loaded. Somebody should look at speedrun.yml."
   # Asking somebody to type something in chat.
-  ask:
-    cancel-hint: "<gray>Type <white>cancel</white> to leave it."
-    cancelled: "<gray>Left as it was."
-    busy: "<red>You are already being asked something — answer that first, or type cancel."
   # /speedrun with a word after it.
   command:
     unknown: "<yellow><white><word></white> is not something /speedrun does. Here is what it does:"
+    # A typo close to a word the sender may use.
+    did-you-mean: "<yellow>No <white>/speedrun <word></white> — did you mean <click:run_command:'/speedrun <guess>'><hover:show_text:'Run it'><u>/speedrun <guess></u></hover></click>?"
     staff-only: "<red>/speedrun <word> is for staff."
     no-permission: "<red>You may not use /speedrun <word> here."
     only-a-player: "<red>That one opens a menu — it needs a player."
     no-such-player: "<red>Nobody called <white><player></white> has played here."
     help-header: "<gold>/speedrun — everything the lobby does:"
     help-line: "<white><usage></white> <gray>— <what>"
-  # /speedrun check: one line per check.
-  check:
-    clear: "<green>Everything a run needs is in place."
-    not-clear: "<yellow>Not ready yet:"
-    ok: "<green>✔ <white><check></white> <gray><detail>"
-    problem: "<red>✘ <white><check></white> <gray><detail>"
-    warning: "<yellow>! <white><check></white> <gray><detail>"
   # What a one-click fix says once it is done.
   fix:
     worlds-created: "<green>The run's worlds are there now."
@@ -124,6 +117,12 @@ speedrun:
     subtitle: "<white><player></white> <gray>at <time>"
     gold-title: "<gold>Gold split!"
     gold-subtitle: "<yellow><milestone></yellow> <white><time></white> — faster than ever"
+  # Somebody joining a run under way — see late-join.
+  late-join:
+    racing: "<green>You join the run at <white><time></white>. <gray>It is kept in your history, but a run you joined late is never a best of yours."
+    joined: "<gray><white><player></white> joined the run at <white><time></white>."
+    watching: "<gray>A run is under way — you are watching. <white>You can play once it is over."
+    next-start: "<green>A run is about to start — you race in it."
   # What a racer is told once a run is over and kept.
   result:
     record: "<gold>New server record: <white><time></white> in <category>!"
@@ -132,8 +131,9 @@ speedrun:
     not-ranked: "<gray>Kept in the history, but not ranked: <reason>."
     seed: "<gray>Seed: <white><seed></white>"
   seed:
-    ask: "<yellow>Type the seed — a number, or a word the way the create-world screen takes one."
-    ask-pool: "<yellow>Type the seeds of the pool, separated by commas."
+    # Plain text: the titles of the windows they are typed into.
+    ask: "The seed: a number or a word"
+    ask-pool: "Seeds, separated by commas"
     set: "<green>Every new world is made from seed <white><seed></white>."
     pool-set: "<green>Every new world gets one of <white><count></white> seeds."
     same-next: "<green>The next reset remakes this exact map. It is ranked as a set seed."
@@ -146,12 +146,11 @@ speedrun:
     best: "<white><category></white> <gray>best <gold><time></gold>, record <white><record></white>"
   top:
     header: "<gold>Leaderboard — <category>"
-    line: "<gold>#<place></gold> <white><time></white> <gray><players>"
-    empty: "<gray>No ranked run in this category yet."
 
 # Manhunt — Runners against Hunters, one of the games this lobby plays.
 manhunt:
   # Somebody typed a word /manhunt does not have.
+  did-you-mean: "<yellow>No <white>/manhunt <word></white> — did you mean <click:run_command:'/manhunt <guess>'><hover:show_text:'Run it'><u>/manhunt <guess></u></hover></click>?"
   unknown-word: "<yellow>No such thing as <white><word></white>. Everything is on one page: <click:run_command:'/manhunt'><hover:show_text:'Open Manhunt'><u>[Open Manhunt]</u></hover></click>"
   # A command that only makes sense for somebody standing in the world.
   only-a-player: "<red>Only a player can do that."
@@ -240,15 +239,18 @@ manhunt:
   structure:
     given: "<gold>You have a structure compass. <gray>Right-click it to choose what it finds — once."
     chosen: "<gold>Your compass points at the nearest <white><structure></white>."
+    # Searched a few chunks a tick, so it can take a moment far from anything.
+    searching: "<gray>Looking for the nearest <white><structure></white>…"
+    still-searching: "<yellow>Your compass is still looking — wait for its answer."
     none: "<yellow>No <white><structure></white> anywhere near. Choose something else."
-    # Every search can hold the server for seconds, so the same Runner waits between two.
-    wait: "<yellow>Still looking around — try again in <white><seconds></white> second(s)."
+    # After a search that found nothing, the same Runner waits a moment before the next.
+    wait: "<yellow>Try again in <white><seconds></white> second(s)."
     reached: "<green>You have reached the <white><structure></white>. Your compass is gone."
     dropped: "<gray>You threw your structure compass away. It is gone."
   # /manhunt trail, or the button on /profile — each player's own particle trail.
   trail:
-    on: "<green>Your compass shows the particle trail again."
-    off: "<yellow>Your compass no longer shows the particle trail. <click:run_command:'/manhunt trail'><hover:show_text:'Show the trail again'><u>[Turn it back on]</u></hover></click>"
+    "on": "<green>Your compass shows the particle trail again."
+    "off": "<yellow>Your compass no longer shows the particle trail. <click:run_command:'/manhunt trail'><hover:show_text:'Show the trail again'><u>[Turn it back on]</u></hover></click>"
     server-off: "<yellow>The particle trail is switched off on this server."
   # The Runners' head start, told to both sides.
   head-start:
@@ -311,8 +313,8 @@ manhunt:
     now: "<gold>The Runners glow for <white><seconds></white> seconds — look around!"
   # /manhunt announcements — each player's own titles and sounds for splits.
   announcements:
-    on: "<green>Split titles and sounds are on."
-    off: "<yellow>Split titles and sounds are off for you. <click:run_command:'/manhunt announcements'><hover:show_text:'Turn them back on'><u>[Turn them on]</u></hover></click>"
+    "on": "<green>Split titles and sounds are on."
+    "off": "<yellow>Split titles and sounds are off for you. <click:run_command:'/manhunt announcements'><hover:show_text:'Turn them back on'><u>[Turn them on]</u></hover></click>"
   # The end-of-hunt summary in chat and /manhunt summary.
   summary:
     header-runners: "<green>Hunt #<number> — the Runners won in <white><time></white>."
@@ -320,6 +322,7 @@ manhunt:
     header-nobody: "<yellow>Hunt #<number> — ended after <white><time></white>, won by nobody."
     catch: "<gray> <time> <white><runner></white> caught by <white><by>"
     catch-away: "<gray> <time> <white><runner></white> stayed away too long"
+    catch-died: "<gray> <time> <white><runner></white> died for the last time"
     mvp-hunter: "<gold> Hunter MVP: <white><name></white> <gray>(<catches> catch(es))"
     mvp-runner: "<gold> Runner MVP: <white><name></white> <gray>(ran <time>)"
     explorer: "<gold> Explorer: <white><name></white> <gray>(<blocks> blocks)"

@@ -73,9 +73,14 @@ public final class TrackerListener implements Listener {
     /** A Hunter right-clicking the compass follows the next one along; sneaking, it opens the list —
      *  see {@link TrackerCompassService#cycleTarget} and {@code openPicker}, which decide whether
      *  that is allowed at all. */
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    // Not ignoreCancelled: Bukkit fires a click into the air already cancelled (no block to use), so
+    // that would skip the commonest click. Another plugin's veto is the item-use result instead.
+    @EventHandler(priority = EventPriority.NORMAL)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
+        if (event.useItemInHand() == org.bukkit.event.Event.Result.DENY) {
             return;
         }
         if (tracker.team().map(team -> team.isTeamCompass(event.getItem())).orElse(false)) {

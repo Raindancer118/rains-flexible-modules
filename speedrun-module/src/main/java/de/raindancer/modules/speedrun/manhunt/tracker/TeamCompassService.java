@@ -1,10 +1,12 @@
 package de.raindancer.modules.speedrun.manhunt.tracker;
 
-import de.raindancer.core.content.items.BoundItems;
+import de.raindancer.core.content.items.TaggedItems;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.actionbar.ActionBarPriority;
 import de.raindancer.core.ui.actionbar.ActionBars;
+import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.ui.text.Text;
 import de.raindancer.core.world.visual.PathTrail;
 import de.raindancer.modules.speedrun.manhunt.ManhuntSettings;
 import de.raindancer.modules.speedrun.manhunt.model.Hunt;
@@ -40,8 +42,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import static de.raindancer.modules.speedrun.manhunt.tracker.CompassItems.line;
-import static de.raindancer.modules.speedrun.manhunt.tracker.CompassItems.safe;
 
 /**
  * The team compass ({@link ManhuntSettings#trackerTeamCompass()}): a second compass, for everybody in
@@ -67,7 +67,7 @@ public final class TeamCompassService {
     private final TrackerCompass compass;
     private final Messages messages;
     private final ActionBars actionBars;
-    private final CompassItems items;
+    private final TaggedItems items;
     private final Map<UUID, Following> picks = new ConcurrentHashMap<>();
     /** The last spot each holder's needle was set to, so an unchanged one is not sent again. */
     private final Map<UUID, Location> needles = new ConcurrentHashMap<>();
@@ -84,7 +84,7 @@ public final class TeamCompassService {
         this.messages = messages;
         this.actionBars = actionBars;
         this.settings = Objects.requireNonNull(settings, "settings");
-        this.items = new CompassItems(plugin, "manhunt-team-compass", Material.RECOVERY_COMPASS, Material.COMPASS);
+        this.items = TaggedItems.of(plugin, "manhunt-team-compass").onlyOn(Material.RECOVERY_COMPASS, Material.COMPASS).bound();
     }
 
     public void settings(ManhuntSettings fresh) {
@@ -131,9 +131,9 @@ public final class TeamCompassService {
     public void fit(Hunt hunt, Player player) {
         UUID id = player.getUniqueId();
         if (owes(hunt, id)) {
-            int slot = items.slotOf(player, OURS);
-            if (slot >= 0 && player.getInventory().getItem(slot) != null
-                    && player.getInventory().getItem(slot).getType() != materialFor(settings.trackerTeamCompassItem())) {
+            java.util.OptionalInt slot = items.slotOf(player.getInventory(), OURS);
+            if (slot.isPresent() && player.getInventory().getItem(slot.getAsInt()) != null
+                    && player.getInventory().getItem(slot.getAsInt()).getType() != materialFor(settings.trackerTeamCompassItem())) {
                 takeBack(player);
                 needles.remove(id);
             }
@@ -226,10 +226,11 @@ public final class TeamCompassService {
     }
 
     private void apply(Player player, Aim aim, Map<UUID, String> names) {
-        int slot = items.slotOf(player, OURS);
-        if (slot < 0) {
+        java.util.OptionalInt found = items.slotOf(player.getInventory(), OURS);
+        if (found.isEmpty()) {
             return;
         }
+        int slot = found.getAsInt();
         String name = aim.target() == null ? null : names.getOrDefault(aim.target(), nameOf(aim.target()));
         ItemStack stack = player.getInventory().getItem(slot);
         if (stack != null) {
@@ -240,9 +241,9 @@ public final class TeamCompassService {
             } else {
                 aimNeedle(player, aim);
             }
-            Component title = line(aim.target() == null
+            Component title = Icons.name(aim.target() == null
                     ? "<aqua>Team compass"
-                    : "<aqua>Team compass <white>→ " + safe(name));
+                    : "<aqua>Team compass <white>→ " + Text.literal(name == null ? "somebody" : name));
             if (meta != null && !title.equals(meta.displayName())) {
                 meta.displayName(title);
                 changed = true;
@@ -315,7 +316,7 @@ public final class TeamCompassService {
             return;
         }
         actionBars.show(id, DISTANCE_OWNER, messages.get("manhunt.team-compass.distance",
-                        "teammate", safe(name), "blocks", String.valueOf(Math.round(aim.distance()))),
+                        "teammate", name == null ? "somebody" : name, "blocks", String.valueOf(Math.round(aim.distance()))),
                 Duration.ofMillis(settings.trackerRefreshTicksClamped() * 50L + 1000L), ActionBarPriority.NORMAL);
         showingDistance.add(id);
     }
@@ -413,8 +414,9 @@ public final class TeamCompassService {
         return enabled();
     }
 
+    /** Whether they have one — anywhere, the cursor of an open window included. */
     public boolean carries(Player player) {
-        return items.slotOf(player, OURS) >= 0;
+        return items.carries(player, OURS);
     }
 
     public void give(Player player) {
@@ -423,13 +425,12 @@ public final class TeamCompassService {
         }
         ItemStack stack = new ItemStack(materialFor(settings.trackerTeamCompassItem()));
         ItemMeta meta = stack.getItemMeta();
-        meta.displayName(line("<aqua>Team compass"));
-        meta.lore(List.of(line("<gray>Points at your own side."),
-                line("<dark_gray>Right-click for the next teammate."),
-                line("<dark_gray>Sneak + right-click to pick from a list.")));
-        items.tag(meta, TAG);
+        meta.displayName(Icons.name("<aqua>Team compass"));
+        meta.lore(List.of(Icons.loreLine("<gray>Points at your own side."),
+                Icons.loreLine("<dark_gray>Right-click for the next teammate."),
+                Icons.loreLine("<dark_gray>Sneak + right-click to pick from a list.")));
         stack.setItemMeta(meta);
-        CompassItems.handTo(player, BoundItems.bind(stack));
+        TaggedItems.handTo(player, items.tag(stack, TAG));
         say(player, "manhunt.team-compass.given");
     }
 

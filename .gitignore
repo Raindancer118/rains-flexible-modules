@@ -27,3 +27,6 @@ permissions.yml
 bukkit.yml
 spigot.yml
 paper-global.yml
+
+# The e2e run's download cache in CI (RAINS_E2E_CACHE): Paper, the game's jars and assets — never committed.
+.e2e-cache/

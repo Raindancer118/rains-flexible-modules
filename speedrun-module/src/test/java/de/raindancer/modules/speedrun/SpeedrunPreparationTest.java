@@ -325,16 +325,8 @@ class SpeedrunPreparationTest {
     @Test
     @DisplayName("a practice kit is handed to every online racer, on their own thread, in full")
     void handsOutTheKit() {
-        java.util.List<String> made = new java.util.ArrayList<>();
-        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, mock(PlayerAdmin.class),
-                (material, amount) -> {
-                    made.add(material + " x" + amount);
-                    return mock(org.bukkit.inventory.ItemStack.class);
-                });
-        Player alice = runningItsOwnTasks(mock(Player.class));
-        org.bukkit.inventory.PlayerInventory inventory = mock(org.bukkit.inventory.PlayerInventory.class);
-        when(alice.getInventory()).thenReturn(inventory);
-        when(inventory.addItem(any(org.bukkit.inventory.ItemStack[].class))).thenReturn(new java.util.HashMap<>());
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, mock(PlayerAdmin.class));
+        Player alice = runningItsOwnTasks(de.raindancer.core.testkit.TestPlayers.player("Alice"));
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             bukkit.when(() -> Bukkit.getPlayer(ALICE)).thenReturn(alice);
@@ -343,8 +335,36 @@ class SpeedrunPreparationTest {
             preparation.handOut(Set.of(ALICE, BOB), SpeedrunPracticeKit.EYES_OF_ENDER);
         }
 
-        verify(inventory).addItem(any(org.bukkit.inventory.ItemStack[].class));
-        org.assertj.core.api.Assertions.assertThat(made).containsExactly("ENDER_EYE x14");
+        org.assertj.core.api.Assertions.assertThat(de.raindancer.core.testkit.TestInventories.stacksIn(alice.getInventory()))
+                .singleElement().satisfies(stack -> {
+                    org.assertj.core.api.Assertions.assertThat(stack.getType()).isEqualTo(org.bukkit.Material.ENDER_EYE);
+                    org.assertj.core.api.Assertions.assertThat(stack.getAmount()).isEqualTo(14);
+                });
+    }
+
+    @Test
+    @DisplayName("a latecomer gets the racer's clean slate and the kit — and the world is left as the race has it")
+    void latecomer() {
+        PlayerAdmin players = mock(PlayerAdmin.class);
+        SpeedrunPreparation preparation = new SpeedrunPreparation(plugin, players);
+        Player late = runningItsOwnTasks(de.raindancer.core.testkit.TestPlayers.player("Late"));
+        late.getInventory().setItem(3, de.raindancer.core.testkit.TestItems.of(org.bukkit.Material.DIAMOND, 9));
+        org.bukkit.inventory.Inventory enderChest = de.raindancer.core.testkit.TestInventories.chest(27);
+        enderChest.setItem(0, de.raindancer.core.testkit.TestItems.of(org.bukkit.Material.NETHERITE_INGOT, 4));
+        when(late.getEnderChest()).thenReturn(enderChest);
+        World world = mock(World.class);
+        when(late.getWorld()).thenReturn(world);
+
+        preparation.prepareLatecomer(late, SpeedrunPracticeKit.EYES_OF_ENDER);
+
+        verify(players).heal(late.getUniqueId());
+        verify(players).feed(late.getUniqueId());
+        verify(late).setLevel(0);
+        org.assertj.core.api.Assertions.assertThat(de.raindancer.core.testkit.TestInventories.stacksIn(late.getInventory()))
+                .extracting(org.bukkit.inventory.ItemStack::getType).containsExactly(org.bukkit.Material.ENDER_EYE);
+        org.assertj.core.api.Assertions.assertThat(de.raindancer.core.testkit.TestInventories.stacksIn(enderChest)).isEmpty();
+        verify(world, never()).setTime(org.mockito.ArgumentMatchers.anyLong());
+        verify(world, never()).getEntities();
     }
 
     @Test

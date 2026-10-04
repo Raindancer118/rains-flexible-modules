@@ -90,4 +90,41 @@ class SpeedrunJoinCommandTest {
             verify(player, never()).teleportAsync(any(Location.class));
         }
     }
+
+    @Test
+    @DisplayName("a typo is answered with the word it was probably meant to be")
+    void didYouMean() {
+        Player player = mock(Player.class);
+        when(player.hasPermission(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+        when(source.getSender()).thenReturn(player);
+
+        command.execute(source, new String[]{"spectat"});
+
+        verify(messages).send(player, "speedrun.command.did-you-mean", "word", "spectat", "guess", "spectate");
+        verify(messages, never()).send(player, "speedrun.command.unknown", "word", "spectat");
+    }
+
+    @Test
+    @DisplayName("a word the sender may not use is never the guess")
+    void didYouMeanOnlyWhatTheyMayUse() {
+        Player player = mock(Player.class);
+        when(source.getSender()).thenReturn(player);
+
+        command.execute(source, new String[]{"resett"});
+
+        verify(messages, never()).send(player, "speedrun.command.did-you-mean", "word", "resett", "guess", "reset");
+        verify(messages).send(player, "speedrun.command.unknown", "word", "resett");
+    }
+
+    @Test
+    @DisplayName("nonsense gets the list, not a wild guess")
+    void nonsenseGetsTheList() {
+        Player player = mock(Player.class);
+        when(player.hasPermission(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+        when(source.getSender()).thenReturn(player);
+
+        command.execute(source, new String[]{"xylophone"});
+
+        verify(messages).send(player, "speedrun.command.unknown", "word", "xylophone");
+    }
 }

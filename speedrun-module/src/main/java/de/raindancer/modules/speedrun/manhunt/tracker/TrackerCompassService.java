@@ -1,10 +1,12 @@
 package de.raindancer.modules.speedrun.manhunt.tracker;
 
-import de.raindancer.core.content.items.BoundItems;
+import de.raindancer.core.content.items.TaggedItems;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.actionbar.ActionBarPriority;
 import de.raindancer.core.ui.actionbar.ActionBars;
+import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.ui.text.Text;
 import de.raindancer.core.world.visual.PathTrail;
 import de.raindancer.modules.speedrun.manhunt.ManhuntSettings;
 import de.raindancer.modules.speedrun.manhunt.model.Hunt;
@@ -42,9 +44,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
-import static de.raindancer.modules.speedrun.manhunt.tracker.CompassItems.line;
-import static de.raindancer.modules.speedrun.manhunt.tracker.CompassItems.safe;
 
 /**
  * The tracking compass' Bukkit half: hands one to every Hunter when a hunt starts, re-aims all of
@@ -87,7 +86,7 @@ public final class TrackerCompassService {
     private final PortalMemory portals;
     private final Messages messages;
     private final ActionBars actionBars;
-    private final CompassItems items;
+    private final TaggedItems items;
 
     /** The action bar slot the distance is shown in — its own, so it never takes turns with the clock. */
     static final String DISTANCE_OWNER = "manhunt-tracker";
@@ -121,7 +120,8 @@ public final class TrackerCompassService {
         this.messages = messages;
         this.actionBars = actionBars;
         this.settings = Objects.requireNonNull(settings, "settings");
-        this.items = new CompassItems(plugin, "manhunt-tracker", Material.COMPASS);
+        // Bound: a dropped compass is a working compass in a Runner's hands.
+        this.items = TaggedItems.of(plugin, "manhunt-tracker").onlyOn(Material.COMPASS).bound();
     }
 
     /** Told the live settings whenever they change — re-arms the sweep if its beat or its very
@@ -327,8 +327,9 @@ public final class TrackerCompassService {
 
     // ------------------------------------------------------------------------ the item
 
+    /** Whether they have one — anywhere, the cursor of an open window included. */
     public boolean carries(Player hunter) {
-        return items.slotOf(hunter, OURS) >= 0;
+        return items.carries(hunter, OURS);
     }
 
     /** Gives {@code hunter} a compass, unless they are already carrying one of ours. */
@@ -336,16 +337,8 @@ public final class TrackerCompassService {
         if (carries(hunter)) {
             return;
         }
-        place(hunter, freshCompass());
-    }
-
-    /**
-     * Puts {@code compass} into {@code hunter}'s inventory, or at their feet when it does not fit, and
-     * says so. Split out from {@link #give} so it is testable without the real Material registry
-     * {@link #freshCompass} needs — see {@code TrackerCompassServiceTest}'s own note on why.
-     */
-    void place(Player hunter, ItemStack compass) {
-        CompassItems.handTo(hunter, compass);
+        // Into the inventory, or at their feet, owned by them, when it does not fit — never lost.
+        TaggedItems.handTo(hunter, freshCompass());
         say(hunter, "manhunt.tracker.given");
     }
 
@@ -367,19 +360,18 @@ public final class TrackerCompassService {
     private ItemStack freshCompass() {
         ItemStack stack = new ItemStack(Material.COMPASS);
         ItemMeta meta = stack.getItemMeta();
-        meta.displayName(line("<gold>Tracking compass"));
-        meta.lore(List.of(line("<gray>Looking for somebody to follow…")));
-        items.tag(meta, TAG);
+        meta.displayName(Icons.name("<gold>Tracking compass"));
+        meta.lore(List.of(Icons.loreLine("<gray>Looking for somebody to follow…")));
         stack.setItemMeta(meta);
-        // A dropped compass is a working compass in a Runner's hands; Core refuses the drop.
-        return BoundItems.bind(stack);
+        return items.tag(stack, TAG);
     }
 
     private void applyTo(Player hunter, Aim aim, Map<UUID, String> names) {
-        int slot = items.slotOf(hunter, OURS);
-        if (slot < 0) {
+        java.util.OptionalInt found = items.slotOf(hunter.getInventory(), OURS);
+        if (found.isEmpty()) {
             return;
         }
+        int slot = found.getAsInt();
         ItemStack stack = hunter.getInventory().getItem(slot);
         if (stack == null || !(stack.getItemMeta() instanceof CompassMeta meta)) {
             return;
@@ -390,14 +382,14 @@ public final class TrackerCompassService {
         if (holding) {
             showTrail(hunter, aim);
         }
-        String heading = "<gold>Tracking <white>" + safe(targetName);
+        String heading = "<gold>Tracking <white>" + Text.literal(targetName == null ? "somebody" : targetName);
 
         switch (aim.kind()) {
             case TRACKING, PORTAL -> {
-                meta.displayName(line(heading));
+                meta.displayName(Icons.name(heading));
                 meta.lore(loreFor(aim.kind() == Aim.Kind.TRACKING
                         ? "<gray>Straight ahead."
-                        : "<gray>Through the portal, into <white>" + safe(aim.worldName()) + "<gray>."));
+                        : "<gray>Through the portal, into <white>" + Text.literal(aim.worldName()) + "<gray>."));
                 World here = hunter.getWorld();
                 if (needleFor(aim.kind(), here.getEnvironment()) == Needle.COMPASS_TARGET) {
                     // The needle, without the item: see needleFor.
@@ -423,14 +415,14 @@ public final class TrackerCompassService {
             }
             case OTHER_WORLD -> {
                 meta.setLodestone(null);
-                meta.displayName(line(heading));
-                meta.lore(List.of(line("<gray>Somewhere in <white>" + safe(aim.worldName()) + "<gray>."),
-                        line("<dark_gray>No way through from here.")));
+                meta.displayName(Icons.name(heading));
+                meta.lore(List.of(Icons.loreLine("<gray>Somewhere in <white>" + Text.literal(aim.worldName()) + "<gray>."),
+                        Icons.loreLine("<dark_gray>No way through from here.")));
             }
             case NONE -> {
                 meta.setLodestone(null);
-                meta.displayName(line("<gold>Tracking compass"));
-                meta.lore(List.of(line("<gray>Nothing to point at.")));
+                meta.displayName(Icons.name("<gold>Tracking compass"));
+                meta.lore(List.of(Icons.loreLine("<gray>Nothing to point at.")));
             }
         }
         // Nothing is written unless something actually changed — see unchanged(). With the needle
@@ -513,7 +505,7 @@ public final class TrackerCompassService {
         }
         actionBars.show(id, DISTANCE_OWNER,
                 messages.get("manhunt.tracker.distance",
-                        "runner", safe(targetName),
+                        "runner", targetName == null ? "somebody" : targetName,
                         "blocks", String.valueOf(Math.round(aim.distance()))),
                 Duration.ofMillis(Math.max(1, sweepPeriod) * 50L + 1000L), ActionBarPriority.NORMAL);
         showingDistance.add(id);
@@ -580,10 +572,10 @@ public final class TrackerCompassService {
     /** The item's lore: what the needle means, and how to change it. No distance — see showDistance. */
     List<Component> loreFor(String first) {
         List<Component> lore = new ArrayList<>();
-        lore.add(line(first));
+        lore.add(Icons.loreLine(first));
         if (compass.allowsPicking()) {
-            lore.add(line("<dark_gray>Right-click for the next one, or the nearest."));
-            lore.add(line("<dark_gray>Sneak + right-click to pick from a list."));
+            lore.add(Icons.loreLine("<dark_gray>Right-click for the next one, or the nearest."));
+            lore.add(Icons.loreLine("<dark_gray>Sneak + right-click to pick from a list."));
         }
         return lore;
     }

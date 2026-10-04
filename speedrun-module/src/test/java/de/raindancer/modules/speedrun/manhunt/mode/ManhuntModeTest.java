@@ -4,7 +4,9 @@ import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.speedrun.manhunt.ManhuntSettings;
 import de.raindancer.modules.speedrun.manhunt.model.Hunt;
 import de.raindancer.modules.speedrun.manhunt.model.ManhuntTeams;
+import de.raindancer.modules.speedrun.manhunt.service.AbsentRunners;
 import de.raindancer.modules.speedrun.manhunt.service.Eliminations;
+import de.raindancer.modules.speedrun.manhunt.service.HunterHoldListener;
 import de.raindancer.modules.speedrun.manhunt.service.HuntDeathListener;
 import de.raindancer.modules.speedrun.manhunt.service.ManhuntWhitelistService;
 import de.raindancer.modules.speedrun.manhunt.tracker.HuntCompasses;
@@ -162,6 +164,138 @@ class ManhuntModeTest {
     }
 
     @Nested
+    @DisplayName("somebody joining the hunt under way (late-join RACE)")
+    class Latecomers {
+
+        private final UUID late = UUID.nameUUIDFromBytes("late".getBytes());
+        private Player latePlayer;
+
+        @BeforeEach
+        void online() {
+            latePlayer = mock(Player.class);
+            when(latePlayer.getUniqueId()).thenReturn(late);
+            when(latePlayer.getGameMode()).thenReturn(org.bukkit.GameMode.SURVIVAL);
+            when(plugin.getServer().getPlayer(late)).thenReturn(latePlayer);
+        }
+
+        /** What the lobby does before it asks the mode: they are on the run's roster already. */
+        private void joinLate(SpeedrunRun run) {
+            run.session().addParticipant(late);
+            mode.lateJoined(run, latePlayer);
+        }
+
+        @Test
+        @DisplayName("by default a Hunter — on the hunt's roster and the team, with a Hunter's compasses, admitted at the door")
+        void huntsByDefault() {
+            teams.joinRunners(ANNA);
+            SpeedrunRun run = runWith(new java.util.HashSet<>(Set.of(ANNA, BEN)));
+            mode.onStart(run);
+
+            joinLate(run);
+
+            Hunt hunt = mode.current().orElseThrow();
+            assertThat(hunt.hunters()).contains(late);
+            assertThat(hunt.runners()).doesNotContain(late);
+            assertThat(teams.hunters()).contains(late);
+            verify(compasses).refit(hunt, latePlayer);
+            verify(whitelist).admit(late);
+            assertThat(run.session().participants()).contains(late);
+        }
+
+        @Test
+        @DisplayName("never a Runner unless the server says so — RUNNER makes them one, with every life")
+        void runnerWhenConfigured() {
+            settings.set(ManhuntSettings.DEFAULTS.withLateJoinerSide(ManhuntSettings.LateJoinerSide.RUNNER)
+                    .withRunnerLives(2));
+            teams.joinRunners(ANNA);
+            SpeedrunRun run = runWith(new java.util.HashSet<>(Set.of(ANNA, BEN)));
+            mode.onStart(run);
+
+            joinLate(run);
+
+            Hunt hunt = mode.current().orElseThrow();
+            assertThat(hunt.runners()).contains(late);
+            assertThat(hunt.deathsOf(late)).as("no life used up").isZero();
+            assertThat(mode.countsForGoal(late)).as("a late Runner can win at the goal").isTrue();
+        }
+
+        @Test
+        @DisplayName("SMALLER_SIDE: where there are fewer — a tie goes to the Hunters")
+        void smallerSide() {
+            settings.set(ManhuntSettings.DEFAULTS.withLateJoinerSide(ManhuntSettings.LateJoinerSide.SMALLER_SIDE));
+            teams.joinRunners(ANNA);
+            SpeedrunRun run = runWith(new java.util.HashSet<>(Set.of(ANNA, BEN, CARO)));
+            mode.onStart(run);
+
+            assertThat(ManhuntMode.sideFor(mode.current().orElseThrow(), ManhuntSettings.LateJoinerSide.SMALLER_SIDE))
+                    .as("one Runner, two Hunters").isEqualTo(ManhuntMode.Side.RUNNER);
+            assertThat(ManhuntMode.sideFor(Hunt.of(Set.of(ANNA, BEN), Set.of(ANNA)),
+                    ManhuntSettings.LateJoinerSide.SMALLER_SIDE)).as("a tie").isEqualTo(ManhuntMode.Side.HUNTER);
+            joinLate(run);
+            assertThat(mode.current().orElseThrow().runners()).contains(late);
+        }
+
+        @Test
+        @DisplayName("a late Hunter in the Runners' head start waits it out like every Hunter")
+        void heldInTheHeadStart() {
+            settings.set(ManhuntSettings.DEFAULTS.withHunterHeadStartSeconds(30));
+            teams.joinRunners(ANNA);
+            SpeedrunRun run = runWith(new java.util.HashSet<>(Set.of(ANNA, BEN)));
+            mode.onStart(run);
+            ArgumentCaptor<Listener> listeners = ArgumentCaptor.forClass(Listener.class);
+            verify(pluginManager, atLeastOnce()).registerEvents(listeners.capture(), eq(plugin));
+            HunterHoldListener hold = listeners.getAllValues().stream()
+                    .filter(HunterHoldListener.class::isInstance).map(HunterHoldListener.class::cast)
+                    .findFirst().orElseThrow();
+
+            joinLate(run);
+
+            assertThat(hold.isHolding()).isTrue();
+            org.bukkit.World world = mock(org.bukkit.World.class);
+            org.bukkit.event.player.PlayerMoveEvent step = new org.bukkit.event.player.PlayerMoveEvent(latePlayer,
+                    new org.bukkit.Location(world, 0.5, 64, 0.5), new org.bukkit.Location(world, 3.5, 64, 0.5));
+            hold.onMove(step);
+            assertThat(de.raindancer.modules.speedrun.Steps.held(step)).isTrue();
+        }
+
+        @Test
+        @DisplayName("a late Runner who logs out has the same grace as every Runner — and is caught when it runs out")
+        void offlineGrace() {
+            java.util.List<Runnable> timers = new java.util.ArrayList<>();
+            mode.laterWith((ticks, task) -> timers.add(task));
+            settings.set(ManhuntSettings.DEFAULTS.withLateJoinerSide(ManhuntSettings.LateJoinerSide.RUNNER)
+                    .withRunnerOfflineGraceSeconds(5));
+            teams.joinRunners(ANNA);
+            when(plugin.getServer().getPlayer(ANNA)).thenReturn(mock(Player.class));
+            when(plugin.getServer().getOfflinePlayer(late)).thenReturn(mock(org.bukkit.OfflinePlayer.class));
+            SpeedrunRun run = runWith(new java.util.HashSet<>(Set.of(ANNA, BEN)));
+            mode.onStart(run);
+            joinLate(run);
+            ArgumentCaptor<Listener> listeners = ArgumentCaptor.forClass(Listener.class);
+            verify(pluginManager, atLeastOnce()).registerEvents(listeners.capture(), eq(plugin));
+            AbsentRunners absent = listeners.getAllValues().stream().filter(AbsentRunners.class::isInstance)
+                    .map(AbsentRunners.class::cast).findFirst().orElseThrow();
+            timers.clear();
+
+            when(plugin.getServer().getPlayer(late)).thenReturn(null);
+            absent.onQuit(new org.bukkit.event.player.PlayerQuitEvent(latePlayer, net.kyori.adventure.text.Component.empty(),
+                    org.bukkit.event.player.PlayerQuitEvent.QuitReason.DISCONNECTED));
+            timers.forEach(Runnable::run);
+
+            assertThat(mode.current().orElseThrow().isEliminated(late)).isTrue();
+        }
+
+        @Test
+        @DisplayName("with no hunt under way there is nothing to join")
+        void noHunt() {
+            mode.lateJoined(runWith(new java.util.HashSet<>(Set.of(ANNA))), latePlayer);
+
+            verify(compasses, never()).refit(any(), any());
+            assertThat(mode.current()).isEmpty();
+        }
+    }
+
+    @Nested
     @DisplayName("starting a hunt")
     class Starting {
 
@@ -234,7 +368,8 @@ class ManhuntModeTest {
                     de.raindancer.modules.speedrun.manhunt.ManhuntSettings.CrossWorldTracking.LAST_PORTAL, true, true, 10,
                     false, de.raindancer.modules.speedrun.manhunt.ManhuntSettings.TeamCompassItem.RECOVERY_COMPASS, true,
                     false, true, false, true, false, false, 30, false, 300,
-                    1, 0, 0, 10, 0, true, true, true, 0));
+                    1, 0, 0, 10, 0, true, true, true, 0,
+                    de.raindancer.modules.speedrun.manhunt.ManhuntSettings.LateJoinerSide.HUNTER));
             java.util.List<Long> waits = new java.util.ArrayList<>();
             mode.laterWith((ticks, task) -> waits.add(ticks));
             when(plugin.getServer().getPlayer(ANNA)).thenReturn(mock(Player.class));

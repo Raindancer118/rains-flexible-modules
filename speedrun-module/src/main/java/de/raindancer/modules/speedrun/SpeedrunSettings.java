@@ -282,9 +282,49 @@ public record SpeedrunSettings(
 
         @In("speedrun/lobby") @Title("Setup finished")
         @Describe("Set by the setup assistant. Off, every admin is offered the assistant when they join.")
-        boolean setupDone
+        boolean setupDone,
+
+        @In("speedrun/lobby") @Title("Players who join a run under way")
+        @Describe("OFF — the default — leaves somebody who joins mid-run alone: they look on. SPECTATE puts "
+                + "them in spectator mode in the run's world until it is over. RACE makes them a racer from "
+                + "that moment: a clean slate, the practice kit, the game's own items (Manhunt's compasses "
+                + "for their side), a safe spot near the start, the clock and the sidebar. A late racer's "
+                + "own result never ranks. Somebody who was racing in this run and comes back is never a "
+                + "latecomer. While a hunt keeps the server's whitelist closed, nobody new gets in at all.")
+        SpeedrunLateJoin lateJoin
 
 ) {
+
+    /** The settings as they stood before late joining existed — {@code late-join} OFF. */
+    public SpeedrunSettings(String gameMode, String worldName, String advancementKey,
+                            boolean clearAdvancementsOnStart, SpeedrunDeathPolicy deathPolicy,
+                            boolean requireExitPortalAfterDragon, int creeperSpawnChanceOnBreakPercent,
+                            int chargedCreeperChanceOnBreakPercent, int creeperSpawnChanceOnContainerPercent,
+                            int chargedCreeperChanceOnContainerPercent, boolean startPointSet, double startX,
+                            double startY, double startZ, double startYaw, double startPitch,
+                            boolean startBlockStaffOnly, boolean lobbyProtected, boolean lobbyExplosionsBlocked,
+                            boolean showTimerToOnlookers, boolean restartWhenRunEnds, int restartAfterSeconds,
+                            boolean setTimeOnStart, int startTimeTicks, boolean bedExplosionsInNether,
+                            boolean bedExplosionsInTheEnd, boolean anchorExplosionsInOverworld,
+                            boolean anchorExplosionsInTheEnd, boolean tntInOverworld, boolean tntInNether,
+                            boolean tntInTheEnd, boolean endCrystalsInOverworld, boolean endCrystalsInNether,
+                            boolean endCrystalsInTheEnd, boolean breakingBlocksBeforeRuns,
+                            boolean monstersHuntBeforeRuns, SpeedrunSeedMode seedMode, String seed, String seedPool,
+                            int pearlTarget, SpeedrunHudMode hudDefault, boolean splitAnnouncements,
+                            boolean goldSplitCelebration, boolean rankEditedRuns, SpeedrunPracticeKit practiceKit,
+                            boolean setupDone) {
+        this(gameMode, worldName, advancementKey, clearAdvancementsOnStart, deathPolicy,
+                requireExitPortalAfterDragon, creeperSpawnChanceOnBreakPercent,
+                chargedCreeperChanceOnBreakPercent, creeperSpawnChanceOnContainerPercent,
+                chargedCreeperChanceOnContainerPercent, startPointSet, startX, startY, startZ, startYaw,
+                startPitch, startBlockStaffOnly, lobbyProtected, lobbyExplosionsBlocked,
+                showTimerToOnlookers, restartWhenRunEnds, restartAfterSeconds, setTimeOnStart,
+                startTimeTicks, bedExplosionsInNether, bedExplosionsInTheEnd, anchorExplosionsInOverworld,
+                anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
+                endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns,
+                seedMode, seed, seedPool, pearlTarget, hudDefault, splitAnnouncements, goldSplitCelebration,
+                rankEditedRuns, practiceKit, setupDone, SpeedrunLateJoin.OFF);
+    }
 
     /** The settings as they stood before seeds, splits and practice existed — every new one at its default. */
     public SpeedrunSettings(String gameMode, String worldName, String advancementKey,
@@ -311,7 +351,7 @@ public record SpeedrunSettings(
                 anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
                 endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns,
                 SpeedrunSeedMode.RANDOM, "", "", 12, SpeedrunHudMode.SIDEBAR, true, true, false,
-                SpeedrunPracticeKit.NONE, false);
+                SpeedrunPracticeKit.NONE, false, SpeedrunLateJoin.OFF);
     }
 
     /** The advancement key {@link #requireExitPortalAfterDragon} looks for — vanilla's own dragon kill. */
@@ -351,7 +391,7 @@ public record SpeedrunSettings(
             true, true, true, true, true, true, true, true, true, true,
             false, false,
             SpeedrunSeedMode.RANDOM, "", "", 12, SpeedrunHudMode.SIDEBAR, true, true, false,
-            SpeedrunPracticeKit.NONE, false);
+            SpeedrunPracticeKit.NONE, false, SpeedrunLateJoin.OFF);
 
     /** Whether a game mode is chosen at all — an empty id is the plain race. */
     /** The same settings in {@code name} — how a run keeps its world while {@code world-name} changes. */
@@ -366,7 +406,7 @@ public record SpeedrunSettings(
                 anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
                 endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns,
                 seedMode, seed, seedPool, pearlTarget, hudDefault, splitAnnouncements, goldSplitCelebration,
-                rankEditedRuns, practiceKit, setupDone);
+                rankEditedRuns, practiceKit, setupDone, lateJoin);
     }
 
     public boolean hasGameMode() {
@@ -418,6 +458,10 @@ public record SpeedrunSettings(
 
     public SpeedrunPracticeKit kit() {
         return practiceKit == null ? SpeedrunPracticeKit.NONE : practiceKit;
+    }
+
+    public SpeedrunLateJoin lateJoinOrOff() {
+        return lateJoin == null ? SpeedrunLateJoin.OFF : lateJoin;
     }
 
     public long restartDelayTicks() {

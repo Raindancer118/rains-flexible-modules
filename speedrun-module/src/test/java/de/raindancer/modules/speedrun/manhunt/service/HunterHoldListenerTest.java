@@ -9,6 +9,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import de.raindancer.modules.speedrun.Steps;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -61,8 +62,10 @@ class HunterHoldListenerTest {
         hold.onMove(walking);
         hold.onMove(looking);
 
-        assertThat(walking.isCancelled()).isTrue();
+        assertThat(Steps.held(walking)).isTrue();
         assertThat(looking.isCancelled()).isFalse();
+        assertThat(looking.getTo().getX()).isEqualTo(0.7);
+        assertThat(Steps.heldLookingAround(walking, 0f)).isTrue();
     }
 
     @Test
@@ -72,7 +75,7 @@ class HunterHoldListenerTest {
 
         hold.onMove(running);
 
-        assertThat(running.isCancelled()).isFalse();
+        assertThat(Steps.held(running)).isFalse();
     }
 
     @Test
@@ -124,7 +127,7 @@ class HunterHoldListenerTest {
         hold.onBreak(breaking);
 
         assertThat(hold.isHolding()).isFalse();
-        assertThat(walking.isCancelled()).isFalse();
+        assertThat(Steps.held(walking)).isFalse();
         verify(breaking, never()).setCancelled(true);
     }
 
@@ -138,7 +141,7 @@ class HunterHoldListenerTest {
 
         hold.onMove(formerRunner);
 
-        assertThat(formerRunner.isCancelled()).isTrue();
+        assertThat(Steps.held(formerRunner)).isTrue();
     }
 
     @Test
@@ -151,12 +154,12 @@ class HunterHoldListenerTest {
         timed.holdFor(HUNTER, 5);
         PlayerMoveEvent walking = step(HUNTER, 3.5);
         timed.onMove(walking);
-        assertThat(walking.isCancelled()).isTrue();
+        assertThat(Steps.held(walking)).isTrue();
         assertThat(timed.secondsLeft(HUNTER)).isEqualTo(5);
 
         now.set(5_001);
         PlayerMoveEvent later = step(HUNTER, 3.5);
         timed.onMove(later);
-        assertThat(later.isCancelled()).isFalse();
+        assertThat(Steps.held(later)).isFalse();
     }
 }

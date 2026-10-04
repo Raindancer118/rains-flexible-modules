@@ -408,6 +408,15 @@ class ManhuntCommandTest {
     }
 
     @Test
+    @DisplayName("a typo is answered with the word it was probably meant to be")
+    void didYouMean() {
+        command.execute(source, new String[]{"statuss"});
+
+        verify(fake.messages).send(anna, "manhunt.did-you-mean", "word", "statuss", "guess", "status");
+        verify(fake.messages, never()).send(eq(anna), eq("manhunt.unknown-word"), any(Object[].class));
+    }
+
+    @Test
     @DisplayName("tab completion offers the sides, and the online players for assign")
     void completion() {
         assertThat(command.suggest(source, new String[]{""})).contains("join", "leave", "status");

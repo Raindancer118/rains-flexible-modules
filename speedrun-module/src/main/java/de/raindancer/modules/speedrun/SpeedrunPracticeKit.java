@@ -40,4 +40,14 @@ public enum SpeedrunPracticeKit {
     public boolean isPractice() {
         return this != NONE;
     }
+
+    /** The kit of this name — as a run's category keeps it — if it is one. */
+    public static java.util.Optional<SpeedrunPracticeKit> byName(String name) {
+        for (SpeedrunPracticeKit kit : values()) {
+            if (kit.name().equalsIgnoreCase(name)) {
+                return java.util.Optional.of(kit);
+            }
+        }
+        return java.util.Optional.empty();
+    }
 }

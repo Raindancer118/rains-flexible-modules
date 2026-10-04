@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.modules.speedrun.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.jetbrains.annotations.NotNull;
 
@@ -34,5 +35,11 @@ public final class SpeedrunTimeCommand implements ISpeedrunCommand {
     @Override
     public String describe() {
         return "set the running clock";
+    }
+
+    /** What Paper asks before running this — the node the command is declared with. */
+    @Override
+    public String permission() {
+        return PermissionNodes.ADMIN;
     }
 }

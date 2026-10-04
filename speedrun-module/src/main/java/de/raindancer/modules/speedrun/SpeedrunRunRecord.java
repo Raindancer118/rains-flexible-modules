@@ -89,6 +89,21 @@ public record SpeedrunRunRecord(String id, SpeedrunCategory category, long start
         return participants.containsKey(player);
     }
 
+    /**
+     * Whether {@code player} joined the run after its clock started — {@code late-join: RACE}, or
+     * Manhunt's {@code /manhunt assign}. The run is theirs to remember, but never a best of theirs:
+     * they did not run it from the start.
+     */
+    public boolean joinedLate(UUID player) {
+        return player != null && timeline.stream().anyMatch(entry -> entry.kind() == SpeedrunTimeline.Kind.JOINED
+                && player.equals(entry.who()));
+    }
+
+    /** Raced it from the start — what a personal best is made of. */
+    public boolean ranFromTheStart(UUID player) {
+        return raced(player) && !joinedLate(player);
+    }
+
     public List<SpeedrunTimeline.Entry> splits() {
         return timeline.stream().filter(entry -> entry.kind() == SpeedrunTimeline.Kind.SPLIT).toList();
     }
@@ -115,47 +130,10 @@ public record SpeedrunRunRecord(String id, SpeedrunCategory category, long start
         return timeline.stream().anyMatch(entry -> entry.kind() == kind);
     }
 
-    // ---------------------------------------------------------------------------- storage
+    // ---------------------------------------------------------------------------- the old history.yml
 
-    void writeTo(ConfigurationSection section) {
-        section.set("category", category.key());
-        section.set("started", startedAt);
-        section.set("millis", time.toMillis());
-        section.set("outcome", outcome);
-        section.set("completed", completed);
-        section.set("seed", seed);
-        ConfigurationSection racers = section.createSection("players");
-        participants.forEach((uuid, name) -> racers.set(uuid.toString(), name));
-        List<Map<String, Object>> entries = new ArrayList<>();
-        for (SpeedrunTimeline.Entry entry : timeline) {
-            Map<String, Object> written = new LinkedHashMap<>();
-            written.put("kind", entry.kind().name());
-            written.put("at", entry.at().toMillis());
-            written.put("who", entry.who() == null ? "" : entry.who().toString());
-            written.put("detail", entry.detail());
-            if (entry.other() != null) {
-                written.put("other", entry.other().toString());
-            }
-            entries.add(written);
-        }
-        section.set("timeline", entries);
-        ConfigurationSection named = section.createSection("labels");
-        labels.forEach(named::set);
-        section.set("winner", winner);
-        ConfigurationSection results = section.createSection("results");
-        for (PlayerResult p : players) {
-            ConfigurationSection r = results.createSection(p.id().toString());
-            r.set("name", p.name());
-            r.set("runner", p.runner());
-            r.set("won", p.won());
-            r.set("caught", p.caught());
-            r.set("catches", p.catches());
-            r.set("deaths", p.deaths());
-            r.set("survived-millis", p.survivedMillis());
-            r.set("distance", p.distance());
-            r.set("portals", p.portals());
-        }
-    }
+    // Runs are kept in Core's run history now (see SpeedrunHistory); this only reads what speedrun
+    // 1.28 and before wrote, for SpeedrunHistoryMigration.
 
     /** Empty for a section that is not a run — a hand edit gone wrong is skipped, not fatal. */
     static Optional<SpeedrunRunRecord> readFrom(String id, ConfigurationSection section) {

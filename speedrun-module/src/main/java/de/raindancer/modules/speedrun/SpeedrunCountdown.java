@@ -10,11 +10,11 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import de.raindancer.core.world.movement.Moves;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.plugin.Plugin;
 
@@ -27,9 +27,9 @@ import java.util.UUID;
  *
  * <h2>Why participants cannot move</h2>
  * Asked for explicitly: a countdown a runner can spend closing the distance to the goal is not a
- * countdown, it is a five-second head start. Frozen by block-quantised comparison — the same trick
- * {@code TravelListener.onMove} uses to tell "actually moved" from "turned on the spot" — rather than
- * cancelling every {@link PlayerMoveEvent} outright, so looking around while waiting still works.
+ * countdown, it is a five-second head start. Held with Core's {@code Moves.holdInPlace}: only a step
+ * into another block is taken back, and the head turn is kept, so looking around while waiting works
+ * and nobody's view snaps back every tick.
  *
  * <h2>Why this is its own {@link Listener}, armed and disarmed like an end condition</h2>
  * Same shape as {@link de.raindancer.modules.speedrun.conditions.AdvancementEndCondition}: registered
@@ -130,16 +130,10 @@ final class SpeedrunCountdown implements Listener {
         if (!participants.contains(id) || released.contains(id)) {
             return;
         }
-        if (event.getTo() == null || sameBlock(event.getFrom(), event.getTo())) {
+        if (!Moves.changedBlock(event)) {
             return;
         }
-        event.setCancelled(true);
+        Moves.holdInPlace(event);
     }
 
-    private static boolean sameBlock(Location from, Location to) {
-        return from.getWorld() == to.getWorld()
-                && from.getBlockX() == to.getBlockX()
-                && from.getBlockY() == to.getBlockY()
-                && from.getBlockZ() == to.getBlockZ();
-    }
 }

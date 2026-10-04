@@ -1,9 +1,14 @@
 package de.raindancer.modules.speedrun.manhunt.tracker;
 
+import de.raindancer.core.testkit.TestInventories;
+import de.raindancer.core.testkit.TestItems;
+import de.raindancer.core.testkit.TestPlayers;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.speedrun.manhunt.ManhuntSettings;
 import de.raindancer.modules.speedrun.manhunt.tracker.TrackerCompass.Aim;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -13,7 +18,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,13 +35,8 @@ import static org.mockito.Mockito.when;
  * (or just carrying a full loadout) was told "<gold>You have been handed a tracking compass." while
  * nothing landed anywhere.
  *
- * <h2>Why {@code place()}, not {@code give()}, for the inventory-behaviour tests</h2>
- * {@code give()} builds a real {@code Material.COMPASS} {@code ItemStack}, which lazily resolves
- * {@code io.papermc.paper.registry.RegistryAccess} — not available outside a running Paper server.
- * No test anywhere else in this reactor constructs a real {@code ItemStack} for the same reason
- * (see {@code MannequinEquipServiceTest}'s own note). {@link TrackerCompassService#place} is exactly
- * {@code give()}'s fix, split out so the decision — inventory first, feet if it does not fit, the
- * message either way — is reachable with a mocked {@code ItemStack} instead.
+ * <p>Real stacks and a real inventory from Core's testkit: the compass {@code give()} builds is the
+ * compass a server would build, and where it lands is read back, not verified on a mock.
  */
 class TrackerCompassServiceTest {
 
@@ -50,15 +49,12 @@ class TrackerCompassServiceTest {
 
     @BeforeEach
     void setUp() {
-        hunter = mock(Player.class);
-        inventory = mock(PlayerInventory.class);
+        hunter = TestPlayers.player("Hunter");
+        inventory = hunter.getInventory();
         world = mock(World.class);
         location = mock(Location.class);
-        when(hunter.getInventory()).thenReturn(inventory);
         when(hunter.getWorld()).thenReturn(world);
         when(hunter.getLocation()).thenReturn(location);
-        // No tracker already carried — findTracker() sees an empty inventory.
-        when(inventory.getContents()).thenReturn(new ItemStack[36]);
 
         messages = mock(Messages.class);
         Plugin plugin = mock(Plugin.class);
@@ -71,14 +67,18 @@ class TrackerCompassServiceTest {
                 messages, null, ManhuntSettings.DEFAULTS);
     }
 
+    /** One of our compasses, as the service tags it. */
+    static ItemStack trackerStack() {
+        return TestItems.tagged(Material.COMPASS, new NamespacedKey("manhunt", "manhunt-tracker"), "tracker");
+    }
+
     @Test
     @DisplayName("a compass that fits goes straight into the inventory, nothing dropped")
     void fitsInInventory() {
-        ItemStack compass = mock(ItemStack.class);
-        when(inventory.addItem(compass)).thenReturn(new HashMap<>());
+        service.give(hunter);
 
-        service.place(hunter, compass);
-
+        assertThat(TestInventories.stacksIn(inventory)).singleElement()
+                .satisfies(stack -> assertThat(service.isTracker(stack)).isTrue());
         verify(world, never()).dropItem(any(Location.class), any(ItemStack.class));
         verify(messages).send(hunter, "manhunt.tracker.given");
     }
@@ -86,21 +86,39 @@ class TrackerCompassServiceTest {
     @Test
     @DisplayName("a full inventory drops the compass at the Hunter's feet instead of losing it")
     void fullInventoryDropsAtFeet() {
-        ItemStack compass = mock(ItemStack.class);
-        HashMap<Integer, ItemStack> notFitted = new HashMap<>();
-        notFitted.put(0, compass);
-        when(inventory.addItem(compass)).thenReturn(notFitted);
+        for (int slot = 0; slot < 36; slot++) {
+            inventory.setItem(slot, TestItems.of(Material.STONE, 64));
+        }
         org.bukkit.entity.Item dropped = mock(org.bukkit.entity.Item.class);
-        when(world.dropItem(location, compass)).thenReturn(dropped);
-        java.util.UUID id = java.util.UUID.randomUUID();
-        when(hunter.getUniqueId()).thenReturn(id);
+        when(world.dropItem(eq(location), any(ItemStack.class))).thenReturn(dropped);
 
-        service.place(hunter, compass);
+        service.give(hunter);
 
-        verify(world).dropItem(location, compass);
+        org.mockito.ArgumentCaptor<ItemStack> onTheGround = org.mockito.ArgumentCaptor.forClass(ItemStack.class);
+        verify(world).dropItem(eq(location), onTheGround.capture());
+        assertThat(service.isTracker(onTheGround.getValue())).isTrue();
         // Owned, so a Runner walking past cannot pick up a working tracking compass.
-        verify(dropped).setOwner(id);
+        verify(dropped).setOwner(hunter.getUniqueId());
         verify(messages).send(hunter, "manhunt.tracker.given");
+    }
+
+    @Test
+    @DisplayName("the compass is bound — it never leaves its holder's own inventory")
+    void theCompassIsBound() {
+        service.give(hunter);
+
+        ItemStack given = TestInventories.stacksIn(inventory).getFirst();
+        assertThat(de.raindancer.core.content.items.BoundItems.isBound(given)).isTrue();
+    }
+
+    @Test
+    @DisplayName("one on the cursor of an open window counts as carried — never a second compass")
+    void onTheCursorCounts() {
+        hunter.setItemOnCursor(trackerStack());
+
+        service.give(hunter);
+
+        assertThat(TestInventories.stacksIn(inventory)).isEmpty();
     }
 
     @Test
@@ -148,35 +166,12 @@ class TrackerCompassServiceTest {
     @Test
     @DisplayName("a Hunter already carrying one of ours is left alone — never a second compass")
     void alreadyCarryingIsUntouched() {
-        ItemStack existing = mock(ItemStack.class);
-        org.bukkit.inventory.meta.CompassMeta meta = mock(org.bukkit.inventory.meta.CompassMeta.class);
-        when(existing.getType()).thenReturn(org.bukkit.Material.COMPASS);
-        when(existing.hasItemMeta()).thenReturn(true);
-        when(existing.getItemMeta()).thenReturn(meta);
-        org.bukkit.persistence.PersistentDataContainer pdc =
-                mock(org.bukkit.persistence.PersistentDataContainer.class);
-        when(existing.getPersistentDataContainer()).thenReturn(pdc);
-        when(pdc.get(any(), any())).thenReturn("tracker");
-        ItemStack[] contents = new ItemStack[36];
-        contents[0] = existing;
-        when(inventory.getContents()).thenReturn(contents);
+        inventory.setItem(0, trackerStack());
 
         service.give(hunter);
 
-        verify(inventory, never()).addItem(any(ItemStack.class));
-    }
-
-    /** One of our compasses, as a mock the service recognises by its tag. */
-    static ItemStack trackerStack(org.bukkit.inventory.meta.CompassMeta meta) {
-        ItemStack stack = mock(ItemStack.class);
-        when(stack.getType()).thenReturn(org.bukkit.Material.COMPASS);
-        when(stack.hasItemMeta()).thenReturn(true);
-        when(stack.getItemMeta()).thenReturn(meta);
-        org.bukkit.persistence.PersistentDataContainer pdc =
-                mock(org.bukkit.persistence.PersistentDataContainer.class);
-        when(stack.getPersistentDataContainer()).thenReturn(pdc);
-        when(pdc.get(any(), any())).thenReturn("tracker");
-        return stack;
+        assertThat(TestInventories.stacksIn(inventory)).hasSize(1);
+        verify(messages, never()).send(hunter, "manhunt.tracker.given");
     }
 
     @Test
@@ -197,11 +192,8 @@ class TrackerCompassServiceTest {
     void disarmWhileShuttingDown() {
         // Paper refuses to schedule for a disabled plugin, and a module is disabled inside its
         // plugin's onDisable — so a hunt ended by a restart threw before anything was handed back.
-        java.util.UUID id = java.util.UUID.nameUUIDFromBytes("h".getBytes());
-        when(hunter.getUniqueId()).thenReturn(id);
-        ItemStack[] contents = new ItemStack[36];
-        contents[4] = trackerStack(mock(org.bukkit.inventory.meta.CompassMeta.class));
-        when(inventory.getContents()).thenReturn(contents);
+        java.util.UUID id = hunter.getUniqueId();
+        inventory.setItem(4, trackerStack());
         io.papermc.paper.threadedregions.scheduler.EntityScheduler refusing =
                 mock(io.papermc.paper.threadedregions.scheduler.EntityScheduler.class);
         when(refusing.run(any(), any(), any())).thenThrow(
@@ -220,7 +212,7 @@ class TrackerCompassServiceTest {
 
         stopping.disarm(de.raindancer.modules.speedrun.manhunt.model.Hunt.of(java.util.Set.of(id), java.util.Set.of()));
 
-        verify(inventory).setItem(4, null);
+        assertThat(inventory.getItem(4)).isNull();
     }
 
     @Test
@@ -234,12 +226,8 @@ class TrackerCompassServiceTest {
         when(world.getEnvironment()).thenReturn(World.Environment.NORMAL);
         when(hunter.getUniqueId()).thenReturn(hunterId);
         when(hunter.getLocation()).thenReturn(new Location(world, 0, 64, 0));
-        ItemStack held = trackerStack(mock(org.bukkit.inventory.meta.CompassMeta.class));
-        ItemStack[] contents = new ItemStack[36];
-        contents[0] = held;
-        when(inventory.getContents()).thenReturn(contents);
-        when(inventory.getItem(0)).thenReturn(held);
-        when(inventory.getItemInMainHand()).thenReturn(held);
+        inventory.setItem(0, trackerStack());
+        inventory.setHeldItemSlot(0);
         Player runner = mock(Player.class);
         when(runner.getUniqueId()).thenReturn(runnerId);
         when(runner.isOnline()).thenReturn(true);
@@ -275,12 +263,8 @@ class TrackerCompassServiceTest {
         when(world.getEnvironment()).thenReturn(World.Environment.NORMAL);
         when(hunter.getUniqueId()).thenReturn(hunterId);
         when(hunter.getLocation()).thenReturn(new Location(world, 0, 64, 0));
-        ItemStack held = trackerStack(mock(org.bukkit.inventory.meta.CompassMeta.class));
-        ItemStack[] contents = new ItemStack[36];
-        contents[0] = held;
-        when(inventory.getContents()).thenReturn(contents);
-        when(inventory.getItem(0)).thenReturn(held);
-        when(inventory.getItemInMainHand()).thenReturn(held);
+        inventory.setItem(0, trackerStack());
+        inventory.setHeldItemSlot(0);
         Player runner = mock(Player.class);
         when(runner.getUniqueId()).thenReturn(runnerId);
         when(runner.getName()).thenReturn("Runner");
@@ -315,13 +299,11 @@ class TrackerCompassServiceTest {
         de.raindancer.modules.speedrun.manhunt.model.Hunt hunt = de.raindancer.modules.speedrun.manhunt.model.Hunt.of(
                 java.util.Set.of(hunterId, runnerId), java.util.Set.of(runnerId));
         when(hunter.getUniqueId()).thenReturn(runnerId);
-        ItemStack[] contents = new ItemStack[36];
-        contents[2] = trackerStack(mock(org.bukkit.inventory.meta.CompassMeta.class));
-        when(inventory.getContents()).thenReturn(contents);
+        inventory.setItem(2, trackerStack());
 
         service.fit(hunt, hunter);
 
-        verify(inventory).setItem(2, null);
+        assertThat(inventory.getItem(2)).isNull();
     }
 
     @org.junit.jupiter.api.Nested

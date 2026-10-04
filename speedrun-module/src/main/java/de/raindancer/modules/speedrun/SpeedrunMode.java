@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.core.ui.checklist.Checklist;
 import de.raindancer.modules.speedrun.manhunt.stats.PlayerResult;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -129,11 +130,12 @@ public interface SpeedrunMode {
 
     /**
      * This game's own pre-flight checks, beside the lobby's — "nobody is running" — each with a fix
-     * of its own where there is one. Asked fresh every time the check is shown; must change nothing.
-     * The lobby's own goal, world and roster checks are not repeated here.
+     * of its own where there is one, under the mode's own heading ({@code Check.in}). Asked fresh every
+     * time the check is shown; must change nothing. The lobby's own goal, world and roster checks are
+     * not repeated here.
      */
-    default List<SpeedrunPreflight.Check> preflight(SpeedrunSettings config, Set<UUID> racers) {
-        return List.of();
+    default Checklist preflight(SpeedrunSettings config, Set<UUID> racers) {
+        return Checklist.titled(label());
     }
 
     /** One question of the setup assistant, asked right after the game is chosen. */
@@ -157,6 +159,15 @@ public interface SpeedrunMode {
      * Whether every split is a title on everybody's screen, not only a gold one — a hunt's milestones
      * are news for both sides. Each player can still turn split titles off for themselves.
      */
+    /**
+     * Somebody who was not there at the start joined the run under way as a racer ({@code late-join:
+     * RACE}). They are on the roster already, cleared, kitted and placed like everybody at the start;
+     * hand them what this game gives a racer at its own start — a side, its items. Called on their own
+     * thread. By default, nothing.
+     */
+    default void lateJoined(SpeedrunRun run, Player player) {
+    }
+
     default boolean titlesOnSplits() {
         return false;
     }

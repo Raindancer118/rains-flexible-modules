@@ -1,6 +1,7 @@
 package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.moderation.players.PlayerAdmin;
+import de.raindancer.core.content.items.TaggedItems;
 import de.raindancer.core.platform.util.Scheduling;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.BiFunction;
 
 /**
  * Puts every racer, and the map itself, back to a standard starting point the instant a run begins —
@@ -62,18 +62,9 @@ final class SpeedrunPreparation {
     private final Plugin plugin;
     private final PlayerAdmin players;
 
-    /** Makes a kit's stacks — a real {@link ItemStack} needs a running server's item registry. */
-    private final BiFunction<Material, Integer, ItemStack> stacks;
-
     SpeedrunPreparation(Plugin plugin, PlayerAdmin players) {
-        this(plugin, players, (material, amount) -> new ItemStack(material, amount));
-    }
-
-    /** For tests: stacks made without a server. */
-    SpeedrunPreparation(Plugin plugin, PlayerAdmin players, BiFunction<Material, Integer, ItemStack> stacks) {
         this.plugin = plugin;
         this.players = players;
-        this.stacks = stacks;
     }
 
     /** At {@link #DAY_START}, leaving advancements alone. */
@@ -129,18 +120,40 @@ final class SpeedrunPreparation {
         }
         for (UUID id : participants) {
             Player online = Bukkit.getPlayer(id);
-            if (online == null) {
-                continue;
+            if (online != null) {
+                handOut(online, kit);
             }
-            Scheduling.entity(plugin, online, () -> {
-                for (Map.Entry<Material, Integer> item : kit.items()) {
-                    for (ItemStack leftover : online.getInventory()
-                            .addItem(stacks.apply(item.getKey(), item.getValue())).values()) {
-                        online.getWorld().dropItem(online.getLocation(), leftover);
-                    }
-                }
-            });
         }
+    }
+
+    /** The kit to one racer, on their own thread; what does not fit lands at their feet, theirs. */
+    void handOut(Player racer, SpeedrunPracticeKit kit) {
+        if (kit == null || !kit.isPractice()) {
+            return;
+        }
+        Scheduling.entity(plugin, racer, () -> {
+            for (Map.Entry<Material, Integer> item : kit.items()) {
+                TaggedItems.handTo(racer, new ItemStack(item.getKey(), item.getValue()));
+            }
+        });
+    }
+
+    /**
+     * Somebody joining a run under way as a racer ({@code late-join: RACE}): the same clean slate
+     * everybody got at the start, then the kit, on their own thread. The world is the race's now and
+     * is not touched — no time set, nothing cleared away under the others' feet.
+     */
+    void prepareLatecomer(Player racer, SpeedrunPracticeKit kit) {
+        prepareLatecomer(racer, kit, false);
+    }
+
+    /** The same, their advancements cleared too where a start clears everybody's. */
+    void prepareLatecomer(Player racer, SpeedrunPracticeKit kit, boolean clearAdvancements) {
+        Scheduling.entity(plugin, racer, () -> resetPlayer(racer.getUniqueId(), racer));
+        if (clearAdvancements) {
+            SpeedrunAdvancements.clearFor(plugin, Set.of(racer.getUniqueId()));
+        }
+        handOut(racer, kit);
     }
 
     private void resetPlayer(UUID id, Player player) {

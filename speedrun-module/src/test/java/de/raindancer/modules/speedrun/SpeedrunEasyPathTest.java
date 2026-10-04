@@ -1,6 +1,7 @@
 package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.data.settings.SettingsSchema;
+import de.raindancer.core.ui.checklist.Checklist;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.ui.actionbar.ActionBarSink;
@@ -85,25 +86,30 @@ class SpeedrunEasyPathTest {
     }
 
     @Nested
-    @DisplayName("the pre-flight check")
+    @DisplayName("the pre-flight check — Core's checklist, the lobby's checks first, the game's after")
     class Preflight {
 
-        private SpeedrunPreflight.Check check(SpeedrunPreflight preflight, String id) {
-            return preflight.checks().stream().filter(c -> c.id().equals(id)).findFirst().orElseThrow();
+        private Checklist.Check check(Checklist list, String id) {
+            return list.byId(id).orElseThrow();
+        }
+
+        private Checklist of(SpeedrunLobby lobby, Set<UUID> racers) {
+            return SpeedrunPreflight.of(lobby, racers, new SpeedrunActions(lobby), null);
         }
 
         @Test
-        @DisplayName("a lobby with its worlds, a goal and a racer is clear")
+        @DisplayName("a lobby with its worlds, a goal and a racer is ready")
         void clear() {
             loaded("world");
             loaded("world_nether");
             loaded("world_the_end");
             bukkit.when(() -> Bukkit.getAdvancement(any())).thenReturn(mock(org.bukkit.advancement.Advancement.class));
 
-            SpeedrunPreflight preflight = SpeedrunPreflight.of(new SpeedrunLobby(plugin, settings), Set.of(ALICE));
+            Checklist list = of(new SpeedrunLobby(plugin, settings), Set.of(ALICE));
 
-            assertThat(preflight.clear()).isTrue();
-            assertThat(preflight.problems()).isEmpty();
+            assertThat(list.ready()).isTrue();
+            assertThat(list.problems()).isEmpty();
+            assertThat(list.title()).isEqualTo("Before the start");
         }
 
         @Test
@@ -112,15 +118,28 @@ class SpeedrunEasyPathTest {
             settings.set("advancement-key", "");
             settings.set("game-mode", "manhunt");
 
-            SpeedrunPreflight preflight = SpeedrunPreflight.of(new SpeedrunLobby(plugin, settings), Set.of());
+            Checklist list = of(new SpeedrunLobby(plugin, settings), Set.of());
 
-            assertThat(preflight.clear()).isFalse();
-            assertThat(check(preflight, "world").fix()).isEqualTo(SpeedrunPreflight.Fix.CREATE_WORLDS);
-            assertThat(check(preflight, "mode").fix()).isEqualTo(SpeedrunPreflight.Fix.PLAIN_RACE);
-            assertThat(check(preflight, "goal").fix()).isEqualTo(SpeedrunPreflight.Fix.DRAGON_GOAL);
-            assertThat(check(preflight, "racers").fix()).isEqualTo(SpeedrunPreflight.Fix.BRING_EVERYBODY);
-            assertThat(preflight.checks().stream().filter(SpeedrunPreflight.Check::stopsTheStart))
-                    .allMatch(c -> c.fix() != SpeedrunPreflight.Fix.NONE);
+            assertThat(list.ready()).isFalse();
+            assertThat(SpeedrunPreflight.fixOf(check(list, "world"))).contains(SpeedrunPreflight.Fix.CREATE_WORLDS);
+            assertThat(SpeedrunPreflight.fixOf(check(list, "mode"))).contains(SpeedrunPreflight.Fix.PLAIN_RACE);
+            assertThat(SpeedrunPreflight.fixOf(check(list, "goal"))).contains(SpeedrunPreflight.Fix.DRAGON_GOAL);
+            assertThat(SpeedrunPreflight.fixOf(check(list, "racers"))).contains(SpeedrunPreflight.Fix.BRING_EVERYBODY);
+            assertThat(list.blockers()).allSatisfy(c -> assertThat(c.fixIfAny()).as(c.id()).isPresent());
+        }
+
+        @Test
+        @DisplayName("each fix is only offered to somebody with the node — and asked again when clicked")
+        void fixesNeedTheNode() {
+            settings.set("advancement-key", "");
+            Checklist list = of(new SpeedrunLobby(plugin, settings), Set.of(ALICE));
+            Checklist.Fix fix = check(list, "goal").fixIfAny().orElseThrow();
+            Player admin = mock(Player.class);
+            when(admin.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+
+            assertThat(fix.permission()).isEqualTo(PermissionNodes.ADMIN);
+            assertThat(fix.allowedFor(mock(Player.class))).isFalse();
+            assertThat(fix.allowedFor(admin)).isTrue();
         }
 
         @Test
@@ -130,11 +149,25 @@ class SpeedrunEasyPathTest {
             settings.set("practice-kit", "EYES_OF_ENDER");
             settings.set("seed-mode", "FIXED");
 
-            SpeedrunPreflight preflight = SpeedrunPreflight.of(new SpeedrunLobby(plugin, settings), Set.of(ALICE));
+            Checklist list = of(new SpeedrunLobby(plugin, settings), Set.of(ALICE));
 
-            assertThat(check(preflight, "practice").blocking()).isFalse();
-            assertThat(check(preflight, "practice").fix()).isEqualTo(SpeedrunPreflight.Fix.NO_KIT);
-            assertThat(check(preflight, "seed").fix()).isEqualTo(SpeedrunPreflight.Fix.RANDOM_SEED);
+            assertThat(check(list, "practice").severity()).isEqualTo(Checklist.Severity.WARNING);
+            assertThat(check(list, "practice").blocks()).isFalse();
+            assertThat(SpeedrunPreflight.fixOf(check(list, "practice"))).contains(SpeedrunPreflight.Fix.NO_KIT);
+            assertThat(SpeedrunPreflight.fixOf(check(list, "seed"))).contains(SpeedrunPreflight.Fix.RANDOM_SEED);
+        }
+
+        @Test
+        @DisplayName("somebody who may not start a run sees why the start stays grey")
+        void mayNotStart() {
+            loaded("world");
+            settings.set("start-block-staff-only", "true");
+            Player player = mock(Player.class);
+
+            Checklist list = SpeedrunPreflight.of(new SpeedrunLobby(plugin, settings), Set.of(ALICE),
+                    new SpeedrunActions(new SpeedrunLobby(plugin, settings)), player);
+
+            assertThat(check(list, "may-start").blocks()).isTrue();
         }
 
         @Test
@@ -145,19 +178,31 @@ class SpeedrunEasyPathTest {
             settings.set("practice-kit", "EYES_OF_ENDER");
             settings.set("seed-mode", "POOL");
             SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings);
-            SpeedrunActions actions = new SpeedrunActions(lobby);
             Player admin = mock(Player.class);
+            when(admin.hasPermission(anyString())).thenReturn(true);
+            Checklist list = of(lobby, Set.of(ALICE));
 
-            actions.apply(SpeedrunPreflight.Fix.DRAGON_GOAL, admin, null);
-            actions.apply(SpeedrunPreflight.Fix.PLAIN_RACE, admin, null);
-            actions.apply(SpeedrunPreflight.Fix.NO_KIT, admin, null);
-            actions.apply(SpeedrunPreflight.Fix.RANDOM_SEED, admin, null);
+            for (String id : List.of("goal", "mode", "practice", "seed")) {
+                check(list, id).fixIfAny().orElseThrow().action().accept(admin);
+            }
 
             SpeedrunSettings now = lobby.config();
             assertThat(now.isDragonKillGoal()).isTrue();
             assertThat(now.hasGameMode()).isFalse();
             assertThat(now.kit()).isEqualTo(SpeedrunPracticeKit.NONE);
             assertThat(now.seedMode()).isEqualTo(SpeedrunSeedMode.RANDOM);
+        }
+
+        @Test
+        @DisplayName("a fix clicked by somebody who lost the node since changes nothing")
+        void fixRefusedAtTheClick() {
+            settings.set("advancement-key", "");
+            SpeedrunLobby lobby = new SpeedrunLobby(plugin, settings);
+            Checklist list = of(lobby, Set.of(ALICE));
+
+            check(list, "goal").fixIfAny().orElseThrow().action().accept(mock(Player.class));
+
+            assertThat(lobby.config().hasAdvancementGoal()).isFalse();
         }
     }
 
@@ -202,9 +247,9 @@ class SpeedrunEasyPathTest {
         void unknown() {
             CommandSender sender = mock(CommandSender.class);
 
-            command.execute(from(sender), new String[]{"strat"});
+            command.execute(from(sender), new String[]{"quux"});
 
-            verify(messages).send(sender, "speedrun.command.unknown", "word", "strat");
+            verify(messages).send(sender, "speedrun.command.unknown", "word", "quux");
             verify(messages).send(sender, "speedrun.command.help-header");
         }
 
@@ -260,14 +305,17 @@ class SpeedrunEasyPathTest {
         }
 
         @Test
-        @DisplayName("the console's check lists every check, one line each")
+        @DisplayName("the console's check lists every check, one line each, under Core's title and summary")
         void check() {
             CommandSender console = mock(CommandSender.class);
+            org.mockito.ArgumentCaptor<Component> lines = org.mockito.ArgumentCaptor.forClass(Component.class);
 
             command.execute(from(console), new String[]{"check"});
 
-            verify(messages).send(console, "speedrun.check.not-clear");
-            verify(console, org.mockito.Mockito.atLeast(4)).sendMessage(any(Component.class));
+            verify(console, org.mockito.Mockito.atLeast(4)).sendMessage(lines.capture());
+            String first = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(lines.getAllValues().getFirst());
+            assertThat(first).startsWith(SpeedrunPreflight.TITLE).contains("stop");
         }
 
         @Test

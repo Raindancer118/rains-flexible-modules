@@ -1,5 +1,11 @@
 package de.raindancer.modules.speedrun;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import de.raindancer.core.data.runs.Run;
+import de.raindancer.core.data.runs.RunHistory;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
@@ -10,7 +16,9 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -20,103 +28,119 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
 /**
- * Every run this lobby has played, kept across restarts in {@code history.yml} — and everything
- * worked out from it: personal bests, records, the best time ever at each split, leaderboards.
+ * Every run this lobby has played, kept in Core's {@link RunHistory} — and everything worked out from
+ * it: personal bests, records, the best time ever at each split, leaderboards.
  *
- * <p>Reads are answered from memory; a new run is written through Core's {@link YamlStore} on the
- * given executor (the async scheduler in production), so a finish never waits on the disk.
+ * <h2>What Core keeps, and what is kept beside it</h2>
+ * Each run is a Core {@link Run}: a timed run on its board ({@link SpeedrunCategory#boardName}), its
+ * racers with the names they had, its splits by name — so Core's leaderboard screen and chat lines
+ * show it as they show any game's. Everything only this lobby reads (the whole timeline, the per-player
+ * results of a game with sides, the seed, how it ended) rides along in the run's fields. The standings
+ * of games with sides — a rating is the sum of every rated run ever played, and some predate any run
+ * here — are not runs, so they live in {@code standings.yml}.
+ *
+ * <h2>Which runs rank</h2>
+ * Asked of each run itself ({@link SpeedrunRunRecord#ranked(boolean)}): a resumed or hand-edited run is
+ * kept but only ranks where {@code rank-edited-runs} says so. Core's copy of that flag follows the
+ * setting ({@link #rerank()}), so its boards agree with this.
+ *
+ * <p>Reads are answered from memory. A new run is written by Core off the server's threads; standings
+ * on the given executor.
  */
 public final class SpeedrunHistory {
 
+    /** The game's name in Core's run history. */
+    public static final String GAME = "speedrun";
+
     private static final LogChannel log = Log.of("speedrun");
 
-    /** Which runs a leaderboard lists. */
-    public record Filter(SpeedrunCategory category, int playerCount) {
+    /** The winning side of a game with sides, as {@link SpeedrunRunRecord#winner()} names it. */
+    public static final String RUNNERS = "runners";
+    public static final String HUNTERS = "hunters";
 
-        /** Any number of players. */
-        public static final int ANY_COUNT = 0;
-
-        boolean matches(SpeedrunRunRecord run) {
-            return run.category().equals(category) && (playerCount == ANY_COUNT || run.playerCount() == playerCount);
-        }
-    }
-
-    private final YamlStore store;
+    private final RunHistory runs;
+    private final YamlStore standingsStore;
     private final Executor writer;
-    private final List<SpeedrunRunRecord> runs = new CopyOnWriteArrayList<>();
+    /** Core's runs, read back into the lobby's own shape once each — a run never changes but for its rank. */
+    private final Map<String, SpeedrunRunRecord> decoded = new ConcurrentHashMap<>();
     /**
-     * Per game with sides, each player's standing — rating, wins on each side, catches and the rest.
-     * Kept rather than worked out from the runs: a rating is the sum of every rated run ever played,
-     * and the runs themselves may predate this file (see {@link #importStandings}).
+     * Runs from an old {@code history.yml} not moved into Core's history yet — shown meanwhile, never
+     * written from here. See {@link SpeedrunHistoryMigration}.
      */
+    private final Map<String, SpeedrunRunRecord> waiting = new ConcurrentHashMap<>();
+    /** Per game with sides, each player's standing — rating, wins on each side, catches and the rest. */
     private final Map<String, Map<UUID, PlayerStats>> standings = new ConcurrentHashMap<>();
     private volatile BooleanSupplier editedRunsRank = () -> false;
-    /** Set when the file could not be read: writing would replace whatever is in it with one run. */
-    private volatile boolean readOnly;
+    /** Set when standings.yml could not be read: writing would replace whatever is in it. */
+    private volatile boolean standingsReadOnly;
 
-    public SpeedrunHistory(YamlStore store, Executor writer) {
-        this.store = store;
+    public SpeedrunHistory(RunHistory runs, YamlStore standingsStore, Executor writer) {
+        this.runs = runs;
+        this.standingsStore = standingsStore;
         this.writer = writer;
+        loadStandings();
     }
 
-    /** Reads {@code history.yml}; a run that cannot be read is skipped with a warning, never fatal. */
-    public void load() {
-        runs.clear();
+    /** Core's history behind this one — what its leaderboard screen and chat lines read. */
+    public RunHistory runs() {
+        return runs;
+    }
+
+    private void loadStandings() {
         standings.clear();
-        readOnly = false;
-        if (store == null || !store.exists()) {
+        standingsReadOnly = false;
+        if (standingsStore == null || !standingsStore.exists()) {
             return;
         }
-        YamlConfiguration file = store.read();
-        if (!store.problems().isEmpty()) {
-            readOnly = true;
-            log.warn("The speedrun history {} could not be read ({}). New runs are kept until the next "
-                    + "restart but not written, so the file is not replaced — fix or move it.",
-                    store.file(), String.join("; ", store.problems()));
+        YamlConfiguration file = standingsStore.read();
+        if (!standingsStore.problems().isEmpty()) {
+            standingsReadOnly = true;
+            log.warn("The standings {} could not be read ({}). Ratings are kept until the next restart but "
+                    + "not written, so the file is not replaced — fix or move it.",
+                    standingsStore.file(), String.join("; ", standingsStore.problems()));
             return;
         }
-        ConfigurationSection all = file.getConfigurationSection("runs");
-        if (all == null) {
-            return;
-        }
-        int skipped = 0;
-        for (String id : all.getKeys(false)) {
-            Optional<SpeedrunRunRecord> run = SpeedrunRunRecord.readFrom(id, all.getConfigurationSection(id));
-            if (run.isPresent()) {
-                runs.add(run.get());
-            } else {
-                skipped++;
-            }
-        }
-        runs.sort(Comparator.comparingLong(SpeedrunRunRecord::startedAt));
         ConfigurationSection kept = file.getConfigurationSection("standings");
         if (kept != null) {
             for (String mode : kept.getKeys(false)) {
                 standings.put(mode, readStandings(kept.getConfigurationSection(mode)));
             }
         }
-        if (skipped > 0) {
-            log.warn("{} run(s) in the speedrun history could not be read and were skipped.", skipped);
-        }
     }
+
+    // ---------------------------------------------------------------------------- ranking edited runs
 
     /** Whether resumed and hand-edited runs rank — {@code rank-edited-runs}. */
     public void editedRunsRank(boolean rank) {
         this.editedRunsRank = () -> rank;
+        rerank();
     }
 
     /** The same, asked every time — the setting as it stands, not as it stood when this was built. */
     public void editedRunsRankBy(BooleanSupplier rank) {
         this.editedRunsRank = rank == null ? () -> false : rank;
+        rerank();
     }
 
-    /** Keeps {@code run} and writes it out. */
+    /** Brings Core's ranked flag of every run in line with the setting as it stands now. */
+    public void rerank() {
+        boolean edited = editedRunsRank.getAsBoolean();
+        for (Run run : runs.newestFirst()) {
+            SpeedrunRunRecord record = decode(run);
+            if (record != null && record.ranked(edited) != run.ranked()) {
+                runs.rank(run.id(), record.ranked(edited));
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------- adding
+
+    /** Keeps {@code run}. */
     public void add(SpeedrunRunRecord run) {
         add(run, false);
     }
@@ -127,48 +151,73 @@ public final class SpeedrunHistory {
      * nobody winning, or with one side empty, moves no rating.
      */
     public void add(SpeedrunRunRecord run, boolean rated) {
-        runs.add(run);
+        runs.add(toRun(run, editedRunsRank.getAsBoolean()));
+        decoded.put(run.id(), run);
+        waiting.remove(run.id());
         String mode = run.category().mode();
-        boolean moves = rated && !run.players().isEmpty();
-        if (moves) {
+        if (rated && !run.players().isEmpty()) {
             rate(mode, run);
+            writeStandings(mode);
         }
-        if (store == null || readOnly) {
-            return;
-        }
-        Map<UUID, PlayerStats> snapshot = moves ? Map.copyOf(standingsOf(mode)) : Map.of();
-        writer.execute(() -> {
-            boolean written = store.update(file -> {
-                run.writeTo(file.createSection("runs." + run.id()));
-                if (moves) {
-                    writeStandings(file.createSection("standings." + mode), snapshot);
-                }
-            });
-            if (!written) {
-                log.warn("The run {} could not be written to the speedrun history.", run.id());
+    }
+
+    /**
+     * Runs read from an old history file, shown until they are moved — see
+     * {@link SpeedrunHistoryMigration}. One already in Core's history is not shown twice.
+     */
+    void remember(Collection<SpeedrunRunRecord> legacy) {
+        for (SpeedrunRunRecord run : legacy) {
+            if (runs.byId(run.id()).isEmpty()) {
+                waiting.put(run.id(), run);
             }
-        });
+        }
+    }
+
+    /**
+     * Moves {@code legacy} into Core's history — each run whose id Core does not have yet, as it is;
+     * a run already there is never replaced.
+     *
+     * @return how many were moved
+     */
+    int move(Collection<SpeedrunRunRecord> legacy) {
+        int moved = 0;
+        boolean edited = editedRunsRank.getAsBoolean();
+        for (SpeedrunRunRecord run : legacy) {
+            if (runs.byId(run.id()).isEmpty()) {
+                runs.add(toRun(run, edited));
+                decoded.put(run.id(), run);
+                moved++;
+            }
+            waiting.remove(run.id());
+        }
+        return moved;
+    }
+
+    /** Writes whatever Core has not written yet; off the server's threads. @return whether all is on disk */
+    public boolean flush() {
+        return runs.flush();
     }
 
     private synchronized void rate(String mode, SpeedrunRunRecord run) {
         Map<UUID, PlayerStats> table = standingsOf(mode);
         Map<UUID, Double> runners = new LinkedHashMap<>();
         Map<UUID, Double> hunters = new LinkedHashMap<>();
-        for (PlayerResult result : run.players()) {
+        // A latecomer's result moves nobody's rating, their own included: they did not play the
+        // hunt the others were rated on.
+        List<PlayerResult> rated = run.players().stream().filter(result -> !run.joinedLate(result.id())).toList();
+        for (PlayerResult result : rated) {
             (result.runner() ? runners : hunters).put(result.id(), rating(mode, result.id()));
         }
         boolean decided = RUNNERS.equals(run.winner()) || HUNTERS.equals(run.winner());
         Map<UUID, Double> after = !decided || runners.isEmpty() || hunters.isEmpty() ? new LinkedHashMap<>()
                 : Rating.afterHunt(runners, hunters, RUNNERS.equals(run.winner()));
-        for (PlayerResult result : run.players()) {
+        for (PlayerResult result : rated) {
             PlayerStats before = table.getOrDefault(result.id(), PlayerStats.fresh(result.name()));
             table.put(result.id(), before.plus(result, after.getOrDefault(result.id(), before.rating())));
         }
     }
 
-    /** The winning side of a game with sides, as {@link SpeedrunRunRecord#winner()} names it. */
-    public static final String RUNNERS = "runners";
-    public static final String HUNTERS = "hunters";
+    // ---------------------------------------------------------------------------- standings
 
     private Map<UUID, PlayerStats> standingsOf(String mode) {
         return standings.computeIfAbsent(mode, key -> new ConcurrentHashMap<>());
@@ -212,32 +261,43 @@ public final class SpeedrunHistory {
     }
 
     /**
-     * Standings carried over from before this file kept them — Manhunt's own {@code stats.yml} — taken
-     * as they are, so nobody's rating moves by the move. Somebody who already has a standing here
-     * keeps theirs.
+     * Standings carried over from before this file kept them — Manhunt's own {@code stats.yml}, an old
+     * {@code history.yml} — taken as they are, so nobody's rating moves by the move. Somebody who already
+     * has a standing here keeps theirs.
      */
     public void importStandings(String mode, Map<UUID, PlayerStats> imported) {
         Map<UUID, PlayerStats> table = standingsOf(mode);
         imported.forEach(table::putIfAbsent);
-        if (store == null || readOnly) {
+        writeStandings(mode);
+    }
+
+    /** The same, written before this returns — for a move that may only delete its source once it is. */
+    public boolean importStandingsNow(String mode, Map<UUID, PlayerStats> imported) {
+        Map<UUID, PlayerStats> table = standingsOf(mode);
+        imported.forEach(table::putIfAbsent);
+        return writeStandingsNow(mode, Map.copyOf(table));
+    }
+
+    private void writeStandings(String mode) {
+        if (standingsStore == null || standingsReadOnly) {
             return;
         }
-        Map<UUID, PlayerStats> snapshot = Map.copyOf(table);
-        writer.execute(() -> store.update(file -> writeStandings(file.createSection("standings." + mode), snapshot)));
+        Map<UUID, PlayerStats> snapshot = Map.copyOf(standingsOf(mode));
+        writer.execute(() -> {
+            if (!writeStandingsNow(mode, snapshot)) {
+                log.warn("The {} standings could not be written.", mode);
+            }
+        });
     }
 
-    /** The run numbered {@code number} — the first run ever is 1. */
-    public Optional<SpeedrunRunRecord> byNumber(int number) {
-        List<SpeedrunRunRecord> all = all();
-        return number < 1 || number > all.size() ? Optional.empty() : Optional.of(all.get(number - 1));
+    private boolean writeStandingsNow(String mode, Map<UUID, PlayerStats> snapshot) {
+        if (standingsStore == null || standingsReadOnly) {
+            return false;
+        }
+        return standingsStore.update(file -> writeStandings(file.createSection("standings." + mode), snapshot));
     }
 
-    /** {@code run}'s number, 1 for the first run ever kept — 0 for one not in here. */
-    public int numberOf(SpeedrunRunRecord run) {
-        return all().indexOf(run) + 1;
-    }
-
-    private static Map<UUID, PlayerStats> readStandings(ConfigurationSection section) {
+    static Map<UUID, PlayerStats> readStandings(ConfigurationSection section) {
         Map<UUID, PlayerStats> table = new ConcurrentHashMap<>();
         if (section == null) {
             return table;
@@ -247,7 +307,7 @@ public final class SpeedrunHistory {
             try {
                 table.put(UUID.fromString(key), readStanding(p));
             } catch (IllegalArgumentException | NullPointerException notOne) {
-                log.warn("A standing in the speedrun history could not be read and was skipped: {}", key);
+                log.warn("A standing could not be read and was skipped: {}", key);
             }
         }
         return table;
@@ -283,35 +343,56 @@ public final class SpeedrunHistory {
         });
     }
 
+    // ---------------------------------------------------------------------------- asking
+
     /** Every run, oldest first. */
     public List<SpeedrunRunRecord> all() {
-        return List.copyOf(runs);
+        Map<String, SpeedrunRunRecord> every = new LinkedHashMap<>(waiting);
+        for (Run run : runs.newestFirst()) {
+            SpeedrunRunRecord record = decode(run);
+            if (record != null) {
+                every.put(record.id(), record);
+            }
+        }
+        List<SpeedrunRunRecord> ordered = new ArrayList<>(every.values());
+        ordered.sort(Comparator.comparingLong(SpeedrunRunRecord::startedAt).thenComparing(SpeedrunRunRecord::id));
+        return ordered;
     }
 
     public Optional<SpeedrunRunRecord> byId(String id) {
-        return runs.stream().filter(run -> run.id().equals(id)).findFirst();
+        SpeedrunRunRecord legacy = waiting.get(id);
+        return legacy != null ? Optional.of(legacy) : runs.byId(id).map(this::decode);
+    }
+
+    /** The run numbered {@code number} — the first run ever is 1. */
+    public Optional<SpeedrunRunRecord> byNumber(int number) {
+        List<SpeedrunRunRecord> all = all();
+        return number < 1 || number > all.size() ? Optional.empty() : Optional.of(all.get(number - 1));
+    }
+
+    /** {@code run}'s number, 1 for the first run ever kept — 0 for one not in here. */
+    public int numberOf(SpeedrunRunRecord run) {
+        return all().indexOf(run) + 1;
     }
 
     /** {@code player}'s runs, newest first. */
     public List<SpeedrunRunRecord> runsOf(UUID player) {
-        List<SpeedrunRunRecord> theirs = new ArrayList<>(runs.stream().filter(run -> run.raced(player)).toList());
-        theirs.sort(Comparator.comparingLong(SpeedrunRunRecord::startedAt).reversed());
-        return theirs;
+        return newestFirst().stream().filter(run -> run.raced(player)).toList();
     }
 
     /** Every run, newest first. */
     public List<SpeedrunRunRecord> newestFirst() {
-        List<SpeedrunRunRecord> all = new ArrayList<>(runs);
-        all.sort(Comparator.comparingLong(SpeedrunRunRecord::startedAt).reversed());
+        List<SpeedrunRunRecord> all = new ArrayList<>(all());
+        java.util.Collections.reverse(all);
         return all;
     }
 
-    /** {@code player}'s fastest ranked run in {@code category}. */
+    /** {@code player}'s fastest ranked run in {@code category}, whatever the number of players. */
     public Optional<SpeedrunRunRecord> personalBest(UUID player, SpeedrunCategory category) {
-        return fastest(run -> run.category().equals(category) && run.raced(player));
+        return fastest(run -> run.category().equals(category) && run.ranFromTheStart(player));
     }
 
-    /** The fastest ranked run in {@code category} — the server record. */
+    /** The fastest ranked run in {@code category} — the server record, whatever the number of players. */
     public Optional<SpeedrunRunRecord> record(SpeedrunCategory category) {
         return fastest(run -> run.category().equals(category));
     }
@@ -324,30 +405,30 @@ public final class SpeedrunHistory {
                 .min(Comparator.naturalOrder());
     }
 
-    /** The ranked runs {@code filter} names, fastest first. */
-    public List<SpeedrunRunRecord> leaderboard(Filter filter) {
-        List<SpeedrunRunRecord> board = new ArrayList<>(ranked(filter::matches));
+    /** The ranked runs of {@code category} with {@code players} racers — any number for 0 — fastest first. */
+    public List<SpeedrunRunRecord> leaderboard(SpeedrunCategory category, int players) {
+        List<SpeedrunRunRecord> board = new ArrayList<>(ranked(run -> run.category().equals(category)
+                && (players <= 0 || run.playerCount() == players)));
         board.sort(Comparator.comparing(SpeedrunRunRecord::time).thenComparingLong(SpeedrunRunRecord::startedAt));
         return board;
     }
 
     /** Every category anything was ever run in, most played first. */
     public List<SpeedrunCategory> categories() {
-        Set<SpeedrunCategory> seen = new LinkedHashSet<>();
-        newestFirst().forEach(run -> seen.add(run.category()));
-        List<SpeedrunCategory> ordered = new ArrayList<>(seen);
-        ordered.sort(Comparator.comparingLong((SpeedrunCategory category) ->
-                runs.stream().filter(run -> run.category().equals(category)).count()).reversed());
-        return ordered;
+        Map<SpeedrunCategory, Long> counts = new LinkedHashMap<>();
+        newestFirst().forEach(run -> counts.merge(run.category(), 1L, Long::sum));
+        return counts.entrySet().stream()
+                .sorted(Map.Entry.<SpeedrunCategory, Long>comparingByValue().reversed())
+                .map(Map.Entry::getKey).toList();
     }
 
     /** Whether any run was played on {@code seed} — a seed somebody has seen is not a random one. */
     public boolean played(long seed) {
-        return runs.stream().anyMatch(run -> run.seed() == seed);
+        return all().stream().anyMatch(run -> run.seed() == seed);
     }
 
     public int size() {
-        return runs.size();
+        return all().size();
     }
 
     private Optional<SpeedrunRunRecord> fastest(Predicate<SpeedrunRunRecord> which) {
@@ -357,6 +438,170 @@ public final class SpeedrunHistory {
 
     private List<SpeedrunRunRecord> ranked(Predicate<SpeedrunRunRecord> which) {
         boolean edited = editedRunsRank.getAsBoolean();
-        return runs.stream().filter(run -> run.ranked(edited)).filter(which).toList();
+        return all().stream().filter(run -> run.ranked(edited)).filter(which).toList();
+    }
+
+    // ---------------------------------------------------------------------------- Core's shape
+
+    /** {@code record} as Core keeps it. */
+    static Run toRun(SpeedrunRunRecord record, boolean editedRank) {
+        Run.Builder run = Run.timed(record.category().boardName(record.playerCount()), record.time())
+                .id(record.id())
+                .startedAt(Instant.ofEpochMilli(record.startedAt()))
+                .players(fromTheStart(record));
+        Set<String> named = new LinkedHashSet<>();
+        for (SpeedrunTimeline.Entry split : record.splits()) {
+            String name = record.labelOf(split.detail());
+            if (named.add(name)) {
+                run.split(name, split.at());
+            }
+        }
+        if (!record.ranked(editedRank)) {
+            run.unranked();
+        }
+        run.field("category", record.category().key())
+                .field("outcome", record.outcome())
+                .field("completed", record.completed())
+                .field("seed", record.seed())
+                .field("timeline", timelineJson(record.timeline()));
+        if (!record.labels().isEmpty()) {
+            JsonObject labels = new JsonObject();
+            record.labels().forEach(labels::addProperty);
+            run.field("labels", labels.toString());
+        }
+        if (!record.players().isEmpty()) {
+            run.field("results", resultsJson(record.players()));
+        }
+        if (!record.winner().isEmpty()) {
+            run.field("winner", record.winner());
+        }
+        JsonObject latecomers = new JsonObject();
+        record.participants().forEach((id, name) -> {
+            if (record.joinedLate(id)) {
+                latecomers.addProperty(id.toString(), name);
+            }
+        });
+        if (latecomers.size() > 0) {
+            // Not among Core's players — no board credits them — but racers of this run all the same.
+            run.field("latecomers", latecomers.toString());
+        }
+        return run.build();
+    }
+
+    /** Who Core credits with the run: everybody who ran it from the start — a latecomer is not. */
+    private static Map<UUID, String> fromTheStart(SpeedrunRunRecord record) {
+        Map<UUID, String> credited = new LinkedHashMap<>();
+        record.participants().forEach((id, name) -> {
+            if (!record.joinedLate(id)) {
+                credited.put(id, name);
+            }
+        });
+        return credited;
+    }
+
+    private SpeedrunRunRecord decode(Run run) {
+        SpeedrunRunRecord known = decoded.get(run.id());
+        if (known != null) {
+            return known;
+        }
+        SpeedrunRunRecord read = fromRun(run).orElse(null);
+        if (read != null) {
+            decoded.put(run.id(), read);
+        }
+        return read;
+    }
+
+    /** Core's run in the lobby's own shape — empty for one this lobby did not write. */
+    static Optional<SpeedrunRunRecord> fromRun(Run run) {
+        Optional<SpeedrunCategory> category = run.field("category").flatMap(SpeedrunCategory::fromKey);
+        if (category.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            Map<UUID, String> participants = new LinkedHashMap<>(run.players());
+            run.field("latecomers").map(JsonParser::parseString).filter(JsonElement::isJsonObject)
+                    .ifPresent(json -> json.getAsJsonObject().entrySet().forEach(entry ->
+                            participants.put(UUID.fromString(entry.getKey()), entry.getValue().getAsString())));
+            Map<String, String> labels = new LinkedHashMap<>();
+            run.field("labels").map(JsonParser::parseString).filter(JsonElement::isJsonObject)
+                    .ifPresent(json -> json.getAsJsonObject().entrySet()
+                            .forEach(entry -> labels.put(entry.getKey(), entry.getValue().getAsString())));
+            return Optional.of(new SpeedrunRunRecord(run.id(), category.get(), run.startedAt().toEpochMilli(),
+                    run.time(), run.field("outcome").orElse(""),
+                    Boolean.parseBoolean(run.field("completed").orElse("false")),
+                    run.field("seed").map(Long::parseLong).orElse(0L), participants,
+                    readTimeline(run.field("timeline").orElse("[]")), labels,
+                    readResults(run.field("results").orElse("[]")), run.field("winner").orElse("")));
+        } catch (RuntimeException unreadable) {
+            log.warn("Run {} in the speedrun history could not be read and was skipped.", run.id());
+            return Optional.empty();
+        }
+    }
+
+    private static String timelineJson(List<SpeedrunTimeline.Entry> timeline) {
+        JsonArray entries = new JsonArray();
+        for (SpeedrunTimeline.Entry entry : timeline) {
+            JsonObject json = new JsonObject();
+            json.addProperty("kind", entry.kind().name());
+            json.addProperty("at", entry.at().toMillis());
+            if (entry.who() != null) {
+                json.addProperty("who", entry.who().toString());
+            }
+            json.addProperty("detail", entry.detail());
+            if (entry.other() != null) {
+                json.addProperty("other", entry.other().toString());
+            }
+            entries.add(json);
+        }
+        return entries.toString();
+    }
+
+    private static List<SpeedrunTimeline.Entry> readTimeline(String json) {
+        List<SpeedrunTimeline.Entry> entries = new ArrayList<>();
+        for (JsonElement element : JsonParser.parseString(json).getAsJsonArray()) {
+            JsonObject entry = element.getAsJsonObject();
+            SpeedrunTimeline.Kind kind;
+            try {
+                kind = SpeedrunTimeline.Kind.valueOf(entry.get("kind").getAsString());
+            } catch (IllegalArgumentException fromANewerVersion) {
+                continue;   // an entry kind from a newer version: skipped, the rest of the run still reads
+            }
+            entries.add(new SpeedrunTimeline.Entry(kind, Duration.ofMillis(entry.get("at").getAsLong()),
+                    entry.has("who") ? UUID.fromString(entry.get("who").getAsString()) : null,
+                    entry.has("detail") ? entry.get("detail").getAsString() : "",
+                    entry.has("other") ? UUID.fromString(entry.get("other").getAsString()) : null));
+        }
+        return entries;
+    }
+
+    private static String resultsJson(List<PlayerResult> results) {
+        JsonArray all = new JsonArray();
+        for (PlayerResult p : results) {
+            JsonObject json = new JsonObject();
+            json.addProperty("id", p.id().toString());
+            json.addProperty("name", p.name());
+            json.addProperty("runner", p.runner());
+            json.addProperty("won", p.won());
+            json.addProperty("caught", p.caught());
+            json.addProperty("catches", p.catches());
+            json.addProperty("deaths", p.deaths());
+            json.addProperty("survived-millis", p.survivedMillis());
+            json.addProperty("distance", p.distance());
+            json.addProperty("portals", p.portals());
+            all.add(json);
+        }
+        return all.toString();
+    }
+
+    private static List<PlayerResult> readResults(String json) {
+        List<PlayerResult> results = new ArrayList<>();
+        for (JsonElement element : JsonParser.parseString(json).getAsJsonArray()) {
+            JsonObject r = element.getAsJsonObject();
+            results.add(new PlayerResult(UUID.fromString(r.get("id").getAsString()), r.get("name").getAsString(),
+                    r.get("runner").getAsBoolean(), r.get("won").getAsBoolean(), r.get("caught").getAsBoolean(),
+                    r.get("catches").getAsInt(), r.get("deaths").getAsInt(), r.get("survived-millis").getAsLong(),
+                    r.get("distance").getAsDouble(), r.get("portals").getAsInt()));
+        }
+        return results;
     }
 }

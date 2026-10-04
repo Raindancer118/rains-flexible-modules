@@ -173,15 +173,9 @@ public final class SpeedrunSetupMenu extends Menu {
                         config.seedMode() == SpeedrunSeedMode.RANDOM,
                         () -> lobby.settings().set("seed-mode", SpeedrunSeedMode.RANDOM.name()));
                 band(MenuLayout.WHO, 5, Icons.of(Material.FILLED_MAP, "<white>A seed of my choice",
-                                "<gray>Type it in chat next."),
-                        click -> new SpeedrunActions(lobby).ask(viewer, "speedrun.seed.ask", typed -> {
-                            if (!SpeedrunAccess.SETUP.allows(lobby, viewer)) {
-                                return;
-                            }
-                            lobby.settings().set("seed", typed);
-                            lobby.settings().set("seed-mode", SpeedrunSeedMode.FIXED.name());
-                            new SpeedrunSetupMenu(lobby, viewer, parent(), at + 1).open();
-                        }));
+                                "<gray>Type it next."),
+                        click -> new SpeedrunActions(lobby).askSeed(viewer, SpeedrunAccess.SETUP,
+                                () -> new SpeedrunSetupMenu(lobby, viewer, parent(), at + 1).open()));
             }
             case AFTER -> {
                 choice(1, Material.CLOCK, "Remake the world after 10 s", "<gray>Straight into the next run. Recommended.",

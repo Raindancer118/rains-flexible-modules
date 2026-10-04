@@ -87,7 +87,9 @@ final class SpeedrunRunRecorder {
         }
         String time = SpeedrunTimerDisplay.plain(run.time());
         String category = run.category().label();
-        if (!ranked) {
+        if (run.joinedLate(player.getUniqueId())) {
+            kit.messages().send(player, "speedrun.result.not-ranked", "reason", "you joined it after the start");
+        } else if (!ranked) {
             String why = !run.completed() ? "the goal was not reached"
                     : run.resumed() ? "it was resumed after a restart" : "its clock was set by hand";
             kit.messages().send(player, "speedrun.result.not-ranked", "reason", why);

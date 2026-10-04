@@ -76,28 +76,10 @@ public final class SpeedrunSeedMenu extends Menu {
                 "<gray>" + SpeedrunSeeds.pool(config.seedPool()).size() + " seed(s) in the pool");
         band(MenuLayout.LAND, 2, Icons.of(Material.NAME_TAG, "<white>Type the seed",
                         "<gray>A number, or a word like the create-world", "<gray>screen takes. Also sets FIXED."),
-                click -> actions.ask(viewer, "speedrun.seed.ask", typed -> {
-                    if (!SpeedrunAccess.SEEDS.allows(lobby, viewer)) {
-                        return;
-                    }
-                    lobby.settings().set("seed", typed);
-                    lobby.settings().set("seed-mode", SpeedrunSeedMode.FIXED.name());
-                    lobby.toolkit().map(SpeedrunToolkit::messages)
-                            .ifPresent(messages -> messages.send(viewer, "speedrun.seed.set", "seed", typed));
-                    open();
-                }));
+                SpeedrunAccess.SEEDS.guard(lobby, viewer, click -> actions.askSeed(viewer, this::open)));
         band(MenuLayout.LAND, 4, Icons.of(Material.BUNDLE, "<white>Type the pool",
                         "<gray>Seeds separated by commas.", "<gray>Also sets POOL."),
-                click -> actions.ask(viewer, "speedrun.seed.ask-pool", typed -> {
-                    if (!SpeedrunAccess.SEEDS.allows(lobby, viewer)) {
-                        return;
-                    }
-                    lobby.settings().set("seed-pool", typed);
-                    lobby.settings().set("seed-mode", SpeedrunSeedMode.POOL.name());
-                    lobby.toolkit().map(SpeedrunToolkit::messages).ifPresent(messages -> messages.send(viewer,
-                            "speedrun.seed.pool-set", "count", String.valueOf(SpeedrunSeeds.pool(typed).size())));
-                    open();
-                }));
+                SpeedrunAccess.SEEDS.guard(lobby, viewer, click -> actions.askSeedPool(viewer, this::open)));
         boolean replaying = lobby.replayingSeed();
         band(MenuLayout.LAND, 6, Icons.of(replaying ? Material.LIME_DYE : Material.RECOVERY_COMPASS,
                         replaying ? "<green>Same seed at the next reset" : "<white>Same seed again",

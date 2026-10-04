@@ -14,6 +14,7 @@ import de.raindancer.modules.speedrun.conditions.AdvancementEndCondition;
 import de.raindancer.modules.speedrun.conditions.DeathEndCondition;
 import de.raindancer.modules.speedrun.conditions.DragonExitEndCondition;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
@@ -217,6 +218,12 @@ public final class SpeedrunLobby {
     private volatile SpeedrunSplitTracker splits;
     /** History, HUD, buttons — see {@link SpeedrunToolkit}; {@code null} for a bare lobby. */
     private volatile SpeedrunToolkit toolkit;
+    private volatile SpeedrunInput input;
+    /** Who joined during the countdown with late-join RACE: they race from the start like everybody else. */
+    private final Set<UUID> arrivals = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** Finds a safe spot for a latecomer near where they belong — Core's safety search, set by the module. */
+    private volatile java.util.function.Function<Location, java.util.concurrent.CompletableFuture<Location>> latecomerSpots =
+            spot -> java.util.concurrent.CompletableFuture.completedFuture(spot);
     /** The run that ended last, as the history keeps it — for the finished page's summary button. */
     private volatile SpeedrunRunRecord lastRun;
     /** "Same seed again": the next reset reuses the run's seed, once. */
@@ -312,6 +319,153 @@ public final class SpeedrunLobby {
         if (toolkit != null && toolkit.history() != null) {
             toolkit.history().editedRunsRankBy(() -> config().rankEditedRuns());
         }
+    }
+
+    /** How a latecomer's spot is found — {@code spot} in, a safe one near it out (or null for none). */
+    public void placeLatecomersWith(java.util.function.Function<Location, java.util.concurrent.CompletableFuture<Location>> finder) {
+        this.latecomerSpots = finder == null ? spot -> java.util.concurrent.CompletableFuture.completedFuture(spot) : finder;
+    }
+
+    // ---------------------------------------------------------------------------- joining late
+
+    /**
+     * Somebody just joined the server: what {@code late-join} makes of them — see
+     * {@link SpeedrunLateJoin} — done here. Called on their own thread.
+     *
+     * @return what they are to the lobby; {@link SpeedrunLatecomers.Arrival#RACE} and
+     *         {@link SpeedrunLatecomers.Arrival#WATCH} have been placed already
+     */
+    public SpeedrunLatecomers.Arrival arrive(Player player) {
+        UUID id = player.getUniqueId();
+        SpeedrunLatecomers.Arrival arrival = SpeedrunLatecomers.decide(state(), config().lateJoinOrOff(),
+                SpeedrunLatecomers.wasRacing(session, id), isSpectator(id));
+        switch (arrival) {
+            case NO_RUN -> standUp(player);
+            case RETURNING, LOOK_ON -> { }
+            case WATCH -> watch(player);
+            case RACE -> race(player);
+            case NEXT_START -> {
+                arrivals.add(id);
+                startPoint().ifPresent(player::teleportAsync);
+                say(player, "speedrun.late-join.next-start");
+            }
+        }
+        return arrival;
+    }
+
+    /** A latecomer who races: everything a racer got at the start, and a place in the run from now. */
+    private void race(Player player) {
+        SpeedrunSession now = session;
+        UUID id = player.getUniqueId();
+        if (now == null || !now.addParticipant(id)) {
+            return;
+        }
+        SpeedrunSettings current = config();
+        if (preparation != null) {
+            preparation.prepareLatecomer(player, current.kit(), current.clearAdvancementsOnStart());
+        }
+        Scheduling.entity(plugin, player, () -> {
+            SpeedrunLatecomers.WATCHING.set(player, false);
+            if (player.getGameMode() == GameMode.SPECTATOR) {
+                player.setGameMode(GameMode.SURVIVAL);
+            }
+        });
+        placeLatecomer(player);
+        SpeedrunMode chosen = runMode;
+        SpeedrunRun theRun = run;
+        if (chosen != null && theRun != null) {
+            try {
+                chosen.lateJoined(theRun, player);
+            } catch (RuntimeException broken) {
+                log.error(broken, "The game mode '{}' failed to take in a latecomer; they race without its items.",
+                        chosen.id());
+            }
+        }
+        if (now.state() == SpeedrunState.PAUSED) {
+            now.resume();   // a paused run picks up again with somebody racing in it
+        }
+        String time = SpeedrunTimerDisplay.plain(now.elapsed());
+        say(player, "speedrun.late-join.racing", "time", time);
+        for (UUID racer : now.participants()) {
+            Player other = racer.equals(id) ? null : Bukkit.getPlayer(racer);
+            if (other != null) {
+                say(other, "speedrun.late-join.joined", "player", player.getName(), "time", time);
+            }
+        }
+    }
+
+    /**
+     * A safe spot near the start line — or the run world's spawn without one — found off the main
+     * thread, then the latecomer moved there on their own thread, and it made their respawn point the
+     * way everybody's start spot is theirs.
+     */
+    private void placeLatecomer(Player player) {
+        Location around = wayBackIn().orElse(null);
+        if (around == null) {
+            return;
+        }
+        latecomerSpots.apply(around).exceptionally(failed -> null).thenAccept(found -> {
+            Location target = found == null ? around : found;
+            Scheduling.entity(plugin, player, () -> {
+                player.teleportAsync(target);
+                player.setRespawnLocation(target, true);
+            });
+        });
+    }
+
+    /** A latecomer who watches: spectator mode from the start line, until the run is over. */
+    private void watch(Player player) {
+        Location from = wayBackIn().orElse(null);
+        Scheduling.entity(plugin, player, () -> {
+            SpeedrunLatecomers.WATCHING.set(player, true);
+            player.setGameMode(GameMode.SPECTATOR);
+            if (from != null) {
+                player.teleportAsync(from);
+            }
+        });
+        say(player, "speedrun.late-join.watching");
+    }
+
+    /** Somebody who watched a run as a latecomer stands up again — once it is over. */
+    private void standUp(Player player) {
+        Scheduling.entity(plugin, player, () -> {
+            if (!SpeedrunLatecomers.WATCHING.isOn(player)) {
+                return;
+            }
+            SpeedrunLatecomers.WATCHING.set(player, false);
+            if (player.getGameMode() == GameMode.SPECTATOR) {
+                player.setGameMode(GameMode.SURVIVAL);
+            }
+        });
+    }
+
+    /** Everybody online who watched the run that just ended stands up. */
+    private void standWatchersUp() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            standUp(player);
+        }
+    }
+
+    private void say(Player player, String key, Object... values) {
+        if (messages != null && player != null) {
+            messages.send(player, key, values);
+        }
+    }
+
+    /** How values are asked for from here on — tests answer for the player. */
+    public void useInput(SpeedrunInput chosen) {
+        this.input = chosen;
+    }
+
+    /** How values are asked for: Core's anvil and chat questions, once the lobby is equipped. */
+    public Optional<SpeedrunInput> input() {
+        SpeedrunInput chosen = input;
+        if (chosen != null) {
+            return Optional.of(chosen);
+        }
+        SpeedrunToolkit kit = toolkit;
+        return kit == null || kit.prompts() == null ? Optional.empty()
+                : Optional.of(SpeedrunInput.core(kit.prompts(), kit.buttons(), kit.messages()));
     }
 
     public Optional<SpeedrunToolkit> toolkit() {
@@ -523,6 +677,13 @@ public final class SpeedrunLobby {
                 stillHere.add(id);
             }
         }
+        // Whoever joined during the countdown with late-join RACE races from the start too.
+        for (UUID id : arrivals) {
+            if (Bukkit.getPlayer(id) != null && !isSpectator(id)) {
+                stillHere.add(id);
+            }
+        }
+        arrivals.clear();
         StartOutcome outcome = start(stillHere);
         if (outcome == StartOutcome.STARTED) {
             return;
@@ -820,6 +981,7 @@ public final class SpeedrunLobby {
         creeperOnContainerOpen = new SpeedrunCreeperOnContainerOpenListener(fresh, settings);
         plugin.getServer().getPluginManager().registerEvents(creeperOnContainerOpen, plugin);
         fresh.onFinish(outcome -> announceFinish(fresh, outcome));
+        fresh.onFinish(outcome -> standWatchersUp());
         fresh.onFinish(outcome -> restartAfterFinish(fresh));
         if (kit != null) {
             SpeedrunRunRecorder recorder = new SpeedrunRunRecorder(this, kit);
@@ -1037,6 +1199,8 @@ public final class SpeedrunLobby {
         session = null;
         runMode = null;
         runWorldName = null;
+        arrivals.clear();
+        standWatchersUp();
     }
 
     /**

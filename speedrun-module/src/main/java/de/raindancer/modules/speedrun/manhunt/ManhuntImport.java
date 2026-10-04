@@ -78,9 +78,13 @@ public final class ManhuntImport {
                         }
                     }
                 }
-                history.importStandings(ManhuntMode.ID, standings);
-                setAside(stats);
-                log.info("{} Manhunt rating(s) carried into the speedrun history.", standings.size());
+                if (history.importStandingsNow(ManhuntMode.ID, standings)) {
+                    setAside(stats);
+                    log.info("{} Manhunt rating(s) carried into the speedrun history.", standings.size());
+                } else {
+                    log.warn("Manhunt's old ratings could not be written yet; {} is kept and read again next "
+                            + "start — nobody's rating is counted twice.", stats);
+                }
             }
         }
         Path hunts = folder.resolve("hunts.yml");
@@ -111,8 +115,14 @@ public final class ManhuntImport {
                     added++;
                 }
             }
-            setAside(hunts);
-            log.info("{} past hunt(s) carried into the speedrun history.", added);
+            // Only set aside once every hunt is in Core's database: until then the file is the copy.
+            if (history.flush()) {
+                setAside(hunts);
+                log.info("{} past hunt(s) carried into the speedrun history.", added);
+            } else {
+                log.warn("Manhunt's old hunts could not be written to Core's history yet; {} is kept and read "
+                        + "again next start — nothing is added twice.", hunts);
+            }
         }
     }
 

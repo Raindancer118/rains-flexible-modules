@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>e2e-harness</artifactId>
+    <version>${e2e-harness.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — end-to-end harness</name>
+    <description>
+        Plays a plugin the way players do: boots a real Paper server, connects headless bot clients in
+        offline mode and lets a scenario drive them — commands, menu clicks, chat buttons — asserting on
+        what the bots actually receive (inventories, game mode, position, sidebar, chat, titles, boss
+        bars). Generic: a plugin's own scenarios live in its own module and only depend on this.
+    </description>
+
+    <properties>
+        <!-- A test tool: nothing on a server ever depends on it. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
+    <repositories>
+        <!--
+          MCProtocolLib, the headless client: GeyserMC publishes it here only. Pinned below to one
+          timestamped build of 26.2-SNAPSHOT, never to the moving SNAPSHOT — a scenario that passed
+          yesterday must not fail today because the client library changed under it.
+        -->
+        <repository>
+            <id>opencollab</id>
+            <url>https://repo.opencollab.dev/main/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.geysermc.mcprotocollib</groupId>
+            <artifactId>protocol</artifactId>
+            <version>${mcprotocollib.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.9</version>
+        </dependency>
+        <!-- The DSL's expectations are AssertJ's and JUnit's: at compile scope, since a scenario module uses them through this. -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              A test tagged "e2e" boots a real server: only with -Pe2e (scripts/e2e.sh). A normal build
+              compiles them and runs the rest.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludedGroups>${e2e.excluded}</excludedGroups>
+                    <groups>${e2e.groups}</groups>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

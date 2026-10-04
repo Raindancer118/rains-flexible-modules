@@ -29,6 +29,12 @@
 
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
+        <!-- The end-to-end harness and its headless client: one timestamped 26.2 build, never the moving SNAPSHOT. -->
+        <e2e-harness.version>0.1.0</e2e-harness.version>
+        <mcprotocollib.version>26.2-20260907.143312-19</mcprotocollib.version>
+        <!-- Which tests run: everything but the e2e ones, unless -Pe2e turns it round. -->
+        <e2e.excluded>e2e,screenshots</e2e.excluded>
+        <e2e.groups></e2e.groups>
         <mockito.version>5.21.0</mockito.version>
 
         <!-- One property per library module, each its own version — independent of the reactor's
@@ -61,7 +67,7 @@
         <!-- Split out of RainsCore 13.08.2026, after a join handler there cleared a player's
              inventory on every join anywhere on the server — see speedrun-module's own README/javadoc
              for the incident. chained-module depends on this directly for the engine underneath it. -->
-        <speedrun-module.version>1.28.1</speedrun-module.version>
+        <speedrun-module.version>1.29.0</speedrun-module.version>
         <chat-module.version>1.7.0</chat-module.version>
         <!-- Depends on speedrun-module's engine classes the same way chained-module does; see that
              module's own note in this file. -->
@@ -125,6 +131,13 @@
              manhunt-module and manhunt-standalone are no longer built. -->
         <!-- After speedrun, worldgate and worldutils: it shades them. -->
         <module>speedrun-bundle</module>
+        <!--
+          End-to-end: a real Paper server and headless bots. The harness is generic; speedrun-e2e holds
+          RainsSpeedrun's scenarios and only runs them with -Pe2e (scripts/e2e.sh) — a normal build
+          compiles them and checks that every command, button and setting has one.
+        -->
+        <module>e2e-harness</module>
+        <module>speedrun-e2e</module>
         <!--
           Archived 2026-08-14: not being worked on for a while, and there is no value in the reactor
           spending a build and 850+ tests on it every push in the meantime. The code is untouched on
@@ -323,6 +336,25 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <profiles>
+        <!-- scripts/e2e.sh: only the tests that boot a real server and play it with bots. -->
+        <!-- scripts/e2e-screenshots.sh: every page photographed with the real client. -->
+        <profile>
+            <id>screenshots</id>
+            <properties>
+                <e2e.excluded>e2e</e2e.excluded>
+                <e2e.groups>screenshots</e2e.groups>
+            </properties>
+        </profile>
+        <profile>
+            <id>e2e</id>
+            <properties>
+                <e2e.excluded>screenshots</e2e.excluded>
+                <e2e.groups>e2e</e2e.groups>
+            </properties>
+        </profile>
+    </profiles>
 
     <build>
         <pluginManagement>

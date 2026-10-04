@@ -42,6 +42,40 @@ public record SpeedrunCategory(String goal, SpeedrunSeedType seeds, String mode,
         }
     }
 
+    /**
+     * The board this category's runs of {@code players} racers are ranked on in Core's run history —
+     * {@code "Race · Kill the dragon · Random seed · solo"}. Every word of it is fixed by the category
+     * itself, never by what the server happens to have loaded, so a board keeps its name for good;
+     * and it starts with the game, so one game's boards are found by their common start.
+     */
+    public String boardName(int players) {
+        StringBuilder name = new StringBuilder(gameName()).append(" · ")
+                .append(goal.isEmpty() ? "No goal" : SpeedrunGoals.byKey(goal).map(SpeedrunGoals.Goal::label)
+                        .orElse(goal.startsWith("minecraft:") ? goal.substring("minecraft:".length()) : goal))
+                .append(" · ").append(seeds.label());
+        if (isPractice()) {
+            name.append(" · Practice: ").append(SpeedrunPracticeKit.byName(practice)
+                    .map(SpeedrunPracticeKit::label).orElse(practice));
+        }
+        return name.append(" · ").append(players <= 1 ? "solo" : players + " players").toString();
+    }
+
+    /** What every board of this game starts with — {@code "Race · "}, {@code "Manhunt · "}. */
+    public String boardPrefix() {
+        return gameName() + " · ";
+    }
+
+    /** The game a board is of, as a mode id — empty for a plain race. */
+    public static String modeOfBoard(String boardName) {
+        int end = boardName == null ? -1 : boardName.indexOf(" · ");
+        String game = end < 0 ? "" : boardName.substring(0, end).toLowerCase(Locale.ROOT);
+        return game.equals("race") ? "" : game;
+    }
+
+    private String gameName() {
+        return mode.isEmpty() ? "Race" : mode.substring(0, 1).toUpperCase(Locale.ROOT) + mode.substring(1);
+    }
+
     public boolean isPractice() {
         return !practice.isEmpty();
     }

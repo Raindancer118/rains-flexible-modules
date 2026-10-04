@@ -1,6 +1,13 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.core.data.runs.Run;
+import de.raindancer.core.data.runs.RunHistory;
+import de.raindancer.core.data.sql.CoreSchema;
+import de.raindancer.core.data.sql.Database;
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.modules.speedrun.manhunt.stats.PlayerResult;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,6 +23,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * The lobby's history, kept in Core's run history (Core's database) — every run with its whole
+ * timeline, the per-player standings of games with sides beside it in {@code standings.yml}.
+ */
 class SpeedrunHistoryTest {
 
     static final UUID ALICE = UUID.nameUUIDFromBytes("alice".getBytes());
@@ -28,7 +39,19 @@ class SpeedrunHistoryTest {
     @TempDir
     Path folder;
 
+    private Database database;
+
     private static long clock = 1_000;
+
+    @BeforeEach
+    void openDatabase() {
+        database = Database.open(folder.resolve("core.db"), CoreSchema.CORE, () -> false);
+    }
+
+    @AfterEach
+    void closeDatabase() {
+        database.close();
+    }
 
     /** A finished, untouched run: the nether at {@code nether}, the goal at {@code total}. */
     static SpeedrunRunRecord run(SpeedrunCategory category, Duration nether, Duration total, UUID... racers) {
@@ -44,25 +67,35 @@ class SpeedrunHistoryTest {
         List<SpeedrunTimeline.Entry> timeline = new ArrayList<>(extra);
         timeline.add(new SpeedrunTimeline.Entry(SpeedrunTimeline.Kind.SPLIT, nether, racers[0], "enter-nether"));
         timeline.add(new SpeedrunTimeline.Entry(SpeedrunTimeline.Kind.FINISH, total, null, "advancement:x"));
-        return new SpeedrunRunRecord(UUID.randomUUID().toString(), category, clock++, total, "advancement:x",
+        return new SpeedrunRunRecord(UUID.randomUUID().toString(), category, clock++ * 1000, total, "advancement:x",
                 completed, 42L, who, timeline, Map.of());
     }
 
+    /** A fresh view over the same database and folder — what a restart gives. */
     private SpeedrunHistory history() {
-        return new SpeedrunHistory(new YamlStore(folder.resolve("history.yml")), Runnable::run);
+        RunHistory runs = new RunHistory(database, "speedrun");
+        runs.load();
+        return new SpeedrunHistory(runs, new YamlStore(folder.resolve("standings.yml")), Runnable::run);
     }
 
     @Test
-    @DisplayName("every run survives a restart, timeline and all")
+    @DisplayName("every run survives a restart, timeline, results and all — in Core's database")
     void survivesARestart() {
         SpeedrunHistory before = history();
-        SpeedrunRunRecord kept = run(DRAGON, Duration.ofMinutes(4), Duration.ofMinutes(20),
+        List<PlayerResult> results = List.of(new PlayerResult(ALICE, "Alice", true, true, false, 0, 1, 600_000, 812.5, 2),
+                new PlayerResult(BOB, "Bob", false, false, false, 1, 0, 0, 30, 0));
+        SpeedrunRunRecord plain = run(DRAGON, Duration.ofMinutes(4), Duration.ofMinutes(20),
                 false, List.of(new SpeedrunTimeline.Entry(SpeedrunTimeline.Kind.DEATH, Duration.ofMinutes(3),
-                        BOB, "Bob fell from a high place")), ALICE, BOB);
+                        BOB, "Bob <red>fell</red> from a high place"),
+                        new SpeedrunTimeline.Entry(SpeedrunTimeline.Kind.CAUGHT, Duration.ofMinutes(5), ALICE, "", BOB)),
+                ALICE, BOB);
+        SpeedrunRunRecord kept = new SpeedrunRunRecord(plain.id(), plain.category(), plain.startedAt(), plain.time(),
+                plain.outcome(), plain.completed(), plain.seed(), plain.participants(), plain.timeline(),
+                Map.of("enter-nether", "the Nether"), results, SpeedrunHistory.RUNNERS);
         before.add(kept);
+        assertThat(before.flush()).isTrue();
 
         SpeedrunHistory after = history();
-        after.load();
 
         assertThat(after.all()).hasSize(1);
         SpeedrunRunRecord read = after.all().getFirst();
@@ -72,17 +105,34 @@ class SpeedrunHistoryTest {
     }
 
     @Test
-    @DisplayName("a history file that cannot be read is never overwritten by the next run")
-    void unreadableFileIsLeftAlone() throws Exception {
-        Path file = folder.resolve("history.yml");
-        Files.writeString(file, "runs: [this is: not: yaml");
+    @DisplayName("Core's history holds the run as a timed run: its board, its splits by name, never practice beside real")
+    void asCoreSeesIt() {
         SpeedrunHistory history = history();
-        history.load();
+        SpeedrunRunRecord solo = run(DRAGON, Duration.ofMinutes(4), Duration.ofMinutes(20), ALICE);
+        history.add(solo);
 
-        history.add(run(DRAGON, Duration.ofMinutes(4), Duration.ofMinutes(20), ALICE));
+        Run run = history.runs().byId(solo.id()).orElseThrow();
+        assertThat(run.category()).isEqualTo(DRAGON.boardName(1));
+        assertThat(run.time()).isEqualTo(Duration.ofMinutes(20));
+        assertThat(run.lowerWins()).isTrue();
+        assertThat(run.ranked()).isTrue();
+        assertThat(run.players()).containsEntry(ALICE, "Alice");
+        assertThat(run.splits()).containsEntry("Nether", Duration.ofMinutes(4).toMillis());
+        assertThat(DRAGON.boardName(1)).isEqualTo("Race · Kill the dragon · Random seed · solo");
+        assertThat(new SpeedrunCategory("minecraft:end/kill_dragon", SpeedrunSeedType.SET, "manhunt", "EYES_OF_ENDER")
+                .boardName(3)).isEqualTo("Manhunt · Kill the dragon · Set seed · Practice: Eyes of ender · 3 players");
+    }
 
-        assertThat(Files.readString(file)).isEqualTo("runs: [this is: not: yaml");
-        assertThat(history.all()).hasSize(1);
+    @Test
+    @DisplayName("standings that cannot be read are never overwritten by the next rated run")
+    void unreadableStandingsAreLeftAlone() throws Exception {
+        Path file = folder.resolve("standings.yml");
+        Files.writeString(file, "standings: [this is: not: yaml");
+        SpeedrunHistory history = history();
+
+        history.importStandings("manhunt", Map.of());
+
+        assertThat(Files.readString(file)).isEqualTo("standings: [this is: not: yaml");
     }
 
     @Nested
@@ -103,6 +153,7 @@ class SpeedrunHistoryTest {
             assertThat(history.personalBest(ALICE, DRAGON)).contains(aliceFast);
             assertThat(history.record(DRAGON)).contains(bobFastest);
             assertThat(history.bestSplit(DRAGON, "enter-nether")).contains(Duration.ofMinutes(3));
+            assertThat(history.runs().byId(bobUnfinished.id()).orElseThrow().ranked()).isFalse();
         }
 
         @Test
@@ -131,14 +182,20 @@ class SpeedrunHistoryTest {
             assertThat(resumed.resumed()).isTrue();
             assertThat(edited.clockEdited()).isTrue();
             assertThat(history.record(DRAGON)).isEmpty();
+            assertThat(history.runs().leaderboard(DRAGON.boardName(1), RunHistory.Board.everyRun())).isEmpty();
             assertThat(history.all()).hasSize(2);
 
             history.editedRunsRank(true);
             assertThat(history.record(DRAGON)).contains(resumed);
+            assertThat(history.runs().leaderboard(DRAGON.boardName(1), RunHistory.Board.everyRun()))
+                    .extracting(Run::id).containsExactly(resumed.id(), edited.id());
+
+            history.editedRunsRank(false);
+            assertThat(history.runs().leaderboard(DRAGON.boardName(1), RunHistory.Board.everyRun())).isEmpty();
         }
 
         @Test
-        @DisplayName("a leaderboard can be narrowed to a number of players")
+        @DisplayName("each number of players is its own board; the record stands over all of them")
         void byPlayerCount() {
             SpeedrunHistory history = history();
             SpeedrunRunRecord solo = run(DRAGON, Duration.ofMinutes(4), Duration.ofMinutes(20), ALICE);
@@ -146,9 +203,26 @@ class SpeedrunHistoryTest {
             history.add(solo);
             history.add(duo);
 
-            assertThat(history.leaderboard(new SpeedrunHistory.Filter(DRAGON, 0))).containsExactly(duo, solo);
-            assertThat(history.leaderboard(new SpeedrunHistory.Filter(DRAGON, 1))).containsExactly(solo);
-            assertThat(history.leaderboard(new SpeedrunHistory.Filter(DRAGON, 2))).containsExactly(duo);
+            assertThat(history.leaderboard(DRAGON, 1)).containsExactly(solo);
+            assertThat(history.leaderboard(DRAGON, 2)).containsExactly(duo);
+            assertThat(history.leaderboard(DRAGON, 0)).containsExactly(duo, solo);
+            assertThat(history.record(DRAGON)).contains(duo);
+        }
+
+        @Test
+        @DisplayName("runs are numbered in the order they were played, the first ever being 1")
+        void numbering() {
+            SpeedrunHistory history = history();
+            SpeedrunRunRecord first = run(DRAGON, Duration.ofMinutes(4), Duration.ofMinutes(20), ALICE);
+            SpeedrunRunRecord second = run(DRAGON, Duration.ofMinutes(3), Duration.ofMinutes(15), BOB);
+            history.add(second);
+            history.add(first);
+
+            assertThat(history.numberOf(first)).isEqualTo(1);
+            assertThat(history.byNumber(2)).contains(second);
+            assertThat(history.newestFirst()).containsExactly(second, first);
+            assertThat(history.runsOf(ALICE)).containsExactly(first);
+            assertThat(history.played(42L)).isTrue();
         }
     }
 

@@ -36,5 +36,26 @@
             <version>${modules-api.version}</version>
             <scope>test</scope>
         </dependency>
+        <!--
+          RainsCore's testkit: real item stacks, inventories and players without a server, so the tests
+          drive the code as it is instead of through stack-factory seams added only for them.
+        -->
+        <dependency>
+            <groupId>de.raindancer</groupId>
+            <artifactId>RainsCore</artifactId>
+            <version>${rainscore.version}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          The driver Paper ships, at its version, for tests only: the run history lives in Core's SQLite
+          database, and its migration is tested against a real one — see RainsCore's pom for why.
+        -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.49.1.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

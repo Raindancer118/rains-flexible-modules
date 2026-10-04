@@ -21,7 +21,22 @@ public record HuntSummary(SpeedrunRunRecord run, Winner winner, List<Catch> catc
     public enum Winner { RUNNERS, HUNTERS, NOBODY }
 
     /** @param byName {@code null} for a Runner who was away too long */
-    public record Catch(String runnerName, String byName, long atMillis) {
+    /** How a Runner came to be caught. */
+    public enum How {
+        /** A Hunter's last hit. */
+        BY_A_HUNTER,
+        /** A death nobody dealt — a fall, lava, the void. */
+        DIED,
+        /** Offline longer than the grace. */
+        STAYED_AWAY
+    }
+
+    /** @param byName the Hunter who caught them, for {@link How#BY_A_HUNTER} only */
+    public record Catch(String runnerName, String byName, long atMillis, How how) {
+
+        public Catch(String runnerName, String byName, long atMillis) {
+            this(runnerName, byName, atMillis, byName == null ? How.DIED : How.BY_A_HUNTER);
+        }
     }
 
     public static HuntSummary of(SpeedrunRunRecord run) {
@@ -30,7 +45,8 @@ public record HuntSummary(SpeedrunRunRecord run, Winner winner, List<Catch> catc
             switch (entry.kind()) {
                 case CAUGHT -> catches.add(new Catch(run.nameOf(entry.who()),
                         entry.other() == null ? null : run.nameOf(entry.other()), entry.at().toMillis()));
-                case CAUGHT_AWAY -> catches.add(new Catch(run.nameOf(entry.who()), null, entry.at().toMillis()));
+                case CAUGHT_AWAY -> catches.add(new Catch(run.nameOf(entry.who()), null, entry.at().toMillis(),
+                        How.STAYED_AWAY));
                 default -> { }
             }
         }
