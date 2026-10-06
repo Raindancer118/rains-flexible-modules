@@ -1,8 +1,8 @@
 package de.raindancer.modules.names.store;
 
-import de.raindancer.modules.names.model.NameStyle;
+import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.names.model.Reagent;
-import de.raindancer.modules.names.util.Naming;
+import de.raindancer.core.ui.text.Gradients;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -38,6 +38,9 @@ import java.util.List;
  * this would strip every one of them.
  */
 public final class StyleTags {
+
+    /** What the lore preview paints when the tag has no name of its own to show. */
+    static final String SAMPLE = "Abcdefg";
 
     private static final NamespacedKey COLOURS = key("colours");
     private static final NamespacedKey DECORATIONS = key("decorations");
@@ -142,10 +145,10 @@ public final class StyleTags {
     private static List<Component> lore(ItemMeta meta, NameStyle style, Palette palette) {
         String sample = meta.hasDisplayName()
                 ? PlainTextComponentSerializer.plainText().serialize(meta.displayName())
-                : Naming.SAMPLE;
+                : SAMPLE;
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Naming.styled(sample, style));
+        lore.add(Gradients.styled(sample, style));
         lore.add(Component.text(words(style, palette), NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());

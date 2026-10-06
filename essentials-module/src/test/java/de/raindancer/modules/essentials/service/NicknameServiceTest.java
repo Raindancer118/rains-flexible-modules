@@ -273,8 +273,7 @@ class NicknameServiceTest {
                   names:
                     - waytoolongname
                 """);
-        EssentialsSettings shortLimit = new EssentialsSettings(3, true, 300, true, true, true,
-                true, 4);
+        EssentialsSettings shortLimit = EssentialsSettings.DEFAULTS.withNicknameMaxLength(4);
         NicknameService service = serviceWith(blocklist, shortLimit);
         Player who = player("Tom");
         when(server.getOnlinePlayers()).thenReturn(List.of());
@@ -282,5 +281,36 @@ class NicknameServiceTest {
         service.set(who, "waytoolongname", false);
 
         verify(punishments).punish(any(), eq(PunishmentKind.BAN), any(), any(), any());
+    }
+
+    @Nested
+    @DisplayName("the tablist and the nametag")
+    class EverywhereElse {
+
+        @Test
+        @DisplayName("are handed the nickname, as plain text, when that is switched on")
+        void handedOver(@TempDir Path folder) {
+            NicknameService service = serviceWith(blocklistOf(folder, "{}"));
+            Player who = player("Tom");
+            when(server.getOnlinePlayers()).thenReturn(List.of());
+
+            service.set(who, "<red>Rain", false);
+
+            verify(identities).setNickname(who.getUniqueId(), "Rain");
+        }
+
+        @Test
+        @DisplayName("are not, when it is switched off")
+        void notWhenOff(@TempDir Path folder) {
+            NicknameService service = serviceWith(blocklistOf(folder, "{}"),
+                    EssentialsSettings.DEFAULTS.withNicknameShownEverywhere(false));
+            Player who = player("Tom");
+            when(server.getOnlinePlayers()).thenReturn(List.of());
+
+            service.set(who, "Rain", false);
+
+            verify(identities, never()).setNickname(eq(who.getUniqueId()), eq("Rain"));
+            verify(identities).setNickname(who.getUniqueId(), null);
+        }
     }
 }

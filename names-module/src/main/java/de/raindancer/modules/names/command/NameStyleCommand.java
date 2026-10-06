@@ -1,10 +1,10 @@
 package de.raindancer.modules.names.command;
 
 import de.raindancer.modules.names.NamesServices;
-import de.raindancer.modules.names.model.NameStyle;
+import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.names.model.Reagent;
 import de.raindancer.modules.names.store.Palette;
-import de.raindancer.modules.names.util.Naming;
+import de.raindancer.core.ui.text.Gradients;
 import de.raindancer.modules.names.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
@@ -143,7 +143,7 @@ public final class NameStyleCommand implements INamesCommand {
         NameStyle base = reagent instanceof Reagent.Shade
                 ? NameStyle.NONE.withColour(NamedTextColor.GRAY)
                 : NameStyle.NONE;
-        return Naming.styled(reagent.describe(), reagent.appliedTo(base));
+        return Gradients.styled(reagent.describe(), reagent.appliedTo(base));
     }
 
     /** Chat inherits nothing, but a line built here may end up in an item's lore in a later build. */

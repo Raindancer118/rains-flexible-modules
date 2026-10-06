@@ -2,8 +2,8 @@ package de.raindancer.modules.names.service;
 
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.names.NamesSettings;
-import de.raindancer.modules.names.model.NameStyle;
-import de.raindancer.modules.names.util.Naming;
+import de.raindancer.core.ui.text.NameStyle;
+import de.raindancer.core.ui.text.Gradients;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.plugin.Plugin;
@@ -55,7 +55,7 @@ public final class MobNameService implements INamesService {
         if (!enabled() || target == null || style.isEmpty()) {
             return;
         }
-        Component painted = Naming.apply(name, style);
+        Component painted = Gradients.apply(name, style);
         Scheduling.entityLater(plugin, target, 1L, () -> {
             if (target.isValid() && target.customName() != null) {
                 target.customName(painted);

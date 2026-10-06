@@ -1,5 +1,6 @@
 package de.raindancer.modules.names.model;
 
+import de.raindancer.core.ui.text.NameStyle;
 import org.bukkit.Material;
 
 /**

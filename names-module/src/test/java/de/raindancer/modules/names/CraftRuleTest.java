@@ -2,7 +2,7 @@ package de.raindancer.modules.names;
 
 import de.raindancer.modules.names.model.Craft;
 import de.raindancer.modules.names.model.Ingredient;
-import de.raindancer.modules.names.model.NameStyle;
+import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.names.model.Reagent;
 import de.raindancer.modules.names.rules.CraftRule;
 import de.raindancer.modules.names.store.Palette;

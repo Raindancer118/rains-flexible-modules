@@ -1,0 +1,41 @@
+package de.raindancer.modules.cosmetics;
+
+import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.ui.chat.Brand;
+import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.modules.cosmetics.model.Catalogue;
+import de.raindancer.modules.cosmetics.service.NameStyleService;
+import de.raindancer.modules.cosmetics.service.ParticleService;
+import de.raindancer.modules.cosmetics.service.ReloadService;
+import org.bukkit.Server;
+import org.bukkit.plugin.Plugin;
+
+import java.util.function.Supplier;
+
+/**
+ * Everything the module built, handed to listeners, screens and commands.
+ *
+ * @param catalogue behind a supplier: a reload replaces it, and a screen holding the old one would
+ *                  offer yesterday's presets
+ */
+public record CosmeticsServices(
+        Plugin plugin,
+        Server server,
+        LogChannel log,
+        Messages messages,
+        Brand brand,
+        Supplier<Catalogue> catalogue,
+        Supplier<CosmeticsSettings> settings,
+        NameStyleService names,
+        ParticleService particles,
+        ReloadService reloading,
+        ICosmeticsScreensOpener screens) {
+
+    public Catalogue offered() {
+        return catalogue.get();
+    }
+
+    public CosmeticsSettings config() {
+        return settings.get();
+    }
+}

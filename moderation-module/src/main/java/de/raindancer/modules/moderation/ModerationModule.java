@@ -72,7 +72,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.19.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.20.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -103,6 +103,7 @@ public final class ModerationModule implements FlexModule {
     private StaffRoster roster;
     private StaffService staffService;
     private WorldToolsService worldTools;
+    private de.raindancer.modules.moderation.service.BanhammerService banhammer;
 
     private StaffChatListener staffChatListener;
     private de.raindancer.modules.moderation.util.StaffChannel staffChannel;
@@ -210,6 +211,9 @@ public final class ModerationModule implements FlexModule {
         worldTools = new WorldToolsService(context.plugin(), server, context.core().audit(),
                 log, settings.current());
 
+        banhammer = new de.raindancer.modules.moderation.service.BanhammerService(punishmentService,
+                staffRule, context.core().messages(), settings.current());
+
         // Who is staff, at what rank. The nodes themselves are Core's Grants — see StaffRoster for why
         // the label and the power are kept apart.
         roster = new StaffRoster(context.dataFolder(), context.core().grants());
@@ -243,7 +247,7 @@ public final class ModerationModule implements FlexModule {
                 reasons, reports, notes, staffRule, escalation, announcements, this::standingRule,
                 this::banLimitRule, this::promotionRule, this::filingRule,
                 punishmentService, reportService, suspiciousCommands, xrayDetection, noteService, staffChat, roster, immune,
-                staffService, worldTools,
+                staffService, worldTools, banhammer,
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
 
@@ -265,6 +269,7 @@ public final class ModerationModule implements FlexModule {
             staffChat.settings(fresh);
             staffService.settings(fresh);
             worldTools.settings(fresh);
+            banhammer.settings(fresh);
             context.core().punishmentGuard().appealMessage(fresh.appealMessage());
         });
 
@@ -272,6 +277,7 @@ public final class ModerationModule implements FlexModule {
         context.listener(staffChatListener);
         context.listener(new SuspiciousCommandListener(services));
         context.listener(new XrayWatchListener(services));
+        context.listener(new de.raindancer.modules.moderation.listener.BanhammerListener(services));
 
         // Reports and notes reach the disk on a timer as well as on every change: the per-change save
         // is asynchronous and can fail, and a queue that only reaches disk on shutdown is one crash

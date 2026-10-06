@@ -128,6 +128,11 @@ public final class NicknameService implements IEssentialsService {
         String display = displayNameOf(who);
         who.playerListName(identities.nametag(who.getUniqueId(), display));
         who.displayName(identities.chatName(who.getUniqueId(), display));
+        // The tablist and the nametag draw from Core, so Core is told — as plain text: a name is
+        // painted by the player's name style, never by markup typed into /nick.
+        identities.setNickname(who.getUniqueId(), settings.nicknameShownEverywhere()
+                ? store.nicknameOf(who.getUniqueId()).map(raw -> Nickname.of(raw).plain()).orElse(null)
+                : null);
     }
 
     /**

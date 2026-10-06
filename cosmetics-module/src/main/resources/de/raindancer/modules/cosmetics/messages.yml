@@ -1,0 +1,79 @@
+# Rain's Flexible Modules — cosmetics.
+#
+# Offered to the server's Messages as a floor: whatever the owner has written for a key wins. Reword a
+# line in the server's own messages.yml, not here. Every value is quoted — YAML reads a bare on/off/yes/no
+# as a boolean, and a message that became one prints its own key.
+cosmetics:
+
+  no-permission: "<red>You may not do that."
+
+  only-a-player: "<red>The console has no name to paint. We checked."
+
+  usage: "<gray>Use <white>/cosmetics</white> for the menu, <white>/cosmetics name preset|set|reset</white> or <white>/cosmetics particle</white>."
+
+  reloaded: "<green>Reloaded. <white><colours></white> palette colour(s), <white><presets></white> preset(s)."
+
+  unknown-player: "<red>Nobody called <white><player></white> has played here."
+
+  unknown-preset: "<red>There is no preset called <white><preset></white>. <gray>Tab shows the ones there are."
+
+  not-a-style: "<red><detail>"
+
+  name:
+    set: "<green>Your name is now <name><green>."
+    cleared: "<green>Back to basics — your name is plain again."
+    not-saved: "<red>That style could not be saved — it has too many colours."
+    reset-other: "<green><white><player></white>'s name is plain again."
+    reset-by-staff: "<yellow>A staff member took your name style off. Fashion police, probably."
+    dropped: "<yellow>Your name style needed a permission you no longer have, so your name is plain again."
+
+  particle:
+    set: "<green>You are wearing <white><particle></white> now."
+    cleared: "<green>No more sparkles. Very understated."
+    shaped: "<green>It is drawn <white><shape></white> now."
+    coloured: "<green>Its colour is changed."
+    unknown-shape: "<red>The shapes are <white>ambient</white>, <white>aura</white>, <white>halo</white>, <white>trail</white> and <white>spiral</white>."
+    none-worn: "<red>You are not wearing a particle yet — pick one first, then we can fuss over it."
+    dropped: "<yellow>Your particle is not allowed any more, so it is taken off."
+
+  preview:
+    nametag: "<gray>That is your nametag as everybody sees it. <white>/cosmetics</white> to go back."
+    nametag-off: "<gray>That is your name with its style. <yellow>Styled nametags are switched off here, so over your head it shows plain."
+    particle: "<gray>That is your particle. <white>/cosmetics</white> to go back."
+
+  refused:
+    colour: "<red>You may not colour your name."
+    gradient: "<red>You may not use a gradient — one colour only."
+    any-colour: "<red><white><detail></white> is not in the palette, and you may only use palette colours."
+    decoration: "<red>You may not make your name <white><detail></white>. Sorry, that one's not yours to use."
+    too-many-stops: "<red>At most <white><detail></white> colours in one name."
+    preset: "<red>The <white><preset></white> preset is not yours to wear."
+    particles: "<red>You may not wear particles."
+    particle-unknown: "<red><white><detail></white> is not a particle that can be worn."
+    particle-blocked: "<red><white><detail></white> is not allowed here — it would cover everybody's screen, and they'd hate you a little."
+
+  help:
+    - "<gold><bold>Your name"
+    - "<gray>Presets are ready-made styles — click one to wear it."
+    - "<gray>Your own colours: one colour, or several for a gradient"
+    - "<gray>that runs from the first to the last across your name."
+    - "<gray>The dyes below switch bold, italic and the rest on and off."
+    - "<dark_gray>It shows in chat, in the player list and on your nickname."
+
+  help-hub:
+    - "<gold><bold>Cosmetics"
+    - "<gray>Your name: colours, gradients and presets."
+    - "<gray>Particles: a vanilla particle drawn around you."
+
+  help-particles:
+    - "<gold><bold>Your particles"
+    - "<gray>Pick a particle — left-click to see it, right-click to wear it."
+    - "<gray>Then how it is drawn: around you, above your head or behind you."
+    - "<gray>Dust and the tinted ones take a colour from the palette."
+    - "<dark_gray>Hidden while you are vanished, invisible or spectating."
+
+  help-gradient:
+    - "<gold><bold>Your colours"
+    - "<gray>Up to <white><stops></white> colours, running left to right across your name."
+    - "<gray>Click a colour in the bottom row to take it out again."
+    - "<dark_gray>Every click is worn at once — the head shows how it looks."

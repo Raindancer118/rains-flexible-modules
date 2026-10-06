@@ -146,6 +146,9 @@ Already learnt the hard way here:
   dozen — the farm worlds' border runs to sixty thousand blocks and its scatter radius to a hundred
   thousand, and neither can be nudged by any single step that is not either unusable or unable to express
   half the values.
+- **Painting a name** — `core.ui.text.NameStyle` / `Gradients`. Colour stops and decorations, painted per
+  character. Lived in names-module until cosmetics-module wanted the same thing for players' own names;
+  a player's style is `Identities.setNameStyle`, which every name renderer already reads.
 - **Lengths of time** — `core.world.time.Times`. Parses and describes what people actually type
   (`2min`, `1h30m`, `2 weeks`, `perm`), and `isForEver` knows the eight words somebody means by "never".
   `moderation.punishment.Durations` is a four-line alias kept for the moderation code that already calls

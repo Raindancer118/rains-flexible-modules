@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.6.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.7.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, and a nickname")
             .by("Raindancer118");
@@ -97,7 +97,7 @@ public final class EssentialsModule implements FlexModule {
                 context.core().identities(), context.core().messages(), context.chat(), server,
                 context.core().punishments(), context.core().audit(), settings.current());
         WelcomeService welcome = new WelcomeService(context.core().messages(), context.chat(),
-                settings.current());
+                context.core().buttons(), server, context.plugin(), settings.current());
 
         services = new EssentialsServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
@@ -109,6 +109,11 @@ public final class EssentialsModule implements FlexModule {
             messaging.settings(fresh);
             nicknames.settings(fresh);
             welcome.settings(fresh);
+            // Shown everywhere or not is decided when a name is applied, so apply them again now.
+            for (org.bukkit.entity.Player online : server.getOnlinePlayers()) {
+                de.raindancer.core.platform.util.Scheduling.entity(context.plugin(), online,
+                        () -> nicknames.apply(online));
+            }
         });
 
         context.listener(new EssentialsSessionListener(services));

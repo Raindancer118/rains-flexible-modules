@@ -1,5 +1,6 @@
 package de.raindancer.modules.names.store;
 
+import de.raindancer.core.ui.choose.ColorSwatches;
 import de.raindancer.modules.names.model.Reagent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -299,8 +300,7 @@ public final class Palette {
     }
 
     private static String hex(DyeColor dye) {
-        return String.format("#%02x%02x%02x",
-                dye.getColor().getRed(), dye.getColor().getGreen(), dye.getColor().getBlue());
+        return ColorSwatches.ofDye(dye).asHexString().toLowerCase(Locale.ROOT);
     }
 
     /**

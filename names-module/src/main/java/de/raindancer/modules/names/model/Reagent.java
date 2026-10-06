@@ -1,5 +1,6 @@
 package de.raindancer.modules.names.model;
 
+import de.raindancer.core.ui.text.NameStyle;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 

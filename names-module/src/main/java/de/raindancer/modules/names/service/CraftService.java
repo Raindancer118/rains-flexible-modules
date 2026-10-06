@@ -4,11 +4,11 @@ import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.names.NamesSettings;
 import de.raindancer.modules.names.model.Craft;
 import de.raindancer.modules.names.model.Ingredient;
-import de.raindancer.modules.names.model.NameStyle;
+import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.names.rules.CraftRule;
 import de.raindancer.modules.names.store.Palette;
 import de.raindancer.modules.names.store.StyleTags;
-import de.raindancer.modules.names.util.Naming;
+import de.raindancer.core.ui.text.Gradients;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
@@ -180,7 +180,7 @@ public final class CraftService implements INamesService {
     /** The whole stack, renamed. Sixty-four ingots named in one go, the way an anvil does it. */
     private static ItemStack painted(ItemStack target, NameStyle style) {
         ItemStack copy = target.clone();
-        copy.editMeta(meta -> meta.displayName(Naming.apply(currentName(meta, target), style)));
+        copy.editMeta(meta -> meta.displayName(Gradients.apply(currentName(meta, target), style)));
         return copy;
     }
 

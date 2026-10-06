@@ -52,6 +52,8 @@ public enum ModerationPermission {
     // having looked, is not.
     BAN("ban", "Ban somebody for any length, permanently included, and lift any ban",
             Material.BARRIER, 3, false),
+    BANHAMMER("banhammer", "Ban somebody for ever by killing them with a mace named Banhammer",
+            Material.MACE, 3, false),
     CONFIG("config", "Change how moderation itself behaves", Material.COMPARATOR, 3, true),
     // Admin, not mod. One hit kills anything — including, in the wrong hands, every animal on a farm
     // somebody spent a fortnight breeding, in about eleven seconds.

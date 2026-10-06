@@ -66,6 +66,17 @@ moderation:
       turned-off-other: "<gray>Blocks take their time again for <white><player></white>."
 
   # ── how long a ban you may give ──────────────────────────────────────────
+  # The Banhammer. Only struck and immune are ever sent; the rest name why a kill was an ordinary kill,
+  # for a diagnostic, and say nothing to anybody.
+  banhammer:
+    struck: "<gold><bold>BONK.</bold> <white><player></white> <gold>has been hit with the Banhammer."
+    immune: "<red><white><player></white> is a protected account — the Banhammer bounced off."
+    switched-off: "<gray>The Banhammer is switched off on this server."
+    not-allowed: "<gray>Only somebody allowed to swing the Banhammer can ban with it."
+    not-the-hammer: "<gray>That was not the Banhammer."
+    not-the-blow: "<gray>The Banhammer has to land the blow itself."
+    self: "<gray>The Banhammer does not swing at its owner."
+
   ban:
     too-long-for-you: "<red>That is longer than you may ban for. <gray>Your limit is <white><detail></white> — an admin can go further."
     not-for-ever-for-you: "<red>A permanent ban is an admin's decision. <gray>You can ban for up to <white><detail></white>."

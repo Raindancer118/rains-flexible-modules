@@ -4,10 +4,10 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.modules.names.NamesServices;
-import de.raindancer.modules.names.model.NameStyle;
+import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.names.model.Reagent;
 import de.raindancer.modules.names.store.Palette;
-import de.raindancer.modules.names.util.Naming;
+import de.raindancer.core.ui.text.Gradients;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -147,7 +147,7 @@ public final class PaletteMenu extends PaginatedMenu<Map.Entry<Material, Reagent
     /** The reagent's own words, painted in what it does. */
     private static Component sample(Reagent reagent) {
         NameStyle base = reagent instanceof Reagent.Shade ? MID_GREY : NameStyle.NONE;
-        return Naming.styled(reagent.describe(), reagent.appliedTo(base));
+        return Gradients.styled(reagent.describe(), reagent.appliedTo(base));
     }
 
     private static String what(Reagent reagent) {

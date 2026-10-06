@@ -2,11 +2,14 @@ package de.raindancer.modules.essentials;
 
 import de.raindancer.core.data.settings.Describe;
 import de.raindancer.core.data.settings.In;
+import de.raindancer.core.data.settings.Key;
 import de.raindancer.core.data.settings.Range;
 import de.raindancer.core.data.settings.Settings;
 import de.raindancer.core.data.settings.Title;
 import de.raindancer.core.data.settings.Topic;
 import org.bukkit.Material;
+
+import java.util.List;
 
 /**
  * What an owner can decide about the everyday stuff: spawn, AFK, and the words around joining,
@@ -61,12 +64,34 @@ public record EssentialsSettings(
         @In("essentials/social") @Title("Longest a nickname may be") @Range(min = 2, max = 32)
         @Describe("Characters, after colour and formatting are stripped away — what actually "
                 + "appears in chat and the player list.")
-        int nicknameMaxLength
+        int nicknameMaxLength,
+
+        @In("essentials/social") @Title("Nicknames in the player list and above heads")
+        @Describe("On: a /nick name is shown in the tablist and on the nametag too, not only in chat. "
+                + "The nametag needs styled nametags switched on (cosmetics).")
+        @Key("nickname-shown-everywhere")
+        boolean nicknameShownEverywhere,
+
+        @In("essentials/social") @Title("A Say Hi! button on join lines")
+        @Describe("Everybody else gets a button under somebody's join line; clicking it says a greeting "
+                + "from the list below, then their name, in chat. Once per player per join.")
+        @Key("welcome-say-hi")
+        boolean sayHiButton,
+
+        @In("essentials/social") @Title("Greetings the button picks from")
+        @Key("welcome-greetings")
+        List<String> hiGreetings
 
 ) {
 
     public static final EssentialsSettings DEFAULTS =
-            new EssentialsSettings(3, true, 300, true, true, true, true, 16);
+            new EssentialsSettings(3, true, 300, true, true, true, true, 16, true, true,
+                    List.of("Hi", "Hey", "Hello", "Welcome", "Welcome back", "Yo", "Hiya", "Howdy",
+                            "Good to see you", "Heyo"));
+
+    public EssentialsSettings {
+        hiGreetings = hiGreetings == null ? List.of() : List.copyOf(hiGreetings);
+    }
 
     /** Clamped, so a hand-built settings record cannot make {@code /spawn} instant against its wish. */
     public int spawnWarmup() {
@@ -81,5 +106,21 @@ public record EssentialsSettings(
     /** Clamped, so a nickname cannot be asked to be longer than the setting that bounds it. */
     public int nicknameLimit() {
         return Math.max(2, Math.min(32, nicknameMaxLength));
+    }
+
+    public EssentialsSettings withAfkEnabled(boolean value) {
+        return new EssentialsSettings(spawnWarmupSeconds, value, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings);
+    }
+
+    public EssentialsSettings withNicknameMaxLength(int value) {
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, value, nicknameShownEverywhere, sayHiButton, hiGreetings);
+    }
+
+    public EssentialsSettings withNicknameShownEverywhere(boolean value) {
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, value, sayHiButton, hiGreetings);
+    }
+
+    public EssentialsSettings withSayHiButton(boolean value) {
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, value, hiGreetings);
     }
 }

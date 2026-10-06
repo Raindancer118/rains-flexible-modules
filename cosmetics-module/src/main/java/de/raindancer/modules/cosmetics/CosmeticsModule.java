@@ -1,0 +1,120 @@
+package de.raindancer.modules.cosmetics;
+
+import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.modules.api.FlexModule;
+import de.raindancer.modules.api.ModuleCommand;
+import de.raindancer.modules.api.ModuleContext;
+import de.raindancer.modules.api.ModuleInfo;
+import de.raindancer.modules.cosmetics.listener.JoinListener;
+import de.raindancer.modules.cosmetics.model.Catalogue;
+import de.raindancer.modules.cosmetics.screen.CosmeticsMenu;
+import de.raindancer.modules.cosmetics.screen.NameStyleMenu;
+import de.raindancer.modules.cosmetics.screen.ParticleMenu;
+import de.raindancer.modules.cosmetics.service.NameStyleService;
+import de.raindancer.modules.cosmetics.service.ParticleService;
+import de.raindancer.modules.cosmetics.service.ReloadService;
+import de.raindancer.modules.cosmetics.store.CatalogueFile;
+import de.raindancer.modules.cosmetics.util.PermissionNodes;
+import org.bukkit.Server;
+import org.bukkit.entity.Player;
+
+import java.util.List;
+
+/**
+ * Cosmetics players pick for themselves. So far: their own name, in a colour, a gradient or a preset,
+ * with decorations.
+ *
+ * <p>Owns no player data. The style is Core's {@code Identities}, which chat-module, the tablist and
+ * essentials' nicknames already draw names from — so removing this module keeps everybody's colours,
+ * and they show without this module being asked.
+ */
+public final class CosmeticsModule implements FlexModule {
+
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.3.0")
+            .describedAs("Paint your own name and wear a particle effect")
+            .by("Raindancer118");
+
+    private CosmeticsServices services;
+
+    @Override
+    public ModuleInfo info() {
+        return INFO;
+    }
+
+    @Override
+    public void enable(ModuleContext context) {
+        LogChannel log = context.log();
+        Server server = context.plugin().getServer();
+        SettingsStore<CosmeticsSettings> settings =
+                context.settings(CosmeticsSettings.class, CosmeticsSettings.DEFAULTS);
+
+        // Beside this class, not at the root: Core's own messages.yml is on the classpath too.
+        context.core().messages().defineFrom(
+                CosmeticsModule.class.getResourceAsStream("messages.yml"),
+                context.chat().brand()::chatPrefix);
+
+        CatalogueFile catalogue = new CatalogueFile(context.dataFolder().resolve("config.yml"));
+        Catalogue loaded = catalogue.load(warning -> log.warn("{}", warning));
+
+        int registered = PermissionNodes.register(server, PermissionNodes.declared())
+                + PermissionNodes.register(server, PermissionNodes.declaredFor(loaded.presets()));
+        if (registered > 0) {
+            log.info("{} permission(s) registered.", registered);
+        }
+
+        NameStyleService names = new NameStyleService(context.core().identities(), context.core().nametags(),
+                context.core().messages(), catalogue::current, settings.current());
+        names.applyNametagSetting();
+        context.closeWith(() -> context.core().nametags().enabled(false));
+        ParticleService particles = new ParticleService(context.plugin(), server, context.core().vanish(),
+                context.core().messages(), settings.current());
+        particles.start();
+        context.closeWith(particles::stop);
+        ReloadService reloading = new ReloadService(settings, catalogue, server, log);
+        services = new CosmeticsServices(context.plugin(), server, log, context.core().messages(),
+                context.chat().brand(), catalogue::current, settings::current, names, particles, reloading,
+                new LiveScreens());
+
+        settings.onChange(fresh -> {
+            names.settings(fresh);
+            particles.settings(fresh);
+            reloading.settings(fresh);
+        });
+
+        context.listener(new JoinListener(services));
+        CosmeticsCommands.ready(services);
+
+        log.info("Cosmetics is up: {} palette colour(s), {} preset(s).",
+                loaded.palette().size(), loaded.presets().size());
+    }
+
+    private final class LiveScreens implements ICosmeticsScreensOpener {
+
+        @Override
+        public void hub(Player viewer) {
+            new CosmeticsMenu(services, viewer).open();
+        }
+
+        @Override
+        public void nameStyle(Player viewer) {
+            new NameStyleMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void particles(Player viewer) {
+            new ParticleMenu(services, viewer, null).open();
+        }
+    }
+
+    @Override
+    public List<ModuleCommand> commands() {
+        return CosmeticsCommands.declared();
+    }
+
+    @Override
+    public void disable() {
+        CosmeticsCommands.stopped();
+        // Nothing to write: every style is in Core's identities, which Core saves.
+    }
+}

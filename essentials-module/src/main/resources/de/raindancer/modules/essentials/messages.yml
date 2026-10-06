@@ -84,4 +84,8 @@ essentials:
   welcome:
     first-join: "<gold>Welcome <white><player></white> to the server for the first time!"
     joined: "<gray>+ <white><player></white> joined."
+    hi-button: "<green>[Say Hi!]"
+    hi-tooltip: "<gray>Says hello to them in chat"
+    hi-yourself: "<gray>Saying hi to yourself? Bold move. Maybe let the others do it."
+    hi-already: "<gray>Greeting them twice would be a bit awkward, wouldn't it?"
     quit: "<gray>- <white><player></white> left."

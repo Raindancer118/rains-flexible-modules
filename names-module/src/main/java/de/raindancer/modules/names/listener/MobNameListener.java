@@ -1,7 +1,7 @@
 package de.raindancer.modules.names.listener;
 
 import de.raindancer.modules.names.NamesServices;
-import de.raindancer.modules.names.model.NameStyle;
+import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.names.store.StyleTags;
 import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
