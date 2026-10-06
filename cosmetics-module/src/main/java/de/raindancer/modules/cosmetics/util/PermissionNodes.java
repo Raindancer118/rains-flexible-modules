@@ -24,6 +24,7 @@ public final class PermissionNodes {
     public static final String NAME_COLOUR = "rainscosmetics.name.colour";
     public static final String NAME_GRADIENT = "rainscosmetics.name.gradient";
     public static final String NAME_ANY_COLOUR = "rainscosmetics.name.any-colour";
+    public static final String NAME_ANIMATED = "rainscosmetics.name.animated";
     public static final String DECORATION_PREFIX = "rainscosmetics.name.decoration.";
     /** Every restricted preset at once. Checked by hand as well, since Bukkit has no wildcards. */
     public static final String PRESET_ALL = Preset.PERMISSION_PREFIX + "*";
@@ -44,6 +45,8 @@ public final class PermissionNodes {
         nodes.add(new Permission(NAME_GRADIENT, "Paint your name in a gradient of several colours",
                 PermissionDefault.TRUE));
         nodes.add(new Permission(NAME_ANY_COLOUR, "Use colours outside the palette, typed as #hex",
+                PermissionDefault.TRUE));
+        nodes.add(new Permission(NAME_ANIMATED, "Let your gradient flow along your name",
                 PermissionDefault.TRUE));
         for (TextDecoration decoration : TextDecoration.values()) {
             nodes.add(new Permission(decoration(decoration),

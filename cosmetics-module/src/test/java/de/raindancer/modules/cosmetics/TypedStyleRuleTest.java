@@ -59,4 +59,11 @@ class TypedStyleRuleTest {
     void nothingTyped() {
         assertThat(rule.read(List.of(), CATALOGUE).isOk()).isFalse();
     }
+
+    @Test
+    @DisplayName("'animated' makes the gradient flow")
+    void animatedWord() {
+        Parsed<NameStyle> read = rule.read(List.of("gold", "light_blue", "animated"), CATALOGUE);
+        assertThat(read.value().isAnimated()).isTrue();
+    }
 }

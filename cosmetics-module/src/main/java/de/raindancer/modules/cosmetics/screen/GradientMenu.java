@@ -99,6 +99,18 @@ public final class GradientMenu extends Menu implements ICosmeticsScreen {
                     refresh();
                 });
 
+        boolean flowing = style.isAnimated();
+        band(MenuLayout.WHO, 7, style.isGradient() && grants.animated(),
+                Icons.of(flowing ? Material.LIME_DYE : Material.GRAY_DYE,
+                        flowing ? "<green>Flowing" : "<white>Flowing",
+                        "<gray>Lets the gradient drift along your", "<gray>name, round and round.", "",
+                        flowing ? "<green>On — click to hold it still." : "<gray>Off — click to set it moving."),
+                style.isGradient() ? "Needs " + PermissionNodes.NAME_ANIMATED : "Needs two colours or more",
+                click -> {
+                    names.wear(viewer, style.animated(!flowing), false);
+                    refresh();
+                });
+
         for (int index = 0; index < stops; index++) {
             int stop = index;
             cell(MenuLayout.LAND, index, stopIcon(style.colours().get(index), index),

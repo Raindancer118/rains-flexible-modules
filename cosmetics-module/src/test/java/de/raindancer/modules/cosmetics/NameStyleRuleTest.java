@@ -138,4 +138,13 @@ class NameStyleRuleTest {
         assertThat(CATALOGUE.nameOf(BLUE)).isEqualTo("blue");
         assertThat(CATALOGUE.nameOf(OFF_PALETTE)).isEqualToIgnoringCase("#123456");
     }
+
+    @Test
+    @DisplayName("a flowing gradient needs its own permission, unless it is a preset")
+    void animatedNeedsItsNode() {
+        NameStyle flowing = NameStyle.NONE.withStop(PINK).withStop(BLUE).animated(true);
+        Grants still = new Grants(true, true, true, false, READABLE, Set.of());
+        assertThat(judge(flowing, still).reason()).isEqualTo("cosmetics.refused.animated");
+        assertThat(judge(flowing, EVERYBODY).isAllowed()).isTrue();
+    }
 }

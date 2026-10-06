@@ -91,7 +91,26 @@ class CosmeticsScenarioTest {
             Await.until("they are back", Duration.ofSeconds(10),
                     () -> server.console("execute if entity @e[type=minecraft:text_display]").contains("passed"));
 
+            // A flowing gradient: by command, by the menu's toggle, and seen moving on the nametag.
+            bo.runAndExpect("cosmetics name set pink light_blue gold animated", "Your name is now");
+            String before = nametagOf(server, "Bo");
+            Await.until("Bo's nametag flows", Duration.ofSeconds(5), () -> !nametagOf(server, "Bo").equals(before));
+            bo.runAndOpen("cosmetics name", "Your name");
+            bo.click("Your own colours");
+            bo.awaitWindow("Your colours");
+            bo.click("Flowing");
+            Await.until("the toggle shows it held still", Duration.ofSeconds(10),
+                    () -> bo.window().flatMap(window -> window.slotNamed("Flowing")).isPresent());
+            bo.closeWindow();
+            String still = nametagOf(server, "Bo");
+            Await.ticks(30);
+            assertThat(nametagOf(server, "Bo")).as("held still, it no longer moves").isEqualTo(still);
+
             assertThat(server.paper.errorsFrom("RainsCore", "RainsCosmetics")).isEmpty();
         }
+    }
+
+    private static String nametagOf(Server server, String player) {
+        return server.console("execute as " + player + " on passengers run data get entity @s text");
     }
 }

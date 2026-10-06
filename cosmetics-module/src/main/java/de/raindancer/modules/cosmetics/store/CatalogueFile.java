@@ -126,7 +126,8 @@ public final class CatalogueFile {
                         + " colours. Skipped.");
                 continue;
             }
-            presets.add(new Preset(id, entry.getString("title", id), style,
+            presets.add(new Preset(id, entry.getString("title", id),
+                    style.animated(entry.getBoolean("animated", false)),
                     entry.getBoolean("restricted", false)));
         }
         return presets;
@@ -167,7 +168,12 @@ public final class CatalogueFile {
     }
 
     private record ShippedPreset(String id, String title, List<String> colours, List<String> decorations,
-                                 boolean restricted) {
+                                 boolean restricted, boolean animated) {
+
+        ShippedPreset(String id, String title, List<String> colours, List<String> decorations,
+                      boolean restricted) {
+            this(id, title, colours, decorations, restricted, false);
+        }
     }
 
     private static final List<ShippedPreset> SHIPPED_PRESETS = List.of(
@@ -181,7 +187,11 @@ public final class CatalogueFile {
             new ShippedPreset("gold", "Gold", List.of("#f7971e", "#ffd200"), List.of("bold"), false),
             new ShippedPreset("rainbow", "Rainbow",
                     List.of("#ff5555", "#ffaa00", "#ffff55", "#55ff55", "#55ffff", "#5555ff", "#ff55ff"),
-                    List.of("bold"), true));
+                    List.of("bold"), true, true),
+            new ShippedPreset("lava", "Lava lamp", List.of("#ff512f", "#f09819", "#dd2476"), List.of(), false,
+                    true),
+            new ShippedPreset("northern-lights", "Northern lights",
+                    List.of("#00c9ff", "#92fe9d", "#a18cd1"), List.of(), false, true));
 
     private static List<PaletteColour> shippedPalette() {
         List<PaletteColour> palette = new ArrayList<>();
@@ -205,6 +215,9 @@ public final class CatalogueFile {
             yaml.set(path + ".colours", preset.colours());
             yaml.set(path + ".decorations", preset.decorations());
             yaml.set(path + ".restricted", preset.restricted());
+            if (preset.animated()) {
+                yaml.set(path + ".animated", true);
+            }
         }
     }
 
@@ -220,7 +233,8 @@ public final class CatalogueFile {
             yaml.setComments("presets", List.of("",
                     "--- Ready-made styles ---",
                     "colours: 1 to 8 stops, left to right. decorations: bold, italic, underlined,",
-                    "strikethrough, obfuscated. A preset needs no other permission to wear;",
+                    "strikethrough, obfuscated. animated: true lets the gradient flow along the name.",
+                    "A preset needs no other permission to wear;",
                     "restricted: true means only holders of rainscosmetics.preset.<id> may."));
         });
     }

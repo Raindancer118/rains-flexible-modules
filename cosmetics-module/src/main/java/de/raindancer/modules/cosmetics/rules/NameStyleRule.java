@@ -38,6 +38,9 @@ public final class NameStyleRule implements ICosmeticsRule {
         if (style.isGradient() && !grants.gradient()) {
             return Verdict.refused("cosmetics.refused.gradient");
         }
+        if (style.isAnimated() && !grants.animated()) {
+            return Verdict.refused("cosmetics.refused.animated");
+        }
         if (!grants.anyColour()) {
             for (TextColor colour : style.colours()) {
                 if (!catalogue.inPalette(colour)) {

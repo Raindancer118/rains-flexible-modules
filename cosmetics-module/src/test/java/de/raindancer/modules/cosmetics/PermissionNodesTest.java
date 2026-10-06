@@ -33,6 +33,7 @@ class PermissionNodesTest {
                 .containsEntry(PermissionNodes.NAME_COLOUR, PermissionDefault.TRUE)
                 .containsEntry(PermissionNodes.NAME_GRADIENT, PermissionDefault.TRUE)
                 .containsEntry(PermissionNodes.NAME_ANY_COLOUR, PermissionDefault.TRUE)
+                .containsEntry(PermissionNodes.NAME_ANIMATED, PermissionDefault.TRUE)
                 .containsEntry("rainscosmetics.name.decoration.bold", PermissionDefault.TRUE)
                 .containsEntry("rainscosmetics.name.decoration.obfuscated", PermissionDefault.OP)
                 .containsEntry(PermissionNodes.PRESET_ALL, PermissionDefault.OP)

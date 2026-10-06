@@ -46,6 +46,7 @@ cosmetics:
     gradient: "<red>You may not use a gradient — one colour only."
     any-colour: "<red><white><detail></white> is not in the palette, and you may only use palette colours."
     decoration: "<red>You may not make your name <white><detail></white>. Sorry, that one's not yours to use."
+    animated: "<red>Your gradient can't flow — that one's not unlocked for you. It still looks great standing still."
     too-many-stops: "<red>At most <white><detail></white> colours in one name."
     preset: "<red>The <white><preset></white> preset is not yours to wear."
     particles: "<red>You may not wear particles."

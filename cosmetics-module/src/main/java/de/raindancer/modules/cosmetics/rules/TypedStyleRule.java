@@ -25,6 +25,10 @@ public final class TypedStyleRule implements ICosmeticsRule {
         }
         NameStyle style = NameStyle.NONE;
         for (String word : words) {
+            if (ANIMATED_WORDS.contains(word.trim().toLowerCase(Locale.ROOT))) {
+                style = style.animated(true);
+                continue;
+            }
             TextDecoration decoration = decorationOf(word);
             if (decoration != null) {
                 style = style.with(decoration, true);
@@ -38,8 +42,11 @@ public final class TypedStyleRule implements ICosmeticsRule {
             }
             style = style.withStop(colour);
         }
-        return Parsed.ok(style);
+        return Parsed.ok(style.animated(animatedAsked(words)));
     }
+
+    /** What people type to make a gradient move. Applied after the colours, so its place does not matter. */
+    private static final java.util.Set<String> ANIMATED_WORDS = java.util.Set.of("animated", "flowing", "moving");
 
     /** {@code bold}, and the two spellings people actually use for the long ones. */
     public static TextDecoration decorationOf(String word) {
@@ -50,6 +57,10 @@ public final class TypedStyleRule implements ICosmeticsRule {
             case "magic" -> TextDecoration.OBFUSCATED;
             default -> TextDecoration.NAMES.value(cleaned);
         };
+    }
+
+    private static boolean animatedAsked(List<String> words) {
+        return words.stream().anyMatch(word -> ANIMATED_WORDS.contains(word.trim().toLowerCase(Locale.ROOT)));
     }
 
     @Override

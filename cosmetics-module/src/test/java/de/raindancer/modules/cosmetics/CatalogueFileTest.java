@@ -37,6 +37,7 @@ class CatalogueFileTest {
         assertThat(loaded.presets()).isNotEmpty();
         assertThat(loaded.colourNamed("pink")).isPresent();
         assertThat(loaded.colourNamed("pink").orElseThrow().icon()).isEqualTo(Material.PINK_DYE);
+        assertThat(loaded.preset("rainbow").orElseThrow().style().isAnimated()).as("the rainbow flows").isTrue();
         assertThat(Files.readString(config())).contains("palette:").contains("presets:");
     }
 
@@ -54,6 +55,7 @@ class CatalogueFileTest {
                     colours: ['#0b486b', '#f56217']
                     decorations: [bold, sideways]
                     restricted: true
+                    animated: true
                   broken:
                     title: Broken
                     colours: []
@@ -65,6 +67,7 @@ class CatalogueFileTest {
         assertThat(loaded.palette().getFirst().colour()).isEqualTo(TextColor.fromHexString("#87ceeb"));
         assertThat(loaded.presets()).hasSize(1);
         assertThat(loaded.presets().getFirst().restricted()).isTrue();
+        assertThat(loaded.presets().getFirst().style().isAnimated()).isTrue();
         assertThat(loaded.presets().getFirst().style().decorations()).containsExactly(TextDecoration.BOLD);
         assertThat(problems).anyMatch(line -> line.contains("nonsense"))
                 .anyMatch(line -> line.contains("sideways"))

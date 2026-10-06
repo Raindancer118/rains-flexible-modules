@@ -94,7 +94,8 @@ public final class NameStyleService implements ICosmeticsService {
         }
         return new Grants(who.hasPermission(PermissionNodes.NAME_COLOUR),
                 who.hasPermission(PermissionNodes.NAME_GRADIENT),
-                who.hasPermission(PermissionNodes.NAME_ANY_COLOUR), decorations, presets);
+                who.hasPermission(PermissionNodes.NAME_ANY_COLOUR),
+                who.hasPermission(PermissionNodes.NAME_ANIMATED), decorations, presets);
     }
 
     public Verdict judge(Permissible who, NameStyle style) {
@@ -151,6 +152,9 @@ public final class NameStyleService implements ICosmeticsService {
         }
         style.decorations().forEach(decoration ->
                 parts.add(decoration.name().toLowerCase(java.util.Locale.ROOT)));
+        if (style.isAnimated()) {
+            parts.add("flowing");
+        }
         return String.join(", ", parts);
     }
 
