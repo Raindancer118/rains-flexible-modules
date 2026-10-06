@@ -26,6 +26,15 @@ public final class ParticleRule implements ICosmeticsRule {
         return Verdict.allowed();
     }
 
+    /**
+     * How many to draw per point: what they chose, or the server's default — never past the server's
+     * ceiling, and never none.
+     */
+    public int count(de.raindancer.modules.cosmetics.model.ParticleDensity chosen, int serverDefault, int ceiling) {
+        int wanted = chosen == null ? serverDefault : chosen.count();
+        return Math.max(1, Math.min(Math.max(1, ceiling), wanted));
+    }
+
     /** Somebody hidden must not give themselves away by a ring of flames. */
     public boolean shows(boolean particlesOn, boolean vanished, boolean spectating, boolean invisible,
                          boolean dead) {

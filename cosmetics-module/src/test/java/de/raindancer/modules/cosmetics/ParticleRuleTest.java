@@ -2,6 +2,7 @@ package de.raindancer.modules.cosmetics;
 
 import de.raindancer.core.ui.effect.ParticleShape;
 import de.raindancer.modules.cosmetics.model.ParticleChoice;
+import de.raindancer.modules.cosmetics.model.ParticleDensity;
 import de.raindancer.modules.cosmetics.rules.ParticleRule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,5 +53,33 @@ class ParticleRuleTest {
         assertThat(flame.withColour(0xff0000).colour()).isEqualTo(0xff0000);
         assertThat(ParticleChoice.NONE.isNone()).isTrue();
         assertThat(flame.isNone()).isFalse();
+    }
+
+    @Test
+    @DisplayName("a chosen density sets how many are drawn, never past the server's ceiling")
+    void density() {
+        assertThat(rule.count(ParticleDensity.DENSE, 1, 6)).isEqualTo(4);
+        assertThat(rule.count(ParticleDensity.VERY_DENSE, 1, 3)).as("capped by the owner").isEqualTo(3);
+        assertThat(rule.count(null, 2, 6)).as("nothing chosen: the server's default").isEqualTo(2);
+        assertThat(rule.count(ParticleDensity.LIGHT, 1, 0)).as("never nothing at all").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("densities step up and down, and stop at the ends")
+    void stepping() {
+        assertThat(ParticleDensity.LIGHT.denser()).isEqualTo(ParticleDensity.NORMAL);
+        assertThat(ParticleDensity.VERY_DENSE.denser()).isEqualTo(ParticleDensity.VERY_DENSE);
+        assertThat(ParticleDensity.NORMAL.lighter()).isEqualTo(ParticleDensity.LIGHT);
+        assertThat(ParticleDensity.LIGHT.lighter()).isEqualTo(ParticleDensity.LIGHT);
+        assertThat(ParticleDensity.of("very_dense")).contains(ParticleDensity.VERY_DENSE);
+        assertThat(ParticleDensity.of("thick")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a choice keeps its density")
+    void choiceKeepsDensity() {
+        ParticleChoice flame = new ParticleChoice("flame", ParticleShape.HALO, null).withDensity(ParticleDensity.DENSE);
+        assertThat(flame.density()).isEqualTo(ParticleDensity.DENSE);
+        assertThat(flame.withShape(ParticleShape.AURA).density()).isEqualTo(ParticleDensity.DENSE);
     }
 }

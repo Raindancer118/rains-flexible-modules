@@ -10,6 +10,7 @@ import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.cosmetics.CosmeticsServices;
 import de.raindancer.modules.cosmetics.model.ParticleChoice;
+import de.raindancer.modules.cosmetics.model.ParticleDensity;
 import de.raindancer.modules.cosmetics.service.NameStyleService;
 import de.raindancer.modules.cosmetics.service.ParticleService;
 import de.raindancer.modules.cosmetics.util.PermissionNodes;
@@ -98,6 +99,19 @@ public final class ParticleMenu extends Menu implements ICosmeticsScreen {
 
         boolean coloured = !choice.isNone() && ParticleShows.takesColour(choice.particle());
         String colourName = choice.colour() == null ? "" : services.offered().nameOf(TextColor.color(choice.colour()));
+        ParticleDensity density = particles.densityOf(viewer);
+        String capped = particles.isCapped(density)
+                ? "<yellow>This server draws at most a little less than that." : "<dark_gray>Drawn as chosen.";
+        band(MenuLayout.LAND, 3, !choice.isNone(),
+                Icons.of(Material.GLOWSTONE_DUST, "<white>Density: " + density.title(),
+                        "<gray>How many particles at a time.", capped, "",
+                        "<dark_gray>Click for denser, right click for lighter."),
+                "Pick a particle first",
+                click -> {
+                    particles.density(viewer, click.isRightClick() ? density.lighter() : density.denser());
+                    refresh();
+                });
+
         band(MenuLayout.LAND, 4, !choice.isNone(),
                 Icons.of(Material.SPYGLASS, "<white>Preview",
                         "<gray>Closes this and draws your particle", "<gray>in front of you for a moment.", "",

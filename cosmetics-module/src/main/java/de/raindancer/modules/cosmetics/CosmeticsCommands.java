@@ -26,6 +26,7 @@ public final class CosmeticsCommands {
                                 "particle <particle> — wears a vanilla particle",
                                 "particle shape ambient|aura|halo|trail|spiral — how it is drawn",
                                 "particle colour <colour> — for dust and the tinted ones",
+                                "particle density light|normal|dense|very_dense — how thick it is drawn",
                                 "particle off — takes it off",
                                 "name preset <id> — wears a preset",
                                 "name set <colours…> [bold|italic|…] — colours in the order typed",

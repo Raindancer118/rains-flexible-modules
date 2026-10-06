@@ -10,6 +10,7 @@ import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.ui.profile.PlayerSwitch;
 import de.raindancer.modules.cosmetics.CosmeticsSettings;
 import de.raindancer.modules.cosmetics.model.ParticleChoice;
+import de.raindancer.modules.cosmetics.model.ParticleDensity;
 import de.raindancer.modules.cosmetics.rules.ParticleRule;
 import de.raindancer.modules.cosmetics.store.ParticleChoices;
 import de.raindancer.modules.cosmetics.util.PermissionNodes;
@@ -104,7 +105,8 @@ public final class ParticleService implements ICosmeticsService {
                 || now.blocked().contains(choice.particle())) {
             return;
         }
-        ParticleShows.around(wearer, choice.particle(), choice.colour(), now.count(), choice.shape(), tick,
+        ParticleShows.around(wearer, choice.particle(), choice.colour(),
+                rule.count(choice.density(), now.count(), now.maxCount()), choice.shape(), tick,
                 RANGE, viewer -> viewer.equals(wearer) || SEES.isOn(viewer));
     }
 
@@ -154,6 +156,33 @@ public final class ParticleService implements ICosmeticsService {
         }
     }
 
+    /** Their density, or the one the server draws with when they have not chosen. */
+    public ParticleDensity densityOf(Player who) {
+        ParticleDensity chosen = choices.read(who).density();
+        if (chosen != null) {
+            return chosen;
+        }
+        ParticleDensity closest = ParticleDensity.LIGHT;
+        for (var density : ParticleDensity.values()) {
+            if (density.count() <= settings.count()) {
+                closest = density;
+            }
+        }
+        return closest;
+    }
+
+    /** Whether this density would be drawn as asked, or held down by the server's ceiling. */
+    public boolean isCapped(ParticleDensity density) {
+        return density.count() > settings.maxCount();
+    }
+
+    public void density(Player who, ParticleDensity density) {
+        ParticleChoice choice = choices.read(who);
+        if (!choice.isNone()) {
+            choices.write(who, choice.withDensity(density));
+        }
+    }
+
     public void colour(Player who, int rgb) {
         ParticleChoice choice = choices.read(who);
         if (!choice.isNone()) {
@@ -175,8 +204,8 @@ public final class ParticleService implements ICosmeticsService {
             messages.send(who, "cosmetics.particle.none-worn");
             return;
         }
-        ParticleShows.preview(plugin, who, choice.particle(), choice.colour(), Math.max(2, settings.count()),
-                choice.shape(), 5);
+        ParticleShows.preview(plugin, who, choice.particle(), choice.colour(),
+                rule.count(choice.density(), settings.count(), settings.maxCount()), choice.shape(), 5);
         messages.send(who, "cosmetics.preview.particle");
     }
 

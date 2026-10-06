@@ -56,9 +56,15 @@ public record CosmeticsSettings(
         @Key("particles-every-ticks")
         int particleEveryTicks,
 
-        @In("cosmetics/particles") @Title("Particles per point") @Range(min = 1, max = 8)
+        @In("cosmetics/particles") @Title("Particles per point, unless somebody picks") @Range(min = 1, max = 8)
+        @Describe("What a particle is drawn with before its wearer chooses a density.")
         @Key("particles-count")
         int particleCount,
+
+        @In("cosmetics/particles") @Title("Most particles per point anybody may pick") @Range(min = 1, max = 8)
+        @Describe("The ceiling on a player's density. Very dense is 6; lower this if a crowd of auras lags.")
+        @Key("particles-max-count")
+        int particleMaxCount,
 
         @In("cosmetics/particles") @Title("Particles nobody may wear")
         @Describe("Vanilla names, like ELDER_GUARDIAN. The shipped ones cover the screen of whoever sees "
@@ -66,7 +72,7 @@ public record CosmeticsSettings(
         @Key("particles-blocked")
         List<String> blockedParticles) {
 
-    public static final CosmeticsSettings DEFAULTS = new CosmeticsSettings(8, true, true, true, 4, 1,
+    public static final CosmeticsSettings DEFAULTS = new CosmeticsSettings(8, true, true, true, 4, 1, 6,
             List.of("ELDER_GUARDIAN", "EXPLOSION_EMITTER", "EXPLOSION", "FLASH", "SONIC_BOOM",
                     "GUST_EMITTER_LARGE", "GUST_EMITTER_SMALL"));
 
@@ -85,6 +91,10 @@ public record CosmeticsSettings(
 
     public int count() {
         return Math.max(1, Math.min(8, particleCount));
+    }
+
+    public int maxCount() {
+        return Math.max(1, Math.min(8, particleMaxCount));
     }
 
     /** The ceiling, clamped even if the file was edited by hand. */

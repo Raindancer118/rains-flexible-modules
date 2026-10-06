@@ -32,6 +32,8 @@ cosmetics:
     cleared: "<green>No more sparkles. Very understated."
     shaped: "<green>It is drawn <white><shape></white> now."
     coloured: "<green>Its colour is changed."
+    densified: "<green>Density: <white><density></white>. Sparkle responsibly."
+    unknown-density: "<red>Densities are <white>light</white>, <white>normal</white>, <white>dense</white> and <white>very_dense</white>."
     unknown-shape: "<red>The shapes are <white>ambient</white>, <white>aura</white>, <white>halo</white>, <white>trail</white> and <white>spiral</white>."
     none-worn: "<red>You are not wearing a particle yet — pick one first, then we can fuss over it."
     dropped: "<yellow>Your particle is not allowed any more, so it is taken off."
@@ -71,6 +73,7 @@ cosmetics:
     - "<gray>Pick a particle — left-click to see it, right-click to wear it."
     - "<gray>Then how it is drawn: around you, above your head or behind you."
     - "<gray>Dust and the tinted ones take a colour from the palette."
+    - "<gray>Density sets how many are drawn — from a light dusting to a proper cloud."
     - "<dark_gray>Hidden while you are vanished, invisible or spectating."
 
   help-gradient:
