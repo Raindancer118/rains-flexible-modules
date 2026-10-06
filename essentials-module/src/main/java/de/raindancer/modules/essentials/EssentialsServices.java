@@ -43,7 +43,8 @@ public record EssentialsServices(
         AfkService afk,
         MessagingService messaging,
         NicknameService nicknames,
-        WelcomeService welcome) {
+        WelcomeService welcome,
+        de.raindancer.modules.essentials.service.ReactionService reactions) {
 
     /** The settings as they are right now. */
     public EssentialsSettings config() {

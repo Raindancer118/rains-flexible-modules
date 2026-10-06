@@ -4,19 +4,7 @@ import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.essentials.EssentialsSettings;
 import org.bukkit.entity.Player;
-import de.raindancer.core.platform.rule.Verdict;
-import de.raindancer.core.platform.util.Scheduling;
-import de.raindancer.core.ui.chat.ChatButtons;
-import de.raindancer.modules.essentials.rules.HiRule;
-import net.kyori.adventure.text.Component;
-import org.bukkit.Server;
-import org.bukkit.plugin.Plugin;
 
-import java.time.Duration;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
 
 
 /**
@@ -30,25 +18,16 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class WelcomeService implements IEssentialsService {
 
-    /** How long a "Say Hi!" button answers after the join it sits under. */
-    private static final Duration HI_LIFETIME = Duration.ofMinutes(5);
-
     private final Messages messages;
     private final Chat chat;
-    private final ChatButtons buttons;
-    private final Server server;
-    private final Plugin plugin;
-    private final HiRule hiRule = new HiRule();
+    private final ReactionService reactions;
 
     private volatile EssentialsSettings settings;
 
-    public WelcomeService(Messages messages, Chat chat, ChatButtons buttons, Server server, Plugin plugin,
-                          EssentialsSettings settings) {
+    public WelcomeService(Messages messages, Chat chat, ReactionService reactions, EssentialsSettings settings) {
         this.messages = messages;
         this.chat = chat;
-        this.buttons = buttons;
-        this.server = server;
-        this.plugin = plugin;
+        this.reactions = reactions;
         settings(settings);
     }
 
@@ -71,54 +50,11 @@ public final class WelcomeService implements IEssentialsService {
         } else {
             return;
         }
-        if (!settings.sayHiButton() || !buttons.isClickable()) {
+        if (!settings.sayHiButton() || !reactions.isClickable()) {
             chat.broadcast(messages.raw(key), Chat.arg("player", who.getName()));
             return;
         }
-        announceWithHi(who, key);
-    }
-
-    /**
-     * The join line, with a "Say Hi!" button for everybody but the newcomer. Rendered per recipient and
-     * bound to them, so one person's click does not use up everybody else's button.
-     */
-    private void announceWithHi(Player joiner, String key) {
-        Component line = messages.prefixed(key, "player", joiner.getName());
-        UUID joinerId = joiner.getUniqueId();
-        String joinerName = joiner.getName();
-        Set<UUID> greeted = ConcurrentHashMap.newKeySet();
-        server.getConsoleSender().sendMessage(line);
-        for (Player recipient : server.getOnlinePlayers()) {
-            if (recipient.getUniqueId().equals(joinerId)) {
-                recipient.sendMessage(line);
-                continue;
-            }
-            Component button = buttons.label(messages.raw("essentials.welcome.hi-button"))
-                    .tooltip(messages.raw("essentials.welcome.hi-tooltip"))
-                    .forOnly(recipient.getUniqueId())
-                    .expiringIn(HI_LIFETIME)
-                    // Repeatable so a second click reaches HiRule, which has a better answer than
-                    // the button's generic "already used".
-                    .repeatable()
-                    .does(clicker -> sayHi(clicker, joinerId, joinerName, greeted))
-                    .render();
-            recipient.sendMessage(line.append(Component.space()).append(button));
-        }
-    }
-
-    private void sayHi(UUID clickerId, UUID joinerId, String joinerName, Set<UUID> greeted) {
-        Player clicker = server.getPlayer(clickerId);
-        if (clicker == null) {
-            return;
-        }
-        Verdict verdict = hiRule.judge(new HiRule.Click(clickerId, joinerId, !greeted.add(clickerId)));
-        if (verdict.isRefused()) {
-            messages.send(clicker, verdict.reason());
-            return;
-        }
-        String said = HiRule.line(settings.hiGreetings(), joinerName, ThreadLocalRandom.current().nextInt());
-        // Said as the player, so it goes through chat like anything they type: format, filters, mutes.
-        Scheduling.entity(plugin, clicker, () -> clicker.chat(said));
+        reactions.broadcast(messages.prefixed(key, "player", who.getName()), who, ReactionService.HI);
     }
 
     public void quit(Player who) {
@@ -130,6 +66,6 @@ public final class WelcomeService implements IEssentialsService {
 
     @Override
     public String describe() {
-        return "the lines around joining and leaving, and the Say Hi! button";
+        return "the lines around joining and leaving";
     }
 }

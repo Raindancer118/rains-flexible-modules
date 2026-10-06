@@ -34,6 +34,13 @@ class EssentialsScenarioTest {
             bo.answer(() -> bo.clickButtonOn("Cy", 0), answer -> answer.says("would be a bit awkward"));
             assertThat(greetingsTo(server, "Cy")).as("a second click greets nobody").isEqualTo(1);
 
+            // An advancement line carries Congrats!, which cheers Bo on once.
+            server.console("advancement grant Bo only minecraft:story/mine_stone");
+            cy.clickButtonOn("[Congrats!]", 0);
+            Await.until("Cy cheers Bo in chat", Duration.ofSeconds(10), () -> cheersFor(server, "Bo") == 1);
+            cy.answer(() -> cy.clickButtonOn("[Congrats!]", 0), answer -> answer.says("would be a bit much"));
+            assertThat(cheersFor(server, "Bo")).isEqualTo(1);
+
             // A nickname reaches the nametag above the head.
             bo.runAndExpect("nick Rainbow", "Rainbow");
             Await.until("Bo's nametag says Rainbow", Duration.ofSeconds(10),
@@ -73,5 +80,13 @@ class EssentialsScenarioTest {
     private static long greetingsTo(Server server, String name) {
         return server.paper.logLines(line -> line.contains("<Bo> ")
                 && GREETINGS.stream().anyMatch(hi -> line.endsWith(hi + " " + name))).size();
+    }
+
+    private static final List<String> CHEERS = List.of("GG", "Congrats", "Nice one", "Well done", "Let's go",
+            "Huge W", "Respect", "Big moves", "Amazing");
+
+    private static long cheersFor(Server server, String name) {
+        return server.paper.logLines(line -> line.contains("<Cy> ")
+                && CHEERS.stream().anyMatch(cheer -> line.endsWith(cheer + " " + name))).size();
     }
 }

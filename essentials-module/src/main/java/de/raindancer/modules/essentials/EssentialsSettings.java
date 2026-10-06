@@ -80,17 +80,30 @@ public record EssentialsSettings(
 
         @In("essentials/social") @Title("Greetings the button picks from")
         @Key("welcome-greetings")
-        List<String> hiGreetings
+        List<String> hiGreetings,
+
+        @In("essentials/social") @Title("A Congrats! button on advancements")
+        @Describe("Everybody else gets a button under an advancement line; clicking it says a phrase from "
+                + "the list below, then their name, in chat. Once per player per advancement.")
+        @Key("advancement-congrats")
+        boolean congratsButton,
+
+        @In("essentials/social") @Title("What the Congrats! button says")
+        @Key("advancement-congrats-phrases")
+        List<String> congratsPhrases
 
 ) {
 
     public static final EssentialsSettings DEFAULTS =
             new EssentialsSettings(3, true, 300, true, true, true, true, 16, true, true,
                     List.of("Hi", "Hey", "Hello", "Welcome", "Welcome back", "Yo", "Hiya", "Howdy",
-                            "Good to see you", "Heyo"));
+                            "Good to see you", "Heyo"),
+                    true, List.of("GG", "Congrats", "Nice one", "Well done", "Let's go", "Huge W", "Respect",
+                            "Big moves", "Amazing"));
 
     public EssentialsSettings {
         hiGreetings = hiGreetings == null ? List.of() : List.copyOf(hiGreetings);
+        congratsPhrases = congratsPhrases == null ? List.of() : List.copyOf(congratsPhrases);
     }
 
     /** Clamped, so a hand-built settings record cannot make {@code /spawn} instant against its wish. */
@@ -109,18 +122,22 @@ public record EssentialsSettings(
     }
 
     public EssentialsSettings withAfkEnabled(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, value, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings);
+        return new EssentialsSettings(spawnWarmupSeconds, value, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases);
     }
 
     public EssentialsSettings withNicknameMaxLength(int value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, value, nicknameShownEverywhere, sayHiButton, hiGreetings);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, value, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases);
     }
 
     public EssentialsSettings withNicknameShownEverywhere(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, value, sayHiButton, hiGreetings);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, value, sayHiButton, hiGreetings, congratsButton, congratsPhrases);
     }
 
     public EssentialsSettings withSayHiButton(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, value, hiGreetings);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, value, hiGreetings, congratsButton, congratsPhrases);
+    }
+
+    public EssentialsSettings withCongratsButton(boolean value) {
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, value, congratsPhrases);
     }
 }
