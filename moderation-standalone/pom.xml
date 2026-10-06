@@ -112,7 +112,7 @@
           its channel picker are one switch. With RainsChat installed, RainsChat routes the line and
           moderation still says it (same format, still in the console). Needs RainsCore 1.40.0, and
           RainsChat 1.6.0 or newer if RainsChat is installed. -->
-        <plugin.version>2.20.0</plugin.version>
+        <plugin.version>2.21.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.7.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.7.1")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, and a nickname")
             .by("Raindancer118");
@@ -87,7 +87,10 @@ public final class EssentialsModule implements FlexModule {
 
         travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
 
-        SpawnService spawn = new SpawnService(context.core().places(), travel,
+        SpawnService spawn = new SpawnService(context.core().places(),
+                // A database write; /setspawn runs on the thread running the world, so it goes async.
+                () -> de.raindancer.core.platform.util.Scheduling.async(context.plugin(),
+                        context.core().places()::flush), travel,
                 context.core().messages(), settings.current());
         afk = new AfkService(context.core().identities(), context.core().messages(),
                 context.chat(), settings.current());

@@ -54,7 +54,7 @@ import java.util.List;
  */
 public final class WarpModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.2.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.2.3")
             .describedAs("Named places anybody can be sent to, with a menu to pick one from — and "
                     + "warps only the staff, or one permission, can reach")
             .by("Raindancer118");
@@ -109,7 +109,9 @@ public final class WarpModule implements FlexModule {
         // core.warps().
         registry = new de.raindancer.modules.warp.store.WarpRegistry(context.core().places(),
                 System::currentTimeMillis);
-        catalogue = new WarpCatalogue(registry, context.core().places()::flush);
+        // A database write, and warp commands and screens run on the thread running the world.
+        catalogue = new WarpCatalogue(registry, () -> de.raindancer.core.platform.util.Scheduling.async(
+                context.plugin(), context.core().places()::flush));
         travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         travelling = new TravelService(catalogue, registry, travel, access,
                 context.core().messages(), settings.current());

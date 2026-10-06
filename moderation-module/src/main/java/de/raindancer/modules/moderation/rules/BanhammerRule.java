@@ -4,8 +4,8 @@ import de.raindancer.core.platform.rule.Verdict;
 import org.bukkit.Material;
 
 /**
- * Whether a kill was the Banhammer: a mace whose name reads "Banhammer" — any colour, any case — landing
- * the killing blow itself, swung by somebody holding {@code rains.moderation.banhammer}, with the
+ * Whether a hit was the Banhammer: a mace whose name reads "Banhammer" — any colour, any case — landing
+ * the blow itself (one hit is enough, nobody has to die), swung by somebody holding {@code rains.moderation.banhammer}, with the
  * setting on. Anything short of all of that is an ordinary kill.
  *
  * <p>The name is compared as plain text, so a hammer painted with names-module's gradients is still the
@@ -22,15 +22,22 @@ public final class BanhammerRule implements IModerationRule {
     public static final String NOT_THE_BLOW = "moderation.banhammer.not-the-blow";
     public static final String SELF = "moderation.banhammer.self";
     public static final String IMMUNE = "moderation.banhammer.immune";
+    public static final String ALREADY_BANNED = "moderation.banhammer.already-banned";
 
     /**
-     * One kill, as the listener saw it.
+     * One hit, as the listener saw it.
      *
-     * @param swungByKiller the killer's own melee hit dealt the death, not a projectile or the fall
+     * @param swungByKiller the attacker's own melee swing, not a projectile, a fall or thorns
+     * @param alreadyBanned a mace that hits twice in one swing must not ban twice
      * @param victimImmune  the victim is a protected account ({@code store.ImmuneStaff} or an operator)
      */
     public record Strike(boolean enabled, boolean mayUse, Material weapon, String weaponName,
-                         boolean swungByKiller, boolean self, boolean victimImmune) {
+                         boolean swungByKiller, boolean self, boolean victimImmune, boolean alreadyBanned) {
+
+        public Strike(boolean enabled, boolean mayUse, Material weapon, String weaponName,
+                      boolean swungByKiller, boolean self, boolean victimImmune) {
+            this(enabled, mayUse, weapon, weaponName, swungByKiller, self, victimImmune, false);
+        }
     }
 
     public boolean isBanhammer(Material weapon, String plainName) {
@@ -55,6 +62,9 @@ public final class BanhammerRule implements IModerationRule {
         }
         if (strike.victimImmune()) {
             return Verdict.refused(IMMUNE);
+        }
+        if (strike.alreadyBanned()) {
+            return Verdict.refused(ALREADY_BANNED);
         }
         return Verdict.allowed();
     }

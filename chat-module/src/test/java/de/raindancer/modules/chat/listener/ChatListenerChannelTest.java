@@ -52,7 +52,7 @@ class ChatListenerChannelTest {
     private final MentionService mentions = mock(MentionService.class);
     private final ChatListener listener = new ChatListener(new ChatServices(null, server, null, null,
             messages, chat, chat.brand(), () -> ChatSettings.DEFAULTS, format, mentions, quality,
-            new FreezeService(), history, null, new PrivateChatService()));
+            new FreezeService(), history, null, new PrivateChatService(), null));
 
     private final Player alice = player("Alice");
     private final Player bob = player("Bob");

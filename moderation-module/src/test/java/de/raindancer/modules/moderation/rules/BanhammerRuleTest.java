@@ -55,7 +55,7 @@ class BanhammerRuleTest {
                 false)).reason()).isEqualTo(BanhammerRule.NOT_THE_HAMMER);
         assertThat(rule.judge(new BanhammerRule.Strike(true, true, Material.MACE, "Banhammer", false, false,
                 false)).reason())
-                .as("killed by an arrow or a fall while holding it — the hammer did not land the blow")
+                .as("an arrow or a fall while holding it — the hammer did not land the blow")
                 .isEqualTo(BanhammerRule.NOT_THE_BLOW);
         assertThat(rule.judge(new BanhammerRule.Strike(true, true, Material.MACE, "Banhammer", true, true,
                 false)).reason()).isEqualTo(BanhammerRule.SELF);
@@ -77,5 +77,12 @@ class BanhammerRuleTest {
     void theReason() {
         assertThat(BanhammerRule.reason("Raindancer118"))
                 .isEqualTo("YOU'VE BEEN HIT WITH THE BANHAMMER BY Raindancer118");
+    }
+
+    @Test
+    @DisplayName("somebody already banned is not banned again by the next swing")
+    void alreadyBanned() {
+        assertThat(rule.judge(new BanhammerRule.Strike(true, true, Material.MACE, "Banhammer", true, false,
+                false, true)).reason()).isEqualTo(BanhammerRule.ALREADY_BANNED);
     }
 }

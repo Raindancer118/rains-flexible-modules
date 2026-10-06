@@ -55,7 +55,7 @@ class ChatListenerPrivateTest {
 
     private final ChatListener listener = new ChatListener(new ChatServices(null, server, null, null,
             messages, chat, chat.brand(), () -> ChatSettings.DEFAULTS, format, mentions, quality, freeze,
-            history, null, privateChat));
+            history, null, privateChat, null));
 
     private final Player alice = player("Alice");
     private final Player bob = player("Bob");

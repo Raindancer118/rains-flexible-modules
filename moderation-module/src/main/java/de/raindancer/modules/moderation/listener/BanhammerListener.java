@@ -4,11 +4,11 @@ import de.raindancer.modules.moderation.ModerationServices;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 
 import java.util.UUID;
 
-/** Hands every player-on-player kill to the Banhammer. Decides nothing itself. */
+/** Hands every player-on-player hit to the Banhammer. Decides nothing itself. */
 public final class BanhammerListener implements IModerationListener {
 
     private final ModerationServices services;
@@ -17,17 +17,17 @@ public final class BanhammerListener implements IModerationListener {
         this.services = services;
     }
 
-    // MONITOR: the death has happened and nothing will un-happen it; a ban on a cancelled death would
-    // be a ban for a kill that never was.
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onDeath(PlayerDeathEvent event) {
-        Player victim = event.getPlayer();
-        Player killer = victim.getKiller();
-        if (killer == null) {
+    // Cancelled hits too: in a no-PvP claim the swing still means "ban", and the op meant it. The hit
+    // itself is then cancelled — the ban is the point, not the damage.
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onHit(EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof Player victim) || !(event.getDamager() instanceof Player attacker)) {
             return;
         }
-        boolean swungByKiller = event.getDamageSource().getDirectEntity() == killer;
-        services.banhammer().struck(killer, victim, killer.getInventory().getItemInMainHand(), swungByKiller);
+        boolean swung = event.getDamageSource().getDirectEntity() == attacker;
+        if (services.banhammer().struck(attacker, victim, attacker.getInventory().getItemInMainHand(), swung)) {
+            event.setCancelled(true);
+        }
     }
 
     @Override

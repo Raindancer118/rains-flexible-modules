@@ -41,26 +41,27 @@ public final class BanhammerService implements IModerationService {
     }
 
     /**
-     * One player killed another; bans the victim if it was the Banhammer.
+     * One player hit another; bans the victim if it was the Banhammer.
      *
-     * @param swungByKiller the killing blow was the killer's own melee hit
+     * @param swungByAttacker the hit was the attacker's own melee swing
      * @return whether somebody was banned
      */
-    public boolean struck(Player killer, Player victim, ItemStack weapon, boolean swungByKiller) {
+    public boolean struck(Player attacker, Player victim, ItemStack weapon, boolean swungByAttacker) {
         Verdict verdict = rule.judge(new BanhammerRule.Strike(settings.banhammer(),
-                killer.hasPermission(ModerationPermission.BANHAMMER.node()),
-                weapon == null ? null : weapon.getType(), plainName(weapon), swungByKiller,
-                killer.getUniqueId().equals(victim.getUniqueId()),
-                staffRule.isImmune(victim.getUniqueId())));
+                attacker.hasPermission(ModerationPermission.BANHAMMER.node()),
+                weapon == null ? null : weapon.getType(), plainName(weapon), swungByAttacker,
+                attacker.getUniqueId().equals(victim.getUniqueId()),
+                staffRule.isImmune(victim.getUniqueId()),
+                punishments.isActive(victim.getUniqueId(), PunishmentKind.BAN)));
         if (verdict.isRefused()) {
             if (rule.tellsTheSwinger(verdict)) {
-                messages.send(killer, verdict.reason(), "player", victim.getName());
+                messages.send(attacker, verdict.reason(), "player", victim.getName());
             }
             return false;
         }
-        punishments.punish(killer.getUniqueId(), killer.getName(), victim.getUniqueId(), victim.getName(),
-                PunishmentKind.BAN, Sentence.forEver(), BanhammerRule.reason(killer.getName()));
-        messages.send(killer, "moderation.banhammer.struck", "player", victim.getName());
+        punishments.punish(attacker.getUniqueId(), attacker.getName(), victim.getUniqueId(), victim.getName(),
+                PunishmentKind.BAN, Sentence.forEver(), BanhammerRule.reason(attacker.getName()));
+        messages.send(attacker, "moderation.banhammer.struck", "player", victim.getName());
         return true;
     }
 
@@ -77,6 +78,6 @@ public final class BanhammerService implements IModerationService {
 
     @Override
     public String describe() {
-        return "the Banhammer: a kill with it is a permanent ban";
+        return "the Banhammer: one hit with it is a permanent ban";
     }
 }

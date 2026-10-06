@@ -39,7 +39,7 @@ class ChatCommandChannelTest {
     private final Messages messages = mock(Messages.class);
     private final ChatServices services = new ChatServices(null, server, null, null, messages, null, null,
             () -> ChatSettings.DEFAULTS, null, null, null, new FreezeService(), null, null,
-            new PrivateChatService());
+            new PrivateChatService(), null);
     private final List<Player> menusOpened = new ArrayList<>();
     private final ChatCommand command = new ChatCommand(() -> services);
     private final Player alice = mock(Player.class);

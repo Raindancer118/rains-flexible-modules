@@ -43,7 +43,8 @@ public record ChatServices(
         FreezeService freeze,
         ChatHistoryService history,
         ChatStyleService styles,
-        PrivateChatService privateChat) {
+        PrivateChatService privateChat,
+        de.raindancer.modules.chat.service.PollService polls) {
 
     /** The settings as they are right now. */
     public ChatSettings config() {

@@ -57,7 +57,7 @@ class ChatHistoryServiceTest {
         @DisplayName("does nothing when history is switched off")
         void recordsNothingWhenDisabled() {
             ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8,
-                    true, 0, 0, false, 200, true);
+                    true, 0, 0, false, 200, true, true, 120);
             ChatHistoryService service = service(off);
 
             service.record(UUID.randomUUID(), "Tom", "hello");
@@ -113,7 +113,7 @@ class ChatHistoryServiceTest {
         @DisplayName("is empty when history is switched off, even with a recorded quit")
         void emptyWhenDisabled() {
             ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8,
-                    true, 0, 0, false, 200, true);
+                    true, 0, 0, false, 200, true, true, 120);
             ChatHistoryService service = service(off);
             UUID tom = UUID.randomUUID();
             service.markLeft(tom);
@@ -130,7 +130,7 @@ class ChatHistoryServiceTest {
         @DisplayName("follows the setting when history is on")
         void followsSetting() {
             ChatSettings notified = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70,
-                    8, true, 0, 0, true, 200, false);
+                    8, true, 0, 0, true, 200, false, true, 120);
 
             assertThat(service(ChatSettings.DEFAULTS).notifyOnJoin()).isTrue();
             assertThat(service(notified).notifyOnJoin()).isFalse();
@@ -140,7 +140,7 @@ class ChatHistoryServiceTest {
         @DisplayName("is always false when history itself is off")
         void offWhenHistoryOff() {
             ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8,
-                    true, 0, 0, false, 200, true);
+                    true, 0, 0, false, 200, true, true, 120);
 
             assertThat(service(off).notifyOnJoin()).isFalse();
         }

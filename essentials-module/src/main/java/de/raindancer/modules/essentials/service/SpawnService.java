@@ -39,9 +39,13 @@ public final class SpawnService implements IEssentialsService {
 
     private volatile EssentialsSettings settings;
 
-    public SpawnService(PoiStore places, Travel travel, Messages messages,
+    /** Writing the places out — off the server's threads; see the module. */
+    private final Runnable flush;
+
+    public SpawnService(PoiStore places, Runnable flush, Travel travel, Messages messages,
                         EssentialsSettings settings) {
         this.places = places;
+        this.flush = flush;
         this.travel = travel;
         this.messages = messages;
         settings(settings);
@@ -70,7 +74,7 @@ public final class SpawnService implements IEssentialsService {
                 .owner(by)
                 .icon(Material.RED_BED)
                 .build());
-        places.flush();
+        flush.run();
     }
 
     /** Sends them there, or says why not. */

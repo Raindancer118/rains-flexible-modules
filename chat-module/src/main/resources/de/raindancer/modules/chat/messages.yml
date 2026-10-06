@@ -6,6 +6,42 @@ chat:
   only-a-player: "<red>Only a player can do that."
 
   # ── /announce ─────────────────────────────────────────────────────────────
+  poll:
+    asked: "<gold><bold>Poll</bold> <gray>by <white><player></white>: <yellow><question>"
+    button: "<aqua>[<answer>]"
+    button-tooltip: "<gray>Vote for <white><answer></white> — you can change your mind until it ends"
+    closes-in: "<dark_gray>  Click an answer. Closes in <time>."
+    voted: "<green>Vote's in: <white><answer></white>. Democracy!"
+    changed: "<green>Changed your mind? Fair. You're now on <white><answer></white>."
+    already: "<gray>You already picked <white><answer></white> — clicking harder doesn't count twice."
+    over: "<gray>That poll is over. The people have spoken."
+    results: "<gold><bold>Poll results:</bold> <yellow><question>"
+    results-so-far: "<gold>So far: <yellow><question>"
+    result-line: "<white>  <answer> <aqua><bar></aqua> <gray><percent>% (<count>)"
+    winner: "<green>  And the winner is <white><answer></white>! <dark_gray>(<count> voted)"
+    tie: "<yellow>  It's a tie between <white><answers></white>. Rematch?"
+    nobody-voted: "<gray>  Nobody voted. Tough crowd."
+    none: "<gray>There's no poll running right now."
+    not-yours: "<red>That's not your poll to end — only whoever started it, or staff."
+    off: "<red>Polls are switched off on this server."
+    one-at-a-time: "<yellow>A poll is already running. One at a time, or nobody knows which button is which."
+    not-started: "<red>That poll couldn't be started — try different answers?"
+    not-a-poll: "<red><detail>"
+    no-question: "<red>Ask a question first."
+    question-too-long: "<red>That question is a speech — keep it under 100 characters."
+    too-few: "<red>A poll needs at least two answers, otherwise it's a statement."
+    too-many: "<red>At most six answers — nobody reads past that anyway."
+    empty-answer: "<red>One of the answers is empty."
+    answer-too-long: "<red>Keep each answer to 24 characters, so it fits on a button."
+    twice: "<red>The same answer twice would split the vote."
+    length: "<red>Between 10 seconds and an hour, please."
+    help:
+      - "<gold><bold>Polls"
+      - "<gray>Ask a question, add up to six answers, pick how long it runs, Start."
+      - "<gray>Everybody gets a button per answer and can change their vote until it ends."
+      - "<gray>Quicker: <white>/poll 2m Best mob? | Creeper | Axolotl"
+      - "<dark_gray>/poll results shows how it stands, /poll end ends it now."
+
   announce:
     banner: |-
       <gold>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬

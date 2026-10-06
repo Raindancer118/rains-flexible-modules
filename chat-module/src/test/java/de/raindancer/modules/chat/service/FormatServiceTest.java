@@ -57,7 +57,7 @@ class FormatServiceTest {
     @DisplayName("an owner's own template is used instead")
     void usesConfiguredFormat() {
         ChatSettings custom =
-                new ChatSettings("<name> » <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8, true, 0, 0, true, 200, true);
+                new ChatSettings("<name> » <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8, true, 0, 0, true, 200, true, true, 120);
         FormatService withCustomFormat = new FormatService(chat, identities, styles, custom);
 
         Component rendered = withCustomFormat.render(player("Tom"), "hello there", List.of());
@@ -74,7 +74,7 @@ class FormatServiceTest {
         void defaultMessageColourApplies() {
             ChatSettings coloured = new ChatSettings("<name>: <message>", true, true,
                     NamedTextColor.AQUA, NamedTextColor.WHITE, false, true, true, 70, 8, true, 0, 0,
-                    true, 200, true);
+                    true, 200, true, true, 120);
             FormatService withColour = new FormatService(chat, identities, styles, coloured);
 
             Component rendered = withColour.render(player("Tom"), "hello there", List.of());
@@ -91,7 +91,7 @@ class FormatServiceTest {
         void defaultMessageColourYieldsToPersonalStyle() {
             ChatSettings coloured = new ChatSettings("<name>: <message>", true, true,
                     NamedTextColor.AQUA, NamedTextColor.WHITE, false, true, true, 70, 8, true, 0, 0,
-                    true, 200, true);
+                    true, 200, true, true, 120);
             FormatService withColour = new FormatService(chat, identities, styles, coloured);
             Player tom = player("Tom");
             styles.set(tom.getUniqueId(), ChatStyle.DEFAULT.withColor(NamedTextColor.GOLD));
@@ -110,7 +110,7 @@ class FormatServiceTest {
         void defaultNameColourApplies() {
             ChatSettings coloured = new ChatSettings("<name>: <message>", true, true,
                     NamedTextColor.WHITE, NamedTextColor.GREEN, false, true, true, 70, 8, true, 0, 0,
-                    true, 200, true);
+                    true, 200, true, true, 120);
             FormatService withColour = new FormatService(chat, identities, styles, coloured);
 
             Component rendered = withColour.render(player("Tom"), "hello there", List.of());
@@ -127,7 +127,7 @@ class FormatServiceTest {
         void bracketsWrapTheName() {
             ChatSettings bracketed = new ChatSettings("<name>: <message>", true, true,
                     NamedTextColor.WHITE, NamedTextColor.WHITE, true, true, true, 70, 8, true, 0, 0,
-                    true, 200, true);
+                    true, 200, true, true, 120);
             FormatService withBrackets = new FormatService(chat, identities, styles, bracketed);
 
             Component rendered = withBrackets.render(player("Tom"), "hello there", List.of());
@@ -190,7 +190,7 @@ class FormatServiceTest {
         @DisplayName("links are left plain when the setting is off")
         void skipsLinkifyingWhenDisabled() {
             ChatSettings noLinks =
-                    new ChatSettings("<name>: <message>", false, false, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8, true, 0, 0, true, 200, true);
+                    new ChatSettings("<name>: <message>", false, false, NamedTextColor.WHITE, NamedTextColor.WHITE, false, true, true, 70, 8, true, 0, 0, true, 200, true, true, 120);
             FormatService withoutLinks = new FormatService(chat, identities, styles, noLinks);
 
             Component rendered =

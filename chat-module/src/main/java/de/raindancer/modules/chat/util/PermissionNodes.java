@@ -36,6 +36,12 @@ public final class PermissionNodes {
     /** {@code /chatstyle} — picking a colour and decorations for your own messages. */
     public static final String STYLE = "chat.style";
 
+    /** Start a poll. Operators by default — a server that wants everybody asking grants it. */
+    public static final String POLL = "chat.poll";
+
+    /** End somebody else's poll early. */
+    public static final String POLL_MANAGE = "chat.poll.manage";
+
     private PermissionNodes() {
     }
 
@@ -54,7 +60,9 @@ public final class PermissionNodes {
                 new Permission(PRIVATE, "Start a private chat and add players to it",
                         PermissionDefault.TRUE),
                 new Permission(STYLE, "Pick a colour and decorations for your own chat messages",
-                        PermissionDefault.OP));
+                        PermissionDefault.OP),
+                new Permission(POLL, "Start a poll in chat", PermissionDefault.OP),
+                new Permission(POLL_MANAGE, "End anybody's poll early", PermissionDefault.OP));
     }
 
     /** @return how many were added, for the line in the log */

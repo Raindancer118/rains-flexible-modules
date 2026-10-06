@@ -37,8 +37,34 @@ class EssentialsScenarioTest {
             // A nickname reaches the nametag above the head.
             bo.runAndExpect("nick Rainbow", "Rainbow");
             Await.until("Bo's nametag says Rainbow", Duration.ofSeconds(10),
-                    () -> server.console("execute as Bo on passengers run data get entity @s text")
-                            .contains("Rainbow"));
+                    () -> server.console("execute as Bo at @s as @e[type=minecraft:text_display,distance=..3,"
+                            + "sort=nearest,limit=1] run data get entity @s text").contains("Rainbow"));
+
+            // A plugin teleport with a styled nametag on arrives — a name that rode the player made
+            // Paper refuse every one — and the name comes along.
+            Bot ada = server.admin("Ada");
+            ada.run("setspawn");
+            Await.ticks(10);
+            server.console("tp Bo 400 120 400");
+            Await.until("Bo is far out", Duration.ofSeconds(10), () -> bo.position().getX() > 390);
+            // Landed first: /spawn waits for its wearer to stand still, and falling is moving.
+            Await.until("Bo has landed", Duration.ofSeconds(20), () -> {
+                double before = bo.position().getY();
+                Await.ticks(10);
+                return Math.abs(bo.position().getY() - before) < 0.01;
+            });
+            bo.forgetChat();
+            bo.run("spawn");
+            try {
+                Await.until("Bo arrives at spawn", Duration.ofSeconds(15), () -> bo.position().getX() < 300);
+            } catch (AssertionError stuck) {
+                throw new AssertionError("Bo did not arrive; he was told " + bo.chatText()
+                        + " and stands at " + bo.position(), stuck);
+            }
+            assertThat(bo.chatText()).noneMatch(line -> line.contains("stopped you"));
+            Await.until("the nametag followed", Duration.ofSeconds(5),
+                    () -> server.console("execute as Bo at @s if entity @e[type=minecraft:text_display,distance=..3]")
+                            .contains("passed"));
 
             assertThat(server.paper.errorsFrom("RainsCore", "RainsEssentials", "RainsCosmetics")).isEmpty();
         }

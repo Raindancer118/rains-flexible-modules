@@ -49,7 +49,14 @@ public final class ChatCommands {
                                 "<count> — the last count lines, regardless of when you left"),
 
                 ModuleCommand.of("chatstyle", "Picks a colour and decorations for your own chat messages",
-                        new ChatStyleCommand(ChatCommands::require)));
+                        new ChatStyleCommand(ChatCommands::require)),
+
+                ModuleCommand.of("poll", "Asks everybody a question, with a button per answer",
+                                new de.raindancer.modules.chat.command.PollCommand(ChatCommands::require))
+                        .taking("(nothing) — builds one in a menu",
+                                "[length] <question> | <answer> | <answer>… — starts one in a line",
+                                "<question> — a yes-or-no poll",
+                                "results — how it stands", "end — ends it now"));
     }
 
     /** Called when the module enables, after which the commands work. */

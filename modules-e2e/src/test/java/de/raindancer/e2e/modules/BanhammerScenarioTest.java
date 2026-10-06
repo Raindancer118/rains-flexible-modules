@@ -12,8 +12,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The Banhammer on a real server: a real player kill ({@code /damage … by}, which vanilla records as
- * the killer's own melee blow) with a mace whose name is coloured in two parts.
+ * The Banhammer on a real server: one real player hit ({@code /damage … by}, which vanilla records as
+ * the attacker's own melee blow) with a mace whose name is coloured in two parts.
  */
 @Tag("e2e")
 class BanhammerScenarioTest {
@@ -27,12 +27,13 @@ class BanhammerScenarioTest {
         Await.ticks(5);
     }
 
-    private static void kill(Server server, String victim, String killer) {
-        server.console("damage " + victim + " 1000 minecraft:player_attack by " + killer);
+    /** One ordinary hit, as vanilla records an attacker's own melee swing. */
+    private static void hit(Server server, String victim, String attacker) {
+        server.console("damage " + victim + " 1 minecraft:player_attack by " + attacker);
     }
 
     @Test
-    @DisplayName("an op killing with a mace named Banhammer bans; nobody else, and nothing else, does")
+    @DisplayName("one hit from an op's mace named Banhammer bans; nobody else, and nothing else, does")
     void banhammer() {
         try (Server server = Server.start("banhammer",
                 List.of("moderation-standalone:RainsModeration-.*"), List.of("Moderation is up"))) {
@@ -43,23 +44,20 @@ class BanhammerScenarioTest {
 
             // A plain mace with another name is just a mace.
             arm(server, "Ada", PLAIN_HAMMER);
-            kill(server, "Cy", "Ada");
-            Await.until("Cy is dead", Duration.ofSeconds(10), cy::isDead);
+            hit(server, "Cy", "Ada");
             Await.ticks(20);
-            assertThat(cy.isOnline()).as("Cy was killed by a mace called Hammer and must still be here").isTrue();
-            cy.respawn();
-            Await.until("Cy is back", Duration.ofSeconds(10), () -> !cy.isDead());
+            assertThat(cy.isOnline()).as("Cy was hit by a mace called Hammer and must still be here").isTrue();
 
             // An ordinary player swinging the real thing bans nobody.
             arm(server, "Dee", COLOURED_BANHAMMER);
-            kill(server, "Cy", "Dee");
+            hit(server, "Cy", "Dee");
             Await.ticks(20);
             assertThat(cy.isOnline()).as("Dee holds no Banhammer node").isTrue();
 
             // The op with the coloured Banhammer bans on the spot.
             arm(server, "Ada", COLOURED_BANHAMMER);
             ada.forgetChat();
-            kill(server, "Bo", "Ada");
+            hit(server, "Bo", "Ada");
             Await.until("Bo is thrown off", Duration.ofSeconds(15), () -> !bo.isOnline());
             assertThat(bo.disconnectReason()).contains("YOU'VE BEEN HIT WITH THE BANHAMMER BY Ada");
             Await.until("Ada is told", Duration.ofSeconds(10),
@@ -71,7 +69,7 @@ class BanhammerScenarioTest {
 
             // Switched off, the hammer is a mace.
             assertThat(server.console("settings set punishments.banhammer false")).contains("is now");
-            kill(server, "Dee", "Ada");
+            hit(server, "Dee", "Ada");
             Await.ticks(20);
             assertThat(dee.isOnline()).isTrue();
 

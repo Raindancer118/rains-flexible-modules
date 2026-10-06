@@ -111,6 +111,7 @@ class CosmeticsScenarioTest {
     }
 
     private static String nametagOf(Server server, String player) {
-        return server.console("execute as " + player + " on passengers run data get entity @s text");
+        return server.console("execute as " + player
+                + " at @s as @e[type=minecraft:text_display,distance=..3,sort=nearest,limit=1] run data get entity @s text");
     }
 }

@@ -126,7 +126,7 @@ class MentionServiceTest {
         @DisplayName("nothing is found once the feature is switched off")
         void nothingWhenDisabled() {
             ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, false, true, 70, 8,
-                    true, 0, 0, true, 200, true);
+                    true, 0, 0, true, 200, true, true, 120);
             MentionService disabled = new MentionService(server, vanish, messages, off);
             player("Alex");
 
@@ -194,7 +194,7 @@ class MentionServiceTest {
         @DisplayName("no suggestions once the feature is switched off")
         void nothingWhenDisabled() {
             ChatSettings off = new ChatSettings("<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false, false, true, 70, 8,
-                    true, 0, 0, true, 200, true);
+                    true, 0, 0, true, 200, true, true, 120);
             MentionService disabled = new MentionService(server, vanish, messages, off);
             Player sender = player("Tom");
             player("Alex");

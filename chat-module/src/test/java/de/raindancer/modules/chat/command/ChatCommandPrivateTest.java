@@ -51,7 +51,7 @@ class ChatCommandPrivateTest {
     private final Map<UUID, Consumer<UUID>> no = new HashMap<>();
 
     private final ChatServices services = new ChatServices(null, server, core, null, messages, null, null,
-            () -> ChatSettings.DEFAULTS, null, mentions, null, freeze, null, null, privateChat);
+            () -> ChatSettings.DEFAULTS, null, mentions, null, freeze, null, null, privateChat, null);
     private final ChatCommand command = new ChatCommand(() -> services);
 
     private final Player alice = player("Alice");

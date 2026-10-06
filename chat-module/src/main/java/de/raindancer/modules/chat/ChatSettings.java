@@ -2,6 +2,7 @@ package de.raindancer.modules.chat;
 
 import de.raindancer.core.data.settings.Describe;
 import de.raindancer.core.data.settings.In;
+import de.raindancer.core.data.settings.Key;
 import de.raindancer.core.data.settings.Range;
 import de.raindancer.core.data.settings.Settings;
 import de.raindancer.core.data.settings.Title;
@@ -26,6 +27,7 @@ import org.bukkit.Material;
         @Topic(path = "chat/mentions", title = "Mentions", icon = Material.BELL),
         @Topic(path = "chat/quality", title = "Message quality", icon = Material.HOPPER),
         @Topic(path = "chat/history", title = "History", icon = Material.CLOCK),
+        @Topic(path = "chat/polls", title = "Polls", icon = Material.WRITABLE_BOOK),
 })
 public record ChatSettings(
 
@@ -110,13 +112,23 @@ public record ChatSettings(
         @In("chat/history") @Title("Say so on join")
         @Describe("Whether somebody is told they missed messages the moment they join, rather than "
                 + "only finding out by typing /chathistory.")
-        boolean historyNotifyOnJoin
+        boolean historyNotifyOnJoin,
+
+        @In("chat/polls") @Title("/poll")
+        @Describe("Whether polls can be started at all. Off: /poll says so, and a running poll still ends.")
+        @Key("polls-enabled")
+        boolean pollsEnabled,
+
+        @In("chat/polls") @Title("How long a poll runs") @Range(min = 10, max = 3600)
+        @Describe("Seconds, when whoever starts it does not say. /poll 5m … overrides it.")
+        @Key("poll-seconds")
+        int pollSeconds
 
 ) {
 
     public static final ChatSettings DEFAULTS = new ChatSettings(
             "<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false,
-            true, true, 70, 8, true, 0, 0, true, 200, true);
+            true, true, 70, 8, true, 0, 0, true, 200, true, true, 120);
 
     /** Clamped, so a hand-built settings record cannot ask for an impossible threshold. */
     public int capsThreshold() {
@@ -141,5 +153,9 @@ public record ChatSettings(
     /** Clamped, so a hand-built settings record cannot ask for a capacity of zero or less. */
     public int historyLimit() {
         return Math.max(20, Math.min(1000, historyCapacity));
+    }
+
+    public java.time.Duration pollLength() {
+        return java.time.Duration.ofSeconds(Math.max(10, Math.min(3600, pollSeconds)));
     }
 }
