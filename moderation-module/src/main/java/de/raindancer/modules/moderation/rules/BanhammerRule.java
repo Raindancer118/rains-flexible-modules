@@ -77,6 +77,15 @@ public final class BanhammerRule implements IModerationRule {
         return verdict.isRefused() && IMMUNE.equals(verdict.reason());
     }
 
+    /**
+     * Whether a hit of this damage type is somebody swinging what they hold. Thorns, for one, is booked
+     * to the player wearing the armour — so without this, hitting an op who held the Banhammer while
+     * wearing Thorns got the attacker banned, by an op who never swung.
+     */
+    public static boolean isSwing(String damageType) {
+        return "minecraft:player_attack".equals(damageType) || "minecraft:mace_smash".equals(damageType);
+    }
+
     public static String reason(String swingerName) {
         return "YOU'VE BEEN HIT WITH THE BANHAMMER BY " + swingerName;
     }

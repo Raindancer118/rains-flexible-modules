@@ -85,4 +85,14 @@ class BanhammerRuleTest {
         assertThat(rule.judge(new BanhammerRule.Strike(true, true, Material.MACE, "Banhammer", true, false,
                 false, true)).reason()).isEqualTo(BanhammerRule.ALREADY_BANNED);
     }
+
+    @Test
+    @DisplayName("only a real swing counts — thorns on the op's armour must never ban whoever hit them")
+    void onlyASwing() {
+        assertThat(BanhammerRule.isSwing("minecraft:player_attack")).isTrue();
+        assertThat(BanhammerRule.isSwing("minecraft:mace_smash")).isTrue();
+        assertThat(BanhammerRule.isSwing("minecraft:thorns")).isFalse();
+        assertThat(BanhammerRule.isSwing("minecraft:arrow")).isFalse();
+        assertThat(BanhammerRule.isSwing(null)).isFalse();
+    }
 }

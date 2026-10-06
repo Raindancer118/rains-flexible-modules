@@ -54,6 +54,12 @@ class BanhammerScenarioTest {
             Await.ticks(20);
             assertThat(cy.isOnline()).as("Dee holds no Banhammer node").isTrue();
 
+            // Thorns on the op's armour is booked to the op, but is not a swing: nobody is banned by it.
+            arm(server, "Ada", COLOURED_BANHAMMER);
+            server.console("damage Cy 1 minecraft:thorns by Ada");
+            Await.ticks(20);
+            assertThat(cy.isOnline()).as("thorns from an op holding the Banhammer bans nobody").isTrue();
+
             // The op with the coloured Banhammer bans on the spot.
             arm(server, "Ada", COLOURED_BANHAMMER);
             ada.forgetChat();
