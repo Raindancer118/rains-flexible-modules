@@ -22,7 +22,9 @@ public final class VoiceBridgeCommands {
                 ModuleCommand.of("voicebridge", "The Discord voice bridge: join its group, see who is on Discord",
                                 new VoiceBridgeCommand(VoiceBridgeCommands::require))
                         .aliased("vb", "discordvoice")
-                        .taking("join", "leave", "status", "reconnect"));
+                        .taking("join", "leave", "status", "link", "unlink", "groups",
+                                "group join <name> [password]", "group leave", "group create <name> [password] [type]",
+                                "invite <player>", "reconnect"));
     }
 
     static void ready(VoiceBridgeServices live) {

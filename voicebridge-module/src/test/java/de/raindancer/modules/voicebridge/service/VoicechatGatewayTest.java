@@ -74,7 +74,6 @@ class VoicechatGatewayTest {
         when(api.createDecoder()).thenReturn(decoder);
         when(api.createStaticAudioChannel(any(UUID.class))).thenReturn(channel);
         when(api.getGroups()).thenReturn(List.of(otherGroup, bridgeGroup));
-        when(api.getGroup(bridgeGroup.getId())).thenReturn(bridgeGroup);
         when(encoder.encode(any())).thenReturn(new byte[]{9});
         when(decoder.decode(any())).thenReturn(new short[]{1, 2, 3});
 
@@ -165,7 +164,6 @@ class VoicechatGatewayTest {
         Group playersOwn = group("Discord");
         when(playersOwn.hasPassword()).thenReturn(true);
         when(api.getGroups()).thenReturn(List.of(playersOwn));
-        when(api.getGroup(VoicechatGateway.groupIdFor("Discord"))).thenReturn(null);
         Group.Builder builder = mock(Group.Builder.class, Answers.RETURNS_SELF);
         Group made = group("Discord", VoicechatGateway.groupIdFor("Discord"));
         when(builder.build()).thenReturn(made);
@@ -180,6 +178,20 @@ class VoicechatGatewayTest {
         speak(connection(alex, playersOwn), new byte[]{1});
         assertThat(mixer.speakers()).isZero();
         assertThat(gateway.join(sam)).isNotEqualTo(VoicechatGateway.JoinResult.JOINED);
+    }
+
+    @Test
+    @DisplayName("never asks SVC's getGroup(id), which answers an unknown id with a hollow group, not null")
+    void neverTrustsGetGroup() {
+        when(api.getGroups()).thenReturn(List.of(otherGroup));
+        Group.Builder builder = mock(Group.Builder.class, Answers.RETURNS_SELF);
+        when(builder.build()).thenReturn(bridgeGroup);
+        when(api.groupBuilder()).thenReturn(builder);
+
+        gateway.initialize(api);
+
+        verify(api, never()).getGroup(any());
+        verify(builder).build();
     }
 
     @Test

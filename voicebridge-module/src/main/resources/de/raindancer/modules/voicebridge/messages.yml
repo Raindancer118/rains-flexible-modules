@@ -8,12 +8,13 @@ voicebridge:
   not-allowed: "<red>You may not use the Discord voice bridge."
 
   not-ready:
-    off: "<gray>The Discord bridge is switched off in /settings."
+    switched-off: "<gray>The Discord bridge is switched off in /settings."
     no-token: "<yellow>No Discord bot token yet. Paste it into discord-token.txt in this plugin's folder, then /voicebridge reconnect."
     no-server: "<yellow>No Discord server id yet. Set it in /settings under Discord voice bridge."
     bad-server: "<red>The Discord server id in /settings is not an id. Right click the server icon, Copy Server ID."
     no-channel: "<yellow>No Discord voice channel id yet. Set it in /settings under Discord voice bridge."
     bad-channel: "<red>The voice channel id in /settings is not an id. Right click the channel, Copy Channel ID."
+    bad-lobby: "<red>The proximity lobby id in /settings is not an id. Right click the channel, Copy Channel ID."
 
   failed:
     token: "<red>Discord refused the bot token. Paste a fresh one into discord-token.txt, then /voicebridge reconnect."
@@ -47,7 +48,52 @@ voicebridge:
   status:
     connected: "<green>Connected to Discord channel <white><channel></white>. <gray>On Discord: <white><discord></white>. In group <white><group></white>: <white><count></white>."
     connecting: "<yellow>Connecting to Discord…"
+    lobby-only: "<green>The Discord bot is logged in. <gray>No group bridge channel is set, only proximity mode."
+    proximity: "<gray>Proximity mode: <white><lines></white> player(s) talking through Discord right now."
 
   reconnect:
     not-allowed: "<red>Only staff can reconnect the Discord bot."
     started: "<gray>Reconnecting to Discord. /voicebridge status shows how it went."
+
+  link:
+    code: "<aqua>Your link code: <white><bold><code></bold></white><aqua>. In the Discord server type <white>/link <code></white><aqua> within ten minutes."
+    linked: "<green>Discord account <white><account></white> is now linked to you. <gray>Not you? /voicebridge unlink"
+    unlinked: "<gray>Your Discord account is unlinked."
+    not-linked: "<gray>No Discord account is linked to you."
+    discord-done: "Linked to Minecraft player <player>. Join the proximity lobby voice channel while you are online."
+    discord-wrong: "That code is wrong, used or has run out. Type /voicebridge link in game for a fresh one."
+    discord-unlinked: "Your Minecraft player is unlinked."
+    discord-not-linked: "You have no Minecraft player linked."
+
+  proximity:
+    connected: "<aqua>Discord connected: <white>people near you hear you, and you hear them.</white> <gray>/voicebridge groups for voice groups."
+    disconnected: "<gray>Discord voice disconnected."
+    dm:
+      not-linked: "To talk in Minecraft proximity chat, link first: type /voicebridge link in game, then /link <code> here."
+      not-online: "Join the Minecraft server first; you are moved into your own channel as soon as you are online."
+      not-ready: "The Minecraft voice chat is not running yet. Try again in a moment."
+      has-mod: "You have Simple Voice Chat in your game already, so you do not need Discord for it."
+      no-free-bot: "Every proximity line is in use right now. Try again in a little while."
+      failed: "Your private voice channel could not be set up. Please tell the server staff."
+
+  groups:
+    usage: "<gray>/voicebridge group join <name> [password]  ·  group leave  ·  group create <name> [password] [normal|open|isolated]"
+    joined: "<green>You joined the voice group."
+    left: "<gray>You left your voice group."
+    created: "<green>Group made, and you are in it."
+    needs-password: "<yellow>That group has a password: /voicechat join <name> <password>, or ask somebody inside to invite you."
+    wrong-password: "<red>That is not the group's password."
+    cannot-check: "<red>That group's password cannot be checked on this server; ask somebody inside to invite you."
+    no-such-group: "<red>There is no such voice group (any more)."
+    ambiguous: "<red>More than one group has that name. Join from /voicebridge groups instead."
+    not-in-group: "<gray>You are not in a voice group."
+    bad-name: "<red>A group name is 1 to 24 characters, on one line."
+    bad-type: "<red>A group is normal, open or isolated."
+    no-such-player: "<red><player> is not online."
+    invite-sent: "<green>Invited <white><player></white> to your voice group."
+    invited: "<aqua><white><player></white> invites you to the voice group <white><group></white>."
+    accept-button: "<green>[Join]"
+    accept-tooltip: "<gray>Join the group, for the next five minutes"
+    no-invite: "<red>That invite is not for you, or has run out."
+    type-password: "<yellow><group> has a password: type /voicechat join \"<group>\" <password>"
+    create-how: "<gray>Type /voicebridge group create <name> [password] [normal|open|isolated]"

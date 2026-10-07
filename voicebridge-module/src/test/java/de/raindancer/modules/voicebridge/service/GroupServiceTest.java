@@ -45,8 +45,6 @@ class GroupServiceTest {
         locked = group("Secret", true, Group.Type.ISOLATED);
         passwords.put(locked.getId(), "hunter2");
         when(api.getGroups()).thenReturn(List.of(open, locked));
-        when(api.getGroup(open.getId())).thenReturn(open);
-        when(api.getGroup(locked.getId())).thenReturn(locked);
 
         groups = new GroupService(() -> Optional.of(api), player -> Optional.ofNullable(linked.get(player)),
                 new GroupJoinRule(), group -> passwords.get(group.getId()), () -> online,
@@ -99,6 +97,15 @@ class GroupServiceTest {
         assertThat(views).extracting(GroupService.GroupView::name).containsExactly("Builders", "Secret");
         assertThat(views.getFirst().members()).containsExactly(alex);
         assertThat(views.get(1).locked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("never asks SVC's getGroup(id), which answers an unknown id with a hollow group")
+    void neverTrustsGetGroup() {
+        connection(alex, null, false);
+
+        assertThat(groups.join(alex, UUID.randomUUID().toString(), null)).isEqualTo("voicebridge.groups.no-such-group");
+        verify(api, never()).getGroup(any());
     }
 
     @Test
@@ -234,7 +241,7 @@ class GroupServiceTest {
         connection(alex, locked, false);
         connection(sam, null, false);
         groups.invite(alex, sam);
-        when(api.getGroup(locked.getId())).thenReturn(null);
+        when(api.getGroups()).thenReturn(List.of(open));
 
         assertThat(groups.accept(sam, locked.getId())).isEqualTo("voicebridge.groups.no-such-group");
     }

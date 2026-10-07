@@ -6,6 +6,9 @@ import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.voicebridge.service.BridgeService;
+import de.raindancer.modules.voicebridge.service.GroupService;
+import de.raindancer.modules.voicebridge.service.LinkService;
+import de.raindancer.modules.voicebridge.service.LobbyService;
 import de.raindancer.modules.voicebridge.service.VoicechatGateway;
 import de.raindancer.modules.voicebridge.store.TokenFile;
 import org.bukkit.Server;
@@ -25,6 +28,9 @@ public record VoiceBridgeServices(
         TokenFile tokens,
         BridgeService bridge,
         VoicechatGateway gateway,
+        LinkService links,
+        GroupService groups,
+        LobbyService lobby,
         IVoiceBridgeScreensOpener screens) {
 
     public VoiceBridgeSettings config() {

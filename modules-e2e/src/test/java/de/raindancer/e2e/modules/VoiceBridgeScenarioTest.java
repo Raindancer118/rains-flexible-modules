@@ -13,7 +13,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -53,6 +56,47 @@ class VoiceBridgeScenarioTest {
 
             assertThat(server.paper.errorsFrom("RainsCore", "RainsVoiceBridge", "voicechat")).isEmpty();
         }
+    }
+
+    @Test
+    @DisplayName("Discord-linked players without the mod get SVC's groups: join, passwords, create, invite, leave")
+    void groupsWithoutTheMod() {
+        UUID bo = offline("Bo");
+        UUID ada = offline("Ada");
+        String links = "links:\n  '111111111111111111': " + bo + "\n  '222222222222222222': " + ada + "\n";
+        try (Server server = Server.start("voicebridge-groups", List.of("voicebridge-standalone:RainsVoiceBridge-.*"),
+                List.of(voicechat()), Map.of("plugins/RainsVoiceBridge/links.yml", links),
+                List.of("Made the voice chat group 'Discord'"))) {
+            Bot adaBot = server.player("Ada");
+            Bot boBot = server.player("Bo");
+
+            boBot.runAndExpect("voicechat join Nowhere", "There is no such voice group");
+            boBot.runAndExpect("voicebridge group create Cave hunter2 normal", "Group made");
+
+            adaBot.runAndExpect("voicechat join Cave", "That group has a password");
+            adaBot.runAndExpect("voicechat join Cave wrong", "not the group's password");
+            adaBot.runAndExpect("voicechat join Cave hunter2", "You joined the voice group");
+            adaBot.runAndExpect("voicechat leave", "You left your voice group");
+
+            boBot.runAndExpect("voicebridge invite Ada", "Invited Ada");
+            adaBot.answer(() -> adaBot.clickButtonOn("invites you to the voice group", 0),
+                    answer -> answer.says("You joined the voice group"));
+            adaBot.answer(() -> adaBot.clickButtonOn("invites you to the voice group", 0),
+                    answer -> answer.says("already answered"));
+
+            boBot.runAndOpen("voicebridge groups", "» Groups");
+            assertThat(boBot.window().orElseThrow().slotNamed("Cave")).isPresent();
+            boBot.closeWindow();
+
+            adaBot.runAndExpect("voicebridge unlink", "unlinked");
+            adaBot.runAndExpect("voicebridge link", "Your link code");
+
+            assertThat(server.paper.errorsFrom("RainsCore", "RainsVoiceBridge", "voicechat")).isEmpty();
+        }
+    }
+
+    private static UUID offline(String name) {
+        return UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
     }
 
     private static Path voicechat() {

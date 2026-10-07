@@ -19,7 +19,8 @@ class VoiceBridgeCommandsTest {
         assertThat(declared).hasSize(1);
         assertThat(declared.getFirst().name()).isEqualTo("voicebridge");
         assertThat(declared.getFirst().names()).contains("vb", "discordvoice");
-        assertThat(declared.getFirst().options()).contains("join", "leave", "status", "reconnect");
+        assertThat(declared.getFirst().options()).contains("join", "leave", "status", "link", "unlink", "groups",
+                "group join <name> [password]", "invite <player>", "reconnect");
         assertThat(declared.getFirst().handler()).isNotNull();
     }
 

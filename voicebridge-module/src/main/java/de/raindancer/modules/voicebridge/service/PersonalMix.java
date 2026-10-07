@@ -21,6 +21,7 @@ public final class PersonalMix implements IVoiceBridgeService {
     private final SpeakerMixer<UUID> sources;
     private final Map<UUID, Placement> placements = new ConcurrentHashMap<>();
     private final Function<UUID, Optional<Spatial.Ear>> positions;
+    private volatile float volume = 1f;
 
     public PersonalMix(int prebuffer, int most, long idleMillis, LongSupplier clock,
                        Function<UUID, Optional<Spatial.Ear>> positions) {
@@ -31,6 +32,7 @@ public final class PersonalMix implements IVoiceBridgeService {
     @Override
     public void settings(VoiceBridgeSettings settings) {
         sources.settings(settings);
+        volume = settings.gameVolumeClamped() / 100f;
     }
 
     /** One decoded frame from one voice channel, and where it sounds from right now. */
@@ -57,7 +59,7 @@ public final class PersonalMix implements IVoiceBridgeService {
         for (Map.Entry<UUID, short[]> heard : frames.entrySet()) {
             Placement placement = placements.getOrDefault(heard.getKey(), new Placement.Static());
             float[] gains = gains(ear, placement);
-            Spatial.addInto(stereo, heard.getValue(), gains[0], gains[1]);
+            Spatial.addInto(stereo, heard.getValue(), gains[0] * volume, gains[1] * volume);
         }
         return Spatial.toBigEndian(stereo);
     }

@@ -25,6 +25,7 @@ import org.bukkit.Server;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -157,6 +158,19 @@ public final class VoicechatGateway implements VoicechatPlugin, IVoiceBridgeServ
      * player's group that merely shares the name — possibly behind a password — is somebody's
      * private conversation, and must not be taken over and sent to Discord.
      */
+    /**
+     * Never {@code VoicechatServerApi#getGroup(UUID)}: for an id it does not know it returns a group
+     * wrapping nothing rather than {@code null}, and the first call on that throws.
+     */
+    static Group groupById(VoicechatServerApi voicechat, UUID id) {
+        for (Group group : voicechat.getGroups()) {
+            if (id.equals(group.getId())) {
+                return group;
+            }
+        }
+        return null;
+    }
+
     static UUID groupIdFor(String name) {
         return UUID.nameUUIDFromBytes(("rainsvoicebridge:" + name).getBytes(StandardCharsets.UTF_8));
     }
@@ -164,7 +178,7 @@ public final class VoicechatGateway implements VoicechatPlugin, IVoiceBridgeServ
     private synchronized void bindGroup(VoicechatServerApi voicechat) {
         String name = settings.groupNameOrDefault();
         UUID id = groupIdFor(name);
-        Group found = voicechat.getGroup(id);
+        Group found = groupById(voicechat, id);
         if (found == null) {
             found = voicechat.groupBuilder()
                     .setId(id)
@@ -303,13 +317,21 @@ public final class VoicechatGateway implements VoicechatPlugin, IVoiceBridgeServ
     }
 
     public JoinResult join(UUID player) {
+        return join(player, false);
+    }
+
+    /**
+     * @param withoutMod also for a client without the mod — a Discord-linked player, whose voice
+     *                   reaches SVC through this module rather than through a mod
+     */
+    public JoinResult join(UUID player, boolean withoutMod) {
         VoicechatServerApi voicechat = api;
         Group bridge = group;
         if (closed || voicechat == null || bridge == null) {
             return JoinResult.NOT_READY;
         }
         VoicechatConnection connection = voicechat.getConnectionOf(player);
-        if (connection == null || !connection.isInstalled()) {
+        if (connection == null || (!connection.isInstalled() && !withoutMod)) {
             return JoinResult.NO_VOICECHAT;
         }
         Group theirs = connection.getGroup();
@@ -348,6 +370,11 @@ public final class VoicechatGateway implements VoicechatPlugin, IVoiceBridgeServ
 
     public Set<UUID> members() {
         return Set.copyOf(inGroup.keySet());
+    }
+
+    /** The live API, for the other services that work with SVC; empty until its voice server runs. */
+    public Optional<VoicechatServerApi> api() {
+        return closed ? Optional.empty() : Optional.ofNullable(api);
     }
 
     public boolean isReady() {

@@ -23,7 +23,7 @@ class ConnectReadinessRuleTest {
     @Test
     @DisplayName("switched off is said before anything else is missing")
     void switchedOff() {
-        assertThat(rule.refusal(false, "", new DiscordTarget("", ""), "")).contains("voicebridge.not-ready.off");
+        assertThat(rule.refusal(false, "", new DiscordTarget("", ""), "")).contains("voicebridge.not-ready.switched-off");
     }
 
     @Test
