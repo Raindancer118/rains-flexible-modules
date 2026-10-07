@@ -1,0 +1,3 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+veintoggle:
+  switched-off: "<yellow>Vein mining is off for you. Blocks break one at a time."

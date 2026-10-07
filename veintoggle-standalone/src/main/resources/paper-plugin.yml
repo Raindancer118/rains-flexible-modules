@@ -1,0 +1,26 @@
+# Same shape as every other standalone here — see rtp-standalone's copy for why each line matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Switch Veinminer on or off for yourself with /vein.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Only a block-break listener and a command; nothing touches Bukkit.getScheduler().
+folia-supported: true
+
+# Veinminer is deliberately not a dependency: its event is known by name, so this loads and runs
+# without it — and does nothing until it is installed.
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

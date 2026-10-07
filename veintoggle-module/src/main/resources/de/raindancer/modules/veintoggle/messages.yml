@@ -1,0 +1,13 @@
+# This module's wording. Every line can be rewritten in plugins/RainsCore/messages.yml.
+veintoggle:
+  switched-on: "<green>Vein mining is on for you. Break one block of a vein and the rest comes with it."
+  switched-off: "<yellow>Vein mining is off for you. Blocks break one at a time, like it is 2011."
+  status-on: "<gray>Vein mining is <green>on</green> for you. <white>/vein</white> switches it."
+  status-off: "<gray>Vein mining is <yellow>off</yellow> for you. <white>/vein</white> switches it."
+  others-on: "<green>Vein mining is on for <white><player></white>."
+  others-off: "<yellow>Vein mining is off for <white><player></white>."
+  held-back: "<gray>Vein mining is off for you — just this block. <white>/vein</white> turns it back on."
+  no-veinminer: "<yellow>Veinminer is not installed here, so this does nothing until it is."
+  not-online: "<red><white><player></white> is not online right now."
+  only-a-player: "<red>Only a player mines veins."
+  usage: "<gray>/vein <dark_gray>— switch it · <gray>/vein on | off | status"

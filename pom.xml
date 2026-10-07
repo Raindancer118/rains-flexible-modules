@@ -62,6 +62,7 @@
         <mannequin-module.version>1.7.1</mannequin-module.version>
         <invsnap-module.version>1.2.1</invsnap-module.version>
         <xpbottle-module.version>1.1.1</xpbottle-module.version>
+        <veintoggle-module.version>0.1.0</veintoggle-module.version>
         <playerutils-module.version>0.2.1</playerutils-module.version>
         <xaeromap-module.version>1.1.1</xaeromap-module.version>
         <wallsroads-module.version>1.1.1</wallsroads-module.version>
@@ -113,6 +114,8 @@
         <module>invsnap-standalone</module>
         <module>xpbottle-module</module>
         <module>xpbottle-standalone</module>
+        <module>veintoggle-module</module>
+        <module>veintoggle-standalone</module>
         <module>playerutils-module</module>
         <module>playerutils-standalone</module>
         <!-- After claims-module: it compiles against it (provided, never shaded) for the seam in
@@ -273,6 +276,11 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>xpbottle-module</artifactId>
                 <version>${xpbottle-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>veintoggle-module</artifactId>
+                <version>${veintoggle-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
