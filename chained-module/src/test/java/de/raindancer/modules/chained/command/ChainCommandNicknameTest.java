@@ -6,6 +6,7 @@ import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.ui.identity.Nicknames;
 import de.raindancer.modules.chained.ChainedServices;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
@@ -21,6 +22,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -71,6 +73,7 @@ class ChainCommandNicknameTest {
         UUID id = UUID.nameUUIDFromBytes(name.getBytes());
         when(player.getName()).thenReturn(name);
         when(player.getUniqueId()).thenReturn(id);
+        when(player.isOnline()).thenReturn(true);
         when(server.getPlayerExact(name)).thenReturn(player);
         when(server.getPlayer(id)).thenReturn(player);
         return player;
@@ -109,11 +112,87 @@ class ChainCommandNicknameTest {
     }
 
     @Test
-    @DisplayName("completion offers nicknames, hides the vanished by name and nickname, and offers no selector")
+    @DisplayName("completion offers nicknames, hides the vanished by name and nickname, and offers selectors to who may use them")
     void completes() {
         assertThat(command.suggest(source(), new String[]{"pair", "Lilly_"})).containsExactly("Lilly_Pad");
-        assertThat(command.suggest(source(), new String[]{"pair", "Boo"})).isEmpty();
+        // The vanished are offered the way everybody else sees them: as somebody who is not here.
+        assertThat(command.suggest(source(), new String[]{"pair", "Boo"})).containsExactly("Boo");
         assertThat(command.suggest(source(), new String[]{"pair", "Gh"})).isEmpty();
+        assertThat(command.suggest(source(), new String[]{"pair", ""})).contains("@a", "@p");
+    }
+
+    @Test
+    @DisplayName("completion offers no selector to somebody who may not use them, but offline names")
+    void completesWithoutSelectors() {
+        when(admin.hasPermission("minecraft.command.selector")).thenReturn(false);
+        OfflinePlayer away = mock(OfflinePlayer.class);
+        when(away.getName()).thenReturn("Zed");
+        when(server.getOfflinePlayers()).thenReturn(new OfflinePlayer[]{away});
+
         assertThat(command.suggest(source(), new String[]{"pair", ""})).noneMatch(name -> name.startsWith("@"));
+        assertThat(command.suggest(source(), new String[]{"unpair", "Ze"})).containsExactly("Zed");
+    }
+
+    @Test
+    @DisplayName("a selector in /chain pair that matches one player pairs them")
+    void pairsBySelector() {
+        when(services.config().maxDistance()).thenReturn(10);
+        when(server.selectEntities(admin, "@p")).thenReturn(List.of(sam));
+
+        command.execute(source(), new String[]{"pair", "@p", "Lilly_Pad"});
+
+        verify(services.chain()).pair(sam.getUniqueId(), lilly.getUniqueId(), 10);
+    }
+
+    @Test
+    @DisplayName("a selector that matches several is refused, not silently narrowed")
+    void tooMany() {
+        when(server.selectEntities(admin, "@a")).thenReturn(List.of(sam, lilly));
+
+        command.execute(source(), new String[]{"pair", "@a", "Sam"});
+
+        verify(services.messages()).send(eq(admin), eq("chained.too-many"), any(Object[].class));
+        verify(services.chain(), never()).pair(any(), any(), anyInt());
+    }
+
+    @Test
+    @DisplayName("a selector without the vanilla permission says so")
+    void selectorRefused() {
+        when(admin.hasPermission("minecraft.command.selector")).thenReturn(false);
+
+        command.execute(source(), new String[]{"pair", "@a", "Sam"});
+
+        verify(services.messages()).send(eq(admin), eq("chained.selector-refused"), any(Object[].class));
+        verify(services.chain(), never()).pair(any(), any(), anyInt());
+    }
+
+    @Test
+    @DisplayName("an offline player cannot be paired, and is called offline rather than unknown")
+    void offlinePair() {
+        OfflinePlayer away = mock(OfflinePlayer.class);
+        when(away.getName()).thenReturn("Zed");
+        when(away.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(server.getOfflinePlayerIfCached("Zed")).thenReturn(away);
+
+        command.execute(source(), new String[]{"pair", "Zed", "Sam"});
+
+        verify(services.messages()).send(eq(admin), eq("chained.player-offline"), any(Object[].class));
+        verify(services.chain(), never()).pair(any(), any(), anyInt());
+    }
+
+    @Test
+    @DisplayName("an offline player can be unpaired by name")
+    void offlineUnpair() {
+        OfflinePlayer away = mock(OfflinePlayer.class);
+        UUID id = UUID.randomUUID();
+        when(away.getName()).thenReturn("Zed");
+        when(away.getUniqueId()).thenReturn(id);
+        when(server.getOfflinePlayerIfCached("Zed")).thenReturn(away);
+        when(services.chain().unpair(id)).thenReturn(true);
+
+        command.execute(source(), new String[]{"unpair", "Zed"});
+
+        verify(services.chain()).unpair(id);
+        verify(services.messages()).send(eq(admin), eq("chained.unpaired"), any(Object[].class));
     }
 }

@@ -16,6 +16,8 @@ worldutils:
   console-needs-a-player: "<red>The console has no legs. Say who: a name or a selector like @a."
   no-permission-others: "<red>You may only move yourself. Other people have opinions about that."
   nobody-matched: "<red>Nobody online matches <white><value></white>. Empty room."
+  is-offline: "<yellow><white><player></white> is offline, and a trip needs somebody to take it. Try again when they are back."
+  selector-refused: "<red><white><value></white> is not yours to use, or not written right. A name works just as well."
   sending: "<gray>Sending <white><count></white> player(s). Bon voyage."
 
   invalid-name: "<red><white><name></white> cannot be a world name: lowercase letters, digits, _ . and - only."

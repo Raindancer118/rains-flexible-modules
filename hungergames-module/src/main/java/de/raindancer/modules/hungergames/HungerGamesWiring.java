@@ -1,6 +1,5 @@
 package de.raindancer.modules.hungergames;
 
-import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.RainsCore;
 import de.raindancer.core.content.loot.LootTable;
 import de.raindancer.core.data.settings.SettingsStore;
@@ -32,6 +31,7 @@ import de.raindancer.modules.hungergames.model.Winner;
 import de.raindancer.modules.hungergames.rules.TeamRules;
 import de.raindancer.modules.hungergames.screen.GamemasterMenu;
 import de.raindancer.modules.hungergames.screen.ShopMenu;
+import de.raindancer.modules.hungergames.service.AccountNames;
 import de.raindancer.modules.hungergames.service.AnnouncementService;
 import de.raindancer.modules.hungergames.service.ArenaBuildService;
 import de.raindancer.modules.hungergames.service.ArenaItemService;
@@ -84,6 +84,7 @@ import org.bukkit.block.Chest;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Monster;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.Snowball;
@@ -2608,7 +2609,11 @@ public final class HungerGamesWiring {
             if (name == null || name.isBlank()) {
                 return List.of("no name was given");
             }
-            UUID uuid = uuidForName(name);
+            AccountNames who = AccountNames.of(server, name);
+            if (who.refusal() != null) {
+                return List.of(who.refusal());
+            }
+            UUID uuid = who.idOrDerived(name);
             if (active.containsKey(uuid)) {
                 return List.of(name + " is already a gamemaster");
             }
@@ -2623,13 +2628,15 @@ public final class HungerGamesWiring {
             if (name == null || name.isBlank()) {
                 return List.of("no name was given");
             }
-            UUID uuid = uuidForName(name);
+            AccountNames who = AccountNames.of(server, name);
+            if (who.refusal() != null) {
+                return List.of(who.refusal());
+            }
             // Both spellings: somebody added before their first join is keyed by the derived UUID, and
             // somebody who has since played is keyed by their real one.
-            Player online = PlayerTargets.online(server, name).orElse(null);
-            boolean removed = active.remove(uuid) != null;
-            if (online != null) {
-                removed |= active.remove(online.getUniqueId()) != null;
+            boolean removed = active.remove(AccountNames.derivedId(name)) != null;
+            if (who.id() != null) {
+                removed |= active.remove(who.id()) != null;
             }
             if (!removed) {
                 return List.of(name + " is not a gamemaster");
@@ -2637,17 +2644,6 @@ public final class HungerGamesWiring {
             gamemasterStore.save(active);
             roundLog.log("ADMIN", actor + " removed " + name + " as a gamemaster");
             return List.of();
-        }
-
-        /** Whoever that name is: their real UUID if they are here, otherwise a stable derived one. */
-        private UUID uuidForName(String name) {
-            Player online = PlayerTargets.online(server, name).orElse(null);
-            if (online != null) {
-                return online.getUniqueId();
-            }
-            return UUID.nameUUIDFromBytes(
-                    ("hungergames:" + name.toLowerCase(java.util.Locale.ROOT))
-                            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
     }
 }

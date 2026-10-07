@@ -57,10 +57,10 @@ public final class MessagingService implements IEssentialsService {
         }
         if (store.isIgnoring(to.getUniqueId(), from.getUniqueId())
                 || !vanish.canSee(from.getUniqueId(), to.getUniqueId())) {
-            // The same wording — and the same refusal — as "they are not here". A vanished
-            // moderator who can be messaged, or who replies with "you have been ignored" instead
-            // of the ordinary "not here", has been given away exactly as much as one who is seen.
-            messages.send(from, "essentials.msg.unreachable", "player", to.getName());
+            // The same wording as the "is offline" /msg gives for somebody who really is. A vanished
+            // moderator who can be messaged, or who answers "you have been ignored" instead of the
+            // ordinary "offline", has been given away exactly as much as one who is seen.
+            messages.send(from, "essentials.player.offline", "player", to.getName());
             return false;
         }
         chat.tell(from, messages.raw("essentials.msg.sent"),

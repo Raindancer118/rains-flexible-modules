@@ -1,6 +1,5 @@
 package de.raindancer.modules.essentials.command;
 
-import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.essentials.EssentialsServices;
 import de.raindancer.modules.essentials.util.PermissionNodes;
 import de.raindancer.modules.essentials.util.Players;
@@ -42,9 +41,9 @@ public final class RepairCommand implements IEssentialsCommand {
         }
         List<Player> targets;
         if (args.length == 1) {
-            targets = PlayerTargets.resolve(live.server(), sender, args[0]);
+            targets = Players.online(live.messages(), live.server(), sender, args[0], false,
+                    "essentials.repair.nobody-there");
             if (targets.isEmpty()) {
-                live.messages().send(sender, "essentials.repair.nobody-there", "player", args[0]);
                 return;
             }
         } else if (sender instanceof Player self) {
@@ -69,8 +68,7 @@ public final class RepairCommand implements IEssentialsCommand {
             return List.of();
         }
         EssentialsServices live = services.get();
-        return PlayerTargets.suggest(live.server(), args.length == 0 ? "" : args[0],
-                Players.visibleTo(live.core().vanish(), sender instanceof Player viewer ? viewer.getUniqueId() : null));
+        return Players.suggest(live.server(), sender, args.length == 0 ? "" : args[0], live.core().vanish());
     }
 
     @Override

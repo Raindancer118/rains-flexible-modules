@@ -6,6 +6,10 @@ essentials:
   no-permission: "<red>You may not do that. Nice try."
   usage: "<gray>Usage: <white><usage>"
   no-such-player: "<red>The server has never seen anybody called <white><player></white>. Typo, or an imaginary friend?"
+  player:
+    offline: "<red><white><player></white> is offline right now. Ghosts do not take requests."
+    selector-refused: "<red>Selectors like <white><selector></white> are not yours to use here, or that one is malformed. Type a name instead."
+    ambiguous: "<red><white><selector></white> matches <white><count></white> players, and this wants exactly one. Pick one."
   already-travelling: "<red>You are already on your way somewhere. One trip at a time."
   could-not-check: "<red>Could not check whether that is safe. Nothing has happened."
   teleport-refused: "<red>Something stopped that teleport. Nothing has happened."
@@ -26,9 +30,6 @@ essentials:
   # ── private messages ─────────────────────────────────────────────────────
   msg:
     not-yourself: "<red>You cannot message yourself. Try a notebook."
-    # The same wording whether they are offline or have blocked you — see MessagingService's own
-    # note on why telling somebody they have been blocked turns a quiet decision into a confrontation.
-    unreachable: "<red><white><player></white> cannot be reached right now."
     sent: "<gray>[me → <white><player></white>] <text>"
     received: "<gray>[<white><player></white> → me] <text>"
     nobody-to-reply-to: "<red>Nobody has messaged you yet. Popularity takes time."
@@ -61,6 +62,7 @@ essentials:
     too-long: "<red>That is too long — <white><detail></white> characters at most, not counting colour. Brevity, please."
     taken: "<red><white><detail></white> is somebody's real name. Pick another — identity theft is frowned upon."
     blocked: "<red>That name is not allowed here. Pick another."
+    selector-like: "<red>A nickname starting with <white>@</white> would make every command think you meant @a and friends. Try it without."
     nick-taken: "<red>Somebody already goes by <white><detail></white>. Two of them would make every <white>/msg</white> a coin toss — pick another."
     # Staff setting and clearing somebody else's.
     not-others: "<red>Other people's nicknames are staff business. Yours, you may of course fiddle with."

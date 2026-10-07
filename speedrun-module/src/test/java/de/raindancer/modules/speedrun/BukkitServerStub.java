@@ -1,6 +1,7 @@
 package de.raindancer.modules.speedrun;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.mockito.MockedStatic;
@@ -26,5 +27,27 @@ public final class BukkitServerStub {
             bukkit.when(Bukkit::getServer).thenReturn(installed);
         }
         when(server.getPlayerExact(name)).thenReturn(player);
+        if (player != null) {
+            when(player.isOnline()).thenReturn(true);
+        }
+    }
+
+    /** Makes {@code name} a real name the server has seen but who is not here. */
+    public static OfflinePlayer offline(MockedStatic<Bukkit> bukkit, String name, java.util.UUID id) {
+        online(bukkit, name, null);
+        OfflinePlayer away = mock(OfflinePlayer.class);
+        when(away.getName()).thenReturn(name);
+        when(away.getUniqueId()).thenReturn(id);
+        when(away.isOnline()).thenReturn(false);
+        when(Bukkit.getServer().getOfflinePlayerIfCached(name)).thenReturn(away);
+        return away;
+    }
+
+    /** Makes the selector {@code text} match {@code who} for {@code sender}, and lets the sender use selectors. */
+    public static void selector(MockedStatic<Bukkit> bukkit, org.bukkit.command.CommandSender sender, String text,
+                                Player... who) {
+        online(bukkit, "unused", null);
+        when(sender.hasPermission("minecraft.command.selector")).thenReturn(true);
+        when(Bukkit.getServer().selectEntities(sender, text)).thenReturn(java.util.List.of(who));
     }
 }

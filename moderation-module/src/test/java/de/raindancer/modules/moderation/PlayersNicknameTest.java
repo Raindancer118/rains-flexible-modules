@@ -77,15 +77,14 @@ class PlayersNicknameTest {
     }
 
     @Test
-    @DisplayName("a vanished player is given away neither by name nor by nickname to somebody who may not see them")
-    void vanishHidesNickname() {
+    @DisplayName("a vanished player's nickname is offered as an offline player's is — its absence would give them away")
+    void vanishLooksOffline() {
         Vanish vanish = mock(Vanish.class);
         UUID viewer = UUID.randomUUID();
         when(vanish.canSee(viewer, ghost.getUniqueId())).thenReturn(false);
         when(vanish.canSee(viewer, lilly.getUniqueId())).thenReturn(true);
 
-        assertThat(Players.suggestions(server, "Boo", vanish, viewer)).isEmpty();
-        assertThat(Players.suggestions(server, "Gh", vanish, viewer)).isEmpty();
+        assertThat(Players.suggestions(server, "Boo", vanish, viewer)).containsExactly("Boo");
         assertThat(Players.suggestions(server, "Lilly_", vanish, viewer)).containsExactly("Lilly_Pad");
     }
 }

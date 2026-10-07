@@ -89,13 +89,13 @@ class TpaNicknameTest {
     }
 
     @Test
-    @DisplayName("/tpa completes nicknames, never your own, never a vanished player's, never a selector")
+    @DisplayName("/tpa completes nicknames, never your own, a vanished player's as if offline, selectors only with the node")
     void completesForAsking() {
         AskCommand command = new AskCommand(() -> services, TpaKind.TO);
 
         assertThat(command.suggest(source(), new String[]{"Lilly_"})).containsExactly("Lilly_Pad");
         assertThat(command.suggest(source(), new String[]{"Myself"})).isEmpty();
-        assertThat(command.suggest(source(), new String[]{"Boo"})).isEmpty();
+        assertThat(command.suggest(source(), new String[]{"Boo"})).containsExactly("Boo");
         assertThat(command.suggest(source(), new String[]{""})).noneMatch(name -> name.startsWith("@"));
     }
 
@@ -131,5 +131,75 @@ class TpaNicknameTest {
         TpaToolsCommand command = new TpaToolsCommand(() -> services, TpaToolsCommand.What.BLOCK);
 
         assertThat(command.suggest(source(), new String[]{"Lilly_"})).containsExactly("Lilly_Pad");
+    }
+
+    private org.bukkit.OfflinePlayer away(String name) {
+        org.bukkit.OfflinePlayer away = mock(org.bukkit.OfflinePlayer.class);
+        when(away.getName()).thenReturn(name);
+        when(away.getUniqueId()).thenReturn(UUID.nameUUIDFromBytes(name.getBytes()));
+        when(away.isOnline()).thenReturn(false);
+        when(server.getOfflinePlayerIfCached(name)).thenReturn(away);
+        return away;
+    }
+
+    @Test
+    @DisplayName("/tpa on somebody offline says they are offline, not that nobody is called that")
+    void offlineIsNotATypo() {
+        away("Sleepy");
+
+        new AskCommand(() -> services, TpaKind.TO).execute(source(), new String[]{"Sleepy"});
+
+        verify(services.messages()).send(me, "tpa.is-offline", "player", "Sleepy");
+        verify(services.asking(), never()).ask(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("/tpa @a with the selector node refuses to pick among several, without it refuses the selector")
+    void selectors() {
+        doReturn(List.<org.bukkit.entity.Entity>of(lilly, ghost)).when(server).selectEntities(me, "@a");
+        when(me.hasPermission("minecraft.command.selector")).thenReturn(false);
+
+        new AskCommand(() -> services, TpaKind.TO).execute(source(), new String[]{"@a"});
+        verify(services.messages()).send(me, "tpa.selector-refused", "selector", "@a");
+
+        when(me.hasPermission("minecraft.command.selector")).thenReturn(true);
+        new AskCommand(() -> services, TpaKind.TO).execute(source(), new String[]{"@a"});
+        verify(services.messages()).send(me, "tpa.too-many", "selector", "@a", "count", "2");
+        verify(services.asking(), never()).ask(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("/tpa @p works when the selector matches exactly one player")
+    void selectorOfOne() {
+        when(me.hasPermission("minecraft.command.selector")).thenReturn(true);
+        doReturn(List.<org.bukkit.entity.Entity>of(lilly)).when(server).selectEntities(me, "@p");
+
+        new AskCommand(() -> services, TpaKind.TO).execute(source(), new String[]{"@p"});
+
+        verify(services.asking()).ask(me, lilly, TpaKind.TO);
+    }
+
+    @Test
+    @DisplayName("/tpablock takes somebody offline, by name")
+    void blocksOffline() {
+        org.bukkit.OfflinePlayer sleepy = away("Sleepy");
+
+        new TpaToolsCommand(() -> services, TpaToolsCommand.What.BLOCK)
+                .execute(source(), new String[]{"Sleepy"});
+
+        verify(services.prefs()).block(me, sleepy);
+    }
+
+    @Test
+    @DisplayName("completion offers selectors only to those who may use them, and the offline")
+    void completesSelectorsAndOffline() {
+        org.bukkit.OfflinePlayer sleepy = away("Sleepy");
+        when(server.getOfflinePlayers()).thenReturn(new org.bukkit.OfflinePlayer[]{sleepy});
+        AskCommand command = new AskCommand(() -> services, TpaKind.TO);
+
+        assertThat(command.suggest(source(), new String[]{"Sle"})).contains("Sleepy");
+        assertThat(command.suggest(source(), new String[]{"@"})).isEmpty();
+        when(me.hasPermission("minecraft.command.selector")).thenReturn(true);
+        assertThat(command.suggest(source(), new String[]{"@"})).contains("@a", "@p");
     }
 }

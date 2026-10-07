@@ -26,7 +26,11 @@ xpbottle:
 
   give:
     not-allowed: "<red>Only staff can conjure a siphon bottle. Magic is not for everybody."
-    not-online: "<red><player> is not online — a bottle has to go into a real inventory."
+    not-online: "<red><player> is offline — a bottle has to go into a real inventory. Try again when they are back."
+    unknown: "<red>Nobody called <player> that this server knows. Check the spelling?"
+    selector-refused: "<red><selector> is not yours to use, or not written right. A name works too."
+    selector-nobody: "<yellow><selector> did not match anybody, so no bottle went anywhere."
     bad-tier: "<red><tier> is not a tier; this server has I to <highest>."
     given: "<green>A tier <white><tier></white> siphon bottle went to <white><player></white>. Lucky them."
+    given-many: "<green>A tier <white><tier></white> siphon bottle went to <white><count></white> players. Generous."
     received: "<green>You were given a tier <white><tier></white> siphon bottle. Use it well."

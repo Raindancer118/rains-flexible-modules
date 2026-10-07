@@ -12,6 +12,7 @@ playerutils:
   no-selectors: "<red>Selectors like @a are not yours to use. Name one person instead."
   not-online: "<red><player> is not online. It works better when they are here."
   nobody: "<red>Nobody here goes by <white><player></white> — not as a name, not as a nickname."
+  selector-nobody: "<gray><white><selector></white> matches nobody right now."
   too-many: "<red>That matches <white><count></white> players, and the limit is <white><most></white>. Narrow it down a little?"
   no-permission: "<red>/<action> is not yours to use."
   no-permission-others: "<red>You may /<action> yourself, but not <player>."

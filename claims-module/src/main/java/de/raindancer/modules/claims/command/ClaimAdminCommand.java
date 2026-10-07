@@ -1,11 +1,11 @@
 package de.raindancer.modules.claims.command;
 
-import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.ClaimServices;
+import de.raindancer.modules.claims.util.Subjects;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
@@ -334,9 +334,8 @@ public final class ClaimAdminCommand implements IClaimCommand {
             claims.messages().send(admin, "claim.who", "usage", "/claimadmin stick <player>");
             return;
         }
-        Player target = PlayerTargets.online(admin.getServer(), args[1]).orElse(null);
+        Player target = Subjects.online(claims.server(), claims.messages(), admin, args[1]).orElse(null);
         if (target == null) {
-            claims.messages().send(admin, "error.player-not-found", "player", args[1]);
             return;
         }
         claims.stick().give(target,
@@ -414,9 +413,8 @@ public final class ClaimAdminCommand implements IClaimCommand {
             claims.messages().send(sender, "error.no-such-claim", "claim", args[1]);
             return;
         }
-        Optional<UUID> newOwner = resolvePlayer(claims, args[2]);
+        Optional<UUID> newOwner = Subjects.one(claims.server(), claims.messages(), sender, args[2]);
         if (newOwner.isEmpty()) {
-            claims.messages().send(sender, "error.no-such-player", "player", args[2]);
             return;
         }
         Claim theClaim = claim.get();
@@ -431,11 +429,6 @@ public final class ClaimAdminCommand implements IClaimCommand {
         if (online != null) {
             claims.messages().send(online, "admin.claim-transferred-to-you", "claim", theClaim.name());
         }
-    }
-
-    /** By name, online or not — an admin reassigning a claim usually means the new owner is not here either. */
-    private Optional<UUID> resolvePlayer(ClaimServices claims, String name) {
-        return PlayerTargets.idOf(claims.server(), name);
     }
 
     @Override
@@ -458,8 +451,7 @@ public final class ClaimAdminCommand implements IClaimCommand {
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("stick")
                 || args.length == 3 && args[0].equalsIgnoreCase("transfer")) {
-            return PlayerTargets.suggest(services.get().server(), args[args.length - 1]).stream()
-                    .filter(name -> !PlayerTargets.isSelector(name)).toList();
+            return Subjects.suggest(services.get().server(), source.getSender(), args[args.length - 1], who -> true);
         }
         return List.of();
     }

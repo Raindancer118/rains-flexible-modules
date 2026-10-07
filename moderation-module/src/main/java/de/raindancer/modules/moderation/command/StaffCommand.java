@@ -74,11 +74,7 @@ public abstract class StaffCommand implements IModerationCommand {
      * a typo is a ban nobody can lift.
      */
     protected Optional<OfflinePlayer> subject(CommandSender sender, String name) {
-        Optional<OfflinePlayer> found = Players.find(services().server(), name);
-        if (found.isEmpty()) {
-            services().messages().send(sender, "moderation.no-such-player", "player", name);
-        }
-        return found;
+        return Players.one(services().messages(), services().server(), sender, name);
     }
 
     /** Whether this actor may do this to this person, saying why not when they may not. */
@@ -104,7 +100,7 @@ public abstract class StaffCommand implements IModerationCommand {
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
-            return Players.suggestions(services().server(), args.length == 1 ? args[0] : "");
+            return Players.suggest(services().server(), source.getSender(), args.length == 1 ? args[0] : "");
         }
         return List.of();
     }

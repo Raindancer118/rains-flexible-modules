@@ -63,6 +63,7 @@ class XpBottleNicknameTest {
         Player player = mock(Player.class);
         UUID id = UUID.nameUUIDFromBytes(name.getBytes());
         when(player.getName()).thenReturn(name);
+        when(player.isOnline()).thenReturn(true);
         when(player.getUniqueId()).thenReturn(id);
         when(player.getInventory()).thenReturn(mock(PlayerInventory.class));
         when(server.getPlayerExact(name)).thenReturn(player);
@@ -94,9 +95,48 @@ class XpBottleNicknameTest {
     }
 
     @Test
-    @DisplayName("tab completion offers the nickname and no selector")
+    @DisplayName("tab completion offers the nickname, and selectors to somebody who may use them")
     void completes() {
         assertThat(command.suggest(source(), new String[]{"give", "Lilly_"})).containsExactly("Lilly_Pad");
+        assertThat(command.suggest(source(), new String[]{"give", "@"})).contains("@a");
+        when(admin.hasPermission("minecraft.command.selector")).thenReturn(false);
         assertThat(command.suggest(source(), new String[]{"give", ""})).noneMatch(name -> name.startsWith("@"));
+    }
+
+    @Test
+    @DisplayName("@a gives every player a bottle and says how many")
+    void givesToEverybody() {
+        doReturn(List.<org.bukkit.entity.Entity>of(lilly, admin)).when(server).selectEntities(admin, "@a");
+
+        command.execute(source(), new String[]{"give", "@a", "2"});
+
+        verify(lilly.getInventory()).addItem(org.mockito.ArgumentMatchers.any());
+        verify(admin.getInventory()).addItem(org.mockito.ArgumentMatchers.any());
+        verify(services.messages()).send(admin, "xpbottle.give.given-many", "tier", "II", "count", "2");
+    }
+
+    @Test
+    @DisplayName("a selector the sender may not use hands out nothing")
+    void selectorRefused() {
+        when(admin.hasPermission("minecraft.command.selector")).thenReturn(false);
+
+        command.execute(source(), new String[]{"give", "@a"});
+
+        verify(services.messages()).send(admin, "xpbottle.give.selector-refused", "selector", "@a");
+        verify(services.forge(), never()).siphon(org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    @DisplayName("somebody offline is told apart from a typo, by name and by nickname")
+    void offline() {
+        org.bukkit.OfflinePlayer sleepy = mock(org.bukkit.OfflinePlayer.class);
+        when(sleepy.getName()).thenReturn("Sleepy");
+        when(sleepy.getUniqueId()).thenReturn(UUID.nameUUIDFromBytes("Sleepy".getBytes()));
+        when(server.getOfflinePlayerIfCached("Sleepy")).thenReturn(sleepy);
+
+        command.execute(source(), new String[]{"give", "Sleepy"});
+
+        verify(services.messages()).send(admin, "xpbottle.give.not-online", "player", "Sleepy");
+        verify(services.forge(), never()).siphon(org.mockito.ArgumentMatchers.anyInt());
     }
 }

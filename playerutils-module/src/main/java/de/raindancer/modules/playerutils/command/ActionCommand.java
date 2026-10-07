@@ -195,15 +195,14 @@ public final class ActionCommand implements IPlayerUtilsCommand {
     }
 
     private static List<String> players(PlayerUtilsServices live, CommandSender sender, String typed) {
-        if (sender instanceof Player viewer) {
-            List<String> names = new ArrayList<>(PlayerTargets.suggest(live.server(), typed,
-                    other -> live.core().vanish().canSee(viewer.getUniqueId(), other.getUniqueId())));
-            if (!viewer.hasPermission(de.raindancer.modules.playerutils.util.PermissionNodes.SELECTORS)) {
-                names.removeIf(PlayerTargets::isSelector);
-            }
-            return names;
+        List<String> names = new ArrayList<>(PlayerTargets.suggest(live.server(), sender, typed,
+                other -> !(sender instanceof Player viewer)
+                        || live.core().vanish().canSee(viewer.getUniqueId(), other.getUniqueId())));
+        if (sender instanceof Player viewer
+                && !viewer.hasPermission(de.raindancer.modules.playerutils.util.PermissionNodes.SELECTORS)) {
+            names.removeIf(PlayerTargets::isSelector);
         }
-        return PlayerTargets.suggest(live.server(), typed);
+        return names;
     }
 
     private static List<String> numberHints(Parameter parameter) {

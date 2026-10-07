@@ -189,7 +189,7 @@ public final class ModerationCommand extends StaffCommand {
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
             List<String> words = new ArrayList<>(SUBCOMMANDS);
-            words.addAll(Players.suggestions(services().server(), args.length == 1 ? args[0] : ""));
+            words.addAll(Players.suggest(services().server(), source.getSender(), args.length == 1 ? args[0] : ""));
             if (args.length == 1) {
                 words.removeIf(word -> !word.toLowerCase(Locale.ROOT)
                         .startsWith(args[0].toLowerCase(Locale.ROOT)));
@@ -197,7 +197,7 @@ public final class ModerationCommand extends StaffCommand {
             return words;
         }
         if (args.length == 2 && List.of("note", "notes").contains(args[0].toLowerCase(Locale.ROOT))) {
-            return Players.suggestions(services().server(), args[1]);
+            return Players.suggest(services().server(), source.getSender(), args[1]);
         }
         return List.of();
     }

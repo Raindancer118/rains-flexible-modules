@@ -48,9 +48,8 @@ public final class UnignoreCommand implements IEssentialsCommand {
             live.messages().send(who, "essentials.usage", "usage", "/unignore <player>");
             return;
         }
-        Optional<OfflinePlayer> found = Players.find(live.server(), args[0]);
+        Optional<OfflinePlayer> found = Players.one(live.messages(), live.server(), who, args[0]);
         if (found.isEmpty()) {
-            live.messages().send(who, "essentials.no-such-player", "player", args[0]);
             return;
         }
         UUID target = found.get().getUniqueId();

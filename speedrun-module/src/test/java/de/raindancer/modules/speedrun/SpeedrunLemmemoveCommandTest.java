@@ -162,4 +162,54 @@ class SpeedrunLemmemoveCommandTest {
     private void assertNotReleased(UUID id) {
         org.assertj.core.api.Assertions.assertThat(lobby.isReleased(id)).isFalse();
     }
+
+    @Test
+    @DisplayName("a selector releases everybody it matches")
+    void selectorReleasesTheGroup() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            Player bob = playerWithId(UUID.nameUUIDFromBytes("bob".getBytes()), "Bob");
+            Player cy = playerWithId(UUID.nameUUIDFromBytes("cy".getBytes()), "Cy");
+            when(bob.isOnline()).thenReturn(true);
+            when(cy.isOnline()).thenReturn(true);
+            CommandSender sender = mock(CommandSender.class);
+            when(sender.hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)).thenReturn(true);
+            when(source.getSender()).thenReturn(sender);
+            BukkitServerStub.selector(bukkit, sender, "@a", bob, cy);
+
+            command.execute(source, new String[] {"@a"});
+
+            assertReleased(bob.getUniqueId());
+            assertReleased(cy.getUniqueId());
+        }
+    }
+
+    @Test
+    @DisplayName("a selector without the vanilla permission is refused with its own words")
+    void selectorRefused() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            BukkitServerStub.online(bukkit, "unused", null);
+            CommandSender sender = mock(CommandSender.class);
+            when(sender.hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)).thenReturn(true);
+            when(source.getSender()).thenReturn(sender);
+
+            command.execute(source, new String[] {"@a"});
+
+            verify(messages).send(sender, "speedrun.command.selector-refused", "player", "@a");
+        }
+    }
+
+    @Test
+    @DisplayName("somebody known but offline is called offline, not unknown")
+    void offlineIsSaid() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            BukkitServerStub.offline(bukkit, "Ghost", UUID.nameUUIDFromBytes("ghost".getBytes()));
+            CommandSender sender = mock(CommandSender.class);
+            when(sender.hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)).thenReturn(true);
+            when(source.getSender()).thenReturn(sender);
+
+            command.execute(source, new String[] {"Ghost"});
+
+            verify(messages).send(sender, "speedrun.command.player-offline", "player", "Ghost");
+        }
+    }
 }

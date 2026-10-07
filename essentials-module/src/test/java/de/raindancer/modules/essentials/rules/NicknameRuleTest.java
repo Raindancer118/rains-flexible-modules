@@ -140,4 +140,13 @@ class NicknameRuleTest {
 
         assertThat(verdict.isAllowed()).isTrue();
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("a nickname may not start with @ — every command would read it as a selector")
+    void noSelectorLookalike() {
+        de.raindancer.core.platform.rule.Verdict verdict = new NicknameRule().judge(
+                NicknameRule.Request.of(de.raindancer.modules.essentials.model.Nickname.of("@a"), 32, false));
+
+        org.assertj.core.api.Assertions.assertThat(verdict.isAllowed()).isFalse();
+    }
 }

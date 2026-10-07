@@ -92,11 +92,10 @@ public final class ProtectCommand implements IModerationCommand {
             return;
         }
 
-        Optional<OfflinePlayer> found = Players.find(moderation.server(), args[0]);
+        // Never a made-up profile: protecting a typo writes an id nobody holds, and the account
+        // somebody believes is protected is not.
+        Optional<OfflinePlayer> found = Players.one(moderation.messages(), moderation.server(), sender, args[0]);
         if (found.isEmpty()) {
-            // Never a made-up profile: protecting a typo writes an id nobody holds, and the account
-            // somebody believes is protected is not.
-            moderation.messages().send(sender, "moderation.no-such-player", "player", args[0]);
             return;
         }
         OfflinePlayer them = found.get();
@@ -181,6 +180,6 @@ public final class ProtectCommand implements IModerationCommand {
         if (!(source.getSender() instanceof ConsoleCommandSender) || args.length > 1) {
             return List.of();
         }
-        return Players.suggestions(services.get().server(), args.length == 1 ? args[0] : "");
+        return Players.suggest(services.get().server(), source.getSender(), args.length == 1 ? args[0] : "");
     }
 }

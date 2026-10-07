@@ -9,10 +9,8 @@ description: 'A Hunger Games tournament — tributes, teams, a shrinking border 
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 
-# Deliberately absent, not forgotten. The hunger games module claims folia-supported on its own and
-# moderation does not — and a jar is as Folia-safe as the least safe thing in it. Claiming it here would
-# be claiming it on moderation's behalf, which is the kind of statement that is only found to be wrong by
-# a region thread touching something it does not own.
+# Claimed because both bundled modules claim it; BundleJarTest keeps this in step with them.
+folia-supported: true
 
 dependencies:
   # Both phases, and bootstrap is not belt-and-braces. Paper runs bootstrap with its own dependency tree and

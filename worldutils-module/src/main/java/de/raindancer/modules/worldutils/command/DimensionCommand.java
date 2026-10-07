@@ -50,7 +50,7 @@ public final class DimensionCommand implements IWorldUtilsCommand {
             return Dimension.words().stream().filter(word -> word.startsWith(typed)).toList();
         }
         if (args.length == 2 && source.getSender().hasPermission(PermissionNodes.DIMENSION_OTHERS)) {
-            return PlayerTargets.suggest(services.get().server(), args[1]);
+            return PlayerTargets.suggest(services.get().server(), source.getSender(), args[1], who -> true);
         }
         return List.of();
     }

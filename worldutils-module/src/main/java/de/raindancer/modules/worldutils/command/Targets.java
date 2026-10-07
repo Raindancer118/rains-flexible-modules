@@ -1,5 +1,6 @@
 package de.raindancer.modules.worldutils.command;
 
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.worldutils.WorldUtilsServices;
 import org.bukkit.command.CommandSender;
@@ -32,7 +33,17 @@ final class Targets {
             live.messages().send(sender, "worldutils.no-permission-others");
             return Optional.empty();
         }
-        List<Player> found = PlayerTargets.resolve(live.server(), sender, args[at]);
+        PlayerLookup lookup = PlayerTargets.lookup(live.server(), sender, args[at]);
+        if (lookup.kind() == PlayerLookup.Kind.SELECTOR_REFUSED) {
+            live.messages().send(sender, "worldutils.selector-refused", "value", args[at]);
+            return Optional.empty();
+        }
+        if (lookup.isOfflineOnly()) {
+            live.messages().send(sender, "worldutils.is-offline", "player",
+                    PlayerTargets.shownName(lookup.matches().getFirst()));
+            return Optional.empty();
+        }
+        List<Player> found = lookup.online();
         if (found.isEmpty()) {
             live.messages().send(sender, "worldutils.nobody-matched", "value", args[at]);
             return Optional.empty();

@@ -1,11 +1,13 @@
 package de.raindancer.modules.chained.command;
 
 import de.raindancer.core.world.manage.WorldSeed;
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.chained.ChainedServices;
 import de.raindancer.modules.chained.model.ChainPair;
 import de.raindancer.modules.chained.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -91,11 +93,12 @@ public final class ChainCommand implements IChainedCommand {
             live.messages().send(sender, "chained.usage.pair");
             return;
         }
-        Player first = PlayerTargets.online(live.server(), args[1]).orElse(null);
-        Player second = PlayerTargets.online(live.server(), args[2]).orElse(null);
-        if (first == null || second == null) {
-            live.messages().send(sender, "chained.unknown-player",
-                    "name", first == null ? args[1] : args[2]);
+        Player first = onlineOne(live, sender, args[1]);
+        if (first == null) {
+            return;
+        }
+        Player second = onlineOne(live, sender, args[2]);
+        if (second == null) {
             return;
         }
         int maxDistance = live.config().maxDistance();
@@ -126,12 +129,40 @@ public final class ChainCommand implements IChainedCommand {
             live.messages().send(sender, "chained.usage.unpair");
             return;
         }
-        java.util.Optional<java.util.UUID> target = PlayerTargets.idOf(live.server(), args[1]);
-        if (target.isEmpty() || !live.chain().unpair(target.get())) {
-            live.messages().send(sender, "chained.not-paired", "name", args[1]);
+        // Offline is fine here: a pair outlives a disconnect, and so must the way to break it.
+        PlayerLookup found = PlayerTargets.lookup(live.server(), sender, args[1]);
+        if (found.kind() == PlayerLookup.Kind.SELECTOR_REFUSED) {
+            live.messages().send(sender, "chained.selector-refused", "typed", args[1]);
             return;
         }
-        live.messages().send(sender, "chained.unpaired", "name", args[1]);
+        for (OfflinePlayer who : found.matches()) {
+            if (live.chain().unpair(who.getUniqueId())) {
+                live.messages().send(sender, "chained.unpaired", "name", PlayerTargets.shownName(who));
+            } else {
+                live.messages().send(sender, "chained.not-paired", "name", PlayerTargets.shownName(who));
+            }
+        }
+        if (found.isEmpty()) {
+            live.messages().send(sender, "chained.not-paired", "name", args[1]);
+        }
+    }
+
+    /** The one online player {@code typed} means, or null after telling the sender why not. */
+    private Player onlineOne(ChainedServices live, CommandSender sender, String typed) {
+        PlayerLookup found = PlayerTargets.lookup(live.server(), sender, typed);
+        if (found.kind() == PlayerLookup.Kind.SELECTOR_REFUSED) {
+            live.messages().send(sender, "chained.selector-refused", "typed", typed);
+        } else if (found.matches().size() > 1) {
+            live.messages().send(sender, "chained.too-many", "typed", typed, "count", found.matches().size());
+        } else if (found.isEmpty()) {
+            live.messages().send(sender, "chained.unknown-player", "name", typed);
+        } else if (found.isOfflineOnly()) {
+            live.messages().send(sender, "chained.player-offline",
+                    "name", PlayerTargets.shownName(found.matches().getFirst()));
+        } else {
+            return found.online().getFirst();
+        }
+        return null;
     }
 
     private void start(ChainedServices live, CommandSender sender) {
@@ -194,9 +225,8 @@ public final class ChainCommand implements IChainedCommand {
             de.raindancer.core.moderation.vanish.Vanish vanish = services.get().core().vanish();
             java.util.UUID viewer = source.getSender() instanceof Player asking
                     ? asking.getUniqueId() : null;
-            return PlayerTargets.suggest(services.get().server(), args[args.length - 1],
-                            online -> viewer == null || vanish.canSee(viewer, online.getUniqueId()))
-                    .stream().filter(name -> !PlayerTargets.isSelector(name)).toList();
+            return PlayerTargets.suggest(services.get().server(), source.getSender(), args[args.length - 1],
+                    online -> viewer == null || vanish.canSee(viewer, online.getUniqueId()));
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("reset")) {
             return startingWith(List.of("seed"), args[1].toLowerCase(Locale.ROOT));

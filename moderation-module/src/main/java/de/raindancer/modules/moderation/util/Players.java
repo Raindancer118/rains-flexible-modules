@@ -1,10 +1,13 @@
 package de.raindancer.modules.moderation.util;
 
 import de.raindancer.core.moderation.vanish.Vanish;
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.ui.choose.PlayerEntry;
+import de.raindancer.core.ui.messages.Messages;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -36,6 +39,50 @@ public final class Players {
     /** Somebody the server has actually seen, online or not, by real name or nickname. */
     public static Optional<OfflinePlayer> find(Server server, String name) {
         return PlayerTargets.find(server, name);
+    }
+
+    /**
+     * Who {@code typed} means - a selector, a real name or a nickname, online or not - when that is exactly
+     * one player; otherwise says why not ("selectors are not yours", "nobody", "matches N") and answers empty.
+     * Never several: what this feeds is a ban, a rank or a report, and {@code /ban @a} is not a thing to guess at.
+     */
+    public static Optional<OfflinePlayer> one(Messages messages, Server server, CommandSender sender, String typed) {
+        return one(messages, PlayerTargets.lookup(server, sender, typed), sender);
+    }
+
+    public static Optional<OfflinePlayer> one(Messages messages, PlayerLookup lookup, CommandSender sender) {
+        if (lookup.kind() == PlayerLookup.Kind.SELECTOR_REFUSED) {
+            messages.send(sender, "moderation.player.selector-refused", "selector", lookup.typed());
+        } else if (lookup.isEmpty()) {
+            messages.send(sender, "moderation.no-such-player", "player", lookup.typed());
+        } else if (lookup.matches().size() > 1) {
+            messages.send(sender, "moderation.player.ambiguous", "selector", lookup.typed(),
+                    "count", String.valueOf(lookup.matches().size()));
+        } else {
+            return lookup.single();
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Everything that can be typed where a player is wanted, for staff: selectors if the sender may use
+     * them, then names and nicknames, online first and offline always (a ban is usually for somebody who
+     * is not here). Staff see everybody, vanished included.
+     */
+    public static List<String> suggest(Server server, CommandSender sender, String typed) {
+        return PlayerTargets.suggest(server, sender, typed, who -> true);
+    }
+
+    /**
+     * The same for a player typing {@code /report}: somebody vanished from them is offered exactly as an
+     * offline player is — never as online, never missing.
+     */
+    public static List<String> suggest(Server server, CommandSender sender, String typed, Vanish vanish) {
+        UUID viewer = sender instanceof Player player ? player.getUniqueId() : null;
+        java.util.function.Predicate<Player> visible = who -> viewer == null || vanish.canSee(viewer, who.getUniqueId());
+        // A hidden player is offered exactly as an offline one is, which is what Core does; dropping them here
+        // would give them away, because every offline player is offered.
+        return PlayerTargets.suggest(server, sender, typed, visible);
     }
 
     /** Their id, when the server has seen them. */
@@ -119,15 +166,11 @@ public final class Players {
      * The same, for a caller who is not staff and so must not be handed a vanished name to complete —
      * {@code /report}'s tab-complete is the one place in this module a plain player reaches this list.
      * Offline players are not hidden by vanish: there is no live entity to hide. A vanished player's
-     * nickname is dropped though, since that one would be new information about somebody who is "away".
+     * nickname is offered like any offline player's — leaving it out would be what gave them away.
      */
     public static List<String> suggestions(Server server, String typed, Vanish vanish, UUID viewer) {
-        return PlayerTargets.suggestKnown(server, typed, who -> vanish.canSee(viewer, who.getUniqueId()))
-                .stream()
-                .filter(entry -> PlayerTargets.online(server, entry)
-                        .map(who -> vanish.canSee(viewer, who.getUniqueId())
-                                || who.getName().equalsIgnoreCase(entry))
-                        .orElse(true))
-                .toList();
+        // A hidden player is offered exactly as an offline one is, which is what Core does; dropping them here
+        // would give them away, because every offline player is offered.
+        return PlayerTargets.suggestKnown(server, typed, who -> vanish.canSee(viewer, who.getUniqueId()));
     }
 }

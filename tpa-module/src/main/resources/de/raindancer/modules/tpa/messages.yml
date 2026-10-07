@@ -29,7 +29,11 @@ tpa:
   not-accepting: "<yellow><player></yellow> is not accepting teleport requests right now."
   already-asked: "<yellow>You have already asked <white><player></white> — they have not answered yet. Patience."
   too-soon: "<yellow>Another <white><time></white> before you can ask again. Persistence has a cooldown."
-  no-such-player: "<red>Nobody called <white><player></white> is here. Check the spelling?"
+  no-such-player: "<red>Nobody called <white><player></white> that this server knows. Check the spelling?"
+  is-offline: "<yellow><player></yellow> is offline right now. Ask again when they are back."
+  too-many: "<yellow><selector></yellow> matches <white><count></white> players, and a request goes to one. Pick one."
+  selector-refused: "<red><selector></red> is not yours to use, or not written right. A name works just as well."
+  selector-nobody: "<yellow><selector></yellow> did not match anybody. Quiet out there."
 
   # ---------------------------------------------------------------- answering
   you-accepted: "<green>Accepted <white><player></white>'s request."

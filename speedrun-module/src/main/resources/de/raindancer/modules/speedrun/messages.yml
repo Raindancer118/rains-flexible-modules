@@ -94,6 +94,9 @@ speedrun:
     no-permission: "<red>You may not use /speedrun <word> here."
     only-a-player: "<red>That one opens a menu — it needs a player."
     no-such-player: "<red>Nobody called <white><player></white> has played here."
+    player-offline: "<red><white><player></white> is offline right now. Their head start will have to wait for them."
+    too-many: "<red><white><player></white> matches <white><count></white> players - pick one."
+    selector-refused: "<red>Selectors like <white><player></white> are not yours to use here - or they are not written right. Type a name instead."
     help-header: "<gold>/speedrun — everything the lobby does:"
     help-line: "<white><usage></white> <gray>— <what>"
   # What a one-click fix says once it is done.
@@ -156,6 +159,9 @@ manhunt:
   only-a-player: "<red>Only a player can do that."
   # /manhunt assign, without the permission for it.
   not-yours: "<red>That is not yours to do."
+  player-offline: "<red><white><player></white> is offline right now. Come back when they are around."
+  too-many: "<red><white><player></white> matches <white><count></white> players - pick one."
+  selector-refused: "<red>Selectors like <white><player></white> are not yours to use here - or they are not written right. Type a name instead."
   # /manhunt assign <player>, where nobody by that name is online.
   no-such-player: "<red>No online player named <white><player></white>. Everybody here is on the hub: <click:run_command:'/manhunt sides'><hover:show_text:'Everybody in the lobby'><u>[Sides]</u></hover></click>"
   # Sides cannot change while a hunt is being played — see Hunt on why the roster is a snapshot.

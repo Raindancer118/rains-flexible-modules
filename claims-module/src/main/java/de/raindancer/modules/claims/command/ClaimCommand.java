@@ -1,6 +1,5 @@
 package de.raindancer.modules.claims.command;
 
-import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimBan;
@@ -12,6 +11,7 @@ import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimBan;
 import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.ClaimServices;
+import de.raindancer.modules.claims.util.Subjects;
 import de.raindancer.modules.claims.util.ManualBook;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -215,9 +215,8 @@ public final class ClaimCommand implements IClaimCommand {
             return;
         }
         Claim claim = maybe.get();
-        Optional<UUID> subject = resolve(claims, args[1]);
+        Optional<UUID> subject = resolve(claims, player, args[1]);
         if (subject.isEmpty()) {
-            claims.messages().send(player, "error.no-such-player", "player", args[1]);
             return;
         }
         UUID who = subject.get();
@@ -306,9 +305,8 @@ public final class ClaimCommand implements IClaimCommand {
             return;
         }
         Claim claim = maybe.get();
-        Optional<UUID> subject = resolve(claims, args[1]);
+        Optional<UUID> subject = resolve(claims, player, args[1]);
         if (subject.isEmpty()) {
-            claims.messages().send(player, "error.no-such-player", "player", args[1]);
             return;
         }
         UUID who = subject.get();
@@ -356,9 +354,8 @@ public final class ClaimCommand implements IClaimCommand {
             claims.messages().send(player, "claim.who", "usage", "/claim kick <player>");
             return;
         }
-        Optional<UUID> subject = resolve(claims, args[1]);
+        Optional<UUID> subject = resolve(claims, player, args[1]);
         if (subject.isEmpty()) {
-            claims.messages().send(player, "error.no-such-player", "player", args[1]);
             return;
         }
         Claim claim = maybe.get();
@@ -390,9 +387,8 @@ public final class ClaimCommand implements IClaimCommand {
             claims.messages().send(player, "claim.who", "usage", "/claim ban <player> [reason]");
             return;
         }
-        Optional<UUID> subject = resolve(claims, args[1]);
+        Optional<UUID> subject = resolve(claims, player, args[1]);
         if (subject.isEmpty()) {
-            claims.messages().send(player, "error.no-such-player", "player", args[1]);
             return;
         }
         Claim claim = maybe.get();
@@ -430,9 +426,12 @@ public final class ClaimCommand implements IClaimCommand {
             }
             return;
         }
-        Optional<UUID> subject = resolve(claims, args[1]);
+        Optional<UUID> subject = resolve(claims, player, args[1]);
         Claim claim = maybe.get();
-        if (subject.isEmpty() || !claim.unban(subject.get())) {
+        if (subject.isEmpty()) {
+            return;
+        }
+        if (!claim.unban(subject.get())) {
             claims.messages().send(player, "claim.not-banned", "player", args[1]);
             return;
         }
@@ -455,9 +454,8 @@ public final class ClaimCommand implements IClaimCommand {
             claims.messages().send(player, "claim.who", "usage", "/claim timeout <player> <duration>");
             return;
         }
-        Optional<UUID> subject = resolve(claims, args[1]);
+        Optional<UUID> subject = resolve(claims, player, args[1]);
         if (subject.isEmpty()) {
-            claims.messages().send(player, "error.no-such-player", "player", args[1]);
             return;
         }
         Optional<java.time.Duration> duration = Durations.parse(args[2]);
@@ -515,9 +513,8 @@ public final class ClaimCommand implements IClaimCommand {
             return;
         }
         Claim claim = maybe.get();
-        Optional<UUID> subject = resolve(claims, args[2]);
+        Optional<UUID> subject = resolve(claims, player, args[2]);
         if (subject.isEmpty()) {
-            claims.messages().send(player, "error.no-such-player", "player", args[2]);
             return;
         }
         UUID who = subject.get();
@@ -562,9 +559,13 @@ public final class ClaimCommand implements IClaimCommand {
         return standing;
     }
 
-    /** A name to a uuid, online or not. Offline included, or you cannot ban somebody who has left. */
-    private Optional<UUID> resolve(ClaimServices claims, String name) {
-        return PlayerTargets.idOf(claims.server(), name);
+    /**
+     * Whoever {@code text} means, by uuid, online or not — offline included, or you cannot ban somebody who
+     * has left. A selector counts when it matches exactly one player. Says why when it cannot, so the
+     * callers just stop.
+     */
+    private Optional<UUID> resolve(ClaimServices claims, CommandSender sender, String text) {
+        return Subjects.one(claims.server(), claims.messages(), sender, text);
     }
 
     @Override
@@ -603,9 +604,8 @@ public final class ClaimCommand implements IClaimCommand {
     private List<String> nameSuggestions(CommandSourceStack source, String typed) {
         ClaimServices claims = services.get();
         UUID viewer = source.getSender() instanceof Player player ? player.getUniqueId() : null;
-        return PlayerTargets.suggest(claims.server(), typed,
-                        who -> viewer == null || claims.core().vanish().canSee(viewer, who.getUniqueId()))
-                .stream().filter(name -> !PlayerTargets.isSelector(name)).toList();
+        return Subjects.suggest(claims.server(), source.getSender(), typed,
+                who -> viewer == null || claims.core().vanish().canSee(viewer, who.getUniqueId()));
     }
 
     @Override

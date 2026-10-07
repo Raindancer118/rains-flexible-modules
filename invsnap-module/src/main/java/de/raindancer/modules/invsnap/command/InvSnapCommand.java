@@ -1,5 +1,6 @@
 package de.raindancer.modules.invsnap.command;
 
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.invsnap.InvSnapServices;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -39,9 +40,23 @@ public final class InvSnapCommand implements IInvSnapCommand {
             live.screens().root(admin);
             return;
         }
-        Optional<OfflinePlayer> target = PlayerTargets.find(live.server(), args[0]);
+        PlayerLookup lookup = PlayerTargets.lookup(live.server(), sender, args[0]);
+        if (lookup.kind() == PlayerLookup.Kind.SELECTOR_REFUSED) {
+            live.messages().send(sender, "invsnap.selector-refused", "selector", args[0]);
+            return;
+        }
+        if (lookup.matches().size() > 1) {
+            live.messages().send(sender, "invsnap.too-many", "selector", args[0],
+                    "count", String.valueOf(lookup.matches().size()));
+            return;
+        }
+        Optional<OfflinePlayer> target = lookup.single();
         if (target.isEmpty()) {
-            live.messages().send(sender, "invsnap.unknown-player", "player", args[0]);
+            if (lookup.kind() == PlayerLookup.Kind.SELECTOR) {
+                live.messages().send(sender, "invsnap.selector-nobody", "selector", args[0]);
+            } else {
+                live.messages().send(sender, "invsnap.unknown-player", "player", args[0]);
+            }
             return;
         }
         OfflinePlayer found = target.get();
@@ -54,7 +69,7 @@ public final class InvSnapCommand implements IInvSnapCommand {
         if (args.length != 1) {
             return List.of();
         }
-        return PlayerTargets.suggestKnown(services.get().server(), args[0], who -> true);
+        return PlayerTargets.suggest(services.get().server(), source.getSender(), args[0], who -> true);
     }
 
     @Override

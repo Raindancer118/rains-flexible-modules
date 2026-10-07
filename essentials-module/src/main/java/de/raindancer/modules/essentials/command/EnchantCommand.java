@@ -1,6 +1,5 @@
 package de.raindancer.modules.essentials.command;
 
-import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.essentials.EssentialsServices;
 import de.raindancer.modules.essentials.rules.EnchantRule;
 import de.raindancer.modules.essentials.screen.EnchantMenu;
@@ -89,11 +88,7 @@ public final class EnchantCommand implements IEssentialsCommand {
             live.messages().send(sender, "essentials.only-a-player");
             return List.of();
         }
-        List<Player> found = PlayerTargets.resolve(live.server(), sender, text);
-        if (found.isEmpty()) {
-            live.messages().send(sender, "essentials.enchant.nobody-there", "player", text);
-        }
-        return found;
+        return Players.online(live.messages(), live.server(), sender, text, false, "essentials.enchant.nobody-there");
     }
 
     @Override
@@ -137,8 +132,7 @@ public final class EnchantCommand implements IEssentialsCommand {
     }
 
     private static List<String> players(EssentialsServices live, CommandSender sender, String typed) {
-        return PlayerTargets.suggest(live.server(), typed, Players.visibleTo(live.core().vanish(),
-                sender instanceof Player viewer ? viewer.getUniqueId() : null));
+        return Players.suggest(live.server(), sender, typed, live.core().vanish());
     }
 
     @Override

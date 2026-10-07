@@ -61,9 +61,8 @@ public final class DemoteCommand implements IModerationCommand {
                     "usage", "/demote <player> [" + OFF_ENTIRELY + "]");
             return;
         }
-        Optional<OfflinePlayer> found = Players.find(moderation.server(), args[0]);
+        Optional<OfflinePlayer> found = Players.one(moderation.messages(), moderation.server(), sender, args[0]);
         if (found.isEmpty()) {
-            moderation.messages().send(sender, "moderation.no-such-player", "player", args[0]);
             return;
         }
         OfflinePlayer them = found.get();
@@ -99,7 +98,7 @@ public final class DemoteCommand implements IModerationCommand {
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
-            return Players.suggestions(services.get().server(), args.length == 1 ? args[0] : "");
+            return Players.suggest(services.get().server(), source.getSender(), args.length == 1 ? args[0] : "");
         }
         return args.length == 2 ? List.of(OFF_ENTIRELY) : List.of();
     }

@@ -13,6 +13,9 @@ chained:
   not-paired: "<red><white><name></white> is not chained to anybody. Free as a bird."
   unpaired: "<green><white><name></white> is no longer chained to anybody. Freedom at last."
   unknown-player: "<red>There is nobody online called <white><name></white>. Maybe they ran away."
+  player-offline: "<red><white><name></white> is offline right now. Chains need two people who are actually here."
+  too-many: "<red><white><typed></white> matches <white><count></white> players - pick one. Chains come in pairs, not crowds."
+  selector-refused: "<red>Selectors like <white><typed></white> are not yours to use here - or they are not written right. Type a name instead."
 
   # ---------------------------------------------------------------- running
   started: "<green>The clock is running. Do not drift too far."

@@ -90,26 +90,26 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
             live.messages().send(sender, "cosmetics.clear.usage");
             return;
         }
-        OfflinePlayer target;
+        List<OfflinePlayer> targets;
         if (args.length > next) {
-            Optional<OfflinePlayer> found = PlayerTargets.find(live.server(), args[next]);
-            if (found.isEmpty()) {
-                live.messages().send(sender, "cosmetics.unknown-player", "player", args[next]);
+            targets = Targets.anybody(live.server(), live.messages(), sender, args[next]);
+            if (targets.isEmpty()) {
                 return;
             }
-            target = found.get();
         } else if (sender instanceof Player self) {
-            target = self;
+            targets = List.of(self);
         } else {
             live.messages().send(sender, "cosmetics.only-a-player");
             return;
         }
-        boolean self = sender instanceof Player who && who.getUniqueId().equals(target.getUniqueId());
-        if (!live.clearing().may(sender, self)) {
-            live.messages().send(sender, self ? "cosmetics.clear.not-allowed" : "cosmetics.clear.not-allowed-others");
-            return;
+        for (OfflinePlayer target : targets) {
+            boolean self = sender instanceof Player who && who.getUniqueId().equals(target.getUniqueId());
+            if (!live.clearing().may(sender, self)) {
+                live.messages().send(sender, self ? "cosmetics.clear.not-allowed" : "cosmetics.clear.not-allowed-others");
+                return;
+            }
+            live.clearing().clear(sender, target, scope.orElse(ClearScope.ALL));
         }
-        live.clearing().clear(sender, target, scope.orElse(ClearScope.ALL));
     }
 
     private void name(CosmeticsServices live, CommandSender sender, String[] args) {
@@ -119,12 +119,9 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                 live.messages().send(sender, "cosmetics.no-permission");
                 return;
             }
-            Optional<OfflinePlayer> target = PlayerTargets.find(live.server(), args[1]);
-            if (target.isEmpty()) {
-                live.messages().send(sender, "cosmetics.unknown-player", "player", args[1]);
-                return;
+            for (OfflinePlayer target : Targets.anybody(live.server(), live.messages(), sender, args[1])) {
+                live.names().resetOther(sender, target);
             }
-            live.names().resetOther(sender, target.get());
             return;
         }
         if (!(sender instanceof Player player)) {
@@ -291,7 +288,7 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
         Predicate<Player> visible = sender instanceof Player viewer
                 ? who -> live.vanish().canSee(viewer.getUniqueId(), who.getUniqueId())
                 : who -> true;
-        return PlayerTargets.suggestKnown(live.server(), typed, visible);
+        return PlayerTargets.suggest(live.server(), sender, typed, visible);
     }
 
     @Override

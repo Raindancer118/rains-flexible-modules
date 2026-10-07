@@ -127,4 +127,27 @@ class SpeedrunJoinCommandTest {
 
         verify(messages).send(player, "speedrun.command.unknown", "word", "xylophone");
     }
+
+    @Test
+    @DisplayName("stats takes an offline name, and a selector that matches several is refused")
+    void statsTargets() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            CommandSender console = mock(CommandSender.class);
+            when(console.hasPermission(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+            when(source.getSender()).thenReturn(console);
+            BukkitServerStub.offline(bukkit, "Zed", java.util.UUID.nameUUIDFromBytes("zed".getBytes()));
+
+            command.execute(source, new String[] {"stats", "Zed"});
+
+            verify(messages).send(console, "speedrun.stats.none", "player", "Zed");
+
+            Player a = mock(Player.class);
+            Player b = mock(Player.class);
+            BukkitServerStub.selector(bukkit, console, "@a", a, b);
+
+            command.execute(source, new String[] {"stats", "@a"});
+
+            verify(messages).send(console, "speedrun.command.too-many", "player", "@a", "count", "2");
+        }
+    }
 }

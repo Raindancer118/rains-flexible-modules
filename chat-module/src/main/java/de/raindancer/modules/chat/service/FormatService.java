@@ -3,6 +3,7 @@ package de.raindancer.modules.chat.service;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.identity.Identities;
 import de.raindancer.modules.chat.ChatSettings;
+import de.raindancer.modules.chat.model.Mention;
 import de.raindancer.modules.chat.model.ChatStyle;
 import de.raindancer.modules.chat.util.Links;
 import net.kyori.adventure.text.Component;
@@ -12,6 +13,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -77,6 +79,49 @@ public final class FormatService implements IChatService {
      * overrides a colour {@link de.raindancer.core.ui.identity.Identities#chatName} already set),
      * bracketed if the owner asked for vanilla's own look, clickable if they turned that on.
      */
+    /**
+     * The finished line, with every mention drawn where {@link MentionService#find} found it — in the
+     * mentioned player's own name style, or the familiar bold yellow when they have none. Offline and
+     * hidden players look exactly the same as online ones: the hover never says which.
+     */
+    public Component renderLine(Player sender, String plainText, List<Mention> mentions) {
+        ChatStyle style = styles == null ? ChatStyle.DEFAULT : styles.styleOf(sender.getUniqueId());
+        Component message = mentionsOf(plainText, mentions).style(style.asStyle())
+                .colorIfAbsent(settings.defaultMessageColor());
+        return chat.mm(settings.format(),
+                Chat.formatted("name", nameOf(sender)),
+                Chat.formatted("message", message));
+    }
+
+    private Component mentionsOf(String plainText, List<Mention> mentions) {
+        if (plainText == null || plainText.isBlank()) {
+            return Component.text(plainText == null ? "" : plainText);
+        }
+        if (!settings.mentionsEnabled() || mentions == null || mentions.isEmpty()) {
+            return linkifyIfEnabled(plainText);
+        }
+        List<Mention> ordered = new ArrayList<>(mentions);
+        ordered.sort(java.util.Comparator.comparingInt(Mention::start));
+        Component built = Component.empty();
+        int cursor = 0;
+        for (Mention mention : ordered) {
+            if (mention.start() < cursor || mention.end() > plainText.length()) {
+                continue;
+            }
+            built = built.append(linkifyIfEnabled(plainText.substring(cursor, mention.start())));
+            built = built.append(drawn(plainText.substring(mention.start(), mention.end()), mention));
+            cursor = mention.end();
+        }
+        return built.append(linkifyIfEnabled(plainText.substring(cursor)));
+    }
+
+    private Component drawn(String token, Mention mention) {
+        Component painted = identities.hasNameStyle(mention.player())
+                ? identities.painted(mention.player(), token)
+                : highlighted(token);
+        return painted.hoverEvent(HoverEvent.showText(Component.text(mention.name())));
+    }
+
     private Component nameOf(Player sender) {
         Component name = identities.chatName(sender.getUniqueId(), sender.getName())
                 .colorIfAbsent(settings.defaultNameColor());

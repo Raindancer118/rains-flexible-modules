@@ -52,6 +52,8 @@ chat:
   # ── @-mentions ────────────────────────────────────────────────────────────
   mention:
     pinged: "<yellow>⚡ <white><player></white> <yellow>mentioned you: <gray><text>"
+    while-away: "<yellow>⚡ While you were away, you were mentioned <white><count></white> time(s). Popular!"
+    while-away-line: "  <white><player></white><gray>: <text>"
 
   # ── message quality ─────────────────────────────────────────────────────
   quality:

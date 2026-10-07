@@ -53,12 +53,9 @@ public final class SeenCommand implements IEssentialsCommand {
             openChooser(live, viewer, "Seen — who?");
             return;
         }
-        Optional<OfflinePlayer> found = Players.find(live.server(), args[0]);
-        if (found.isEmpty()) {
-            live.messages().send(sender, "essentials.no-such-player", "player", args[0]);
-            return;
+        for (OfflinePlayer them : Players.any(live.messages(), live.server(), sender, args[0])) {
+            report(live, sender, them);
         }
-        report(live, sender, found.get());
     }
 
     /**
@@ -118,10 +115,7 @@ public final class SeenCommand implements IEssentialsCommand {
         if (args.length <= 1) {
             EssentialsServices live = services.get();
             String typed = args.length == 1 ? args[0] : "";
-            CommandSender sender = source.getSender();
-            return sender instanceof Player viewer
-                    ? Players.suggestions(live.server(), typed, live.core().vanish(), viewer.getUniqueId())
-                    : Players.suggestions(live.server(), typed, live.core().vanish());
+            return Players.suggest(live.server(), source.getSender(), typed, live.core().vanish());
         }
         return List.of();
     }

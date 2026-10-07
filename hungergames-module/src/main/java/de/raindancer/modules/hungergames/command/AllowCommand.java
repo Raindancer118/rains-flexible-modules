@@ -1,15 +1,16 @@
 package de.raindancer.modules.hungergames.command;
 
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.hungergames.HungerGamesServices;
+import de.raindancer.modules.hungergames.service.AccountNames;
 import de.raindancer.modules.hungergames.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -21,7 +22,8 @@ import java.util.function.Supplier;
  * or a Discord thread, by somebody working through forty names — and most of those people are not online
  * yet. A player picker can only offer who is connected, which is exactly the wrong set.
  *
- * <p>So this takes a name, resolves it against whoever is online, and otherwise stores the name as given. A
+ * <p>So this takes a name, nickname or selector, resolves it against everybody the server knows (online or
+ * not), and otherwise stores the name as given. A
  * server that will not have a Mojang lookup at 3am when the internet is being difficult still has a
  * tournament to run.
  *
@@ -77,13 +79,28 @@ public final class AllowCommand implements IHungerGamesCommand {
         // Every name on the line, not just the first. Somebody working through a sign-up sheet pastes them
         // in batches, and a command that took one per invocation made that forty commands.
         for (String typed : args) {
-            UUID uuid = resolve(hg, typed);
-            // A nickname is a way to point at somebody, not what the list should remember them as.
-            String name = PlayerTargets.online(hg.server(), typed).map(Player::getName).orElse(typed);
-            if (hg.session().whitelistAdd(uuid, name)) {
-                added.add(name);
-            } else {
-                already.add(name);
+            PlayerLookup found = PlayerTargets.lookup(hg.server(), sender, typed);
+            if (found.kind() == PlayerLookup.Kind.SELECTOR_REFUSED) {
+                hg.messages().send(sender, "hungergames.allow-selector-refused", "who", typed);
+                continue;
+            }
+            if (found.isEmpty() && found.kind() == PlayerLookup.Kind.SELECTOR) {
+                hg.messages().send(sender, "hungergames.allow-selector-empty", "who", typed);
+                continue;
+            }
+            if (found.isEmpty()) {
+                // Somebody not seen on this server yet, named as given — see the class note.
+                // Not a Mojang lookup: run before an event, in bulk, possibly offline, that would freeze the server.
+                record(hg, AccountNames.derivedId(typed), typed, added, already);
+                continue;
+            }
+            // Whoever the text meant — by selector, name or nickname, here or not — goes on the list as
+            // that player: their UUID and their real name. A nickname only points at somebody; storing it
+            // would let whoever later registers under that spelling walk in on somebody else's slot.
+            for (OfflinePlayer who : found.matches()) {
+                String real = who.getName() != null ? who.getName()
+                        : found.kind() == PlayerLookup.Kind.NAME ? typed : who.getUniqueId().toString();
+                record(hg, who.getUniqueId(), real, added, already);
             }
         }
 
@@ -102,24 +119,13 @@ public final class AllowCommand implements IHungerGamesCommand {
         }
     }
 
-    /**
-     * Somebody's UUID: theirs if they are online (by name or nickname), otherwise one derived from the name.
-     *
-     * <p>Deliberately not a Mojang lookup. This is run before an event, often in bulk, sometimes on a server
-     * with no outbound internet, and a blocking HTTP call per name would freeze the server for as long as
-     * that takes — on the main thread, in front of everybody, forty times.
-     *
-     * <p>The derived UUID is stable for a given name, which is what makes the whitelist survive a restart. It
-     * is replaced by the real one the moment that player joins: {@code ConnectionListener} refreshes the name
-     * on every join, and the registry keys on whoever actually connects.
-     */
-    private UUID resolve(HungerGamesServices hg, String name) {
-        var online = PlayerTargets.online(hg.server(), name);
-        if (online.isPresent()) {
-            return online.get().getUniqueId();
+    private static void record(HungerGamesServices hg, UUID uuid, String name, List<String> added,
+                               List<String> already) {
+        if (hg.session().whitelistAdd(uuid, name)) {
+            added.add(name);
+        } else {
+            already.add(name);
         }
-        return UUID.nameUUIDFromBytes(("hungergames:" + name.toLowerCase(Locale.ROOT))
-                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     @Override
@@ -129,9 +135,9 @@ public final class AllowCommand implements IHungerGamesCommand {
         HungerGamesServices hg = services.get();
         String typed = args.length == 0 ? "" : args[args.length - 1];
 
-        return PlayerTargets.suggest(hg.server(), typed, player -> !hg.session().isWhitelisted(player.getUniqueId()))
+        return PlayerTargets.suggest(hg.server(), source.getSender(), typed,
+                        player -> !hg.session().isWhitelisted(player.getUniqueId()))
                 .stream()
-                .filter(name -> !PlayerTargets.isSelector(name))
                 .sorted()
                 .toList();
     }

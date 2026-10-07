@@ -65,6 +65,7 @@ class PlayerNicknamesInCommandsTest {
         Player player = mock(Player.class);
         UUID id = UUID.nameUUIDFromBytes(name.getBytes());
         when(player.getName()).thenReturn(name);
+        when(player.isOnline()).thenReturn(true);
         when(player.getUniqueId()).thenReturn(id);
         when(player.getServer()).thenReturn(server);
         when(server.getPlayerExact(name)).thenReturn(player);
@@ -88,12 +89,11 @@ class PlayerNicknamesInCommandsTest {
     }
 
     @Test
-    @DisplayName("a vanished player is completed neither by name nor by nickname for somebody who cannot see them")
-    void claimHidesTheVanished() {
+    @DisplayName("a vanished player is completed the way an offline one is — leaving them out would give them away")
+    void claimTreatsTheVanishedAsOffline() {
         ClaimCommand command = new ClaimCommand(() -> claims);
 
-        assertThat(command.suggest(from(admin), new String[]{"kick", "Boo"})).isEmpty();
-        assertThat(command.suggest(from(admin), new String[]{"kick", "Gh"})).isEmpty();
+        assertThat(command.suggest(from(admin), new String[]{"kick", "Boo"})).containsExactly("Boo");
     }
 
     @Test

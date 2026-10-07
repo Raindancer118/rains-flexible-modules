@@ -1,5 +1,6 @@
 package de.raindancer.modules.hungergames.command;
 
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.content.items.CustomItem;
 import de.raindancer.modules.hungergames.HungerGamesServices;
@@ -191,15 +192,26 @@ public final class HungerGamesCommand implements IHungerGamesCommand {
             }
         }
 
-        Player recipient;
+        List<Player> recipients;
         if (args.length >= 4) {
-            recipient = PlayerTargets.online(hg.server(), args[3]).orElse(null);
-            if (recipient == null) {
+            // A selector may name a whole group, so this one hands to each.
+            PlayerLookup who = PlayerTargets.lookup(hg.server(), sender, args[3]);
+            if (who.kind() == PlayerLookup.Kind.SELECTOR_REFUSED) {
+                hg.messages().send(sender, "hungergames.give-selector-refused", "who", args[3]);
+                return;
+            }
+            if (who.isEmpty()) {
                 hg.messages().send(sender, "hungergames.give-nobody", "who", args[3]);
                 return;
             }
+            if (who.isOfflineOnly()) {
+                hg.messages().send(sender, "hungergames.give-offline",
+                        "who", PlayerTargets.shownName(who.matches().getFirst()));
+                return;
+            }
+            recipients = who.online();
         } else if (sender instanceof Player self) {
-            recipient = self;
+            recipients = List.of(self);
         } else {
             hg.messages().send(sender, "hungergames.give-console-needs-a-player");
             return;
@@ -210,18 +222,20 @@ public final class HungerGamesCommand implements IHungerGamesCommand {
             hg.messages().send(sender, "hungergames.give-unknown-item", "item", wanted);
             return;
         }
-        ItemStack stack = made.get();
-        // Whatever will not fit is dropped at their feet rather than silently lost, which is what
-        // addItem's leftovers otherwise are.
-        recipient.getInventory().addItem(stack).values()
-                .forEach(leftOver -> recipient.getWorld().dropItemNaturally(recipient.getLocation(), leftOver));
+        for (Player recipient : recipients) {
+            ItemStack stack = made.get().clone();
+            // Whatever will not fit is dropped at their feet rather than silently lost, which is what
+            // addItem's leftovers otherwise are.
+            recipient.getInventory().addItem(stack).values()
+                    .forEach(leftOver -> recipient.getWorld().dropItemNaturally(recipient.getLocation(), leftOver));
 
-        hg.messages().send(sender, "hungergames.give-done",
-                "amount", String.valueOf(amount),
-                "item", found.get().id(),
-                "who", recipient.getName());
-        hg.log().info("{} gave {} x{} to {}.", sender.getName(), found.get().id(), amount,
-                recipient.getName());
+            hg.messages().send(sender, "hungergames.give-done",
+                    "amount", String.valueOf(amount),
+                    "item", found.get().id(),
+                    "who", recipient.getName());
+            hg.log().info("{} gave {} x{} to {}.", sender.getName(), found.get().id(), amount,
+                    recipient.getName());
+        }
     }
 
     /**
@@ -301,8 +315,7 @@ public final class HungerGamesCommand implements IHungerGamesCommand {
         }
         if (args.length == 4 && args[0].equalsIgnoreCase("give")
                 && PermissionNodes.mayOpenTheAdminSuite(source.getSender())) {
-            return PlayerTargets.suggest(services.get().server(), args[3]).stream()
-                    .filter(name -> !PlayerTargets.isSelector(name)).toList();
+            return PlayerTargets.suggest(services.get().server(), source.getSender(), args[3], who -> true);
         }
         if (args.length > 1) {
             return List.of();

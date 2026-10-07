@@ -1,5 +1,6 @@
 package de.raindancer.modules.essentials.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.essentials.EssentialsServices;
 import de.raindancer.modules.essentials.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -42,7 +43,8 @@ public final class ReplyCommand implements IEssentialsCommand {
         }
         Player to = live.server().getPlayer(target);
         if (to == null) {
-            live.messages().send(from, "essentials.msg.unreachable", "player", "them");
+            live.messages().send(from, "essentials.player.offline", "player",
+                    PlayerTargets.shownName(live.server().getOfflinePlayer(target)));
             return;
         }
         String text = String.join(" ", args);

@@ -1,5 +1,6 @@
 package de.raindancer.modules.playerutils.service;
 
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.playerutils.PlayerUtilsSettings;
@@ -54,10 +55,27 @@ public final class Targeting implements IPlayerUtilsService {
             messages.send(sender, "playerutils.no-selectors");
             return List.of();
         }
-        List<Player> found = PlayerTargets.resolve(server, sender, text);
+        PlayerLookup lookup = PlayerTargets.lookup(server, sender, text);
+        switch (lookup.kind()) {
+            case SELECTOR_REFUSED -> {
+                messages.send(sender, "playerutils.no-selectors");
+                return List.of();
+            }
+            case NONE -> {
+                messages.send(sender, "playerutils.nobody", "player", text);
+                return List.of();
+            }
+            default -> {
+            }
+        }
+        if (lookup.isOfflineOnly()) {
+            messages.send(sender, "playerutils.not-online", "player",
+                    PlayerTargets.shownName(lookup.matches().getFirst()));
+            return List.of();
+        }
+        List<Player> found = lookup.online();
         if (found.isEmpty()) {
-            messages.send(sender, PlayerTargets.isRealName(server, text)
-                    ? "playerutils.not-online" : "playerutils.nobody", "player", text);
+            messages.send(sender, "playerutils.selector-nobody", "selector", text);
             return List.of();
         }
         int most = settings.maxSelectorTargets();

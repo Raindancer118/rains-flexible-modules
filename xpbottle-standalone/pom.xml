@@ -33,7 +33,7 @@
              it back. A siphon bottle — tiers I to III out of the box — is held down instead and
              pulls loose experience orbs off the ground within its reach, falling back to the
              holder's own bar when there are none nearby; sneak and right click pours it out. -->
-        <plugin.version>1.0.2</plugin.version>
+        <plugin.version>1.0.3</plugin.version>
     </properties>
 
     <dependencies>

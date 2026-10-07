@@ -354,4 +354,127 @@ class WhitelistCommandTest {
                     assertThat(permission.getDefault()).isEqualTo(org.bukkit.permissions.PermissionDefault.OP);
                 });
     }
+
+    /** Who a VIP command means: selectors, offline players, and a nickname never redirecting anybody. */
+    @org.junit.jupiter.api.Nested
+    @DisplayName("vip targets")
+    class VipTargets {
+
+        private static final java.util.UUID ANNA = java.util.UUID.nameUUIDFromBytes("anna".getBytes());
+        private static final java.util.UUID ZED = java.util.UUID.nameUUIDFromBytes("zed".getBytes());
+
+        private de.raindancer.modules.speedrun.manhunt.service.WhitelistVips vipList;
+        private de.raindancer.core.data.sql.Database database;
+        private de.raindancer.core.ui.identity.Nicknames nicknames;
+        private org.bukkit.entity.Player anna;
+
+        @BeforeEach
+        void setUpTargets() {
+            vipList = mock(de.raindancer.modules.speedrun.manhunt.service.WhitelistVips.class);
+            when(fake.whitelist.vips()).thenReturn(vipList);
+            when(vipList.byName(anyString())).thenReturn(java.util.Optional.empty());
+            database = de.raindancer.core.data.sql.Database.open(directory.resolve("core.db"),
+                    de.raindancer.core.data.sql.CoreSchema.CORE, () -> false);
+            nicknames = new de.raindancer.core.ui.identity.Nicknames(database);
+            de.raindancer.core.platform.command.PlayerTargets.useNicknames(nicknames);
+            anna = mock(org.bukkit.entity.Player.class);
+            when(anna.getUniqueId()).thenReturn(ANNA);
+            when(anna.getName()).thenReturn("Anna");
+            bukkit = mockStatic(Bukkit.class);
+            BukkitServerStub.online(bukkit, "Anna", anna);
+            when(Bukkit.getServer().getPlayer(ANNA)).thenReturn(anna);
+        }
+
+        @AfterEach
+        void tearDownTargets() {
+            de.raindancer.core.platform.command.PlayerTargets.useNicknames(null);
+            database.close();
+        }
+
+        @Test
+        @DisplayName("a nickname makes the real player a VIP, stored and shown under the real name")
+        void nicknameStoresTheRealName() {
+            nicknames.remember(ANNA, "Big Anna");
+            when(fake.whitelist.addVip(ANNA, "Anna")).thenReturn(true);
+
+            command.execute(source, new String[]{"vip", "add", "Big_Anna"});
+
+            verify(fake.whitelist).addVip(ANNA, "Anna");
+            verify(messages).send(sender, "manhunt.whitelist.vip.added", "player", "Anna");
+        }
+
+        @Test
+        @DisplayName("an offline player the server has seen can be made a VIP by name")
+        void offlineByName() {
+            BukkitServerStub.offline(bukkit, "Zed", ZED);
+            when(fake.whitelist.addVip(ZED, "Zed")).thenReturn(true);
+
+            command.execute(source, new String[]{"vip", "add", "Zed"});
+
+            verify(fake.whitelist).addVip(ZED, "Zed");
+        }
+
+        @Test
+        @DisplayName("an offline player can be made a VIP by nickname, under the real name")
+        void offlineByNickname() {
+            org.bukkit.OfflinePlayer away = BukkitServerStub.offline(bukkit, "Zed", ZED);
+            when(Bukkit.getServer().getOfflinePlayer(ZED)).thenReturn(away);
+            nicknames.remember(ZED, "Zeddy");
+            when(fake.whitelist.addVip(ZED, "Zed")).thenReturn(true);
+
+            command.execute(source, new String[]{"vip", "add", "Zeddy"});
+
+            verify(fake.whitelist).addVip(ZED, "Zed");
+        }
+
+        @Test
+        @DisplayName("a nickname that reads like a long-gone VIP's real name does not redirect the removal")
+        void nicknameCannotStealARemoval() {
+            nicknames.remember(ANNA, "Zed");
+            when(vipList.byName("Zed")).thenReturn(java.util.Optional.of(ZED));
+            when(fake.whitelist.removeVip(ZED)).thenReturn(true);
+
+            command.execute(source, new String[]{"vip", "remove", "Zed"});
+
+            verify(fake.whitelist).removeVip(ZED);
+            verify(fake.whitelist, never()).removeVip(ANNA);
+        }
+
+        @Test
+        @DisplayName("a selector that matches several players is refused, not narrowed")
+        void selectorTooMany() {
+            org.bukkit.entity.Player ben = mock(org.bukkit.entity.Player.class);
+            BukkitServerStub.selector(bukkit, sender, "@a", anna, ben);
+
+            command.execute(source, new String[]{"vip", "add", "@a"});
+
+            verify(messages).send(eq(sender), eq("manhunt.too-many"), any(Object[].class));
+            verify(fake.whitelist, never()).addVip(any(), anyString());
+        }
+
+        @Test
+        @DisplayName("a selector the sender may not use is refused")
+        void selectorRefused() {
+            BukkitServerStub.online(bukkit, "unused", null);
+            when(sender.hasPermission("minecraft.command.selector")).thenReturn(false);
+
+            command.execute(source, new String[]{"vip", "add", "@a"});
+
+            verify(messages).send(eq(sender), eq("manhunt.selector-refused"), any(Object[].class));
+            verify(fake.whitelist, never()).addVip(any(), anyString());
+        }
+
+        @Test
+        @DisplayName("completion offers selectors to who may use them and offline players too")
+        void completes() {
+            when(Bukkit.getServer().getOnlinePlayers()).thenReturn(java.util.List.of());
+            org.bukkit.OfflinePlayer zed = mock(org.bukkit.OfflinePlayer.class);
+            when(zed.getName()).thenReturn("Zed");
+            when(Bukkit.getServer().getOfflinePlayers()).thenReturn(new org.bukkit.OfflinePlayer[]{zed});
+
+            assertThat(command.suggest(source, new String[]{"vip", "add", ""})).contains("@a", "Zed");
+            when(sender.hasPermission("minecraft.command.selector")).thenReturn(false);
+            assertThat(command.suggest(source, new String[]{"vip", "add", ""})).contains("Zed").doesNotContain("@a");
+        }
+    }
 }

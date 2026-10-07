@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.8.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.9.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -48,6 +48,7 @@ public final class ChatModule implements FlexModule {
     private SettingsStore<ChatSettings> settings;
 
     private ChatHistoryStore history;
+    private de.raindancer.modules.chat.store.MentionInbox inbox;
     private ChatStyleStore styles;
     private ChatServices services;
     private java.util.function.BiConsumer<java.util.UUID, String> channelWatcher;
@@ -80,8 +81,15 @@ public final class ChatModule implements FlexModule {
 
         FormatService format = new FormatService(context.chat(), context.core().identities(),
                 styleService, settings.current());
+        inbox = new de.raindancer.modules.chat.store.MentionInbox(context.dataFolder());
+        inbox.load();
         MentionService mentions = new MentionService(server, context.core().vanish(),
-                context.core().messages(), settings.current());
+                context.core().messages(), settings.current(), inbox);
+        var inboxSaving = de.raindancer.core.platform.util.Scheduling.asyncTimer(context.plugin(), 60, 60,
+                task -> inbox.save());
+        if (inboxSaving != null) {
+            context.closeWith(inboxSaving::cancel);
+        }
         ChatQualityService quality = new ChatQualityService(settings.current());
         FreezeService freeze = new FreezeService();
         PrivateChatService privateChat = new PrivateChatService();
@@ -99,7 +107,10 @@ public final class ChatModule implements FlexModule {
                 settings::current, format, mentions, quality, freeze, chatHistory, styleService,
                 privateChat, polls);
 
+        // @Name suggestions in the chat box — only while mentions are actually drawn.
+        context.core().mentionCompletions().enable(settings.current().mentionsEnabled());
         settings.onChange(fresh -> {
+            context.core().mentionCompletions().enable(fresh.mentionsEnabled());
             format.settings(fresh);
             mentions.settings(fresh);
             quality.settings(fresh);
@@ -139,6 +150,12 @@ public final class ChatModule implements FlexModule {
         ChatCommands.stopped();
         if (history != null) {
             history.flush();
+        }
+        if (inbox != null) {
+            inbox.save();
+        }
+        if (de.raindancer.core.RainsCore.isAvailable()) {
+            de.raindancer.core.RainsCore.get().mentionCompletions().enable(false);
         }
         // The listener is unregistered by the context, in the reverse order it was registered.
     }

@@ -4,6 +4,7 @@ import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.tpa.TpaServices;
 import de.raindancer.modules.tpa.model.TpaKind;
 import de.raindancer.modules.tpa.util.PermissionNodes;
+import de.raindancer.modules.tpa.util.Who;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -52,12 +53,10 @@ public final class AskCommand implements ITpaCommand {
             return;
         }
 
-        // By name or nickname, among people who are online. Never getOfflinePlayer(String), which blocks on a
-        // lookup against Mojang from what on Folia may be a region thread — and there is nothing to ask
-        // of somebody who is not here anyway.
-        Player them = PlayerTargets.online(live.server(), args[0]).orElse(null);
-        if (them == null || !them.isOnline()) {
-            live.messages().send(player, "tpa.no-such-player", "player", args[0]);
+        // Never getOfflinePlayer(String), which blocks on a lookup against Mojang from what on Folia may be a
+        // region thread. Somebody offline is found by the server's cache and told apart from a typo.
+        Player them = Who.online(live.server(), live.messages(), player, args[0]).orElse(null);
+        if (them == null) {
             return;
         }
         live.asking().ask(player, them, kind);
@@ -70,10 +69,9 @@ public final class AskCommand implements ITpaCommand {
             return List.of();
         }
         TpaServices live = services.get();
-        return PlayerTargets.suggest(live.server(), args.length == 0 ? "" : args[0],
-                        other -> !other.equals(player)
-                                && live.core().vanish().canSee(player.getUniqueId(), other.getUniqueId()))
-                .stream().filter(name -> !PlayerTargets.isSelector(name)).toList();
+        return Who.suggest(live.server(), player, args.length == 0 ? "" : args[0],
+                other -> !other.equals(player)
+                        && live.core().vanish().canSee(player.getUniqueId(), other.getUniqueId()));
     }
 
     @Override

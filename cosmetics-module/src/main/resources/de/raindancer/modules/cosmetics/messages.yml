@@ -14,6 +14,8 @@ cosmetics:
   reloaded: "<green>Reloaded. <white><colours></white> palette colour(s), <white><presets></white> preset(s)."
 
   unknown-player: "<red>Nobody called <white><player></white> has played here. Check the spelling."
+  selector-refused: "<red><white><selector></white> is not yours to use, or not written right. A name works just as well."
+  selector-nobody: "<yellow><white><selector></white> did not match anybody, so nothing was touched."
 
   unknown-preset: "<red>There is no preset called <white><preset></white>. <gray>Tab shows the ones there are."
 

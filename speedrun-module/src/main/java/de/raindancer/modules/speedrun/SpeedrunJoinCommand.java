@@ -9,6 +9,7 @@ import de.raindancer.core.ui.text.Text;
 import de.raindancer.core.ui.chat.ChatButtons;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.platform.command.PlayerTargets;
+import de.raindancer.modules.speedrun.util.TargetPick;
 import de.raindancer.modules.speedrun.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
@@ -123,9 +124,10 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
             case "check" -> check(live, sender);
             case "stats" -> stats(live, sender, rest);
             case "top" -> top(live, sender);
-            case "history" -> withPlayer(live, sender, player -> target(sender, rest).ifPresentOrElse(
-                    who -> new SpeedrunHistoryMenu(lobby, player, null, who.getUniqueId(), nameOf(who)).open(),
-                    () -> live.messages().send(sender, "speedrun.command.no-such-player", "player", rest[0])));
+            case "history" -> withPlayer(live, sender, player -> {
+                Optional<OfflinePlayer> who = target(live, sender, rest);
+                who.ifPresent(found -> new SpeedrunHistoryMenu(lobby, player, null, found.getUniqueId(), nameOf(found)).open());
+            });
             case "hud" -> withPlayer(live, sender, player -> {
                 if (rest.length == 0) {
                     actions.cycleHud(player);
@@ -230,10 +232,8 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
 
     private void stats(SpeedrunAdminServices live, CommandSender sender, String[] rest) {
         SpeedrunHistory history = live.lobby().toolkit().map(SpeedrunToolkit::history).orElse(null);
-        Optional<OfflinePlayer> whose = target(sender, rest);
+        Optional<OfflinePlayer> whose = target(live, sender, rest);
         if (whose.isEmpty()) {
-            live.messages().send(sender, rest.length == 0 ? "speedrun.command.only-a-player"
-                    : "speedrun.command.no-such-player", "player", rest.length == 0 ? "" : rest[0]);
             return;
         }
         if (history == null) {
@@ -322,12 +322,26 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
                 || sender.hasPermission(word.access().node()));
     }
 
-    /** The named player, or the sender themselves for no name. */
-    private static Optional<OfflinePlayer> target(CommandSender sender, String[] rest) {
+    private static final TargetPick.Keys PICK_KEYS = new TargetPick.Keys("speedrun.command.no-such-player",
+            "speedrun.command.player-offline", "speedrun.command.too-many", "speedrun.command.selector-refused");
+
+    /**
+     * The named player — offline too, history outlives a disconnect — or the sender themselves for no
+     * name. Empty after saying why not.
+     */
+    private static Optional<OfflinePlayer> target(SpeedrunAdminServices live, CommandSender sender, String[] rest) {
         if (rest.length == 0) {
-            return sender instanceof Player player ? Optional.of(player) : Optional.empty();
+            if (sender instanceof Player player) {
+                return Optional.of(player);
+            }
+            live.messages().send(sender, "speedrun.command.only-a-player");
+            return Optional.empty();
         }
-        return PlayerTargets.find(Bukkit.getServer(), rest[0]);
+        TargetPick pick = TargetPick.anyone(Bukkit.getServer(), sender, rest[0]);
+        if (pick.tell(live.messages(), sender, PICK_KEYS)) {
+            return Optional.empty();
+        }
+        return Optional.of(pick.who());
     }
 
     private static String nameOf(OfflinePlayer player) {
@@ -347,8 +361,7 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
         String typed = args[args.length - 1].toLowerCase(Locale.ROOT);
         List<String> options = switch (args[0].toLowerCase(Locale.ROOT)) {
             case "resume", "time" -> admin ? List.of("0", "42:05", "1:02:03", "1h30m") : List.of();
-            case "stats", "history" -> PlayerTargets.suggest(Bukkit.getServer(), typed).stream()
-                    .filter(name -> !PlayerTargets.isSelector(name)).toList();
+            case "stats", "history" -> PlayerTargets.suggest(Bukkit.getServer(), sender, typed, who -> true);
             case "hud" -> Arrays.stream(SpeedrunHudMode.values()).map(mode -> mode.name().toLowerCase(Locale.ROOT)).toList();
             case "seed" -> admin ? List.of("random", "same") : List.of();
             case "reset" -> admin && !(sender instanceof Player) ? List.of("confirm") : List.of();

@@ -66,6 +66,10 @@ class PlayerUtilsScenarioTest {
             Await.until("Bo's inventory is empty", Duration.ofSeconds(5), () -> bo.items().isEmpty());
 
             ada.runAndExpect("ping Bobby_the_Brave", "ms");
+
+            // Selectors reach everybody they match.
+            ada.runAndExpect("feed @a", "done to 2 of 2");
+
             ada.runAndExpect("hunger Bobby_the_Brave", "drumsticks");
 
             // One tag for every plugin, styled, from the command — and it shows on the next line.
@@ -74,6 +78,11 @@ class PlayerUtilsScenarioTest {
             ada.runAndExpect("prefix style #ff8800,#ffee00|bold", "Prefix changed");
             ada.forgetChat();
             ada.runAndExpect("feed Bobby_the_Brave", "Lilly SMP");
+
+            // Somebody offline, named by nickname: "not online", not "nobody is called that".
+            bo.leave();
+            Await.ticks(10);
+            ada.runAndExpect("heal Bobby_the_Brave", "not online");
 
             assertThat(server.paper.errorsFrom("RainsCore", "RainsEssentials", "RainsPlayerUtils")).isEmpty();
         }

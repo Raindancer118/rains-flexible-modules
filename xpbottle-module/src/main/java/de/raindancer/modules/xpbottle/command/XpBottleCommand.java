@@ -1,5 +1,6 @@
 package de.raindancer.modules.xpbottle.command;
 
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.xpbottle.XpBottleServices;
 import de.raindancer.modules.xpbottle.service.BottleForge;
@@ -62,9 +63,22 @@ public final class XpBottleCommand implements IXpBottleCommand {
             live.messages().send(sender, "xpbottle.usage");
             return;
         }
-        Player target = PlayerTargets.online(live.server(), args[1]).orElse(null);
-        if (target == null) {
-            live.messages().send(sender, "xpbottle.give.not-online", "player", args[1]);
+        PlayerLookup found = PlayerTargets.lookup(live.server(), sender, args[1]);
+        if (found.kind() == PlayerLookup.Kind.SELECTOR_REFUSED) {
+            live.messages().send(sender, "xpbottle.give.selector-refused", "selector", args[1]);
+            return;
+        }
+        if (found.isEmpty()) {
+            if (found.kind() == PlayerLookup.Kind.SELECTOR) {
+                live.messages().send(sender, "xpbottle.give.selector-nobody", "selector", args[1]);
+            } else {
+                live.messages().send(sender, "xpbottle.give.unknown", "player", args[1]);
+            }
+            return;
+        }
+        if (found.isOfflineOnly()) {
+            live.messages().send(sender, "xpbottle.give.not-online", "player",
+                    PlayerTargets.shownName(found.matches().getFirst()));
             return;
         }
         int highest = live.config().highestTierClamped();
@@ -84,14 +98,22 @@ public final class XpBottleCommand implements IXpBottleCommand {
             }
         }
 
-        ItemStack bottle = live.forge().siphon(tier);
-        target.getInventory().addItem(bottle).values()
-                .forEach(left -> target.getWorld().dropItemNaturally(target.getLocation(), left));
-        live.messages().send(sender, "xpbottle.give.given",
-                "tier", BottleForge.numeral(tier), "player", target.getName());
-        if (!target.equals(sender)) {
-            live.messages().send(target, "xpbottle.give.received",
-                    "tier", BottleForge.numeral(tier));
+        List<Player> targets = found.online();
+        for (Player target : targets) {
+            ItemStack bottle = live.forge().siphon(tier);
+            target.getInventory().addItem(bottle).values()
+                    .forEach(left -> target.getWorld().dropItemNaturally(target.getLocation(), left));
+            if (!target.equals(sender)) {
+                live.messages().send(target, "xpbottle.give.received",
+                        "tier", BottleForge.numeral(tier));
+            }
+        }
+        if (targets.size() == 1) {
+            live.messages().send(sender, "xpbottle.give.given",
+                    "tier", BottleForge.numeral(tier), "player", PlayerTargets.shownName(targets.getFirst()));
+        } else {
+            live.messages().send(sender, "xpbottle.give.given-many",
+                    "tier", BottleForge.numeral(tier), "count", String.valueOf(targets.size()));
         }
     }
 
@@ -109,8 +131,7 @@ public final class XpBottleCommand implements IXpBottleCommand {
             return List.of();
         }
         if (args.length == 2) {
-            return PlayerTargets.suggest(services.get().server(), args[1]).stream()
-                    .filter(name -> !PlayerTargets.isSelector(name)).toList();
+            return PlayerTargets.suggest(services.get().server(), source.getSender(), args[1], who -> true);
         }
         if (args.length == 3) {
             List<String> tiers = new ArrayList<>();

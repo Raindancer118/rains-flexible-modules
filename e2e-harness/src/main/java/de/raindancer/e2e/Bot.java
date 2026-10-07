@@ -55,6 +55,7 @@ import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.title.Clien
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.title.ClientboundSetSubtitleTextPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.title.ClientboundSetTitleTextPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundChatCommandPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundChatPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundClientCommandPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundPlayerLoadedPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.inventory.ServerboundContainerClickPacket;
@@ -579,6 +580,17 @@ public final class Bot {
     public Bot run(String command) {
         pace();
         session.send(new ServerboundChatCommandPacket(command.startsWith("/") ? command.substring(1) : command));
+        return this;
+    }
+
+    /**
+     * Says {@code text} in chat, unsigned — as an offline-mode server accepts from any client. Paced like
+     * {@link #run}, since the server counts chat lines and commands alike.
+     */
+    public Bot say(String text) {
+        pace();
+        session.send(new ServerboundChatPacket(text, System.currentTimeMillis(), 0L, null, 0,
+                new java.util.BitSet(20), 0));
         return this;
     }
 

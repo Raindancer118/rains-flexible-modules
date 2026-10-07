@@ -681,4 +681,83 @@ class ManhuntCommandTest {
                     .containsExactly("tracker", "team");
         }
     }
+
+    @Test
+    @DisplayName("assign says an offline player is offline, rather than that nobody is called that")
+    void assignOfflineIsSaid() {
+        bukkit = mockStatic(Bukkit.class);
+        BukkitServerStub.offline(bukkit, "Zed", UUID.nameUUIDFromBytes("zed".getBytes()));
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+
+        command.execute(source, new String[]{"assign", "Zed", "runner"});
+
+        assertThat(fake.teams.runners()).isEmpty();
+        verify(fake.messages).send(eq(anna), eq("manhunt.player-offline"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("assign takes a selector that matches one, and refuses one that matches several")
+    void assignSelectors() {
+        Player ben = mock(Player.class);
+        when(ben.getUniqueId()).thenReturn(BEN);
+        when(ben.getName()).thenReturn("Ben");
+        bukkit = mockStatic(Bukkit.class);
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        BukkitServerStub.selector(bukkit, anna, "@p", ben);
+        when(ben.isOnline()).thenReturn(true);
+
+        command.execute(source, new String[]{"assign", "@p", "runner"});
+
+        assertThat(fake.teams.runners()).containsExactly(BEN);
+
+        BukkitServerStub.selector(bukkit, anna, "@a", ben, anna);
+        command.execute(source, new String[]{"assign", "@a", "hunter"});
+
+        verify(fake.messages).send(eq(anna), eq("manhunt.too-many"), any(Object[].class));
+        assertThat(fake.teams.hunters()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("assign with a selector the sender may not use says so")
+    void assignSelectorRefused() {
+        bukkit = mockStatic(Bukkit.class);
+        BukkitServerStub.online(bukkit, "unused", null);
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        when(anna.hasPermission("minecraft.command.selector")).thenReturn(false);
+
+        command.execute(source, new String[]{"assign", "@a", "runner"});
+
+        verify(fake.messages).send(eq(anna), eq("manhunt.selector-refused"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("unassign reaches somebody offline by name")
+    void unassignOffline() {
+        bukkit = mockStatic(Bukkit.class);
+        UUID zed = UUID.nameUUIDFromBytes("zed".getBytes());
+        BukkitServerStub.offline(bukkit, "Zed", zed);
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        fake.teams.join(zed, true);
+
+        command.execute(source, new String[]{"unassign", "Zed"});
+
+        assertThat(fake.teams.runners()).isEmpty();
+        verify(fake.messages).send(eq(anna), eq("manhunt.unassign.done"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("completion offers selectors to who may use them, and offline players")
+    void completesOffline() {
+        bukkit = mockStatic(Bukkit.class);
+        BukkitServerStub.online(bukkit, "unused", null);
+        org.bukkit.OfflinePlayer zed = mock(org.bukkit.OfflinePlayer.class);
+        when(zed.getName()).thenReturn("Zed");
+        when(Bukkit.getServer().getOfflinePlayers()).thenReturn(new org.bukkit.OfflinePlayer[]{zed});
+        when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
+        when(anna.hasPermission("minecraft.command.selector")).thenReturn(true);
+
+        assertThat(command.suggest(source, new String[]{"assign", ""})).contains("@a", "Zed");
+        when(anna.hasPermission("minecraft.command.selector")).thenReturn(false);
+        assertThat(command.suggest(source, new String[]{"assign", ""})).contains("Zed").doesNotContain("@a");
+    }
 }

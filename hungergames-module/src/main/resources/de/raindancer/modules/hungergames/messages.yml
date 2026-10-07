@@ -156,6 +156,8 @@ hungergames:
   allow-usage: "<red>/allow <player> [player…] — several at once, online or not.</red>"
   allowed: "<green>✔ Now a tribute: <white><players></white></green> <gray>(<total> in total)</gray>"
   allowed-already: "<yellow>Already a tribute: <white><players></white></yellow>"
+  allow-selector-refused: "<red>Selectors like <white><who></white> are not yours to use here - or they are not written right. Type names instead.</red>"
+  allow-selector-empty: "<yellow><white><who></white> matches nobody who is online right now - nobody was added for it.</yellow>"
 
   # ---------------------------------------------------------------- what an item says
   #
@@ -248,6 +250,8 @@ hungergames:
   give-usage: "<yellow>/hg give <white><item> [amount] [player]</white> <gray>— tab-completes the item names.</gray></yellow>"
   give-unknown-item: "<red>There is no custom item called <white><item></white>. <gray>Tab-complete to see them.</gray></red>"
   give-bad-amount: "<red><amount> is not an amount between 1 and 64.</red>"
-  give-nobody: "<red><who> is not online.</red>"
+  give-nobody: "<red>Nobody is called <who>.</red>"
+  give-offline: "<red><white><who></white> is offline right now, so there are no hands to put it in.</red>"
+  give-selector-refused: "<red>Selectors like <white><who></white> are not yours to use here - or they are not written right. Type a name instead.</red>"
   give-console-needs-a-player: "<red>From the console, say who it is for: <white>/hg give <item> <amount> <player></white>.</red>"
   give-done: "<green>✔ <white><amount>× <item></white> <gray>→</gray> <white><who></white>.</green>"

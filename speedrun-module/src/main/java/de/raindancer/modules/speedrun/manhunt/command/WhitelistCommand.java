@@ -1,6 +1,8 @@
 package de.raindancer.modules.speedrun.manhunt.command;
 
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
+import de.raindancer.modules.speedrun.util.TargetPick;
 import de.raindancer.modules.speedrun.manhunt.ManhuntServices;
 import de.raindancer.modules.speedrun.manhunt.util.PermissionNodes;
 import de.raindancer.core.platform.util.Scheduling;
@@ -114,12 +116,12 @@ public final class WhitelistCommand implements IManhuntCommand {
             live.messages().send(sender, "manhunt.whitelist.vip.usage");
             return;
         }
-        String name = args[2];
-        UUID who = resolve(live, name).orElse(null);
-        if (who == null) {
-            live.messages().send(sender, "manhunt.no-such-player", "player", name);
+        Vip vip = resolve(live, sender, args[2]);
+        if (vip == null) {
             return;
         }
+        UUID who = vip.id();
+        String name = vip.name();
         if (word.equals("add")) {
             boolean fresh = live.whitelist().addVip(who, name);
             live.messages().send(sender,
@@ -133,22 +135,36 @@ public final class WhitelistCommand implements IManhuntCommand {
                 "player", name);
     }
 
+    /** Who a VIP command means, with the real name to show and to store — never the nickname that was typed. */
+    private record Vip(UUID id, String name) {
+    }
+
     /**
-     * A typed name to the id behind it, without ever asking Mojang.
+     * A typed name, nickname or selector to the player behind it, without ever asking Mojang, or null
+     * after saying why not.
      *
-     * <h2>Why three places are tried, in this order</h2>
-     * Online is the certain answer and the common one. The server's own cache is next, which is what
-     * makes {@code vip add} work for somebody who has played here before but is not on right now.
-     * A nickname answers after both, through {@link PlayerTargets#find}.
-     * Last is this module's own VIP list, which is the only one of the three that can still answer
-     * for somebody who was made a VIP long ago and has not been seen since — exactly the person
-     * {@code vip remove} is usually about. What is deliberately <em>not</em> here is
-     * {@code Bukkit.getOfflinePlayer(String)}: on a name the server has never seen it blocks the
-     * calling thread on a web request and then invents an id for a player who may not exist.
+     * <p>Real names win over nicknames: when {@code typed} is not a name the server knows, this
+     * module's own VIP list is asked before a nickname may answer — it is the only thing that can still
+     * name somebody made a VIP long ago and not seen since, exactly who {@code vip remove} is about.
+     * What is deliberately <em>not</em> here is {@code Bukkit.getOfflinePlayer(String)}: on an unknown
+     * name it blocks on a web request and invents an id.
      */
-    private Optional<UUID> resolve(ManhuntServices live, String name) {
-        Optional<UUID> known = PlayerTargets.idOf(Bukkit.getServer(), name);
-        return known.isPresent() ? known : live.whitelist().vips().byName(name);
+    private Vip resolve(ManhuntServices live, CommandSender sender, String typed) {
+        PlayerLookup found = PlayerTargets.lookup(Bukkit.getServer(), sender, typed);
+        if (found.kind() == PlayerLookup.Kind.NONE || found.kind() == PlayerLookup.Kind.NICKNAME) {
+            Optional<UUID> listed = live.whitelist().vips().byName(typed);
+            if (listed.isPresent()) {
+                return new Vip(listed.get(), typed);
+            }
+        }
+        TargetPick pick = TargetPick.anyone(Bukkit.getServer(), sender, typed);
+        if (pick.tell(live.messages(), sender, ManhuntCommand.PICK_KEYS)) {
+            return null;
+        }
+        OfflinePlayer who = pick.who();
+        String real = who.getName();
+        return new Vip(who.getUniqueId(),
+                real != null ? real : who.getUniqueId().toString().substring(0, 8));
     }
 
     private void openOrClose(ManhuntServices live, CommandSender sender, boolean open) {
@@ -239,8 +255,7 @@ public final class WhitelistCommand implements IManhuntCommand {
                         .toList();
             }
             if (args.length == 3) {
-                return PlayerTargets.suggest(Bukkit.getServer(), args[2]).stream()
-                        .filter(name -> !PlayerTargets.isSelector(name)).toList();
+                return PlayerTargets.suggest(Bukkit.getServer(), source.getSender(), args[2], who -> true);
             }
             return List.of();
         }

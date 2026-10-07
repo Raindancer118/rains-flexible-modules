@@ -1,6 +1,7 @@
 package de.raindancer.modules.essentials.command;
 
 import de.raindancer.core.moderation.audit.AuditEntry;
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.essentials.EssentialsServices;
 import de.raindancer.modules.essentials.screen.BlocklistMenu;
@@ -60,7 +61,7 @@ public final class NickCommand implements IEssentialsCommand {
     public void execute(CommandSourceStack source, String[] args) {
         EssentialsServices live = services.get();
         CommandSender sender = source.getSender();
-        Optional<OfflinePlayer> other = otherPlayer(live, sender, args);
+        Optional<PlayerLookup> other = otherPlayer(live, sender, args);
         if (other.isPresent()) {
             forSomebodyElse(live, sender, other.get(), Arrays.copyOfRange(args, 1, args.length));
             return;
@@ -96,20 +97,44 @@ public final class NickCommand implements IEssentialsCommand {
         live.nicknames().set(who, who, String.join(" ", args));
     }
 
-    /** The player the first word names, when this is the admin form of the command rather than a nickname. */
-    private static Optional<OfflinePlayer> otherPlayer(EssentialsServices live, CommandSender sender, String[] args) {
+    /**
+     * The lookup of the first word, when this is the admin form of the command rather than a nickname.
+     *
+     * <p>A word that is only somebody's <em>nickname</em> counts only with an explicit {@code set} /
+     * {@code clear} after it. Otherwise {@code /nick Bob Builder} from an admin who wants to be called
+     * "Bob Builder" would silently rename whoever happens to be nicknamed "Bob". A real name or a
+     * selector is unambiguous, so those keep the short form.
+     */
+    static Optional<PlayerLookup> otherPlayer(EssentialsServices live, CommandSender sender, String[] args) {
         if (args.length < 2 || !sender.hasPermission(PermissionNodes.NICK_OTHERS)
                 || WORDS.contains(args[0].toLowerCase(Locale.ROOT))
                 || args[0].equalsIgnoreCase("blocklist")) {
             return Optional.empty();
         }
-        return PlayerTargets.find(live.server(), args[0])
-                .filter(found -> !(sender instanceof Player who) || !who.getUniqueId().equals(found.getUniqueId()));
+        PlayerLookup lookup = PlayerTargets.lookup(live.server(), sender, args[0]);
+        switch (lookup.kind()) {
+            case NONE:
+                return Optional.empty();
+            case NICKNAME:
+                if (!WORDS.contains(args[1].toLowerCase(Locale.ROOT))) {
+                    return Optional.empty();
+                }
+                break;
+            default:
+                break;
+        }
+        boolean onlyMe = sender instanceof Player who && lookup.kind() != PlayerLookup.Kind.SELECTOR_REFUSED
+                && lookup.matches().size() == 1 && lookup.matches().getFirst().getUniqueId().equals(who.getUniqueId());
+        return onlyMe ? Optional.empty() : Optional.of(lookup);
     }
 
-    private void forSomebodyElse(EssentialsServices live, CommandSender sender, OfflinePlayer target, String[] rest) {
+    private void forSomebodyElse(EssentialsServices live, CommandSender sender, PlayerLookup lookup, String[] rest) {
         if (!live.nicknames().isEnabled()) {
             live.messages().send(sender, "essentials.nick.switched-off");
+            return;
+        }
+        OfflinePlayer target = Players.one(live.messages(), lookup, sender).orElse(null);
+        if (target == null) {
             return;
         }
         if (rest.length == 1 && (rest[0].equalsIgnoreCase("clear") || rest[0].equalsIgnoreCase("off"))) {
@@ -136,7 +161,7 @@ public final class NickCommand implements IEssentialsCommand {
         EssentialsServices live = services.get();
         CommandSender sender = source.getSender();
         boolean admin = sender.hasPermission(PermissionNodes.NICK_OTHERS);
-        if (args.length == 2 && admin && PlayerTargets.find(live.server(), args[0]).isPresent()) {
+        if (args.length == 2 && admin && !PlayerTargets.lookup(live.server(), sender, args[0]).isEmpty()) {
             return WORDS.stream().filter(word -> word.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         }
         if (args.length != 1) {
@@ -150,8 +175,7 @@ public final class NickCommand implements IEssentialsCommand {
         List<String> matching = new ArrayList<>(suggestions.stream()
                 .filter(candidate -> candidate.startsWith(typed)).toList());
         if (admin) {
-            matching.addAll(Players.suggestions(live.server(), args[0], live.core().vanish(),
-                    sender instanceof Player viewer ? viewer.getUniqueId() : null));
+            matching.addAll(Players.suggest(live.server(), sender, args[0], live.core().vanish()));
         }
         return matching;
     }

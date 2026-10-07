@@ -153,7 +153,7 @@ public final class AuditCommand extends StaffCommand {
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
-            return Players.suggestions(services().server(), args.length == 1 ? args[0] : "");
+            return Players.suggest(services().server(), source.getSender(), args.length == 1 ? args[0] : "");
         }
         return List.of();
     }

@@ -46,9 +46,8 @@ public final class IgnoreCommand implements IEssentialsCommand {
             list(live, who);
             return;
         }
-        Optional<OfflinePlayer> found = Players.find(live.server(), args[0]);
+        Optional<OfflinePlayer> found = Players.one(live.messages(), live.server(), who, args[0]);
         if (found.isEmpty()) {
-            live.messages().send(who, "essentials.no-such-player", "player", args[0]);
             return;
         }
         UUID target = found.get().getUniqueId();
@@ -82,11 +81,8 @@ public final class IgnoreCommand implements IEssentialsCommand {
         }
         EssentialsServices live = services.get();
         String typed = args.length == 1 ? args[0] : "";
-        CommandSender sender = source.getSender();
-        List<String> suggestions = sender instanceof Player viewer
-                ? Players.suggestions(live.server(), typed, live.core().vanish(), viewer.getUniqueId())
-                : Players.suggestions(live.server(), typed, live.core().vanish());
-        List<String> options = new ArrayList<>(suggestions);
+        List<String> options = new ArrayList<>(
+                Players.suggest(live.server(), source.getSender(), typed, live.core().vanish()));
         if ("list".startsWith(typed.toLowerCase(Locale.ROOT))) {
             options.addFirst("list");
         }

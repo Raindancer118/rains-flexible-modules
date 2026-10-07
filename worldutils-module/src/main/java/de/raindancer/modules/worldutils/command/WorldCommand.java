@@ -52,7 +52,7 @@ public final class WorldCommand implements IWorldUtilsCommand {
                     .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(typed)).toList();
         }
         if (args.length == 2 && source.getSender().hasPermission(PermissionNodes.WORLD_OTHERS)) {
-            return PlayerTargets.suggest(live.server(), args[1]);
+            return PlayerTargets.suggest(live.server(), source.getSender(), args[1], who -> true);
         }
         return List.of();
     }

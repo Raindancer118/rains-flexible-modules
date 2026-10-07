@@ -1,6 +1,5 @@
 package de.raindancer.modules.chat.listener;
 
-import com.destroystokyo.paper.event.server.AsyncTabCompleteEvent;
 import de.raindancer.core.platform.rule.Verdict;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.modules.chat.ChatServices;
@@ -84,10 +83,10 @@ public final class ChatListener implements IChatListener {
         }
         services.history().record(sender.getUniqueId(), sender.getName(), text);
 
-        List<Player> mentioned = services.mentions().mentionsIn(sender, text);
+        List<de.raindancer.modules.chat.model.Mention> mentioned = services.mentions().find(sender, text);
         event.renderer(ChatRenderer.viewerUnaware((source, sourceDisplayName, message) ->
-                services.format().render(sender, text, mentioned)));
-        services.mentions().notifyMentioned(sender, text, mentioned);
+                services.format().renderLine(sender, text, mentioned)));
+        services.mentions().notify(sender, text, mentioned);
     }
 
     /**
@@ -134,40 +133,6 @@ public final class ChatListener implements IChatListener {
     }
 
     /**
-     * Offers {@code @Name} completions once the last word being typed starts with {@code @} —
-     * everything else about the request is left untouched, so plain-word completion still works
-     * however the server would otherwise have answered it.
-     *
-     * <h2>Why this event and not {@code PlayerChatTabCompleteEvent}</h2>
-     * {@code PlayerChatTabCompleteEvent} has been dead since 1.13 — Bukkit's own javadoc says so
-     * ("no longer fired due to client changes") — because the client stopped asking the server for
-     * chat-text completions over that packet. {@link AsyncTabCompleteEvent} is what actually still
-     * fires for both commands and plain chat; {@link AsyncTabCompleteEvent#isCommand()} is how the
-     * two are told apart here.
-     */
-    @EventHandler
-    public void onTabComplete(AsyncTabCompleteEvent event) {
-        if (event.isCommand()) {
-            return;
-        }
-        CommandSender sender = event.getSender();
-        if (!(sender instanceof Player player)) {
-            return;
-        }
-        String buffer = event.getBuffer();
-        int lastSpace = buffer.lastIndexOf(' ');
-        String token = lastSpace >= 0 ? buffer.substring(lastSpace + 1) : buffer;
-        if (token.isEmpty() || token.charAt(0) != '@') {
-            return;
-        }
-        List<String> candidates = services.mentions().candidatesFor(player, token.substring(1));
-        if (candidates.isEmpty()) {
-            return;
-        }
-        event.setCompletions(candidates);
-    }
-
-    /**
      * A quiet hint rather than the history itself — dumping every missed line into a fresh join is
      * exactly the wall of text a player already has to get past on a server with a MOTD, a welcome
      * broadcast and a scoreboard all firing at once. {@code /chathistory} is one command away for
@@ -175,6 +140,13 @@ public final class ChatListener implements IChatListener {
      */
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+        Player joined = event.getPlayer();
+        // A moment later, so it is not lost among the join line, the MOTD and the welcome.
+        de.raindancer.core.platform.util.Scheduling.entityLater(services.plugin(), joined, 40L, () -> {
+            if (joined.isOnline()) {
+                services.mentions().deliverWaiting(joined);
+            }
+        });
         if (!services.history().notifyOnJoin()) {
             return;
         }

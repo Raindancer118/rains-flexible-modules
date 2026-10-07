@@ -16,6 +16,9 @@ moderation:
   nothing-to-lift: "<gray>Nothing of that kind is in force for <white><player></white>. Nothing to lift, then."
   usage: "<gray>Usage: <white><usage>"
   no-such-player: "<red>Nobody called <white><player></white> has ever shown up here. Check the spelling, or the guest list."
+  player:
+    selector-refused: "<red>Selectors like <white><selector></white> are not yours to use here, or that one is malformed. Type a name instead."
+    ambiguous: "<red><white><selector></white> matches <white><count></white> players, and this needs exactly one. Moderation by lottery is not on the menu."
   not-here: "<gray><player> is not on the server right now. Hard to reach somebody who is not there."
   only-a-player: "<gray>This one needs somebody standing in the world. Ghosts and consoles need not apply."
   console-use-commands: "<gray>The console has no screens, and no eyes for them either. Try <white>/history</white>, <white>/reports list</white> or <white>/ban</white>."

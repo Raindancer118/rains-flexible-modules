@@ -2,6 +2,8 @@ package de.raindancer.modules.hungergames.service;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import de.raindancer.core.platform.command.PlayerLookup;
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.social.team.Team;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
@@ -9,6 +11,7 @@ import de.raindancer.modules.hungergames.model.Participant;
 import de.raindancer.modules.hungergames.store.GameSession;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
@@ -83,7 +86,8 @@ public final class ApiSupport implements IHungerGamesService {
 
     /** The online player by name or UUID, or {@code null}. */
     public Player findOnlinePlayer(String nameOrUuid) {
-        Player byName = Bukkit.getPlayerExact(nameOrUuid);
+        Player byName = realAccount(nameOrUuid).filter(OfflinePlayer::isOnline)
+                .map(who -> who instanceof Player player ? player : who.getPlayer()).orElse(null);
         if (byName != null) {
             return byName;
         }
@@ -122,10 +126,24 @@ public final class ApiSupport implements IHungerGamesService {
     }
 
     /**
-     * A name resolved to a UUID: a registered tribute first, then somebody currently online.
+     * The account a real name belongs to, online or not, never a Mojang lookup. Nicknames and selectors do
+     * not answer: nobody is there to see who was meant, and an automated caller must get exactly the
+     * account it named.
+     */
+    private static Optional<OfflinePlayer> realAccount(String name) {
+        if (name == null || name.isBlank()) {
+            return Optional.empty();
+        }
+        PlayerLookup found = PlayerTargets.lookup(Bukkit.getServer(), Bukkit.getConsoleSender(), name);
+        return found.kind() == PlayerLookup.Kind.NAME ? found.single() : Optional.empty();
+    }
+
+    /**
+     * A name resolved to a UUID: a registered tribute first, then any account the server
+     * knows by real name, online or not — never by nickname.
      *
-     * <p>An offline stranger is deliberately not covered — see the class note — so a caller naming
-     * somebody who has never registered and is not connected right now has to send the UUID instead.
+     * <p>A stranger the server has never seen is deliberately not covered — see the class note — so a caller
+     * naming somebody who has never joined has to send the UUID instead.
      */
     public UUID resolveName(String name) {
         for (Participant participant : session.participants().all()) {
@@ -133,12 +151,12 @@ public final class ApiSupport implements IHungerGamesService {
                 return participant.uuid();
             }
         }
-        Player online = findOnlinePlayer(name);
-        if (online != null) {
-            return online.getUniqueId();
+        Optional<UUID> known = realAccount(name).map(OfflinePlayer::getUniqueId);
+        if (known.isPresent()) {
+            return known.get();
         }
         throw new ApiConflictException("\"" + name
-                + "\" is neither a registered tribute nor online — send the UUID for an offline stranger");
+                + "\" is neither a registered tribute nor known to this server — send the UUID for a stranger");
     }
 
     // ==================== resolving locations ====================

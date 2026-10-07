@@ -81,12 +81,14 @@ class MentionNicknameTest {
     }
 
     @Test
-    @DisplayName("a vanished player's nickname is no mention, just as their name is none")
-    void vanishedNicknameIsNoMention() {
+    @DisplayName("a vanished player is not pinged, and is still offered — exactly as if they were offline")
+    void vanishedLooksOffline() {
         vanish.vanish(lilly.getUniqueId());
 
         assertThat(service.mentionsIn(tom, "@Lilly_Pad")).isEmpty();
-        assertThat(service.candidatesFor(tom, "Lilly")).isEmpty();
+        assertThat(service.find(tom, "@Lilly_Pad")).singleElement()
+                .satisfies(mention -> assertThat(mention.reachable()).isFalse());
+        assertThat(service.candidatesFor(tom, "Lilly_")).containsExactly("@Lilly_Pad");
     }
 
     @Test

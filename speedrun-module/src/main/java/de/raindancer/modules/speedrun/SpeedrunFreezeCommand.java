@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.speedrun.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -48,25 +49,36 @@ abstract class SpeedrunFreezeCommand implements ISpeedrunCommand {
         SpeedrunAdminServices live = services.get();
         CommandSender sender = source.getSender();
 
-        Player target;
+        List<Player> targets;
         if (args.length > 0) {
             if (!sender.hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)) {
                 live.messages().send(sender, key("no-permission-for-others"));
                 return;
             }
-            target = PlayerTargets.online(Bukkit.getServer(), args[0]).orElse(null);
-            if (target == null) {
+            // A selector may name a whole group: handing out or taking back a head start suits that.
+            PlayerLookup found = PlayerTargets.lookup(Bukkit.getServer(), sender, args[0]);
+            if (found.kind() == PlayerLookup.Kind.SELECTOR_REFUSED) {
+                live.messages().send(sender, "speedrun.command.selector-refused", "player", args[0]);
+                return;
+            }
+            if (found.isEmpty()) {
                 live.messages().send(sender, key("player-not-found"), "player", args[0]);
                 return;
             }
+            if (found.isOfflineOnly()) {
+                live.messages().send(sender, "speedrun.command.player-offline",
+                        "player", PlayerTargets.shownName(found.matches().getFirst()));
+                return;
+            }
+            targets = found.online();
         } else if (sender instanceof Player player) {
-            target = player;
+            targets = List.of(player);
         } else {
             live.messages().send(sender, key("console-needs-a-player"));
             return;
         }
 
-        actOn(live, sender, target);
+        targets.forEach(target -> actOn(live, sender, target));
     }
 
     /** One line of {@link #messageKey()}'s branch. */
@@ -79,8 +91,7 @@ abstract class SpeedrunFreezeCommand implements ISpeedrunCommand {
         if (args.length > 1 || !source.getSender().hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)) {
             return List.of();
         }
-        return PlayerTargets.suggest(Bukkit.getServer(), args.length == 0 ? "" : args[0]).stream()
-                .filter(name -> !PlayerTargets.isSelector(name)).toList();
+        return PlayerTargets.suggest(Bukkit.getServer(), source.getSender(), args.length == 0 ? "" : args[0], who -> true);
     }
 
     @Override

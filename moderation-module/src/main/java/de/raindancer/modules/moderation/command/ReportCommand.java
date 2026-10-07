@@ -68,9 +68,8 @@ public final class ReportCommand implements IModerationCommand {
             }
             return;
         }
-        Optional<OfflinePlayer> found = Players.find(moderation.server(), args[0]);
+        Optional<OfflinePlayer> found = Players.one(moderation.messages(), moderation.server(), sender, args[0]);
         if (found.isEmpty()) {
-            moderation.messages().send(sender, "moderation.no-such-player", "player", args[0]);
             return;
         }
         OfflinePlayer them = found.get();
@@ -111,11 +110,7 @@ public final class ReportCommand implements IModerationCommand {
         if (args.length <= 1) {
             ModerationServices moderation = services.get();
             String typed = args.length == 1 ? args[0] : "";
-            CommandSender sender = source.getSender();
-            return sender instanceof Player viewer
-                    ? Players.suggestions(moderation.server(), typed, moderation.vanish(),
-                            viewer.getUniqueId())
-                    : Players.suggestions(moderation.server(), typed);
+            return Players.suggest(moderation.server(), source.getSender(), typed, moderation.vanish());
         }
         return java.util.List.of();
     }

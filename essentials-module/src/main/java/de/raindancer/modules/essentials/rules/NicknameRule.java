@@ -32,6 +32,7 @@ public final class NicknameRule extends AbstractRule<NicknameRule.Request> {
     public static final String NAME_TAKEN = "essentials.nick.taken";
     public static final String BLOCKED = "essentials.nick.blocked";
     public static final String NICK_TAKEN = "essentials.nick.nick-taken";
+    public static final String SELECTOR_LIKE = "essentials.nick.selector-like";
 
     public NicknameRule() {
         super("a nickname is not blank, not too long, not blocklisted, and not somebody else's real "
@@ -76,6 +77,9 @@ public final class NicknameRule extends AbstractRule<NicknameRule.Request> {
         }
         if (request.blocked() != BlockMatch.NONE) {
             return Verdict.refused(BLOCKED);
+        }
+        if (request.nickname().plain().strip().startsWith("@")) {
+            return Verdict.refused(SELECTOR_LIKE, request.nickname().plain());
         }
         if (request.nickname().length() > request.maxLength()) {
             return Verdict.refused(TOO_LONG, request.maxLength());

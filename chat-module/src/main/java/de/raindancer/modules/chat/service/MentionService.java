@@ -3,7 +3,11 @@ package de.raindancer.modules.chat.service;
 import de.raindancer.core.moderation.vanish.Vanish;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.modules.chat.ChatSettings;
+import de.raindancer.modules.chat.model.Mention;
+import de.raindancer.modules.chat.store.MentionInbox;
+import org.bukkit.OfflinePlayer;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
 import org.bukkit.Server;
@@ -21,17 +25,15 @@ import java.util.regex.Pattern;
 /**
  * @-mentions: turning {@code @Name} in ordinary chat into a ping the named player cannot miss.
  *
- * <h2>Why matching is against online players only</h2>
- * An offline player cannot be pinged — there is nobody to notify — and matching against every name
- * the server has ever seen would make every chat line a lookup over years of history for nothing.
- * Somebody typing {@code @Alex} while Alex is offline gets silence back; the moment Alex is online
- * for it to matter, {@code @Alex} matches.
+ * <h2>Offline players are mentioned too</h2>
+ * A name or nickname of somebody offline is still a mention: drawn like one, not pinged, and kept in a
+ * {@link MentionInbox} they are shown when they are back. Looking it up is Core's {@code PlayerLookup},
+ * which reads the server's player cache and the nickname directory — memory, not years of history.
  *
- * <h2>Why a vanished player is never matched</h2>
- * {@link Vanish#canSee} decides whether the token is a mention at all, not just whether the ping
- * goes out. Letting {@code @ModName} notify a hidden moderator would still tell everybody reading
- * the sender's own reaction that the name meant somebody real — the same leak essentials-module's
- * own {@code MessagingService} already refuses for {@code /msg}.
+ * <h2>A vanished player is exactly an offline one</h2>
+ * {@link Vanish#canSee} decides whether the ping goes out <em>now</em>. Somebody hidden from the sender is
+ * treated precisely as if they were offline — drawn the same, told later — because anything different
+ * would tell everybody reading the line that the name meant somebody who is here.
  *
  * <h2>Matching runs on the chat thread, on purpose</h2>
  * {@link ChatListener} needs the answer before it can build the rendered line — {@code
@@ -56,13 +58,93 @@ public final class MentionService implements IChatService {
     private final Vanish vanish;
     private final Messages messages;
 
+    private final MentionInbox inbox;
+
     private volatile ChatSettings settings;
 
     public MentionService(Server server, Vanish vanish, Messages messages, ChatSettings settings) {
+        this(server, vanish, messages, settings, null);
+    }
+
+    public MentionService(Server server, Vanish vanish, Messages messages, ChatSettings settings,
+                          MentionInbox inbox) {
         this.server = server;
         this.vanish = vanish;
         this.messages = messages;
+        this.inbox = inbox;
         settings(settings);
+    }
+
+    /**
+     * Every {@code @name} or {@code @nickname} in the line that means somebody other than the sender,
+     * online or not, where it stands.
+     */
+    public List<Mention> find(Player sender, String plainText) {
+        return found(sender, plainText).stream().map(Found::mention).toList();
+    }
+
+    /** A mention and whom the lookup found, so nothing has to be looked up a second time. */
+    private record Found(Mention mention, OfflinePlayer who) {
+    }
+
+    private List<Found> found(Player sender, String plainText) {
+        List<Found> found = new ArrayList<>();
+        if (!settings.mentionsEnabled() || sender == null || plainText == null || plainText.isBlank()) {
+            return found;
+        }
+        Matcher matcher = TOKEN.matcher(plainText);
+        while (matcher.find()) {
+            // No sender: a chat line is never a selector, and "@a" here means somebody called "a".
+            PlayerLookup lookup = PlayerTargets.lookup(server, null, matcher.group(1));
+            if (lookup.kind() != PlayerLookup.Kind.NAME && lookup.kind() != PlayerLookup.Kind.NICKNAME) {
+                continue;
+            }
+            OfflinePlayer who = lookup.single().orElse(null);
+            if (who == null || who.getUniqueId().equals(sender.getUniqueId())) {
+                continue;
+            }
+            boolean here = who instanceof Player;
+            boolean reachable = here && vanish.canSee(sender.getUniqueId(), who.getUniqueId());
+            String name = who.getName() == null ? matcher.group(1) : who.getName();
+            found.add(new Found(new Mention(matcher.start(), matcher.end(), who.getUniqueId(), name, reachable), who));
+        }
+        return found;
+    }
+
+    /**
+     * Pings everybody reachable once, and leaves a note for everybody who is not — offline or hidden,
+     * which have to look the same.
+     */
+    public void notify(Player sender, String plainText, List<Mention> found) {
+        Set<UUID> done = new LinkedHashSet<>();
+        for (Mention mention : found) {
+            if (!done.add(mention.player())) {
+                continue;
+            }
+            Player who = mention.reachable() ? server.getPlayer(mention.player()) : null;
+            if (who != null) {
+                who.playSound(Sound.sound(PING_SOUND, Sound.Source.PLAYER, 0.7f, 1.4f));
+                messages.send(who, "chat.mention.pinged", "player", sender.getName(), "text", plainText);
+            } else if (inbox != null) {
+                inbox.add(mention.player(), sender.getName(), plainText);
+            }
+        }
+    }
+
+    /** What was said about {@code player} while they were away, shown once and then forgotten. */
+    public void deliverWaiting(Player player) {
+        if (inbox == null) {
+            return;
+        }
+        List<MentionInbox.Note> notes = inbox.take(player.getUniqueId());
+        if (notes.isEmpty()) {
+            return;
+        }
+        messages.send(player, "chat.mention.while-away", "count", notes.size());
+        for (MentionInbox.Note note : notes) {
+            player.sendMessage(messages.get("chat.mention.while-away-line", "player", note.from(),
+                    "text", note.text()));
+        }
     }
 
     @Override
@@ -70,24 +152,13 @@ public final class MentionService implements IChatService {
         this.settings = fresh;
     }
 
-    /** Everybody named in this line the sender can actually see, in the order they appear, once each. */
+    /** Everybody named in this line who can be pinged right now, in the order they appear, once each. */
     public List<Player> mentionsIn(Player sender, String plainText) {
         List<Player> found = new ArrayList<>();
-        if (!settings.mentionsEnabled() || sender == null || plainText == null || plainText.isBlank()) {
-            return found;
-        }
         Set<UUID> seen = new LinkedHashSet<>();
-        Matcher matcher = TOKEN.matcher(plainText);
-        while (matcher.find()) {
-            Player mentioned = PlayerTargets.online(server, matcher.group(1)).orElse(null);
-            if (mentioned == null || mentioned.equals(sender)) {
-                continue;
-            }
-            if (!vanish.canSee(sender.getUniqueId(), mentioned.getUniqueId())) {
-                continue;
-            }
-            if (seen.add(mentioned.getUniqueId())) {
-                found.add(mentioned);
+        for (Found one : found(sender, plainText)) {
+            if (one.mention().reachable() && one.who() instanceof Player who && seen.add(who.getUniqueId())) {
+                found.add(who);
             }
         }
         return found;

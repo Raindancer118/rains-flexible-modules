@@ -1,5 +1,7 @@
 package de.raindancer.modules.moderation.command;
 
+import de.raindancer.core.platform.command.PlayerLookup;
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.util.Players;
@@ -99,40 +101,34 @@ public final class SelfToolCommand extends StaffCommand {
         CommandSender sender = source.getSender();
         ModerationServices moderation = services();
 
-        // Themselves, unless they named somebody.
-        UUID subject;
-        String name;
+        // Themselves, unless they named somebody - or several, with a selector.
         if (args.length == 0) {
             if (!(sender instanceof Player self)) {
                 moderation.messages().send(sender, "moderation.usage",
                         "usage", "/" + commandWord() + " <player>");
                 return;
             }
-            subject = self.getUniqueId();
-            name = self.getName();
-        } else {
-            Optional<OfflinePlayer> found = subject(sender, args[0]);
-            if (found.isEmpty()) {
-                return;
-            }
-            OfflinePlayer them = found.get();
-            if (!them.isOnline()) {
-                // None of the three mean anything to somebody who is not here, and all three would be
-                // forgotten by the time they arrived — see PlayerPowers on why nothing is persisted.
-                moderation.messages().send(sender, "moderation.not-here", "player",
-                        Players.nameOf(them));
-                return;
-            }
-            subject = them.getUniqueId();
-            name = Players.nameOf(them);
-
+            apply(moderation, sender, self.getUniqueId(), self.getName());
+            return;
+        }
+        PlayerLookup lookup = PlayerTargets.lookup(moderation.server(), sender, args[0]);
+        if (lookup.kind() == PlayerLookup.Kind.SELECTOR_REFUSED || lookup.isEmpty()) {
+            Players.one(moderation.messages(), lookup, sender);
+            return;
+        }
+        if (lookup.isOfflineOnly()) {
+            // None of the three mean anything to somebody who is not here, and all three would be
+            // forgotten by the time they arrived - see PlayerPowers on why nothing is persisted.
+            moderation.messages().send(sender, "moderation.not-here", "player", lookup.typed());
+            return;
+        }
+        for (Player them : lookup.online()) {
             // Doing it *to* somebody is a change to their game they did not ask for. Same question a
             // punishment asks, immunity included.
-            if (!mayAct(sender, subject)) {
-                return;
+            if (mayAct(sender, them.getUniqueId())) {
+                apply(moderation, sender, them.getUniqueId(), Players.nameOf(them));
             }
         }
-        apply(moderation, sender, subject, name);
     }
 
     private void apply(ModerationServices moderation, CommandSender sender, UUID subject, String name) {
@@ -177,7 +173,7 @@ public final class SelfToolCommand extends StaffCommand {
     @Override
     public java.util.Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length <= 1) {
-            return Players.suggestions(services().server(), args.length == 1 ? args[0] : "");
+            return Players.suggest(services().server(), source.getSender(), args.length == 1 ? args[0] : "");
         }
         return java.util.List.of();
     }

@@ -6,6 +6,7 @@ import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.ui.identity.Nicknames;
 import de.raindancer.modules.invsnap.InvSnapServices;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
@@ -61,6 +62,7 @@ class InvSnapCommandNicknameTest {
         Player player = mock(Player.class);
         UUID id = UUID.nameUUIDFromBytes(name.getBytes());
         when(player.getName()).thenReturn(name);
+        when(player.isOnline()).thenReturn(true);
         when(player.getUniqueId()).thenReturn(id);
         when(server.getPlayerExact(name)).thenReturn(player);
         when(server.getPlayer(id)).thenReturn(player);
@@ -93,5 +95,37 @@ class InvSnapCommandNicknameTest {
     @DisplayName("tab completion offers the nickname")
     void suggestsNickname() {
         assertThat(command.suggest(source(), new String[]{"Lilly_"})).containsExactly("Lilly_Pad");
+    }
+
+    @Test
+    @DisplayName("somebody who is offline still has a history: by name and by nickname")
+    void offline() {
+        OfflinePlayer sleepy = mock(OfflinePlayer.class);
+        when(sleepy.getName()).thenReturn("Sleepy");
+        when(sleepy.getUniqueId()).thenReturn(UUID.nameUUIDFromBytes("Sleepy".getBytes()));
+        when(server.getOfflinePlayerIfCached("Sleepy")).thenReturn(sleepy);
+        when(server.getOfflinePlayers()).thenReturn(new OfflinePlayer[]{sleepy});
+
+        command.execute(source(), new String[]{"Sleepy"});
+
+        verify(services.screens()).history(admin, sleepy.getUniqueId(), "Sleepy");
+        assertThat(command.suggest(source(), new String[]{"Sle"})).contains("Sleepy");
+    }
+
+    @Test
+    @DisplayName("@p opens one history; @a refuses to pick; no selector node refuses the selector")
+    void selectors() {
+        doReturn(List.<org.bukkit.entity.Entity>of(lilly)).when(server).selectEntities(admin, "@p");
+        doReturn(List.<org.bukkit.entity.Entity>of(lilly, admin)).when(server).selectEntities(admin, "@a");
+
+        command.execute(source(), new String[]{"@p"});
+        verify(services.messages()).send(admin, "invsnap.selector-refused", "selector", "@p");
+
+        when(admin.hasPermission("minecraft.command.selector")).thenReturn(true);
+        command.execute(source(), new String[]{"@p"});
+        verify(services.screens()).history(admin, lilly.getUniqueId(), "lillyyxoxo");
+
+        command.execute(source(), new String[]{"@a"});
+        verify(services.messages()).send(admin, "invsnap.too-many", "selector", "@a", "count", "2");
     }
 }
