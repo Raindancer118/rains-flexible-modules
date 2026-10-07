@@ -57,7 +57,12 @@ public record WarpServices(
      * teleport-in rules admit them. The arrival is checked again by the claim itself.
      */
     public java.util.function.Predicate<de.raindancer.core.world.poi.Poi> arriving(org.bukkit.entity.Player who) {
+        // The claim standing there has to be the claim the warp is for: a point outside its claim is
+        // covered by none of that claim's rules, and must not be offered under its name.
         return point -> point.location()
+                .filter(at -> core.land().areaAt(at)
+                        .map(area -> area.id().equals(de.raindancer.core.world.poi.ClaimWarps.claimOf(point)))
+                        .orElse(false))
                 .map(at -> core.land().mayTeleportInto(who, at))
                 .orElse(false);
     }

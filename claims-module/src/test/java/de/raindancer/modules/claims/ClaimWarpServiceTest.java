@@ -79,6 +79,33 @@ class ClaimWarpServiceTest {
     }
 
     @Test
+    @DisplayName("not from another world at the same coordinates, nor above or below the claim's height — "
+            + "a point outside the claim is not covered by its teleport-in rules")
+    void onlyInsideTheClaimItself() {
+        assertThat(service.set(LILLY, false, farm, "world_nether", 5, 64, 5, 0, 0)).isEqualTo(Outcome.OUTSIDE);
+        assertThat(service.set(LILLY, false, farm, "world", 5, 200, 5, 0, 0)).isEqualTo(Outcome.OUTSIDE);
+        assertThat(service.set(LILLY, false, farm, "world", 5, -10, 5, 0, 0)).isEqualTo(Outcome.OUTSIDE);
+        assertThat(warps.forClaim(id(farm))).isEmpty();
+        assertThat(farm.entrance()).as("the front door is not moved either").isEmpty();
+    }
+
+    @Test
+    @DisplayName("a claim made smaller or shallower than its warp loses the warp, rather than keeping one outside it")
+    void reshaping() {
+        service.set(LILLY, false, farm, "world", 15, 64, 15, 0, 0);
+
+        farm.shape(ClaimShape.rectangle(0, 0, 10, 10, 0, 128));
+        service.reshaped(farm);
+        assertThat(warps.forClaim(id(farm))).isEmpty();
+        assertThat(farm.entrance()).isEmpty();
+
+        service.set(LILLY, false, farm, "world", 5, 64, 5, 0, 0);
+        farm.shape(ClaimShape.rectangle(0, 0, 20, 20, 0, 128));
+        service.reshaped(farm);
+        assertThat(warps.forClaim(id(farm))).as("still inside: kept").isPresent();
+    }
+
+    @Test
     @DisplayName("an owner makes it their main home — once it has a warp; a stranger cannot make it theirs")
     void home() {
         assertThat(service.makeHome(LILLY, farm)).isEqualTo(Outcome.NO_WARP);

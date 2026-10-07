@@ -42,7 +42,16 @@ public final class ClaimWarpService implements IClaimService {
         if (!staff && !claim.isOwner(who)) {
             return Outcome.NOT_ALLOWED;
         }
-        if (!claim.entrance(new ClaimPoint((int) Math.floor(x), (int) Math.floor(z)), (int) Math.floor(y))) {
+        // Inside the claim itself — its world, its column and its height. A point merely above it, or in
+        // another world at the same coordinates, is not covered by the claim's teleport-in rules, and a
+        // warp there would be a way past them listed under the claim's name.
+        int bx = (int) Math.floor(x);
+        int by = (int) Math.floor(y);
+        int bz = (int) Math.floor(z);
+        if (world == null || !world.equals(claim.worldName()) || !claim.shape().containsBlock(bx, by, bz)) {
+            return Outcome.OUTSIDE;
+        }
+        if (!claim.entrance(new ClaimPoint(bx, bz), by)) {
             return Outcome.OUTSIDE;
         }
         warps.set(id(claim), claim.name(), claim.primaryOwner(), world, x, y, z, yaw, pitch);
@@ -94,6 +103,17 @@ public final class ClaimWarpService implements IClaimService {
                         point.x(), point.y(), point.z(), point.yaw(), point.pitch()));
     }
 
+    /** The claim changed shape or height: a warp now outside it goes, front door and all. */
+    public void reshaped(Claim claim) {
+        warps.forClaim(id(claim))
+                .filter(point -> !claim.shape().containsBlock((int) Math.floor(point.x()),
+                        (int) Math.floor(point.y()), (int) Math.floor(point.z())))
+                .ifPresent(point -> {
+                    claim.clearEntrance();
+                    warps.remove(id(claim));
+                });
+    }
+
     public void deleted(Claim claim) {
         warps.remove(id(claim));
     }
@@ -112,6 +132,8 @@ public final class ClaimWarpService implements IClaimService {
             }
         }
         for (Claim claim : claims) {
+            // A warp left outside its claim by an older version, or a reshape while this was not running.
+            reshaped(claim);
             if (claim.entrance().isEmpty() || warps.forClaim(id(claim)).isPresent()) {
                 continue;
             }

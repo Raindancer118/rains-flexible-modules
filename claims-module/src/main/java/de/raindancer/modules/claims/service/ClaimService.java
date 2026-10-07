@@ -351,6 +351,7 @@ public final class ClaimService implements IClaimService {
             return Result.fail(Failure.CANNOT_AFFORD, settlement.shortfall());
         }
         claim.shape(shape);
+        followShape(claim);
         registry.reindex(claim);
         // The fence follows the new outline, keeping the owner's gaps and gates.
         if (fences != null) {
@@ -396,6 +397,7 @@ public final class ClaimService implements IClaimService {
         }
 
         claim.shape(candidate);
+        followShape(claim);
         registry.reindex(claim);
         if (fences != null) {
             fences.sync(claim, player, "height-change");
@@ -411,6 +413,7 @@ public final class ClaimService implements IClaimService {
             return Optional.of(Failure.OVERLAPS_CLAIM);
         }
         claim.shape(shape);
+        followShape(claim);
         registry.reindex(claim);
         if (fences != null) {
             fences.sync(claim, null, "admin-reshape");
@@ -424,6 +427,14 @@ public final class ClaimService implements IClaimService {
 
     public void warps(ClaimWarpService warps) {
         this.warps = warps;
+    }
+
+    /** A warp the claim no longer contains is taken away with its front door. */
+    private void followShape(Claim claim) {
+        ClaimWarpService following = warps;
+        if (following != null) {
+            following.reshaped(claim);
+        }
     }
 
     public void rename(Claim claim, String newName) {
