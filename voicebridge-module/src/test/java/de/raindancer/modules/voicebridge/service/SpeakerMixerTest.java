@@ -80,6 +80,22 @@ class SpeakerMixerTest {
     }
 
     @Test
+    @DisplayName("frames can be taken per speaker, for a mix that treats each one differently")
+    void framesPerSpeaker() {
+        mixer.offer("alex", frame(100));
+        mixer.offer("alex", frame(100));
+        mixer.offer("sam", frame(20));
+        mixer.offer("sam", frame(20));
+
+        var frames = mixer.nextFrames();
+
+        assertThat(frames).containsOnlyKeys("alex", "sam");
+        assertThat(frames.get("sam")).containsExactly((short) 20, (short) 20);
+        assertThat(mixer.nextFrames()).as("one frame each per call").hasSize(2);
+        assertThat(mixer.nextFrames()).isEmpty();
+    }
+
+    @Test
     @DisplayName("a backlog past the limit drops the oldest audio, so delay can never pile up")
     void capsTheDelay() {
         for (int i = 1; i <= 8; i++) {
