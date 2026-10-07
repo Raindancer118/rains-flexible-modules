@@ -179,7 +179,7 @@ public final class VoiceBridgeModule implements FlexModule {
 
     private static boolean allowed(Server server, UUID player, String node) {
         Player online = server.getPlayer(player);
-        return online != null && online.hasPermission(node);
+        return online != null && PermissionNodes.svc(online, node);
     }
 
     private static List<UUID> onlinePlayers(Server server) {

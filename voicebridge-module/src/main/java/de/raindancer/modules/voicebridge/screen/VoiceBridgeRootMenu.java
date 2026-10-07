@@ -85,7 +85,7 @@ public final class VoiceBridgeRootMenu extends Menu implements IVoiceBridgeScree
                             "<yellow>Everything you say is sent to Discord",
                             "<yellow>while you are in the group."),
                     "You need the Simple Voice Chat mod, or a linked Discord account.",
-                    click -> act(viewer.hasPermission(GroupService.SVC_GROUPS_PERMISSION)
+                    click -> act(PermissionNodes.svc(viewer, GroupService.SVC_GROUPS_PERMISSION)
                             ? services.bridge().join(viewer.getUniqueId(), bridged)
                             : "voicebridge.groups.no-permission", "voicebridge.join.done"));
         }

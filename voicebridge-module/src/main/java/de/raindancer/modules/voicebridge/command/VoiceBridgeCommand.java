@@ -70,7 +70,7 @@ public final class VoiceBridgeCommand implements IVoiceBridgeCommand {
 
     private static void asPlayer(VoiceBridgeServices live, Player player, String sub, String[] args) {
         switch (sub) {
-            case "join" -> answer(live, player, player.hasPermission(GroupService.SVC_GROUPS_PERMISSION)
+            case "join" -> answer(live, player, PermissionNodes.svc(player, GroupService.SVC_GROUPS_PERMISSION)
                     ? live.bridge().join(player.getUniqueId(), live.groups().isBridged(player.getUniqueId()))
                     : "voicebridge.groups.no-permission", "voicebridge.join.done");
             case "leave" -> answer(live, player, live.bridge().leave(player.getUniqueId()), "voicebridge.leave.done");

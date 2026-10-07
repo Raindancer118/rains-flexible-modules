@@ -1,6 +1,7 @@
 package de.raindancer.modules.voicebridge.util;
 
 import org.bukkit.Server;
+import org.bukkit.permissions.Permissible;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 
@@ -19,6 +20,15 @@ public final class PermissionNodes {
     public static final String ADMIN = "rainsvoicebridge.admin";
 
     private PermissionNodes() {
+    }
+
+    /**
+     * One of Simple Voice Chat's own nodes ({@code voicechat.groups}, {@code voicechat.listen}). SVC
+     * treats them as everybody's unless taken away, and on Paper does not register them — and Bukkit
+     * reads an unregistered node as operators only. So: allowed unless explicitly set to false.
+     */
+    public static boolean svc(Permissible who, String node) {
+        return !who.isPermissionSet(node) || who.hasPermission(node);
     }
 
     public static List<Permission> declared() {
