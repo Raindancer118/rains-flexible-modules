@@ -121,4 +121,16 @@ class WingReservationsTest {
         assertThat(open().all()).extracting(WingReservations.Reservation::ownerName).containsExactly("Ben");
         assertThat(reservations.releaseAllOf("nobody")).isZero();
     }
+
+    @Test
+    @DisplayName("a colour left over from dust does not make reserved flame wings somebody else's: a particle that takes no colour is its particle")
+    void leftOverColour() {
+        WingReservations reservations = open();
+        ParticleChoice soulFire = new ParticleChoice("SOUL_FIRE_FLAME", ParticleShape.PHOENIX_WINGS, null);
+        reservations.reserve(LILLY, "Lilly", soulFire);
+
+        // Wore dust in a colour first, then changed the particle: the colour stays in the choice.
+        assertThat(reservations.mayWear(BEN, soulFire.withColour(0x3B1A2F).withColourTo(0x5C203E))).isFalse();
+        assertThat(reservations.reserve(BEN, "Ben", soulFire.withColour(0x123456))).isEqualTo(Outcome.TAKEN);
+    }
 }

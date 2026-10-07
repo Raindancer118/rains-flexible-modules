@@ -42,7 +42,7 @@ public final class WingReservations {
             return Optional.empty();
         }
         String kind = wings.shape().key();
-        if (wings.colour() == null) {
+        if (!coloured(wings)) {
             return Optional.of(kind + "|" + wings.particle().toLowerCase(Locale.ROOT));
         }
         return Optional.of(kind + "|" + hex(wings.colour()) + "|" + (wings.colourTo() == null ? "-" : hex(wings.colourTo())));
@@ -50,10 +50,18 @@ public final class WingReservations {
 
     private static String shown(ParticleChoice wings) {
         String kind = wings.shape().title();
-        if (wings.colour() == null) {
+        if (!coloured(wings)) {
             return kind + " of " + wings.particle().toLowerCase(Locale.ROOT).replace('_', ' ');
         }
         return kind + " in " + hex(wings.colour()) + (wings.colourTo() == null ? "" : " → " + hex(wings.colourTo()));
+    }
+
+    /**
+     * Whether the wings are their colours. Not just whether a colour is stored: one is left behind when dust
+     * is swapped for flame, and counting it would let anybody wear flame wings somebody reserved.
+     */
+    private static boolean coloured(ParticleChoice wings) {
+        return wings.colour() != null && de.raindancer.core.ui.effect.ParticleShows.takesColour(wings.particle());
     }
 
     private static String hex(int rgb) {
