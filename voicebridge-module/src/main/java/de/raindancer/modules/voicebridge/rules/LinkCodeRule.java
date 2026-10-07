@@ -11,7 +11,12 @@ public final class LinkCodeRule implements IVoiceBridgeRule {
         if (pending == null || typed == null || now >= pending.expiresAt()) {
             return false;
         }
-        return pending.code().equals(typed.strip().toUpperCase(Locale.ROOT));
+        return normal(pending.code()).equals(normal(typed));
+    }
+
+    /** The dash is only there to read the code off a screen; typed without it, it is the same code. */
+    private static String normal(String code) {
+        return code.strip().replace("-", "").replace(" ", "").toUpperCase(Locale.ROOT);
     }
 
     @Override

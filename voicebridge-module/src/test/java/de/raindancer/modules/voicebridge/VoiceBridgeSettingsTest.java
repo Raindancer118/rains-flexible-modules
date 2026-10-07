@@ -20,6 +20,18 @@ class VoiceBridgeSettingsTest {
         assertThat(defaults.gameVolumePercent()).isEqualTo(100);
         assertThat(defaults.announceDiscordJoins()).isTrue();
         assertThat(defaults.bufferFrames()).isEqualTo(5);
+        assertThat(defaults.proximityEnabled()).as("needs extra bots, so never on by surprise").isFalse();
+        assertThat(defaults.lobbyChannelId()).isEmpty();
+        assertThat(defaults.categoryId()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the lobby only counts while proximity mode is on")
+    void activeLobby() {
+        VoiceBridgeSettings lobby = defaults.withLobbyChannelId(" 323456789012345678 ");
+
+        assertThat(lobby.activeLobby()).isEmpty();
+        assertThat(lobby.withProximityEnabled(true).activeLobby()).isEqualTo("323456789012345678");
     }
 
     @Test

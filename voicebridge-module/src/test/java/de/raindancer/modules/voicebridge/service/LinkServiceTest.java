@@ -31,11 +31,19 @@ class LinkServiceTest {
     }
 
     @Test
-    @DisplayName("a code is six characters nobody confuses with each other (no 0/O, 1/I/L)")
+    @DisplayName("a code is ten characters nobody confuses (no 0/O, 1/I/L), shown in two halves")
     void codesAreReadable() {
         String code = links.codeFor(alex);
 
-        assertThat(code).hasSize(6).matches("[A-HJKMNP-Z2-9]{6}");
+        assertThat(code).matches("[A-HJKMNP-Z2-9]{5}-[A-HJKMNP-Z2-9]{5}");
+    }
+
+    @Test
+    @DisplayName("typed without the dash, or in lower case, the code still works")
+    void forgivingTyping() {
+        String code = links.codeFor(alex);
+
+        assertThat(links.redeem(code.replace("-", "").toLowerCase(), 99L)).contains(alex);
     }
 
     @Test
@@ -80,17 +88,13 @@ class LinkServiceTest {
     }
 
     @Test
-    @DisplayName("guesses from many accounts together are capped too, so alt accounts do not multiply the tries")
-    void guessingIsLimitedAcrossAccounts() {
+    @DisplayName("strangers guessing wrong never lock an honest player out of linking")
+    void noServerWideLockout() {
         String code = links.codeFor(alex);
-        for (long account = 1; account <= LinkService.MOST_WRONG_GUESSES_OVERALL; account++) {
-            links.redeem("AAAAAA", 1000 + account);
+        for (long account = 1; account <= 1000; account++) {
+            links.redeem("AAAAA-AAAAA", 1000 + account);
         }
 
-        assertThat(links.redeem(code, 99L)).as("nobody links while the server-wide cap is hit").isEmpty();
-
-        now.set(LinkService.CODE_LIFETIME_MILLIS);
-        String fresh = links.codeFor(alex);
-        assertThat(links.redeem(fresh, 99L)).as("the cap lifts after the window").contains(alex);
+        assertThat(links.redeem(code, 99L)).contains(alex);
     }
 }

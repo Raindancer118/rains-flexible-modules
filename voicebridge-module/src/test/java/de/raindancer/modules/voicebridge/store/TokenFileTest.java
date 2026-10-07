@@ -80,4 +80,22 @@ class TokenFileTest {
 
         assertThat(file(Map.of(TokenFile.ENVIRONMENT, "  ")).read()).isEqualTo("from.the.file");
     }
+
+    @Test
+    @DisplayName("every token line is read in order: the first is the main bot, the rest are proximity lines")
+    void readsAll() throws Exception {
+        Files.writeString(folder.resolve("discord-token.txt"), "# main\nmain.token\n\n# lines\nline.one\nline.two\n");
+        TokenFile tokens = file(Map.of());
+
+        assertThat(tokens.readAll()).containsExactly("main.token", "line.one", "line.two");
+        assertThat(tokens.read()).isEqualTo("main.token");
+    }
+
+    @Test
+    @DisplayName("the environment can hold several tokens too, comma separated")
+    void environmentHoldsSeveral() throws Exception {
+        TokenFile tokens = file(Map.of(TokenFile.ENVIRONMENT, "main.token, line.one ,line.two"));
+
+        assertThat(tokens.readAll()).containsExactly("main.token", "line.one", "line.two");
+    }
 }
