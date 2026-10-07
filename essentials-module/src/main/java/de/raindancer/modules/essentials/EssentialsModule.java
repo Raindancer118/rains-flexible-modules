@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.11.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.11.1")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, and a nickname")
             .by("Raindancer118");

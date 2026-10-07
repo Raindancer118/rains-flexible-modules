@@ -13,21 +13,21 @@
 warps:
 
   # ---------------------------------------------------------------- going somewhere
-  unknown: "<red>There is no warp called <white><name></white>. Wishful thinking?"
-  world-missing: "<yellow><name></yellow> is in a world that is not loaded right now. The destination has left the building."
-  on-cooldown: "<yellow>You can warp again in <white><time></white>. Catch your breath."
+  unknown: "<red>There is no warp called <white><name></white>."
+  world-missing: "<yellow><name></yellow> is in a world that is not loaded right now."
+  on-cooldown: "<yellow>You can warp again in <white><time></white>."
   warming-up: "<gray>Off to <white><name></white> in <white><seconds></white>… stand still."
   arrived: "<green>Here you are: <white><name></white>. Mind the landing."
-  already-travelling: "<yellow>You are already on your way somewhere. One trip at a time."
-  nowhere-safe: "<red>There is nowhere safe to put you at <white><name></white>. The warp pad has had better days."
-  could-not-check: "<red>The ground at <white><name></white> could not be checked. Optimism will have to do."
-  teleport-refused: "<red>Something stopped you arriving at <white><name></white>. The journey was not meant to be."
-  cannot-schedule: "<red>The server cannot send you anywhere just now. The travel agency is closed."
-  only-a-player: "<red>Only somebody standing in the world can warp. The console has no feet."
+  already-travelling: "<yellow>You are already on your way somewhere."
+  nowhere-safe: "<red>There is nowhere safe to put you at <white><name></white>."
+  could-not-check: "<red>The ground at <white><name></white> could not be checked."
+  teleport-refused: "<red>Something stopped you arriving at <white><name></white>."
+  cannot-schedule: "<red>The server cannot send you anywhere just now."
+  only-a-player: "<red>Only somebody standing in the world can warp."
 
   cancelled:
-    moved: "<yellow>You moved, so you are staying put. Standing still means standing still."
-    hurt: "<yellow>Something hit you, so you are staying put. Ouch, and no trip."
+    moved: "<yellow>You moved, so you are staying put."
+    hurt: "<yellow>Something hit you, so you are staying put."
 
   # ---------------------------------------------------------------- the list
   list-empty: "<gray>There are no warps yet. A blank map, waiting for someone."
@@ -42,17 +42,17 @@ warps:
   moved: "<green><white><name></white> has moved here. Everything else about it is unchanged."
   deleted: "<green><white><name></white> is gone."
   access-set: "<green><white><name></white>: <white><access></white>."
-  access-empty: "<red>That is not a permission a warp can ask for. Even bureaucracy has standards."
+  access-empty: "<red>That is not a permission a warp can ask for."
   categorised: "<green><white><name></white> is filed under <white><category></white>."
   uncategorised: "<green><white><name></white> is out of every category."
   labelled: "<green><white><name></white> is shown as <white><label></white>. People still type <white><name></white>."
   unlabelled: "<green><white><name></white> is called by its name again."
   icon-set: "<green><white><name></white> shows as <white><icon></white>."
-  not-yours: "<red>Warps are not yours to change. Hands off the signposts."
-  too-many: "<red>This server already has its <white><limit></white> warps. Delete one first. The map is full."
-  no-such-item: "<red>There is no item called <white><item></white>. Check the spelling. Items are fussy."
-  set-needs-a-player: "<red>A warp is set where somebody is standing, so only a player can — it needs somebody to stand somewhere. The console is famously immobile."
-  busy: "<yellow>Something else is already waiting for an answer from you. One question at a time."
+  not-yours: "<red>Warps are not yours to change."
+  too-many: "<red>This server already has its <white><limit></white> warps. Delete one first."
+  no-such-item: "<red>There is no item called <white><item></white>. Check the spelling."
+  set-needs-a-player: "<red>A warp is set where somebody is standing, so only a player can do it."
+  busy: "<yellow>Something else is already waiting for an answer from you."
 
   ask-name: "<gray>Type what to call this warp, or <white>cancel</white>."
   ask-category: "<gray>Type what to file it under, or <white>cancel</white>."
@@ -63,14 +63,14 @@ warps:
   # is the answer people try four more spellings against.
   name:
     empty: "<red>A warp needs a name. 'Unnamed' does not count."
-    too-long: "<red>That is too long for a warp: <white><limit></white> characters at most. Brevity is the soul of warping."
-    bad-characters: "<red>A warp's name may have letters, digits, dashes and underscores in it, and nothing else. Creativity has a charset."
-    reserved: "<red><white><name></white> is a word <white>/warp</white> reads as an instruction, so nothing could ever warp there. Pick something less bossy."
+    too-long: "<red>That is too long for a warp: <white><limit></white> characters at most."
+    bad-characters: "<red>A warp's name may have letters, digits, dashes and underscores in it, and nothing else."
+    reserved: "<red><white><name></white> is a word <white>/warp</white> reads as an instruction, so nothing could ever warp there. Pick another name."
 
   # ---------------------------------------------------------------- the config page
   config:
     at-the-limit: "<yellow>That is as far as it goes: between <white><least></white> and <white><most></white>."
-    refused: "<red><white><setting></white> would not take that value. It has standards."
+    refused: "<red><white><setting></white> would not take that value."
 
   # ---------------------------------------------------------------- usage
   usage:

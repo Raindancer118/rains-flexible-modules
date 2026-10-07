@@ -149,4 +149,24 @@ class NicknameRuleTest {
 
         org.assertj.core.api.Assertions.assertThat(verdict.isAllowed()).isFalse();
     }
+
+    @Nested
+    @DisplayName("looks like a command")
+    class CommandLike {
+
+        @Test
+        @DisplayName("a leading slash is refused: a line opening with the name would be run as a command")
+        void refusesALeadingSlash() {
+            Verdict verdict = rule.judge(NicknameRule.Request.of(Nickname.of("/op Bo"), 16, false));
+
+            assertThat(verdict.isRefused()).isTrue();
+            assertThat(verdict.reason()).isEqualTo(NicknameRule.COMMAND_LIKE);
+        }
+
+        @Test
+        @DisplayName("a slash anywhere else is just a character")
+        void allowsOneInside() {
+            assertThat(rule.judge(NicknameRule.Request.of(Nickname.of("AC/DC"), 16, false)).isAllowed()).isTrue();
+        }
+    }
 }

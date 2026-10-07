@@ -4,79 +4,18 @@
 # A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
 
 playerutils:
-  only-a-player: "<red>That needs a body in the world, and the console does not have one."
-  no-selectors: "<red>Selectors like @a are not yours to use. Name one person instead."
-  not-online: "<red><player> is not online."
-  nobody: "<red>Nobody here goes by <white><player></white>, neither as a name nor as a nickname."
-  too-many: "<red>That matches <white><count></white> players, and the limit is <white><most></white>. Narrow it down."
-  no-permission: "<red>/<action> is not yours to use. Ask an admin."
-  no-permission-others: "<red>You may /<action> yourself, but not <player>."
-  exempt: "<red><player> is protected from that. Even you cannot /<action> them."
   not-on-yourself: "<red>You cannot use /<action> on yourself."
-  out-of-range: "<red>That value is out of range."
-  not-understood: "<red>That is not something this server understands."
-  left-meanwhile: "<red><player> left before that could be done."
-  heal:
-    self: "<green>You have been healed."
-    notice: "<green><by> healed you."
-    nothing: "<gray><player> is already in full health."
-  feed:
-    self: "<green>You have been fed."
-    done: "<green><player> has been fed."
-    notice: "<green><by> fed you."
-    nothing: "<gray><player> is already full."
-  damage:
-    self: "<red><hearts> heart(s) of damage dealt to yourself."
-    notice: "<red><by> took <hearts> heart(s) from you."
-    lethal-not-allowed: "<red>Only staff with the lethal node may kill somebody."
-    killed:
-      self: "<dark_red>You died."
-      notice: "<dark_red><by> killed you."
-  starve:
-    self: "<gold>Your hunger was reduced. <drumsticks> drumstick(s) left."
   drown:
     self: "<blue>Your air is gone."
-    done: "<blue><player>'s air is gone, and <hearts> heart(s) were lost."
-    notice: "<blue><by> drained your air."
-  breathe:
-    self: "<aqua>Your air is full again."
-    nothing: "<gray><player> already has full air."
   extinguish:
     self: "<aqua>The fire is out."
-    notice: "<aqua><by> put you out."
-    nothing: "<gray><player> is not on fire."
   ignite:
     self: "<gold>You are on fire."
-    notice: "<gold><by> set you on fire."
   fly:
-    kept: "<gray>You can still fly, because it was given to you."
-    nothing: "<gray>Nothing changed, it was already so."
-    granted:
-      notice: "<green><by> allowed you to fly. Double-tap jump."
     taken:
       self: "<yellow>You can no longer fly."
-      notice: "<yellow><by> took away your flight."
   launch:
     self: "<white>Launched."
     notice: "<white><by> launched you."
-  scale:
-    notice: "<white><by> changed your size to <size>×."
-  wipe:
-    self: "<red>Your <parts> have been wiped."
-    notice: "<red><by> wiped your <parts>."
-  explode:
-    self: "<red>Explosion triggered."
-    done: "<red>Explosion triggered on <player> (power <power>)."
-    notice: "<red><by> blew you up."
-    no-blocks: "<red>Breaking blocks with /explode is not allowed here. Either the server forbids it, or your permission does."
-    no-fire: "<red>Starting fires needs its own permission."
-  spectate:
-    stopped: "<light_purple>You are back where you were."
-    target-left: "<gray><player> left, so spectating has ended."
-  sudo:
-    switched-off: "<red>Sudo is switched off on this server."
-    no-ops: "<red><player> is an operator. Making them speak needs its own permission."
-  effects:
-    may-not: "<red>Taking effects off counts as healing, and you may not heal them."
   near:
     nobody: "<gray>Nobody within <radius> blocks."

@@ -2,30 +2,30 @@
 essentials:
 
   # ── general ──────────────────────────────────────────────────────────────
-  only-a-player: "<red>Only a player can do that. The console has no body to move."
-  no-permission: "<red>You may not do that. The permission fairy has declined."
+  only-a-player: "<red>Only a player can do that."
+  no-permission: "<red>You may not do that."
   usage: "<gray>Usage: <white><usage>"
-  no-such-player: "<red>The server has never seen anybody called <white><player></white>. Typo, or an imaginary friend?"
+  no-such-player: "<red>The server has never seen anybody called <white><player></white>."
   player:
-    offline: "<red><white><player></white> is offline right now. Ghosts do not take requests."
-    selector-refused: "<red>Selectors like <white><selector></white> are not yours to use here, or that one is malformed. Type a name instead. Fancy syntax needs a fancier rank."
-    ambiguous: "<red><white><selector></white> matches <white><count></white> players, and this wants exactly one. Two is a crowd."
-  already-travelling: "<red>You are already on your way somewhere. One trip at a time."
-  could-not-check: "<red>Could not check whether that is safe. Nothing has happened, which is the safest outcome."
-  teleport-refused: "<red>Something stopped that teleport. Nothing has happened. The game is keeping its reasons to itself."
-  cannot-schedule: "<red>Could not start that. Try again in a moment; the server is gathering its thoughts."
+    offline: "<red><white><player></white> is offline right now."
+    selector-refused: "<red>Selectors like <white><selector></white> are not yours to use here, or that one is malformed. Type a name instead."
+    ambiguous: "<red><white><selector></white> matches <white><count></white> players, and this wants exactly one."
+  already-travelling: "<red>You are already on your way somewhere."
+  could-not-check: "<red>Could not check whether that is safe. Nothing has happened."
+  teleport-refused: "<red>Something stopped that teleport. Nothing has happened."
+  cannot-schedule: "<red>Could not start that. Try again in a moment."
 
   # ── /spawn and /setspawn ─────────────────────────────────────────────────
   spawn:
-    not-set: "<red>Nobody has set a spawn point yet. Everybody is just wandering."
-    world-gone: "<red>Spawn's world is not loaded right now. It stepped out without leaving a note."
+    not-set: "<red>No spawn point has been set yet."
+    world-gone: "<red>Spawn's world is not loaded right now."
     warming-up: "<gray>Heading to spawn in <white><seconds></white>…"
     arrived: "<green>You have arrived at spawn. Home sweet default."
-    set: "<green>Spawn is now here. Welcome committee, assemble."
+    set: "<green>Spawn is now here."
     cancelled:
       moved: "<yellow>You moved, so the trip to spawn was cancelled."
       hurt: "<yellow>You were hurt, so the trip to spawn was cancelled."
-    nowhere-safe: "<red>Nowhere safe was found near spawn. Nothing has happened. Lava is not a welcome mat."
+    nowhere-safe: "<red>Nowhere safe was found near spawn. Nothing has happened."
 
   # ── private messages ─────────────────────────────────────────────────────
   msg:
@@ -39,7 +39,7 @@ essentials:
     started: "<green>You will no longer see messages from <white><player></white>. Blissful silence."
     stopped: "<green>You can hear from <white><player></white> again."
     not-ignoring: "<gray>You were not ignoring <white><player></white>."
-    none: "<gray>You are not ignoring anybody. Very diplomatic."
+    none: "<gray>You are not ignoring anybody."
     list: "<gray>Ignoring: <white><players>"
 
   # ── /seen ─────────────────────────────────────────────────────────────────
@@ -55,22 +55,23 @@ essentials:
 
   # ── nicknames ─────────────────────────────────────────────────────────────
   nick:
-    switched-off: "<red>Nicknames are switched off on this server. You are who you are."
+    switched-off: "<red>Nicknames are switched off on this server."
     set: "<green>You are now known as <nickname>."
-    cleared: "<green>Back to your own name. Identity restored."
-    blank: "<red>A nickname cannot be blank. Mysterious, but no."
-    too-long: "<red>That is too long — <white><detail></white> characters at most, not counting colour. Brevity, please."
+    cleared: "<green>Back to your own name."
+    blank: "<red>A nickname cannot be blank."
+    too-long: "<red>That is too long. <white><detail></white> characters at most, not counting colour."
     taken: "<red><white><detail></white> is somebody's real name. Pick another — identity theft is frowned upon."
-    blocked: "<red>That name is not allowed here. Pick another, and let the reasons stay a mystery."
-    selector-like: "<red>A nickname starting with <white>@</white> would make every command think you meant @a and friends. Try it without. Nobody needs that much power."
-    nick-taken: "<red>Somebody already goes by <white><detail></white>. Two of them would make every <white>/msg</white> a coin toss — pick another."
+    blocked: "<red>That name is not allowed here. Pick another."
+    selector-like: "<red>A nickname starting with <white>@</white> would make every command think you meant @a and friends. Try it without."
+    command-like: "<red>A nickname cannot start with <white>/</white> — the server would read it as a command."
+    nick-taken: "<red>Somebody already goes by <white><detail></white>. Two of them would make every <white>/msg</white> ambiguous, so pick another."
     # Staff setting and clearing somebody else's.
-    not-others: "<red>Other people's nicknames are staff business. Yours, you may of course fiddle with."
+    not-others: "<red>Other people's nicknames are staff business. You may change your own."
     set-other: "<green><white><player></white> is now known as <nickname>."
-    set-by-staff: "<yellow>A staff member gave you a new name: <nickname><yellow>. Wear it well."
+    set-by-staff: "<yellow>A staff member gave you a new name: <nickname><yellow>."
     cleared-other: "<green><white><player></white> is back to their own name."
     cleared-by-staff: "<yellow>A staff member took your nickname off. You are yourself again."
-    none-to-clear: "<gray><white><player></white> has no nickname to take off. Already as plain as it gets."
+    none-to-clear: "<gray><white><player></white> has no nickname to take off."
     # What staff see, at once, when somebody tries one — never shown to the player themselves, who
     # only ever gets the plain "blocked" refusal above.
     blocked-report: "<red>⚑ <white><player></white> <gray>tried the blocked nickname <white><attempted></white>."
@@ -78,38 +79,38 @@ essentials:
 
   # ── /enchant ──────────────────────────────────────────────────────────────
   enchant:
-    unknown: "<red>There is no enchantment called <white><enchantment></white>. Tab shows the ones there are."
-    nobody-there: "<red>Nobody here answers to <white><player></white>. Enchanting thin air is not a thing."
-    nothing-held: "<red>Nothing in the hand to enchant — you cannot put a spell on thin air."
+    unknown: "<red>There is no enchantment called <white><enchantment></white>. Tab completion shows the available ones."
+    nobody-there: "<red>Nobody here answers to <white><player></white>."
+    nothing-held: "<red>Nothing in the hand to enchant."
     not-others: "<red>Enchanting what somebody else is holding is staff business."
-    wrong-item: "<red><white><enchantment></white> does not go on that. Vanilla would shrug and say no."
-    too-high: "<red>Vanilla stops at <white><detail></white> for that one, and so do you — without the beyond-max permission."
-    level-range: "<red>Levels run from <white>1</white> to <white>255</white>, and <white>0</white> takes it off. Anything else is not a level."
-    not-on-item: "<red>That enchantment is not on the item, so there is nothing to take off. You cannot remove what was never there."
+    wrong-item: "<red><white><enchantment></white> cannot be applied to that item."
+    too-high: "<red>Vanilla stops at <white><detail></white> for that enchantment, and so do you, without the beyond-max permission."
+    level-range: "<red>Levels run from <white>1</white> to <white>255</white>, and <white>0</white> takes it off."
+    not-on-item: "<red>That enchantment is not on the item, so there is nothing to take off."
     applied: "<green>Done: <white><enchantment></white> on your <white><item></white>. Shiny."
-    removed: "<green><white><enchantment></white> is off your <white><item></white>. It will not be missed."
+    removed: "<green><white><enchantment></white> is off your <white><item></white>."
     applied-other: "<green><white><enchantment></white> is now on <white><player></white>'s <white><item></white>."
     removed-other: "<green><white><enchantment></white> is off <white><player></white>'s <white><item></white>."
-    by-staff: "<yellow>A staff member fiddled with your <white><item></white>: <white><enchantment></white>. Check the tooltip."
-    cleared: "<green>Stripped <white><count></white> enchantment(s) off. Plain as the day it was crafted."
+    by-staff: "<yellow>A staff member changed your <white><item></white>: <white><enchantment></white>. Check the tooltip."
+    cleared: "<green>Stripped <white><count></white> enchantment(s) off."
     cleared-other: "<green>Stripped <white><count></white> enchantment(s) off <white><player></white>'s item."
-    nothing-to-clear: "<gray>There is nothing on it to strip. It is already as plain as it gets."
+    nothing-to-clear: "<gray>There is nothing on it to strip."
 
   # ── /repair and /repairall ────────────────────────────────────────────────
   repair:
-    nobody-there: "<red>Nobody here answers to <white><player></white>. Nobody's tools to fix, then."
-    not-others: "<red>Fixing somebody else's things is staff business. Mind your own pickaxe."
-    not-all: "<red>Fixing the whole inventory at once is a privilege you do not have. One item at a time, then."
-    nothing-held: "<red>Your hands are empty. There is nothing to fix but thin air."
+    nobody-there: "<red>Nobody here answers to <white><player></white>."
+    not-others: "<red>Repairing somebody else's things is staff business."
+    not-all: "<red>Repairing the whole inventory at once is not permitted for you. Repair one item at a time."
+    nothing-held: "<red>Your hands are empty. There is nothing to repair."
     not-damageable: "<red>That cannot wear out, so there is nothing to repair. Dirt is immortal."
-    already-fine: "<gray>It is already in perfect shape. Do not fix what is not broken."
-    hand: "<green>Your <white><item></white> is good as new."
-    hand-other: "<green><white><player></white>'s <white><item></white> is good as new."
-    all: "<green>Fixed up <white><things></white>. Good as new — well, almost."
-    all-none: "<gray>Nothing you carry needs fixing. Suspiciously well looked after."
+    already-fine: "<gray>It is already in perfect condition."
+    hand: "<green>Your <white><item></white> has been repaired."
+    hand-other: "<green><white><player></white>'s <white><item></white> has been repaired."
+    all: "<green>Repaired <white><things></white>."
+    all-none: "<gray>Nothing you carry needs repairing."
     all-none-other: "<gray>Nothing <white><player></white> carries needs fixing."
     all-other: "<green>Fixed up <white><things></white> for <white><player></white>."
-    by-staff: "<yellow>A staff member mended your things: <white><what></white>. You are welcome."
+    by-staff: "<yellow>A staff member repaired your things: <white><what></white>."
 
   # ── the in-game blocklist editor, /blocklist ─────────────────────────────
   blocklist:
@@ -122,7 +123,7 @@ essentials:
   afk:
     went: "<gray>* <white><player></white> is now AFK."
     back: "<gray>* <white><player></white> is back."
-    went-quiet: "<gray>You are now marked AFK. Go on, we will hold the fort."
+    went-quiet: "<gray>You are now marked AFK."
     back-quiet: "<gray>Welcome back. We kept your seat warm."
 
   # ── the Congrats! button under an advancement ────────────────────────────
@@ -130,7 +131,7 @@ essentials:
     button: "<gold>[Congrats!]"
     tooltip: "<gray>Cheers them on in chat"
     yourself: "<gray>Congratulating yourself? Respect the confidence. Let the others do it, though."
-    already: "<gray>You already cheered — twice would be a bit much, wouldn't it?"
+    already: "<gray>You already cheered."
 
   # ── joining and leaving ───────────────────────────────────────────────────
   welcome:
@@ -139,7 +140,7 @@ essentials:
     hi-button: "<green>[Say Hi!]"
     hi-tooltip: "<gray>Says hello to them in chat"
     hi-yourself: "<gray>Saying hi to yourself? Bold move. Maybe let the others do it."
-    hi-already: "<gray>Greeting them twice would be a bit awkward, wouldn't it?"
+    hi-already: "<gray>You already said hi."
     quit: "<gray>- <white><player></white> left."
 
   # ── /roast and /joke ──────────────────────────────────────────────────────

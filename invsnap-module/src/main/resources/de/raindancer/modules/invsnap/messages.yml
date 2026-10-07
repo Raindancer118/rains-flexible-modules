@@ -6,12 +6,12 @@
 invsnap:
 
   usage: "<gray>/invsnap [player]"
-  only-a-player: "<red>Only a player standing in the world can do that. The console has no pockets."
-  unknown-player: "<red>The server has never seen anybody called <white><player></white>. Check the spelling, or the guest list?"
-  selector-refused: "<red><white><selector></white> is not yours to use, or not written right. A plain name works just as well, and asks fewer questions."
+  only-a-player: "<red>Only a player standing in the world can do that."
+  unknown-player: "<red>The server has never seen anybody called <white><player></white>. Check the spelling."
+  selector-refused: "<red><white><selector></white> is not yours to use, or not written right. A name works just as well."
   selector-nobody: "<yellow><white><selector></white> did not match anybody, so there is no history to open. You cannot rewind nobody."
-  too-many: "<yellow><white><selector></white> matches <white><count></white> players, and a history belongs to one. Pick one. Inventories do not come in bulk."
+  too-many: "<yellow><white><selector></white> matches <white><count></white> players, and a history belongs to one. Pick one."
 
   restore:
-    no-permission: "<red>You may browse this, but not restore from it. Look, don't touch, like a museum."
-    offline: "<red><player> is not online right now — a restore is written into a live inventory. Try again once they are back. Ghosts do not hold items."
+    no-permission: "<red>You may browse this, but not restore from it."
+    offline: "<red><player> is not online right now — a restore is written into a live inventory. Try again once they are back."

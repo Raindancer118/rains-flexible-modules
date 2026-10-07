@@ -4,75 +4,25 @@
 # A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
 
 essentials:
-  only-a-player: "<red>Only a player can do that."
-  no-permission: "<red>You may not do that."
-  no-such-player: "<red>The server has never seen anybody called <white><player></white>."
-  player:
-    offline: "<red><white><player></white> is offline right now."
-    selector-refused: "<red>Selectors like <white><selector></white> are not yours to use here, or that one is malformed. Type a name instead."
-    ambiguous: "<red><white><selector></white> matches <white><count></white> players, and this wants exactly one."
-  already-travelling: "<red>You are already on your way somewhere."
-  could-not-check: "<red>Could not check whether that is safe. Nothing has happened."
-  teleport-refused: "<red>Something stopped that teleport. Nothing has happened."
-  cannot-schedule: "<red>Could not start that. Try again in a moment."
   spawn:
-    not-set: "<red>No spawn point has been set yet."
-    world-gone: "<red>Spawn's world is not loaded right now."
     arrived: "<green>You have arrived at spawn."
-    set: "<green>Spawn is now here."
-    nowhere-safe: "<red>Nowhere safe was found near spawn. Nothing has happened."
   msg:
     not-yourself: "<red>You cannot message yourself."
     nobody-to-reply-to: "<red>Nobody has messaged you yet."
   ignore:
     started: "<green>You will no longer see messages from <white><player></white>."
-    none: "<gray>You are not ignoring anybody."
   nick:
-    switched-off: "<red>Nicknames are switched off on this server."
-    cleared: "<green>Back to your own name."
-    blank: "<red>A nickname cannot be blank."
-    too-long: "<red>That is too long. <white><detail></white> characters at most, not counting colour."
     taken: "<red><white><detail></white> is somebody's real name. Pick another."
-    blocked: "<red>That name is not allowed here. Pick another."
-    selector-like: "<red>A nickname starting with <white>@</white> would make every command think you meant @a and friends. Try it without."
-    nick-taken: "<red>Somebody already goes by <white><detail></white>. Two of them would make every <white>/msg</white> ambiguous, so pick another."
-    not-others: "<red>Other people's nicknames are staff business. You may change your own."
-    set-by-staff: "<yellow>A staff member gave you a new name: <nickname><yellow>."
-    none-to-clear: "<gray><white><player></white> has no nickname to take off."
   enchant:
-    unknown: "<red>There is no enchantment called <white><enchantment></white>. Tab completion shows the available ones."
-    nobody-there: "<red>Nobody here answers to <white><player></white>."
-    nothing-held: "<red>Nothing in the hand to enchant."
-    wrong-item: "<red><white><enchantment></white> cannot be applied to that item."
-    too-high: "<red>Vanilla stops at <white><detail></white> for that enchantment, and so do you, without the beyond-max permission."
-    level-range: "<red>Levels run from <white>1</white> to <white>255</white>, and <white>0</white> takes it off."
-    not-on-item: "<red>That enchantment is not on the item, so there is nothing to take off."
     applied: "<green>Done: <white><enchantment></white> on your <white><item></white>."
-    removed: "<green><white><enchantment></white> is off your <white><item></white>."
-    by-staff: "<yellow>A staff member changed your <white><item></white>: <white><enchantment></white>. Check the tooltip."
-    cleared: "<green>Stripped <white><count></white> enchantment(s) off."
-    nothing-to-clear: "<gray>There is nothing on it to strip."
   repair:
-    nobody-there: "<red>Nobody here answers to <white><player></white>."
-    not-others: "<red>Repairing somebody else's things is staff business."
-    not-all: "<red>Repairing the whole inventory at once is not permitted for you. Repair one item at a time."
-    nothing-held: "<red>Your hands are empty. There is nothing to repair."
     not-damageable: "<red>That cannot wear out, so there is nothing to repair."
-    already-fine: "<gray>It is already in perfect condition."
-    hand: "<green>Your <white><item></white> has been repaired."
-    hand-other: "<green><white><player></white>'s <white><item></white> has been repaired."
-    all: "<green>Repaired <white><things></white>."
-    all-none: "<gray>Nothing you carry needs repairing."
-    by-staff: "<yellow>A staff member repaired your things: <white><what></white>."
   afk:
-    went-quiet: "<gray>You are now marked AFK."
     back-quiet: "<gray>Welcome back."
   congrats:
     yourself: "<gray>You cannot congratulate yourself. Let the others do it."
-    already: "<gray>You already cheered."
   welcome:
     hi-yourself: "<gray>You cannot say hi to yourself. Let the others do it."
-    hi-already: "<gray>You already said hi."
 
   fun:
     switched-off: "<red>/<command> is switched off on this server."

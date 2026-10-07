@@ -29,7 +29,7 @@
         <!-- 0.1.0: the first release. Fly, heal, feed, damage, starve, drown, breathe, extinguish,
              ignite, explode, launch, scale, speed, wipe, spectate, sudo, ping, status, hunger,
              effects, near, position and /player, every one aimed by name, nickname or selector. -->
-        <plugin.version>0.2.0</plugin.version>
+        <plugin.version>0.2.1</plugin.version>
     </properties>
 
     <dependencies>

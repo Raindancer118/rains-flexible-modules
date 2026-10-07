@@ -18,19 +18,19 @@ homes:
   # ---------------------------------------------------------------- going home
   warming-up: "<gray>Going to <white><name></white> in <white><seconds></white>… stand still."
   arrived: "<green>Welcome home — <white><name></white>. Shoes off."
-  on-cooldown: "<yellow>Another <white><time></white> before you can go home again. Home is not going anywhere."
-  world-not-loaded: "<yellow><name></yellow> is in <white><world></white>, which is not loaded right now. The neighbourhood is under construction."
-  world-gone: "<yellow><name></yellow> is in a world that is not loaded right now. Somebody moved the furniture, and the street."
-  cross-world-off: "<red><name></red> is in another world, and homes across worlds are switched off here. The commute is too long."
+  on-cooldown: "<yellow>Another <white><time></white> before you can go home again."
+  world-not-loaded: "<yellow><name></yellow> is in <white><world></white>, which is not loaded right now."
+  world-gone: "<yellow><name></yellow> is in a world that is not loaded right now."
+  cross-world-off: "<red><name></red> is in another world, and homes across worlds are switched off here."
   nowhere-safe: "<red>There is nowhere safe to put you at <white><name></white>. Home is where the lava is not."
-  could-not-check: "<red>The ground at <white><name></white> could not be checked. Trust issues, both ways."
-  teleport-refused: "<red>Something stopped you arriving at <white><name></white>. Your own front door, apparently."
-  cannot-schedule: "<red>The server cannot send you anywhere just now. Even the moving van has limits."
-  already-travelling: "<yellow>You are already on your way somewhere. One trip at a time."
+  could-not-check: "<red>The ground at <white><name></white> could not be checked."
+  teleport-refused: "<red>Something stopped you arriving at <white><name></white>."
+  cannot-schedule: "<red>The server cannot send you anywhere just now."
+  already-travelling: "<yellow>You are already on your way somewhere."
 
   cancelled:
-    moved: "<yellow>You moved, so you are staying put. Standing still means standing still."
-    hurt: "<yellow>Something hit you, so you are staying put. Ouch, and no trip."
+    moved: "<yellow>You moved, so you are staying put."
+    hurt: "<yellow>Something hit you, so you are staying put."
 
   # ---------------------------------------------------------------- keeping them
   #
@@ -38,25 +38,25 @@ homes:
   # fewer would be handed a value with nowhere to put it, which MessagesTest refuses in both directions.
   set: "<green><white><name></white> is set, here. <dark_gray>(<count>/<limit>)"
   moved: "<green><white><name></white> has moved here. <dark_gray>(<count>/<limit>)"
-  deleted: "<green><white><name></white> is gone. A moment of silence."
+  deleted: "<green><white><name></white> has been deleted."
   renamed: "<green><white><old></white> is now <white><new></white>."
-  name-taken: "<red>You already have a home called <white><name></white>. Get creative."
-  left-as-it-is: "<gray>Left as it is. No harm done."
+  name-taken: "<red>You already have a home called <white><name></white>."
+  left-as-it-is: "<gray>Left as it is."
 
   # Two different sentences for two different states. "You already have 0 homes, use /delhome to make
   # room" reads as a broken plugin, and the answer to it is certainly not /delhome.
-  too-many: "<red>You already have <white><limit></white> home(s). Use <white>/delhome</white> to make room. Real estate is tight."
-  switched-off: "<red>Homes are switched off on this server. Everybody is homeless, equally."
+  too-many: "<red>You already have <white><limit></white> home(s). Use <white>/delhome</white> to make room."
+  switched-off: "<red>Homes are switched off on this server."
 
-  bad-name: "<red>A home name is <white><rule></white>. The deed office is picky."
+  bad-name: "<red>A home name is <white><rule></white>."
   no-such-home: "<red>No home called <white><name></white>. You have: <gray><list>"
   none-yet: "<gray>You have no homes yet — stand where you want one and use <white>/sethome</white>."
   how-to-set-one: "<gray>Stand where you want it and type <white>/sethome</white>, or <white>/sethome</white> and a name for it."
 
   icon-set: "<green><white><name></white> shows as <white><icon></white> now."
   ask-name: "<gray>A new name for <white><name></white>? Type it, or <white>cancel</white>."
-  busy: "<yellow>Something else is already waiting for an answer from you. One question at a time."
-  only-a-player: "<red>A home belongs to a player, and the console doesn't need one. Run this in game."
+  busy: "<yellow>Something else is already waiting for an answer from you."
+  only-a-player: "<red>A home belongs to a player, so this has to be run in game."
 
   # ---------------------------------------------------------------- the book on the list page
   #

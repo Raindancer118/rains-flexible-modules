@@ -48,7 +48,7 @@ import java.util.List;
  */
 public final class WallsRoadsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("wallsroads", "Walls and Roads", "1.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("wallsroads", "Walls and Roads", "1.1.1")
             .describedAs("Huge polygonal town walls and roads that cut a real gate where they cross, "
                     + "with renamable signs placed automatically. Every build has a real inverse.")
             .by("Raindancer118");

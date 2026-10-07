@@ -4,35 +4,8 @@
 # A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
 
 wallsroads:
-  only-a-player: "<red>Only a player standing in the world can do that."
-  unknown-wall: "<red>There is no wall called <white><name></white>."
-  unknown-road: "<red>There is no road called <white><name></white>. Check the name, or the list."
-  create:
-    no-permission: "<red>You may not mark out a new wall or road here. Ask whoever owns the land."
-  selection:
-    point-added: "<gray>Corner <white><count></white> added."
-    point-removed: "<gray>Corner removed, <white><count></white> left."
-    incomplete: "<red>A shape needs at least <white><needed></white> points, and you have <white><have></white>. Add more corners."
-  wall:
-    created: "<green>Wall <white><name></white> created and being built."
-    removed: "<green>Wall <white><name></white> removed."
-  road:
-    created: "<green>Road <white><name></white> created and being built."
-    removed: "<green>Road <white><name></white> removed."
-  protected: "<red>That is part of a wall or a road somebody else built."
   gate:
     opened: "<gray>The gates of <white><wall></white> are open."
-    shut: "<gray>The gates of <white><wall></white> are closed."
-    not-yours: "<red>The gates of <white><wall></white> are not yours to work."
-  cost:
-    estimate: "<gray>That would take <white><blocks></white> blocks."
-  sign:
-    pointed: "<green>The sign now points at <white><place></white>, <white><blocks></white> blocks away."
-    no-such-place: "<red>There is no place called <white><place></white> to point at."
   map:
     sent: "<gray>Sent <white><count></white> gates and road ends to your map."
-  config:
-    refused: "<red>The setting <white><setting></white> would not take that value."
-    not-yours: "<red>Only staff may change how this server builds walls and roads."
   outline-shown: "<gray>Showing the outline of <white><name></white>."
-  outline-elsewhere: "<gray><white><name></white> is in <white><world></white>, not here."

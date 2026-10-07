@@ -5,40 +5,40 @@
 # as a boolean, and a message that became one prints its own key.
 cosmetics:
 
-  no-permission: "<red>You may not do that. The velvet rope stays up."
+  no-permission: "<red>You may not do that."
 
-  only-a-player: "<red>The console has no name to paint. We checked."
+  only-a-player: "<red>This command can only be used by a player."
 
   usage: "<gray>Use <white>/cosmetics</white> for the menu, <white>/cosmetics name preset|set|reset</white>, <white>/cosmetics particle</white> or <white>/cosmetics clear</white>."
 
   reloaded: "<green>Reloaded. <white><colours></white> palette colour(s), <white><presets></white> preset(s)."
 
-  unknown-player: "<red>Nobody called <white><player></white> has played here. Check the spelling, or the ghosts."
-  selector-refused: "<red><white><selector></white> is not yours to use, or not written right. A name works just as well, and nobody gets hurt."
-  selector-nobody: "<yellow><white><selector></white> did not match anybody, so nothing was touched. Quiet in here."
+  unknown-player: "<red>Nobody called <white><player></white> has played here. Check the spelling."
+  selector-refused: "<red><white><selector></white> is not yours to use, or not written right. A name works just as well."
+  selector-nobody: "<yellow><white><selector></white> did not match anybody, so nothing was touched."
 
-  unknown-preset: "<red>There is no preset called <white><preset></white>, however fashionable. <gray>Tab shows the ones there are."
+  unknown-preset: "<red>There is no preset called <white><preset></white>. <gray>Tab shows the ones there are."
 
   not-a-style: "<red><detail>"
 
   name:
     set: "<green>Your name is now <name><green>."
-    cleared: "<green>Back to basics — your name is plain again."
-    not-saved: "<red>That style could not be saved — it has too many colours. Rainbows have limits."
+    cleared: "<green>Your name is plain again."
+    not-saved: "<red>That style could not be saved — it has too many colours."
     reset-other: "<green><white><player></white>'s name is plain again."
-    reset-by-staff: "<yellow>A staff member took your name style off. Fashion police, probably."
-    dropped: "<yellow>Your name style needed a permission you no longer have, so your name is plain again. Easy come, easy go."
+    reset-by-staff: "<yellow>A staff member took your name style off."
+    dropped: "<yellow>Your name style needed a permission you no longer have, so your name is plain again."
 
   clear:
     usage: "<gray>Use <white>/cosmetics clear [name|particles|all] [player]</white>. Leave the player out to tidy up yourself."
-    not-allowed: "<red>You may not clear your own cosmetics. Whatever you are wearing, you are stuck with it."
-    not-allowed-others: "<red>Clearing somebody else's cosmetics is staff business. Their sparkles are safe from you."
-    nothing: "<gray>There is nothing to clear — <white><player></white> is already as plain as it gets."
+    not-allowed: "<red>You may not clear your own cosmetics."
+    not-allowed-others: "<red>Clearing somebody else's cosmetics is staff business."
+    nothing: "<gray>There is nothing to clear — <white><player></white> is already plain."
     offline-particles: "<red><white><player></white> is not online, and a particle only comes off while its owner is here. Their name style can be cleared, though."
     offline-particles-note: "<gray><white><player></white>'s particle is still on — it can only come off while they are online."
     done: "<green>Cleared your <white><what></white>. Fresh as a daisy."
     done-other: "<green>Cleared <white><player></white>'s <white><what></white>. They have been told."
-    by-staff: "<yellow>A staff member cleared your <white><what></white>. Fashion police, probably."
+    by-staff: "<yellow>A staff member cleared your <white><what></white>."
 
   particle:
     set: "<green>You are wearing <white><particle></white> now."
@@ -46,12 +46,12 @@ cosmetics:
     shaped: "<green>It is drawn <white><shape></white> now."
     coloured: "<green>Its colour is changed."
     densified: "<green>Density: <white><density></white>. Sparkle responsibly."
-    unknown-density: "<red>Densities are <white>light</white>, <white>normal</white>, <white>dense</white> and <white>very_dense</white>. Maths is not one of them."
+    unknown-density: "<red>Densities are <white>light</white>, <white>normal</white>, <white>dense</white> and <white>very_dense</white>."
     sped: "<green>Speed: <white><speed></white>. Zoom zoom — or not, your call."
-    unknown-speed: "<red>Speeds are <white>slow</white>, <white>normal</white>, <white>fast</white> and <white>very_fast</white>. Warp speed is not on the list."
-    unknown-shape: "<red>The shapes are <white>ambient</white>, <white>aura</white>, <white>halo</white>, <white>trail</white> and <white>spiral</white>. Geometry has its limits."
-    none-worn: "<red>You are not wearing a particle yet — pick one first, then we can fuss over it."
-    dropped: "<yellow>Your particle is not allowed any more, so it is taken off. Easy come, easy go."
+    unknown-speed: "<red>Speeds are <white>slow</white>, <white>normal</white>, <white>fast</white> and <white>very_fast</white>."
+    unknown-shape: "<red>The shapes are <white>ambient</white>, <white>aura</white>, <white>halo</white>, <white>trail</white> and <white>spiral</white>."
+    none-worn: "<red>You are not wearing a particle yet. Pick one first."
+    dropped: "<yellow>Your particle is not allowed any more, so it is taken off."
 
   preview:
     nametag: "<gray>That is your nametag as everybody sees it. <white>/cosmetics</white> to go back."
@@ -59,16 +59,16 @@ cosmetics:
     particle: "<gray>That is your particle. <white>/cosmetics</white> to go back."
 
   refused:
-    colour: "<red>You may not colour your name. Beige it is."
-    gradient: "<red>You may not use a gradient — one colour only. Rainbows are a premium feature."
-    any-colour: "<red><white><detail></white> is not in the palette, and you may only use palette colours. Freestyle is not on the menu."
-    decoration: "<red>You may not make your name <white><detail></white>. Plain letters will have to do the talking."
-    animated: "<red>Your gradient can't flow — that one's not unlocked for you. It still looks great standing still."
-    too-many-stops: "<red>At most <white><detail></white> colours in one name. It is a name, not a paint palette."
-    preset: "<red>The <white><preset></white> preset is not yours to wear. Nice taste, though."
-    particles: "<red>You may not wear particles. Glitter-free for now."
-    particle-unknown: "<red><white><detail></white> is not a particle that can be worn. Minecraft has never heard of it."
-    particle-blocked: "<red><white><detail></white> is not allowed here — it would cover everybody's screen, and they'd hate you a little."
+    colour: "<red>You may not colour your name."
+    gradient: "<red>You may not use a gradient — one colour only."
+    any-colour: "<red><white><detail></white> is not in the palette, and you may only use palette colours."
+    decoration: "<red>You may not make your name <white><detail></white>."
+    animated: "<red>Your gradient can't flow — that option is not unlocked for you."
+    too-many-stops: "<red>At most <white><detail></white> colours in one name."
+    preset: "<red>The <white><preset></white> preset is not yours to wear."
+    particles: "<red>You may not wear particles."
+    particle-unknown: "<red><white><detail></white> is not a particle that can be worn."
+    particle-blocked: "<red><white><detail></white> is not allowed here — it would cover everybody's screen."
 
   help:
     - "<gold><bold>Your name"

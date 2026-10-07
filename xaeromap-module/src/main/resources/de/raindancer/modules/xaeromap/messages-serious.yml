@@ -4,12 +4,5 @@
 # A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
 
 xaeromap:
-  only-a-player: "<red>Only a player with a map open can refresh one."
-  no-permission: "<red>That part of this is for staff."
-  refresh:
-    done: "<green>Sent again. Your map will fill back in over the next few seconds."
-  resync:
-    done: "<green>Sent again to <white><players></white> player(s)."
   waypoints:
-    off: "<red>Places as waypoints are switched off on this server."
     none: "<yellow>You have no <kind> to put on your map."

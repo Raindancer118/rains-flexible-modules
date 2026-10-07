@@ -65,8 +65,19 @@ public final class FunService implements IEssentialsService {
         }
         waits.start(by.getUniqueId());
         // Chat text, not markup: whatever an owner put in the line is said exactly as a player would type it.
-        String text = PLAIN.serialize(line.get());
+        String text = chatSafe(PLAIN.serialize(line.get()));
+        if (text.isBlank()) {
+            return;
+        }
         Scheduling.entity(plugin, by, () -> by.chat(text));
+    }
+
+    /**
+     * The line with any leading slashes and spaces taken off. Player#chat runs a line starting with a slash
+     * as a command, as that player — and a roast opening with a target nicknamed "/op Bo" would be one.
+     */
+    static String chatSafe(String text) {
+        return text.replaceFirst("^[\\s/]+", "");
     }
 
     @Override

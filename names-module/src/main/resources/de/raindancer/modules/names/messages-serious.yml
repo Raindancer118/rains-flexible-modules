@@ -4,8 +4,6 @@
 # A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
 
 names:
-  no-permission: "<red>You may not do that."
-  reloaded: "<green>Reloaded. <white><count></white> item(s) now do something to a name tag."
   manual:
     empty:
       - "<red>Nothing dyes a name tag on this server."

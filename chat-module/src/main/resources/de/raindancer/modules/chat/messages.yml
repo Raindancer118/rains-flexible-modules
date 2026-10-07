@@ -3,7 +3,7 @@ chat:
 
   # ── general ──────────────────────────────────────────────────────────────
   usage: "<gray>Usage: <white><usage>"
-  only-a-player: "<red>Only a player can do that. The console doesn't get a vote."
+  only-a-player: "<red>Only a player can do that."
 
   # ── /announce ─────────────────────────────────────────────────────────────
   poll:
@@ -12,28 +12,28 @@ chat:
     button-tooltip: "<gray>Vote for <white><answer></white> — you can change your mind until it ends"
     closes-in: "<dark_gray>  Click an answer. Closes in <time>."
     voted: "<green>Vote's in: <white><answer></white>. Democracy!"
-    changed: "<green>Changed your mind? Fair. You're now on <white><answer></white>."
-    already: "<gray>You already picked <white><answer></white> — clicking harder doesn't count twice."
-    over: "<gray>That poll is over. The people have spoken."
+    changed: "<green>Vote changed. You are now on <white><answer></white>."
+    already: "<gray>You already picked <white><answer></white>."
+    over: "<gray>That poll is over."
     results: "<gold><bold>Poll results:</bold> <yellow><question>"
     results-so-far: "<gold>So far: <yellow><question>"
     result-line: "<white>  <answer> <aqua><bar></aqua> <gray><percent>% (<count>)"
-    winner: "<green>  And the winner is <white><answer></white>! <dark_gray>(<count> voted)"
+    winner: "<green>  Winner: <white><answer></white>. <dark_gray>(<count> voted)"
     tie: "<yellow>  It's a tie between <white><answers></white>. Rematch?"
     nobody-voted: "<gray>  Nobody voted. Tough crowd."
     none: "<gray>There's no poll running right now."
-    not-yours: "<red>That's not your poll to end — only whoever started it, or staff. Ballot-box hijacking is frowned upon."
-    off: "<red>Polls are switched off on this server. Opinions are not being collected."
-    one-at-a-time: "<yellow>A poll is already running. One at a time, or nobody knows which button is which."
-    not-started: "<red>That poll couldn't be started — try different answers? The ballot box refused."
+    not-yours: "<red>That's not your poll to end — only whoever started it, or staff."
+    off: "<red>Polls are switched off on this server."
+    one-at-a-time: "<yellow>A poll is already running. Only one poll can run at a time."
+    not-started: "<red>That poll couldn't be started — try different answers."
     not-a-poll: "<red><detail>"
-    no-question: "<red>Ask a question first. A poll needs something to be about."
-    question-too-long: "<red>That question is a speech — keep it under 100 characters."
-    too-few: "<red>A poll needs at least two answers, otherwise it's a statement."
-    too-many: "<red>At most six answers — nobody reads past that anyway."
-    empty-answer: "<red>One of the answers is empty. Silence is not an option."
-    answer-too-long: "<red>Keep each answer to 24 characters, so it fits on a button. Buttons are not novels."
-    twice: "<red>The same answer twice would split the vote. Even democracy has limits."
+    no-question: "<red>Ask a question first. A poll needs a question."
+    question-too-long: "<red>That question is too long — keep it under 100 characters."
+    too-few: "<red>A poll needs at least two answers."
+    too-many: "<red>At most six answers are allowed."
+    empty-answer: "<red>One of the answers is empty."
+    answer-too-long: "<red>Keep each answer to 24 characters, so it fits on a button."
+    twice: "<red>The same answer twice would split the vote."
     length: "<red>Between 10 seconds and an hour, please. This is a poll, not a long-term relationship."
     help:
       - "<gold><bold>Polls"
@@ -52,29 +52,29 @@ chat:
   # ── @-mentions ────────────────────────────────────────────────────────────
   mention:
     pinged: "<yellow>⚡ <white><player></white> <yellow>mentioned you: <gray><text>"
-    while-away: "<yellow>⚡ While you were away, you were mentioned <white><count></white> time(s). Popular!"
+    while-away: "<yellow>⚡ While you were away, you were mentioned <white><count></white> time(s)."
     while-away-line: "  <white><player></white><gray>: <text>"
 
   # ── message quality ─────────────────────────────────────────────────────
   quality:
-    caps: "<red>Try that again without shouting. We can hear you fine."
-    repeat: "<red>You already said that. Chat remembers."
-    cooldown: "<red>Easy, wordsmith — wait <white><seconds></white>s before your next message."
-    slowmode: "<red>Chat is in slowmode — wait <white><seconds></white>s. Use the time to think of something good."
+    caps: "<red>Try that again without capital letters."
+    repeat: "<red>You already said that."
+    cooldown: "<red>Wait <white><seconds></white>s before your next message."
+    slowmode: "<red>Chat is in slowmode — wait <white><seconds></white>s."
 
   # ── frozen chat ───────────────────────────────────────────────────────────
-  frozen: "<red>Chat is frozen right now. Hold that thought."
+  frozen: "<red>Chat is frozen right now."
 
   # ── /chathistory ──────────────────────────────────────────────────────────
   history:
-    disabled: "<red>Chat history is switched off on this server. What was said stays unsaid."
-    none: "<gray>Nothing happened while you were away. You missed nothing, promise."
-    missed: "<yellow>You missed <white><count></white> message(s) — /chathistory to catch up on the gossip."
+    disabled: "<red>Chat history is switched off on this server."
+    none: "<gray>Nothing happened while you were away."
+    missed: "<yellow>You missed <white><count></white> message(s) — /chathistory to catch up."
     header: "<gray>── <white><count></white> message(s) ──"
     line: "<dark_gray>[<white><time></white>] <gray><player>: <text>"
 
-  no-permission: "<red>You are not allowed to do that. The rank for it is somewhere above yours."
-  not-online: "<red>Nobody called <white><player></white> is online. Typo, or ghost?"
+  no-permission: "<red>You are not allowed to do that."
+  not-online: "<red><white><player></white> is not online."
 
   # ── /chat private, /chat public ───────────────────────────────────────────
   # /chat team, /chat all, and the picker /chat opens — channels other modules offer (Core's ChatChannels).
@@ -93,17 +93,17 @@ chat:
     invited: "<light_purple>Invited <white><player></white>. <gray>They join once they accept — the invitation stands for <seconds> seconds."
     invitation: "<white><owner></white> <light_purple>invites you to a private chat. <gray>Nobody else sees it. Stands for <seconds> seconds."
     already-invited: "<gray><player> already has an invitation from you."
-    invite-gone: "<red>That invitation is no longer open. The guest list has moved on."
+    invite-gone: "<red>That invitation is no longer open."
     you-joined: "<light_purple>You joined <white><owner></white>'s private chat — your messages go there now. <gray>/chat public talks in public again, /chat private leave leaves it."
-    you-are-in-another-chat: "<red>You are already in another private chat. <gray>/chat private leave leaves it first. One clique at a time."
+    you-are-in-another-chat: "<red>You are already in another private chat. <gray>/chat private leave leaves it first."
     you-declined: "<gray>You declined <white><owner></white>'s invitation."
     declined: "<gray><player> declined your invitation."
     already-a-member: "<gray><player> is already in this private chat."
-    in-another-chat: "<red><white><player></white> is already in another private chat. Popular, apparently."
+    in-another-chat: "<red><white><player></white> is already in another private chat."
     not-yourself: "<red>That would be yourself. You are in this chat already, congratulations."
-    not-the-owner: "<red>Only <white><owner></white> can do that in this private chat. It is their party."
-    not-a-member: "<red><white><player></white> is not in this private chat. Hard to remove somebody who was never invited."
-    not-in-a-chat: "<red>You are not in a private chat. <gray>/chat private starts one. <red>Talking to yourself does not count."
+    not-the-owner: "<red>Only <white><owner></white> can do that in this private chat."
+    not-a-member: "<red><white><player></white> is not in this private chat."
+    not-in-a-chat: "<red>You are not in a private chat. <gray>/chat private starts one."
     removed: "<gray><player> was removed from the private chat."
     you-were-removed: "<red>You were removed from <white><owner></white>'s private chat. <gray>Your messages go to public chat again."
     left: "<gray><player> left the private chat."
@@ -116,8 +116,8 @@ chat:
   # ── staff tools, /chat ────────────────────────────────────────────────────
   admin:
     cleared: "<gray>Chat was cleared by <white><player></white>."
-    frozen: "<red>Chat has been frozen by <white><player></white>. Stay cool."
-    unfrozen: "<green>Chat has been unfrozen by <white><player></white>. Talk away."
+    frozen: "<red>Chat has been frozen by <white><player></white>."
+    unfrozen: "<green>Chat has been unfrozen by <white><player></white>."
     slowmode-set: "<yellow>Slowmode set to <white><seconds></white>s by <white><player></white>."
     slowmode-off: "<green>Slowmode switched off by <white><player></white>."
-    slowmode-range: "<red>Slowmode has to be between 0 and 60 seconds. Time travel is not supported."
+    slowmode-range: "<red>Slowmode has to be between 0 and 60 seconds."

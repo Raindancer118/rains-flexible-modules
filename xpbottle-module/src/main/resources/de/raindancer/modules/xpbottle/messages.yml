@@ -6,31 +6,31 @@
 xpbottle:
 
   usage: "<gray>/xpbottle  ·  /xpbottle give <player> [tier]"
-  only-a-player: "<red>Only a player standing in the world can open that. Bottles need hands."
+  only-a-player: "<red>Only a player standing in the world can open that."
   filled: "<green>Bottled <white><points></white> experience points. Shake well."
   poured: "<green><white><points></white> experience points, back where they came from."
-  bottle-full: "<red>That bottle will not hold any more. It is full to the cork."
-  already-empty: "<red>There is nothing in that bottle. Not even a drop."
-  no-experience: "<red>You have no experience to bottle. Go earn some first."
-  wait: "<red>Bottle breaks are a thing. You may bottle again in <white><seconds></white> second(s)."
+  bottle-full: "<red>That bottle will not hold any more. It is full."
+  already-empty: "<red>There is nothing in that bottle."
+  no-experience: "<red>You have no experience to bottle."
+  wait: "<red>You may bottle again in <white><seconds></white> second(s)."
 
   menu:
-    not-allowed: "<red>You may not open that. It is not for you; the label was clear enough."
+    not-allowed: "<red>You may not open that."
 
   pour:
-    not-allowed: "<red>You may not pour a bottle out. Keep it corked."
+    not-allowed: "<red>You may not pour a bottle out."
 
   siphon:
     not-allowed: "<red>You may not use a siphon bottle. Staff only."
     full: "<green>The siphon bottle is full. Time to stop drinking in."
 
   give:
-    not-allowed: "<red>Only staff can conjure a siphon bottle. Magic is not for everybody."
+    not-allowed: "<red>Only staff can conjure a siphon bottle."
     not-online: "<red><player> is offline — a bottle has to go into a real inventory. Try again when they are back."
-    unknown: "<red>Nobody called <player> that this server knows. Check the spelling? Or the guest list."
-    selector-refused: "<red><selector> is not yours to use, or not written right. A name works too, and gets fewer complaints."
-    selector-nobody: "<yellow><selector> did not match anybody, so no bottle went anywhere. It is still looking."
-    bad-tier: "<red><tier> is not a tier; this server has I to <highest>. Higher is wishful thinking."
-    given: "<green>A tier <white><tier></white> siphon bottle went to <white><player></white>. Lucky them."
-    given-many: "<green>A tier <white><tier></white> siphon bottle went to <white><count></white> players. Generous."
-    received: "<green>You were given a tier <white><tier></white> siphon bottle. Use it well."
+    unknown: "<red>Nobody called <player> that this server knows. Check the spelling."
+    selector-refused: "<red><selector> is not yours to use, or not written right. A name works too."
+    selector-nobody: "<yellow><selector> did not match anybody, so no bottle was given."
+    bad-tier: "<red><tier> is not a tier; this server has I to <highest>."
+    given: "<green>A tier <white><tier></white> siphon bottle went to <white><player></white>."
+    given-many: "<green>A tier <white><tier></white> siphon bottle went to <white><count></white> players."
+    received: "<green>You were given a tier <white><tier></white> siphon bottle."

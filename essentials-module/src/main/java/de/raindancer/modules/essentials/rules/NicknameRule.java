@@ -33,6 +33,8 @@ public final class NicknameRule extends AbstractRule<NicknameRule.Request> {
     public static final String BLOCKED = "essentials.nick.blocked";
     public static final String NICK_TAKEN = "essentials.nick.nick-taken";
     public static final String SELECTOR_LIKE = "essentials.nick.selector-like";
+    /** A leading slash: any line that opens with the name and is said as a player would run as a command. */
+    public static final String COMMAND_LIKE = "essentials.nick.command-like";
 
     public NicknameRule() {
         super("a nickname is not blank, not too long, not blocklisted, and not somebody else's real "
@@ -80,6 +82,9 @@ public final class NicknameRule extends AbstractRule<NicknameRule.Request> {
         }
         if (request.nickname().plain().strip().startsWith("@")) {
             return Verdict.refused(SELECTOR_LIKE, request.nickname().plain());
+        }
+        if (request.nickname().plain().strip().startsWith("/")) {
+            return Verdict.refused(COMMAND_LIKE, request.nickname().plain());
         }
         if (request.nickname().length() > request.maxLength()) {
             return Verdict.refused(TOO_LONG, request.maxLength());
