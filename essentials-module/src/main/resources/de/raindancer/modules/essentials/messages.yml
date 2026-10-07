@@ -3,29 +3,29 @@ essentials:
 
   # ── general ──────────────────────────────────────────────────────────────
   only-a-player: "<red>Only a player can do that. The console has no body to move."
-  no-permission: "<red>You may not do that. Nice try."
+  no-permission: "<red>You may not do that. The permission fairy has declined."
   usage: "<gray>Usage: <white><usage>"
   no-such-player: "<red>The server has never seen anybody called <white><player></white>. Typo, or an imaginary friend?"
   player:
     offline: "<red><white><player></white> is offline right now. Ghosts do not take requests."
-    selector-refused: "<red>Selectors like <white><selector></white> are not yours to use here, or that one is malformed. Type a name instead."
-    ambiguous: "<red><white><selector></white> matches <white><count></white> players, and this wants exactly one. Pick one."
+    selector-refused: "<red>Selectors like <white><selector></white> are not yours to use here, or that one is malformed. Type a name instead. Fancy syntax needs a fancier rank."
+    ambiguous: "<red><white><selector></white> matches <white><count></white> players, and this wants exactly one. Two is a crowd."
   already-travelling: "<red>You are already on your way somewhere. One trip at a time."
-  could-not-check: "<red>Could not check whether that is safe. Nothing has happened."
-  teleport-refused: "<red>Something stopped that teleport. Nothing has happened."
-  cannot-schedule: "<red>Could not start that. Try again in a moment."
+  could-not-check: "<red>Could not check whether that is safe. Nothing has happened, which is the safest outcome."
+  teleport-refused: "<red>Something stopped that teleport. Nothing has happened. The game is keeping its reasons to itself."
+  cannot-schedule: "<red>Could not start that. Try again in a moment; the server is gathering its thoughts."
 
   # ── /spawn and /setspawn ─────────────────────────────────────────────────
   spawn:
     not-set: "<red>Nobody has set a spawn point yet. Everybody is just wandering."
-    world-gone: "<red>Spawn's world is not loaded right now."
+    world-gone: "<red>Spawn's world is not loaded right now. It stepped out without leaving a note."
     warming-up: "<gray>Heading to spawn in <white><seconds></white>…"
     arrived: "<green>You have arrived at spawn. Home sweet default."
     set: "<green>Spawn is now here. Welcome committee, assemble."
     cancelled:
       moved: "<yellow>You moved, so the trip to spawn was cancelled."
       hurt: "<yellow>You were hurt, so the trip to spawn was cancelled."
-    nowhere-safe: "<red>Nowhere safe was found near spawn. Nothing has happened."
+    nowhere-safe: "<red>Nowhere safe was found near spawn. Nothing has happened. Lava is not a welcome mat."
 
   # ── private messages ─────────────────────────────────────────────────────
   msg:
@@ -55,14 +55,14 @@ essentials:
 
   # ── nicknames ─────────────────────────────────────────────────────────────
   nick:
-    switched-off: "<red>Nicknames are switched off on this server."
+    switched-off: "<red>Nicknames are switched off on this server. You are who you are."
     set: "<green>You are now known as <nickname>."
     cleared: "<green>Back to your own name. Identity restored."
     blank: "<red>A nickname cannot be blank. Mysterious, but no."
     too-long: "<red>That is too long — <white><detail></white> characters at most, not counting colour. Brevity, please."
     taken: "<red><white><detail></white> is somebody's real name. Pick another — identity theft is frowned upon."
-    blocked: "<red>That name is not allowed here. Pick another."
-    selector-like: "<red>A nickname starting with <white>@</white> would make every command think you meant @a and friends. Try it without."
+    blocked: "<red>That name is not allowed here. Pick another, and let the reasons stay a mystery."
+    selector-like: "<red>A nickname starting with <white>@</white> would make every command think you meant @a and friends. Try it without. Nobody needs that much power."
     nick-taken: "<red>Somebody already goes by <white><detail></white>. Two of them would make every <white>/msg</white> a coin toss — pick another."
     # Staff setting and clearing somebody else's.
     not-others: "<red>Other people's nicknames are staff business. Yours, you may of course fiddle with."
@@ -85,7 +85,7 @@ essentials:
     wrong-item: "<red><white><enchantment></white> does not go on that. Vanilla would shrug and say no."
     too-high: "<red>Vanilla stops at <white><detail></white> for that one, and so do you — without the beyond-max permission."
     level-range: "<red>Levels run from <white>1</white> to <white>255</white>, and <white>0</white> takes it off. Anything else is not a level."
-    not-on-item: "<red>That enchantment is not on the item, so there is nothing to take off."
+    not-on-item: "<red>That enchantment is not on the item, so there is nothing to take off. You cannot remove what was never there."
     applied: "<green>Done: <white><enchantment></white> on your <white><item></white>. Shiny."
     removed: "<green><white><enchantment></white> is off your <white><item></white>. It will not be missed."
     applied-other: "<green><white><enchantment></white> is now on <white><player></white>'s <white><item></white>."
@@ -114,7 +114,7 @@ essentials:
   # ── the in-game blocklist editor, /blocklist ─────────────────────────────
   blocklist:
     type-a-name: "<gray>Type the name to add. <dark_gray>You have thirty seconds."
-    already-asking: "<red>You are already being asked something else."
+    already-asking: "<red>You are already being asked something else. Finish that conversation first."
     added: "<green>Added <white><name></white> to <white><category></white>."
     removed: "<yellow>Removed <white><name></white> from <white><category></white>."
 

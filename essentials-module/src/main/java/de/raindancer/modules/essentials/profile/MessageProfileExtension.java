@@ -60,7 +60,7 @@ public final class MessageProfileExtension implements ProfileExtension {
                 typed -> onAnswered(viewer, to, typed), () -> { });
         if (!asked) {
             services.chat().tell(viewer,
-                    "<red>You are already being asked something else — finish that first.");
+                    "<red>You are already being asked something else. Finish that conversation first.");
             return;
         }
         services.chat().tell(viewer, "<gray>Type your message to <white>" + to.getName()

@@ -53,13 +53,13 @@ hungergames:
   # that owns those blocks. So there are two lines rather than one, and the first one says "started".
   arena-building: "<gray>Building an arena for <white><platforms></white> tributes — the server will be busy for a few seconds.</gray>"
   arena-built: "<green>✔ The arena is up: <white><where></white></green>"
-  arena-failed: "<red>The arena could not be built: <white><why></white></red> <gray>Nothing is standing; run /init again.</gray>"
+  arena-failed: "<red>The arena could not be built: <white><why></white></red> <gray>Nothing is standing; run /init again. Gravity won this round.</gray>"
   # ---------------------------------------------------------------- /init asks how many
   #
   # It used to derive the count from the register and never ask, which is how somebody got an arena for two
   # tributes on a server whose sign-up sheet was not finished. The number is a gamemaster's to choose.
   init-needs-a-count: "<yellow>How many tributes? A console cannot be shown a page — say the number after the command: <white>/init <count></white> <gray>(<least>–<most>)</gray></yellow>"
-  init-not-a-count: "<red><typed> is not a tribute count.</red> <gray>Anything from <white><least></white> to <white><most></white>.</gray>"
+  init-not-a-count: "<red><typed> is not a tribute count. Not even the Capitol counts that way.</red> <gray>Anything from <white><least></white> to <white><most></white>.</gray>"
 
   startup-underground: "<gray><tributes> tribute(s) are at the foot of their tubes. The lights are coming on…</gray>"
   startup-ready: "<green>✔ All <white><tributes></white> tributes are on their platforms. <gray>Run /start when you are ready.</gray></green>"
@@ -88,9 +88,9 @@ hungergames:
   sponsor-token-earned: "<gold>★ A sponsor believes in you: <yellow>+<amount> sponsor tokens</yellow>!</gold>"
   sponsor-beacon-spawned: "<aqua>◆ A sponsor beacon has appeared<coords>!</aqua>"
   sponsor-purchase: "<green>✔ Bought: <white><item></white></green> <gray>(-<cost> tokens)</gray>"
-  sponsor-not-enough: "<red>Not enough sponsor tokens — you need <white><cost></white>.</red>"
-  sponsor-shop-disabled: "<red>The sponsor shop is switched off right now.</red>"
-  sponsor-beacon-disabled: "<red>Sponsor beacons are switched off right now.</red>"
+  sponsor-not-enough: "<red>Not enough sponsor tokens — you need <white><cost></white>. Sponsors do not run a tab.</red>"
+  sponsor-shop-disabled: "<red>The sponsor shop is switched off right now. The sponsors are out to lunch.</red>"
+  sponsor-beacon-disabled: "<red>Sponsor beacons are switched off right now. Nobody is watching, apparently.</red>"
 
   # ---------------------------------------------------------------- the deathmatch
   #
@@ -112,9 +112,9 @@ hungergames:
   #
   # The first is a kick screen, so it is the only line in this file written to be read on a black background
   # with nothing else around it — it says why and it says what to do, because somebody reading it cannot ask.
-  not-open-yet: "<red>The arena is not finished yet.</red><newline><newline><gray>The Gamemakers are still shaping it. The Games will open once their work is done.<newline>Try again shortly.</gray>"
+  not-open-yet: "<red>The arena is not finished yet.</red><newline><newline><gray>The Gamemakers are still shaping it. The Games will open once their work is done.<newline>Try again shortly. Rome was not built in a day, and neither was an arena.</gray>"
   waiting-in-the-lobby: "<gray>Welcome, tribute. Wait here — pick a team with <yellow>/hg teams</yellow>.</gray>"
-  no-fighting-yet: "<red>Not yet. The Games have not begun.</red>"
+  no-fighting-yet: "<red>Not yet. The Games have not begun. Keep your fists in your pockets.</red>"
 
   # ---------------------------------------------------------------- staying in the arena
   #
@@ -122,19 +122,19 @@ hungergames:
   # different and so is what the player should do: the End is closed for the whole round, and the Nether is
   # open — just not from where they are standing. A player told the wrong one walks away instead of walking
   # inward.
-  portal-end-blocked: "<red>The End is sealed while the Games are on.</red>"
-  portal-nether-blocked: "<red>Nether portals only work within <white><radius></white> blocks of the Cornucopia.</red>"
+  portal-end-blocked: "<red>The End is sealed while the Games are on. The dragon is on strike.</red>"
+  portal-nether-blocked: "<red>Nether portals only work within <white><radius></white> blocks of the Cornucopia. The Capitol does not do long-distance.</red>"
 
   # ---------------------------------------------------------------- what the commands say
   #
   # All to one person. The run-up verbs share two lines rather than having one each, because what a
   # gamemaster needs to read at speed is which step and why — and three near-identical sentences is three
   # chances for them to drift apart, which is exactly what happened in the plugin this replaces.
-  not-allowed: "<red>That is not yours to do.</red>"
-  only-a-player: "<red>That opens a screen, and the console has nowhere to put one.</red>"
+  not-allowed: "<red>That is not yours to do. The Gamemakers have noticed.</red>"
+  only-a-player: "<red>That opens a screen, and the console has nowhere to put one, not even a tribute pedestal.</red>"
   step-refused: "<red>/<step> did not run: <white><why></white></red>"
   step-done: "<green>✔ /<step> done.</green>"
-  unknown-subcommand: "<red>No such thing as <white><what></white>. Try /hg help.</red>"
+  unknown-subcommand: "<red>No such thing as <white><what></white>. Try /hg help; the Capitol did not hide it.</red>"
   status: "<gold>Phase <white><phase></white> — <white><alive></white> of <white><registered></white> tributes alive, <white><teams></white> team(s).</gold>"
 
   # ---------------------------------------------------------------- /hg chat
@@ -145,8 +145,8 @@ hungergames:
   # follows, so a tribute named with a stray MiniMessage tag cannot recolour somebody else's line.
   chat-switched-team: "<green>You are now talking in <white>team chat</white>.</green>"
   chat-switched-all: "<green>You are now talking to <white>everybody</white>.</green>"
-  chat-no-team: "<red>You are not on a team, so there is nobody to switch to.</red>"
-  chat-you-are-a-spectator: "<red>Eliminated tributes only talk in the spectator channel.</red>"
+  chat-no-team: "<red>You are not on a team, so there is nobody to switch to. Lone wolves talk to themselves.</red>"
+  chat-you-are-a-spectator: "<red>Eliminated tributes only talk in the spectator channel. The dead have their own pub.</red>"
   chat-team-line: "<aqua>[Team]</aqua> <white><who></white><gray>: <what></gray>"
   chat-all-line: "<white><who></white><gray>: <what></gray>"
   chat-spectator-line: "<dark_gray>[Spectator]</dark_gray> <gray><who></gray><dark_gray>: <what></dark_gray>"
@@ -156,8 +156,8 @@ hungergames:
   allow-usage: "<red>/allow <player> [player…] — several at once, online or not.</red>"
   allowed: "<green>✔ Now a tribute: <white><players></white></green> <gray>(<total> in total)</gray>"
   allowed-already: "<yellow>Already a tribute: <white><players></white></yellow>"
-  allow-selector-refused: "<red>Selectors like <white><who></white> are not yours to use here - or they are not written right. Type names instead.</red>"
-  allow-selector-empty: "<yellow><white><who></white> matches nobody who is online right now - nobody was added for it.</yellow>"
+  allow-selector-refused: "<red>Selectors like <white><who></white> are not yours to use here - or they are not written right. Type names instead. The Capitol has no wildcards.</red>"
+  allow-selector-empty: "<yellow><white><who></white> matches nobody who is online right now - nobody was added for it. An empty crowd makes a poor tribute.</yellow>"
 
   # ---------------------------------------------------------------- what an item says
   #
@@ -192,7 +192,7 @@ hungergames:
   item-exmatrikulator: "<light_purple>⚡ EXMATRIKULATOR unleashed (<white><seconds>s</white>)!</light_purple>"
   # Right-clicking it does nothing on purpose, and saying so is the whole point: without a line here it
   # looks broken, and somebody clicks it until they are convinced it is.
-  item-stupidness-passive: "<dark_aqua>The Stupidness Protector is passive — it saves you from lethal environmental damage on its own.</dark_aqua>"
+  item-stupidness-passive: "<dark_aqua>The Stupidness Protector is passive — it saves you from lethal environmental damage on its own. Clicking it will not make it work harder.</dark_aqua>"
   item-stupidness-saved: "<dark_aqua>Your Stupidness Protector saved you!</dark_aqua>"
 
   # The Fiendfinder tells three people something: the holder that it worked, the holder who it found, and
@@ -200,7 +200,7 @@ hungergames:
   # knowing it is the version of this that has no counterplay.
   item-fiendfinder: "<gold><bold>FIENDFINDER ACTIVATED!</bold></gold>"
   item-fiendfinder-found: "<gray>Revealed: <yellow><who></yellow> <gray>(~<distance> blocks away)</gray>"
-  item-fiendfinder-nobody: "<red>No enemies found nearby!</red>"
+  item-fiendfinder-nobody: "<red>No enemies found nearby! Either you are alone or they hide well.</red>"
   item-fiendfinder-revealed: "<red><bold>⚠ You have been revealed by a Fiendfinder!</bold></red>"
   # A live arrow and distance, on the action bar, private to whoever used the Fiendfinder — for as long as
   # the target keeps glowing. Not the source's behaviour, which was one line read once; added because a
@@ -218,7 +218,7 @@ hungergames:
   # would be four lines of chat, and "you were interrupted" has to survive being replaced a tick later.
   medikit-applied: "<red>Medikit applied — it works in <white><seconds>s</white>. Taking damage cancels it!</red>"
   medikit-counting: "<red>Medikit works in <white><seconds>s</white> …</red>"
-  medikit-already: "<red>A medikit is already being applied …</red>"
+  medikit-already: "<red>A medikit is already being applied … one bandage at a time.</red>"
   # The item was never spent, so it is still theirs — worth saying, or this reads as having lost one.
   medikit-interrupted: "<red>Medikit interrupted — you took damage. It is still in your inventory.</red>"
   medikit-healed: "<red>Medikit used — fully healed.</red>"
@@ -248,10 +248,10 @@ hungergames:
 
   # ---------------------------------------------------------------- /hg give
   give-usage: "<yellow>/hg give <white><item> [amount] [player]</white> <gray>— tab-completes the item names.</gray></yellow>"
-  give-unknown-item: "<red>There is no custom item called <white><item></white>. <gray>Tab-complete to see them.</gray></red>"
-  give-bad-amount: "<red><amount> is not an amount between 1 and 64.</red>"
-  give-nobody: "<red>Nobody is called <who>.</red>"
-  give-offline: "<red><white><who></white> is offline right now, so there are no hands to put it in.</red>"
-  give-selector-refused: "<red>Selectors like <white><who></white> are not yours to use here - or they are not written right. Type a name instead.</red>"
-  give-console-needs-a-player: "<red>From the console, say who it is for: <white>/hg give <item> <amount> <player></white>.</red>"
+  give-unknown-item: "<red>There is no custom item called <white><item></white>. <gray>Tab-complete to see them; the Capitol invented nothing else.</gray></red>"
+  give-bad-amount: "<red><amount> is not an amount between 1 and 64. A stack is a stack.</red>"
+  give-nobody: "<red>Nobody is called <who>. We checked under the cornucopia.</red>"
+  give-offline: "<red><white><who></white> is offline right now, so there are no hands to put it in. Parcels do not deliver to the void.</red>"
+  give-selector-refused: "<red>Selectors like <white><who></white> are not yours to use here - or they are not written right. Type a name instead. Magic words are not on the sponsor list.</red>"
+  give-console-needs-a-player: "<red>From the console, say who it is for: <white>/hg give <item> <amount> <player></white>. The console has no hands.</red>"
   give-done: "<green>✔ <white><amount>× <item></white> <gray>→</gray> <white><who></white>.</green>"

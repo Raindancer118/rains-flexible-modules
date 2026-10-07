@@ -35,7 +35,7 @@ import java.util.UUID;
 
 public final class PlayerUtilsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("playerutils", "Player Utils", "0.1.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("playerutils", "Player Utils", "0.1.2")
             .describedAs("Fly, heal, feed, hurt, drown, launch, scale, speed, wipe, spectate and sudo — and "
                     + "ping, status, hunger, effects, position and who is near. By name, nickname or selector.")
             .by("Raindancer118");

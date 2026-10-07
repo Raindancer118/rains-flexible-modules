@@ -116,7 +116,7 @@
           2.22.0: /fly, /heal, /feed, /hurt and /starve moved to RainsPlayerUtils; the player page's
           tools screen still has them as buttons. Every player argument takes a nickname (typed with _
           for spaces) and completes it. Needs RainsCore 1.50.1. -->
-        <plugin.version>2.22.1</plugin.version>
+        <plugin.version>2.22.2</plugin.version>
     </properties>
 
     <dependencies>

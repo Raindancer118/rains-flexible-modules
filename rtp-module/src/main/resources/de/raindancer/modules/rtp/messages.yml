@@ -14,18 +14,18 @@ rtp:
 
   searching: "<gray>Looking for somewhere safe to land… hopefully not lava."
   no-world: "<red>You are not standing in a world at all. Impressive, honestly."
-  world-disabled: "<red>Random teleporting does not work in <white><world></white>."
+  world-disabled: "<red>Random teleporting does not work in <white><world></white>. Here, you walk like everybody else."
   on-cooldown: "<yellow>You can go again in <white><time></white>. Even adventurers need a break."
   warming-up: "<gray>Off to somewhere new in <white><seconds></white>… stand still. It is a surprise."
   arrived: "<green>Here you are: <white><where></white>. Surprise!"
   already-travelling: "<yellow>You are already on your way somewhere. One trip at a time."
-  world-missing: "<yellow>That world is not loaded right now."
+  world-missing: "<yellow>That world is not loaded right now. It is probably just shy."
   nowhere-safe: "<red>Nowhere nearby was safe to put you — try again, the dice may be kinder."
-  could-not-check: "<red>The ground could not be checked. Try again."
-  teleport-refused: "<red>Something stopped you arriving. Try again."
-  cannot-schedule: "<red>The server cannot send you anywhere just now."
+  could-not-check: "<red>The ground could not be checked. Try again, we would rather not guess."
+  teleport-refused: "<red>Something stopped you arriving. Try again; the destination was playing hard to get."
+  cannot-schedule: "<red>The server cannot send you anywhere just now. Even travel agents close."
   only-a-player: "<red>Only somebody standing in the world can be sent somewhere random. The console stays home."
-  invalid-distance: "<red><white><value></white> is not a distance to ask for. Numbers, please."
+  invalid-distance: "<red><white><value></white> is not a distance to ask for. Numbers, please; blocks do not measure in vibes."
 
   cancelled:
     moved: "<yellow>You moved, so you are staying put. Standing still means standing still."
@@ -33,9 +33,9 @@ rtp:
 
   pool:
     no-permission: "<red>You may not prepare locations ahead of time. Nice planning, though."
-    disabled: "<red>Preparing locations ahead of time is switched off."
-    no-world: "<red>There is nowhere to prepare locations in."
-    invalid-amount: "<red><white><value></white> is not a number of locations to prepare."
+    disabled: "<red>Preparing locations ahead of time is switched off. Spontaneity only."
+    no-world: "<red>There is nowhere to prepare locations in. Hard to scout a void."
+    invalid-amount: "<red><white><value></white> is not a number of locations to prepare. Counting is a prerequisite."
     full: "<yellow>The pool is already as full as it is allowed to be. Not a drop more."
     preparing: "<gray>Looking for <white><amount></white> location(s) in <white><world></white>…"
     prepared: "<green>Prepared <white><amount></white> location(s) in <white><world></white>."

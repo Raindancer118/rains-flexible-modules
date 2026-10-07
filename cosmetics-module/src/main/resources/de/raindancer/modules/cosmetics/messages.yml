@@ -5,7 +5,7 @@
 # as a boolean, and a message that became one prints its own key.
 cosmetics:
 
-  no-permission: "<red>You may not do that. Nice try."
+  no-permission: "<red>You may not do that. The velvet rope stays up."
 
   only-a-player: "<red>The console has no name to paint. We checked."
 
@@ -13,11 +13,11 @@ cosmetics:
 
   reloaded: "<green>Reloaded. <white><colours></white> palette colour(s), <white><presets></white> preset(s)."
 
-  unknown-player: "<red>Nobody called <white><player></white> has played here. Check the spelling."
-  selector-refused: "<red><white><selector></white> is not yours to use, or not written right. A name works just as well."
-  selector-nobody: "<yellow><white><selector></white> did not match anybody, so nothing was touched."
+  unknown-player: "<red>Nobody called <white><player></white> has played here. Check the spelling, or the ghosts."
+  selector-refused: "<red><white><selector></white> is not yours to use, or not written right. A name works just as well, and nobody gets hurt."
+  selector-nobody: "<yellow><white><selector></white> did not match anybody, so nothing was touched. Quiet in here."
 
-  unknown-preset: "<red>There is no preset called <white><preset></white>. <gray>Tab shows the ones there are."
+  unknown-preset: "<red>There is no preset called <white><preset></white>, however fashionable. <gray>Tab shows the ones there are."
 
   not-a-style: "<red><detail>"
 
@@ -46,10 +46,10 @@ cosmetics:
     shaped: "<green>It is drawn <white><shape></white> now."
     coloured: "<green>Its colour is changed."
     densified: "<green>Density: <white><density></white>. Sparkle responsibly."
-    unknown-density: "<red>Densities are <white>light</white>, <white>normal</white>, <white>dense</white> and <white>very_dense</white>."
+    unknown-density: "<red>Densities are <white>light</white>, <white>normal</white>, <white>dense</white> and <white>very_dense</white>. Maths is not one of them."
     sped: "<green>Speed: <white><speed></white>. Zoom zoom — or not, your call."
     unknown-speed: "<red>Speeds are <white>slow</white>, <white>normal</white>, <white>fast</white> and <white>very_fast</white>. Warp speed is not on the list."
-    unknown-shape: "<red>The shapes are <white>ambient</white>, <white>aura</white>, <white>halo</white>, <white>trail</white> and <white>spiral</white>."
+    unknown-shape: "<red>The shapes are <white>ambient</white>, <white>aura</white>, <white>halo</white>, <white>trail</white> and <white>spiral</white>. Geometry has its limits."
     none-worn: "<red>You are not wearing a particle yet — pick one first, then we can fuss over it."
     dropped: "<yellow>Your particle is not allowed any more, so it is taken off. Easy come, easy go."
 
@@ -61,13 +61,13 @@ cosmetics:
   refused:
     colour: "<red>You may not colour your name. Beige it is."
     gradient: "<red>You may not use a gradient — one colour only. Rainbows are a premium feature."
-    any-colour: "<red><white><detail></white> is not in the palette, and you may only use palette colours."
-    decoration: "<red>You may not make your name <white><detail></white>. Sorry, that one's not yours to use."
+    any-colour: "<red><white><detail></white> is not in the palette, and you may only use palette colours. Freestyle is not on the menu."
+    decoration: "<red>You may not make your name <white><detail></white>. Plain letters will have to do the talking."
     animated: "<red>Your gradient can't flow — that one's not unlocked for you. It still looks great standing still."
     too-many-stops: "<red>At most <white><detail></white> colours in one name. It is a name, not a paint palette."
     preset: "<red>The <white><preset></white> preset is not yours to wear. Nice taste, though."
     particles: "<red>You may not wear particles. Glitter-free for now."
-    particle-unknown: "<red><white><detail></white> is not a particle that can be worn."
+    particle-unknown: "<red><white><detail></white> is not a particle that can be worn. Minecraft has never heard of it."
     particle-blocked: "<red><white><detail></white> is not allowed here — it would cover everybody's screen, and they'd hate you a little."
 
   help:

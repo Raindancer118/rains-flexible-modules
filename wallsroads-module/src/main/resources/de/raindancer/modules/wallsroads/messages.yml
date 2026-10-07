@@ -7,16 +7,16 @@ wallsroads:
   usage: "<gray>/wallsroads wall|road new|<name>, cancel, list"
   only-a-player: "<red>Only a player standing in the world can do that. Walls do not build themselves."
   unknown-wall: "<red>There is no wall called <white><name></white>. Maybe it is a very good wall and it left."
-  unknown-road: "<red>There is no road called <white><name></white>. Check the name, or the list."
+  unknown-road: "<red>There is no road called <white><name></white>. Check the name, or the list. Not every path leads somewhere."
 
   create:
-    no-permission: "<red>You may not mark out a new wall or road here. Ask whoever owns the land."
+    no-permission: "<red>You may not mark out a new wall or road here. Ask whoever owns the land; the surveyors are on strike."
 
   selection:
     started: "<gray>Marking a new <white><purpose></white>. Right-click to add a corner, shift-right-click to finish."
     point-added: "<gray>Corner <white><count></white> added. Keep going."
     point-removed: "<gray>Corner removed, <white><count></white> left. Second thoughts are fine."
-    incomplete: "<red>A shape needs at least <white><needed></white> points, and you have <white><have></white>. Add a few more corners."
+    incomplete: "<red>A shape needs at least <white><needed></white> points, and you have <white><have></white>. Add a few more corners; geometry is strict."
     cancelled: "<gray>Selection cancelled. Nothing was built."
     none: "<gray>You are not marking anything out right now. Start a new wall or road first."
 
@@ -30,7 +30,7 @@ wallsroads:
     ask-name: "<gray>Type a new name for this road, or 'cancel'."
     removed: "<green>Road <white><name></white> removed. Back to walking through the grass."
 
-  protected: "<red>That is part of a wall or a road somebody else built. Hands off."
+  protected: "<red>That is part of a wall or a road somebody else built. Hands off; it took them ages."
 
   gate:
     opened: "<gray>The gates of <white><wall></white> swing open. Come on in."
@@ -49,12 +49,12 @@ wallsroads:
 
   map:
     sent: "<gray>Sent <white><count></white> gates and road ends to your map. Get lost, in style."
-    unavailable: "<red>This server has no client-map support running, so there is nothing to send to."
+    unavailable: "<red>This server has no client-map support running, so there is nothing to send to. Paper maps only."
 
   config:
     at-the-limit: "<gray>That is as far as it goes, between <white><least></white> and <white><most></white>."
-    refused: "<red>The setting <white><setting></white> would not take that value."
-    not-yours: "<red>Only staff may change how this server builds walls and roads. Nice try."
+    refused: "<red>The setting <white><setting></white> would not take that value. It has standards."
+    not-yours: "<red>Only staff may change how this server builds walls and roads. The blueprints are locked away."
 
   outline-shown: "<gray>Showing the outline of <white><name></white>. Ghost walls."
   outline-elsewhere: "<gray><white><name></white> is in <white><world></white>, not here. Wrong world, friend."

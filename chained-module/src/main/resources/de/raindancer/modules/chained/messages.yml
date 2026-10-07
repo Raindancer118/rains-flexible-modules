@@ -15,21 +15,21 @@ chained:
   unknown-player: "<red>There is nobody online called <white><name></white>. Maybe they ran away."
   player-offline: "<red><white><name></white> is offline right now. Chains need two people who are actually here."
   too-many: "<red><white><typed></white> matches <white><count></white> players - pick one. Chains come in pairs, not crowds."
-  selector-refused: "<red>Selectors like <white><typed></white> are not yours to use here - or they are not written right. Type a name instead."
+  selector-refused: "<red>Selectors like <white><typed></white> are not yours to use here - or they are not written right. Type a name instead, it is cheaper."
 
   # ---------------------------------------------------------------- running
   started: "<green>The clock is running. Do not drift too far."
-  start-refused: "<red>Could not start a run. Pair yourself first, or one is already going."
+  start-refused: "<red>Could not start a run. Pair yourself first, or one is already going. The stopwatch is not amused."
   stopped: "<yellow>The run has been stopped. Chains stay on, though."
-  stop-refused: "<red>There is no run of yours to stop. Nothing is going on."
+  stop-refused: "<red>There is no run of yours to stop. You cannot stop what has not started."
 
   # ---------------------------------------------------------------- resetting
   reset-done: "<green>The map has been reset. Clean slate."
-  reset-refused: "<red>The map could not be reset. Is the configured world loaded?"
+  reset-refused: "<red>The map could not be reset. Is the configured world loaded? Hard to wipe a world that is not there."
 
   # ---------------------------------------------------------------- general
   only-a-player: "<red>Only somebody standing in the world can do that. Chains need ankles."
-  not-yours: "<red>Chained is not yours to change. Nice try."
+  not-yours: "<red>Chained is not yours to change. The keys are with the staff."
 
   usage:
     pair: "<gray>/chain pair <first player> <second player> [max distance]"

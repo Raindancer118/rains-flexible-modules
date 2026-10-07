@@ -6,8 +6,8 @@
 xaeromap:
 
   usage: "<gray>/xaeromap [refresh|homes|warps|status|resync]"
-  only-a-player: "<red>Only a player with a map open can refresh one. The console cannot read maps."
-  no-permission: "<red>That part of this is for staff. Nice try."
+  only-a-player: "<red>Only a player with a map open can refresh one. The console cannot read maps, or even find north."
+  no-permission: "<red>That part of this is for staff. Your map will have to cope."
 
   refresh:
     done: "<green>Sent again. Your map will fill back in over the next few seconds, hang tight."
@@ -19,7 +19,7 @@ xaeromap:
   waypoints:
     off: "<red>Places as waypoints are switched off on this server. Walk, like in the old days."
     no-mod: "<yellow>Nothing on your client answered, so there is nowhere to put a waypoint — Xaero's Minimap or World Map is what draws them."
-    none: "<yellow>You have no <kind> to put on your map. The map stays blank."
+    none: "<yellow>You have no <kind> to put on your map. The map stays blank, a bold artistic choice."
     offering: "<green>Your <white><count></white> <kind>, one click each to add to your map:"
     partial: "<yellow>Only <white><sent></white> of <white><count></white> could be offered — the rest have names your map cannot take."
 

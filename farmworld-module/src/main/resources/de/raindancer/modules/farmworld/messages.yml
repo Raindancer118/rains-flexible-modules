@@ -19,8 +19,8 @@ farmworlds:
   moved-out: "<yellow>The farm world is being made again, so you have been moved to spawn. Nothing personal."
 
   # ---------------------------------------------------------------- going somewhere
-  unknown: "<red>No farm world called <white><name></white>. Check the spelling, or the list."
-  not-loaded: "<yellow><name></yellow> lives in a world that is not loaded right now. Try again in a bit."
+  unknown: "<red>No farm world called <white><name></white>. Check the spelling, or the list. We looked under every rock."
+  not-loaded: "<yellow><name></yellow> lives in a world that is not loaded right now. Try again in a bit. It is not hiding, just not here."
   on-cooldown: "<yellow>Easy, explorer. You can go to a farm world again in <white><time></white>."
   warming-up: "<gray>Off to <white><name></white> in <white><seconds></white>… stand still, it is worth it."
   arrived: "<green>Welcome to <white><name></white>'s spawn. Mind the mess."
@@ -28,10 +28,10 @@ farmworlds:
   no-rtp: "<red>This server does not drop people into farm worlds at random. Type <white>/farm <its name></white> to arrive at its spawn."
   arrived-shortly-before: "<yellow>Careful: <white><name></white> is regenerated in <white><time></white>. Nothing you leave here will survive it, so do not get attached."
   already-travelling: "<yellow>You are already on your way somewhere. Patience."
-  nowhere-safe: "<red>No safe spot found in <white><name></white>. Try again, it picks a different place each time."
-  could-not-check: "<red>The ground in <white><name></white> could not be checked, so you are staying here."
-  teleport-refused: "<red>Something stopped you arriving in <white><name></white>. The world said no."
-  cannot-schedule: "<red>The server cannot send you anywhere just now. Try again in a moment."
+  nowhere-safe: "<red>No safe spot found in <white><name></white>. Try again, it picks a different place each time. Fate is fickle."
+  could-not-check: "<red>The ground in <white><name></white> could not be checked, so you are staying here. The ground is on strike."
+  teleport-refused: "<red>Something stopped you arriving in <white><name></white>. The world said no, and meant it."
+  cannot-schedule: "<red>The server cannot send you anywhere just now. Try again in a moment. The scheduler is having a lie-down."
   only-a-player: "<red>Farm worlds are for people with legs. Only somebody standing in the world can go."
 
   cancelled:
@@ -41,8 +41,8 @@ farmworlds:
   # Two refusals rather than one, because they are two different things to do about it: nothing, and ask
   # whoever hands out the rank. A single "you may not go there" is the message that produces a ticket.
   refused:
-    at-all: "<red>Farm worlds are not for you on this server."
-    this-one: "<red><white><name></white> is not one you may enter. Ask whoever hands out the ranks."
+    at-all: "<red>Farm worlds are not for you on this server. The dirt is reserved."
+    this-one: "<red><white><name></white> is not one you may enter. Ask whoever hands out the ranks, and bring snacks."
 
   # ---------------------------------------------------------------- the list
   none-yet: "<gray>This server has no farm worlds. Very tidy."
@@ -58,9 +58,9 @@ farmworlds:
   # ---------------------------------------------------------------- making and changing
   making: "<gray>Making <white><name></white>. The server will pause for a moment, so hold your breath."
   created: "<green><white><name></white> is ready: <white><count></white> world(s) of fresh dirt."
-  could-not-make: "<red><white><name></white> is on the list, but the server refused to make its worlds. The log says why."
+  could-not-make: "<red><white><name></white> is on the list, but the server refused to make its worlds. The log says why, and it is not shy about it."
   already-exists: "<red><white><name></white> is already a farm world. One is plenty."
-  too-many: "<red>This server already has its <white><limit></white> farm worlds. Forget one first."
+  too-many: "<red>This server already has its <white><limit></white> farm worlds. Forget one first; the soil is only so big."
   forgotten: "<green><white><name></white> is no longer a farm world. Its worlds are left exactly where they are, nothing has been deleted."
   deleting: "<gray>Deleting <white><name></white>. The server will pause."
   deleted: "<green><white><name></white> and its worlds are gone. Quietly, for good."
@@ -74,19 +74,19 @@ farmworlds:
   # enter a farm world, and a YAML map cannot have a scalar and a section under one key — the second one silently
   # wins. Written as `refused` here, this ate both of those lines and MessagesTest is what said so.
   change-refused: "<red><reason>"
-  not-yours: "<red>Farm worlds are not yours to change."
+  not-yours: "<red>Farm worlds are not yours to change. Look, do not till."
   reloaded: "<green>The farm world settings have been read again."
-  bad-period: "<red><white><text></white> is not a length of time. Try <white>7d</white>, <white>2 weeks</white>, or <white>never</white>."
-  bad-border: "<red><white><text></white> is not a number of blocks. Numbers only, please."
+  bad-period: "<red><white><text></white> is not a length of time, whatever the calendar says. Try <white>7d</white>, <white>2 weeks</white>, or <white>never</white>."
+  bad-border: "<red><white><text></white> is not a number of blocks. Numbers only, please; blocks cannot be counted in feelings."
 
   # A name is refused for five different reasons and each says which, because "that name will not do" is the
   # answer people try four more spellings against.
   name:
     empty: "<red>A farm world needs a name. Even a bad one."
-    too-long: "<red>That name is too long: <white><limit></white> characters at most. It has to fit on its own button."
-    bad-characters: "<red>A farm world's name may have lower-case letters, digits, dashes and underscores in it, and nothing else — it becomes a folder on the disk."
-    reserved: "<red><white><name></white> is a word <white>/farm</white> reads as an instruction, so no farm world can have it. Pick another."
-    dangerous: "<red><white><name></white> is one of the server's own worlds, or a name that is a path. Making it a farm world would mean deleting the server, so no."
+    too-long: "<red>That name is too long: <white><limit></white> characters at most. It has to fit on its own button, and buttons are small."
+    bad-characters: "<red>A farm world's name may have lower-case letters, digits, dashes and underscores in it, and nothing else — it becomes a folder on the disk, and folders are picky."
+    reserved: "<red><white><name></white> is a word <white>/farm</white> reads as an instruction, so no farm world can have it. Pick another; some words are spoken for."
+    dangerous: "<red><white><name></white> is one of the server's own worlds, or a name that is a path. Making it a farm world would mean deleting the server, so no. Nice ambition, though."
 
   # ---------------------------------------------------------------- regenerating one
   delete-are-you-sure: "<red>This deletes <white><name></white> and its <white><count></white> world(s) for good. Everything anybody built in them is gone and nothing is put back. Say <white>/farm delete <name> confirm</white> if you mean it, or <white>/farm forget <name></white> to take it off the list and keep the worlds."
@@ -109,7 +109,7 @@ farmworlds:
   # ---------------------------------------------------------------- the config page
   config:
     at-the-limit: "<yellow>That is as far as it goes: between <white><least></white> and <white><most></white>. Physics says no."
-    refused: "<red><white><setting></white> would not take that value."
+    refused: "<red><white><setting></white> would not take that value. It has opinions."
 
   # ---------------------------------------------------------------- usage
   #

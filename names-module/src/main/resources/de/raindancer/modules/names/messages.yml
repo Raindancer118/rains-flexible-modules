@@ -9,7 +9,7 @@
 # time.
 names:
 
-  no-permission: "<red>You may not do that. Nice try."
+  no-permission: "<red>You may not do that. The name tag stays in your pocket."
 
   reloaded: "<green>Reloaded. <white><count></white> item(s) now do something to a name tag. Fancy."
 

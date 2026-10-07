@@ -33,7 +33,7 @@
              the server address. And this server's claims are drawn on both of those maps, in the
              claim protocol both mods already read — with their names, and coloured so that your own
              claims, the ones you are trusted on, and each stranger's are told apart at a glance. -->
-        <plugin.version>1.0.1</plugin.version>
+        <plugin.version>1.0.2</plugin.version>
     </properties>
 
     <dependencies>

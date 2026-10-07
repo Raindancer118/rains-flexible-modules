@@ -106,7 +106,7 @@ public final class NickMenu extends Menu {
                 this::onAnswered, this::reopenElsewhere);
         if (!asked) {
             services.chat().tell(viewer,
-                    "<red>You are already being asked something else — finish that first.");
+                    "<red>You are already being asked something else. Finish that conversation first.");
             return;
         }
         services.chat().tell(viewer,
@@ -145,7 +145,7 @@ public final class NickMenu extends Menu {
                     }), this::reopenElsewhere);
             if (!asked) {
                 services.chat().tell(viewer,
-                        "<red>You are already being asked something else — finish that first.");
+                        "<red>You are already being asked something else. Finish that conversation first.");
                 return;
             }
             services.chat().tell(viewer, "<gray>Type the new nickname for <white>"

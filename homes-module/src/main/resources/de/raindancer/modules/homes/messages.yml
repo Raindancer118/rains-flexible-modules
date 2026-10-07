@@ -19,13 +19,13 @@ homes:
   warming-up: "<gray>Going to <white><name></white> in <white><seconds></white>… stand still."
   arrived: "<green>Welcome home — <white><name></white>. Shoes off."
   on-cooldown: "<yellow>Another <white><time></white> before you can go home again. Home is not going anywhere."
-  world-not-loaded: "<yellow><name></yellow> is in <white><world></white>, which is not loaded right now."
-  world-gone: "<yellow><name></yellow> is in a world that is not loaded right now."
-  cross-world-off: "<red><name></red> is in another world, and homes across worlds are switched off here."
-  nowhere-safe: "<red>There is nowhere safe to put you at <white><name></white>."
-  could-not-check: "<red>The ground at <white><name></white> could not be checked."
-  teleport-refused: "<red>Something stopped you arriving at <white><name></white>."
-  cannot-schedule: "<red>The server cannot send you anywhere just now."
+  world-not-loaded: "<yellow><name></yellow> is in <white><world></white>, which is not loaded right now. The neighbourhood is under construction."
+  world-gone: "<yellow><name></yellow> is in a world that is not loaded right now. Somebody moved the furniture, and the street."
+  cross-world-off: "<red><name></red> is in another world, and homes across worlds are switched off here. The commute is too long."
+  nowhere-safe: "<red>There is nowhere safe to put you at <white><name></white>. Home is where the lava is not."
+  could-not-check: "<red>The ground at <white><name></white> could not be checked. Trust issues, both ways."
+  teleport-refused: "<red>Something stopped you arriving at <white><name></white>. Your own front door, apparently."
+  cannot-schedule: "<red>The server cannot send you anywhere just now. Even the moving van has limits."
   already-travelling: "<yellow>You are already on your way somewhere. One trip at a time."
 
   cancelled:
@@ -46,9 +46,9 @@ homes:
   # Two different sentences for two different states. "You already have 0 homes, use /delhome to make
   # room" reads as a broken plugin, and the answer to it is certainly not /delhome.
   too-many: "<red>You already have <white><limit></white> home(s). Use <white>/delhome</white> to make room. Real estate is tight."
-  switched-off: "<red>Homes are switched off on this server."
+  switched-off: "<red>Homes are switched off on this server. Everybody is homeless, equally."
 
-  bad-name: "<red>A home name is <white><rule></white>."
+  bad-name: "<red>A home name is <white><rule></white>. The deed office is picky."
   no-such-home: "<red>No home called <white><name></white>. You have: <gray><list>"
   none-yet: "<gray>You have no homes yet — stand where you want one and use <white>/sethome</white>."
   how-to-set-one: "<gray>Stand where you want it and type <white>/sethome</white>, or <white>/sethome</white> and a name for it."

@@ -70,15 +70,15 @@ moderation:
     struck: "<gold><bold>BONK.</bold> <white><player></white> <gold>has been hit with the Banhammer."
     immune: "<red><white><player></white> is a protected account — the Banhammer bounced off."
     switched-off: "<gray>The Banhammer is switched off on this server. It is sulking in the shed."
-    not-allowed: "<gray>Only somebody allowed to swing the Banhammer can ban with it. You are not on the list."
-    not-the-hammer: "<gray>That was not the Banhammer."
-    not-the-blow: "<gray>The Banhammer has to land the blow itself."
+    not-allowed: "<gray>Only somebody allowed to swing the Banhammer can ban with it. You are not on the list, so it stays heavy."
+    not-the-hammer: "<gray>That was not the Banhammer. A stick is just a stick."
+    not-the-blow: "<gray>The Banhammer has to land the blow itself. No delegating the bonk."
     self: "<gray>The Banhammer does not swing at its owner. It has some self-respect."
     already-banned: "<gray>They're already gone. The Banhammer doesn't do encores."
 
   ban:
-    too-long-for-you: "<red>That is longer than you may ban for. <gray>Your limit is <white><detail></white> — an admin can go further."
-    not-for-ever-for-you: "<red>A permanent ban is an admin's decision. <gray>You can ban for up to <white><detail></white>."
+    too-long-for-you: "<red>That is longer than you may ban for. <gray>Your limit is <white><detail></white> — an admin can go further. Ambition noted."
+    not-for-ever-for-you: "<red>A permanent ban is an admin's decision. <gray>You can ban for up to <white><detail></white>. For ever is above your pay grade."
     not-yours-to-lift: "<red>That is a permanent ban, so lifting it is an admin's call. Not yours, sorry."
 
   # ── staff ranks ──────────────────────────────────────────────────────────
@@ -88,12 +88,12 @@ moderation:
     you-are-now: "<green>You are now <<colour>><rank></<colour>><gray>. <gray><what>"
     you-are-no-longer: "<yellow>You are no longer part of the staff."
     not-staff: "<gray><player> is not staff. Yet."
-    unknown: "<red>There is no rank called '<word>'. <gray>Try one of: <ranks>."
+    unknown: "<red>There is no rank called '<word>'. <gray>Try one of: <ranks>. Inventing titles is not part of the job."
     already-at-the-top: "<gray><player> is already <white><rank></white>, which is the highest rank."
     not-yours: "<red>You may not hand out that rank. Not your crown to give."
-    only-below-you: "<gray>You can only promote somebody to <white><rank></white> or below — the rank under your own."
-    not-above-you: "<gray><player> is <white><rank></white>, which is not below your own rank."
-    yourself: "<gray>You cannot change your own rank. Nice try, though."
+    only-below-you: "<gray>You can only promote somebody to <white><rank></white> or below — the rank under your own. Nobody outranks their boss here."
+    not-above-you: "<gray><player> is <white><rank></white>, which is not below your own rank. The ladder only goes down from you."
+    yourself: "<gray>You cannot change your own rank. Self-promotion is a classic, but no."
     handing-out-is-off: "<gray>Only the server owner may hand out ranks on this server. Promotions go through the top."
     granted: "<green>Gave <white><player></white> <white><what></white>."
     revoked: "<yellow>Took <white><what></white> from <white><player></white>."
@@ -113,9 +113,9 @@ moderation:
   not-yourself: "<gray>You cannot do that to yourself. Pick on somebody else."
   # ── the world tools ──────────────────────────────────────────────────────
   world:
-    players-only: "<gray>This is aimed at wherever you are looking, so it needs somebody standing somewhere. <dark_gray>The console is not."
-    nothing-aimed-at: "<gray>You are not looking at anything within reach. <dark_gray>Point at the ground and try again."
-    nothing-to-replace: "<gray>Nothing there would take a vein. <dark_gray>Only natural stone and dirt are replaced — never anything built."
+    players-only: "<gray>This is aimed at wherever you are looking, so it needs somebody standing somewhere. <dark_gray>The console is not, and has no eyes either."
+    nothing-aimed-at: "<gray>You are not looking at anything within reach. <dark_gray>Point at the ground and try again. Staring at the sky is not a target."
+    nothing-to-replace: "<gray>Nothing there would take a vein. <dark_gray>Only natural stone and dirt are replaced — never anything built. Your masterpiece is safe."
     vein-placed: "<green>Buried <white><count></white> blocks of <white><ore></white>."
     nothing-arrived: "<gray>Nothing turned up. <dark_gray>No room, or the ground is not loaded. Nobody likes a crowded spawn."
     pack-sent: "<green><white><count></white> × <white><what></white> turned up around you."
@@ -136,7 +136,7 @@ moderation:
     none: "<gray>Nobody has been protected with /protect. <dark_gray>Operators are protected anyway."
     list: "<gray><white><count></white> account(s) protected from moderators:"
     row: "<dark_gray> - <white><player>"
-    not-written: "<red>That could not be written to immune.yml, so it would be lost at the next restart. <gray>Nothing has been changed."
+    not-written: "<red>That could not be written to immune.yml, so it would be lost at the next restart. <gray>Nothing has been changed. The file has declined to cooperate."
 
   they-are-immune: "<red>That account is protected. Only the console can act on it. Somebody up there likes them."
   nobody-there: "<gray>There is nobody to do that to. The coast is clear."
@@ -148,7 +148,7 @@ moderation:
 
   # ── lengths and prompts ──────────────────────────────────────────────────
   type-a-length: "<gray>Type how long — <white>90m</white>, <white>3d</white>, <white>perm</white>. <dark_gray>m is minutes, M is months."
-  unreadable-length: "<red>'<text>' is not a length I can read. <gray>Nothing has been done — try <white>2h</white> or <white>perm</white>."
+  unreadable-length: "<red>'<text>' is not a length I can read. <gray>Nothing has been done — try <white>2h</white> or <white>perm</white>. Time is not measured in vibes."
   nothing-typed: "<gray>Nothing was typed, so nothing happened. Very peaceful."
   type-a-name: "<gray>Type part of a name to search for. Half a name is plenty."
   type-a-note: "<gray>Type what to remember about <white><player></white>. <dark_gray>They never see it."
@@ -194,13 +194,13 @@ moderation:
 
   # ── inventories ──────────────────────────────────────────────────────────
   invsee:
-    refused: "<red>That inventory stays shut: <gray><reason>"
+    refused: "<red>That inventory stays shut, and the lock is not decorative: <gray><reason>"
 
   # ── staff chat ───────────────────────────────────────────────────────────
   staff-chat:
     turned-on: "<dark_aqua>You are talking to the staff. <gray>Type <white>/staffchat</white> again to stop."
     turned-off: "<gray>You are talking to the server again. Back to the masses."
-    no-longer-yours: "<red>You may no longer use staff chat, so that went nowhere. <gray>You are back in ordinary chat."
+    no-longer-yours: "<red>You may no longer use staff chat, so that went nowhere. <gray>You are back in ordinary chat. The secrets club has revoked your card."
 
   # ── you are vanished ─────────────────────────────────────────────────────
   vanished: "<gray>You are invisible. <dark_gray>Players cannot see you or hear you arrive. Sneaky."
@@ -218,14 +218,14 @@ moderation:
   # ── reports ──────────────────────────────────────────────────────────────
   report:
     filed: "<green>Reported. <gray>The staff have it as <white><id></white>."
-    not-taken: "<gray>That report was not taken — somebody may have reported <white><player></white> already."
+    not-taken: "<gray>That report was not taken — somebody may have reported <white><player></white> already. Great minds snitch alike."
     switched-off: "<gray>Reports are switched off on this server. Sort it out between you, grown-ups."
-    too-short: "<gray>Say a little more than that — at least <white><detail></white> characters, so somebody can act on it."
+    too-short: "<gray>Say a little more than that — at least <white><detail></white> characters, so somebody can act on it. 'Bad' is not a case file."
     not-yourself: "<gray>You cannot report yourself. Confession noted, but not accepted."
-    nobody-there: "<gray>There is nobody by that name to report. Check the spelling."
-    too-soon: "<gray>You have just reported somebody. <dark_gray>Try again in <detail>."
-    already-open: "<gray>You have already reported them — the staff have it as <white><detail></white>."
-    too-many: "<gray>You have <white><detail></white> reports still open. <dark_gray>Wait for one to be dealt with."
+    nobody-there: "<gray>There is nobody by that name to report. Check the spelling. Reporting thin air gets nobody banned."
+    too-soon: "<gray>You have just reported somebody. <dark_gray>Try again in <detail>. The staff need a moment to read the last one."
+    already-open: "<gray>You have already reported them — the staff have it as <white><detail></white>. Reporting twice does not make it louder."
+    too-many: "<gray>You have <white><detail></white> reports still open. <dark_gray>Wait for one to be dealt with. The queue is not a diary."
     waiting: "<yellow><white><count></white> report(s) are waiting. <dark_gray>/reports"
     queue-empty: "<gray>Nothing is waiting. Enjoy it while it lasts."
     queue-more: "<gray>…and <white><count></white> more."

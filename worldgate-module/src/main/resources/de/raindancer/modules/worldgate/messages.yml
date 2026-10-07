@@ -14,13 +14,13 @@
 worldgate:
 
   drained-entry-denied: "<yellow><white><dimension></white> is being drained right now, so nobody new may enter. Come back later."
-  closed-entry-denied: "<red><white><dimension></white> is closed on this server. Door is locked."
+  closed-entry-denied: "<red><white><dimension></white> is closed on this server. The door is locked and the key is imaginary."
   evacuate-notice: "<yellow>You have been pulled out of <white><dimension></white>. Not a request."
 
-  no-permission: "<red>You may not lock, open or evacuate a dimension. That is staff business."
-  unknown-dimension: "<red><white><value></white> is not nether or end. Pick one of those."
-  unknown-lock-mode: "<red><white><value></white> is not drain or close. Pick one of those."
-  could-not-save: "<red>That could not be written to disk, so nothing has changed."
+  no-permission: "<red>You may not lock, open or evacuate a dimension. That is staff business. The badge is not included."
+  unknown-dimension: "<red><white><value></white> is not nether or end. Pick one of those; the overworld stays out of this."
+  unknown-lock-mode: "<red><white><value></white> is not drain or close. Pick one of those; there is no third option."
+  could-not-save: "<red>That could not be written to disk, so nothing has changed. The disk is being difficult."
 
   now-drained: "<yellow><white><dimension></white> is now draining. Nobody new may enter, and whoever is already there may still leave freely."
   now-closed: "<red><white><dimension></white> is now closed. Sorry, wrong door."
