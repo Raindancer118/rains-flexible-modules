@@ -23,6 +23,7 @@ import de.raindancer.modules.voicebridge.VoiceBridgeSettings;
 import de.raindancer.modules.voicebridge.rules.BridgedSpeakerRule;
 import org.bukkit.Server;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -151,18 +152,22 @@ public final class VoicechatGateway implements VoicechatPlugin, IVoiceBridgeServ
         bindGroup(voicechat);
     }
 
-    /** Finds the group by name, or makes it — persistent, so it does not vanish when the last one leaves. */
+    /**
+     * The bridge's own group: found by an id derived from its name, never by the name alone. A
+     * player's group that merely shares the name — possibly behind a password — is somebody's
+     * private conversation, and must not be taken over and sent to Discord.
+     */
+    static UUID groupIdFor(String name) {
+        return UUID.nameUUIDFromBytes(("rainsvoicebridge:" + name).getBytes(StandardCharsets.UTF_8));
+    }
+
     private synchronized void bindGroup(VoicechatServerApi voicechat) {
         String name = settings.groupNameOrDefault();
-        Group found = null;
-        for (Group existing : voicechat.getGroups()) {
-            if (existing.getName().equals(name)) {
-                found = existing;
-                break;
-            }
-        }
+        UUID id = groupIdFor(name);
+        Group found = voicechat.getGroup(id);
         if (found == null) {
             found = voicechat.groupBuilder()
+                    .setId(id)
                     .setName(name)
                     .setPersistent(true)
                     .setType(Group.Type.OPEN)
