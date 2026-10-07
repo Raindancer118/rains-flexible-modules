@@ -29,6 +29,11 @@ final class Server implements AutoCloseable {
      * @param upLines a log line per module that says it enabled
      */
     static Server start(String scenario, List<String> plugins, List<String> upLines) {
+        return start(scenario, plugins, List.of(), upLines);
+    }
+
+    /** As above, plus plugins from outside the reactor (e.g. Simple Voice Chat), as jars on disk. */
+    static Server start(String scenario, List<String> plugins, List<Path> otherJars, List<String> upLines) {
         PaperServer.Builder builder = PaperServer.builder(E2e.PAPER_VERSION, E2e.PAPER_BUILD)
                 .seed(1)
                 .in(E2e.serverFolder(scenario))
@@ -37,6 +42,7 @@ final class Server implements AutoCloseable {
             String[] parts = plugin.split(":", 2);
             builder.plugin(jar(parts[0], parts[1]));
         }
+        otherJars.forEach(builder::plugin);
         Server server = new Server(scenario, builder.build());
         try {
             server.paper.start();

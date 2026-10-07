@@ -79,6 +79,18 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>voicebridge-standalone</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
     </dependencies>
 
     <build>
@@ -94,6 +106,7 @@
                     <systemPropertyVariables>
                         <e2e.rainscore>${settings.localRepository}/de/raindancer/RainsCore/${rainscore.version}/RainsCore-${rainscore.version}.jar</e2e.rainscore>
                         <e2e.reactor>${project.basedir}/..</e2e.reactor>
+                        <e2e.cache>${project.build.directory}/e2e-cache</e2e.cache>
                     </systemPropertyVariables>
                     <runOrder>alphabetical</runOrder>
                 </configuration>

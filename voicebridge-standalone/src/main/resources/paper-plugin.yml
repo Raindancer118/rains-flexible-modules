@@ -1,0 +1,30 @@
+# Same shape as every other *-standalone descriptor (see rtp-standalone's copy for why each line matters),
+# plus Simple Voice Chat: its API classes live in its own jar, so it joins the classpath at server phase.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'A Discord voice channel joined to a Simple Voice Chat group.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Nothing touches Bukkit.getScheduler(); chat lines go through Core's Scheduling onto each player's
+# own thread, and all audio runs on Simple Voice Chat's and JDA's threads.
+folia-supported: true
+
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    voicechat:
+      load: BEFORE
+      required: true
+      join-classpath: true
