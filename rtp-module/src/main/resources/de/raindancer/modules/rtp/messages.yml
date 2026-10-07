@@ -12,30 +12,30 @@
 #     message that has become one prints its own key to somebody's face.
 rtp:
 
-  searching: "<gray>Looking for somewhere safe to land…"
-  no-world: "<red>You are not standing in a world at all."
+  searching: "<gray>Looking for somewhere safe to land… hopefully not lava."
+  no-world: "<red>You are not standing in a world at all. Impressive, honestly."
   world-disabled: "<red>Random teleporting does not work in <white><world></white>."
-  on-cooldown: "<yellow>You can go again in <white><time></white>."
-  warming-up: "<gray>Off to somewhere new in <white><seconds></white>… stand still."
-  arrived: "<green>Here you are: <white><where></white>."
-  already-travelling: "<yellow>You are already on your way somewhere."
+  on-cooldown: "<yellow>You can go again in <white><time></white>. Even adventurers need a break."
+  warming-up: "<gray>Off to somewhere new in <white><seconds></white>… stand still. It is a surprise."
+  arrived: "<green>Here you are: <white><where></white>. Surprise!"
+  already-travelling: "<yellow>You are already on your way somewhere. One trip at a time."
   world-missing: "<yellow>That world is not loaded right now."
-  nowhere-safe: "<red>Nowhere nearby was safe to put you — try again."
+  nowhere-safe: "<red>Nowhere nearby was safe to put you — try again, the dice may be kinder."
   could-not-check: "<red>The ground could not be checked. Try again."
   teleport-refused: "<red>Something stopped you arriving. Try again."
   cannot-schedule: "<red>The server cannot send you anywhere just now."
-  only-a-player: "<red>Only somebody standing in the world can be sent somewhere random."
-  invalid-distance: "<red><white><value></white> is not a distance to ask for."
+  only-a-player: "<red>Only somebody standing in the world can be sent somewhere random. The console stays home."
+  invalid-distance: "<red><white><value></white> is not a distance to ask for. Numbers, please."
 
   cancelled:
-    moved: "<yellow>You moved, so you are staying put."
-    hurt: "<yellow>Something hit you, so you are staying put."
+    moved: "<yellow>You moved, so you are staying put. Standing still means standing still."
+    hurt: "<yellow>Something hit you, so you are staying put. Ouch, and no trip."
 
   pool:
-    no-permission: "<red>You may not prepare locations ahead of time."
+    no-permission: "<red>You may not prepare locations ahead of time. Nice planning, though."
     disabled: "<red>Preparing locations ahead of time is switched off."
     no-world: "<red>There is nowhere to prepare locations in."
     invalid-amount: "<red><white><value></white> is not a number of locations to prepare."
-    full: "<yellow>The pool is already as full as it is allowed to be."
+    full: "<yellow>The pool is already as full as it is allowed to be. Not a drop more."
     preparing: "<gray>Looking for <white><amount></white> location(s) in <white><world></white>…"
     prepared: "<green>Prepared <white><amount></white> location(s) in <white><world></white>."

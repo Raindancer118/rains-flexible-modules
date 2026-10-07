@@ -40,7 +40,7 @@ import java.util.List;
  */
 public final class XpBottleModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("xpbottle", "XP Bottles", "1.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("xpbottle", "XP Bottles", "1.0.1")
             .describedAs("Draw experience into a bottle — your own with a plain glass bottle, or "
                     + "loose orbs off the ground with a siphon bottle held down.")
             .by("Raindancer118");

@@ -11,6 +11,7 @@ import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.cosmetics.CosmeticsServices;
 import de.raindancer.modules.cosmetics.model.ParticleChoice;
 import de.raindancer.modules.cosmetics.model.ParticleDensity;
+import de.raindancer.modules.cosmetics.model.ParticleSpeed;
 import de.raindancer.modules.cosmetics.service.NameStyleService;
 import de.raindancer.modules.cosmetics.service.ParticleService;
 import de.raindancer.modules.cosmetics.util.PermissionNodes;
@@ -112,6 +113,17 @@ public final class ParticleMenu extends Menu implements ICosmeticsScreen {
                     refresh();
                 });
 
+        ParticleSpeed speed = particles.speedOf(viewer);
+        band(MenuLayout.LAND, 5, !choice.isNone(),
+                Icons.of(Material.SUGAR, "<white>Speed: " + speed.title(),
+                        "<gray>How fast it moves round you.", "",
+                        "<dark_gray>Click for faster, right click for slower."),
+                "Pick a particle first",
+                click -> {
+                    particles.speed(viewer, click.isRightClick() ? speed.slower() : speed.faster());
+                    refresh();
+                });
+
         band(MenuLayout.LAND, 4, !choice.isNone(),
                 Icons.of(Material.SPYGLASS, "<white>Preview",
                         "<gray>Closes this and draws your particle", "<gray>in front of you for a moment.", "",
@@ -133,7 +145,7 @@ public final class ParticleMenu extends Menu implements ICosmeticsScreen {
                         colour -> particles.colour(viewer, colour.value())).open());
 
         boolean sees = particles.sees(viewer);
-        band(MenuLayout.LAND, 6, Icons.of(sees ? Material.ENDER_EYE : Material.ENDER_PEARL,
+        band(MenuLayout.LAND, 7, Icons.of(sees ? Material.ENDER_EYE : Material.ENDER_PEARL,
                         sees ? "<green>You see other players' particles" : "<gray>You do not see other players' particles",
                         "<gray>Only changes what you see.", "", "<dark_gray>Click to switch."),
                 click -> {

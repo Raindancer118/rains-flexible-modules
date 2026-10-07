@@ -25,7 +25,7 @@
         <plugin.name>RainsCosmetics</plugin.name>
 
         <!-- 0.x until the first complete version is signed off. -->
-        <plugin.version>0.5.0</plugin.version>
+        <plugin.version>0.6.0</plugin.version>
     </properties>
 
     <dependencies>

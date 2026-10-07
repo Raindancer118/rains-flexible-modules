@@ -3,6 +3,7 @@ package de.raindancer.modules.cosmetics;
 import de.raindancer.core.ui.effect.ParticleShape;
 import de.raindancer.modules.cosmetics.model.ParticleChoice;
 import de.raindancer.modules.cosmetics.model.ParticleDensity;
+import de.raindancer.modules.cosmetics.model.ParticleSpeed;
 import de.raindancer.modules.cosmetics.rules.ParticleRule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -81,5 +82,26 @@ class ParticleRuleTest {
         ParticleChoice flame = new ParticleChoice("flame", ParticleShape.HALO, null).withDensity(ParticleDensity.DENSE);
         assertThat(flame.density()).isEqualTo(ParticleDensity.DENSE);
         assertThat(flame.withShape(ParticleShape.AURA).density()).isEqualTo(ParticleDensity.DENSE);
+    }
+
+    @Test
+    @DisplayName("speed sets how fast the shape moves: slow lingers, fast skips ahead")
+    void speed() {
+        assertThat(rule.frame(100, ParticleSpeed.NORMAL)).isEqualTo(100);
+        assertThat(rule.frame(100, ParticleSpeed.SLOW)).isEqualTo(50);
+        assertThat(rule.frame(100, ParticleSpeed.FAST)).isEqualTo(200);
+        assertThat(rule.frame(100, null)).as("nothing chosen: normal").isEqualTo(100);
+        assertThat(ParticleSpeed.SLOW.faster()).isEqualTo(ParticleSpeed.NORMAL);
+        assertThat(ParticleSpeed.VERY_FAST.faster()).isEqualTo(ParticleSpeed.VERY_FAST);
+        assertThat(ParticleSpeed.of("very_fast")).contains(ParticleSpeed.VERY_FAST);
+    }
+
+    @Test
+    @DisplayName("a choice keeps its speed through other changes")
+    void choiceKeepsSpeed() {
+        ParticleChoice flame = new ParticleChoice("flame", ParticleShape.HALO, null).withSpeed(ParticleSpeed.FAST)
+                .withDensity(ParticleDensity.DENSE);
+        assertThat(flame.speed()).isEqualTo(ParticleSpeed.FAST);
+        assertThat(flame.withShape(ParticleShape.AURA).speed()).isEqualTo(ParticleSpeed.FAST);
     }
 }

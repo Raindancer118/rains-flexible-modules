@@ -11,6 +11,7 @@ import de.raindancer.core.ui.profile.PlayerSwitch;
 import de.raindancer.modules.cosmetics.CosmeticsSettings;
 import de.raindancer.modules.cosmetics.model.ParticleChoice;
 import de.raindancer.modules.cosmetics.model.ParticleDensity;
+import de.raindancer.modules.cosmetics.model.ParticleSpeed;
 import de.raindancer.modules.cosmetics.rules.ParticleRule;
 import de.raindancer.modules.cosmetics.store.ParticleChoices;
 import de.raindancer.modules.cosmetics.util.PermissionNodes;
@@ -106,7 +107,8 @@ public final class ParticleService implements ICosmeticsService {
             return;
         }
         ParticleShows.around(wearer, choice.particle(), choice.colour(),
-                rule.count(choice.density(), now.count(), now.maxCount()), choice.shape(), tick,
+                rule.count(choice.density(), now.count(), now.maxCount()), choice.shape(),
+                rule.frame(tick, choice.speed()),
                 RANGE, viewer -> viewer.equals(wearer) || SEES.isOn(viewer));
     }
 
@@ -171,6 +173,19 @@ public final class ParticleService implements ICosmeticsService {
         return closest;
     }
 
+    /** Their speed, normal when they have not chosen. */
+    public ParticleSpeed speedOf(Player who) {
+        ParticleSpeed chosen = choices.read(who).speed();
+        return chosen == null ? ParticleSpeed.NORMAL : chosen;
+    }
+
+    public void speed(Player who, ParticleSpeed speed) {
+        ParticleChoice choice = choices.read(who);
+        if (!choice.isNone()) {
+            choices.write(who, choice.withSpeed(speed));
+        }
+    }
+
     /** Whether this density would be drawn as asked, or held down by the server's ceiling. */
     public boolean isCapped(ParticleDensity density) {
         return density.count() > settings.maxCount();
@@ -205,7 +220,8 @@ public final class ParticleService implements ICosmeticsService {
             return;
         }
         ParticleShows.preview(plugin, who, choice.particle(), choice.colour(),
-                rule.count(choice.density(), settings.count(), settings.maxCount()), choice.shape(), 5);
+                rule.count(choice.density(), settings.count(), settings.maxCount()), choice.shape(), 5,
+                choice.speed() == null ? 1.0 : choice.speed().factor());
         messages.send(who, "cosmetics.preview.particle");
     }
 

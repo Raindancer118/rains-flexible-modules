@@ -3,6 +3,7 @@ package de.raindancer.modules.cosmetics.store;
 import de.raindancer.core.ui.effect.ParticleShape;
 import de.raindancer.modules.cosmetics.model.ParticleChoice;
 import de.raindancer.modules.cosmetics.model.ParticleDensity;
+import de.raindancer.modules.cosmetics.model.ParticleSpeed;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -21,6 +22,7 @@ public final class ParticleChoices {
     private static final NamespacedKey SHAPE = key("particle-shape");
     private static final NamespacedKey COLOUR = key("particle-colour");
     private static final NamespacedKey DENSITY = key("particle-density");
+    private static final NamespacedKey SPEED = key("particle-speed");
 
     private static NamespacedKey key(String name) {
         NamespacedKey key = NamespacedKey.fromString("rainscosmetics:" + name);
@@ -38,7 +40,8 @@ public final class ParticleChoices {
         }
         ParticleShape shape = ParticleShape.of(data.get(SHAPE, PersistentDataType.STRING)).orElse(ParticleShape.AMBIENT);
         return new ParticleChoice(particle, shape, data.get(COLOUR, PersistentDataType.INTEGER),
-                ParticleDensity.of(data.get(DENSITY, PersistentDataType.STRING)).orElse(null));
+                ParticleDensity.of(data.get(DENSITY, PersistentDataType.STRING)).orElse(null),
+                ParticleSpeed.of(data.get(SPEED, PersistentDataType.STRING)).orElse(null));
     }
 
     public void write(Player player, ParticleChoice choice) {
@@ -48,7 +51,13 @@ public final class ParticleChoices {
             data.remove(SHAPE);
             data.remove(COLOUR);
             data.remove(DENSITY);
+            data.remove(SPEED);
             return;
+        }
+        if (choice.speed() == null) {
+            data.remove(SPEED);
+        } else {
+            data.set(SPEED, PersistentDataType.STRING, choice.speed().key());
         }
         if (choice.density() == null) {
             data.remove(DENSITY);

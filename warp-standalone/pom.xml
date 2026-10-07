@@ -37,7 +37,7 @@
           1.2.2: logging out no longer clears the wait between warps — the same hole /rtp had, fixed
           the same way: quitting sweeps the waits that are over and leaves the running ones alone.
         -->
-        <plugin.version>1.2.3</plugin.version>
+        <plugin.version>1.2.4</plugin.version>
     </properties>
 
     <dependencies>

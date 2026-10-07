@@ -9,9 +9,9 @@
 # time.
 names:
 
-  no-permission: "<red>You may not do that."
+  no-permission: "<red>You may not do that. Nice try."
 
-  reloaded: "<green>Reloaded. <white><count></white> item(s) now do something to a name tag."
+  reloaded: "<green>Reloaded. <white><count></white> item(s) now do something to a name tag. Fancy."
 
   manual:
 
@@ -38,7 +38,7 @@ names:
     # Every colour, decoration and shade has been deleted from the config. A real state, and one worth
     # naming: otherwise the manual is a heading with nothing under it and reads as broken.
     empty:
-      - "<red>Nothing dyes a name tag on this server."
+      - "<red>Nothing dyes a name tag on this server. Beige forever."
       - "<gray>The colours, decorations and shades sections of config.yml are all empty."
 
   # What clicking an entry in the manual says. <item> is the item, <what> is what it does.

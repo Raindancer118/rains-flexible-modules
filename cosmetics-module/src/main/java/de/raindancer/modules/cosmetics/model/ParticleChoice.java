@@ -10,14 +10,20 @@ import java.util.Locale;
  * @param particle a {@code Particle} name, upper case; empty for none
  * @param colour   0xRRGGBB, or null where the particle takes none
  * @param density  how thick it is drawn; null for the server's default
+ * @param speed    how fast its shape moves; null for normal
  */
-public record ParticleChoice(String particle, ParticleShape shape, Integer colour, ParticleDensity density) {
+public record ParticleChoice(String particle, ParticleShape shape, Integer colour, ParticleDensity density,
+                             ParticleSpeed speed) {
 
-    public static final ParticleChoice NONE = new ParticleChoice("", ParticleShape.AMBIENT, null, null);
+    public static final ParticleChoice NONE = new ParticleChoice("", ParticleShape.AMBIENT, null, null, null);
 
     /** Without a density of its own: drawn at the server's default. */
     public ParticleChoice(String particle, ParticleShape shape, Integer colour) {
-        this(particle, shape, colour, null);
+        this(particle, shape, colour, null, null);
+    }
+
+    public ParticleChoice(String particle, ParticleShape shape, Integer colour, ParticleDensity density) {
+        this(particle, shape, colour, density, null);
     }
 
     public ParticleChoice {
@@ -30,18 +36,22 @@ public record ParticleChoice(String particle, ParticleShape shape, Integer colou
     }
 
     public ParticleChoice withParticle(String next) {
-        return new ParticleChoice(next, shape, colour, density);
+        return new ParticleChoice(next, shape, colour, density, speed);
     }
 
     public ParticleChoice withShape(ParticleShape next) {
-        return new ParticleChoice(particle, next, colour, density);
+        return new ParticleChoice(particle, next, colour, density, speed);
     }
 
     public ParticleChoice withColour(Integer next) {
-        return new ParticleChoice(particle, shape, next, density);
+        return new ParticleChoice(particle, shape, next, density, speed);
     }
 
     public ParticleChoice withDensity(ParticleDensity next) {
-        return new ParticleChoice(particle, shape, colour, next);
+        return new ParticleChoice(particle, shape, colour, next, speed);
+    }
+
+    public ParticleChoice withSpeed(ParticleSpeed next) {
+        return new ParticleChoice(particle, shape, colour, density, next);
     }
 }

@@ -27,6 +27,7 @@ public final class CosmeticsCommands {
                                 "particle shape ambient|aura|halo|trail|spiral — how it is drawn",
                                 "particle colour <colour> — for dust and the tinted ones",
                                 "particle density light|normal|dense|very_dense — how thick it is drawn",
+                                "particle speed slow|normal|fast|very_fast — how fast it moves",
                                 "particle off — takes it off",
                                 "name preset <id> — wears a preset",
                                 "name set <colours…> [bold|italic|…] — colours in the order typed",

@@ -5,7 +5,7 @@
 # as a boolean, and a message that became one prints its own key.
 cosmetics:
 
-  no-permission: "<red>You may not do that."
+  no-permission: "<red>You may not do that. Nice try."
 
   only-a-player: "<red>The console has no name to paint. We checked."
 
@@ -13,7 +13,7 @@ cosmetics:
 
   reloaded: "<green>Reloaded. <white><colours></white> palette colour(s), <white><presets></white> preset(s)."
 
-  unknown-player: "<red>Nobody called <white><player></white> has played here."
+  unknown-player: "<red>Nobody called <white><player></white> has played here. Check the spelling."
 
   unknown-preset: "<red>There is no preset called <white><preset></white>. <gray>Tab shows the ones there are."
 
@@ -22,10 +22,10 @@ cosmetics:
   name:
     set: "<green>Your name is now <name><green>."
     cleared: "<green>Back to basics — your name is plain again."
-    not-saved: "<red>That style could not be saved — it has too many colours."
+    not-saved: "<red>That style could not be saved — it has too many colours. Rainbows have limits."
     reset-other: "<green><white><player></white>'s name is plain again."
     reset-by-staff: "<yellow>A staff member took your name style off. Fashion police, probably."
-    dropped: "<yellow>Your name style needed a permission you no longer have, so your name is plain again."
+    dropped: "<yellow>Your name style needed a permission you no longer have, so your name is plain again. Easy come, easy go."
 
   particle:
     set: "<green>You are wearing <white><particle></white> now."
@@ -34,9 +34,11 @@ cosmetics:
     coloured: "<green>Its colour is changed."
     densified: "<green>Density: <white><density></white>. Sparkle responsibly."
     unknown-density: "<red>Densities are <white>light</white>, <white>normal</white>, <white>dense</white> and <white>very_dense</white>."
+    sped: "<green>Speed: <white><speed></white>. Zoom zoom — or not, your call."
+    unknown-speed: "<red>Speeds are <white>slow</white>, <white>normal</white>, <white>fast</white> and <white>very_fast</white>. Warp speed is not on the list."
     unknown-shape: "<red>The shapes are <white>ambient</white>, <white>aura</white>, <white>halo</white>, <white>trail</white> and <white>spiral</white>."
     none-worn: "<red>You are not wearing a particle yet — pick one first, then we can fuss over it."
-    dropped: "<yellow>Your particle is not allowed any more, so it is taken off."
+    dropped: "<yellow>Your particle is not allowed any more, so it is taken off. Easy come, easy go."
 
   preview:
     nametag: "<gray>That is your nametag as everybody sees it. <white>/cosmetics</white> to go back."
@@ -44,14 +46,14 @@ cosmetics:
     particle: "<gray>That is your particle. <white>/cosmetics</white> to go back."
 
   refused:
-    colour: "<red>You may not colour your name."
-    gradient: "<red>You may not use a gradient — one colour only."
+    colour: "<red>You may not colour your name. Beige it is."
+    gradient: "<red>You may not use a gradient — one colour only. Rainbows are a premium feature."
     any-colour: "<red><white><detail></white> is not in the palette, and you may only use palette colours."
     decoration: "<red>You may not make your name <white><detail></white>. Sorry, that one's not yours to use."
     animated: "<red>Your gradient can't flow — that one's not unlocked for you. It still looks great standing still."
-    too-many-stops: "<red>At most <white><detail></white> colours in one name."
-    preset: "<red>The <white><preset></white> preset is not yours to wear."
-    particles: "<red>You may not wear particles."
+    too-many-stops: "<red>At most <white><detail></white> colours in one name. It is a name, not a paint palette."
+    preset: "<red>The <white><preset></white> preset is not yours to wear. Nice taste, though."
+    particles: "<red>You may not wear particles. Glitter-free for now."
     particle-unknown: "<red><white><detail></white> is not a particle that can be worn."
     particle-blocked: "<red><white><detail></white> is not allowed here — it would cover everybody's screen, and they'd hate you a little."
 
@@ -74,6 +76,7 @@ cosmetics:
     - "<gray>Then how it is drawn: around you, above your head or behind you."
     - "<gray>Dust and the tinted ones take a colour from the palette."
     - "<gray>Density sets how many are drawn — from a light dusting to a proper cloud."
+    - "<gray>Speed sets how fast it moves round you."
     - "<dark_gray>Hidden while you are vanished, invisible or spectating."
 
   help-gradient:

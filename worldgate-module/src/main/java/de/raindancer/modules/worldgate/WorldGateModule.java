@@ -37,7 +37,7 @@ import java.util.List;
  */
 public final class WorldGateModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("worldgate", "World Gate", "1.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("worldgate", "World Gate", "1.1.1")
             .describedAs("Locks, drains or closes the Nether and the End to entry, and evacuates "
                     + "whoever is still inside")
             .by("Raindancer118");

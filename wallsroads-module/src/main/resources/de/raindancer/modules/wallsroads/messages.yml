@@ -5,56 +5,56 @@
 wallsroads:
 
   usage: "<gray>/wallsroads wall|road new|<name>, cancel, list"
-  only-a-player: "<red>Only a player standing in the world can do that."
-  unknown-wall: "<red>There is no wall called <white><name></white>."
-  unknown-road: "<red>There is no road called <white><name></white>."
+  only-a-player: "<red>Only a player standing in the world can do that. Walls do not build themselves."
+  unknown-wall: "<red>There is no wall called <white><name></white>. Maybe it is a very good wall and it left."
+  unknown-road: "<red>There is no road called <white><name></white>. Check the name, or the list."
 
   create:
-    no-permission: "<red>You may not mark out a new wall or road here."
+    no-permission: "<red>You may not mark out a new wall or road here. Ask whoever owns the land."
 
   selection:
     started: "<gray>Marking a new <white><purpose></white>. Right-click to add a corner, shift-right-click to finish."
-    point-added: "<gray>Corner <white><count></white> added."
-    point-removed: "<gray>Corner removed — <white><count></white> left."
-    incomplete: "<red>Needs at least <white><needed></white> points, you have <white><have></white>."
-    cancelled: "<gray>Selection cancelled."
-    none: "<gray>You are not marking anything out right now."
+    point-added: "<gray>Corner <white><count></white> added. Keep going."
+    point-removed: "<gray>Corner removed, <white><count></white> left. Second thoughts are fine."
+    incomplete: "<red>A shape needs at least <white><needed></white> points, and you have <white><have></white>. Add a few more corners."
+    cancelled: "<gray>Selection cancelled. Nothing was built."
+    none: "<gray>You are not marking anything out right now. Start a new wall or road first."
 
   wall:
-    created: "<green>Wall <white><name></white> created and being built."
+    created: "<green>Wall <white><name></white> created and being built. Stand back."
     ask-name: "<gray>Type a new name for this wall, or 'cancel'."
-    removed: "<green>Wall <white><name></white> removed."
+    removed: "<green>Wall <white><name></white> removed. Just a gap now."
 
   road:
-    created: "<green>Road <white><name></white> created and being built."
+    created: "<green>Road <white><name></white> created and being built. All roads lead somewhere."
     ask-name: "<gray>Type a new name for this road, or 'cancel'."
-    removed: "<green>Road <white><name></white> removed."
+    removed: "<green>Road <white><name></white> removed. Back to walking through the grass."
 
-  protected: "<red>That is part of a wall or a road somebody else built."
+  protected: "<red>That is part of a wall or a road somebody else built. Hands off."
 
   gate:
-    opened: "<gray>The gates of <white><wall></white> swing open."
-    shut: "<gray>The gates of <white><wall></white> close."
-    not-yours: "<red>The gates of <white><wall></white> are not yours to work."
+    opened: "<gray>The gates of <white><wall></white> swing open. Come on in."
+    shut: "<gray>The gates of <white><wall></white> close. Closed for business."
+    not-yours: "<red>The gates of <white><wall></white> are not yours to work. Knock politely."
 
   cost:
-    short: "<yellow>You ran out of blocks — <white><built></white> of <white><wanted></white> placed."
-    estimate: "<gray>That would take <white><blocks></white> blocks."
+    short: "<yellow>You ran out of blocks, so only <white><built></white> of <white><wanted></white> were placed. Bring more."
+    estimate: "<gray>That would take <white><blocks></white> blocks. Check your pockets."
 
   sign:
     ask-lines: "<gray>Type the new wording, separating the four lines with | — or 'cancel'."
     ask-destination: "<gray>Type the name of the place this sign should point at, or 'cancel'."
-    pointed: "<green>The sign now points at <white><place></white>, <white><blocks></white> blocks away."
-    no-such-place: "<red>There is no place called <white><place></white> to point at."
+    pointed: "<green>The sign now points at <white><place></white>, <white><blocks></white> blocks away. Good luck out there."
+    no-such-place: "<red>There is no place called <white><place></white> to point at. The sign refuses to guess."
 
   map:
-    sent: "<gray>Sent <white><count></white> gates and road ends to your map."
-    unavailable: "<red>This server has no client-map support running."
+    sent: "<gray>Sent <white><count></white> gates and road ends to your map. Get lost, in style."
+    unavailable: "<red>This server has no client-map support running, so there is nothing to send to."
 
   config:
-    at-the-limit: "<gray>That is as far as it goes — between <white><least></white> and <white><most></white>."
+    at-the-limit: "<gray>That is as far as it goes, between <white><least></white> and <white><most></white>."
     refused: "<red>The setting <white><setting></white> would not take that value."
-    not-yours: "<red>Only staff may change how this server builds walls and roads."
+    not-yours: "<red>Only staff may change how this server builds walls and roads. Nice try."
 
-  outline-shown: "<gray>Showing the outline of <white><name></white>."
-  outline-elsewhere: "<gray><white><name></white> is in <white><world></white>, not here."
+  outline-shown: "<gray>Showing the outline of <white><name></white>. Ghost walls."
+  outline-elsewhere: "<gray><white><name></white> is in <white><world></white>, not here. Wrong world, friend."

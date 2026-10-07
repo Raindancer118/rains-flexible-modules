@@ -79,6 +79,7 @@ public record EssentialsSettings(
         boolean sayHiButton,
 
         @In("essentials/social") @Title("Greetings the button picks from")
+        @Describe("{name} is where the newcomer's name goes; without it, the name goes last.")
         @Key("welcome-greetings")
         List<String> hiGreetings,
 
@@ -89,6 +90,7 @@ public record EssentialsSettings(
         boolean congratsButton,
 
         @In("essentials/social") @Title("What the Congrats! button says")
+        @Describe("{name} is where their name goes; without it, the name goes last.")
         @Key("advancement-congrats-phrases")
         List<String> congratsPhrases
 
@@ -96,10 +98,14 @@ public record EssentialsSettings(
 
     public static final EssentialsSettings DEFAULTS =
             new EssentialsSettings(3, true, 300, true, true, true, true, 16, true, true,
-                    List.of("Hi", "Hey", "Hello", "Welcome", "Welcome back", "Yo", "Hiya", "Howdy",
-                            "Good to see you", "Heyo"),
-                    true, List.of("GG", "Congrats", "Nice one", "Well done", "Let's go", "Huge W", "Respect",
-                            "Big moves", "Amazing"));
+                    List.of("Hi {name}!", "Look who finally showed up — {name}!", "{name} has entered the chat",
+                            "Welcome back {name}, we missed you (a bit)", "Oh no, it's {name}",
+                            "Hey {name}, wipe your boots", "Yo {name}", "{name}! The legend returns",
+                            "Hide your diamonds, {name} is here", "Howdy {name}"),
+                    true, List.of("GG {name}", "Took you long enough, {name}", "{name} is carrying the server",
+                            "Look at {name} go", "Absolute legend, {name}", "{name}'s mom would be proud",
+                            "Someone call the news, {name} did it", "Huge W for {name}",
+                            "Not bad for a beginner, {name}", "And they said {name} couldn't do it"));
 
     public EssentialsSettings {
         hiGreetings = hiGreetings == null ? List.of() : List.copyOf(hiGreetings);

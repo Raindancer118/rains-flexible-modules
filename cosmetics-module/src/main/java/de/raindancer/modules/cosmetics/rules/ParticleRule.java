@@ -35,6 +35,14 @@ public final class ParticleRule implements ICosmeticsRule {
         return Math.max(1, Math.min(Math.max(1, ceiling), wanted));
     }
 
+    /**
+     * The animation frame to draw at draw number {@code tick}: slow lingers on a frame, fast skips
+     * ahead. Null is normal.
+     */
+    public long frame(long tick, de.raindancer.modules.cosmetics.model.ParticleSpeed speed) {
+        return (long) Math.floor(tick * (speed == null ? 1.0 : speed.factor()));
+    }
+
     /** Somebody hidden must not give themselves away by a ring of flames. */
     public boolean shows(boolean particlesOn, boolean vanished, boolean spectating, boolean invisible,
                          boolean dead) {

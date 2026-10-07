@@ -2,22 +2,22 @@
 essentials:
 
   # ── general ──────────────────────────────────────────────────────────────
-  only-a-player: "<red>Only a player can do that."
-  no-permission: "<red>You may not do that."
+  only-a-player: "<red>Only a player can do that. The console has no body to move."
+  no-permission: "<red>You may not do that. Nice try."
   usage: "<gray>Usage: <white><usage>"
-  no-such-player: "<red>The server has never seen anybody called <white><player></white>."
-  already-travelling: "<red>You are already on your way somewhere."
+  no-such-player: "<red>The server has never seen anybody called <white><player></white>. Typo, or an imaginary friend?"
+  already-travelling: "<red>You are already on your way somewhere. One trip at a time."
   could-not-check: "<red>Could not check whether that is safe. Nothing has happened."
   teleport-refused: "<red>Something stopped that teleport. Nothing has happened."
   cannot-schedule: "<red>Could not start that. Try again in a moment."
 
   # ── /spawn and /setspawn ─────────────────────────────────────────────────
   spawn:
-    not-set: "<red>Nobody has set a spawn point yet."
+    not-set: "<red>Nobody has set a spawn point yet. Everybody is just wandering."
     world-gone: "<red>Spawn's world is not loaded right now."
     warming-up: "<gray>Heading to spawn in <white><seconds></white>…"
-    arrived: "<green>You have arrived at spawn."
-    set: "<green>Spawn is now here."
+    arrived: "<green>You have arrived at spawn. Home sweet default."
+    set: "<green>Spawn is now here. Welcome committee, assemble."
     cancelled:
       moved: "<yellow>You moved, so the trip to spawn was cancelled."
       hurt: "<yellow>You were hurt, so the trip to spawn was cancelled."
@@ -25,20 +25,20 @@ essentials:
 
   # ── private messages ─────────────────────────────────────────────────────
   msg:
-    not-yourself: "<red>You cannot message yourself."
+    not-yourself: "<red>You cannot message yourself. Try a notebook."
     # The same wording whether they are offline or have blocked you — see MessagingService's own
     # note on why telling somebody they have been blocked turns a quiet decision into a confrontation.
     unreachable: "<red><white><player></white> cannot be reached right now."
     sent: "<gray>[me → <white><player></white>] <text>"
     received: "<gray>[<white><player></white> → me] <text>"
-    nobody-to-reply-to: "<red>Nobody has messaged you yet."
+    nobody-to-reply-to: "<red>Nobody has messaged you yet. Popularity takes time."
 
   # ── ignoring ──────────────────────────────────────────────────────────────
   ignore:
-    started: "<green>You will no longer see messages from <white><player></white>."
+    started: "<green>You will no longer see messages from <white><player></white>. Blissful silence."
     stopped: "<green>You can hear from <white><player></white> again."
     not-ignoring: "<gray>You were not ignoring <white><player></white>."
-    none: "<gray>You are not ignoring anybody."
+    none: "<gray>You are not ignoring anybody. Very diplomatic."
     list: "<gray>Ignoring: <white><players>"
 
   # ── /seen ─────────────────────────────────────────────────────────────────
@@ -56,10 +56,10 @@ essentials:
   nick:
     switched-off: "<red>Nicknames are switched off on this server."
     set: "<green>You are now known as <nickname>."
-    cleared: "<green>Back to your own name."
-    blank: "<red>A nickname cannot be blank."
-    too-long: "<red>That is too long — <white><detail></white> characters at most, not counting colour."
-    taken: "<red><white><detail></white> is somebody's real name. Pick another."
+    cleared: "<green>Back to your own name. Identity restored."
+    blank: "<red>A nickname cannot be blank. Mysterious, but no."
+    too-long: "<red>That is too long — <white><detail></white> characters at most, not counting colour. Brevity, please."
+    taken: "<red><white><detail></white> is somebody's real name. Pick another — identity theft is frowned upon."
     blocked: "<red>That name is not allowed here. Pick another."
     # What staff see, at once, when somebody tries one — never shown to the player themselves, who
     # only ever gets the plain "blocked" refusal above.
@@ -77,8 +77,8 @@ essentials:
   afk:
     went: "<gray>* <white><player></white> is now AFK."
     back: "<gray>* <white><player></white> is back."
-    went-quiet: "<gray>You are now marked AFK."
-    back-quiet: "<gray>Welcome back."
+    went-quiet: "<gray>You are now marked AFK. Go on, we will hold the fort."
+    back-quiet: "<gray>Welcome back. We kept your seat warm."
 
   # ── the Congrats! button under an advancement ────────────────────────────
   congrats:

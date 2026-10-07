@@ -6,9 +6,9 @@
 invsnap:
 
   usage: "<gray>/invsnap [player]"
-  only-a-player: "<red>Only a player standing in the world can do that."
-  unknown-player: "<red>The server has never seen anybody called <white><player></white>."
+  only-a-player: "<red>Only a player standing in the world can do that. The console has no pockets."
+  unknown-player: "<red>The server has never seen anybody called <white><player></white>. Check the spelling?"
 
   restore:
-    no-permission: "<red>You may browse this, but not restore from it."
-    offline: "<red><player> is not online right now — a restore is written into a live inventory."
+    no-permission: "<red>You may browse this, but not restore from it. Look, don't touch."
+    offline: "<red><player> is not online right now — a restore is written into a live inventory. Try again once they are back."

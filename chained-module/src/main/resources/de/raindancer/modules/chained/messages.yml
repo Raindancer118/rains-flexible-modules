@@ -5,28 +5,28 @@
 chained:
 
   # ---------------------------------------------------------------- the wall
-  wall: "<red>You are chained — going further would pull you apart."
+  wall: "<red>You are chained, and going further would pull you apart. Stay close."
 
   # ---------------------------------------------------------------- pairing
-  paired: "<green><white><first></white> and <white><second></white> are chained, up to <white><distance></white> blocks apart."
-  pair-refused: "<red>They could not be chained: <white><reason></white>."
-  not-paired: "<red><white><name></white> is not chained to anybody."
-  unpaired: "<green><white><name></white> is no longer chained to anybody."
-  unknown-player: "<red>There is nobody online called <white><name></white>."
+  paired: "<green><white><first></white> and <white><second></white> are chained, up to <white><distance></white> blocks apart. Enjoy the company."
+  pair-refused: "<red>They could not be chained: <white><reason></white>. Love is complicated."
+  not-paired: "<red><white><name></white> is not chained to anybody. Free as a bird."
+  unpaired: "<green><white><name></white> is no longer chained to anybody. Freedom at last."
+  unknown-player: "<red>There is nobody online called <white><name></white>. Maybe they ran away."
 
   # ---------------------------------------------------------------- running
-  started: "<green>The clock is running."
-  start-refused: "<red>Could not start a run — pair yourself first, or one is already going."
-  stopped: "<yellow>The run has been stopped."
-  stop-refused: "<red>There is no run of yours to stop."
+  started: "<green>The clock is running. Do not drift too far."
+  start-refused: "<red>Could not start a run. Pair yourself first, or one is already going."
+  stopped: "<yellow>The run has been stopped. Chains stay on, though."
+  stop-refused: "<red>There is no run of yours to stop. Nothing is going on."
 
   # ---------------------------------------------------------------- resetting
-  reset-done: "<green>The map has been reset."
-  reset-refused: "<red>The map could not be reset — is the configured world loaded?"
+  reset-done: "<green>The map has been reset. Clean slate."
+  reset-refused: "<red>The map could not be reset. Is the configured world loaded?"
 
   # ---------------------------------------------------------------- general
-  only-a-player: "<red>Only somebody standing in the world can do that."
-  not-yours: "<red>Chained is not yours to change."
+  only-a-player: "<red>Only somebody standing in the world can do that. Chains need ankles."
+  not-yours: "<red>Chained is not yours to change. Nice try."
 
   usage:
     pair: "<gray>/chain pair <first player> <second player> [max distance]"

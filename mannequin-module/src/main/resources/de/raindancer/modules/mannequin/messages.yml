@@ -6,48 +6,48 @@
 mannequin:
 
   usage: "<gray>/mannequin create|remove|loadout|skin|stats|list"
-  only-a-player: "<red>Only a player standing in the world can do that."
+  only-a-player: "<red>Only a player standing in the world can do that. Mannequins need an audience."
   missing-id: "<red>Which one? /mannequin <remove|loadout|skin|stats> <id>"
-  unknown-id: "<red>There is no mannequin called <white><id></white>."
-  busy: "<red>You are already being asked something else."
-  no-permission: "<red>You are neither its owner nor trusted with it."
+  unknown-id: "<red>There is no mannequin called <white><id></white>. Not even a lonely one."
+  busy: "<red>You are already being asked something else. Answer that one first."
+  no-permission: "<red>You are neither its owner nor trusted with it. Hands off the mannequin."
 
   redstone:
     barrel-at: "<yellow>The barrel is at <white><x> <y> <z></white>. Build a comparator beside it, at that exact height."
 
   skin:
     ask-name: "<gray>Type a Minecraft username, or 'cancel'."
-    left-as-it-is: "<gray>Left as it was."
+    left-as-it-is: "<gray>Left as it was. No changes."
     looking-up: "<gray>Looking up <white><name></white>…"
-    found: "<green>Found <white><name></white> — applying their skin."
-    not-found: "<red>Nobody called <white><name></white> could be found."
+    found: "<green>Found <white><name></white>. Applying their skin, no questions asked."
+    not-found: "<red>Nobody called <white><name></white> could be found. Check the spelling."
 
   rename:
     ask-name: "<gray>Type a new name for this mannequin, or 'cancel'."
-    left-as-it-is: "<gray>Left as it was."
-    done: "<green>Renamed to <white><name></white>."
+    left-as-it-is: "<gray>Left as it was. Same name, same face."
+    done: "<green>Renamed to <white><name></white>. Fits well."
 
   create:
-    no-permission: "<red>You may not create a mannequin here."
-    done: "<green>Created mannequin <white><id></white>."
+    no-permission: "<red>You may not create a mannequin here. Go bother somebody else's plot."
+    done: "<green>Created mannequin <white><id></white>. It stands very still."
     unknown-kind: "<red>There is no mannequin kind called <white><kind></white>. Try player, zombie, skeleton, wither or iron_golem."
 
   remove:
     no-permission: "<red>That is not your mannequin to remove."
     are-you-sure: "<yellow>This removes <white><id></white> for good. Type /mannequin remove <id> confirm to do it."
-    done: "<green>Removed mannequin <white><id></white>."
+    done: "<green>Removed mannequin <white><id></white>. The spot looks emptier now."
 
   list:
-    empty: "<gray>You have no mannequins."
+    empty: "<gray>You have no mannequins. Quite lonely in here."
     entry: "<white><id></white> <gray>— <white><name></white> <gray>in <white><world></white>"
 
   share:
-    trusted: "<green>Trusted <white><player></white> with <white><name></white>."
-    untrusted: "<yellow>No longer trusted: <white><player></white> on <white><name></white>."
+    trusted: "<green>Trusted <white><player></white> with <white><name></white>. Hope they are careful."
+    untrusted: "<yellow>No longer trusted: <white><player></white> on <white><name></white>. Trust revoked."
     notify-trusted: "<green><player></green> trusted you with their mannequin <white><name></white>."
 
   claim:
-    linked: "<green><name></green> now belongs to <white><claim></white>."
-    unlinked: "<yellow><name></yellow> no longer belongs to a claim."
-    not-standing-in-one: "<red>Stand inside the claim you want to link it to first."
-    not-your-claim: "<red>You do not own the claim you are standing in."
+    linked: "<green><name></green> now belongs to <white><claim></white>. Settled in."
+    unlinked: "<yellow><name></yellow> no longer belongs to a claim. Free agent."
+    not-standing-in-one: "<red>Stand inside the claim you want to link it to first. It cannot do it from outside."
+    not-your-claim: "<red>You do not own the claim you are standing in. Trespassing does not count."

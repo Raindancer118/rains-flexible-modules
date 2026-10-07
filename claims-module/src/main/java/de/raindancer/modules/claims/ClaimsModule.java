@@ -60,7 +60,7 @@ import java.io.UncheckedIOException;
  */
 public final class ClaimsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.3.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.3.2")
             .describedAs("Land claims: who owns what, who may do what there, and the screens for it")
             .by("Raindancer118");
 

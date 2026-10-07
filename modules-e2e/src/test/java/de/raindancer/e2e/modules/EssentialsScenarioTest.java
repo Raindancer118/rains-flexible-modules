@@ -15,8 +15,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Tag("e2e")
 class EssentialsScenarioTest {
 
-    private static final List<String> GREETINGS = List.of("Hi", "Hey", "Hello", "Welcome", "Welcome back", "Yo",
-            "Hiya", "Howdy", "Good to see you", "Heyo");
+    /** The shipped greetings — {name} is where the newcomer's name goes. */
+    private static final List<String> GREETINGS = List.of("Hi {name}!", "Look who finally showed up — {name}!",
+            "{name} has entered the chat", "Welcome back {name}, we missed you (a bit)", "Oh no, it's {name}",
+            "Hey {name}, wipe your boots", "Yo {name}", "{name}! The legend returns",
+            "Hide your diamonds, {name} is here", "Howdy {name}");
 
     @Test
     @DisplayName("a join line carries Say Hi!, which greets the newcomer once; /nick shows above the head")
@@ -79,14 +82,17 @@ class EssentialsScenarioTest {
 
     private static long greetingsTo(Server server, String name) {
         return server.paper.logLines(line -> line.contains("<Bo> ")
-                && GREETINGS.stream().anyMatch(hi -> line.endsWith(hi + " " + name))).size();
+                && GREETINGS.stream().anyMatch(hi -> line.endsWith(hi.replace("{name}", name)))).size();
     }
 
-    private static final List<String> CHEERS = List.of("GG", "Congrats", "Nice one", "Well done", "Let's go",
-            "Huge W", "Respect", "Big moves", "Amazing");
+    /** The shipped cheers. */
+    private static final List<String> CHEERS = List.of("GG {name}", "Took you long enough, {name}",
+            "{name} is carrying the server", "Look at {name} go", "Absolute legend, {name}",
+            "{name}'s mom would be proud", "Someone call the news, {name} did it", "Huge W for {name}",
+            "Not bad for a beginner, {name}", "And they said {name} couldn't do it");
 
     private static long cheersFor(Server server, String name) {
         return server.paper.logLines(line -> line.contains("<Cy> ")
-                && CHEERS.stream().anyMatch(cheer -> line.endsWith(cheer + " " + name))).size();
+                && CHEERS.stream().anyMatch(cheer -> line.endsWith(cheer.replace("{name}", name)))).size();
     }
 }

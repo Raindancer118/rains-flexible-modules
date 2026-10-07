@@ -13,24 +13,24 @@
 warps:
 
   # ---------------------------------------------------------------- going somewhere
-  unknown: "<red>There is no warp called <white><name></white>."
+  unknown: "<red>There is no warp called <white><name></white>. Wishful thinking?"
   world-missing: "<yellow><name></yellow> is in a world that is not loaded right now."
-  on-cooldown: "<yellow>You can warp again in <white><time></white>."
+  on-cooldown: "<yellow>You can warp again in <white><time></white>. Catch your breath."
   warming-up: "<gray>Off to <white><name></white> in <white><seconds></white>… stand still."
-  arrived: "<green>Here you are: <white><name></white>."
-  already-travelling: "<yellow>You are already on your way somewhere."
+  arrived: "<green>Here you are: <white><name></white>. Mind the landing."
+  already-travelling: "<yellow>You are already on your way somewhere. One trip at a time."
   nowhere-safe: "<red>There is nowhere safe to put you at <white><name></white>."
   could-not-check: "<red>The ground at <white><name></white> could not be checked."
   teleport-refused: "<red>Something stopped you arriving at <white><name></white>."
   cannot-schedule: "<red>The server cannot send you anywhere just now."
-  only-a-player: "<red>Only somebody standing in the world can warp."
+  only-a-player: "<red>Only somebody standing in the world can warp. The console has no feet."
 
   cancelled:
-    moved: "<yellow>You moved, so you are staying put."
-    hurt: "<yellow>Something hit you, so you are staying put."
+    moved: "<yellow>You moved, so you are staying put. Standing still means standing still."
+    hurt: "<yellow>Something hit you, so you are staying put. Ouch, and no trip."
 
   # ---------------------------------------------------------------- the list
-  list-empty: "<gray>There are no warps yet."
+  list-empty: "<gray>There are no warps yet. A blank map, waiting for someone."
   list-heading: "<gray><count> warp(s):"
   list-row: "<dark_gray>  <white><name></white> <dark_gray>— <gray><world> <where> <dark_gray>(<category>)"
   none-for-you: "<gray>None of this server's warps is for you yet."
@@ -48,11 +48,11 @@ warps:
   labelled: "<green><white><name></white> is shown as <white><label></white>. People still type <white><name></white>."
   unlabelled: "<green><white><name></white> is called by its name again."
   icon-set: "<green><white><name></white> shows as <white><icon></white>."
-  not-yours: "<red>Warps are not yours to change."
+  not-yours: "<red>Warps are not yours to change. Hands off."
   too-many: "<red>This server already has its <white><limit></white> warps. Delete one first."
-  no-such-item: "<red>There is no item called <white><item></white>."
-  set-needs-a-player: "<red>A warp is set where somebody is standing, so only a player can."
-  busy: "<yellow>Something else is already waiting for an answer from you."
+  no-such-item: "<red>There is no item called <white><item></white>. Check the spelling."
+  set-needs-a-player: "<red>A warp is set where somebody is standing, so only a player can — it needs somebody to stand somewhere."
+  busy: "<yellow>Something else is already waiting for an answer from you. One question at a time."
 
   ask-name: "<gray>Type what to call this warp, or <white>cancel</white>."
   ask-category: "<gray>Type what to file it under, or <white>cancel</white>."

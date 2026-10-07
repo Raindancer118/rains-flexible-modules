@@ -46,4 +46,15 @@ class ReactionRuleTest {
         assertThat(ReactionRule.line(List.of(), "Bo", 0, "GG")).as("an emptied list still reacts").isEqualTo("GG Bo");
         assertThat(ReactionRule.line(List.of("  ", "Yo"), "Bo", 0, "Hi")).as("blank lines are skipped").isEqualTo("Yo Bo");
     }
+
+    @Test
+    @DisplayName("{name} puts the name where the joke needs it")
+    void namePlacement() {
+        assertThat(ReactionRule.line(List.of("Took you long enough, {name}"), "Bo", 0, "GG"))
+                .isEqualTo("Took you long enough, Bo");
+        assertThat(ReactionRule.line(List.of("{name} is carrying the server"), "Bo", 0, "GG"))
+                .isEqualTo("Bo is carrying the server");
+        assertThat(ReactionRule.line(List.of("GG"), "Bo", 0, "GG")).as("without it, the name goes last")
+                .isEqualTo("GG Bo");
+    }
 }

@@ -16,6 +16,9 @@ public final class ReactionRule extends AbstractRule<ReactionRule.Click> {
     public record Click(UUID clicker, UUID subject, boolean alreadyReacted) {
     }
 
+    /** Where a phrase wants the name. */
+    public static final String NAME = "{name}";
+
     private final String yourselfKey;
     private final String alreadyKey;
 
@@ -37,13 +40,14 @@ public final class ReactionRule extends AbstractRule<ReactionRule.Click> {
     }
 
     /**
-     * A phrase from the list, then the name: "Hey Bo", "GG Bo". {@code pick} may be any number — it is
-     * folded into the list. Blank lines are skipped; an empty list uses {@code fallback}.
+     * A phrase from the list with the name in it: {@code {name}} marks where ("Took you long enough,
+     * {name}"); without it the name goes last ("GG Bo"). {@code pick} may be any number — it is folded
+     * into the list. Blank lines are skipped; an empty list uses {@code fallback}.
      */
     public static String line(List<String> phrases, String name, int pick, String fallback) {
         List<String> usable = phrases.stream().filter(phrase -> phrase != null && !phrase.isBlank())
                 .map(String::strip).toList();
         String phrase = usable.isEmpty() ? fallback : usable.get(Math.floorMod(pick, usable.size()));
-        return phrase + " " + name;
+        return phrase.contains(NAME) ? phrase.replace(NAME, name) : phrase + " " + name;
     }
 }

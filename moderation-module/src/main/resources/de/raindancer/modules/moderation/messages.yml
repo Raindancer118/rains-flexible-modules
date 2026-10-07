@@ -13,12 +13,12 @@ moderation:
   # ── the everyday ones ────────────────────────────────────────────────────
   punished: "<green><white><player></white> is now <white><what></white> <gray>(<length>)."
   lifted: "<green><white><player></white> is no longer <white><what></white>."
-  nothing-to-lift: "<gray>There is nothing of that kind in force for <white><player></white>."
+  nothing-to-lift: "<gray>Nothing of that kind is in force for <white><player></white>. Nothing to lift, then."
   usage: "<gray>Usage: <white><usage>"
-  no-such-player: "<red>The server has never seen anybody called <white><player></white>."
-  not-here: "<gray><player> is not on the server right now."
-  only-a-player: "<gray>This one is for somebody standing in the world."
-  console-use-commands: "<gray>The console has no screens. Try <white>/history</white>, <white>/reports list</white> or <white>/ban</white>."
+  no-such-player: "<red>Nobody called <white><player></white> has ever shown up here. Check the spelling, or the guest list."
+  not-here: "<gray><player> is not on the server right now. Hard to reach somebody who is not there."
+  only-a-player: "<gray>This one needs somebody standing in the world. Ghosts and consoles need not apply."
+  console-use-commands: "<gray>The console has no screens, and no eyes for them either. Try <white>/history</white>, <white>/reports list</white> or <white>/ban</white>."
 
   # ── the tools a moderator points at themselves ───────────────────────────
   # NB: the keys are "turned-on" and not "on". YAML resolves a bare `on:` key to the boolean true, so
@@ -27,7 +27,7 @@ moderation:
   # heal / feed / hurt / starve. Events, not toggles — so "done" rather than "turned-on".
   vitals:
     heal:
-      done: "<green>You are whole again."
+      done: "<green>You are whole again. Good as new."
       done-other: "<green>You healed <white><player></white>."
       received: "<green><white><player></white> healed you."
     feed:
@@ -35,33 +35,33 @@ moderation:
       done-other: "<green>You fed <white><player></white>."
       received: "<green><white><player></white> fed you."
     hurt:
-      done: "<red>That hurt."
+      done: "<red>That hurt. You did that to yourself."
       done-other: "<red>You took half of <white><player></white>'s health."
       received: "<red><white><player></white> took half your health."
     starve:
-      done: "<gray>You are suddenly very hungry."
+      done: "<gray>You are suddenly very hungry. Strange, that."
       done-other: "<gray>You emptied <white><player></white>'s hunger bar."
       received: "<gray><white><player></white> emptied your hunger bar."
 
   tool:
     fly:
-      turned-on: "<green>You can fly."
-      turned-off: "<gray>You can no longer fly."
+      turned-on: "<green>You can fly. Try not to look down."
+      turned-off: "<gray>You can no longer fly. Gravity says hello."
       turned-on-other: "<green><white><player></white> can fly."
       turned-off-other: "<gray><white><player></white> can no longer fly."
     god:
-      turned-on: "<green>Nothing can hurt you. <dark_gray>It goes off when you log out."
-      turned-off: "<gray>You can be hurt again."
+      turned-on: "<green>Nothing can hurt you. <dark_gray>Enjoy it, it goes off when you log out."
+      turned-off: "<gray>You can be hurt again. Welcome back to the real world."
       turned-on-other: "<green>Nothing can hurt <white><player></white>."
       turned-off-other: "<gray><white><player></white> can be hurt again."
     instakill:
       turned-on: "<red>Everything you hit will die. <dark_gray>Mind the livestock."
-      turned-off: "<gray>You hit normally again."
+      turned-off: "<gray>You hit normally again. The livestock breathes out."
       turned-on-other: "<red>Everything <white><player></white> hits will die."
       turned-off-other: "<gray><white><player></white> hits normally again."
     instabreak:
       turned-on: "<green>Blocks give way at once. <dark_gray>A claim that refuses you still refuses you."
-      turned-off: "<gray>Blocks take their time again."
+      turned-off: "<gray>Blocks take their time again. Patience."
       turned-on-other: "<green>Blocks give way at once for <white><player></white>."
       turned-off-other: "<gray>Blocks take their time again for <white><player></white>."
 
@@ -71,17 +71,17 @@ moderation:
   banhammer:
     struck: "<gold><bold>BONK.</bold> <white><player></white> <gold>has been hit with the Banhammer."
     immune: "<red><white><player></white> is a protected account — the Banhammer bounced off."
-    switched-off: "<gray>The Banhammer is switched off on this server."
-    not-allowed: "<gray>Only somebody allowed to swing the Banhammer can ban with it."
+    switched-off: "<gray>The Banhammer is switched off on this server. It is sulking in the shed."
+    not-allowed: "<gray>Only somebody allowed to swing the Banhammer can ban with it. You are not on the list."
     not-the-hammer: "<gray>That was not the Banhammer."
     not-the-blow: "<gray>The Banhammer has to land the blow itself."
-    self: "<gray>The Banhammer does not swing at its owner."
+    self: "<gray>The Banhammer does not swing at its owner. It has some self-respect."
     already-banned: "<gray>They're already gone. The Banhammer doesn't do encores."
 
   ban:
     too-long-for-you: "<red>That is longer than you may ban for. <gray>Your limit is <white><detail></white> — an admin can go further."
     not-for-ever-for-you: "<red>A permanent ban is an admin's decision. <gray>You can ban for up to <white><detail></white>."
-    not-yours-to-lift: "<red>That is a permanent ban, so lifting it is an admin's decision."
+    not-yours-to-lift: "<red>That is a permanent ban, so lifting it is an admin's call. Not yours, sorry."
 
   # ── staff ranks ──────────────────────────────────────────────────────────
   rank:
@@ -89,20 +89,20 @@ moderation:
     removed: "<yellow><white><player></white> is no longer staff."
     you-are-now: "<green>You are now <<colour>><rank></<colour>><gray>. <gray><what>"
     you-are-no-longer: "<yellow>You are no longer part of the staff."
-    not-staff: "<gray><player> is not staff."
+    not-staff: "<gray><player> is not staff. Yet."
     unknown: "<red>There is no rank called '<word>'. <gray>Try one of: <ranks>."
     already-at-the-top: "<gray><player> is already <white><rank></white>, which is the highest rank."
-    not-yours: "<red>You may not hand out that rank."
+    not-yours: "<red>You may not hand out that rank. Not your crown to give."
     only-below-you: "<gray>You can only promote somebody to <white><rank></white> or below — the rank under your own."
     not-above-you: "<gray><player> is <white><rank></white>, which is not below your own rank."
-    yourself: "<gray>You cannot change your own rank."
-    handing-out-is-off: "<gray>Only the server owner may hand out ranks on this server."
+    yourself: "<gray>You cannot change your own rank. Nice try, though."
+    handing-out-is-off: "<gray>Only the server owner may hand out ranks on this server. Promotions go through the top."
     granted: "<green>Gave <white><player></white> <white><what></white>."
     revoked: "<yellow>Took <white><what></white> from <white><player></white>."
     preset-restored: "<green><white><player></white> is back to exactly what their rank grants."
 
   # ── said late, because they were not there at the time ───────────────────
-  while-you-were-away: "<gray>While you were away:"
+  while-you-were-away: "<gray>While you were away, things happened:"
 
   # ── where somebody stands ────────────────────────────────────────────────
   # <colour> is filled in from the standing itself, so "banned" is red and
@@ -111,15 +111,15 @@ moderation:
   standing-detail: "<dark_gray>  <entries> on record · <warnings>/<threshold> recent warning(s) · <notes> note(s) · <reports> report(s)"
 
   # ── refusals, which are the rules' own keys ──────────────────────────────
-  no-permission: "<red>You may not do that."
-  not-yourself: "<gray>You cannot do that to yourself."
+  no-permission: "<red>You may not do that. The rules checked, twice."
+  not-yourself: "<gray>You cannot do that to yourself. Pick on somebody else."
   # ── the world tools ──────────────────────────────────────────────────────
   world:
     players-only: "<gray>This is aimed at wherever you are looking, so it needs somebody standing somewhere. <dark_gray>The console is not."
     nothing-aimed-at: "<gray>You are not looking at anything within reach. <dark_gray>Point at the ground and try again."
     nothing-to-replace: "<gray>Nothing there would take a vein. <dark_gray>Only natural stone and dirt are replaced — never anything built."
     vein-placed: "<green>Buried <white><count></white> blocks of <white><ore></white>."
-    nothing-arrived: "<gray>Nothing turned up. <dark_gray>There was no room, or the ground is not loaded."
+    nothing-arrived: "<gray>Nothing turned up. <dark_gray>No room, or the ground is not loaded. Nobody likes a crowded spawn."
     pack-sent: "<green><white><count></white> × <white><what></white> turned up around you."
     wave-started: "<green>A wave is on its way: <white><count></white> creature(s) in <white><packs></white> pack(s). <dark_gray>Open the page again to stop it."
     wave-already-running: "<gray>You already have a wave running. <dark_gray>Stop that one first — two at once leaves nothing for 'stop' to mean."
@@ -140,8 +140,8 @@ moderation:
     row: "<dark_gray> - <white><player>"
     not-written: "<red>That could not be written to immune.yml, so it would be lost at the next restart. <gray>Nothing has been changed."
 
-  they-are-immune: "<red>That account is protected. Only the console can act on it."
-  nobody-there: "<gray>There is nobody to do that to."
+  they-are-immune: "<red>That account is protected. Only the console can act on it. Somebody up there likes them."
+  nobody-there: "<gray>There is nobody to do that to. The coast is clear."
 
   # ── what somebody is told about themselves ───────────────────────────────
   you-were-mute: "<red>You have been muted <gray>(<length>)<red>: <white><reason>"
@@ -151,12 +151,12 @@ moderation:
   # ── lengths and prompts ──────────────────────────────────────────────────
   type-a-length: "<gray>Type how long — <white>90m</white>, <white>3d</white>, <white>perm</white>. <dark_gray>m is minutes, M is months."
   unreadable-length: "<red>'<text>' is not a length I can read. <gray>Nothing has been done — try <white>2h</white> or <white>perm</white>."
-  nothing-typed: "<gray>Nothing was typed, so nothing happened."
-  type-a-name: "<gray>Type part of a name to search for."
+  nothing-typed: "<gray>Nothing was typed, so nothing happened. Very peaceful."
+  type-a-name: "<gray>Type part of a name to search for. Half a name is plenty."
   type-a-note: "<gray>Type what to remember about <white><player></white>. <dark_gray>They never see it."
 
   # ── the record ───────────────────────────────────────────────────────────
-  record-empty: "<gray><player> has never been punished here."
+  record-empty: "<gray><player> has never been punished here. A model citizen, on paper."
   type-a-reason: "<yellow>Type the reason for the <what> of <white><player></white> in chat. <dark_gray>You have two minutes."
   record-entry: "<gray><what> — <white><reason></white> <dark_gray>(<length>, by <by>)"
   record-report: "<aqua>Reported <dark_gray>by <gray><by></gray> — <white><text></white> <dark_gray>(<state>)"
@@ -179,8 +179,8 @@ moderation:
   # /audit — Core's journal, read rather than kept twice. <saying> carries no colour of its own, which
   # is why it goes through Chat.formatted rather than arg(): it is built by AuditEntry.saying() out of
   # words this plugin does not choose, and arg() would escape it into literal markup.
-  audit-empty: "<gray>Nothing in the audit journal yet."
-  audit-empty-for: "<gray>Nothing on record for <white><player></white>."
+  audit-empty: "<gray>Nothing in the audit journal yet. A quiet server, or a lazy staff."
+  audit-empty-for: "<gray>Nothing on record for <white><player></white>. Clean sheet."
   audit-heading: "<gray><white><count></white> entr(ies) in the audit journal:"
   audit-heading-for: "<gray>Audit for <white><player></white> — <white><count></white> entr(ies):"
   audit-line: "<dark_gray>(<when>)</dark_gray> <white><feature></white> <gray>— <saying>"
@@ -196,17 +196,17 @@ moderation:
 
   # ── inventories ──────────────────────────────────────────────────────────
   invsee:
-    refused: "<red>That inventory could not be opened: <gray><reason>"
+    refused: "<red>That inventory stays shut: <gray><reason>"
 
   # ── staff chat ───────────────────────────────────────────────────────────
   staff-chat:
     turned-on: "<dark_aqua>You are talking to the staff. <gray>Type <white>/staffchat</white> again to stop."
-    turned-off: "<gray>You are talking to the server again."
+    turned-off: "<gray>You are talking to the server again. Back to the masses."
     no-longer-yours: "<red>You may no longer use staff chat, so that went nowhere. <gray>You are back in ordinary chat."
 
   # ── you are vanished ─────────────────────────────────────────────────────
-  vanished: "<gray>You are invisible. <dark_gray>Players cannot see you or hear you arrive."
-  visible-again: "<green>You are visible again."
+  vanished: "<gray>You are invisible. <dark_gray>Players cannot see you or hear you arrive. Sneaky."
+  visible-again: "<green>You are visible again. The mystery is over."
 
   # ── x-ray watch ──────────────────────────────────────────────────────────
   # Not shown to a player — nothing here refuses anything a player asked for. Kept for a future
@@ -221,20 +221,20 @@ moderation:
   report:
     filed: "<green>Reported. <gray>The staff have it as <white><id></white>."
     not-taken: "<gray>That report was not taken — somebody may have reported <white><player></white> already."
-    switched-off: "<gray>Reports are switched off on this server."
+    switched-off: "<gray>Reports are switched off on this server. Sort it out between you, grown-ups."
     too-short: "<gray>Say a little more than that — at least <white><detail></white> characters, so somebody can act on it."
-    not-yourself: "<gray>You cannot report yourself."
-    nobody-there: "<gray>There is nobody by that name to report."
+    not-yourself: "<gray>You cannot report yourself. Confession noted, but not accepted."
+    nobody-there: "<gray>There is nobody by that name to report. Check the spelling."
     too-soon: "<gray>You have just reported somebody. <dark_gray>Try again in <detail>."
     already-open: "<gray>You have already reported them — the staff have it as <white><detail></white>."
     too-many: "<gray>You have <white><detail></white> reports still open. <dark_gray>Wait for one to be dealt with."
     waiting: "<yellow><white><count></white> report(s) are waiting. <dark_gray>/reports"
-    queue-empty: "<gray>Nothing is waiting."
+    queue-empty: "<gray>Nothing is waiting. Enjoy it while it lasts."
     queue-more: "<gray>…and <white><count></white> more."
     type-what-happened: "<gray>What happened? <dark_gray>Reporting <white><player></white> for <white><category></white> — say where and when, so somebody can look."
     type-what-you-did: "<gray>Type what you did about <white><id></white>. <dark_gray>Whoever reported it is told."
     type-why-not: "<gray>Type why there was nothing in <white><id></white>. <dark_gray>Whoever reported it is told."
     closed: "<green><white><id></white> is closed."
-    already-closed: "<gray><id> had already been closed by somebody else."
+    already-closed: "<gray><id> had already been closed by somebody else. Fast colleagues you have."
     was-dealt-with: "<green>Your report <white><id></white> was dealt with: <gray><outcome>"
     was-rejected: "<gray>Your report <white><id></white> was looked at: <gray><outcome>"

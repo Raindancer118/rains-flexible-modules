@@ -71,6 +71,8 @@ class CosmeticsScenarioTest {
             bo.runAndExpect("cosmetics particle colour pink", "Its colour is changed");
             bo.runAndExpect("cosmetics particle density very_dense", "Density: Very dense");
             bo.runAndExpect("cosmetics particle density thick", "Densities are");
+            bo.runAndExpect("cosmetics particle speed very_fast", "Speed: Very fast");
+            bo.runAndExpect("cosmetics particle speed warp", "Speeds are");
             Await.ticks(60);   // the timer draws it for a few rounds, near Ada too
             bo.rejoin();
             bo.runAndExpect("cosmetics particle shape trail", "It is drawn");

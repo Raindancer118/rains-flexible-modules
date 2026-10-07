@@ -3,7 +3,7 @@ chat:
 
   # ── general ──────────────────────────────────────────────────────────────
   usage: "<gray>Usage: <white><usage>"
-  only-a-player: "<red>Only a player can do that."
+  only-a-player: "<red>Only a player can do that. The console doesn't get a vote."
 
   # ── /announce ─────────────────────────────────────────────────────────────
   poll:
@@ -27,14 +27,14 @@ chat:
     one-at-a-time: "<yellow>A poll is already running. One at a time, or nobody knows which button is which."
     not-started: "<red>That poll couldn't be started — try different answers?"
     not-a-poll: "<red><detail>"
-    no-question: "<red>Ask a question first."
+    no-question: "<red>Ask a question first. A poll needs something to be about."
     question-too-long: "<red>That question is a speech — keep it under 100 characters."
     too-few: "<red>A poll needs at least two answers, otherwise it's a statement."
     too-many: "<red>At most six answers — nobody reads past that anyway."
-    empty-answer: "<red>One of the answers is empty."
+    empty-answer: "<red>One of the answers is empty. Silence is not an option."
     answer-too-long: "<red>Keep each answer to 24 characters, so it fits on a button."
     twice: "<red>The same answer twice would split the vote."
-    length: "<red>Between 10 seconds and an hour, please."
+    length: "<red>Between 10 seconds and an hour, please. This is a poll, not a long-term relationship."
     help:
       - "<gold><bold>Polls"
       - "<gray>Ask a question, add up to six answers, pick how long it runs, Start."
@@ -55,24 +55,24 @@ chat:
 
   # ── message quality ─────────────────────────────────────────────────────
   quality:
-    caps: "<red>Try that again without shouting."
-    repeat: "<red>You already said that."
-    cooldown: "<red>Wait <white><seconds></white>s before your next message."
-    slowmode: "<red>Chat is in slowmode — wait <white><seconds></white>s."
+    caps: "<red>Try that again without shouting. We can hear you fine."
+    repeat: "<red>You already said that. Chat remembers."
+    cooldown: "<red>Easy, wordsmith — wait <white><seconds></white>s before your next message."
+    slowmode: "<red>Chat is in slowmode — wait <white><seconds></white>s. Use the time to think of something good."
 
   # ── frozen chat ───────────────────────────────────────────────────────────
-  frozen: "<red>Chat is frozen right now."
+  frozen: "<red>Chat is frozen right now. Hold that thought."
 
   # ── /chathistory ──────────────────────────────────────────────────────────
   history:
     disabled: "<red>Chat history is switched off on this server."
-    none: "<gray>Nothing happened while you were away."
-    missed: "<yellow>You missed <white><count></white> message(s) — /chathistory to catch up."
+    none: "<gray>Nothing happened while you were away. You missed nothing, promise."
+    missed: "<yellow>You missed <white><count></white> message(s) — /chathistory to catch up on the gossip."
     header: "<gray>── <white><count></white> message(s) ──"
     line: "<dark_gray>[<white><time></white>] <gray><player>: <text>"
 
-  no-permission: "<red>You are not allowed to do that."
-  not-online: "<red>Nobody called <white><player></white> is online."
+  no-permission: "<red>You are not allowed to do that. Nice try, though."
+  not-online: "<red>Nobody called <white><player></white> is online. Typo, or ghost?"
 
   # ── /chat private, /chat public ───────────────────────────────────────────
   # /chat team, /chat all, and the picker /chat opens — channels other modules offer (Core's ChatChannels).
@@ -98,7 +98,7 @@ chat:
     declined: "<gray><player> declined your invitation."
     already-a-member: "<gray><player> is already in this private chat."
     in-another-chat: "<red><white><player></white> is already in another private chat."
-    not-yourself: "<red>That would be yourself."
+    not-yourself: "<red>That would be yourself. You are in this chat already, congratulations."
     not-the-owner: "<red>Only <white><owner></white> can do that in this private chat."
     not-a-member: "<red><white><player></white> is not in this private chat."
     not-in-a-chat: "<red>You are not in a private chat. <gray>/chat private starts one."
@@ -114,8 +114,8 @@ chat:
   # ── staff tools, /chat ────────────────────────────────────────────────────
   admin:
     cleared: "<gray>Chat was cleared by <white><player></white>."
-    frozen: "<red>Chat has been frozen by <white><player></white>."
-    unfrozen: "<green>Chat has been unfrozen by <white><player></white>."
+    frozen: "<red>Chat has been frozen by <white><player></white>. Stay cool."
+    unfrozen: "<green>Chat has been unfrozen by <white><player></white>. Talk away."
     slowmode-set: "<yellow>Slowmode set to <white><seconds></white>s by <white><player></white>."
     slowmode-off: "<green>Slowmode switched off by <white><player></white>."
-    slowmode-range: "<red>Slowmode has to be between 0 and 60 seconds."
+    slowmode-range: "<red>Slowmode has to be between 0 and 60 seconds. Time travel is not supported."

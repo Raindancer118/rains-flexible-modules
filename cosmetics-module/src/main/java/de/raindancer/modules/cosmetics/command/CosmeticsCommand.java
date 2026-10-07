@@ -152,6 +152,21 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                 live.particles().density(player, density.get());
                 live.messages().send(player, "cosmetics.particle.densified", "density", density.get().title());
             }
+            case "speed" -> {
+                java.util.Optional<de.raindancer.modules.cosmetics.model.ParticleSpeed> speed =
+                        args.length > 1 ? de.raindancer.modules.cosmetics.model.ParticleSpeed.of(args[1])
+                                : java.util.Optional.empty();
+                if (speed.isEmpty()) {
+                    live.messages().send(player, "cosmetics.particle.unknown-speed");
+                    return;
+                }
+                if (live.particles().current(player).isNone()) {
+                    live.messages().send(player, "cosmetics.particle.none-worn");
+                    return;
+                }
+                live.particles().speed(player, speed.get());
+                live.messages().send(player, "cosmetics.particle.sped", "speed", speed.get().title());
+            }
             case "colour", "color" -> {
                 TextColor colour = args.length > 1 ? live.offered().colourNamed(args[1])
                         .map(PaletteColour::colour).orElseGet(() -> NameStyle.colourOf(args[1])) : null;
@@ -184,12 +199,17 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                 options.add("reload");
             }
         } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 2) {
-            options.addAll(List.of("off", "shape", "colour", "density"));
+            options.addAll(List.of("off", "shape", "colour", "density", "speed"));
             live.particles().offered().stream().map(name -> name.toLowerCase(Locale.ROOT)).forEach(options::add);
         } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 3
                 && args[1].equalsIgnoreCase("shape")) {
             for (ParticleShape shape : ParticleShape.values()) {
                 options.add(shape.key());
+            }
+        } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 3
+                && args[1].equalsIgnoreCase("speed")) {
+            for (var speed : de.raindancer.modules.cosmetics.model.ParticleSpeed.values()) {
+                options.add(speed.key());
             }
         } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 3
                 && args[1].equalsIgnoreCase("density")) {
