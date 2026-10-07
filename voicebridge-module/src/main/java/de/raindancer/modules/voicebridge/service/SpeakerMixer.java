@@ -7,7 +7,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.LongSupplier;
 
@@ -62,12 +61,19 @@ public final class SpeakerMixer<K> implements IVoiceBridgeService {
     }
 
     /** The next 20 ms of everybody together, or {@code null} when nobody has anything to play. */
-    public synchronized short[] next() {
-        List<short[]> playing = new ArrayList<>();
+    public short[] next() {
+        Map<K, short[]> frames = nextFrames();
+        return frames.isEmpty() ? null : Pcm.mix(new ArrayList<>(frames.values()));
+    }
+
+    /** The next 20 ms of each speaker who has some, kept apart for a mix that places them. */
+    public synchronized Map<K, short[]> nextFrames() {
+        Map<K, short[]> playing = new LinkedHashMap<>();
         long now = clock.getAsLong();
-        Iterator<Speaker> all = speakers.values().iterator();
+        Iterator<Map.Entry<K, Speaker>> all = speakers.entrySet().iterator();
         while (all.hasNext()) {
-            Speaker speaker = all.next();
+            Map.Entry<K, Speaker> entry = all.next();
+            Speaker speaker = entry.getValue();
             if (!speaker.primed && speaker.frames.size() >= prebuffer) {
                 speaker.primed = true;
             }
@@ -76,14 +82,14 @@ public final class SpeakerMixer<K> implements IVoiceBridgeService {
                 if (frame == null) {
                     speaker.primed = false;
                 } else {
-                    playing.add(frame);
+                    playing.put(entry.getKey(), frame);
                 }
             }
             if (speaker.frames.isEmpty() && now - speaker.lastHeard > idleMillis) {
                 all.remove();
             }
         }
-        return playing.isEmpty() ? null : Pcm.mix(playing);
+        return playing;
     }
 
     public synchronized boolean hasAudio() {
