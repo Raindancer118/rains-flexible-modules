@@ -64,7 +64,7 @@ class VoicechatGatewayTest {
         channel = mock(StaticAudioChannel.class);
         encoder = mock(OpusEncoder.class);
         decoder = mock(OpusDecoder.class);
-        bridgeGroup = group("Discord");
+        bridgeGroup = group("Discord", VoicechatGateway.groupIdFor("Discord"));
         otherGroup = group("Friends");
 
         VolumeCategory.Builder category = mock(VolumeCategory.Builder.class, Answers.RETURNS_SELF);
@@ -74,6 +74,7 @@ class VoicechatGatewayTest {
         when(api.createDecoder()).thenReturn(decoder);
         when(api.createStaticAudioChannel(any(UUID.class))).thenReturn(channel);
         when(api.getGroups()).thenReturn(List.of(otherGroup, bridgeGroup));
+        when(api.getGroup(bridgeGroup.getId())).thenReturn(bridgeGroup);
         when(encoder.encode(any())).thenReturn(new byte[]{9});
         when(decoder.decode(any())).thenReturn(new short[]{1, 2, 3});
 
@@ -100,8 +101,11 @@ class VoicechatGatewayTest {
     }
 
     private static Group group(String name) {
+        return group(name, UUID.randomUUID());
+    }
+
+    private static Group group(String name, UUID id) {
         Group group = mock(Group.class);
-        UUID id = UUID.randomUUID();
         when(group.getId()).thenReturn(id);
         when(group.getName()).thenReturn(name);
         return group;
@@ -153,6 +157,29 @@ class VoicechatGatewayTest {
         handlers.get(VoicechatServerStartedEvent.class).accept(started);
 
         assertThat(gateway.isReady()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a player's own group that happens to share the name is never taken over")
+    void neverHijacksAPlayersGroup() {
+        Group playersOwn = group("Discord");
+        when(playersOwn.hasPassword()).thenReturn(true);
+        when(api.getGroups()).thenReturn(List.of(playersOwn));
+        when(api.getGroup(VoicechatGateway.groupIdFor("Discord"))).thenReturn(null);
+        Group.Builder builder = mock(Group.Builder.class, Answers.RETURNS_SELF);
+        Group made = group("Discord", VoicechatGateway.groupIdFor("Discord"));
+        when(builder.build()).thenReturn(made);
+        when(api.groupBuilder()).thenReturn(builder);
+        online.add(alex);
+        connection(alex, playersOwn);
+
+        gateway.initialize(api);
+
+        verify(builder).setId(VoicechatGateway.groupIdFor("Discord"));
+        assertThat(gateway.members()).as("the private group's members are not bridged").isEmpty();
+        speak(connection(alex, playersOwn), new byte[]{1});
+        assertThat(mixer.speakers()).isZero();
+        assertThat(gateway.join(sam)).isNotEqualTo(VoicechatGateway.JoinResult.JOINED);
     }
 
     @Test
