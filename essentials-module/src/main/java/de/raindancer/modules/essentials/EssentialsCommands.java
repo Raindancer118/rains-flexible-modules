@@ -84,6 +84,11 @@ public final class EssentialsCommands {
                 ModuleCommand.of("repairall", "Repairs everything you carry",
                                 new RepairCommand(EssentialsCommands::require, true))
                         .taking("[player] — somebody else's, for staff"),
+                ModuleCommand.of("token", "Hands out clear-sky and dawn tokens",
+                                new de.raindancer.modules.essentials.command.TokenCommand(EssentialsCommands::require))
+                        .taking("sky [player] [amount] — clears the rain where it is used",
+                                "dawn [player] [amount] — skips the night where it is used")
+                        .auditUsage(),
 
                 ModuleCommand.of("afk", "Marks you away from the keyboard, or back, right now",
                         new AfkCommand(EssentialsCommands::require)),

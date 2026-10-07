@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.11.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.12.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, and a nickname")
             .by("Raindancer118");
@@ -120,10 +120,17 @@ public final class EssentialsModule implements FlexModule {
                 new de.raindancer.modules.essentials.service.FunService(context.core().messages(),
                         context.plugin(), settings.current());
 
+        // Core's custom items carry the tokens: the glow, the right click, and keeping them out of every
+        // crafting grid. What using one does is this module's.
+        de.raindancer.modules.essentials.service.SkyTokenService skyTokens =
+                new de.raindancer.modules.essentials.service.SkyTokenService(context.plugin(), server,
+                        context.core().messages(), context.core().itemFactory());
+        skyTokens.register(context.core().items(), context.core().itemAbilities());
+
         services = new EssentialsServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, store, blocklist, spawn, afk, messaging, nicknames, welcome, reactions,
-                enchanting, repairing, fun);
+                enchanting, repairing, fun, skyTokens);
 
         settings.onChange(fresh -> {
             spawn.settings(fresh);

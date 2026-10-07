@@ -4,6 +4,9 @@
 # A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
 
 essentials:
+  tokens:
+    sky-cleared: "<yellow><player></yellow> <gray>cleared the sky with a Clear Sky Token."
+    dawn-came: "<yellow><player></yellow> <gray>skipped the night with a Dawn Token."
   spawn:
     arrived: "<green>You have arrived at spawn."
   msg:

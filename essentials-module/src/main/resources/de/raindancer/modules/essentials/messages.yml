@@ -97,6 +97,16 @@ essentials:
     nothing-to-clear: "<gray>There is nothing on it to strip."
 
   # ── /repair and /repairall ────────────────────────────────────────────────
+  tokens:
+    sky-cleared: "<yellow><player></yellow> <gray>used a Clear Sky Token. The clouds have somewhere else to be."
+    dawn-came: "<yellow><player></yellow> <gray>used a Dawn Token. Good morning."
+    no-sky: "<red>There is no sky here to change. Your token is still yours."
+    already-clear: "<gray>The sky is already clear. Your token is still yours."
+    already-day: "<gray>It is already day. Your token is still yours."
+    given: "<green>Gave <white><amount></white> <token>(s) to <white><player></white>."
+    received: "<green>You got <white><amount></white> <token>(s). Right-click one to use it."
+    not-online: "<red><white><player></white> is not online right now."
+    cannot-make: "<red>The token item could not be made. The console says why."
   repair:
     nobody-there: "<red>Nobody here answers to <white><player></white>."
     not-others: "<red>Repairing somebody else's things is staff business."

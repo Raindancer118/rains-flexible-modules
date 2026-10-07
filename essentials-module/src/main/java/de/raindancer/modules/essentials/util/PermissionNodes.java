@@ -36,6 +36,8 @@ public final class PermissionNodes {
     public static final String REPAIR = "essentials.repair";
     public static final String REPAIR_ALL = "essentials.repair.all";
     public static final String REPAIR_OTHERS = "essentials.repair.others";
+    /** Handing out clear-sky and dawn tokens. Using one needs nothing. */
+    public static final String TOKENS_GIVE = "essentials.tokens.give";
 
     /** Setting and clearing somebody else's nickname, online or not. */
     public static final String NICK_OTHERS = "essentials.nick.others";
@@ -76,6 +78,8 @@ public final class PermissionNodes {
                 new Permission(REPAIR, "Repair the item in your hand with /repair", PermissionDefault.OP),
                 new Permission(REPAIR_ALL, "Repair everything you carry with /repairall", PermissionDefault.OP),
                 new Permission(REPAIR_OTHERS, "Repair somebody else's items", PermissionDefault.OP),
+                new Permission(TOKENS_GIVE, "Hand out clear-sky and dawn tokens with /token",
+                        PermissionDefault.OP),
                 new Permission(NICK_OTHERS, "Set and clear other players' nicknames, online or not",
                         PermissionDefault.OP),
                 new Permission(NICK_BYPASS_BLOCKLIST, "Set a nickname that is on the blocklist",

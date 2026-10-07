@@ -55,7 +55,7 @@
         <pack-module.version>1.0.0</pack-module.version>
         <chained-module.version>1.2.1</chained-module.version>
         <rtp-module.version>1.2.2</rtp-module.version>
-        <essentials-module.version>1.11.1</essentials-module.version>
+        <essentials-module.version>1.12.0</essentials-module.version>
         <worldgate-module.version>1.2.1</worldgate-module.version>
         <!-- 0.x until it is everything that was asked for; the first release of World Utils. -->
         <worldutils-module.version>0.2.1</worldutils-module.version>
