@@ -7,6 +7,7 @@ import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.voicebridge.VoiceBridgeSettings;
 import de.raindancer.modules.voicebridge.store.Positions;
+import de.raindancer.modules.voicebridge.util.PermissionNodes;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -186,7 +187,7 @@ public final class LobbyService implements IVoiceBridgeService {
             return;
         }
         // Speaking is checked by SVC on every packet; hearing through a listener is not, so here.
-        if (!player.hasPermission("voicechat.listen")) {
+        if (!PermissionNodes.svc(player, "voicechat.listen")) {
             dm(member, "voicebridge.proximity.dm.no-permission");
             return;
         }
