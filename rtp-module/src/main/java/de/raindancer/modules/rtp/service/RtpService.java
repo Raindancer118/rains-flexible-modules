@@ -414,7 +414,7 @@ public final class RtpService implements IRtpService {
         @Override
         public void counting(Player traveller, int secondsLeft, Trip trip) {
             messages.send(traveller, "rtp.warming-up", "seconds", secondsLeft);
-            play(traveller, secondsLeft <= 1 ? Cues.COUNTDOWN_DONE : Cues.COUNTDOWN);
+            // The ding each second is Core's, in the traveller's own sound if they picked one.
         }
 
         /**
@@ -427,7 +427,7 @@ public final class RtpService implements IRtpService {
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
             between.start(traveller.getUniqueId());
-            play(traveller, Cues.TELEPORT);
+            // No arrival cue here: Core's Travel plays it for every teleport, in the traveller's own choice.
             messages.send(traveller, "rtp.arrived",
                     "where", where.getBlockX() + ", " + where.getBlockZ());
             // One more prepared for the next person, so the pool keeps pace with how often it is

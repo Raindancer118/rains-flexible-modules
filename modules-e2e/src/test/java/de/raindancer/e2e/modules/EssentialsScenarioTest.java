@@ -34,14 +34,14 @@ class EssentialsScenarioTest {
             // Read from the server's log: that is the chat line as the server handled it.
             bo.clickButtonOn("Cy", 0);
             Await.until("Bo greets Cy in chat", Duration.ofSeconds(10), () -> greetingsTo(server, "Cy") == 1);
-            bo.answer(() -> bo.clickButtonOn("Cy", 0), answer -> answer.says("would be a bit awkward"));
+            bo.answer(() -> bo.clickButtonOn("Cy", 0), answer -> answer.says("You already said hi"));
             assertThat(greetingsTo(server, "Cy")).as("a second click greets nobody").isEqualTo(1);
 
             // An advancement line carries Congrats!, which cheers Bo on once.
             server.console("advancement grant Bo only minecraft:story/mine_stone");
             cy.clickButtonOn("[Congrats!]", 0);
             Await.until("Cy cheers Bo in chat", Duration.ofSeconds(10), () -> cheersFor(server, "Bo") == 1);
-            cy.answer(() -> cy.clickButtonOn("[Congrats!]", 0), answer -> answer.says("would be a bit much"));
+            cy.answer(() -> cy.clickButtonOn("[Congrats!]", 0), answer -> answer.says("You already cheered"));
             assertThat(cheersFor(server, "Bo")).isEqualTo(1);
 
             // A nickname reaches the nametag above the head.

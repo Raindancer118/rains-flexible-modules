@@ -21,14 +21,21 @@ public final class JoinListener implements ICosmeticsListener {
         try {
             services.names().revalidate(event.getPlayer());
             services.particles().revalidate(event.getPlayer());
+            services.teleports().load(event.getPlayer());
         } catch (RuntimeException broken) {
             services.log().warn("Could not check {}'s cosmetics on join: {}",
                     event.getPlayer().getName(), broken.getMessage());
         }
     }
 
+    /** A teleport choice is held in memory only while they are here; their data keeps it for next time. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+        forget(event.getPlayer().getUniqueId());
+    }
+
     @Override
     public void forget(UUID player) {
-        // Remembers nobody: the style lives in Core's identities.
+        services.teleports().forget(player);
     }
 }

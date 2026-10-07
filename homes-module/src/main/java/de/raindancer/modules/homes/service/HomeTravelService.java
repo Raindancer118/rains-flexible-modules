@@ -125,6 +125,9 @@ public final class HomeTravelService implements IHomeService {
         if (!now.safeArrival()) {
             trip = trip.exactly();
         }
+        if (!now.playSound()) {
+            trip = trip.quiet();
+        }
         travel.go(traveller, destination, trip, new Arriving(home));
     }
 
@@ -174,13 +177,8 @@ public final class HomeTravelService implements IHomeService {
         public void arrived(Player traveller, Location where, Trip trip) {
             waits.start(traveller.getUniqueId());
             messages.send(traveller, "homes.arrived", "name", home.name());
-            // At the place, not to the player alone: SetHome played the enderman sound for whoever
-            // was standing there too, and Cues.TELEPORT is the same cue Core's other teleports use
-            // for exactly that reason — a home does not get to sound different from a warp.
-            if (settings.playSound() && where.getWorld() != null) {
-                effects.playAt(where.getWorld().getName(), where.getX(), where.getY(), where.getZ(),
-                        Cues.TELEPORT);
-            }
+            // The arrival sound is Core's now (Travel plays it, in the traveller's own choice if they
+            // made one); the setting below only decides whether a home trip is quiet.
         }
 
         @Override

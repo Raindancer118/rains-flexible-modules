@@ -89,10 +89,9 @@ public record HomeSettings(
         @Key("homes.bring-what-you-lead")
         boolean bringWhatYouLead,
 
-        @In("homes/travelling") @Title("Play a sound on arrival")
-        @Describe("Whether everybody nearby hears the enderman teleport sound when somebody arrives "
-                + "home — the same cue Core's other teleports use (Cues.TELEPORT), so it sounds like "
-                + "the rest of the server rather than a home-specific chime.")
+        @In("homes/travelling") @Title("Teleport sounds and particles")
+        @Describe("Whether a trip home has the sounds and waiting particles every other teleport has — "
+                + "Core's teleport cues, or what the traveller picked in /cosmetics. Off: home trips are quiet.")
         @Key("homes.play-sound")
         boolean playSound) {
 

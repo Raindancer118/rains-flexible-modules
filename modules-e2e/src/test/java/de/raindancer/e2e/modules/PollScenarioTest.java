@@ -26,16 +26,16 @@ class PollScenarioTest {
 
             ada.runAndExpect("poll 5m Best mob? | Creeper | Axolotl", "Best mob?");
             bo.answer(() -> bo.clickButtonOn("Creeper", 0), answer -> answer.says("Vote's in"));
-            bo.answer(() -> bo.clickButtonOn("Creeper", 1), answer -> answer.says("Changed your mind"));
-            bo.answer(() -> bo.clickButtonOn("Creeper", 1), answer -> answer.says("doesn't count twice"));
+            bo.answer(() -> bo.clickButtonOn("Creeper", 1), answer -> answer.says("Vote changed"));
+            bo.answer(() -> bo.clickButtonOn("Creeper", 1), answer -> answer.says("You already picked"));
             cy.answer(() -> cy.clickButtonOn("Creeper", 1), answer -> answer.says("Vote's in"));
 
-            ada.runAndExpect("poll Another? | a | b", "One at a time");
+            ada.runAndExpect("poll Another? | a | b", "Only one poll can run at a time");
             ada.runAndExpect("poll results", "So far");
             bo.answer(() -> bo.run("poll Can I? | yes | no"),
                     answer -> answer.says("Unknown or incomplete command") || answer.says("command.unknown.command"));
 
-            ada.answer(() -> ada.run("poll end"), answer -> answer.says("the winner is Axolotl"));
+            ada.answer(() -> ada.run("poll end"), answer -> answer.says("Winner: Axolotl"));
             bo.answer(() -> bo.clickButtonOn("Creeper", 0), answer -> answer.says("That poll is over"));
 
             assertThat(server.paper.errorsFrom("RainsCore", "RainsChat")).isEmpty();

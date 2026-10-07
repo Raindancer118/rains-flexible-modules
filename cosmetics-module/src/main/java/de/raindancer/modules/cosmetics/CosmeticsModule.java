@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.8.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.9.0")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -79,15 +79,25 @@ public final class CosmeticsModule implements FlexModule {
         ClearService clearing = new ClearService(names, particles, context.core().messages(),
                 context.core().audit(),
                 (who, task) -> Scheduling.entity(context.plugin(), who, task), settings.current());
+        // Handed to Core, so a player's choice follows them through every plugin's teleports.
+        de.raindancer.modules.cosmetics.service.TeleportLookService teleports =
+                new de.raindancer.modules.cosmetics.service.TeleportLookService(context.core().messages(),
+                        context.core().travelShow(), particles, settings.current());
+        teleports.start();
+        context.closeWith(teleports::stop);
+        for (Player online : server.getOnlinePlayers()) {
+            Scheduling.entity(context.plugin(), online, () -> teleports.load(online));
+        }
         services = new CosmeticsServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), catalogue::current, settings::current, names, particles, reloading,
-                clearing, context.core().vanish(), new LiveScreens());
+                clearing, teleports, context.core().vanish(), new LiveScreens());
 
         settings.onChange(fresh -> {
             names.settings(fresh);
             particles.settings(fresh);
             reloading.settings(fresh);
             clearing.settings(fresh);
+            teleports.settings(fresh);
         });
 
         context.listener(new JoinListener(services));
@@ -112,6 +122,11 @@ public final class CosmeticsModule implements FlexModule {
         @Override
         public void particles(Player viewer) {
             new ParticleMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void teleports(Player viewer) {
+            new de.raindancer.modules.cosmetics.screen.TeleportMenu(services, viewer, null).open();
         }
     }
 

@@ -98,93 +98,52 @@ class HomeTravelServiceTest {
     }
 
     @Nested
-    @DisplayName("the sound on arrival")
+    @DisplayName("sounds and particles on the way")
     class SoundOnArrival {
 
-        @Test
-        @DisplayName("plays Core's own teleport cue, at the place somebody actually arrived")
-        void playsOnArrival() {
+        private de.raindancer.core.world.teleport.Trip tripFor(HomeSettings settings) {
             Travel travel = mock(Travel.class);
-            Messages messages = mock(Messages.class);
-            Effects effects = effects();
-            HomeTravelService service = new HomeTravelService(travel, messages, effects,
-                    HomeSettings.DEFAULTS.withPlaySound(true));
-
+            HomeTravelService service = new HomeTravelService(travel, mock(Messages.class), effects(), settings);
             Player traveller = mock(Player.class);
             when(traveller.getUniqueId()).thenReturn(UUID.randomUUID());
-            World destWorld = mock(World.class);
-            when(destWorld.getName()).thenReturn("world");
-            when(traveller.getWorld()).thenReturn(destWorld);
-            Home home = homeAt(destWorld);
-
-            TravelWatcher watcher = watcherFrom(service, travel, traveller, home);
-
-            World arrivalWorld = mock(World.class);
-            when(arrivalWorld.getName()).thenReturn("TTV");
-            Location arrival = new Location(arrivalWorld, 10, 20, 30);
-            watcher.arrived(traveller, arrival, de.raindancer.core.world.teleport.Trip.to("home"));
-
-            assertThat(played).singleElement().satisfies(heard -> {
-                assertThat(heard.world()).isEqualTo("TTV");
-                assertThat(heard.x()).isEqualTo(10);
-                assertThat(heard.y()).isEqualTo(20);
-                assertThat(heard.z()).isEqualTo(30);
-                assertThat(heard.sound().key())
-                        .as("the same enderman-teleport sound Cues.TELEPORT is bound to for every "
-                                + "other module — a home does not get its own sound")
-                        .isEqualTo("entity.enderman.teleport");
-            });
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            when(traveller.getWorld()).thenReturn(world);
+            service.go(traveller, homeAt(world));
+            ArgumentCaptor<de.raindancer.core.world.teleport.Trip> trip =
+                    ArgumentCaptor.forClass(de.raindancer.core.world.teleport.Trip.class);
+            verify(travel).go(eq(traveller), any(Location.class), trip.capture(), any());
+            return trip.getValue();
         }
 
         @Test
-        @DisplayName("says nothing when the setting is off")
-        void silentWhenSwitchedOff() {
-            Travel travel = mock(Travel.class);
-            Messages messages = mock(Messages.class);
-            Effects effects = effects();
-            HomeTravelService service = new HomeTravelService(travel, messages, effects,
-                    HomeSettings.DEFAULTS.withPlaySound(false));
+        @DisplayName("a trip home has Core's teleport effects, like every other teleport")
+        void soundsLikeEveryOtherTeleport() {
+            assertThat(tripFor(HomeSettings.DEFAULTS.withPlaySound(true)).isQuiet()).isFalse();
+        }
 
+        @Test
+        @DisplayName("with the setting off, the trip is quiet")
+        void quietWhenSwitchedOff() {
+            assertThat(tripFor(HomeSettings.DEFAULTS.withPlaySound(false)).isQuiet()).isTrue();
+        }
+
+        @Test
+        @DisplayName("homes plays nothing itself on arrival — Core does, so it is never heard twice")
+        void neverTwice() {
+            Travel travel = mock(Travel.class);
+            HomeTravelService service = new HomeTravelService(travel, mock(Messages.class), effects(),
+                    HomeSettings.DEFAULTS.withPlaySound(true));
             Player traveller = mock(Player.class);
             when(traveller.getUniqueId()).thenReturn(UUID.randomUUID());
             World destWorld = mock(World.class);
             when(destWorld.getName()).thenReturn("world");
             when(traveller.getWorld()).thenReturn(destWorld);
-            Home home = homeAt(destWorld);
-
-            TravelWatcher watcher = watcherFrom(service, travel, traveller, home);
-
+            TravelWatcher watcher = watcherFrom(service, travel, traveller, homeAt(destWorld));
             World arrivalWorld = mock(World.class);
             when(arrivalWorld.getName()).thenReturn("TTV");
             watcher.arrived(traveller, new Location(arrivalWorld, 10, 20, 30),
                     de.raindancer.core.world.teleport.Trip.to("home"));
-
-            assertThat(played).as("play-sound is off, so nothing should have reached the sink").isEmpty();
-        }
-
-        @Test
-        @DisplayName("a settings reload actually reaches whether arriving is heard")
-        void settingsReloadIsHonoured() {
-            Travel travel = mock(Travel.class);
-            Messages messages = mock(Messages.class);
-            Effects effects = effects();
-            HomeTravelService service = new HomeTravelService(travel, messages, effects,
-                    HomeSettings.DEFAULTS.withPlaySound(true));
-            service.settings(HomeSettings.DEFAULTS.withPlaySound(false));
-
-            Player traveller = mock(Player.class);
-            when(traveller.getUniqueId()).thenReturn(UUID.randomUUID());
-            World destWorld = mock(World.class);
-            when(destWorld.getName()).thenReturn("world");
-            when(traveller.getWorld()).thenReturn(destWorld);
-            Home home = homeAt(destWorld);
-
-            TravelWatcher watcher = watcherFrom(service, travel, traveller, home);
-            World arrivalWorld = mock(World.class);
-            when(arrivalWorld.getName()).thenReturn("TTV");
-            watcher.arrived(traveller, new Location(arrivalWorld, 1, 1, 1),
-                    de.raindancer.core.world.teleport.Trip.to("home"));
-
             assertThat(played).isEmpty();
         }
     }

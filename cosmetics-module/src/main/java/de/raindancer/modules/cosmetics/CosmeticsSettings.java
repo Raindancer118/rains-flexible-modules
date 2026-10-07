@@ -25,6 +25,7 @@ import java.util.Set;
         @Topic(path = "cosmetics", title = "Cosmetics", icon = Material.NAME_TAG),
         @Topic(path = "cosmetics/names", title = "Name styles", icon = Material.NAME_TAG),
         @Topic(path = "cosmetics/particles", title = "Particles", icon = Material.BLAZE_POWDER),
+        @Topic(path = "cosmetics/teleport", title = "Teleports", icon = Material.ENDER_PEARL),
 })
 public record CosmeticsSettings(
 
@@ -70,15 +71,41 @@ public record CosmeticsSettings(
         @Describe("Vanilla names, like ELDER_GUARDIAN. The shipped ones cover the screen of whoever sees "
                 + "them or shake it, which is a weapon rather than a cosmetic.")
         @Key("particles-blocked")
-        List<String> blockedParticles) {
+        List<String> blockedParticles,
+
+        @In("cosmetics/teleport") @Title("Players may choose their teleport effects")
+        @Describe("Their own departure and arrival sound and the particles while they wait, for every "
+                + "teleport — homes, warps, /tpa, spawn. Off: everybody gets the server's, from Core's cues. "
+                + "What they picked is kept.")
+        @Key("teleport-looks")
+        boolean teleportLooks,
+
+        @In("cosmetics/teleport") @Title("Sounds players may pick")
+        @Describe("Sound keys, like entity.enderman.teleport. Everybody near a teleport hears it, so the list "
+                + "keeps out the deafening ones; whoever has rainscosmetics.teleport.any-sound may pick any.")
+        @Key("teleport-sounds")
+        List<String> teleportSounds) {
+
+    /** Short, recognisable and nobody's ears hurt — the list a player picks from. */
+    public static final List<String> TELEPORT_SOUNDS = List.of(
+            "entity.enderman.teleport", "item.chorus_fruit.teleport", "block.beacon.power_select",
+            "block.amethyst_block.chime", "block.bell.use", "entity.player.levelup",
+            "block.note_block.pling", "block.note_block.chime", "entity.firework_rocket.twinkle",
+            "entity.breeze.wind_burst", "block.bubble_column.upwards_inside", "entity.allay.item_given",
+            "entity.experience_orb.pickup", "block.respawn_anchor.charge", "item.trident.return",
+            "entity.cat.ambient", "entity.chicken.egg", "entity.villager.celebrate");
 
     public static final CosmeticsSettings DEFAULTS = new CosmeticsSettings(8, true, true, true, 4, 1, 6,
             List.of("ELDER_GUARDIAN", "EXPLOSION_EMITTER", "EXPLOSION", "FLASH", "SONIC_BOOM",
-                    "GUST_EMITTER_LARGE", "GUST_EMITTER_SMALL"));
+                    "GUST_EMITTER_LARGE", "GUST_EMITTER_SMALL"),
+            true, TELEPORT_SOUNDS);
 
     public CosmeticsSettings {
         blockedParticles = blockedParticles == null ? List.of()
                 : blockedParticles.stream().map(name -> name.trim().toUpperCase(Locale.ROOT)).toList();
+        teleportSounds = teleportSounds == null ? List.of()
+                : teleportSounds.stream().map(key -> key.trim().toLowerCase(Locale.ROOT))
+                        .filter(key -> !key.isEmpty()).distinct().toList();
     }
 
     public Set<String> blocked() {

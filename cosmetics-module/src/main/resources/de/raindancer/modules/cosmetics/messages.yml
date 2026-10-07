@@ -9,7 +9,7 @@ cosmetics:
 
   only-a-player: "<red>This command can only be used by a player."
 
-  usage: "<gray>Use <white>/cosmetics</white> for the menu, <white>/cosmetics name preset|set|reset</white>, <white>/cosmetics particle</white> or <white>/cosmetics clear</white>."
+  usage: "<gray>Use <white>/cosmetics</white> for the menu, <white>/cosmetics name preset|set|reset</white>, <white>/cosmetics particle</white>, <white>/cosmetics teleport</white> or <white>/cosmetics clear</white>."
 
   reloaded: "<green>Reloaded. <white><colours></white> palette colour(s), <white><presets></white> preset(s)."
 
@@ -82,6 +82,50 @@ cosmetics:
     - "<gold><bold>Cosmetics"
     - "<gray>Your name: colours, gradients and presets."
     - "<gray>Particles: a vanilla particle drawn around you."
+    - "<gray>Teleports: what you sound and look like coming and going."
+
+  help-teleport:
+    - "<gold><bold>Your teleports"
+    - "<gray>For every teleport on the server: homes, warps, /tpa, spawn."
+    - "<gray>Pick a sound for setting off, one for each second of the countdown,"
+    - "<gray>one for landing, and the particles around you while you stand still."
+    - "<gray>On a part: left-click to pick, right-click for the server's own,"
+    - "<gray>shift-click for nothing at all."
+
+  # ── /cosmetics teleport, and its menu ─────────────────────────────────────
+  # <part> is one of the three names below; <value> a sound or particle, as it reads.
+  teleport:
+    part:
+      depart: "Setting-off sound"
+      arrive: "Landing sound"
+      wait: "Waiting particles"
+      tick: "Countdown ding"
+    servers: "the server's own"
+    nothing: "nothing"
+    set: "<green><part>: <white><value></white>."
+    set-none: "<green><part>: nothing at all."
+    back-to-default: "<green><part>: back to the server's own."
+    usage: "<gray>Use <white>/cosmetics teleport depart|tick|wait|arrive <sound or particle></white>, or <white>default</white> or <white>none</white> instead of one."
+    switched-off: "<red>Teleport effects cannot be chosen on this server."
+    no-permission: "<red>You may not choose your teleport effects."
+    sound-unknown: "<red>There is no sound called <white><value></white>. <gray>Tab shows the ones you can pick."
+    sound-not-offered: "<red><white><value></white> is not on this server's list of teleport sounds. Everybody nearby hears it, so the list keeps the ear-splitting ones out."
+    menu:
+      title: "<dark_gray>Your teleports"
+      breadcrumb: "Teleports"
+      door: "<white>Teleports"
+      door-lore: "<gray>Your sounds and particles for every teleport."
+      pick: "<green><part>"
+      pick-hint: "<dark_gray>Click to pick one — left-click in the list to try it."
+      now: "<gray>Now: <white><value>"
+      about:
+        depart: "<gray>Heard where you stood as you set off."
+        arrive: "<gray>Heard where you land."
+        wait: "<gray>Around you while you stand still for it."
+        tick: "<gray>Heard by you alone, once every second you wait."
+      servers-hint: "<dark_gray>Right-click for the server's own."
+      nothing-hint: "<dark_gray>Shift-click for nothing at all."
+      locked: "Needs <permission>"
 
   help-particles:
     - "<gold><bold>Your particles"

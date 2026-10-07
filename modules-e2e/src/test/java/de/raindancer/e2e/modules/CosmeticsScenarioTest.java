@@ -38,7 +38,7 @@ class CosmeticsScenarioTest {
             bo.answer(() -> bo.click("Ocean"), answer -> answer.says("Your name is now"));
             bo.closeWindow();
 
-            bo.runAndExpect("cosmetics name reset", "your name is plain again");
+            bo.runAndExpect("cosmetics name reset", "Your name is plain again");
             bo.runAndOpen("cosmetics name", "Your name");
             bo.click("Your own colours");
             bo.awaitWindow("Your colours");

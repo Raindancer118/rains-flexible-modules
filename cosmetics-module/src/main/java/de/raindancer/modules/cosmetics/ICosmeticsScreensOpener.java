@@ -10,4 +10,7 @@ public interface ICosmeticsScreensOpener {
     void nameStyle(Player viewer);
 
     void particles(Player viewer);
+
+    /** Your teleport sounds and waiting particles. */
+    void teleports(Player viewer);
 }

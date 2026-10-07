@@ -27,7 +27,28 @@ class ScreenGrammarTest {
     private static final List<String> BASE_CLASSES = List.of("ICosmeticsScreen");
 
     private record Screen(String name, String body) {
+
+        /**
+         * What a player can read on it: the words in the source, and the wording of every messages.yml key
+         * it names — a screen whose lore lives in messages.yml, as it should, says its hints there.
+         */
+        String readable() {
+            StringBuilder words = new StringBuilder(body);
+            java.util.regex.Matcher key = java.util.regex.Pattern.compile("\"(cosmetics\\.[a-z0-9.-]+)\"")
+                    .matcher(body);
+            while (key.find()) {
+                Object value = WORDING.get(key.group(1));
+                if (value != null) {
+                    words.append('\n').append(value);
+                }
+            }
+            return words.toString().replace('-', ' ');
+        }
     }
+
+    private static final org.bukkit.configuration.file.YamlConfiguration WORDING =
+            org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
+                    new java.io.File("src/main/resources/de/raindancer/modules/cosmetics/messages.yml"));
 
     private static List<Screen> screens() {
         try (Stream<Path> files = Files.list(SCREENS)) {
@@ -58,7 +79,7 @@ class ScreenGrammarTest {
     void rightClicksAreAdvertised() {
         List<String> silent = new ArrayList<>();
         for (Screen screen : drawnScreens()) {
-            if (screen.body().contains("isRightClick()") && !screen.body().contains("right click")) {
+            if (screen.body().contains("isRightClick()") && !screen.readable().toLowerCase().contains("right click")) {
                 silent.add(screen.name());
             }
         }
@@ -73,7 +94,7 @@ class ScreenGrammarTest {
         List<String> silent = new ArrayList<>();
         for (Screen screen : drawnScreens()) {
             if (screen.body().contains("isShiftClick()")
-                    && !screen.body().toLowerCase().contains("shift")) {
+                    && !screen.readable().replace("isShiftClick", "").toLowerCase().contains("shift")) {
                 silent.add(screen.name());
             }
         }

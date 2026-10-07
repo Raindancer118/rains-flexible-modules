@@ -46,6 +46,8 @@ import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.C
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.ClientboundSetPlayerInventoryPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundChunkBatchFinishedPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundGameEventPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundLevelParticlesPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundSoundPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.scoreboard.ClientboundResetScorePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.scoreboard.ClientboundSetDisplayObjectivePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.scoreboard.ClientboundSetObjectivePacket;
@@ -170,6 +172,9 @@ public final class Bot {
     private final List<String> actionBars = new CopyOnWriteArrayList<>();
     private final Map<UUID, String> bossBars = new ConcurrentHashMap<>();
     private final List<String> bossBarsSeen = new CopyOnWriteArrayList<>();
+    /** Sound keys heard and particle types seen, since the last {@link #forgetEffects}. */
+    private final List<String> soundsHeard = new CopyOnWriteArrayList<>();
+    private final List<String> particlesSeen = new CopyOnWriteArrayList<>();
     private final Map<String, Map<String, Integer>> scores = new ConcurrentHashMap<>();
     private final Map<String, Map<String, String>> scoreTexts = new ConcurrentHashMap<>();
     private final Map<String, String[]> teams = new ConcurrentHashMap<>();
@@ -345,6 +350,9 @@ public final class Bot {
             }
             case ClientboundPlayerCombatKillPacket ignored -> dead = true;
             case ClientboundSetHeldSlotPacket held -> heldSlot = held.getSlot();
+            case ClientboundSoundPacket sound -> soundsHeard.add(sound.getSound().getName().replace("minecraft:", ""));
+            case ClientboundLevelParticlesPacket particles ->
+                    particlesSeen.add(particles.getParticle().getType().name());
             case ClientboundSystemChatPacket line -> {
                 if (line.isOverlay()) {
                     actionBars.add(PLAIN.serialize(line.getContent()));
@@ -864,6 +872,22 @@ public final class Bot {
     }
 
     /** The boss bars showing now. */
+    /** Every sound it was played since the last {@link #forgetEffects}, as keys like entity.enderman.teleport. */
+    public List<String> soundsHeard() {
+        return List.copyOf(soundsHeard);
+    }
+
+    /** Every particle type it was shown since the last {@link #forgetEffects}, like PORTAL. */
+    public List<String> particlesSeen() {
+        return List.copyOf(particlesSeen);
+    }
+
+    public Bot forgetEffects() {
+        soundsHeard.clear();
+        particlesSeen.clear();
+        return this;
+    }
+
     public List<String> bossBars() {
         return List.copyOf(bossBars.values());
     }

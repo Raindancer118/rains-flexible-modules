@@ -32,6 +32,7 @@ public record CosmeticsServices(
         ParticleService particles,
         ReloadService reloading,
         ClearService clearing,
+        de.raindancer.modules.cosmetics.service.TeleportLookService teleports,
         Vanish vanish,
         ICosmeticsScreensOpener screens) {
 

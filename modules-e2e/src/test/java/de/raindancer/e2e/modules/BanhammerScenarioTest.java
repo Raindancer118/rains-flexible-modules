@@ -67,7 +67,7 @@ class BanhammerScenarioTest {
             Await.until("Bo is thrown off", Duration.ofSeconds(15), () -> !bo.isOnline());
             assertThat(bo.disconnectReason()).contains("YOU'VE BEEN HIT WITH THE BANHAMMER BY Ada");
             Await.until("Ada is told", Duration.ofSeconds(10),
-                    () -> ada.chatText().stream().anyMatch(line -> line.contains("hit with the Banhammer")));
+                    () -> ada.chatText().stream().anyMatch(line -> line.contains("has been banned with the Banhammer")));
             assertThat(server.console("banlist players")).contains("Bo");
 
             Bot again = server.paper.bot("Bo");

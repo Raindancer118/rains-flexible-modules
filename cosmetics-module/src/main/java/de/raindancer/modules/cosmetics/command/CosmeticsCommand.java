@@ -32,7 +32,7 @@ import java.util.function.Supplier;
  * {@code /cosmetics} — the menus, plus what is quicker typed than clicked:
  * {@code name preset <id>}, {@code name set <colours…> [decorations…]}, {@code name reset [player]},
  * {@code particle <name>|off|shape <shape>|colour <colour>}, {@code clear [name|particles|all] [player]},
- * {@code reload}.
+ * {@code teleport depart|arrive|wait <sound|particle|default|none>}, {@code reload}.
  */
 public final class CosmeticsCommand implements ICosmeticsCommand {
 
@@ -71,15 +71,35 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
             particle(live, sender, Arrays.copyOfRange(args, 1, args.length));
             return;
         }
+        if ((first.equals("teleport") || first.equals("tp")) && args.length > 1) {
+            teleport(live, sender, Arrays.copyOfRange(args, 1, args.length));
+            return;
+        }
         if (sender instanceof Player player) {
             switch (first) {
                 case "name" -> live.screens().nameStyle(player);
                 case "particle", "particles" -> live.screens().particles(player);
+                case "teleport", "tp" -> live.screens().teleports(player);
                 default -> live.screens().hub(player);
             }
             return;
         }
         live.messages().send(sender, "cosmetics.usage");
+    }
+
+    /** {@code teleport depart|arrive|wait <sound or particle|default|none>} — the same as the menu's rows. */
+    private void teleport(CosmeticsServices live, CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "cosmetics.only-a-player");
+            return;
+        }
+        Optional<de.raindancer.modules.cosmetics.model.TeleportPart> part =
+                de.raindancer.modules.cosmetics.model.TeleportPart.of(args[0]);
+        if (part.isEmpty() || args.length != 2) {
+            live.messages().send(player, "cosmetics.teleport.usage");
+            return;
+        }
+        live.teleports().choose(player, part.get(), args[1]);
     }
 
     /** {@code clear [name|particles|all] [player]} — a scope word is optional, so {@code clear Steve} clears all of Steve's. */
@@ -232,8 +252,22 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
             options.add("name");
             options.add("particle");
             options.add("clear");
+            options.add("teleport");
             if (admin) {
                 options.add("reload");
+            }
+        } else if ((args[0].equalsIgnoreCase("teleport") || args[0].equalsIgnoreCase("tp")) && args.length == 2) {
+            for (var part : de.raindancer.modules.cosmetics.model.TeleportPart.values()) {
+                options.add(part.key());
+            }
+        } else if ((args[0].equalsIgnoreCase("teleport") || args[0].equalsIgnoreCase("tp")) && args.length == 3) {
+            options.add("default");
+            options.add("none");
+            var part = de.raindancer.modules.cosmetics.model.TeleportPart.of(args[1]);
+            if (part.isPresent() && part.get().isSound()) {
+                options.addAll(live.config().teleportSounds());
+            } else if (part.isPresent()) {
+                live.particles().offered().stream().map(name -> name.toLowerCase(Locale.ROOT)).forEach(options::add);
             }
         } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 2) {
             options.addAll(List.of("off", "shape", "colour", "density", "speed"));

@@ -29,6 +29,9 @@ public final class PermissionNodes {
     /** Every restricted preset at once. Checked by hand as well, since Bukkit has no wildcards. */
     public static final String PRESET_ALL = Preset.PERMISSION_PREFIX + "*";
     public static final String PARTICLES = "rainscosmetics.particles";
+    public static final String TELEPORT = "rainscosmetics.teleport";
+    /** Any sound for a teleport, not only the server's list. Loud ones included, so for staff. */
+    public static final String TELEPORT_ANY_SOUND = "rainscosmetics.teleport.any-sound";
     public static final String CLEAR = "rainscosmetics.clear";
     public static final String CLEAR_OTHERS = "rainscosmetics.clear.others";
     public static final String ADMIN = "rainscosmetics.admin";
@@ -56,6 +59,10 @@ public final class PermissionNodes {
                     decoration == TextDecoration.OBFUSCATED ? PermissionDefault.OP : PermissionDefault.TRUE));
         }
         nodes.add(new Permission(PARTICLES, "Wear a particle effect", PermissionDefault.TRUE));
+        nodes.add(new Permission(TELEPORT, "Choose your own teleport sounds and waiting particles",
+                PermissionDefault.TRUE));
+        nodes.add(new Permission(TELEPORT_ANY_SOUND, "Choose any sound for your teleports, not only the server's list",
+                PermissionDefault.OP));
         nodes.add(new Permission(CLEAR, "Take your own name style and particle off with /cosmetics clear",
                 PermissionDefault.TRUE));
         nodes.add(new Permission(CLEAR_OTHERS, "Take somebody else's name style and particle off",

@@ -291,9 +291,7 @@ public final class FarmTravelService implements IFarmWorldService {
         public void counting(Player traveller, int secondsLeft, Trip trip) {
             messages.send(traveller, "farmworlds.warming-up",
                     "name", farm.name(), "seconds", secondsLeft);
-            // One tick per second of the wait, and the done cue on the last one — so somebody standing still
-            // knows they are nearly there without watching chat. Both Core's, by meaning.
-            play(traveller, secondsLeft <= 1 ? Cues.COUNTDOWN_DONE : Cues.COUNTDOWN);
+            // The ding each second is Core's, for every teleport, in the traveller's own sound if they picked one.
         }
 
         /**
@@ -311,7 +309,7 @@ public final class FarmTravelService implements IFarmWorldService {
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
             between.start(traveller.getUniqueId());
-            play(traveller, Cues.TELEPORT);
+            // No arrival cue here: Core's Travel plays it for every teleport, in the traveller's own choice.
             // Where they came out only matters when it was somewhere unpredictable. On the platform it is
             // the same three numbers every time, and printing them is noise.
             if (how.isScattered()) {

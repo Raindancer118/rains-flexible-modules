@@ -63,6 +63,11 @@ public final class CosmeticsMenu extends Menu implements ICosmeticsScreen {
                         "", "<dark_gray>Click to pick one."),
                 click -> new ParticleMenu(services, viewer, this).open());
 
+        band(MenuLayout.WHO, 7, Icons.of(Material.ENDER_PEARL,
+                        MINI.serialize(services.messages().get("cosmetics.teleport.menu.door")),
+                        MINI.serialize(services.messages().get("cosmetics.teleport.menu.door-lore"))),
+                click -> new TeleportMenu(services, viewer, this).open());
+
         boolean mayClearOthers = services.clearing().may(viewer, false);
         toolbar(4, mayClearOthers,
                 Icons.of(Material.SPONGE, "<white>Clear somebody else's",
