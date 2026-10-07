@@ -67,7 +67,7 @@ public final class PlayerChecksMenu extends PaginatedMenu<CheckType> implements 
             if (shown++ == 3) {
                 break;
             }
-            lore.add("<gray> · " + entry.detail());
+            lore.add("<gray> · " + MiniMessage.miniMessage().escapeTags(entry.detail()));
         }
         lore.add("");
         lore.add("<dark_gray>Click to list its evidence in chat.");

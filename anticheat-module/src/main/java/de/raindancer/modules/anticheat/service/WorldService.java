@@ -111,7 +111,7 @@ public final class WorldService implements IAntiCheatService {
             if (blatant.failed()) {
                 cancel |= flag(player, track, CheckType.FAST_BREAK, 2, 0, blatant.reason() + " (" + name(block.getType()) + ")");
             } else {
-                double shortfall = breaking.shortfall(elapsed, expected, 50 + Math.min(150, track.ping / 4.0));
+                double shortfall = breaking.shortfall(elapsed, expected, 50 + track.compensated(settings.maxPing()) / 4.0);
                 boolean over;
                 synchronized (track) {
                     PlayerTrack.World w = track.world;
@@ -241,7 +241,7 @@ public final class WorldService implements IAntiCheatService {
     }
 
     private boolean judgeReach(Player player, PlayerTrack track, BoundingBox box, String what) {
-        if (!violations.runs(track, CheckType.BLOCK_REACH) || track.ping > settings.maxPing()) {
+        if (!violations.runs(track, CheckType.BLOCK_REACH)) {
             return false;
         }
         double range = attribute(player, Attribute.BLOCK_INTERACTION_RANGE, player.getGameMode() == GameMode.CREATIVE ? 5.0 : 4.5);

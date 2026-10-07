@@ -123,7 +123,7 @@ public final class MovementEngine implements IAntiCheatService {
                     moved(player, track, sample, paused);
                 }
             }
-            if (!paused && track.ping <= now_.maxPing()) {
+            if (!paused) {
                 judgeTimer(player, track, now_.timerLeniency());
             }
             settleVelocities(player, track, now);
@@ -138,7 +138,7 @@ public final class MovementEngine implements IAntiCheatService {
     private void judgeInventory(Player player, PlayerTrack track, long now) {
         PlayerTrack.Movement m = track.movement;
         long opened = track.world.containerOpenedMillis;
-        if (opened == 0 || now - opened < 400L + track.ping || !m.inputSeen || !(m.moving() || m.jump)
+        if (opened == 0 || now - opened < 400L + track.compensated(settings.maxPing()) || !m.inputSeen || !(m.moving() || m.jump)
                 || Double.isNaN(m.lastHd) || m.lastHd < 0.1 || m.special || player.isGliding() || player.isFlying()
                 || player.isInsideVehicle() || track.exemption() != null || !run(track, CheckType.INVENTORY_MOVE)) {
             return;
@@ -200,7 +200,7 @@ public final class MovementEngine implements IAntiCheatService {
         int ticks = Math.max(1, sample.ticks());
         Surroundings here = Surroundings.at(world, sample.x(), sample.y(), sample.z(), player.getWidth(), player.getHeight());
 
-        boolean free = freelyMoving(player, track) || paused || track.ping > settings.maxPing() * 2;
+        boolean free = freelyMoving(player, track) || paused;
         PlayerTrack.Exemption exemption = track.exemption();
         if (free || exemption != null) {
             remember(world, m, sample, dy, hd, here, true);
@@ -490,14 +490,14 @@ public final class MovementEngine implements IAntiCheatService {
 
     private void settleVelocities(Player player, PlayerTrack track, long now) {
         PlayerTrack.Movement m = track.movement;
-        long window = Math.min(1500, track.ping * 2L + 500);
+        long window = Math.min(1500, track.compensated(settings.maxPing()) * 2L + 500);
         for (Iterator<double[]> it = m.velocities.iterator(); it.hasNext(); ) {
             double[] v = it.next();
             if (now - (long) v[3] < window) {
                 continue;
             }
             it.remove();
-            if (v[5] > 0 || track.exemption() != null || freelyMoving(player, track) || track.ping > settings.maxPing()
+            if (v[5] > 0 || track.exemption() != null || freelyMoving(player, track)
                     || !run(track, CheckType.VELOCITY)) {
                 continue;
             }
@@ -514,7 +514,7 @@ public final class MovementEngine implements IAntiCheatService {
         PlayerTrack.Combat c = track.combat;
         while (!c.pendingHits.isEmpty() && now - c.pendingHits.peekFirst().atMillis() >= 60) {
             PlayerTrack.PendingHit hit = c.pendingHits.removeFirst();
-            if (!run(track, CheckType.HITBOX) || track.ping > settings.maxPing()) {
+            if (!run(track, CheckType.HITBOX)) {
                 continue;
             }
             List<CombatRule.Rotation> rotations = new ArrayList<>();
@@ -551,7 +551,7 @@ public final class MovementEngine implements IAntiCheatService {
             return;
         }
         String why = null;
-        if (m.inputSeen && !m.forward && now - m.inputChangedMillis > 200 + track.ping) {
+        if (m.inputSeen && !m.forward && now - m.inputChangedMillis > 200 + track.compensated(settings.maxPing())) {
             why = m.backward ? "sprinting backwards" : "sprinting without moving forward";
         } else if (player.getFoodLevel() <= 6 && player.getGameMode() == GameMode.SURVIVAL && !player.getAllowFlight()) {
             why = "sprinting while starving";

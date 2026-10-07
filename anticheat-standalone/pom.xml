@@ -23,8 +23,8 @@
         <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsAntiCheat</plugin.name>
-        <!-- 0.1.0: the first release — movement, combat, world, inventory, packet and client checks. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.1.1: ping never switches a check off; escaped evidence in menus. -->
+        <plugin.version>0.1.1</plugin.version>
     </properties>
 
     <dependencies>

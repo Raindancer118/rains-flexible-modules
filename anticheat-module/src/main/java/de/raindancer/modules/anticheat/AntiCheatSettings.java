@@ -41,9 +41,9 @@ public record AntiCheatSettings(
         @Key("min-tps")
         double minTps,
 
-        @In("anticheat") @Title("Pause above this ping") @Range(min = 50, max = 5000)
-        @Describe("Players with a worse ping (in milliseconds) are not judged by checks that depend on "
-                + "timing: reach, knockback, timer, hitbox.")
+        @In("anticheat") @Title("Most lag to make up for") @Range(min = 50, max = 5000)
+        @Describe("Lag compensation grows with a player's ping up to this many milliseconds and no "
+                + "further. Nobody is exempt for a bad ping: a client can fake any ping it likes.")
         @Key("max-ping")
         int maxPing,
 

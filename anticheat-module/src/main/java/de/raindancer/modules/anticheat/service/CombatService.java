@@ -88,13 +88,12 @@ public final class CombatService implements IAntiCheatService {
         double margin = range == null ? 0 : range.hitboxMargin();
 
         List<Vector> eyes = eyes(attacker, track, now);
-        List<BoundingBox> boxes = boxes(target, now, track.ping);
+        List<BoundingBox> boxes = boxes(target, now, track.compensated(settings.maxPing()));
         if (margin > 0) {
             boxes.replaceAll(box -> box.clone().expand(margin));
         }
-        boolean timingTrusted = track.ping <= settings.maxPing();
 
-        if (timingTrusted && violations.runs(track, CheckType.REACH)) {
+        if (violations.runs(track, CheckType.REACH)) {
             Judgement reached = rule.reach(eyes, boxes, reach, settings.reachLeniency());
             if (reached.failed()) {
                 cancel |= flag(attacker, track, CheckType.REACH, Math.min(4, 1 + reached.offset() * 2), 1,
@@ -113,12 +112,10 @@ public final class CombatService implements IAntiCheatService {
             }
         }
 
-        if (timingTrusted) {
-            synchronized (track) {
-                track.combat.pendingHits.addLast(new PlayerTrack.PendingHit(now, target.getName(), eyes, boxes, reach, margin));
-                while (track.combat.pendingHits.size() > 10) {
-                    track.combat.pendingHits.removeFirst();
-                }
+        synchronized (track) {
+            track.combat.pendingHits.addLast(new PlayerTrack.PendingHit(now, target.getName(), eyes, boxes, reach, margin));
+            while (track.combat.pendingHits.size() > 10) {
+                track.combat.pendingHits.removeFirst();
             }
         }
         return cancel;

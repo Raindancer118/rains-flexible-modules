@@ -66,7 +66,7 @@ public final class InventoryListener implements IAntiCheatListener {
         synchronized (track) {
             PlayerTrack.Movement m = track.movement;
             track.combat.lastInventoryClickMillis = now;
-            boolean screenSure = now - m.inputChangedMillis > 300L + track.ping;
+            boolean screenSure = now - m.inputChangedMillis > 300L + track.compensated(services.config().maxPing());
             if (m.inputSeen && m.moving() && screenSure && !Double.isNaN(m.lastHd) && m.lastHd > 0.15
                     && !player.isGliding() && !player.isInsideVehicle() && !player.isFlying() && !m.special) {
                 walking = String.format(Locale.ROOT, "clicked slot %d while walking at %.2f", event.getRawSlot(), m.lastHd);

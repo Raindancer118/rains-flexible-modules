@@ -50,6 +50,14 @@ public final class PlayerTrack {
     public volatile boolean kicking;
     public volatile int ping;
 
+    /**
+     * The ping lag compensation may assume, capped: a client can fake any ping by holding back its
+     * keep-alive answers, so ping only ever widens tolerances up to the cap and never switches a check off.
+     */
+    public int compensated(int maxPing) {
+        return Math.max(0, Math.min(ping, maxPing));
+    }
+
     /** Why movement checks are off for a while. */
     public enum Exemption {
         JOINED, TELEPORTED, RESPAWNED, WORLD_CHANGED, GAME_MODE, VEHICLE, FLIGHT, ELYTRA, RIPTIDE,
