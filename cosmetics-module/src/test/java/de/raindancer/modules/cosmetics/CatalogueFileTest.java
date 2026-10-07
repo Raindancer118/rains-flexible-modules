@@ -84,4 +84,68 @@ class CatalogueFileTest {
         assertThat(loaded.palette()).isEmpty();
         assertThat(loaded.presets()).isEmpty();
     }
+
+    /** A file as an older version wrote it: the first eleven presets and the first palette. */
+    private void olderFile(String presetsYaml) throws IOException {
+        Files.writeString(config(), """
+                palette:
+                  white: '#f9fffe'
+                  pink: '#f38baa'
+                  gold: '#ffaa00'
+                presets:
+                """ + presetsYaml);
+    }
+
+    @Test
+    @DisplayName("the shipped catalogue is plenty, every preset in it loads, and no two share a name")
+    void shippedCatalogueIsSound() {
+        List<String> problems = new ArrayList<>();
+        Catalogue loaded = new CatalogueFile(config()).load(problems::add);
+        assertThat(problems).isEmpty();
+        assertThat(loaded.presets()).hasSizeGreaterThanOrEqualTo(50);
+        assertThat(loaded.presets()).extracting(preset -> preset.title().toLowerCase())
+                .doesNotHaveDuplicates();
+        assertThat(loaded.palette()).hasSizeGreaterThanOrEqualTo(30);
+        assertThat(loaded.preset("creeper")).isPresent();
+        assertThat(loaded.preset("trans")).isPresent();
+        assertThat(loaded.colourNamed("peach")).isPresent();
+    }
+
+    @Test
+    @DisplayName("a server with an older file gets the new presets and colours; its own edits and deletions stay")
+    void olderFilesUpgrade() throws IOException {
+        olderFile("""
+                  sunset:
+                    title: Abendrot
+                    colours: ['#ff5f6d', '#ffc371']
+                  ocean:
+                    title: Ocean
+                    colours: ['#2193b0', '#6dd5ed']
+                """);
+        Catalogue loaded = new CatalogueFile(config()).load(problem -> { });
+
+        assertThat(loaded.preset("creeper")).as("a new one arrived").isPresent();
+        assertThat(loaded.colourNamed("peach")).as("a new colour arrived").isPresent();
+        assertThat(loaded.preset("sunset").orElseThrow().title()).as("the owner's rename stays").isEqualTo("Abendrot");
+        assertThat(loaded.preset("fire")).as("an original the owner deleted stays deleted").isEmpty();
+        assertThat(loaded.colourNamed("cyan")).as("an original colour they deleted stays deleted").isEmpty();
+    }
+
+    @Test
+    @DisplayName("a new preset is offered once: deleted afterwards, it does not come back")
+    void offeredOnce() throws IOException {
+        olderFile("""
+                  ocean:
+                    title: Ocean
+                    colours: ['#2193b0', '#6dd5ed']
+                """);
+        new CatalogueFile(config()).load(problem -> { });
+        String upgraded = Files.readString(config());
+        Files.writeString(config(), upgraded.replaceAll("(?m)^  creeper:\\n(    .*\\n)+", ""));
+        assertThat(Files.readString(config())).doesNotContain("creeper:");
+
+        Catalogue again = new CatalogueFile(config()).load(problem -> { });
+        assertThat(again.preset("creeper")).isEmpty();
+        assertThat(again.preset("emerald")).isPresent();
+    }
 }
