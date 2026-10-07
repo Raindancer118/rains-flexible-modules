@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>voicebridge-module</artifactId>
+    <version>${voicebridge-module.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Voice Bridge</name>
+    <description>
+        A Discord voice channel and a Simple Voice Chat group, joined into one call: whoever is in the
+        group hears the Discord channel, and the Discord channel hears the group.
+    </description>
+
+    <repositories>
+        <repository>
+            <id>henkelmax</id>
+            <url>https://maven.maxhenkel.de/repository/public</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${modules-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Provided by the Simple Voice Chat plugin at runtime (join-classpath). 2.6.0 is the oldest
+             API with multi-target static channels, which is what the whole group hears through. -->
+        <dependency>
+            <groupId>de.maxhenkel.voicechat</groupId>
+            <artifactId>voicechat-api</artifactId>
+            <version>${voicechat-api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Discord. Since 01.03.2026 a voice connection without DAVE (end-to-end encryption) is
+             refused, so JDA alone connects and is then dropped; JDAVE is the DAVE implementation. -->
+        <dependency>
+            <groupId>net.dv8tion</groupId>
+            <artifactId>JDA</artifactId>
+            <version>${jda.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>club.minnced</groupId>
+            <artifactId>jdave-api</artifactId>
+            <version>${jdave.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>club.minnced</groupId>
+            <artifactId>jdave-native-linux-x86-64</artifactId>
+            <version>${jdave.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>club.minnced</groupId>
+            <artifactId>jdave-native-linux-aarch64</artifactId>
+            <version>${jdave.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>club.minnced</groupId>
+            <artifactId>jdave-native-win-x86-64</artifactId>
+            <version>${jdave.version}</version>
+        </dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,53 @@
+# Rain's Voice Bridge — every line this module says.
+#
+# Offered as a floor: anything an owner already has in their own messages.yml wins.
+voicebridge:
+
+  usage: "<gray>/voicebridge  ·  join  ·  leave  ·  status  ·  reconnect"
+  only-a-player: "<red>Only a player in the game can join or leave a voice chat group."
+  not-allowed: "<red>You may not use the Discord voice bridge."
+
+  not-ready:
+    off: "<gray>The Discord bridge is switched off in /settings."
+    no-token: "<yellow>No Discord bot token yet. Paste it into discord-token.txt in this plugin's folder, then /voicebridge reconnect."
+    no-server: "<yellow>No Discord server id yet. Set it in /settings under Discord voice bridge."
+    bad-server: "<red>The Discord server id in /settings is not an id. Right click the server icon, Copy Server ID."
+    no-channel: "<yellow>No Discord voice channel id yet. Set it in /settings under Discord voice bridge."
+    bad-channel: "<red>The voice channel id in /settings is not an id. Right click the channel, Copy Channel ID."
+
+  failed:
+    token: "<red>Discord refused the bot token. Paste a fresh one into discord-token.txt, then /voicebridge reconnect."
+    dave: "<red>Discord voice encryption could not start on this server's system. See the server log."
+    discord: "<red>The Discord bot could not start. See the server log."
+    no-server: "<red>The bot is not on that Discord server. Invite it first, then /voicebridge reconnect."
+    no-channel: "<red>That voice channel does not exist on the Discord server, or the bot cannot see it."
+    no-permission: "<red>The bot may not connect or speak in that voice channel. Give it Connect and Speak."
+    reconnecting: "<yellow>The Discord voice connection dropped; trying again."
+    voice: "<red>Discord closed the voice connection. /voicebridge reconnect to try again."
+
+  discord:
+    joined: "<gray><white><name></white> joined the Discord call."
+    left: "<gray><white><name></white> left the Discord call."
+
+  group:
+    joined: "<aqua>You are bridged to Discord channel <white><channel></white> (<count> there). <yellow>Everything you say in this group is heard on Discord."
+    joined-offline: "<aqua>You joined the Discord group. <yellow>Once the bot is connected, everything you say here is heard on Discord."
+    left: "<gray>You left the Discord group. Discord no longer hears you."
+
+  join:
+    done: "<green>Joined the Discord group."
+    already: "<gray>You are already in the Discord group."
+    no-voicechat: "<red>You need the Simple Voice Chat mod, connected, to join a voice group."
+    not-ready: "<red>The voice chat is not running yet. Try again in a moment."
+
+  leave:
+    done: "<green>Left the Discord group."
+    not-in: "<gray>You are not in the Discord group."
+
+  status:
+    connected: "<green>Connected to Discord channel <white><channel></white>. <gray>On Discord: <white><discord></white>. In group <white><group></white>: <white><count></white>."
+    connecting: "<yellow>Connecting to Discord…"
+
+  reconnect:
+    not-allowed: "<red>Only staff can reconnect the Discord bot."
+    started: "<gray>Reconnecting to Discord. /voicebridge status shows how it went."
