@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -46,11 +47,12 @@ public final class GroupService implements IVoiceBridgeService {
     private final Supplier<Iterable<UUID>> online;
     private final Inviter inviter;
     private final LongSupplier clock;
+    private final Predicate<UUID> mayUseGroups;
     private final List<Invite> invites = new ArrayList<>();
 
     public GroupService(Supplier<Optional<VoicechatServerApi>> api, Function<UUID, Optional<Long>> links,
                         GroupJoinRule rule, Function<Group, String> passwordOf, Supplier<Iterable<UUID>> online,
-                        Inviter inviter, LongSupplier clock) {
+                        Inviter inviter, LongSupplier clock, Predicate<UUID> mayUseGroups) {
         this.api = api;
         this.links = links;
         this.rule = rule;
@@ -58,7 +60,11 @@ public final class GroupService implements IVoiceBridgeService {
         this.online = online;
         this.inviter = inviter;
         this.clock = clock;
+        this.mayUseGroups = mayUseGroups;
     }
+
+    /** SVC's own voicechat.groups node. Its API joins without asking, so this asks for it. */
+    public static final String SVC_GROUPS_PERMISSION = "voicechat.groups";
 
     @Override
     public void settings(VoiceBridgeSettings settings) {
@@ -104,6 +110,9 @@ public final class GroupService implements IVoiceBridgeService {
     }
 
     public String join(UUID player, String nameOrId, String password) {
+        if (!mayUseGroups.test(player)) {
+            return "voicebridge.groups.no-permission";
+        }
         VoicechatConnection connection = connection(player);
         if (connection == null) {
             return "voicebridge.join.not-ready";
@@ -140,6 +149,9 @@ public final class GroupService implements IVoiceBridgeService {
     }
 
     public String create(UUID player, String name, String password, String type) {
+        if (!mayUseGroups.test(player)) {
+            return "voicebridge.groups.no-permission";
+        }
         VoicechatConnection connection = connection(player);
         Optional<VoicechatServerApi> live = api.get();
         if (connection == null || live.isEmpty()) {
@@ -163,6 +175,9 @@ public final class GroupService implements IVoiceBridgeService {
     }
 
     public String invite(UUID from, UUID target) {
+        if (!mayUseGroups.test(from)) {
+            return "voicebridge.groups.no-permission";
+        }
         Optional<Group> group = groupOf(from);
         if (group.isEmpty()) {
             return "voicebridge.groups.not-in-group";
@@ -180,6 +195,9 @@ public final class GroupService implements IVoiceBridgeService {
      * invite actually sent to this player for this group, and only once.
      */
     public String accept(UUID player, UUID groupId) {
+        if (!mayUseGroups.test(player)) {
+            return "voicebridge.groups.no-permission";
+        }
         if (!spendInvite(player, groupId)) {
             return "voicebridge.groups.no-invite";
         }

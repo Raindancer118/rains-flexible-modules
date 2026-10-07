@@ -37,6 +37,7 @@ class GroupServiceTest {
     private Group locked;
     private GroupService groups;
     private long now = 0;
+    private final java.util.Set<UUID> noGroupsPermission = new java.util.HashSet<>();
 
     @BeforeEach
     void setUp() {
@@ -49,7 +50,7 @@ class GroupServiceTest {
         groups = new GroupService(() -> Optional.of(api), player -> Optional.ofNullable(linked.get(player)),
                 new GroupJoinRule(), group -> passwords.get(group.getId()), () -> online,
                 (inviter, target, group) -> invitesSent.add(inviter + ">" + target + ":" + group.getName()),
-                () -> now);
+                () -> now, player -> !noGroupsPermission.contains(player));
     }
 
     private static Group group(String name, boolean password, Group.Type type) {
@@ -244,5 +245,21 @@ class GroupServiceTest {
         when(api.getGroups()).thenReturn(List.of(open));
 
         assertThat(groups.accept(sam, locked.getId())).isEqualTo("voicebridge.groups.no-such-group");
+    }
+
+    @Test
+    @DisplayName("without SVC's voicechat.groups, none of it works — SVC's API would not check it for us")
+    void needsSvcsGroupsPermission() {
+        VoicechatConnection alexes = connection(alex, null, false);
+        connection(sam, locked, false);
+        noGroupsPermission.add(alex);
+
+        assertThat(groups.join(alex, "Builders", null)).isEqualTo("voicebridge.groups.no-permission");
+        assertThat(groups.create(alex, "Cave", null, "normal")).isEqualTo("voicebridge.groups.no-permission");
+        groups.invite(sam, alex);
+        assertThat(groups.accept(alex, locked.getId())).isEqualTo("voicebridge.groups.no-permission");
+        connection(alex, open, false);
+        assertThat(groups.invite(alex, sam)).isEqualTo("voicebridge.groups.no-permission");
+        verify(alexes, never()).setGroup(any());
     }
 }

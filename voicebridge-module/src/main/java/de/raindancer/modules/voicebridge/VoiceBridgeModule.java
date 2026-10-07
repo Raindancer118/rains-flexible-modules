@@ -102,7 +102,7 @@ public final class VoiceBridgeModule implements FlexModule {
         GroupService groups = new GroupService(gateway::api, links::discordOf, new GroupJoinRule(),
                 SvcPasswords::passwordOf, () -> onlinePlayers(server),
                 (inviter, target, group) -> sendInvite(context, inviter, target, group.getId(), group.getName()),
-                System::currentTimeMillis);
+                System::currentTimeMillis, player -> allowed(server, player, GroupService.SVC_GROUPS_PERMISSION));
 
         bridge.wire(gateway, discord, pool, lobby);
         gateway.register(server);
@@ -175,6 +175,11 @@ public final class VoiceBridgeModule implements FlexModule {
         Component line = messages.prefixed("voicebridge.groups.invited",
                 "player", from == null ? "?" : from.getName(), "group", groupName);
         Scheduling.entity(context.plugin(), invited, () -> invited.sendMessage(line.append(Component.space()).append(button)));
+    }
+
+    private static boolean allowed(Server server, UUID player, String node) {
+        Player online = server.getPlayer(player);
+        return online != null && online.hasPermission(node);
     }
 
     private static List<UUID> onlinePlayers(Server server) {

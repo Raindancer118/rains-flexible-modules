@@ -6,6 +6,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.voicebridge.VoiceBridgeServices;
 import de.raindancer.modules.voicebridge.model.BridgeStatus;
+import de.raindancer.modules.voicebridge.service.GroupService;
 import de.raindancer.modules.voicebridge.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -84,7 +85,9 @@ public final class VoiceBridgeRootMenu extends Menu implements IVoiceBridgeScree
                             "<yellow>Everything you say is sent to Discord",
                             "<yellow>while you are in the group."),
                     "You need the Simple Voice Chat mod, or a linked Discord account.",
-                    click -> act(services.bridge().join(viewer.getUniqueId(), bridged), "voicebridge.join.done"));
+                    click -> act(viewer.hasPermission(GroupService.SVC_GROUPS_PERMISSION)
+                            ? services.bridge().join(viewer.getUniqueId(), bridged)
+                            : "voicebridge.groups.no-permission", "voicebridge.join.done"));
         }
 
         boolean linked = services.links().discordOf(viewer.getUniqueId()).isPresent();
