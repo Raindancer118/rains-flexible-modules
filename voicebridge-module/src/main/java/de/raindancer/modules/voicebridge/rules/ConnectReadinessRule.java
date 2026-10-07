@@ -16,7 +16,7 @@ public final class ConnectReadinessRule implements IVoiceBridgeRule {
      */
     public Optional<String> refusal(boolean enabled, String token, DiscordTarget target, String lobbyId) {
         if (!enabled) {
-            return Optional.of("voicebridge.not-ready.off");
+            return Optional.of("voicebridge.not-ready.switched-off");
         }
         if (token == null || token.isBlank()) {
             return Optional.of("voicebridge.not-ready.no-token");

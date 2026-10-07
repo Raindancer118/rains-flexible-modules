@@ -184,7 +184,7 @@ public final class GroupService implements IVoiceBridgeService {
             return "voicebridge.groups.no-invite";
         }
         VoicechatConnection connection = connection(player);
-        Group group = api.get().map(live -> live.getGroup(groupId)).orElse(null);
+        Group group = api.get().map(live -> VoicechatGateway.groupById(live, groupId)).orElse(null);
         if (group == null) {
             return "voicebridge.groups.no-such-group";
         }
@@ -210,7 +210,7 @@ public final class GroupService implements IVoiceBridgeService {
         }
         String wanted = unquote(nameOrId);
         try {
-            Group byId = live.get().getGroup(UUID.fromString(wanted));
+            Group byId = VoicechatGateway.groupById(live.get(), UUID.fromString(wanted));
             if (byId != null) {
                 return byId;
             }

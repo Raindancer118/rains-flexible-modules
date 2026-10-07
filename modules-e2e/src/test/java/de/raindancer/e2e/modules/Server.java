@@ -34,6 +34,12 @@ final class Server implements AutoCloseable {
 
     /** As above, plus plugins from outside the reactor (e.g. Simple Voice Chat), as jars on disk. */
     static Server start(String scenario, List<String> plugins, List<Path> otherJars, List<String> upLines) {
+        return start(scenario, plugins, otherJars, java.util.Map.of(), upLines);
+    }
+
+    /** As above, plus files written into the server folder before it starts (data a plugin finds). */
+    static Server start(String scenario, List<String> plugins, List<Path> otherJars,
+                        java.util.Map<String, String> files, List<String> upLines) {
         PaperServer.Builder builder = PaperServer.builder(E2e.PAPER_VERSION, E2e.PAPER_BUILD)
                 .seed(1)
                 .in(E2e.serverFolder(scenario))
@@ -43,6 +49,7 @@ final class Server implements AutoCloseable {
             builder.plugin(jar(parts[0], parts[1]));
         }
         otherJars.forEach(builder::plugin);
+        files.forEach(builder::file);
         Server server = new Server(scenario, builder.build());
         try {
             server.paper.start();

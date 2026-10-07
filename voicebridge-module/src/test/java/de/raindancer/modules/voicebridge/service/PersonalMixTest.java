@@ -110,4 +110,15 @@ class PersonalMixTest {
 
         assertThat(mix.next(EAR)).isNull();
     }
+
+    @Test
+    @DisplayName("the owner's 'game, as heard on Discord' volume scales the whole mix")
+    void volume() {
+        mix.settings(de.raindancer.modules.voicebridge.VoiceBridgeSettings.DEFAULTS.withGameVolumePercent(50)
+                .withBufferFrames(5));
+        mix.offer(channelA, loud(), new Placement.Static());
+        mix.offer(channelA, loud(), new Placement.Static());
+
+        assertThat(left(mix.next(EAR), 0)).isEqualTo(5_000);
+    }
 }

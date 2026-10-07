@@ -70,6 +70,7 @@ public final class VoiceBridgeRootMenu extends Menu implements IVoiceBridgeScree
 
         boolean member = services.gateway().isMember(viewer.getUniqueId());
         boolean hasVoicechat = services.gateway().hasVoicechat(viewer.getUniqueId());
+        boolean bridged = services.groups().isBridged(viewer.getUniqueId());
         if (member) {
             band(MenuLayout.RULES, 3, true, Icons.of(Material.RED_DYE,
                             "<red>Leave the Discord group",
@@ -77,17 +78,36 @@ public final class VoiceBridgeRootMenu extends Menu implements IVoiceBridgeScree
                             "<dark_gray>Discord stops hearing you straight away."),
                     "", click -> act(services.bridge().leave(viewer.getUniqueId()), "voicebridge.leave.done"));
         } else {
-            band(MenuLayout.RULES, 3, hasVoicechat, Icons.of(Material.LIME_DYE,
+            band(MenuLayout.RULES, 3, hasVoicechat || bridged, Icons.of(Material.LIME_DYE,
                             "<green>Join the Discord group",
                             "<gray>Hear the Discord channel, and be heard there.",
                             "<yellow>Everything you say is sent to Discord",
                             "<yellow>while you are in the group."),
-                    "You need the Simple Voice Chat mod, connected.",
-                    click -> act(services.bridge().join(viewer.getUniqueId()), "voicebridge.join.done"));
+                    "You need the Simple Voice Chat mod, or a linked Discord account.",
+                    click -> act(services.bridge().join(viewer.getUniqueId(), bridged), "voicebridge.join.done"));
         }
 
+        boolean linked = services.links().discordOf(viewer.getUniqueId()).isPresent();
+        band(MenuLayout.RULES, 1, true, linked
+                        ? Icons.of(Material.NAME_TAG, "<green>Discord account linked",
+                        "<gray>Talk through Discord in proximity chat:",
+                        "<gray>join the lobby voice channel there.",
+                        "<dark_gray>Click to unlink.")
+                        : Icons.of(Material.NAME_TAG, "<white>Link your Discord account",
+                        "<gray>Get a code, then type /link <code>",
+                        "<gray>in the Discord server.",
+                        "<dark_gray>Then talk in proximity chat through Discord."),
+                "", click -> link(linked));
+
+        band(MenuLayout.RULES, 5, bridged, Icons.of(Material.BELL, "<white>Voice chat groups",
+                        "<gray>Join, leave, make and invite to groups,",
+                        "<gray>like the voice chat's own group screen."),
+                hasVoicechat ? "You have the mod: use the voice chat's own group screen (G)."
+                        : "Link your Discord account first.",
+                click -> new VoiceGroupsMenu(services, viewer, this).open());
+
         boolean admin = viewer.hasPermission(PermissionNodes.ADMIN);
-        band(MenuLayout.RULES, 5, admin, Icons.of(Material.ENDER_PEARL,
+        band(MenuLayout.RULES, 7, admin, Icons.of(Material.ENDER_PEARL,
                         "<white>Reconnect the bot",
                         "<gray>Reads the token file again and rejoins",
                         "<gray>the channel set in /settings."),
@@ -136,6 +156,18 @@ public final class VoiceBridgeRootMenu extends Menu implements IVoiceBridgeScree
             services.messages().send(viewer, refusal);
         }
         refresh();
+    }
+
+    private void link(boolean linked) {
+        viewer.closeInventory();
+        if (linked) {
+            services.lobby().unlinked(viewer.getUniqueId());
+            services.links().unlink(viewer.getUniqueId());
+            services.messages().send(viewer, "voicebridge.link.unlinked");
+        } else {
+            services.messages().send(viewer, "voicebridge.link.code", "code",
+                    services.links().codeFor(viewer.getUniqueId()));
+        }
     }
 
     private void reconnect() {

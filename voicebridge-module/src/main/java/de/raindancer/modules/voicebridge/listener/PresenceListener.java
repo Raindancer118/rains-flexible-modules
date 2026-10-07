@@ -3,20 +3,26 @@ package de.raindancer.modules.voicebridge.listener;
 import de.raindancer.modules.voicebridge.VoiceBridgeServices;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.UUID;
 
 /**
- * Lets go of somebody's decoder and queued audio when they leave. Simple Voice Chat says so too,
- * but only for players whose voice chat had connected — this covers the rest.
+ * Coming and going: a player who joins while their Discord account waits in the lobby is carried in;
+ * one who leaves takes their Discord line, decoder and queued audio with them.
  */
-public final class QuitListener implements IVoiceBridgeListener {
+public final class PresenceListener implements IVoiceBridgeListener {
 
     private final VoiceBridgeServices services;
 
-    public QuitListener(VoiceBridgeServices services) {
+    public PresenceListener(VoiceBridgeServices services) {
         this.services = services;
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent event) {
+        services.lobby().playerJoined(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -27,5 +33,6 @@ public final class QuitListener implements IVoiceBridgeListener {
     @Override
     public void forget(UUID player) {
         services.gateway().forget(player);
+        services.lobby().playerLeft(player);
     }
 }

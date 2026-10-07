@@ -63,7 +63,7 @@
         <invsnap-module.version>1.1.0</invsnap-module.version>
         <xpbottle-module.version>1.0.0</xpbottle-module.version>
         <!-- 0.x until it has been heard working on a live server with real players. -->
-        <voicebridge-module.version>0.1.0</voicebridge-module.version>
+        <voicebridge-module.version>0.2.0</voicebridge-module.version>
         <voicechat-api.version>2.6.0</voicechat-api.version>
         <jda.version>6.7.0</jda.version>
         <jdave.version>0.1.8</jdave.version>

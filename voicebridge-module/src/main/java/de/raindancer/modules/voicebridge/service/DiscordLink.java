@@ -54,6 +54,12 @@ public final class DiscordLink implements IVoiceBridgeService {
         void left(String name);
 
         void status(BridgeStatus status);
+
+        /** The main bot is logged in and on the server — proximity mode can start. */
+        void ready(JDA jda, String guildId);
+
+        /** The main bot is going away. */
+        void gone();
     }
 
     private final SpeakerMixer<UUID> fromGame;
@@ -64,7 +70,7 @@ public final class DiscordLink implements IVoiceBridgeService {
     private volatile JDA jda;
     private volatile String guildId = "";
     private volatile String channelId = "";
-    private volatile BridgeStatus status = BridgeStatus.off("voicebridge.not-ready.off");
+    private volatile BridgeStatus status = BridgeStatus.off("voicebridge.not-ready.switched-off");
 
     public DiscordLink(SpeakerMixer<UUID> fromGame, Events events, LogChannel log, VoiceBridgeSettings settings) {
         this.fromGame = fromGame;
@@ -84,7 +90,7 @@ public final class DiscordLink implements IVoiceBridgeService {
 
     /** Whether game voices should be queued at all — nobody listening means nothing to buffer. */
     public boolean isListening() {
-        return status.isConnected();
+        return status.isConnected() && !channelId.isEmpty();
     }
 
     public synchronized void connect(String token, DiscordTarget target) {
@@ -110,7 +116,7 @@ public final class DiscordLink implements IVoiceBridgeService {
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             shutdown();
-            report(BridgeStatus.off("voicebridge.not-ready.off"));
+            report(BridgeStatus.off("voicebridge.not-ready.switched-off"));
             return;
         } catch (RuntimeException | LinkageError broken) {
             // LinkageError: JDAVE's native library could not be loaded on this platform.
@@ -125,6 +131,12 @@ public final class DiscordLink implements IVoiceBridgeService {
         if (guild == null) {
             log.warn("The bot is not on the Discord server {} — invite it first.", target.guildId());
             report(BridgeStatus.failed("voicebridge.failed.no-server"));
+            return;
+        }
+        events.ready(client, target.guildId());
+        if (target.channelId().isEmpty()) {
+            // Proximity mode only: logged in, no group bridge channel to sit in.
+            report(new BridgeStatus(BridgeStatus.Phase.CONNECTED, "voicebridge.status.lobby-only", "", List.of()));
             return;
         }
         AudioChannel channel = guild.getChannelById(AudioChannel.class, target.channelId());
@@ -152,7 +164,7 @@ public final class DiscordLink implements IVoiceBridgeService {
     public synchronized void disconnect() {
         shutdown();
         fromGame.clear();
-        report(BridgeStatus.off("voicebridge.not-ready.off"));
+        report(BridgeStatus.off("voicebridge.not-ready.switched-off"));
     }
 
     /** For an explanation that is not a failure: switched off, no token yet. */
@@ -166,6 +178,7 @@ public final class DiscordLink implements IVoiceBridgeService {
         if (client == null) {
             return;
         }
+        events.gone();
         Guild guild = guildId.isEmpty() ? null : client.getGuildById(guildId);
         if (guild != null) {
             guild.getAudioManager().closeAudioConnection();

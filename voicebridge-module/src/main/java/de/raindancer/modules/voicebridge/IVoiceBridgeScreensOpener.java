@@ -6,4 +6,6 @@ import org.bukkit.entity.Player;
 public interface IVoiceBridgeScreensOpener {
 
     void root(Player viewer);
+
+    void groups(Player viewer);
 }

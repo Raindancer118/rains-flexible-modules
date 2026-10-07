@@ -9,10 +9,12 @@ import de.raindancer.modules.voicebridge.rules.ConnectReadinessRule;
 import de.raindancer.modules.voicebridge.store.TokenFile;
 import de.raindancer.modules.voicebridge.util.Pcm;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.dv8tion.jda.api.JDA;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,6 +35,9 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
     private volatile VoiceBridgeSettings settings;
     private volatile VoicechatGateway gateway;
     private volatile DiscordLink discord;
+    private volatile BotPool pool;
+    private volatile LobbyService lobby;
+    private volatile List<String> lineTokens = List.of();
     private volatile boolean stopped;
 
     public BridgeService(Plugin plugin, Server server, Messages messages, LogChannel log, TokenFile tokens,
@@ -47,16 +52,19 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
     }
 
     /** The two sides need this as their listener, and this needs them; wired once, after both exist. */
-    public void wire(VoicechatGateway gateway, DiscordLink discord) {
+    public void wire(VoicechatGateway gateway, DiscordLink discord, BotPool pool, LobbyService lobby) {
         this.gateway = gateway;
         this.discord = discord;
+        this.pool = pool;
+        this.lobby = lobby;
     }
 
     @Override
     public void settings(VoiceBridgeSettings next) {
         VoiceBridgeSettings before = settings;
         settings = next;
-        if (before.enabled() != next.enabled() || !Objects.equals(before.target(), next.target())) {
+        if (before.enabled() != next.enabled() || !Objects.equals(before.target(), next.target())
+                || !before.activeLobby().equals(next.activeLobby())) {
             reconnect();
         }
     }
@@ -76,7 +84,9 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
         VoiceBridgeSettings live = settings;
         String token;
         try {
-            token = tokens.read();
+            List<String> all = tokens.readAll();
+            token = all.isEmpty() ? "" : all.getFirst();
+            lineTokens = all.size() > 1 ? List.copyOf(all.subList(1, all.size())) : List.of();
         } catch (RuntimeException unreadable) {
             log.error("Could not read the Discord token file " + tokens.file() + ".", unreadable);
             discord.disconnect();
@@ -98,8 +108,8 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
     }
 
     /** Puts somebody in the bridge group; the answer is the message key that tells them how it went. */
-    public String join(UUID player) {
-        return switch (gateway.join(player)) {
+    public String join(UUID player, boolean withoutMod) {
+        return switch (gateway.join(player, withoutMod)) {
             case JOINED -> "";
             case ALREADY_IN -> "voicebridge.join.already";
             case NO_VOICECHAT -> "voicebridge.join.no-voicechat";
@@ -117,7 +127,7 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
 
     public BridgeStatus status() {
         DiscordLink link = discord;
-        return link == null ? BridgeStatus.off("voicebridge.not-ready.off") : link.status();
+        return link == null ? BridgeStatus.off("voicebridge.not-ready.switched-off") : link.status();
     }
 
     @Override
@@ -147,6 +157,37 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
     public void left(String name) {
         if (settings.announceDiscordJoins()) {
             tellGroup("voicebridge.discord.left", "name", name);
+        }
+    }
+
+    @Override
+    public void ready(JDA jda, String guildId) {
+        LobbyService waiting = lobby;
+        BotPool bots = pool;
+        if (waiting == null || bots == null) {
+            return;
+        }
+        // Logging the proximity bots in takes a few seconds each; not on the main bot's connect.
+        Scheduling.async(plugin, () -> {
+            if (settings.proximityEnabled()) {
+                if (lineTokens.isEmpty()) {
+                    log.warn("Proximity mode is on, but discord-token.txt has no proximity bot tokens after the main one.");
+                }
+                bots.start(lineTokens, guildId);
+            }
+            waiting.attach(jda, guildId);
+        });
+    }
+
+    @Override
+    public void gone() {
+        LobbyService waiting = lobby;
+        if (waiting != null) {
+            waiting.detach();
+        }
+        BotPool bots = pool;
+        if (bots != null) {
+            bots.shutdown();
         }
     }
 
