@@ -2,7 +2,10 @@ package de.raindancer.modules.warp.model;
 
 import de.raindancer.core.world.poi.Poi;
 
+import java.util.LinkedHashSet;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * A warp: somewhere with a name that a player can be sent to.
@@ -26,6 +29,8 @@ public record Warp(Poi poi) {
     public static final String TAG_PERMISSION = "permission";
     /** Where its category is kept. */
     public static final String TAG_CATEGORY = "category";
+    /** The people its owner added to a private warp, as comma-separated UUIDs. */
+    public static final String TAG_MEMBERS = "members";
 
     public String name() {
         return poi.name();
@@ -48,6 +53,27 @@ public record Warp(Poi poi) {
     /** What it is filed under, for a menu that groups them. */
     public Optional<String> category() {
         return poi.tag(TAG_CATEGORY);
+    }
+
+    /** Who it belongs to: whoever set it, or whoever staff gave it to. Empty for a warp nobody owns. */
+    public Optional<UUID> owner() {
+        return Optional.ofNullable(poi.owner());
+    }
+
+    /** The people its owner added. A name that is not a UUID is skipped rather than failing the warp. */
+    public Set<UUID> members() {
+        Set<UUID> members = new LinkedHashSet<>();
+        for (String written : poi.tag(TAG_MEMBERS).orElse("").split(",")) {
+            if (written.isBlank()) {
+                continue;
+            }
+            try {
+                members.add(UUID.fromString(written.trim()));
+            } catch (IllegalArgumentException notAUuid) {
+                // Hand-edited into nonsense. One bad entry must not take the warp's other people with it.
+            }
+        }
+        return Set.copyOf(members);
     }
 
     /** Whether the world it is in is loaded right now. */

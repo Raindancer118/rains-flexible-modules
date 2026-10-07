@@ -20,6 +20,9 @@ public final class PermissionNodes {
     /** Warping at all. On by default: a warp list nobody can open is a feature nobody has. */
     public static final String USE = "rainswarps.warp.use";
 
+    /** Setting warps of one's own, up to the server's limit per player. Off by default. */
+    public static final String CREATE = "rainswarps.warp.create";
+
     /** Making, moving, retagging and deleting warps. */
     public static final String MANAGE = "rainswarps.warp.manage";
 
@@ -31,6 +34,9 @@ public final class PermissionNodes {
                 new Permission(USE,
                         "Open the warp menu and go to a warp",
                         PermissionDefault.TRUE),
+                new Permission(CREATE,
+                        "Set warps of your own, up to the server's limit, and decide who may use them",
+                        PermissionDefault.FALSE),
                 new Permission(MANAGE,
                         "Make, move, retag and delete warps, and reach every one of them",
                         PermissionDefault.OP),

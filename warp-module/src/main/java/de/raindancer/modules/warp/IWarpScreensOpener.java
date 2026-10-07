@@ -28,4 +28,7 @@ public interface IWarpScreensOpener {
 
     /** What this server does about warps: the admin's own settings page. */
     void config(Player viewer);
+
+    /** The warps this player owns, and the way to make one if they may. */
+    void mine(Player viewer);
 }

@@ -3,6 +3,8 @@ package de.raindancer.modules.warp.rules;
 import de.raindancer.modules.warp.model.WarpAccess;
 import de.raindancer.modules.warp.util.PermissionNodes;
 
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
@@ -64,6 +66,76 @@ public final class WarpAccessRule implements IWarpRule {
      */
     public boolean mayManage(Predicate<String> hasPermission) {
         return hasPermission != null && hasPermission.test(PermissionNodes.MANAGE);
+    }
+
+    // ------------------------------------------------------------------------ owned warps
+
+    /**
+     * Whether this player may use a warp, knowing who owns it.
+     *
+     * <p>Its owner always may, as long as they may warp at all; a {@link WarpAccess#PRIVATE} warp is
+     * for the owner and {@code members} only. Everything else is {@link #mayUse(WarpAccess, Predicate)}.
+     */
+    public boolean mayUse(WarpAccess access, Predicate<String> hasPermission, UUID who, UUID owner,
+                          Set<UUID> members) {
+        if (hasPermission == null || access == null) {
+            return false;
+        }
+        if (hasPermission.test(PermissionNodes.MANAGE)) {
+            return true;
+        }
+        if (!hasPermission.test(PermissionNodes.USE)) {
+            return false;
+        }
+        if (who != null && who.equals(owner)) {
+            return true;
+        }
+        if (access instanceof WarpAccess.Private) {
+            return who != null && members != null && members.contains(who);
+        }
+        return access.allows(hasPermission);
+    }
+
+    /** The same answer, for whether it is listed — see {@link #maySee}. */
+    public boolean maySee(WarpAccess access, Predicate<String> hasPermission, UUID who, UUID owner,
+                          Set<UUID> members) {
+        return mayUse(access, hasPermission, who, owner, members);
+    }
+
+    /** Whether this player may move, rename, re-icon, open up or delete one warp: its owner, or staff. */
+    public boolean mayChange(Predicate<String> hasPermission, UUID who, UUID owner) {
+        return mayManage(hasPermission) || (who != null && who.equals(owner));
+    }
+
+    /**
+     * Which access an owner may put on their own warp: everybody, or private. The staff warps and the
+     * permission nodes are the server's own groups, and a player choosing them is a player deciding who
+     * counts as staff.
+     */
+    public boolean mayChooseAccess(WarpAccess wanted, Predicate<String> hasPermission) {
+        return mayManage(hasPermission) || wanted instanceof WarpAccess.Everyone
+                || wanted instanceof WarpAccess.Private;
+    }
+
+    /** Handing a warp to somebody else — a decision about other people's warps, so the staff's. */
+    public boolean mayGive(Predicate<String> hasPermission) {
+        return mayManage(hasPermission);
+    }
+
+    /** Whether this player may set a new warp at all: staff, the create node, or a token in hand. */
+    public boolean mayCreate(Predicate<String> hasPermission, boolean withAToken) {
+        return withAToken || mayManage(hasPermission)
+                || (hasPermission != null && hasPermission.test(PermissionNodes.CREATE));
+    }
+
+    /** Whether one more of their own fits: under the limit, or paid for with a token; staff have none. */
+    public boolean hasRoomForOwn(int owned, int limit, Predicate<String> hasPermission, boolean withAToken) {
+        return withAToken || mayManage(hasPermission) || owned < limit;
+    }
+
+    /** Setting a name that is taken replaces that warp — only for its owner, or staff. */
+    public boolean mayReplace(Predicate<String> hasPermission, UUID who, UUID ownerOfTheExisting) {
+        return mayChange(hasPermission, who, ownerOfTheExisting);
     }
 
     @Override

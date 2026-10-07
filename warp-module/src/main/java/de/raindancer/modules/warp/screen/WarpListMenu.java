@@ -90,9 +90,9 @@ public final class WarpListMenu extends PaginatedMenu<Warp> implements IWarpScre
     @Override
     protected List<Warp> entries() {
         return filtered
-                ? services.catalogue().inCategory(category, viewer::hasPermission,
+                ? services.catalogue().inCategory(category, viewer.getUniqueId(), viewer::hasPermission,
                         services.access())
-                : services.catalogue().visibleTo(viewer::hasPermission, services.access());
+                : services.catalogue().visibleTo(viewer.getUniqueId(), viewer::hasPermission, services.access());
     }
 
     /**
@@ -174,12 +174,19 @@ public final class WarpListMenu extends PaginatedMenu<Warp> implements IWarpScre
     protected void decorate() {
         super.decorate();
         if (!filtered && services.config().useCategories()
-                && !services.catalogue().categoriesVisibleTo(viewer::hasPermission,
+                && !services.catalogue().categoriesVisibleTo(viewer.getUniqueId(), viewer::hasPermission,
                 services.access()).isEmpty()) {
             toolbar(2, Icons.of(Material.BOOKSHELF, "<white>Categories",
                             "<gray>The warps on this server, grouped.",
                             "<dark_gray>Useful once there are more than fit on a page."),
                     click -> services.screens().categories(viewer));
+        }
+        if (services.access().mayCreate(viewer::hasPermission, false)
+                || !services.catalogue().ownedBy(viewer.getUniqueId()).isEmpty()) {
+            toolbar(4, Icons.of(Material.NETHER_STAR, "<white>Your warps",
+                            "<gray>The warps that are yours: move them,",
+                            "<gray>rename them, decide who may use them."),
+                    click -> services.screens().mine(viewer));
         }
         if (services.access().mayManage(viewer::hasPermission)) {
             toolbar(6, Icons.of(Material.COMPARATOR, "<white>Manage warps",

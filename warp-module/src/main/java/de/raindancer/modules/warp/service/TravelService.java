@@ -71,7 +71,7 @@ public final class TravelService implements IWarpService {
             return;
         }
         Warp warp = catalogue.byName(name).orElse(null);
-        if (warp == null || !access.mayUse(catalogue.accessOf(warp), traveller::hasPermission)) {
+        if (warp == null || !mayUse(traveller, warp)) {
             // The same answer for "no such warp" and "not yours", deliberately. Telling somebody a
             // warp exists but is not for them is telling them the staff warps are called 'staff'.
             messages.send(traveller, "warps.unknown", "name", String.valueOf(name));
@@ -85,7 +85,7 @@ public final class TravelService implements IWarpService {
         if (traveller == null || warp == null) {
             return;
         }
-        if (!access.mayUse(catalogue.accessOf(warp), traveller::hasPermission)) {
+        if (!mayUse(traveller, warp)) {
             messages.send(traveller, "warps.unknown", "name", warp.name());
             return;
         }
@@ -98,6 +98,12 @@ public final class TravelService implements IWarpService {
             return;
         }
         depart(traveller, warp);
+    }
+
+    /** Whether this traveller may use it — their own warp, one they were let into, or one their permissions open. */
+    private boolean mayUse(Player traveller, Warp warp) {
+        return access.mayUse(catalogue.accessOf(warp), traveller::hasPermission, traveller.getUniqueId(),
+                warp.owner().orElse(null), warp.members());
     }
 
     private void depart(Player traveller, Warp warp) {

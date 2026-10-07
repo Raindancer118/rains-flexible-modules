@@ -45,6 +45,39 @@ public sealed interface WarpAccess {
     /** Whoever holds {@link #STAFF_PERMISSION}. */
     WarpAccess STAFF = new Staff();
 
+    /**
+     * Written on a warp that is only for its owner and the people they added. Never granted to anybody:
+     * {@link Private} asks who somebody is, not what they hold, so a wildcard cannot open it.
+     */
+    String PRIVATE_MARK = "rainswarps.warp.private";
+
+    /** Its owner and the people they added — the decision lives in {@code WarpAccessRule}. */
+    WarpAccess PRIVATE = new Private();
+
+    /** Only for its owner and their people. */
+    record Private() implements WarpAccess {
+
+        @Override
+        public boolean allows(Predicate<String> hasPermission) {
+            return false;
+        }
+
+        @Override
+        public Optional<String> permission() {
+            return Optional.of(PRIVATE_MARK);
+        }
+
+        @Override
+        public String describe() {
+            return "Only its owner and the people they add";
+        }
+
+        @Override
+        public boolean isRestricted() {
+            return true;
+        }
+    }
+
     /** Anybody at all. */
     record Everyone() implements WarpAccess {
 
@@ -165,6 +198,9 @@ public sealed interface WarpAccess {
             return EVERYONE;
         }
         String node = permissionOnTheWarp.trim();
+        if (node.equalsIgnoreCase(PRIVATE_MARK)) {
+            return PRIVATE;
+        }
         return node.equalsIgnoreCase(STAFF_PERMISSION) ? STAFF : new Needing(node);
     }
 

@@ -104,10 +104,17 @@ public record WarpSettings(
         @Describe("Whether the warp menu offers the categories page. Off, every warp is on one "
                 + "list — which is right for a server with eight of them and unusable with eighty.")
         @Key("use-categories")
-        boolean useCategories) {
+        boolean useCategories,
+
+        @In("warps/making") @Title("Warps one player may set") @Range(min = 0, max = 100)
+        @Describe("How many warps of their own somebody with rainswarps.warp.create may set. A warp "
+                + "token is one more on top, whatever this says, and staff have no limit. Zero lets "
+                + "only tokens and staff make warps.")
+        @Key("most-own-warps")
+        int mostOwnWarps) {
 
     public static final WarpSettings DEFAULTS = new WarpSettings(
-            3, 15, true, true, 8, 200, 24, true, false, 8, 10, true);
+            3, 15, true, true, 8, 200, 24, true, false, 8, 10, true, 3);
 
     // ------------------------------------------------------------------ read back safely
 
@@ -132,6 +139,14 @@ public record WarpSettings(
 
     public int nameLimit() {
         return Math.max(3, Math.min(48, longestName));
+    }
+
+    public int ownWarpLimit() {
+        return Math.max(0, Math.min(100, mostOwnWarps));
+    }
+
+    public WarpSettings withMostOwnWarps(int most) {
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, most);
     }
 
     public int warpLimit() {
@@ -159,50 +174,50 @@ public record WarpSettings(
     // ------------------------------------------------------------------ one component at a time
 
     public WarpSettings withWarmupSeconds(int seconds) {
-        return new WarpSettings(seconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories);
+        return new WarpSettings(seconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withCooldownSeconds(int seconds) {
-        return new WarpSettings(warmupSeconds, seconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories);
+        return new WarpSettings(warmupSeconds, seconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withHurtCancelsWarmup(boolean cancels) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, cancels, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, cancels, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withSafeArrival(boolean safe) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safe, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safe, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withSafeArrivalRadius(int radius) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, radius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, radius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withMostWarps(int most) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, most, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, most, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withLongestName(int longest) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longest, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longest, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withBringWhatYouLead(boolean bring) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bring, bringNearbyPets, bringRadius, bringAtMost, useCategories);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bring, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withBringNearbyPets(boolean bring) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bring, bringRadius, bringAtMost, useCategories);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bring, bringRadius, bringAtMost, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withBringRadius(int radius) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, radius, bringAtMost, useCategories);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, radius, bringAtMost, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withBringAtMost(int most) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, most, useCategories);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, most, useCategories, mostOwnWarps);
     }
 
     public WarpSettings withUseCategories(boolean use) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, use);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, use, mostOwnWarps);
     }
 }

@@ -189,6 +189,26 @@ public final class WarpRegistry {
         return retag(name, Warp.TAG_PERMISSION, permission);
     }
 
+    /** Hands it to somebody else. Keeps everything else, its people included. */
+    public boolean setOwner(String name, UUID owner) {
+        return byName(name).map(warp -> {
+            places.save(warp.poi().withOwner(owner));
+            return true;
+        }).orElse(false);
+    }
+
+    /** Who its owner let in; empty clears the list. */
+    public boolean setMembers(String name, java.util.Collection<UUID> members) {
+        String written = members == null ? "" : members.stream().map(UUID::toString)
+                .collect(java.util.stream.Collectors.joining(","));
+        return retag(name, Warp.TAG_MEMBERS, written);
+    }
+
+    /** Every warp this player owns. */
+    public List<Warp> ownedBy(UUID owner) {
+        return all().stream().filter(warp -> warp.owner().map(owner::equals).orElse(false)).toList();
+    }
+
     /** What it is filed under, for a menu that groups them. Null takes it out of any category. */
     public boolean setCategory(String name, String category) {
         return retag(name, Warp.TAG_CATEGORY, category);

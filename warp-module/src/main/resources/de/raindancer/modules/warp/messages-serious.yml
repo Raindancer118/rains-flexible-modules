@@ -6,5 +6,7 @@
 warps:
   arrived: "<green>Here you are: <white><name></white>."
   list-empty: "<gray>There are no warps yet."
+  token:
+    used: "<green>One warp token used."
   name:
     empty: "<red>A warp needs a name."

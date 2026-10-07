@@ -67,6 +67,28 @@ warps:
     bad-characters: "<red>A warp's name may have letters, digits, dashes and underscores in it, and nothing else."
     reserved: "<red><white><name></white> is a word <white>/warp</white> reads as an instruction, so nothing could ever warp there. Pick another name."
 
+  # ---------------------------------------------------------------- warps people own
+  cannot-make: "<red>You cannot set warps of your own. A <white>warp token</white> would let you."
+  own-limit: "<red>You already have <white><limit></white> warp(s) of your own. Delete one, or use a warp token."
+  name-taken: "<red><white><name></white> is somebody else's warp. Pick another name."
+  not-your-warp: "<red><white><name></white> is not yours to change."
+  access-not-yours: "<red>A warp of your own is for everybody, or for you and the people you add. Staff-only and permissions are the staff's to hand out."
+  given: "<green><white><name></white> now belongs to <white><player></white>."
+  member-added: "<green><white><player></white> may now use <white><name></white>."
+  member-removed: "<green><white><player></white> is off the list for <white><name></white>."
+  no-such-player: "<red>Nobody called <white><player></white> has ever been here."
+  not-online: "<red><white><player></white> is not online right now."
+
+  # ---------------------------------------------------------------- warp tokens
+  token:
+    ask-name: "<gray>Type what to call your new warp, or <white>cancel</white>. It goes right where you stand."
+    cancelled: "<gray>No warp set. Your token is still yours."
+    gone: "<red>There is no warp token in your inventory any more."
+    used: "<green>One warp token spent. Well placed."
+    given: "<green>Gave <white><amount></white> warp token(s) to <white><player></white>."
+    received: "<green>You got <white><amount></white> warp token(s). Right-click one where you want a warp."
+    cannot-make: "<red>The warp token item could not be made. The console says why."
+
   # ---------------------------------------------------------------- the config page
   config:
     at-the-limit: "<yellow>That is as far as it goes: between <white><least></white> and <white><most></white>."
@@ -81,7 +103,10 @@ warps:
     category: "<gray>/warp category <which warp> [what to file it under]"
     label: "<gray>/warp label <which warp> [what the menu shows]"
     icon: "<gray>/warp icon <which warp> <which item>"
-    access: "<gray>/warp access <which warp> <everybody | staff | own | a permission>"
+    access: "<gray>/warp access <which warp> <everybody | private | staff | own | a permission>"
+    owner: "<gray>/warp owner <which warp> <whose it becomes>"
+    member: "<gray>/warp member add|remove <which warp> <which player>"
+    token: "<gray>/warp token [who] [how many]"
 
   # ---------------------------------------------------------------- help
   #
@@ -92,11 +117,18 @@ warps:
     - "<gray>/warp <dark_gray>— the warps you can go to"
     - "<gray>/warp somewhere <dark_gray>— straight there"
     - "<gray>/warp list <dark_gray>— the same list, as text you can paste"
+  help-own:
+    - "<gray>/warp mine <dark_gray>— your own warps, and the page to change them"
+    - "<gray>/warp set somewhere <dark_gray>— a warp of your own, right here"
+    - "<gray>/warp access somewhere private <dark_gray>— only you and the people you add"
+    - "<gray>/warp member add somewhere somebody <dark_gray>— let somebody in"
   help-admin:
     - "<gray>/warp admin <dark_gray>— every warp there is, and what can be changed"
     - "<gray>/warp set, move, delete <dark_gray>— by hand, without the menu"
     - "<gray>/warp access <dark_gray>— everybody, staff only, its own permission, or one you name"
     - "<gray>/warp config <dark_gray>— what a warp costs, and what travels with somebody"
+    - "<gray>/warp owner <dark_gray>— give a warp to a player, who can then change it"
+    - "<gray>/warp token <dark_gray>— hand out warp tokens"
 
   manual:
     using:
@@ -127,8 +159,9 @@ warps:
       - "<gray>Everything about one warp."
       - ""
       - "<gray>Moving it keeps who it is for, what it is filed"
-      - "<gray>under and what it looks like. Making a warp again"
-      - "<gray>under the same name does not."
+      - "<gray>under and what it looks like. Setting it again"
+      - "<gray>under the same name keeps whose it is and who it"
+      - "<gray>is for, but not its category or its look."
       - ""
       - "<dark_gray>What people type never changes when you relabel it:"
       - "<dark_gray>a permission may have been written against the name."

@@ -54,7 +54,7 @@ import java.util.List;
  */
 public final class WarpModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.3.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.4.0")
             .describedAs("Named places anybody can be sent to, with a menu to pick one from — and "
                     + "warps only the staff, or one permission, can reach")
             .by("Raindancer118");
@@ -67,6 +67,7 @@ public final class WarpModule implements FlexModule {
     private Travel travel;
     private TravelService travelling;
     private WarpAdminService admin;
+    private de.raindancer.modules.warp.service.WarpTokens tokens;
 
     private WarpServices services;
 
@@ -119,6 +120,12 @@ public final class WarpModule implements FlexModule {
                 context.core().messages(), settings.current());
         admin = new WarpAdminService(catalogue, access, context.core().messages(),
                 settings.current());
+        // The token is Core's kind of item: Core draws it, dispatches the click and keeps it out of
+        // crafting grids. What redeeming one means is this module's.
+        tokens = new de.raindancer.modules.warp.service.WarpTokens(admin, context.core().itemFactory(),
+                context.core().messages());
+        tokens.register(context.core().items(), context.core().itemAbilities(), server,
+                context.core().prompts());
 
         // The cooldown lives on this module's WarpRegistry, so it has to be pushed in at start as
         // well as on reload — otherwise the file says thirty seconds and nothing is enforced until
@@ -128,7 +135,7 @@ public final class WarpModule implements FlexModule {
         services = new WarpServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, settings,
-                catalogue, access, travel, travelling, admin,
+                catalogue, access, travel, travelling, admin, tokens,
                 new LiveScreens());
 
         // Every setting is a snapshot, so a reload hands each service a fresh one. Missing one of
@@ -197,6 +204,11 @@ public final class WarpModule implements FlexModule {
         @Override
         public void config(Player viewer) {
             new WarpConfigMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void mine(Player viewer) {
+            AdminWarpMenu.mine(services, viewer, null).open();
         }
     }
 

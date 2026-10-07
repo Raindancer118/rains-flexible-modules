@@ -60,24 +60,39 @@ public final class WarpAccessMenu extends Menu implements IWarpScreen {
             return;
         }
         WarpAccess now = services.catalogue().accessOf(warp);
+        boolean staff = services.access().mayManage(viewer::hasPermission);
+        String privateWhy = "<gray>Only you" + (warp.owner().isPresent() ? "" : ", once it has an owner,")
+                + " and the people you let in.";
 
-        option(1, Material.OAK_DOOR, "Anybody", now, WarpAccess.EVERYONE,
+        if (!staff) {
+            // An owner chooses between two: the staff groups and permission nodes are the server's.
+            option(2, Material.OAK_DOOR, "Anybody", now, WarpAccess.EVERYONE,
+                    "<gray>It appears on everybody's warp list.");
+            option(6, Material.IRON_TRAPDOOR, "Only me and the people I add", now, WarpAccess.PRIVATE,
+                    privateWhy, "<dark_gray>Nobody else even sees it on their list.");
+            return;
+        }
+
+        option(0, Material.OAK_DOOR, "Anybody", now, WarpAccess.EVERYONE,
                 "<gray>It appears on everybody's warp list.");
 
-        option(3, Material.IRON_DOOR, "Staff only", now, WarpAccess.STAFF,
+        option(2, Material.IRON_TRAPDOOR, "Its owner and their people", now, WarpAccess.PRIVATE,
+                privateWhy, "<dark_gray>Staff still reach it, to fix it if it breaks.");
+
+        option(4, Material.IRON_DOOR, "Staff only", now, WarpAccess.STAFF,
                 "<gray>Needs " + WarpAccess.STAFF_PERMISSION + ".",
                 "<dark_gray>Your existing staff group probably has it,",
                 "<dark_gray>which is why there is one node and not one per warp.");
 
         WarpAccess ownNode = new WarpAccess.Needing(WarpAccess.ownPermissionFor(warp.name()));
-        option(5, Material.NAME_TAG, "Its own permission", now, ownNode,
+        option(6, Material.NAME_TAG, "Its own permission", now, ownNode,
                 "<gray>Needs " + ownNode.permission().orElseThrow() + ".",
                 "<dark_gray>For a group that is not the staff — builders",
                 "<dark_gray>who may reach the build world, say.");
 
         // The one that has to be typed: an arbitrary node has nothing to enumerate, which is the
         // module's only reason for ever asking in chat.
-        band(MenuLayout.WHO, 7, Icons.of(Material.WRITABLE_BOOK, "<white>A permission you type",
+        band(MenuLayout.WHO, 8, Icons.of(Material.WRITABLE_BOOK, "<white>A permission you type",
                         "<gray>Any node your permissions plugin already knows.",
                         "",
                         "<gray>Click to type it."),

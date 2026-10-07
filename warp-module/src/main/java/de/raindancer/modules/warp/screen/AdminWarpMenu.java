@@ -38,31 +38,54 @@ public final class AdminWarpMenu extends PaginatedMenu<Warp> implements IWarpScr
 
     private final WarpServices services;
 
+    /** Whether this is a player's own warps rather than every warp on the server. */
+    private final boolean own;
+
     public AdminWarpMenu(WarpServices services, Player viewer, Menu parent) {
+        this(services, viewer, parent, false);
+    }
+
+    /** The warps this player owns: the same page, narrowed to theirs, for somebody who is not staff. */
+    public static AdminWarpMenu mine(WarpServices services, Player viewer, Menu parent) {
+        return new AdminWarpMenu(services, viewer, parent, true);
+    }
+
+    private AdminWarpMenu(WarpServices services, Player viewer, Menu parent, boolean own) {
         super(viewer, services.brand(), parent);
         this.services = services;
+        this.own = own;
     }
 
     @Override
     protected Component title() {
-        return MINI.deserialize("<dark_gray>Every warp");
+        return MINI.deserialize("<dark_gray>" + breadcrumb());
     }
 
     @Override
     public String breadcrumb() {
-        return "Every warp";
+        return own ? "Your warps" : "Every warp";
     }
 
     /** All of them, not only the ones this admin may use — that is the point of the page. */
     @Override
     protected List<Warp> entries() {
-        List<Warp> all = new ArrayList<>(services.catalogue().all());
+        List<Warp> all = new ArrayList<>(own ? services.catalogue().ownedBy(viewer.getUniqueId())
+                : services.catalogue().all());
         all.sort(Comparator.comparing(Warp::name, String.CASE_INSENSITIVE_ORDER));
         return all;
     }
 
     @Override
     protected ItemStack emptyIcon() {
+        if (own) {
+            return mayMake()
+                    ? Icons.of(Material.COBWEB, "<gray>You have no warps yet",
+                            "<gray>Stand where you want one",
+                            "<gray>and click here to name it.")
+                    : Icons.of(Material.COBWEB, "<gray>You have no warps yet",
+                            "<gray>A warp token sets one, and staff",
+                            "<gray>can give you a warp of theirs.");
+        }
         return Icons.of(Material.COBWEB, "<gray>There are no warps yet",
                 "<gray>Stand where you want the first one",
                 "<gray>and click here to name it.");
@@ -70,6 +93,10 @@ public final class AdminWarpMenu extends PaginatedMenu<Warp> implements IWarpScr
 
     @Override
     protected void emptyAction(InventoryClickEvent event) {
+        if (!mayMake()) {
+            services.messages().send(viewer, "warps.cannot-make");
+            return;
+        }
         askForANameAndMakeItHere();
     }
 
@@ -78,6 +105,10 @@ public final class AdminWarpMenu extends PaginatedMenu<Warp> implements IWarpScr
         List<String> lore = new ArrayList<>();
         lore.add("<dark_gray>" + warp.world() + " " + warp.coordinates());
         lore.add("<gray>" + services.catalogue().accessOf(warp).describe());
+        if (!own) {
+            warp.owner().map(id -> services.server().getOfflinePlayer(id).getName())
+                    .ifPresent(name -> lore.add("<dark_gray>Owned by " + name));
+        }
         warp.category().ifPresent(filed -> lore.add("<dark_gray>Filed under " + filed));
         if (!warp.label().equals(warp.name())) {
             lore.add("<dark_gray>Typed as " + warp.name());
@@ -111,10 +142,15 @@ public final class AdminWarpMenu extends PaginatedMenu<Warp> implements IWarpScr
     @Override
     protected void decorate() {
         super.decorate();
-        toolbar(2, Icons.of(Material.LODESTONE, "<white>Make a warp here",
-                        "<gray>Where you are standing, facing the way you are.",
-                        "<dark_gray>You will be asked what to call it."),
-                click -> askForANameAndMakeItHere());
+        if (mayMake()) {
+            toolbar(2, Icons.of(Material.LODESTONE, "<white>Make a warp here",
+                            "<gray>Where you are standing, facing the way you are.",
+                            "<dark_gray>You will be asked what to call it."),
+                    click -> askForANameAndMakeItHere());
+        }
+        if (own || !services.access().mayManage(viewer::hasPermission)) {
+            return;
+        }
 
         // Two columns along, so a pane falls between them. A wall of adjacent buttons is unreadable.
         toolbar(6, Icons.of(Material.COMPARATOR, "<white>How warps work here",
@@ -137,7 +173,7 @@ public final class AdminWarpMenu extends PaginatedMenu<Warp> implements IWarpScr
                     services.admin().create(viewer, answer);
                     // Reopened so the new warp can be given an icon and an access without typing
                     // anything else. Rebuilt rather than refreshed: the page behind it is gone.
-                    new AdminWarpMenu(services, viewer, null).open();
+                    new AdminWarpMenu(services, viewer, null, own).open();
                 },
                 // Cancelled or timed out. The line says a warp needs a name, so there is nothing
                 // to fill in — see WarpAdminService.create for why that matters.
@@ -149,6 +185,11 @@ public final class AdminWarpMenu extends PaginatedMenu<Warp> implements IWarpScr
             return;
         }
         services.messages().send(viewer, "warps.ask-name");
+    }
+
+    /** Whether this viewer may set a new warp from here — the node or staff; a token is used by clicking it. */
+    private boolean mayMake() {
+        return services.access().mayCreate(viewer::hasPermission, false);
     }
 
     @Override

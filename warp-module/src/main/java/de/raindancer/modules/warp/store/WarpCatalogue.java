@@ -79,8 +79,17 @@ public final class WarpCatalogue {
      * "an admin sees everything" lives and Core has no idea what an admin of this module is.
      */
     public List<Warp> visibleTo(Predicate<String> hasPermission, WarpAccessRule rule) {
+        return visibleTo(null, hasPermission, rule);
+    }
+
+    /**
+     * The warps {@code who} is shown — their own, the private ones they were added to, and whatever
+     * their permissions open. Null is somebody with no identity, the console, who sees by node alone.
+     */
+    public List<Warp> visibleTo(UUID who, Predicate<String> hasPermission, WarpAccessRule rule) {
         return warps.all().stream()
-                .filter(warp -> rule.maySee(accessOf(warp), hasPermission))
+                .filter(warp -> rule.maySee(accessOf(warp), hasPermission, who, warp.owner().orElse(null),
+                        warp.members()))
                 .sorted(Comparator.comparing(Warp::label, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
@@ -92,7 +101,12 @@ public final class WarpCatalogue {
      */
     public List<Warp> inCategory(String category, Predicate<String> hasPermission,
                                  WarpAccessRule rule) {
-        return visibleTo(hasPermission, rule).stream()
+        return inCategory(category, null, hasPermission, rule);
+    }
+
+    public List<Warp> inCategory(String category, UUID who, Predicate<String> hasPermission,
+                                 WarpAccessRule rule) {
+        return visibleTo(who, hasPermission, rule).stream()
                 .filter(warp -> category == null
                         ? warp.category().isEmpty()
                         : warp.category().map(category::equalsIgnoreCase).orElse(false))
@@ -106,8 +120,12 @@ public final class WarpCatalogue {
      * it tells an ordinary player exactly what they were not meant to be told.
      */
     public Set<String> categoriesVisibleTo(Predicate<String> hasPermission, WarpAccessRule rule) {
+        return categoriesVisibleTo(null, hasPermission, rule);
+    }
+
+    public Set<String> categoriesVisibleTo(UUID who, Predicate<String> hasPermission, WarpAccessRule rule) {
         Set<String> found = new LinkedHashSet<>();
-        for (Warp warp : visibleTo(hasPermission, rule)) {
+        for (Warp warp : visibleTo(who, hasPermission, rule)) {
             warp.category().ifPresent(found::add);
         }
         return found;
@@ -115,10 +133,54 @@ public final class WarpCatalogue {
 
     /** Whether any visible warp is filed under nothing, so the menu knows to offer that page. */
     public boolean hasUncategorised(Predicate<String> hasPermission, WarpAccessRule rule) {
-        return visibleTo(hasPermission, rule).stream().anyMatch(warp -> warp.category().isEmpty());
+        return hasUncategorised(null, hasPermission, rule);
+    }
+
+    public boolean hasUncategorised(UUID who, Predicate<String> hasPermission, WarpAccessRule rule) {
+        return visibleTo(who, hasPermission, rule).stream().anyMatch(warp -> warp.category().isEmpty());
+    }
+
+    /** Every warp this player owns, in alphabetical order. */
+    public List<Warp> ownedBy(UUID owner) {
+        return owner == null ? List.of() : warps.ownedBy(owner);
     }
 
     // ------------------------------------------------------------------------ changing
+
+    /** Makes one from plain values — for a test, or anything that is not a player standing somewhere. */
+    public Optional<Warp> create(String name, String world, double x, double y, double z, UUID creator) {
+        Optional<Warp> made = warps.create(name, world, x, y, z, creator);
+        made.ifPresent(ignored -> flush.run());
+        return made;
+    }
+
+    /** Moves one from plain values; see {@link #move(String, Location)}. */
+    public boolean move(String name, String world, double x, double y, double z, float yaw, float pitch) {
+        return written(warps.move(name, world, x, y, z, yaw, pitch));
+    }
+
+    /** Hands a warp to somebody else, keeping its people and everything else. */
+    public boolean setOwner(String name, UUID owner) {
+        return written(warps.setOwner(name, owner));
+    }
+
+    /** Lets somebody into a private warp. */
+    public boolean addMember(String name, UUID member) {
+        return byName(name).map(warp -> {
+            Set<UUID> next = new LinkedHashSet<>(warp.members());
+            next.add(member);
+            return written(warps.setMembers(name, next));
+        }).orElse(false);
+    }
+
+    /** Takes somebody off a private warp's list. False when there was no such warp. */
+    public boolean removeMember(String name, UUID member) {
+        return byName(name).map(warp -> {
+            Set<UUID> next = new LinkedHashSet<>(warp.members());
+            next.remove(member);
+            return written(warps.setMembers(name, next));
+        }).orElse(false);
+    }
 
     /** Makes one where somebody is standing. */
     public Optional<Warp> create(String name, Location where, UUID creator) {

@@ -2,9 +2,11 @@ package de.raindancer.modules.warp.screen;
 
 import de.raindancer.core.ui.choose.ItemChooser;
 import de.raindancer.core.ui.menu.Icons;
+import de.raindancer.core.ui.choose.PlayerChooser;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.warp.model.Warp;
+import de.raindancer.modules.warp.model.WarpAccess;
 import de.raindancer.modules.warp.WarpServices;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -71,6 +73,13 @@ public final class WarpEditMenu extends Menu implements IWarpScreen {
                     "<gray>Somebody deleted it while this page was open."));
             return;
         }
+        if (!services.admin().mayChange(viewer, warp)) {
+            // Its owner changed, or somebody gave it away, while this page was open.
+            band(MenuLayout.RULES, 4, Icons.of(Material.BARRIER, "<red>This warp is not yours to change",
+                    "<gray>It belongs to somebody else now."));
+            return;
+        }
+        boolean staff = services.access().mayManage(viewer::hasPermission);
 
         band(MenuLayout.WHO, 1, Icons.of(Material.SHIELD, "<white>Who it is for",
                         "<gray>" + services.catalogue().accessOf(warp).describe(),
@@ -78,11 +87,12 @@ public final class WarpEditMenu extends Menu implements IWarpScreen {
                         "<gray>Click to change who may use it."),
                 click -> new WarpAccessMenu(services, viewer, this, name).open());
 
-        band(MenuLayout.WHO, 3, Icons.of(Material.BOOKSHELF, "<white>Filed under",
+        band(MenuLayout.WHO, 3, staff, Icons.of(Material.BOOKSHELF, "<white>Filed under",
                         "<gray>" + warp.category().orElse("nothing"),
                         "",
                         "<gray>Click to type a category.",
                         "<gray>Right click to take it out of every category."),
+                "Categories are how the staff sort the server's warps",
                 click -> {
                     if (click.isRightClick()) {
                         services.admin().setCategory(viewer, name, null);
@@ -122,6 +132,30 @@ public final class WarpEditMenu extends Menu implements IWarpScreen {
                             services.admin().setIcon(viewer, name, chosen);
                             open();
                         }).open());
+
+        boolean isPrivate = services.catalogue().accessOf(warp) instanceof WarpAccess.Private;
+        band(MenuLayout.RULES, 3, isPrivate, Icons.of(Material.PLAYER_HEAD, "<white>Who you let in",
+                        "<gray>" + warp.members().size() + " besides its owner.",
+                        "",
+                        "<gray>Click to add or remove people."),
+                "Only a private warp has a list — anybody may use this one",
+                click -> new WarpMembersMenu(services, viewer, this, name).open());
+
+        if (staff) {
+            band(MenuLayout.RULES, 5, Icons.of(Material.NAME_TAG, "<white>Give it to a player",
+                            "<gray>" + warp.owner().map(id -> "Owned by "
+                                    + services.server().getOfflinePlayer(id).getName()).orElse("Nobody owns it"),
+                            "",
+                            "<gray>They can then move it, rename it and",
+                            "<gray>decide who may use it.",
+                            "<gray>Click to pick somebody."),
+                    click -> new PlayerChooser(viewer, services.brand(), this, "Give " + warp.label() + " to…",
+                            warp.owner().map(java.util.List::of).orElse(java.util.List.of()),
+                            chosen -> {
+                                services.admin().giveTo(viewer, name, chosen.id(), chosen.name());
+                                open();
+                            }).open());
+        }
 
         band(MenuLayout.LAND, 2, Icons.of(Material.ENDER_PEARL, "<white>Move it here",
                         "<gray>" + warp.world() + " " + warp.coordinates(),

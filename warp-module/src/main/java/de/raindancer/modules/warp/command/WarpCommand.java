@@ -7,6 +7,7 @@ import de.raindancer.modules.warp.rules.WarpNameRule;
 import de.raindancer.modules.warp.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -68,6 +69,10 @@ public final class WarpCommand implements IWarpCommand {
             case "label" -> label(live, sender, args);
             case "icon" -> icon(live, sender, args);
             case "access", "permission" -> access(live, sender, args);
+            case "owner", "give" -> owner(live, sender, args);
+            case "member", "members" -> member(live, sender, args);
+            case "mine" -> mine(live, sender);
+            case "token", "tokens" -> token(live, sender, args);
             // Anything else is a warp's name, so /warp spawn needs no subcommand.
             default -> go(live, sender, args[0]);
         }
@@ -103,7 +108,7 @@ public final class WarpCommand implements IWarpCommand {
      */
     private void list(WarpServices live, CommandSender sender) {
         List<Warp> visible = sender instanceof Player player
-                ? live.catalogue().visibleTo(player::hasPermission, live.access())
+                ? live.catalogue().visibleTo(player.getUniqueId(), player::hasPermission, live.access())
                 : live.catalogue().all();
         if (visible.isEmpty()) {
             live.messages().send(sender, "warps.list-empty");
@@ -121,6 +126,10 @@ public final class WarpCommand implements IWarpCommand {
 
     private void help(WarpServices live, CommandSender sender) {
         live.messages().lines("warps.help").forEach(sender::sendMessage);
+        if (live.access().mayCreate(sender::hasPermission, false)
+                || !live.catalogue().ownedBy(idOf(sender)).isEmpty()) {
+            live.messages().lines("warps.help-own").forEach(sender::sendMessage);
+        }
         if (live.access().mayManage(sender::hasPermission)) {
             live.messages().lines("warps.help-admin").forEach(sender::sendMessage);
         }
@@ -240,11 +249,94 @@ public final class WarpCommand implements IWarpCommand {
         }
         WarpAccess wanted = switch (args[2].toLowerCase(Locale.ROOT)) {
             case "everybody", "everyone", "public", "none" -> WarpAccess.EVERYONE;
+            case "private", "only-me", "mine" -> WarpAccess.PRIVATE;
             case "staff" -> WarpAccess.STAFF;
             case "own" -> new WarpAccess.Needing(WarpAccess.ownPermissionFor(args[1]));
             default -> new WarpAccess.Needing(args[2]);
         };
         live.admin().setAccess(sender, args[1], wanted);
+    }
+
+    // ------------------------------------------------------------------------ owned warps
+
+    /** {@code /warp owner <warp> <player>}: staff hand a warp to somebody. */
+    private void owner(WarpServices live, CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            live.messages().send(sender, "warps.usage.owner");
+            return;
+        }
+        OfflinePlayer to = known(args[2]);
+        if (to == null) {
+            live.messages().send(sender, "warps.no-such-player", "player", args[2]);
+            return;
+        }
+        live.admin().giveTo(sender, args[1], to.getUniqueId(), nameOf(to, args[2]));
+    }
+
+    /** {@code /warp member add|remove <warp> <player>}: who may use a private warp. */
+    private void member(WarpServices live, CommandSender sender, String[] args) {
+        if (args.length < 4 || !(args[1].equalsIgnoreCase("add") || args[1].equalsIgnoreCase("remove"))) {
+            live.messages().send(sender, "warps.usage.member");
+            return;
+        }
+        OfflinePlayer who = known(args[3]);
+        if (who == null) {
+            live.messages().send(sender, "warps.no-such-player", "player", args[3]);
+            return;
+        }
+        if (args[1].equalsIgnoreCase("add")) {
+            live.admin().addMember(sender, args[2], who.getUniqueId(), nameOf(who, args[3]));
+        } else {
+            live.admin().removeMember(sender, args[2], who.getUniqueId(), nameOf(who, args[3]));
+        }
+    }
+
+    /** {@code /warp mine}: the warps this player owns, as a page they can change them from. */
+    private void mine(WarpServices live, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "warps.only-a-player");
+            return;
+        }
+        live.screens().mine(player);
+    }
+
+    /** {@code /warp token [player] [amount]}: staff hand out warp tokens. */
+    private void token(WarpServices live, CommandSender sender, String[] args) {
+        if (!live.access().mayManage(sender::hasPermission)) {
+            live.messages().send(sender, "warps.not-yours");
+            return;
+        }
+        Player to = args.length >= 2 ? live.server().getPlayerExact(args[1])
+                : sender instanceof Player self ? self : null;
+        if (to == null) {
+            live.messages().send(sender, args.length >= 2 ? "warps.not-online" : "warps.usage.token",
+                    "player", args.length >= 2 ? args[1] : "");
+            return;
+        }
+        int amount = 1;
+        if (args.length >= 3) {
+            try {
+                amount = Math.max(1, Math.min(64, Integer.parseInt(args[2])));
+            } catch (NumberFormatException notANumber) {
+                live.messages().send(sender, "warps.usage.token");
+                return;
+            }
+        }
+        live.tokens().give(sender, to, amount);
+    }
+
+    /** A player the server has seen, by name — online or not. Null for somebody it never has. */
+    private static OfflinePlayer known(String name) {
+        OfflinePlayer online = org.bukkit.Bukkit.getPlayerExact(name);
+        return online != null ? online : org.bukkit.Bukkit.getOfflinePlayerIfCached(name);
+    }
+
+    private static String nameOf(OfflinePlayer player, String typed) {
+        return player.getName() == null ? typed : player.getName();
+    }
+
+    private static java.util.UUID idOf(CommandSender sender) {
+        return sender instanceof Player player ? player.getUniqueId() : null;
     }
 
     // ------------------------------------------------------------------------ completion
@@ -256,31 +348,56 @@ public final class WarpCommand implements IWarpCommand {
         CommandSender sender = source.getSender();
         boolean admin = live.access().mayManage(sender::hasPermission);
 
+        java.util.UUID id = idOf(sender);
+        boolean owner = admin || live.access().mayCreate(sender::hasPermission, false)
+                || !live.catalogue().ownedBy(id).isEmpty();
+        String sub = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
+
         if (args.length <= 1) {
-            String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
             List<String> options = new ArrayList<>(names(live, sender));
-            options.add("list");
-            options.add("help");
-            if (admin) {
-                options.addAll(List.of("admin", "config", "set", "move", "delete", "category",
-                        "label", "icon", "access"));
+            options.addAll(List.of("list", "help", "mine"));
+            if (owner) {
+                options.addAll(List.of("set", "move", "delete", "label", "icon", "access", "member"));
             }
-            return startingWith(options, typed);
+            if (admin) {
+                options.addAll(List.of("admin", "config", "category", "owner", "token"));
+            }
+            return startingWith(options, sub);
         }
-        if (args.length == 2 && admin) {
-            // Every subcommand but the first takes a warp name second.
-            return startingWith(names(live, sender), args[1].toLowerCase(Locale.ROOT));
+        String typed = args[args.length - 1].toLowerCase(Locale.ROOT);
+        if (args.length == 2 && admin && sub.equals("token")) {
+            return startingWith(online(live), typed);
         }
-        if (args.length == 3 && admin && args[0].equalsIgnoreCase("access")) {
-            return startingWith(List.of("everybody", "staff", "own"),
-                    args[2].toLowerCase(Locale.ROOT));
+        if (args.length == 2 && owner && (sub.equals("member") || sub.equals("members"))) {
+            return startingWith(List.of("add", "remove"), typed);
         }
-        if (args.length == 3 && admin && args[0].equalsIgnoreCase("category")) {
+        if (args.length == 2 && owner) {
+            // Every other subcommand takes a warp name second.
+            return startingWith(names(live, sender), typed);
+        }
+        if (args.length == 3 && owner && (sub.equals("access") || sub.equals("permission"))) {
+            return startingWith(admin ? List.of("everybody", "private", "staff", "own")
+                    : List.of("everybody", "private"), typed);
+        }
+        if (args.length == 3 && admin && sub.equals("category")) {
             return startingWith(new ArrayList<>(live.catalogue()
-                            .categoriesVisibleTo(sender::hasPermission, live.access())),
-                    args[2].toLowerCase(Locale.ROOT));
+                            .categoriesVisibleTo(idOf(sender), sender::hasPermission, live.access())),
+                    typed);
+        }
+        if (args.length == 3 && admin && (sub.equals("owner") || sub.equals("give"))) {
+            return startingWith(online(live), typed);
+        }
+        if (args.length == 3 && owner && (sub.equals("member") || sub.equals("members"))) {
+            return startingWith(names(live, sender), typed);
+        }
+        if (args.length == 4 && owner && (sub.equals("member") || sub.equals("members"))) {
+            return startingWith(online(live), typed);
         }
         return List.of();
+    }
+
+    private static List<String> online(WarpServices live) {
+        return live.server().getOnlinePlayers().stream().map(Player::getName).toList();
     }
 
     private static Collection<String> startingWith(List<String> options, String typed) {
@@ -297,7 +414,7 @@ public final class WarpCommand implements IWarpCommand {
      * which is exactly what the menu takes care not to do.
      */
     private static List<String> names(WarpServices live, CommandSender sender) {
-        return live.catalogue().visibleTo(sender::hasPermission, live.access()).stream()
+        return live.catalogue().visibleTo(idOf(sender), sender::hasPermission, live.access()).stream()
                 .map(Warp::name)
                 .toList();
     }

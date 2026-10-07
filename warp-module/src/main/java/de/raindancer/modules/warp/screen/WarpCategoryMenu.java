@@ -53,10 +53,10 @@ public final class WarpCategoryMenu extends PaginatedMenu<String> implements IWa
     @Override
     protected List<String> entries() {
         List<String> found = new ArrayList<>(
-                services.catalogue().categoriesVisibleTo(viewer::hasPermission, services.access()));
+                services.catalogue().categoriesVisibleTo(viewer.getUniqueId(), viewer::hasPermission, services.access()));
         found.sort(String.CASE_INSENSITIVE_ORDER);
         // Last, always. The pile of things nobody has filed belongs after the things somebody has.
-        if (services.catalogue().hasUncategorised(viewer::hasPermission, services.access())) {
+        if (services.catalogue().hasUncategorised(viewer.getUniqueId(), viewer::hasPermission, services.access())) {
             found.add(EVERYTHING_ELSE);
         }
         return found;
@@ -99,7 +99,7 @@ public final class WarpCategoryMenu extends PaginatedMenu<String> implements IWa
 
     private int countIn(String category) {
         return services.catalogue().inCategory(
-                        category.equals(EVERYTHING_ELSE) ? null : category,
+                        category.equals(EVERYTHING_ELSE) ? null : category, viewer.getUniqueId(),
                         viewer::hasPermission, services.access())
                 .size();
     }

@@ -158,29 +158,31 @@ class WarpSettingsTest {
             // constructor to change one number is a call site where two of the four ints can be
             // swapped without the compiler noticing.
             assertThat(defaults.withWarmupSeconds(9))
-                    .isEqualTo(new WarpSettings(9, 15, true, true, 8, 200, 24, true, false, 8, 10, true));
+                    .isEqualTo(new WarpSettings(9, 15, true, true, 8, 200, 24, true, false, 8, 10, true, 3));
             assertThat(defaults.withCooldownSeconds(60))
-                    .isEqualTo(new WarpSettings(3, 60, true, true, 8, 200, 24, true, false, 8, 10, true));
+                    .isEqualTo(new WarpSettings(3, 60, true, true, 8, 200, 24, true, false, 8, 10, true, 3));
             assertThat(defaults.withHurtCancelsWarmup(false))
-                    .isEqualTo(new WarpSettings(3, 15, false, true, 8, 200, 24, true, false, 8, 10, true));
+                    .isEqualTo(new WarpSettings(3, 15, false, true, 8, 200, 24, true, false, 8, 10, true, 3));
             assertThat(defaults.withSafeArrival(false))
-                    .isEqualTo(new WarpSettings(3, 15, true, false, 8, 200, 24, true, false, 8, 10, true));
+                    .isEqualTo(new WarpSettings(3, 15, true, false, 8, 200, 24, true, false, 8, 10, true, 3));
             assertThat(defaults.withSafeArrivalRadius(12))
-                    .isEqualTo(new WarpSettings(3, 15, true, true, 12, 200, 24, true, false, 8, 10, true));
+                    .isEqualTo(new WarpSettings(3, 15, true, true, 12, 200, 24, true, false, 8, 10, true, 3));
             assertThat(defaults.withMostWarps(50))
-                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 50, 24, true, false, 8, 10, true));
+                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 50, 24, true, false, 8, 10, true, 3));
             assertThat(defaults.withLongestName(32))
-                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 32, true, false, 8, 10, true));
+                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 32, true, false, 8, 10, true, 3));
             assertThat(defaults.withBringWhatYouLead(false))
-                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, false, false, 8, 10, true));
+                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, false, false, 8, 10, true, 3));
             assertThat(defaults.withBringNearbyPets(true))
-                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, true, true, 8, 10, true));
+                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, true, true, 8, 10, true, 3));
             assertThat(defaults.withBringRadius(16))
-                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, true, false, 16, 10, true));
+                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, true, false, 16, 10, true, 3));
             assertThat(defaults.withBringAtMost(4))
-                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, true, false, 8, 4, true));
+                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, true, false, 8, 4, true, 3));
             assertThat(defaults.withUseCategories(false))
-                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, true, false, 8, 10, false));
+                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, true, false, 8, 10, false, 3));
+            assertThat(defaults.withMostOwnWarps(7))
+                    .isEqualTo(new WarpSettings(3, 15, true, true, 8, 200, 24, true, false, 8, 10, true, 7));
         }
 
         @Test

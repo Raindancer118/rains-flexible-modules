@@ -183,6 +183,16 @@ public final class WarpConfigMenu extends Menu implements IWarpScreen {
                                 "",
                                 "<gray>Click to add one. Right click to take one away.")),
                 click -> step("longest-name", now.longestName(), click, 3, 48));
+
+        band(MenuLayout.TOOLBAR_ROW, 4, Icons.of(Material.NETHER_STAR, "<white>Warps one player may set",
+                        lore(String.valueOf(now.ownWarpLimit()),
+                                "<gray>For players given rainswarps.warp.create.",
+                                "<gray>A warp token is one more on top of this,",
+                                "<gray>and staff have no limit at all.",
+                                "<dark_gray>Zero leaves it to tokens and staff.",
+                                "",
+                                "<gray>Click to add one. Right click to take one away.")),
+                click -> step("most-own-warps", now.mostOwnWarps(), click, 0, 100));
     }
 
     // ------------------------------------------------------------------------ the two kinds of button
