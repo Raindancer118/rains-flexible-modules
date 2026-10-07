@@ -125,6 +125,7 @@ class CatalogueFileTest {
         Catalogue loaded = new CatalogueFile(config()).load(problem -> { });
 
         assertThat(loaded.preset("creeper")).as("a new one arrived").isPresent();
+        assertThat(loaded.preset("lava")).as("0.4.0's flowing ones never reached older files; now they do").isPresent();
         assertThat(loaded.colourNamed("peach")).as("a new colour arrived").isPresent();
         assertThat(loaded.preset("sunset").orElseThrow().title()).as("the owner's rename stays").isEqualTo("Abendrot");
         assertThat(loaded.preset("fire")).as("an original the owner deleted stays deleted").isEmpty();

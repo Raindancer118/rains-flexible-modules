@@ -245,11 +245,12 @@ public final class CatalogueFile {
     }
 
     /**
-     * What the first versions shipped, before the file remembered what it had been offered. A list that
+     * What the first version shipped (0.3.0), before the file remembered what it had been offered — the two
+     * flowing ones came in 0.4.0 without reaching existing files, so they count as new. A list that
      * still holds one of these was built on ours and may be added to; one that holds none is the owner's own.
      */
     private static final List<String> ORIGINAL_PRESETS = List.of("sunset", "ocean", "fire", "mint", "aurora",
-            "candy", "royal", "gold", "rainbow", "lava", "northern-lights");
+            "candy", "royal", "gold", "rainbow");
 
     private static List<String> originalPalette() {
         List<String> keys = new ArrayList<>();
