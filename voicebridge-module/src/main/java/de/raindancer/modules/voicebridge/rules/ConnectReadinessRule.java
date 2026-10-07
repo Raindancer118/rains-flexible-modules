@@ -10,7 +10,11 @@ import java.util.Optional;
  */
 public final class ConnectReadinessRule implements IVoiceBridgeRule {
 
-    public Optional<String> refusal(boolean enabled, String token, DiscordTarget target) {
+    /**
+     * @param lobbyId the proximity lobby channel, or empty with proximity mode off — with a lobby,
+     *                the group bridge channel becomes optional
+     */
+    public Optional<String> refusal(boolean enabled, String token, DiscordTarget target, String lobbyId) {
         if (!enabled) {
             return Optional.of("voicebridge.not-ready.off");
         }
@@ -23,8 +27,12 @@ public final class ConnectReadinessRule implements IVoiceBridgeRule {
         if (!DiscordTarget.isSnowflake(target.guildId())) {
             return Optional.of("voicebridge.not-ready.bad-server");
         }
+        String lobby = lobbyId == null ? "" : lobbyId.strip();
+        if (!lobby.isEmpty() && !DiscordTarget.isSnowflake(lobby)) {
+            return Optional.of("voicebridge.not-ready.bad-lobby");
+        }
         if (target.channelId().isEmpty()) {
-            return Optional.of("voicebridge.not-ready.no-channel");
+            return lobby.isEmpty() ? Optional.of("voicebridge.not-ready.no-channel") : Optional.empty();
         }
         if (!DiscordTarget.isSnowflake(target.channelId())) {
             return Optional.of("voicebridge.not-ready.bad-channel");

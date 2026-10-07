@@ -12,6 +12,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -31,7 +32,12 @@ public final class GroupService implements IVoiceBridgeService {
     public record GroupView(UUID id, String name, boolean locked, String type, List<UUID> members) {
     }
 
+    public static final long INVITE_LIFETIME_MILLIS = 5 * 60 * 1000L;
+
     private static final int LONGEST_NAME = 24;
+
+    private record Invite(UUID target, UUID group, long expiresAt) {
+    }
 
     private final Supplier<Optional<VoicechatServerApi>> api;
     private final Function<UUID, Optional<Long>> links;
@@ -39,16 +45,19 @@ public final class GroupService implements IVoiceBridgeService {
     private final Function<Group, String> passwordOf;
     private final Supplier<Iterable<UUID>> online;
     private final Inviter inviter;
+    private final LongSupplier clock;
+    private final List<Invite> invites = new ArrayList<>();
 
     public GroupService(Supplier<Optional<VoicechatServerApi>> api, Function<UUID, Optional<Long>> links,
                         GroupJoinRule rule, Function<Group, String> passwordOf, Supplier<Iterable<UUID>> online,
-                        Inviter inviter) {
+                        Inviter inviter, LongSupplier clock) {
         this.api = api;
         this.links = links;
         this.rule = rule;
         this.passwordOf = passwordOf;
         this.online = online;
         this.inviter = inviter;
+        this.clock = clock;
     }
 
     @Override
@@ -158,12 +167,22 @@ public final class GroupService implements IVoiceBridgeService {
         if (group.isEmpty()) {
             return "voicebridge.groups.not-in-group";
         }
+        synchronized (invites) {
+            invites.removeIf(old -> old.target().equals(target) && old.group().equals(group.get().getId()));
+            invites.add(new Invite(target, group.get().getId(), clock.getAsLong() + INVITE_LIFETIME_MILLIS));
+        }
         inviter.invite(from, target, group.get());
         return "";
     }
 
-    /** An invite was clicked: in, without the password — the inviter was already inside. */
+    /**
+     * An invite was clicked: in, without the password — the inviter was already inside. Only with an
+     * invite actually sent to this player for this group, and only once.
+     */
     public String accept(UUID player, UUID groupId) {
+        if (!spendInvite(player, groupId)) {
+            return "voicebridge.groups.no-invite";
+        }
         VoicechatConnection connection = connection(player);
         Group group = api.get().map(live -> live.getGroup(groupId)).orElse(null);
         if (group == null) {
@@ -174,6 +193,14 @@ public final class GroupService implements IVoiceBridgeService {
         }
         connection.setGroup(group);
         return "";
+    }
+
+    private boolean spendInvite(UUID player, UUID groupId) {
+        long now = clock.getAsLong();
+        synchronized (invites) {
+            invites.removeIf(invite -> now >= invite.expiresAt());
+            return invites.removeIf(invite -> invite.target().equals(player) && invite.group().equals(groupId));
+        }
     }
 
     private Group find(String nameOrId) {

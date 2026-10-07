@@ -19,9 +19,12 @@ import java.util.function.LongSupplier;
 public final class LinkService implements IVoiceBridgeService {
 
     public static final long CODE_LIFETIME_MILLIS = 10 * 60 * 1000L;
+    /**
+     * Per Discord account. There is deliberately no server-wide cap — strangers could use it to lock
+     * everybody out of linking — so the code itself has to be unguessable: 31^10 is about 8·10^14,
+     * and even a thousand alt accounts get five thousand tries per ten minutes.
+     */
     public static final int MOST_WRONG_GUESSES = 5;
-    /** Across every account: 31^6 codes against 30 guesses per 10 minutes is never going to land. */
-    public static final int MOST_WRONG_GUESSES_OVERALL = 30;
 
     /** No 0/O, 1/I/L: a code is read off a screen and typed somewhere else. */
     private static final String ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -35,7 +38,6 @@ public final class LinkService implements IVoiceBridgeService {
     private final LongSupplier clock;
     private final Map<UUID, PendingLink> pending = new HashMap<>();
     private final Map<Long, Guesses> guesses = new HashMap<>();
-    private Guesses overall = new Guesses(0, 0);
 
     public LinkService(LinkStore store, LinkCodeRule rule, Random random, LongSupplier clock) {
         this.store = store;
@@ -51,7 +53,10 @@ public final class LinkService implements IVoiceBridgeService {
 
     public synchronized String codeFor(UUID player) {
         StringBuilder code = new StringBuilder();
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 10; i++) {
+            if (i == 5) {
+                code.append('-');
+            }
             code.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
         }
         pending.put(player, new PendingLink(code.toString(), player, clock.getAsLong() + CODE_LIFETIME_MILLIS));
@@ -66,10 +71,7 @@ public final class LinkService implements IVoiceBridgeService {
             guesses.remove(discordUser);
             tried = null;
         }
-        if (now - overall.since() >= CODE_LIFETIME_MILLIS) {
-            overall = new Guesses(0, now);
-        }
-        if ((tried != null && tried.wrong() >= MOST_WRONG_GUESSES) || overall.wrong() >= MOST_WRONG_GUESSES_OVERALL) {
+        if (tried != null && tried.wrong() >= MOST_WRONG_GUESSES) {
             return Optional.empty();
         }
         pending.values().removeIf(link -> now >= link.expiresAt());
@@ -81,7 +83,6 @@ public final class LinkService implements IVoiceBridgeService {
                 return Optional.of(link.player());
             }
         }
-        overall = new Guesses(overall.wrong() + 1, overall.since());
         guesses.put(discordUser, tried == null ? new Guesses(1, now) : new Guesses(tried.wrong() + 1, tried.since()));
         return Optional.empty();
     }

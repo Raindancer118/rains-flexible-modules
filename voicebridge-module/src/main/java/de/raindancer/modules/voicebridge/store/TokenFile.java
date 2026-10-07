@@ -5,6 +5,9 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -22,10 +25,16 @@ public final class TokenFile {
 
     private static final String TEMPLATE = """
             # The Discord bot token for Rain's Voice Bridge goes on its own line below this text.
+            # (The first token is the main bot.)
             #
             # 1. https://discord.com/developers/applications -> New Application -> Bot -> Reset Token.
             # 2. Invite the bot: OAuth2 -> URL Generator -> scope "bot", permissions "Connect" and "Speak".
             # 3. Paste the token below, then run /voicebridge reconnect in game or in the console.
+            #
+            #
+            # Proximity mode: every further line is one more bot, and each bot carries one Discord
+            # user at a time. Five extra lines = five people on Discord in proximity chat at once.
+            # Each needs its own application (step 1) and invite (step 2).
             #
             # Anybody holding this token controls the bot. Never share this file.
             # Alternatively set the environment variable RAINS_VOICEBRIDGE_TOKEN; it wins over this file.
@@ -44,31 +53,37 @@ public final class TokenFile {
         return new TokenFile(folder.resolve("discord-token.txt"), System::getenv);
     }
 
-    /** The token, or empty. Writes the explained template the first time there is no file. */
+    /** The main bot's token, or empty. Writes the explained template the first time there is no file. */
     public String read() {
+        List<String> all = readAll();
+        return all.isEmpty() ? "" : all.getFirst();
+    }
+
+    /** Every token: the first is the main bot, any after it are proximity lines, one listener each. */
+    public List<String> readAll() {
         String fromEnvironment = environment.apply(ENVIRONMENT);
         if (fromEnvironment != null && !fromEnvironment.isBlank()) {
             source = Source.ENVIRONMENT;
-            return fromEnvironment.strip();
+            return Arrays.stream(fromEnvironment.split(",")).map(String::strip).filter(token -> !token.isEmpty()).toList();
         }
         try {
             if (Files.notExists(file)) {
                 writeTemplate();
                 source = Source.NONE;
-                return "";
+                return List.of();
             }
+            List<String> tokens = new ArrayList<>();
             for (String line : Files.readAllLines(file)) {
                 String trimmed = line.strip();
                 if (!trimmed.isEmpty() && !trimmed.startsWith("#")) {
-                    source = Source.FILE;
-                    return trimmed;
+                    tokens.add(trimmed);
                 }
             }
+            source = tokens.isEmpty() ? Source.NONE : Source.FILE;
+            return tokens;
         } catch (IOException unreadable) {
             throw new UncheckedIOException("could not read " + file, unreadable);
         }
-        source = Source.NONE;
-        return "";
     }
 
     public Source source() {

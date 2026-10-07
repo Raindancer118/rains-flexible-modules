@@ -36,6 +36,7 @@ class GroupServiceTest {
     private Group open;
     private Group locked;
     private GroupService groups;
+    private long now = 0;
 
     @BeforeEach
     void setUp() {
@@ -49,7 +50,8 @@ class GroupServiceTest {
 
         groups = new GroupService(() -> Optional.of(api), player -> Optional.ofNullable(linked.get(player)),
                 new GroupJoinRule(), group -> passwords.get(group.getId()), () -> online,
-                (inviter, target, group) -> invitesSent.add(inviter + ">" + target + ":" + group.getName()));
+                (inviter, target, group) -> invitesSent.add(inviter + ">" + target + ":" + group.getName()),
+                () -> now);
     }
 
     private static Group group(String name, boolean password, Group.Type type) {
@@ -190,14 +192,50 @@ class GroupServiceTest {
     }
 
     @Test
-    @DisplayName("accepting an invite opens a locked group without its password — once, while it still exists")
+    @DisplayName("accepting an invite opens a locked group without its password — once")
     void acceptsInvite() {
+        connection(alex, locked, false);
         VoicechatConnection sams = connection(sam, null, false);
+        groups.invite(alex, sam);
 
         assertThat(groups.accept(sam, locked.getId())).isEmpty();
         verify(sams).setGroup(locked);
+        assertThat(groups.accept(sam, locked.getId())).as("an invite is spent").isEqualTo("voicebridge.groups.no-invite");
+    }
 
+    @Test
+    @DisplayName("without an invite, accepting is refused — it is not a back door round the password")
+    void noInviteNoEntry() {
+        VoicechatConnection sams = connection(sam, null, false);
+
+        assertThat(groups.accept(sam, locked.getId())).isEqualTo("voicebridge.groups.no-invite");
+        verify(sams, never()).setGroup(any());
+    }
+
+    @Test
+    @DisplayName("an invite is for the player it was sent to and runs out")
+    void invitesAreTargetedAndExpire() {
+        connection(alex, locked, false);
+        VoicechatConnection bos = connection(UUID.randomUUID(), null, false);
+        groups.invite(alex, sam);
+
+        UUID stranger = UUID.randomUUID();
+        connection(stranger, null, false);
+        assertThat(groups.accept(stranger, locked.getId())).isEqualTo("voicebridge.groups.no-invite");
+
+        now += GroupService.INVITE_LIFETIME_MILLIS;
+        connection(sam, null, false);
+        assertThat(groups.accept(sam, locked.getId())).isEqualTo("voicebridge.groups.no-invite");
+    }
+
+    @Test
+    @DisplayName("an invite to a group that has since gone is said so")
+    void inviteToAGoneGroup() {
+        connection(alex, locked, false);
+        connection(sam, null, false);
+        groups.invite(alex, sam);
         when(api.getGroup(locked.getId())).thenReturn(null);
+
         assertThat(groups.accept(sam, locked.getId())).isEqualTo("voicebridge.groups.no-such-group");
     }
 }

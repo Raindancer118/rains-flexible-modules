@@ -83,7 +83,7 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
             discord.idle("voicebridge.not-ready.no-token");
             return;
         }
-        Optional<String> refusal = readiness.refusal(live.enabled(), token, live.target());
+        Optional<String> refusal = readiness.refusal(live.enabled(), token, live.target(), live.activeLobby());
         if (refusal.isPresent()) {
             discord.disconnect();
             discord.idle(refusal.get());
