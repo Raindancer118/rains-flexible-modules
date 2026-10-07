@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.9.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.10.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -69,6 +69,8 @@ public final class ChatModule implements FlexModule {
         context.core().messages().defineFrom(
                 ChatModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(ChatModule.class.getResourceAsStream("messages-serious.yml"));
 
         int registered = PermissionNodes.register(server);
         if (registered > 0) {

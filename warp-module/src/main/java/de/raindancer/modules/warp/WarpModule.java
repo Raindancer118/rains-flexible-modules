@@ -54,7 +54,7 @@ import java.util.List;
  */
 public final class WarpModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.2.5")
+    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.3.0")
             .describedAs("Named places anybody can be sent to, with a menu to pick one from — and "
                     + "warps only the staff, or one permission, can reach")
             .by("Raindancer118");
@@ -95,6 +95,8 @@ public final class WarpModule implements FlexModule {
         context.core().messages().defineFrom(
                 WarpModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(WarpModule.class.getResourceAsStream("messages-serious.yml"));
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse the warp menu to every ordinary player on the server.

@@ -37,7 +37,7 @@ import java.util.List;
  */
 public final class WorldGateModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("worldgate", "World Gate", "1.1.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("worldgate", "World Gate", "1.2.0")
             .describedAs("Locks, drains or closes the Nether and the End to entry, and evacuates "
                     + "whoever is still inside")
             .by("Raindancer118");
@@ -64,6 +64,8 @@ public final class WorldGateModule implements FlexModule {
         context.core().messages().defineFrom(
                 WorldGateModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(WorldGateModule.class.getResourceAsStream("messages-serious.yml"));
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse /worldgate status to every ordinary player on the server.

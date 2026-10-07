@@ -47,7 +47,7 @@ import java.util.List;
  */
 public final class MannequinModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("mannequin", "Mannequin", "1.6.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("mannequin", "Mannequin", "1.7.0")
             .describedAs("Training dummies an owner spawns and dresses: real health that can be "
                     + "brought down and respawns identically afterwards, every hit tracked, "
                     + "blocking with a shield, and never leaving anything obtainable behind.")
@@ -88,6 +88,8 @@ public final class MannequinModule implements FlexModule {
         context.core().messages().defineFrom(
                 MannequinModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(MannequinModule.class.getResourceAsStream("messages-serious.yml"));
 
         int registered = PermissionNodes.register(server);
         if (registered > 0) {

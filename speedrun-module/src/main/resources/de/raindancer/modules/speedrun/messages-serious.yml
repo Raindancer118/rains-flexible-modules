@@ -1,0 +1,99 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+# A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
+
+speedrun:
+  start:
+    wrong-world: "<yellow>This only starts a run in <white><world></white>."
+    not-ready: "<yellow>A run is already under way."
+    no-end-condition: "<yellow>Nothing is set to end the run yet — open the menu and pick one."
+    no-participants: "<yellow>Nobody is here to race."
+    mode-missing: "<red>This lobby is set to play <white><mode></white>, and that plugin is not installed. Pick another game in the menu, or install it."
+    mode-failed: "<red>The game mode could not start. The lobby is ready again — an admin should look at the console."
+    not-allowed: "<yellow>Only staff can start a run here."
+    world-missing: "<red>The lobby world is not loaded. Somebody should look at speedrun.yml."
+  explosives:
+    refused: "<yellow>That does not explode here."
+  lemmemove:
+    no-permission-for-others: "<red>You may only release yourself — not somebody else."
+    player-not-found: "<red>No online player named <white><player></white>."
+    console-needs-a-player: "<red>Console must name a player: /lemmemove <player>."
+  freezeagain:
+    no-permission-for-others: "<red>You may only freeze yourself again — not somebody else."
+    player-not-found: "<red>No online player named <white><player></white>."
+    console-needs-a-player: "<red>Console must name a player: /freezeagain <player>."
+  starthere:
+    only-a-player: "<red>Only a player standing in the lobby world can set the start point."
+    wrong-world: "<yellow>This only sets a start point in <white><world></white>."
+  reset:
+    countdown-in-progress: "<yellow>A countdown is already under way; let it finish, or let it start, then reset."
+  resume:
+    not-ready: "<yellow>A run is already under way or counting down — only a ready or finished lobby can be resumed."
+  time:
+    unreadable: "<red><white><time></white> is not a time. Try 42:05, 1:02:03 or 1h30m."
+    no-run: "<yellow>No run is being played, so there is no clock to set."
+  spectate:
+    only-a-player: "<red>Only a player can register as not racing."
+  join:
+    only-a-player: "<red>Only a player can go to the speedrun lobby."
+    world-missing: "<red>The lobby world <white><world></white> is not loaded. Somebody should look at speedrun.yml."
+  command:
+    staff-only: "<red>/speedrun <word> is for staff."
+    no-permission: "<red>You may not use /speedrun <word> here."
+    only-a-player: "<red>That one opens a menu — it needs a player."
+    no-such-player: "<red>Nobody called <white><player></white> has played here."
+    player-offline: "<red><white><player></white> is offline right now. Their head start will have to wait for them."
+    too-many: "<red><white><player></white> matches <white><count></white> players - pick one."
+    selector-refused: "<red>Selectors like <white><player></white> are not yours to use here - or they are not written right. Type a name instead."
+  hud:
+    unknown: "<red><white><place></white> is not a place — sidebar, bossbar, actionbar or off."
+
+manhunt:
+  only-a-player: "<red>Only a player can do that."
+  not-yours: "<red>That is not yours to do."
+  player-offline: "<red><white><player></white> is offline right now. Come back when they are around."
+  too-many: "<red><white><player></white> matches <white><count></white> players - pick one."
+  selector-refused: "<red>Selectors like <white><player></white> are not yours to use here - or they are not written right. Type a name instead."
+  no-such-player: "<red>No online player named <white><player></white>. Everybody here is on the hub: <click:run_command:'/manhunt sides'><hover:show_text:'Everybody in the lobby'><u>[Sides]</u></hover></click>"
+  sides-frozen: "<yellow>A hunt is under way. Sides go back to being yours to pick once it ends. <click:run_command:'/manhunt status'><hover:show_text:'How the hunt stands'><u>[Status]</u></hover></click>"
+  not-in-hunt: "<yellow>You are not part of the hunt being played."
+  goal:
+    none-set: "<yellow>There is no goal set."
+    no-lobby: "<red>The speedrun lobby is not running."
+    unknown: "<red><white><goal></white> is no advancement this server has. <click:run_command:'/manhunt goal'><hover:show_text:'Pick one from a list'><u>[Pick one]</u></hover></click>"
+  start:
+    no-runner: "<yellow>Nobody is running. <click:run_command:'/manhunt join runner'><hover:show_text:'Run yourself'><u>[Run]</u></hover></click> <click:run_command:'/manhunt random 1'><hover:show_text:'Admins: one Runner drawn by lot'><u>[Pick one at random]</u></hover></click>"
+    no-hunter: "<yellow>Everybody here is a Runner. <click:run_command:'/manhunt join hunter'><hover:show_text:'Hunt instead'><u>[Hunt]</u></hover></click> <click:run_command:'/manhunt balance'><hover:show_text:'Admins: split the lobby by rating'><u>[Balance]</u></hover></click>"
+  join:
+    runners-locked: "<yellow>An admin picks the Runners on this server — everybody else hunts. <click:run_command:'/manhunt join hunter'><hover:show_text:'Join the Hunters'><u>[Hunt]</u></hover></click>"
+  side:
+    already: "<yellow><player> is already on that side."
+    last-runner: "<yellow>Somebody has to be running — <white><player></white> is the last Runner left."
+    last-hunter: "<yellow>Somebody has to be chasing — <white><player></white> is the last Hunter left."
+    hunt-over: "<yellow>That hunt is over — the sides are yours to pick again."
+  team-compass:
+    alone: "<yellow>Nobody else is on your side to point at."
+  give:
+    unknown-kind: "<red>There is no <white><compass></white> compass. Try tracker, team or structure."
+    no-hunt: "<yellow>No hunt is being played, so there is nothing for a compass to point at."
+    switched-off: "<yellow>The <white><compass></white> compass is switched off in the settings."
+    not-theirs: "<yellow>The <white><compass></white> compass is not for <white><player></white> — wrong side, or out of the hunt."
+    already-has: "<yellow><white><player></white> already carries the <white><compass></white> compass."
+    no-room: "<red><white><player></white>'s inventory is full — clear a slot, nothing is pushed out for the <white><compass></white> compass."
+    nothing-missing: "<yellow><white><player></white> is not missing any compass."
+  structure:
+    still-searching: "<yellow>Your compass is still looking — wait for its answer."
+    none: "<yellow>No <white><structure></white> anywhere near. Choose something else."
+    wait: "<yellow>Try again in <white><seconds></white> second(s)."
+  trail:
+    server-off: "<yellow>The particle trail is switched off on this server."
+  whitelist:
+    admin-only: "<red>Opening and closing is yours; changing who is on the whitelist is for admins."
+    unknown-command: "<yellow>No such whitelist option as <white><word></white>."
+    vip:
+      already: "<yellow><player> is already a VIP."
+      not-one: "<yellow><player> was not a VIP."
+  settings-unavailable: "<red>The settings screen is not available right now. <click:run_command:'/settings'><hover:show_text:'The server settings'><u>[Try /settings]</u></hover></click>"
+  balance:
+    too-few: "<yellow>It takes at least two players in the lobby to make two sides."

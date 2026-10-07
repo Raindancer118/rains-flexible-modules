@@ -48,7 +48,7 @@ import java.util.List;
  */
 public final class WallsRoadsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("wallsroads", "Walls and Roads", "1.0.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("wallsroads", "Walls and Roads", "1.1.0")
             .describedAs("Huge polygonal town walls and roads that cut a real gate where they cross, "
                     + "with renamable signs placed automatically. Every build has a real inverse.")
             .by("Raindancer118");
@@ -75,6 +75,8 @@ public final class WallsRoadsModule implements FlexModule {
         context.core().messages().defineFrom(
                 WallsRoadsModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(WallsRoadsModule.class.getResourceAsStream("messages-serious.yml"));
 
         int registered = PermissionNodes.register(server);
         if (registered > 0) {

@@ -49,7 +49,7 @@ import java.util.Random;
  */
 public final class RtpModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("rtp", "Random Teleport", "1.1.4")
+    private static final ModuleInfo INFO = ModuleInfo.of("rtp", "Random Teleport", "1.2.0")
             .describedAs("Sends a player somewhere random in their own world, inside a ring an owner "
                     + "sets — the warm-up, the safe landing and the teleport are RainsCore's Travel")
             .by("Raindancer118");
@@ -86,6 +86,8 @@ public final class RtpModule implements FlexModule {
         context.core().messages().defineFrom(
                 RtpModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(RtpModule.class.getResourceAsStream("messages-serious.yml"));
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse /rtp to every ordinary player on the server.

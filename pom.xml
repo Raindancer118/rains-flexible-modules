@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.52.1</rainscore.version>
+        <rainscore.version>1.53.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -44,33 +44,33 @@
         <modules-wrapper.version>1.2.1</modules-wrapper.version>
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
-        <claims-module.version>2.3.5</claims-module.version>
-        <moderation-module.version>2.22.2</moderation-module.version>
-        <names-module.version>2.1.3</names-module.version>
-        <cosmetics-module.version>0.7.2</cosmetics-module.version>
-        <warp-module.version>1.2.5</warp-module.version>
-        <homes-module.version>2.3.4</homes-module.version>
-        <tpa-module.version>2.1.7</tpa-module.version>
-        <farmworld-module.version>1.1.5</farmworld-module.version>
+        <claims-module.version>2.4.0</claims-module.version>
+        <moderation-module.version>2.23.0</moderation-module.version>
+        <names-module.version>2.2.0</names-module.version>
+        <cosmetics-module.version>0.8.0</cosmetics-module.version>
+        <warp-module.version>1.3.0</warp-module.version>
+        <homes-module.version>2.4.0</homes-module.version>
+        <tpa-module.version>2.2.0</tpa-module.version>
+        <farmworld-module.version>1.2.0</farmworld-module.version>
         <pack-module.version>1.0.0</pack-module.version>
-        <chained-module.version>1.1.4</chained-module.version>
-        <rtp-module.version>1.1.4</rtp-module.version>
-        <essentials-module.version>1.10.2</essentials-module.version>
-        <worldgate-module.version>1.1.2</worldgate-module.version>
+        <chained-module.version>1.2.0</chained-module.version>
+        <rtp-module.version>1.2.0</rtp-module.version>
+        <essentials-module.version>1.11.0</essentials-module.version>
+        <worldgate-module.version>1.2.0</worldgate-module.version>
         <!-- 0.x until it is everything that was asked for; the first release of World Utils. -->
-        <worldutils-module.version>0.1.4</worldutils-module.version>
-        <mannequin-module.version>1.6.2</mannequin-module.version>
-        <invsnap-module.version>1.1.4</invsnap-module.version>
-        <xpbottle-module.version>1.0.4</xpbottle-module.version>
-        <playerutils-module.version>0.1.2</playerutils-module.version>
-        <xaeromap-module.version>1.0.2</xaeromap-module.version>
-        <wallsroads-module.version>1.0.2</wallsroads-module.version>
+        <worldutils-module.version>0.2.0</worldutils-module.version>
+        <mannequin-module.version>1.7.0</mannequin-module.version>
+        <invsnap-module.version>1.2.0</invsnap-module.version>
+        <xpbottle-module.version>1.1.0</xpbottle-module.version>
+        <playerutils-module.version>0.2.0</playerutils-module.version>
+        <xaeromap-module.version>1.1.0</xaeromap-module.version>
+        <wallsroads-module.version>1.1.0</wallsroads-module.version>
         <hungergames-module.version>2.8.3</hungergames-module.version>
         <!-- Split out of RainsCore 13.08.2026, after a join handler there cleared a player's
              inventory on every join anywhere on the server — see speedrun-module's own README/javadoc
              for the incident. chained-module depends on this directly for the engine underneath it. -->
-        <speedrun-module.version>1.29.3</speedrun-module.version>
-        <chat-module.version>1.9.1</chat-module.version>
+        <speedrun-module.version>1.30.0</speedrun-module.version>
+        <chat-module.version>1.10.0</chat-module.version>
         <!-- Depends on speedrun-module's engine classes the same way chained-module does; see that
              module's own note in this file. -->
     </properties>

@@ -1,0 +1,22 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+# A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
+
+chained:
+  paired: "<green><white><first></white> and <white><second></white> are chained, up to <white><distance></white> blocks apart."
+  pair-refused: "<red>They could not be chained: <white><reason></white>."
+  not-paired: "<red><white><name></white> is not chained to anybody."
+  unpaired: "<green><white><name></white> is no longer chained to anybody."
+  unknown-player: "<red>There is nobody online called <white><name></white>."
+  player-offline: "<red><white><name></white> is offline right now. Both players must be online to be chained."
+  too-many: "<red><white><typed></white> matches <white><count></white> players - pick one. Chains come in pairs."
+  selector-refused: "<red>Selectors like <white><typed></white> are not yours to use here - or they are not written right. Type a name instead."
+  started: "<green>The clock is running."
+  start-refused: "<red>Could not start a run. Pair yourself first, or one is already going."
+  stopped: "<yellow>The run has been stopped. The chains stay on."
+  stop-refused: "<red>There is no run of yours to stop."
+  reset-done: "<green>The map has been reset."
+  reset-refused: "<red>The map could not be reset. Is the configured world loaded?"
+  only-a-player: "<red>Only somebody standing in the world can do that."
+  not-yours: "<red>Chained is not yours to change. Ask the staff."

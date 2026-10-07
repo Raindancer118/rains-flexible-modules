@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.10.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.11.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, and a nickname")
             .by("Raindancer118");
@@ -74,6 +74,8 @@ public final class EssentialsModule implements FlexModule {
         context.core().messages().defineFrom(
                 EssentialsModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(EssentialsModule.class.getResourceAsStream("messages-serious.yml"));
 
         int registered = de.raindancer.modules.essentials.util.PermissionNodes.register(server);
         if (registered > 0) {
@@ -114,10 +116,14 @@ public final class EssentialsModule implements FlexModule {
         WelcomeService welcome = new WelcomeService(context.core().messages(), context.chat(), reactions,
                 settings.current());
 
+        de.raindancer.modules.essentials.service.FunService fun =
+                new de.raindancer.modules.essentials.service.FunService(context.core().messages(),
+                        context.plugin(), settings.current());
+
         services = new EssentialsServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, store, blocklist, spawn, afk, messaging, nicknames, welcome, reactions,
-                enchanting, repairing);
+                enchanting, repairing, fun);
 
         settings.onChange(fresh -> {
             spawn.settings(fresh);
@@ -128,6 +134,7 @@ public final class EssentialsModule implements FlexModule {
             reactions.settings(fresh);
             enchanting.settings(fresh);
             repairing.settings(fresh);
+            fun.settings(fresh);
             // Shown everywhere or not is decided when a name is applied, so apply them again now.
             for (org.bukkit.entity.Player online : server.getOnlinePlayers()) {
                 de.raindancer.core.platform.util.Scheduling.entity(context.plugin(), online,

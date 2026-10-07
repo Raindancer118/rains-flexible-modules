@@ -51,7 +51,7 @@ import java.util.List;
  */
 public final class TpaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.1.7")
+    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.2.0")
             .describedAs("Ask somebody whether you may come to them, or whether they will come to "
                     + "you — and go back to where you were")
             .by("Raindancer118");
@@ -92,6 +92,8 @@ public final class TpaModule implements FlexModule {
         context.core().messages().defineFrom(
                 TpaModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(TpaModule.class.getResourceAsStream("messages-serious.yml"));
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse teleport requests to every ordinary player on the server.

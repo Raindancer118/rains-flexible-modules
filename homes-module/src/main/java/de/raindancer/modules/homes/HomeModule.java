@@ -57,7 +57,7 @@ import java.util.Optional;
  */
 public final class HomeModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.3.4")
+    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.4.0")
             .describedAs("Somewhere of your own to come back to: name it, set it, go to it, and pick "
                     + "from a menu of them")
             .by("Raindancer118");
@@ -130,6 +130,8 @@ public final class HomeModule implements FlexModule {
         context.core().messages().defineFrom(
                 HomeModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(HomeModule.class.getResourceAsStream("messages-serious.yml"));
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse homes to every ordinary player on the server.

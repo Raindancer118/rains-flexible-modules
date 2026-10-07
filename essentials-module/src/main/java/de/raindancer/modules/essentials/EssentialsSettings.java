@@ -24,6 +24,8 @@ import java.util.List;
         @Topic(path = "essentials/spawn", title = "Spawn", icon = Material.RED_BED),
         @Topic(path = "essentials/afk", title = "AFK", icon = Material.CLOCK),
         @Topic(path = "essentials/social", title = "Messages & nicknames", icon = Material.WRITABLE_BOOK),
+        @Topic(path = "essentials/fun", title = "Roasts & jokes", icon = Material.CAKE,
+                description = "/roast and /joke. What they say is in messages.yml under essentials.fun."),
 })
 public record EssentialsSettings(
 
@@ -92,7 +94,19 @@ public record EssentialsSettings(
         @In("essentials/social") @Title("What the Congrats! button says")
         @Describe("{name} is where their name goes; without it, the name goes last.")
         @Key("advancement-congrats-phrases")
-        List<String> congratsPhrases
+        List<String> congratsPhrases,
+
+        @In("essentials/fun") @Title("/roast")
+        @Describe("Says a random roast of somebody, or of yourself, in chat as whoever asked.")
+        boolean roastEnabled,
+
+        @In("essentials/fun") @Title("/joke")
+        @Describe("Says a random, deliberately terrible joke in chat as whoever asked.")
+        boolean jokeEnabled,
+
+        @In("essentials/fun") @Title("Seconds between two") @Range(min = 0, max = 600)
+        @Describe("How long somebody waits after a roast or a joke before the next. 0 means no wait.")
+        int funCooldownSeconds
 
 ) {
 
@@ -105,7 +119,8 @@ public record EssentialsSettings(
                     true, List.of("GG {name}", "Took you long enough, {name}", "{name} is carrying the server",
                             "Look at {name} go", "Absolute legend, {name}", "{name}'s mom would be proud",
                             "Someone call the news, {name} did it", "Huge W for {name}",
-                            "Not bad for a beginner, {name}", "And they said {name} couldn't do it"));
+                            "Not bad for a beginner, {name}", "And they said {name} couldn't do it"),
+                    true, true, 20);
 
     public EssentialsSettings {
         hiGreetings = hiGreetings == null ? List.of() : List.copyOf(hiGreetings);
@@ -122,28 +137,33 @@ public record EssentialsSettings(
         return Math.max(15, Math.min(7200, afkTimeoutSeconds));
     }
 
+    /** Clamped, so a hand-built record cannot ask for a negative wait. */
+    public java.time.Duration funCooldown() {
+        return java.time.Duration.ofSeconds(Math.max(0, Math.min(600, funCooldownSeconds)));
+    }
+
     /** Clamped, so a nickname cannot be asked to be longer than the setting that bounds it. */
     public int nicknameLimit() {
         return Math.max(2, Math.min(32, nicknameMaxLength));
     }
 
     public EssentialsSettings withAfkEnabled(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, value, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases);
+        return new EssentialsSettings(spawnWarmupSeconds, value, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds);
     }
 
     public EssentialsSettings withNicknameMaxLength(int value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, value, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, value, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds);
     }
 
     public EssentialsSettings withNicknameShownEverywhere(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, value, sayHiButton, hiGreetings, congratsButton, congratsPhrases);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, value, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds);
     }
 
     public EssentialsSettings withSayHiButton(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, value, hiGreetings, congratsButton, congratsPhrases);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, value, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds);
     }
 
     public EssentialsSettings withCongratsButton(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, value, congratsPhrases);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, value, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds);
     }
 }

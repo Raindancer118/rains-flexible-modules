@@ -35,7 +35,7 @@ import java.util.UUID;
 
 public final class PlayerUtilsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("playerutils", "Player Utils", "0.1.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("playerutils", "Player Utils", "0.2.0")
             .describedAs("Fly, heal, feed, hurt, drown, launch, scale, speed, wipe, spectate and sudo — and "
                     + "ping, status, hunger, effects, position and who is near. By name, nickname or selector.")
             .by("Raindancer118");
@@ -59,6 +59,8 @@ public final class PlayerUtilsModule implements FlexModule {
         context.core().messages().defineFrom(
                 PlayerUtilsModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(PlayerUtilsModule.class.getResourceAsStream("messages-serious.yml"));
         int registered = PermissionNodes.register(server);
         if (registered > 0) {
             log.info("{} permission(s) registered.", registered);

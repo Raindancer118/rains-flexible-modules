@@ -23,6 +23,10 @@ public final class PermissionNodes {
     public static final String PLAYERS = "essentials.players";
     public static final String NICK = "essentials.nick";
     public static final String AFK = "essentials.afk";
+    public static final String ROAST = "essentials.roast";
+    public static final String JOKE = "essentials.joke";
+    /** Roasting and joking without waiting between them. */
+    public static final String FUN_NO_COOLDOWN = "essentials.fun.no-cooldown";
 
     public static final String ENCHANT = "essentials.enchant";
     public static final String ENCHANT_BEYOND_MAX = "essentials.enchant.beyond-max";
@@ -59,6 +63,10 @@ public final class PermissionNodes {
                         PermissionDefault.TRUE),
                 new Permission(NICK, "Set your own nickname", PermissionDefault.TRUE),
                 new Permission(AFK, "Mark yourself away from the keyboard", PermissionDefault.TRUE),
+                new Permission(ROAST, "Roast somebody, or yourself, in chat with /roast", PermissionDefault.TRUE),
+                new Permission(JOKE, "Tell a terrible joke in chat with /joke", PermissionDefault.TRUE),
+                new Permission(FUN_NO_COOLDOWN, "Use /roast and /joke without waiting in between",
+                        PermissionDefault.OP),
                 new Permission(ENCHANT, "Enchant the item in your hand with /enchant", PermissionDefault.OP),
                 new Permission(ENCHANT_BEYOND_MAX, "Enchant past the level vanilla allows, up to 255",
                         PermissionDefault.OP),

@@ -33,7 +33,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.29.3")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.30.0")
             .describedAs("A speedrun lobby: pick a game, an advancement goal and a death policy "
                     + "from the compass's menu, then press the green block to race. A countdown "
                     + "freezes everyone first, and the lobby world resets once the last racer has "
@@ -59,6 +59,8 @@ public final class SpeedrunModule implements FlexModule {
         context.core().messages().defineFrom(
                 SpeedrunModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(SpeedrunModule.class.getResourceAsStream("messages-serious.yml"));
 
         // Before anything reads a file: Manhunt's data from the plugin it used to be, carried over once.
         ManhuntMigration.run(context.dataFolder());

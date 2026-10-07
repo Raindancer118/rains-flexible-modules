@@ -76,7 +76,7 @@ import java.util.Random;
  */
 public final class FarmWorldModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("farmworlds", "Farm Worlds", "1.1.5")
+    private static final ModuleInfo INFO = ModuleInfo.of("farmworlds", "Farm Worlds", "1.2.0")
             .describedAs("Somewhere to strip-mine that is regenerated — arrived at "
                     + "somewhere different every time, and announced before it goes")
             .by("Raindancer118");
@@ -144,6 +144,8 @@ public final class FarmWorldModule implements FlexModule {
         context.core().messages().defineFrom(
                 FarmWorldModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(FarmWorldModule.class.getResourceAsStream("messages-serious.yml"));
 
         // This module's own database now, not Core's shared one — see FarmWorldState.SCHEMA. A server
         // that ran an older version of this module kept these same rows in Core's core.db; migrateFrom

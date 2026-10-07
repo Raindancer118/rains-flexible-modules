@@ -1,0 +1,89 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+# A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
+
+moderation:
+  nothing-to-lift: "<gray>There is nothing of that kind in force for <white><player></white>."
+  no-such-player: "<red>Nobody called <white><player></white> has ever joined this server. Check the spelling."
+  player:
+    ambiguous: "<red><white><selector></white> matches <white><count></white> players, and this needs exactly one."
+  not-here: "<gray><player> is not on the server right now."
+  only-a-player: "<gray>This one is for somebody standing in the world."
+  console-use-commands: "<gray>The console has no screens. Try <white>/history</white>, <white>/reports list</white> or <white>/ban</white>."
+  vitals:
+    heal:
+      done: "<green>You are whole again."
+    hurt:
+      done: "<red>You hurt yourself."
+    starve:
+      done: "<gray>You are suddenly very hungry."
+  tool:
+    god:
+      turned-on: "<green>Nothing can hurt you. <dark_gray>It goes off when you log out."
+      turned-off: "<gray>You can be hurt again."
+    instakill:
+      turned-on: "<red>Everything you hit will die. <dark_gray>This includes livestock and pets."
+      turned-off: "<gray>You hit normally again."
+    instabreak:
+      turned-on: "<green>Blocks give way at once. <dark_gray>Claim protection still applies to you."
+      turned-off: "<gray>Blocks take their time again."
+  banhammer:
+    struck: "<gold><white><player></white> <gold>has been banned with the Banhammer."
+    immune: "<red><white><player></white> is a protected account — the Banhammer has no effect."
+    switched-off: "<gray>The Banhammer is switched off on this server."
+    not-allowed: "<gray>Only somebody allowed to use the Banhammer can ban with it. You are not on the list."
+    not-the-hammer: "<gray>That was not the Banhammer."
+    not-the-blow: "<gray>The Banhammer has to land the blow itself."
+    self: "<gray>The Banhammer does not work on its owner."
+    already-banned: "<gray>That player is already banned."
+  ban:
+    too-long-for-you: "<red>That is longer than you may ban for. <gray>Your limit is <white><detail></white> — an admin can go further."
+    not-for-ever-for-you: "<red>A permanent ban is an admin's decision. <gray>You can ban for up to <white><detail></white>."
+    not-yours-to-lift: "<red>That is a permanent ban, so lifting it is an admin's decision."
+  rank:
+    not-staff: "<gray><player> is not staff."
+    unknown: "<red>There is no rank called '<word>'. <gray>Try one of: <ranks>."
+    not-yours: "<red>You may not hand out that rank."
+    only-below-you: "<gray>You can only promote somebody to <white><rank></white> or below — the rank under your own."
+    not-above-you: "<gray><player> is <white><rank></white>, which is not below your own rank."
+    yourself: "<gray>You cannot change your own rank."
+    handing-out-is-off: "<gray>Only the server owner may hand out ranks on this server."
+  while-you-were-away: "<gray>While you were away:"
+  no-permission: "<red>You may not do that."
+  not-yourself: "<gray>You cannot do that to yourself."
+  world:
+    players-only: "<gray>This is aimed at wherever you are looking, so it needs somebody standing somewhere. <dark_gray>The console is not."
+    nothing-aimed-at: "<gray>You are not looking at anything within reach. <dark_gray>Point at the ground and try again."
+    nothing-to-replace: "<gray>Nothing there would take a vein. <dark_gray>Only natural stone and dirt are replaced — never anything built."
+    nothing-arrived: "<gray>Nothing turned up. <dark_gray>There was no room, or the ground is not loaded."
+    wave-already-running: "<gray>You already have a wave running. <dark_gray>Stop that one first."
+  protect:
+    console-only: "<red>Only the console can protect an account. <gray>Otherwise the staff could hand each other protection."
+    not-written: "<red>That could not be written to immune.yml, so it would be lost at the next restart. <gray>Nothing has been changed."
+  they-are-immune: "<red>That account is protected. Only the console can act on it."
+  nobody-there: "<gray>There is nobody to do that to."
+  unreadable-length: "<red>'<text>' is not a length I can read. <gray>Nothing has been done — try <white>2h</white> or <white>perm</white>."
+  nothing-typed: "<gray>Nothing was typed, so nothing happened."
+  type-a-name: "<gray>Type part of a name to search for."
+  record-empty: "<gray><player> has never been punished here."
+  audit-empty: "<gray>Nothing in the audit journal yet."
+  audit-empty-for: "<gray>Nothing on record for <white><player></white>."
+  invsee:
+    refused: "<red>That inventory could not be opened: <gray><reason>"
+  staff-chat:
+    turned-off: "<gray>You are talking to the server again."
+    no-longer-yours: "<red>You may no longer use staff chat, so that went nowhere. <gray>You are back in ordinary chat."
+  vanished: "<gray>You are invisible. <dark_gray>Players cannot see you or hear you arrive."
+  visible-again: "<green>You are visible again."
+  report:
+    not-taken: "<gray>That report was not taken — somebody may have reported <white><player></white> already."
+    switched-off: "<gray>Reports are switched off on this server."
+    too-short: "<gray>Say a little more than that — at least <white><detail></white> characters, so somebody can act on it."
+    not-yourself: "<gray>You cannot report yourself."
+    nobody-there: "<gray>There is nobody by that name to report. Check the spelling."
+    too-soon: "<gray>You have just reported somebody. <dark_gray>Try again in <detail>."
+    already-open: "<gray>You have already reported them — the staff have it as <white><detail></white>."
+    too-many: "<gray>You have <white><detail></white> reports still open. <dark_gray>Wait for one to be dealt with."
+    queue-empty: "<gray>Nothing is waiting."
+    already-closed: "<gray><id> had already been closed by somebody else."

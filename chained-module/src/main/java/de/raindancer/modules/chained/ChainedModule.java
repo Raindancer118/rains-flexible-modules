@@ -48,7 +48,7 @@ import java.util.List;
  */
 public final class ChainedModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chained", "Chained", "1.1.4")
+    private static final ModuleInfo INFO = ModuleInfo.of("chained", "Chained", "1.2.0")
             .describedAs("Two players, mechanically chained together — separating too far is "
                     + "simply blocked, and a speedrun timer runs underneath the run")
             .by("Raindancer118");
@@ -87,6 +87,8 @@ public final class ChainedModule implements FlexModule {
         context.core().messages().defineFrom(
                 ChainedModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(ChainedModule.class.getResourceAsStream("messages-serious.yml"));
 
         // Before anything asks. An unregistered permission resolves to "operators only".
         int registered = PermissionNodes.register(server);

@@ -60,7 +60,7 @@ import java.io.UncheckedIOException;
  */
 public final class ClaimsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.3.5")
+    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.4.0")
             .describedAs("Land claims: who owns what, who may do what there, and the screens for it")
             .by("Raindancer118");
 
@@ -119,6 +119,8 @@ public final class ClaimsModule implements FlexModule {
         context.core().messages().defineFrom(
                 ClaimsModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(ClaimsModule.class.getResourceAsStream("messages-serious.yml"));
 
         // Before any command is asked whether somebody may run it. A module has no paper-plugin.yml of
         // its own, and an unregistered permission reads as false for every player who is not an

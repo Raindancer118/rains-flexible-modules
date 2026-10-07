@@ -1,0 +1,53 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+# A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
+
+chat:
+  only-a-player: "<red>Only a player can do that."
+  poll:
+    voted: "<green>Vote counted: <white><answer></white>."
+    changed: "<green>Vote changed. You are now on <white><answer></white>."
+    already: "<gray>You already picked <white><answer></white>."
+    over: "<gray>That poll is over."
+    winner: "<green>  Winner: <white><answer></white>. <dark_gray>(<count> voted)"
+    tie: "<yellow>  It's a tie between <white><answers></white>."
+    nobody-voted: "<gray>  Nobody voted."
+    not-yours: "<red>That's not your poll to end — only whoever started it, or staff."
+    off: "<red>Polls are switched off on this server."
+    one-at-a-time: "<yellow>A poll is already running. Only one poll can run at a time."
+    not-started: "<red>That poll couldn't be started — try different answers."
+    no-question: "<red>Ask a question first. A poll needs a question."
+    question-too-long: "<red>That question is too long — keep it under 100 characters."
+    too-few: "<red>A poll needs at least two answers."
+    too-many: "<red>At most six answers are allowed."
+    empty-answer: "<red>One of the answers is empty."
+    answer-too-long: "<red>Keep each answer to 24 characters, so it fits on a button."
+    twice: "<red>The same answer twice would split the vote."
+    length: "<red>The duration must be between 10 seconds and an hour."
+  mention:
+    while-away: "<yellow>⚡ While you were away, you were mentioned <white><count></white> time(s)."
+  quality:
+    caps: "<red>Try that again without capital letters."
+    repeat: "<red>You already said that."
+    cooldown: "<red>Wait <white><seconds></white>s before your next message."
+    slowmode: "<red>Chat is in slowmode — wait <white><seconds></white>s."
+  frozen: "<red>Chat is frozen right now."
+  history:
+    disabled: "<red>Chat history is switched off on this server."
+    none: "<gray>Nothing happened while you were away."
+    missed: "<yellow>You missed <white><count></white> message(s) — /chathistory to catch up."
+  no-permission: "<red>You are not allowed to do that."
+  not-online: "<red><white><player></white> is not online."
+  private:
+    invite-gone: "<red>That invitation is no longer open."
+    you-are-in-another-chat: "<red>You are already in another private chat. <gray>/chat private leave leaves it first."
+    in-another-chat: "<red><white><player></white> is already in another private chat."
+    not-yourself: "<red>That would be yourself. You are already in this chat."
+    not-the-owner: "<red>Only <white><owner></white> can do that in this private chat."
+    not-a-member: "<red><white><player></white> is not in this private chat."
+    not-in-a-chat: "<red>You are not in a private chat. <gray>/chat private starts one."
+  admin:
+    frozen: "<red>Chat has been frozen by <white><player></white>."
+    unfrozen: "<green>Chat has been unfrozen by <white><player></white>."
+    slowmode-range: "<red>Slowmode has to be between 0 and 60 seconds."

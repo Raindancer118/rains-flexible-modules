@@ -72,7 +72,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.22.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.23.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -132,6 +132,8 @@ public final class ModerationModule implements FlexModule {
         context.core().messages().defineFrom(
                 getClass().getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(getClass().getResourceAsStream("messages-serious.yml"));
 
         // Before anything asks about a permission. Staff are not operators, so every node has to be
         // registered with a default or hasPermission answers false for everybody who is not op — which

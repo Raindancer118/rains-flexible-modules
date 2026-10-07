@@ -1,0 +1,44 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+# A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
+
+tpa:
+  yourself: "<red>You are already where you are."
+  another-world: "<red><player></red> is in another world, and teleports across worlds are switched off here."
+  not-accepting: "<yellow><player></yellow> is not accepting teleport requests right now."
+  already-asked: "<yellow>You have already asked <white><player></white> — they have not answered yet."
+  too-soon: "<yellow>Another <white><time></white> before you can ask again."
+  is-offline: "<yellow><player></yellow> is offline right now. Ask again when they are back."
+  no-such-player: "<red>Nobody called <white><player></white> is known to this server. Check the spelling."
+  too-many: "<yellow><selector></yellow> matches <white><count></white> players, and a request goes to one. Pick one."
+  selector-refused: "<red><selector></red> is not yours to use, or not written right. A name works just as well."
+  selector-nobody: "<yellow><selector></yellow> did not match anybody."
+  they-refused: "<yellow><player></yellow> turned your request down."
+  nothing-to-answer: "<gray>Nobody is waiting on you."
+  nothing-to-take-back: "<gray>You have not asked anybody, and you are not going anywhere."
+  not-asked-by: "<red><player></red> has not asked you anything."
+  no-longer-online: "<yellow><player></yellow> is not online any more."
+  yours-ran-out: "<gray>Your request to <white><player></white> ran out."
+  theirs-ran-out: "<gray><player></gray>'s teleport request ran out."
+  warming-up: "<gray>Off to <white><player></white> in <white><seconds></white>s… stand still."
+  arrived: "<green>You arrived at <white><player></white>."
+  nowhere-safe: "<red>There is nowhere safe to put you next to <white><player></white>."
+  could-not-check: "<red>The ground there could not be checked."
+  teleport-refused: "<red>Something stopped you arriving."
+  cannot-schedule: "<red>The server cannot send you anywhere just now."
+  world-gone: "<yellow>That world is not loaded right now."
+  already-travelling: "<yellow>You are already on your way somewhere."
+  cancelled:
+    moved: "<yellow>You moved, so you are staying put."
+    hurt: "<yellow>Something hit you, so you are staying put."
+  now-refusing: "<yellow>Teleport requests are off — nobody can ask you."
+  nowhere-to-go-back-to: "<gray>There is nowhere to go back to yet."
+  back-switched-off: "<red>Going back is switched off on this server."
+  back-world-gone: "<yellow>That place is in a world that is not loaded right now."
+  back-cross-world-off: "<red>That place is in another world, and going back across one is switched off here."
+  back-nowhere-safe: "<red>There is nowhere safe to put you at <white><what></white>."
+  back-cancelled:
+    moved: "<yellow>You moved, so you are staying put."
+    hurt: "<yellow>Something hit you, so you are staying put."
+  only-a-player: "<red>A teleport request belongs to a player — this needs to be run in game."

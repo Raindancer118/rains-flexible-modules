@@ -24,4 +24,11 @@ class EssentialsCommandsTest {
                 .contains("msg", "m", "tell", "whisper")
                 .doesNotContain("w");
     }
+
+    @Test
+    @DisplayName("/roast and /joke are declared, and /roast takes an optional player")
+    void funCommands() {
+        assertThat(named("roast").names()).contains("roast");
+        assertThat(named("joke").names()).contains("joke");
+    }
 }

@@ -55,7 +55,7 @@
           (FeaturePolicyStore, on top of Core's own YamlStore) — they used to be rebuilt from
           FeatureRules' defaults on every enable(), so a change made there never survived a restart.
         -->
-        <plugin.version>2.3.5</plugin.version>
+        <plugin.version>2.4.0</plugin.version>
     </properties>
 
     <dependencies>

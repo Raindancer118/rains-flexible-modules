@@ -65,7 +65,7 @@ import java.util.List;
  */
 public final class XaeroMapModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("xaeromap", "Xaero's Map support", "1.0.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("xaeromap", "Xaero's Map support", "1.1.0")
             .describedAs("Gives every world its own map on Xaero's Minimap and World Map, offers a "
                     + "player their homes and warps as waypoints, and draws this server's claims.")
             .by("Raindancer118");
@@ -104,6 +104,8 @@ public final class XaeroMapModule implements FlexModule {
         context.core().messages().defineFrom(
                 XaeroMapModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(XaeroMapModule.class.getResourceAsStream("messages-serious.yml"));
 
         int registered = PermissionNodes.register(server);
         if (registered > 0) {

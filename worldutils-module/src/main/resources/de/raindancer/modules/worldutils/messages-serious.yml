@@ -1,0 +1,29 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+# A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
+
+worldutils:
+  arrived: "<gray>You are in <white><world></white>."
+  already-there: "<yellow><white><player></white> is already in <white><world></white>."
+  already-in-dimension: "<yellow><white><player></white> is already in <white><dimension></white>."
+  already-travelling: "<yellow><white><player></white> is already on the way somewhere."
+  travel-refused: "<red><white><player></white> could not be sent to <white><world></white>."
+  nowhere-safe: "<red>There is nowhere safe to put <white><player></white> in <white><world></white>."
+  no-such-dimension: "<red>This world has no <white><dimension></white> loaded — <white><world></white> does not exist."
+  unknown-world: "<red>There is no loaded world called <white><world></white>. Check the spelling, or /worlds list."
+  unknown-dimension: "<red><white><value></white> is not overworld, nether or end."
+  console-needs-a-player: "<red>From the console, say who: a name or a selector like @a."
+  no-permission-others: "<red>You may only move yourself."
+  nobody-matched: "<red>Nobody online matches <white><value></white>."
+  selector-refused: "<red><white><value></white> is not yours to use, or not written right. A name works just as well."
+  sending: "<gray>Sending <white><count></white> player(s)."
+  invalid-name: "<red><white><name></white> cannot be a world name: lowercase letters, digits, _ . and - only."
+  already-exists: "<red><white><world></white> already exists. Try another name."
+  create-failed: "<red>The server would not create <white><world></white> — the log says why."
+  created: "<green>Created <white><world></white> with seed <click:copy_to_clipboard:'<seed>'><white><seed></white></click>."
+  regenerated: "<green><white><worlds></white> is new, seed <click:copy_to_clipboard:'<seed>'><white><seed></white></click>."
+  regenerate-failed: "<red>Not everything of <white><worlds></white> could be reset — the log names what."
+  deleted: "<green>Deleted <white><worlds></white>. Its seeds are still in /worlds seeds."
+  seeds:
+    none: "<gray>No seed has been recorded for <white><world></white> yet."

@@ -1,0 +1,95 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+# A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
+
+claim:
+  manual-given: "<green>The manual is in your inventory. <gray>Read it any time."
+  border-hidden: "<gray>Borders hidden."
+  none-here: "<gray>You are not standing in a claim."
+  gone: "<red>That claim no longer exists."
+  not-trusted: "<gray><player> is not trusted here."
+  owner-holds-everything: "<gray>An owner may do everything — there is nothing to set."
+  not-banned: "<gray><player> is not barred from here."
+  cannot-ban-an-owner: "<red>You cannot bar <white><player></white> from a claim they own."
+  kicked: "<yellow>Removed <white><player></white> from <white><claim></white>."
+  cannot-kick-an-owner: "<red>You cannot kick <white><player></white> out of a claim they own."
+  owner-cannot-remove: "<gray><player> cannot be removed that way — the last owner, and whoever first claimed it, always stay."
+  rename-aborted: "<gray>Left the name alone."
+  title-aborted: "<gray>Left it alone."
+  titles-empty: "<gray>Nothing is set to show on arrival."
+  flag-not-yours: "<gray><flag> is decided by the server, not by you."
+  feature-is-the-servers: "<gray>Whether claims may use <white><feature></white> is the server's decision."
+  store-full: "<gray>That store is full — <white><cap></white> stacks is the limit."
+  pantry-food-only: "<gray>The pantry takes food only."
+  potions-only: "<gray>That store takes potions only."
+  unknown-subcommand: "<gray>Unknown subcommand <white><word></white>. Try <white>/claim</white> on its own."
+
+protection:
+  evicted-banned: "<red>You were removed from <white><claim></white>."
+  evicted-kicked: "<yellow>You were removed from <white><claim></white>."
+  entry-denied: "<red>You may not go into <white><claim></white>."
+  teleport-denied: "<red>You may not teleport into <white><claim></white>."
+  elytra-denied: "<red>No flying inside <white><claim></white>."
+  pvp-refused: "<red>Fighting is not allowed in <white><claim></white>."
+
+selection:
+  nothing-to-undo: "<gray>Nothing marked yet."
+  incomplete: "<gray>Mark <white><needed></white> corners — you have <white><have></white>."
+  none: "<gray>You are not marking anything out."
+  cancelled: "<gray>Selection cancelled."
+  name-aborted: "<gray>Cancelled. Without a name, no claim is created."
+  already-being-asked: "<gray>Something else is already waiting for you to type. Answer that first."
+  world-gone: "<red>That world is not loaded any more."
+  world-mismatch: "<gray>All the corners have to be in one world."
+  wrong-world: "<gray><claim> is in another world."
+
+zone:
+  none-here: "<gray>Nothing stops a claim here."
+
+entry-fee:
+  declined: "<gray>You declined to pay. The entry stays closed."
+  cannot-afford: "<red>You are <white><missing></white> short of the toll for <white><claim></white>."
+  nothing-pending: "<gray>There is no entry fee waiting for your answer."
+  claim-gone: "<gray>That claim is gone."
+
+error:
+  no-permission: "<red>Not yours to do."
+  no-claim-permission: "<red>That is not yours to change here."
+  not-allowed: "<red>That is not yours to do."
+  selector-refused: "<gray><white><selector></white> is not yours to use, or not written right. A name works just as well."
+  selector-nobody: "<gray><white><selector></white> did not match anybody."
+  too-many-players: "<gray><white><selector></white> matches <white><count></white> players, and this takes one. Pick one."
+  players-only: "<gray>Somebody standing in the world has to run that."
+  world-disabled: "<gray>Claims are switched off in this world."
+  name-invalid: "<gray>Letters, digits, dashes and underscores — up to 32 of them."
+  name-taken: "<gray>You already have a claim called that."
+  too-many-claims: "<gray>You are at your limit of <white><detail></white> claims."
+  claim-too-small: "<gray>Too small — the least is <white><detail></white> blocks."
+  claim-too-large: "<gray>Too big — the most is <white><detail></white> blocks."
+  claim-too-short: "<gray>A claim has to be at least <white><minimum></white> blocks tall."
+  too-many-vertices: "<gray>Too many corners — <white><detail></white> at most."
+  overlaps-claim: "<gray>That overlaps <white><detail></white>."
+  in-no-claim-zone: "<gray>Nobody may claim in <white><detail></white>."
+  cannot-afford: "<gray>You cannot afford that: <white><detail></white>."
+  underground-disallowed: "<gray>This server does not allow claims that are wholly underground."
+  generic: "<gray>That did not work. <dark_gray>Reason: <detail>"
+  no-such-player: "<gray>No player called <white><player></white> is known here. Check the spelling."
+  no-such-claim: "<gray>No claim called <white><claim></white>."
+  ambiguous-claim: "<gray>Several claims are called that: <white><candidates></white>."
+  player-offline: "<gray><player> has to be online for that."
+  world-missing: "<gray>That claim's world (<white><world></white>) is not loaded."
+  bad-duration: "<gray>Not a length of time I understand: <white><input></white>. Try something like <white>2h</white>."
+
+broadcast:
+  kicked: "<gray><player> was removed from <claim> by <by>."
+
+feature:
+  unavailable: "<gray><feature> is switched off on this server."
+
+admin:
+  flag-not-saved: "<red>Changed for now, but it could not be written down — check the console. It will be back as it was after a restart."
+  bypass-off: "<gray>Bypass off. Claims apply to you again."
+  reloaded: "<green>Reloaded."
+  feature-not-saved: "<red>Changed for now, but it could not be written down — check the console. It will be back as it was after a restart."
+  teleport-unsafe: "<red>Nowhere safe was found near <white><claim></white> — nobody was moved."

@@ -4,12 +4,14 @@ import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.essentials.command.AfkCommand;
 import de.raindancer.modules.essentials.command.EnchantCommand;
 import de.raindancer.modules.essentials.command.IgnoreCommand;
+import de.raindancer.modules.essentials.command.JokeCommand;
 import de.raindancer.modules.essentials.command.MsgCommand;
 import de.raindancer.modules.essentials.command.NickCommand;
 import de.raindancer.modules.essentials.command.PlayerCommand;
 import de.raindancer.modules.essentials.command.PlayersCommand;
 import de.raindancer.modules.essentials.command.RepairCommand;
 import de.raindancer.modules.essentials.command.ReplyCommand;
+import de.raindancer.modules.essentials.command.RoastCommand;
 import de.raindancer.modules.essentials.command.SeenCommand;
 import de.raindancer.modules.essentials.command.SetSpawnCommand;
 import de.raindancer.modules.essentials.command.SpawnCommand;
@@ -84,7 +86,13 @@ public final class EssentialsCommands {
                         .taking("[player] — somebody else's, for staff"),
 
                 ModuleCommand.of("afk", "Marks you away from the keyboard, or back, right now",
-                        new AfkCommand(EssentialsCommands::require)));
+                        new AfkCommand(EssentialsCommands::require)),
+
+                ModuleCommand.of("roast", "Says a random roast of somebody in chat, as you",
+                                new RoastCommand(EssentialsCommands::require))
+                        .taking("(nothing) — roasts yourself", "<player> — roasts them"),
+                ModuleCommand.of("joke", "Tells a random, truly terrible joke in chat, as you",
+                        new JokeCommand(EssentialsCommands::require)));
     }
 
     /** Called when the module enables, after which the commands work. */

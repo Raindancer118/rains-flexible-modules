@@ -1,0 +1,43 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+# A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
+
+cosmetics:
+  no-permission: "<red>You may not do that."
+  only-a-player: "<red>This command can only be used by a player."
+  unknown-player: "<red>Nobody called <white><player></white> has played here. Check the spelling."
+  selector-refused: "<red><white><selector></white> is not yours to use, or not written right. A name works just as well."
+  selector-nobody: "<yellow><white><selector></white> did not match anybody, so nothing was touched."
+  unknown-preset: "<red>There is no preset called <white><preset></white>. <gray>Tab shows the ones there are."
+  name:
+    cleared: "<green>Your name is plain again."
+    not-saved: "<red>That style could not be saved — it has too many colours."
+    reset-by-staff: "<yellow>A staff member took your name style off."
+    dropped: "<yellow>Your name style needed a permission you no longer have, so your name is plain again."
+  clear:
+    not-allowed: "<red>You may not clear your own cosmetics."
+    not-allowed-others: "<red>Clearing somebody else's cosmetics is staff business."
+    nothing: "<gray>There is nothing to clear — <white><player></white> is already plain."
+    done: "<green>Cleared your <white><what></white>."
+    by-staff: "<yellow>A staff member cleared your <white><what></white>."
+  particle:
+    cleared: "<green>Your particle is removed."
+    densified: "<green>Density: <white><density></white>."
+    unknown-density: "<red>Densities are <white>light</white>, <white>normal</white>, <white>dense</white> and <white>very_dense</white>."
+    sped: "<green>Speed: <white><speed></white>."
+    unknown-speed: "<red>Speeds are <white>slow</white>, <white>normal</white>, <white>fast</white> and <white>very_fast</white>."
+    unknown-shape: "<red>The shapes are <white>ambient</white>, <white>aura</white>, <white>halo</white>, <white>trail</white> and <white>spiral</white>."
+    none-worn: "<red>You are not wearing a particle yet. Pick one first."
+    dropped: "<yellow>Your particle is not allowed any more, so it is taken off."
+  refused:
+    colour: "<red>You may not colour your name."
+    gradient: "<red>You may not use a gradient — one colour only."
+    any-colour: "<red><white><detail></white> is not in the palette, and you may only use palette colours."
+    decoration: "<red>You may not make your name <white><detail></white>."
+    animated: "<red>Your gradient can't flow — that option is not unlocked for you."
+    too-many-stops: "<red>At most <white><detail></white> colours in one name."
+    preset: "<red>The <white><preset></white> preset is not yours to wear."
+    particles: "<red>You may not wear particles."
+    particle-unknown: "<red><white><detail></white> is not a particle that can be worn."
+    particle-blocked: "<red><white><detail></white> is not allowed here — it would cover everybody's screen."

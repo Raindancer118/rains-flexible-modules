@@ -35,7 +35,7 @@ import java.util.UUID;
  */
 public final class InvSnapModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.1.4")
+    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.2.0")
             .describedAs("Periodic inventory snapshots for every online player, with an admin "
                     + "screen to browse a player's history and restore one.")
             .by("Raindancer118");
@@ -62,6 +62,8 @@ public final class InvSnapModule implements FlexModule {
         context.core().messages().defineFrom(
                 InvSnapModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(InvSnapModule.class.getResourceAsStream("messages-serious.yml"));
 
         int registered = PermissionNodes.register(server);
         if (registered > 0) {

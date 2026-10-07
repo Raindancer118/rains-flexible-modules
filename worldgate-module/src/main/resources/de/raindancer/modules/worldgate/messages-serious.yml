@@ -1,0 +1,16 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+# A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
+
+worldgate:
+  closed-entry-denied: "<red><white><dimension></white> is closed on this server."
+  evacuate-notice: "<yellow>You have been pulled out of <white><dimension></white>."
+  no-permission: "<red>You may not lock, open or evacuate a dimension. That is staff business."
+  unknown-dimension: "<red><white><value></white> is not nether or end. Pick one of those."
+  unknown-lock-mode: "<red><white><value></white> is not drain or close. Pick one of those."
+  could-not-save: "<red>That could not be written to disk, so nothing has changed."
+  now-closed: "<red><white><dimension></white> is now closed."
+  now-open: "<green><white><dimension></white> is open again."
+  evacuated: "<green>Pulled <white><count></white> player(s) out of <white><dimension></white>."
+  status-heading: "<gray>The current state of the Nether and the End:"

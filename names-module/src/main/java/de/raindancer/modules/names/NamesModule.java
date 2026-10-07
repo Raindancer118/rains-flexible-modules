@@ -49,7 +49,7 @@ import java.util.List;
  */
 public final class NamesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("names", "Coloured names", "2.1.3")
+    private static final ModuleInfo INFO = ModuleInfo.of("names", "Coloured names", "2.2.0")
             .describedAs("Dye a name tag, then craft it with an item to paint that item's name — "
                     + "gradients included")
             .by("Raindancer118");
@@ -89,6 +89,8 @@ public final class NamesModule implements FlexModule {
         context.core().messages().defineFrom(
                 NamesModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(NamesModule.class.getResourceAsStream("messages-serious.yml"));
 
         // Before anything asks. An unregistered permission resolves to "operators only", which would
         // refuse the manual to every ordinary player on the server.

@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.7.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.8.0")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -55,6 +55,8 @@ public final class CosmeticsModule implements FlexModule {
         context.core().messages().defineFrom(
                 CosmeticsModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        // The same lines said plainly, for a server whose Message tone is SERIOUS.
+        context.core().messages().seriousFrom(CosmeticsModule.class.getResourceAsStream("messages-serious.yml"));
 
         CatalogueFile catalogue = new CatalogueFile(context.dataFolder().resolve("config.yml"));
         Catalogue loaded = catalogue.load(warning -> log.warn("{}", warning));

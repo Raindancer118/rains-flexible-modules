@@ -1,0 +1,33 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+# A line the owner rewrote in plugins/RainsCore/messages.yml wins in both tones.
+
+warps:
+  unknown: "<red>There is no warp called <white><name></white>."
+  world-missing: "<yellow><name></yellow> is in a world that is not loaded right now."
+  on-cooldown: "<yellow>You can warp again in <white><time></white>."
+  arrived: "<green>Here you are: <white><name></white>."
+  already-travelling: "<yellow>You are already on your way somewhere."
+  nowhere-safe: "<red>There is nowhere safe to put you at <white><name></white>."
+  could-not-check: "<red>The ground at <white><name></white> could not be checked."
+  teleport-refused: "<red>Something stopped you arriving at <white><name></white>."
+  cannot-schedule: "<red>The server cannot send you anywhere just now."
+  only-a-player: "<red>Only somebody standing in the world can warp."
+  cancelled:
+    moved: "<yellow>You moved, so you are staying put."
+    hurt: "<yellow>Something hit you, so you are staying put."
+  list-empty: "<gray>There are no warps yet."
+  access-empty: "<red>That is not a permission a warp can ask for."
+  not-yours: "<red>Warps are not yours to change."
+  too-many: "<red>This server already has its <white><limit></white> warps. Delete one first."
+  no-such-item: "<red>There is no item called <white><item></white>. Check the spelling."
+  set-needs-a-player: "<red>A warp is set where somebody is standing, so only a player can do it."
+  busy: "<yellow>Something else is already waiting for an answer from you."
+  name:
+    empty: "<red>A warp needs a name."
+    too-long: "<red>That is too long for a warp: <white><limit></white> characters at most."
+    bad-characters: "<red>A warp's name may have letters, digits, dashes and underscores in it, and nothing else."
+    reserved: "<red><white><name></white> is a word <white>/warp</white> reads as an instruction, so nothing could ever warp there. Pick another name."
+  config:
+    refused: "<red><white><setting></white> would not take that value."

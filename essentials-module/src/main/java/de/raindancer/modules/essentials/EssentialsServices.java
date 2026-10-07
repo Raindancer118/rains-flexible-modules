@@ -46,7 +46,8 @@ public record EssentialsServices(
         WelcomeService welcome,
         de.raindancer.modules.essentials.service.ReactionService reactions,
         de.raindancer.modules.essentials.service.EnchantService enchanting,
-        de.raindancer.modules.essentials.service.RepairService repairing) {
+        de.raindancer.modules.essentials.service.RepairService repairing,
+        de.raindancer.modules.essentials.service.FunService fun) {
 
     /** The settings as they are right now. */
     public EssentialsSettings config() {
