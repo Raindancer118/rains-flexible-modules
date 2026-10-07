@@ -74,6 +74,7 @@ voicebridge:
       not-ready: "The Minecraft voice chat is not running yet. Try again in a moment."
       has-mod: "You have Simple Voice Chat in your game already, so you do not need Discord for it."
       no-free-bot: "Every proximity line is in use right now. Try again in a little while."
+      no-permission: "You may not use voice chat on the Minecraft server."
       failed: "Your private voice channel could not be set up. Please tell the server staff."
 
   groups:
@@ -94,6 +95,7 @@ voicebridge:
     invited: "<aqua><white><player></white> invites you to the voice group <white><group></white>."
     accept-button: "<green>[Join]"
     accept-tooltip: "<gray>Join the group, for the next five minutes"
+    no-permission: "<red>You may not use voice chat groups on this server."
     no-invite: "<red>That invite is not for you, or has run out."
     type-password: "<yellow><group> has a password: type /voicechat join \"<group>\" <password>"
     create-how: "<gray>Type /voicebridge group create <name> [password] [normal|open|isolated]"

@@ -185,6 +185,11 @@ public final class LobbyService implements IVoiceBridgeService {
             dm(member, "voicebridge.proximity.dm.has-mod");
             return;
         }
+        // Speaking is checked by SVC on every packet; hearing through a listener is not, so here.
+        if (!player.hasPermission("voicechat.listen")) {
+            dm(member, "voicebridge.proximity.dm.no-permission");
+            return;
+        }
         Optional<BotPool.LineBot> claimed = pool.claim();
         if (claimed.isEmpty()) {
             dm(member, "voicebridge.proximity.dm.no-free-bot");

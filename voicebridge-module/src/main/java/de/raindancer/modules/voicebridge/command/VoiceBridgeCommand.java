@@ -2,6 +2,7 @@ package de.raindancer.modules.voicebridge.command;
 
 import de.raindancer.modules.voicebridge.VoiceBridgeServices;
 import de.raindancer.modules.voicebridge.model.BridgeStatus;
+import de.raindancer.modules.voicebridge.service.GroupService;
 import de.raindancer.modules.voicebridge.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
@@ -69,8 +70,9 @@ public final class VoiceBridgeCommand implements IVoiceBridgeCommand {
 
     private static void asPlayer(VoiceBridgeServices live, Player player, String sub, String[] args) {
         switch (sub) {
-            case "join" -> answer(live, player, live.bridge().join(player.getUniqueId(),
-                    live.groups().isBridged(player.getUniqueId())), "voicebridge.join.done");
+            case "join" -> answer(live, player, player.hasPermission(GroupService.SVC_GROUPS_PERMISSION)
+                    ? live.bridge().join(player.getUniqueId(), live.groups().isBridged(player.getUniqueId()))
+                    : "voicebridge.groups.no-permission", "voicebridge.join.done");
             case "leave" -> answer(live, player, live.bridge().leave(player.getUniqueId()), "voicebridge.leave.done");
             case "link" -> live.messages().send(player, "voicebridge.link.code", "code",
                     live.links().codeFor(player.getUniqueId()));
