@@ -31,6 +31,8 @@ public final class PermissionNodes {
     public static final String PARTICLES = "rainscosmetics.particles";
     /** The Ultra density: hundreds of particles per draw, so not for everybody. */
     public static final String PARTICLES_ULTRA = "rainscosmetics.particles.ultra";
+    /** Keeping a combination of wings to yourself. */
+    public static final String WINGS_RESERVE = "rainscosmetics.wings.reserve";
     public static final String TELEPORT = "rainscosmetics.teleport";
     /** Any sound for a teleport, not only the server's list. Loud ones included, so for staff. */
     public static final String TELEPORT_ANY_SOUND = "rainscosmetics.teleport.any-sound";
@@ -61,6 +63,8 @@ public final class PermissionNodes {
                     decoration == TextDecoration.OBFUSCATED ? PermissionDefault.OP : PermissionDefault.TRUE));
         }
         nodes.add(new Permission(PARTICLES, "Wear a particle effect", PermissionDefault.TRUE));
+        nodes.add(new Permission(WINGS_RESERVE, "Reserve the wings you wear, so nobody else can wear the same",
+                PermissionDefault.OP));
         nodes.add(new Permission(PARTICLES_ULTRA, "Draw particles at Ultra density, past the server's ceiling",
                 PermissionDefault.OP));
         nodes.add(new Permission(TELEPORT, "Choose your own teleport sounds and waiting particles",

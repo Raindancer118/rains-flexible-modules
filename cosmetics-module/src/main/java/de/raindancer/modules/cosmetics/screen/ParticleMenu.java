@@ -90,11 +90,12 @@ public final class ParticleMenu extends Menu implements ICosmeticsScreen {
                     refresh();
                 });
 
-        int column = 2;
-        for (ParticleShape shape : ParticleShape.values()) {
-            if (shape.isWings()) {
-                continue;
-            }
+        // The particle's shapes, or — on the wings page — the kinds of wings; never both, since wings are
+        // a slot of their own and are worn on top of the particle.
+        List<ParticleShape> shapes = particles.wingsOnly() ? ParticleShape.wings()
+                : java.util.Arrays.stream(ParticleShape.values()).filter(shape -> !shape.isWings()).toList();
+        int column = particles.wingsOnly() ? Math.max(0, (9 - shapes.size()) / 2) : 2;
+        for (ParticleShape shape : shapes) {
             boolean on = shape == choice.shape() && !choice.isNone();
             band(MenuLayout.RULES, column, !choice.isNone(),
                     Icons.of(on ? Material.LIME_DYE : Material.GRAY_DYE, (on ? "<green>" : "<white>") + shape.title(),
@@ -106,14 +107,6 @@ public final class ParticleMenu extends Menu implements ICosmeticsScreen {
                     });
             column++;
         }
-        boolean winged = choice.shape().isWings() && !choice.isNone();
-        band(MenuLayout.RULES, column, !choice.isNone(),
-                Icons.of(winged ? Material.ELYTRA : Material.FEATHER,
-                        (winged ? "<green>" : "<white>") + (winged ? choice.shape().title() : "Wings…"),
-                        winged ? "<green>Drawn like this now." : "<gray>Angel, bat, butterfly or hummingbird.",
-                        "", "<dark_gray>Click to pick a kind."),
-                "Pick a particle first",
-                click -> new WingsMenu(services, viewer, this, particles).open());
 
         boolean coloured = !choice.isNone() && ParticleShows.takesColour(choice.particle());
         String colourName = choice.colour() == null ? "" : services.offered().nameOf(TextColor.color(choice.colour()));
@@ -133,16 +126,34 @@ public final class ParticleMenu extends Menu implements ICosmeticsScreen {
                     refresh();
                 });
 
+        if (particles.hasStyle()) {
+            boolean natural = choice.natural();
+            band(MenuLayout.LAND, 5, !choice.isNone(),
+                    Icons.of(natural ? Material.BLAZE_POWDER : Material.AMETHYST_SHARD,
+                            "<white>Style: " + (natural ? "natural" : "crisp"),
+                            natural ? "<gray>The particle as Minecraft draws it:" : "<gray>Exact points that hold the shape,",
+                            natural ? "<gray>flames rise, leaves fall, sparks drift." : "<gray>in your colours and gradient.",
+                            "<dark_gray>Crisp works with dust and the tinted ones;",
+                            "<dark_gray>flames and the like are always natural.",
+                            "", "<dark_gray>Click to switch."),
+                    "Pick a particle first",
+                    click -> {
+                        particles.natural(viewer, !natural);
+                        refresh();
+                    });
+        }
         ParticleSpeed speed = particles.speedOf(viewer);
-        band(MenuLayout.LAND, 5, !choice.isNone() && particles.hasSpeed(),
-                Icons.of(Material.SUGAR, "<white>Speed: " + speed.title(),
-                        "<gray>How fast it moves round you.", "",
-                        "<dark_gray>Click for faster, right click for slower."),
-                particles.hasSpeed() ? "Pick a particle first" : "A teleport's particles move at one speed",
-                click -> {
-                    particles.speed(viewer, click.isRightClick() ? speed.slower() : speed.faster());
-                    refresh();
-                });
+        if (!particles.hasStyle()) {
+            band(MenuLayout.LAND, 5, !choice.isNone() && particles.hasSpeed(),
+                    Icons.of(Material.SUGAR, "<white>Speed: " + speed.title(),
+                            "<gray>How fast it moves round you.", "",
+                            "<dark_gray>Click for faster, right click for slower."),
+                    particles.hasSpeed() ? "Pick a particle first" : "A teleport's particles move at one speed",
+                    click -> {
+                        particles.speed(viewer, click.isRightClick() ? speed.slower() : speed.faster());
+                        refresh();
+                    });
+        }
 
         band(MenuLayout.LAND, 4, !choice.isNone(),
                 Icons.of(Material.SPYGLASS, "<white>Preview",

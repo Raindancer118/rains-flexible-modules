@@ -14,6 +14,7 @@ import de.raindancer.modules.cosmetics.model.ParticleDensity;
 import de.raindancer.modules.cosmetics.model.ParticleSpeed;
 import de.raindancer.modules.cosmetics.rules.ParticleRule;
 import de.raindancer.modules.cosmetics.store.ParticleChoices;
+import de.raindancer.modules.cosmetics.store.WingReservations;
 import de.raindancer.modules.cosmetics.util.PermissionNodes;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.GameMode;
@@ -47,14 +48,19 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
     private final Vanish vanish;
     private final Messages messages;
     private final ParticleChoices choices = new ParticleChoices();
+    /** Wings, worn on top of whatever particle somebody wears — a slot of their own. */
+    private final ParticleChoices wingChoices = new ParticleChoices("wings");
+    private final WingSlot wings = new WingSlot();
     private final ParticleRule rule = new ParticleRule();
+    private final WingReservations reservations;
     private final AtomicLong ticks = new AtomicLong();
 
     private volatile CosmeticsSettings settings;
     private ScheduledTask timer;
 
     public ParticleService(Plugin plugin, Server server, Vanish vanish, Messages messages,
-                           CosmeticsSettings settings) {
+                           CosmeticsSettings settings, WingReservations reservations) {
+        this.reservations = reservations;
         this.plugin = plugin;
         this.server = server;
         this.vanish = vanish;
@@ -93,26 +99,38 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
         if (!wearer.isOnline()) {
             return;
         }
-        ParticleChoice choice = choices.read(wearer);
-        if (choice.isNone()) {
+        CosmeticsSettings now = settings;
+        if (!rule.shows(now.particlesEnabled(), vanish.isVanished(wearer.getUniqueId()),
+                wearer.getGameMode() == GameMode.SPECTATOR,
+                wearer.hasPotionEffect(PotionEffectType.INVISIBILITY), wearer.isDead())) {
             return;
         }
-        CosmeticsSettings now = settings;
-        boolean everyTick = rule.everyTick(choice.shape(), ParticleShows.takesColour(choice.particle()));
+        draw(wearer, tick, choices.read(wearer), now, this);
+        ParticleChoice wing = wingChoices.read(wearer);
+        // Reserved by somebody else since they put them on: not drawn until they next join, when they come off.
+        if (reservations.mayWear(wearer.getUniqueId(), wing)) {
+            draw(wearer, tick, wing.isNone() ? wing : wing.withDensity(rule.wingDensity(wing.density())), now, wings);
+        }
+    }
+
+    /** @param slot what it is worn as — which decides, among other things, whether Ultra is theirs */
+    private void draw(Player wearer, long tick, ParticleChoice choice, CosmeticsSettings now, ParticleSlot slot) {
+        if (choice.isNone() || now.blocked().contains(choice.particle())) {
+            return;
+        }
+        boolean everyTick = rule.everyTick(choice.shape(), ParticleShows.takesColour(choice.particle()),
+                choice.natural());
         if (!rule.drawsNow(tick, now.everyTicks(), everyTick)) {
             return;
         }
-        if (!rule.shows(now.particlesEnabled(), vanish.isVanished(wearer.getUniqueId()),
-                wearer.getGameMode() == GameMode.SPECTATOR,
-                wearer.hasPotionEffect(PotionEffectType.INVISIBILITY), wearer.isDead())
-                || now.blocked().contains(choice.particle())) {
-            return;
-        }
+        // Wings drawn naturally show a third of their points each time, so a flame or a leaf — which
+        // lingers — flickers over the wing instead of piling into a solid block.
+        int share = choice.shape().isWings() && !everyTick ? 3 : 1;
         ParticleShows.around(wearer, choice.particle(), choice.colour(), choice.colourTo(),
-                rule.count(rule.allowed(choice.density(), mayUltra(wearer)), now.count(), now.maxCount()),
+                rule.count(rule.allowed(choice.density(), slot.mayUltra(wearer)), now.count(), now.maxCount()),
                 choice.shape(),
                 rule.frame(rule.animationTick(tick, now.everyTicks(), everyTick), choice.speed()),
-                RANGE, viewer -> viewer.equals(wearer) || SEES.isOn(viewer), everyTick ? 1 : null);
+                RANGE, viewer -> viewer.equals(wearer) || SEES.isOn(viewer), everyTick ? 1 : null, share);
     }
 
     // ------------------------------------------------------------------ choosing
@@ -157,11 +175,12 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
     }
 
     @Override
-    public void shape(Player who, ParticleShape shape) {
+    public boolean shape(Player who, ParticleShape shape) {
         ParticleChoice choice = choices.read(who);
         if (!choice.isNone()) {
             choices.write(who, choice.withShape(shape));
         }
+        return true;
     }
 
     /** Their density, or the one the server draws with when they have not chosen. */
@@ -210,11 +229,12 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
     }
 
     @Override
-    public void colour(Player who, int rgb) {
+    public boolean colour(Player who, int rgb) {
         ParticleChoice choice = choices.read(who);
         if (!choice.isNone()) {
             choices.write(who, choice.withColour(rgb & 0xFFFFFF));
         }
+        return true;
     }
 
     public void takeOff(Player who, boolean announce) {
@@ -272,11 +292,12 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
     }
 
     @Override
-    public void colourTo(Player who, Integer rgb) {
+    public boolean colourTo(Player who, Integer rgb) {
         ParticleChoice choice = choices.read(who);
         if (!choice.isNone()) {
             choices.write(who, choice.withColourTo(rgb == null ? null : rgb & 0xFFFFFF));
         }
+        return true;
     }
 
     @Override
@@ -305,13 +326,246 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
 
     /** On join: a particle they may no longer wear — permission gone, or blocked since — comes off. */
     public void revalidate(Player who) {
-        ParticleChoice choice = choices.read(who);
-        if (choice.isNone() || !settings.particlesEnabled()) {
+        ParticleRule.Worn worn = rule.split(choices.read(who), wingChoices.read(who));
+        if (!worn.particle().equals(choices.read(who)) || !worn.wings().equals(wingChoices.read(who))) {
+            choices.write(who, worn.particle());
+            wingChoices.write(who, worn.wings());
+        }
+        if (!settings.particlesEnabled()) {
             return;
         }
-        if (judge(who, choice.particle()).isRefused()) {
+        ParticleChoice choice = choices.read(who);
+        if (!choice.isNone() && judge(who, choice.particle()).isRefused()) {
             choices.write(who, ParticleChoice.NONE);
             messages.send(who, "cosmetics.particle.dropped");
+        }
+        ParticleChoice wing = wingChoices.read(who);
+        if (!wing.isNone() && judge(who, wing.particle()).isRefused()) {
+            wingChoices.write(who, ParticleChoice.NONE);
+            messages.send(who, "cosmetics.wings.dropped");
+        } else if (!reservations.mayWear(who.getUniqueId(), wing)) {
+            takeOffReserved(who, wing);
+        }
+    }
+
+    private void takeOffReserved(Player who, ParticleChoice wing) {
+        wingChoices.write(who, ParticleChoice.NONE);
+        messages.send(who, "cosmetics.wings.reserved-off", "owner",
+                reservations.holderOf(wing).map(WingReservations.Reservation::ownerName).orElse("somebody"));
+    }
+
+    // ------------------------------------------------------------------ reserving wings
+
+    public WingReservations reservations() {
+        return reservations;
+    }
+
+    /**
+     * Keeps the wings {@code who} wears to them; anybody else wearing the same takes them off now.
+     */
+    public WingReservations.Outcome reserve(Player who) {
+        ParticleChoice wing = wingChoices.read(who);
+        WingReservations.Outcome outcome = reservations.reserve(who.getUniqueId(), who.getName(), wing);
+        if (outcome == WingReservations.Outcome.RESERVED) {
+            for (Player other : server.getOnlinePlayers()) {
+                if (!other.equals(who)) {
+                    Scheduling.entity(plugin, other, () -> {
+                        ParticleChoice theirs = wingChoices.read(other);
+                        if (!theirs.isNone() && !reservations.mayWear(other.getUniqueId(), theirs)) {
+                            takeOffReserved(other, theirs);
+                        }
+                    });
+                }
+            }
+        }
+        return outcome;
+    }
+
+    /** Frees the wings {@code who} wears; staff may free anybody's. */
+    public WingReservations.Outcome release(Player who) {
+        return reservations.release(who.getUniqueId(), who.hasPermission(PermissionNodes.ADMIN),
+                wingChoices.read(who));
+    }
+
+    /** False, with them told whose they are, when the wings would be somebody else's reserved combination. */
+    private boolean mayPutOn(Player who, ParticleChoice next) {
+        if (reservations.mayWear(who.getUniqueId(), next)) {
+            return true;
+        }
+        messages.send(who, "cosmetics.wings.reserved", "owner",
+                reservations.holderOf(next).map(WingReservations.Reservation::ownerName).orElse("somebody"));
+        return false;
+    }
+
+    // ------------------------------------------------------------------ wings
+
+    /** The wings, as the particle page edits them. */
+    public ParticleSlot wings() {
+        return wings;
+    }
+
+    /** Takes the wings off too — for clearing somebody's cosmetics. */
+    public void takeOffWings(Player who) {
+        wingChoices.write(who, ParticleChoice.NONE);
+    }
+
+    /**
+     * The wings slot: the same page and the same rules as the worn particle, on keys of its own, offering the
+     * kinds of wings for a shape and a choice between crisp points and the particle as Minecraft draws it.
+     */
+    private final class WingSlot implements ParticleSlot {
+
+        @Override
+        public String heading() {
+            return "Your wings";
+        }
+
+        @Override
+        public ParticleChoice current(Player who) {
+            return wingChoices.read(who);
+        }
+
+        @Override
+        public boolean mayUse(Player who) {
+            return ParticleService.this.mayUse(who);
+        }
+
+        @Override
+        public String locked() {
+            return "Needs " + PermissionNodes.PARTICLES;
+        }
+
+        @Override
+        public ParticleCatalogue catalogue() {
+            return ParticleService.this.catalogue();
+        }
+
+        @Override
+        public boolean wear(Player who, String particle) {
+            Verdict verdict = judge(who, particle);
+            if (verdict.isRefused()) {
+                messages.send(who, verdict.reason(), "detail", verdict.detail() == null ? "" : verdict.detail());
+                return false;
+            }
+            ParticleChoice before = wingChoices.read(who);
+            ParticleChoice next = before.isNone()
+                    ? new ParticleChoice(particle, de.raindancer.core.ui.effect.ParticleShape.WINGS, null)
+                    : before.withParticle(particle);
+            if (ParticleShows.takesColour(next.particle()) && next.colour() == null) {
+                next = next.withColour(0xFFFFFF).withColourTo(0x8CCDF0);
+            }
+            if (!mayPutOn(who, next)) {
+                return false;
+            }
+            wingChoices.write(who, next);
+            return true;
+        }
+
+        /** @return false when the change would make them somebody else's reserved wings */
+        private boolean change(Player who, java.util.function.UnaryOperator<ParticleChoice> how) {
+            ParticleChoice now = wingChoices.read(who);
+            if (now.isNone()) {
+                return true;
+            }
+            ParticleChoice next = how.apply(now);
+            if (!mayPutOn(who, next)) {
+                return false;
+            }
+            wingChoices.write(who, next);
+            return true;
+        }
+
+        @Override
+        public boolean shape(Player who, ParticleShape shape) {
+            return !shape.isWings() || change(who, choice -> choice.withShape(shape));
+        }
+
+        @Override
+        public boolean colour(Player who, int rgb) {
+            return change(who, choice -> choice.withColour(rgb & 0xFFFFFF));
+        }
+
+        @Override
+        public boolean colourTo(Player who, Integer rgb) {
+            return change(who, choice -> choice.withColourTo(rgb == null ? null : rgb & 0xFFFFFF));
+        }
+
+        /** Wings at Ultra for everybody: they are what it was made for, and should look their best on anyone. */
+        @Override
+        public boolean mayUltra(Player who) {
+            return true;
+        }
+
+        @Override
+        public ParticleDensity densityOf(Player who) {
+            return rule.wingDensity(wingChoices.read(who).density());
+        }
+
+        @Override
+        public void density(Player who, ParticleDensity density) {
+            change(who, choice -> choice.withDensity(rule.allowed(density, mayUltra(who))));
+        }
+
+        @Override
+        public boolean isCapped(ParticleDensity density) {
+            return ParticleService.this.isCapped(density);
+        }
+
+        @Override
+        public boolean hasSpeed() {
+            return false;
+        }
+
+        @Override
+        public ParticleSpeed speedOf(Player who) {
+            return ParticleSpeed.NORMAL;
+        }
+
+        @Override
+        public void speed(Player who, ParticleSpeed speed) {
+        }
+
+        @Override
+        public String takeOffTitle() {
+            return "Take them off";
+        }
+
+        @Override
+        public void takeOff(Player who) {
+            takeOffWings(who);
+        }
+
+        @Override
+        public void preview(Player who) {
+            ParticleChoice choice = wingChoices.read(who);
+            if (choice.isNone()) {
+                messages.send(who, "cosmetics.wings.none-worn");
+                return;
+            }
+            ParticleShows.preview(plugin, who, choice.particle(), choice.colour(), choice.colourTo(),
+                    rule.count(rule.wingDensity(choice.density()), settings.count(), settings.maxCount()),
+                    choice.shape(), 5, 1.0);
+            messages.send(who, "cosmetics.preview.particle");
+        }
+
+        @Override
+        public boolean isWorn() {
+            return false;
+        }
+
+        @Override
+        public boolean wingsOnly() {
+            return true;
+        }
+
+        @Override
+        public boolean hasStyle() {
+            return true;
+        }
+
+        @Override
+        public void natural(Player who, boolean natural) {
+            change(who, choice -> choice.withNatural(natural));
         }
     }
 

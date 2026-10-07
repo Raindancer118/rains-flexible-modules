@@ -12,15 +12,21 @@ import java.util.Locale;
  * @param density  how thick it is drawn; null for the server's default
  * @param speed    how fast its shape moves; null for normal
  * @param colourTo the other end of a gradient from {@code colour} along the shape; null for one colour
+ * @param natural  drawn as Minecraft draws the particle rather than as crisp points — see {@link #withNatural}
  */
 public record ParticleChoice(String particle, ParticleShape shape, Integer colour, ParticleDensity density,
-                             ParticleSpeed speed, Integer colourTo) {
+                             ParticleSpeed speed, Integer colourTo, boolean natural) {
 
     public static final ParticleChoice NONE = new ParticleChoice("", ParticleShape.AMBIENT, null, null, null, null);
 
     public ParticleChoice(String particle, ParticleShape shape, Integer colour, ParticleDensity density,
                           ParticleSpeed speed) {
         this(particle, shape, colour, density, speed, null);
+    }
+
+    public ParticleChoice(String particle, ParticleShape shape, Integer colour, ParticleDensity density,
+                          ParticleSpeed speed, Integer colourTo) {
+        this(particle, shape, colour, density, speed, colourTo, false);
     }
 
     /** Without a density of its own: drawn at the server's default. */
@@ -42,27 +48,35 @@ public record ParticleChoice(String particle, ParticleShape shape, Integer colou
     }
 
     public ParticleChoice withParticle(String next) {
-        return new ParticleChoice(next, shape, colour, density, speed, colourTo);
+        return new ParticleChoice(next, shape, colour, density, speed, colourTo, natural);
     }
 
     public ParticleChoice withShape(ParticleShape next) {
-        return new ParticleChoice(particle, next, colour, density, speed, colourTo);
+        return new ParticleChoice(particle, next, colour, density, speed, colourTo, natural);
     }
 
     public ParticleChoice withColour(Integer next) {
-        return new ParticleChoice(particle, shape, next, density, speed, colourTo);
+        return new ParticleChoice(particle, shape, next, density, speed, colourTo, natural);
     }
 
     public ParticleChoice withDensity(ParticleDensity next) {
-        return new ParticleChoice(particle, shape, colour, next, speed, colourTo);
+        return new ParticleChoice(particle, shape, colour, next, speed, colourTo, natural);
     }
 
     /** The other end of a gradient; null back to one colour. */
     public ParticleChoice withColourTo(Integer next) {
-        return new ParticleChoice(particle, shape, colour, density, speed, next);
+        return new ParticleChoice(particle, shape, colour, density, speed, next, natural);
+    }
+
+    /**
+     * Drawn as Minecraft draws the particle — a flame rises, a leaf falls — rather than as crisp points
+     * that hold their place. Only matters for wings, which are otherwise crisp wherever they can be.
+     */
+    public ParticleChoice withNatural(boolean next) {
+        return new ParticleChoice(particle, shape, colour, density, speed, colourTo, next);
     }
 
     public ParticleChoice withSpeed(ParticleSpeed next) {
-        return new ParticleChoice(particle, shape, colour, density, next, colourTo);
+        return new ParticleChoice(particle, shape, colour, density, next, colourTo, natural);
     }
 }

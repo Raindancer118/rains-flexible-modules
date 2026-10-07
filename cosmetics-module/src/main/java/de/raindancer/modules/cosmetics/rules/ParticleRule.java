@@ -46,6 +46,12 @@ public final class ParticleRule implements ICosmeticsRule {
                 ? de.raindancer.modules.cosmetics.model.ParticleDensity.VERY_DENSE : chosen;
     }
 
+    /** Wings' density: Dense unless they chose one — the server's default is set for a ring or a trail. */
+    public de.raindancer.modules.cosmetics.model.ParticleDensity wingDensity(
+            de.raindancer.modules.cosmetics.model.ParticleDensity chosen) {
+        return chosen == null ? de.raindancer.modules.cosmetics.model.ParticleDensity.DENSE : chosen;
+    }
+
     /**
      * The animation frame to draw at draw number {@code tick}: slow lingers on a frame, fast skips
      * ahead. Null is normal.
@@ -59,8 +65,25 @@ public final class ParticleRule implements ICosmeticsRule {
      * wing never shows two frames at once. A particle without a colour cannot be given a lifetime, and
      * drawn every tick it would pile up — so it keeps the server's pace.
      */
-    public boolean everyTick(de.raindancer.core.ui.effect.ParticleShape shape, boolean takesColour) {
-        return shape.isWings() && takesColour;
+    public boolean everyTick(de.raindancer.core.ui.effect.ParticleShape shape, boolean takesColour, boolean natural) {
+        return shape.isWings() && takesColour && !natural;
+    }
+
+    /** The worn particle and the wings, as one player wears them. */
+    public record Worn(de.raindancer.modules.cosmetics.model.ParticleChoice particle,
+                       de.raindancer.modules.cosmetics.model.ParticleChoice wings) {
+    }
+
+    /**
+     * Wings chosen as the particle, before wings had a slot of their own, move to that slot — unless wings
+     * are already chosen there — and the particle slot is free again either way.
+     */
+    public Worn split(de.raindancer.modules.cosmetics.model.ParticleChoice particle,
+                      de.raindancer.modules.cosmetics.model.ParticleChoice wings) {
+        if (particle.isNone() || !particle.shape().isWings()) {
+            return new Worn(particle, wings);
+        }
+        return new Worn(de.raindancer.modules.cosmetics.model.ParticleChoice.NONE, wings.isNone() ? particle : wings);
     }
 
     /** Whether to draw on this game tick. */

@@ -78,6 +78,7 @@ public final class ClearService implements ICosmeticsService {
         }
         if (plan.particles()) {
             particles.takeOff(online, false);
+            particles.takeOffWings(online);
         }
         String what = plan.name() && plan.particles() ? "name style and particle"
                 : plan.name() ? "name style" : "particle";

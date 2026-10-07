@@ -28,12 +28,14 @@ public interface ParticleSlot {
 
     boolean wear(Player who, String particle);
 
-    void shape(Player who, ParticleShape shape);
+    /** @return false when it was refused, and they were told why — wings somebody else reserved */
+    boolean shape(Player who, ParticleShape shape);
 
-    void colour(Player who, int rgb);
+    /** @return false when it was refused, and they were told why */
+    boolean colour(Player who, int rgb);
 
-    /** The other end of a gradient; null back to one colour. */
-    void colourTo(Player who, Integer rgb);
+    /** The other end of a gradient; null back to one colour. @return false when it was refused */
+    boolean colourTo(Player who, Integer rgb);
 
     /** Whether {@code who} may pick the Ultra density. */
     boolean mayUltra(Player who);
@@ -61,4 +63,17 @@ public interface ParticleSlot {
 
     /** Whether this is the worn particle, which has the "see other people's" switch beside it. */
     boolean isWorn();
+
+    /** Whether this slot holds wings, and only wings — its shape row offers the kinds of wings. */
+    default boolean wingsOnly() {
+        return false;
+    }
+
+    /** Whether it may be drawn naturally, as Minecraft draws the particle, rather than crisp. */
+    default boolean hasStyle() {
+        return false;
+    }
+
+    default void natural(Player who, boolean natural) {
+    }
 }

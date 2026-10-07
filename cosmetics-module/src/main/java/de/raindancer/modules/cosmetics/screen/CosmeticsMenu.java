@@ -47,7 +47,7 @@ public final class CosmeticsMenu extends Menu implements ICosmeticsScreen {
     @Override
     protected void render() {
         NameStyle style = services.names().current(viewer.getUniqueId());
-        band(MenuLayout.WHO, 3, Icons.head(viewer.getUniqueId(),
+        band(MenuLayout.WHO, 1, Icons.head(viewer.getUniqueId(),
                         MINI.serialize(NameStyleService.painted(viewer.getName(), style)),
                         "<gray>Your name", "<dark_gray>" + services.names().describe(style), "",
                         "<dark_gray>Click to change it."),
@@ -56,12 +56,20 @@ public final class CosmeticsMenu extends Menu implements ICosmeticsScreen {
         ParticleChoice particle = services.particles().current(viewer);
         Material icon = particle.isNone() ? Material.GLASS_BOTTLE
                 : ParticleMenu.iconOf(particle.particle());
-        band(MenuLayout.WHO, 5, Icons.of(icon, "<white>Particles",
+        band(MenuLayout.WHO, 3, Icons.of(icon, "<white>Particles",
                         particle.isNone() ? "<gray>None right now."
                                 : "<gray>" + ParticleCatalogue.readable(particle.particle()) + ", "
                                         + particle.shape().title().toLowerCase(java.util.Locale.ROOT) + ".",
                         "", "<dark_gray>Click to pick one."),
                 click -> new ParticleMenu(services, viewer, this).open());
+
+        ParticleChoice wings = services.particles().wings().current(viewer);
+        band(MenuLayout.WHO, 5, Icons.of(wings.isNone() ? Material.FEATHER : Material.ELYTRA, "<white>Wings",
+                        wings.isNone() ? "<gray>None right now."
+                                : "<gray>" + wings.shape().title() + ", " + ParticleCatalogue.readable(wings.particle())
+                                        .toLowerCase(java.util.Locale.ROOT) + ".",
+                        "<dark_gray>Worn on top of your particle.", "", "<dark_gray>Click to pick some."),
+                click -> new ParticleMenu(services, viewer, this, services.particles().wings()).open());
 
         band(MenuLayout.WHO, 7, Icons.of(Material.ENDER_PEARL,
                         MINI.serialize(services.messages().get("cosmetics.teleport.menu.door")),
@@ -78,7 +86,7 @@ public final class CosmeticsMenu extends Menu implements ICosmeticsScreen {
                         java.util.List.of(), person -> confirmClearing(person.id())).open());
 
         boolean mayClear = services.clearing().may(viewer, true);
-        boolean wearing = !style.isEmpty() || !particle.isNone();
+        boolean wearing = !style.isEmpty() || !particle.isNone() || !wings.isNone();
         ItemStack clearIcon = Icons.of(Material.BARRIER, "<red>Clear my cosmetics",
                 "<gray>Takes your name style and your", "<gray>particle off.", "", "<dark_gray>Asks first.");
         danger(mayClear && wearing ? clearIcon

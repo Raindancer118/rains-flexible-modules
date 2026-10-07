@@ -213,18 +213,21 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
         }
 
         @Override
-        public void shape(Player who, ParticleShape shape) {
+        public boolean shape(Player who, ParticleShape shape) {
             restyle(who, style -> style.withShape(shape));
+            return true;
         }
 
         @Override
-        public void colour(Player who, int rgb) {
+        public boolean colour(Player who, int rgb) {
             restyle(who, style -> style.withColour(rgb & 0xFFFFFF));
+            return true;
         }
 
         @Override
-        public void colourTo(Player who, Integer rgb) {
+        public boolean colourTo(Player who, Integer rgb) {
             restyle(who, style -> style.withColourTo(rgb == null ? null : rgb & 0xFFFFFF));
+            return true;
         }
 
         @Override

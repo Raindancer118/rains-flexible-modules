@@ -2,6 +2,7 @@ package de.raindancer.modules.cosmetics.command;
 
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.ui.prompt.Parsed;
+import de.raindancer.core.ui.choose.ParticleCatalogue;
 import de.raindancer.core.ui.effect.ParticleShape;
 import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.cosmetics.CosmeticsServices;
@@ -68,7 +69,11 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
             return;
         }
         if ((first.equals("particle") || first.equals("particles")) && args.length > 1) {
-            particle(live, sender, Arrays.copyOfRange(args, 1, args.length));
+            particle(live, sender, Arrays.copyOfRange(args, 1, args.length), live.particles());
+            return;
+        }
+        if (first.equals("wings") && args.length > 1) {
+            particle(live, sender, Arrays.copyOfRange(args, 1, args.length), live.particles().wings());
             return;
         }
         if ((first.equals("teleport") || first.equals("tp")) && args.length > 1) {
@@ -79,6 +84,8 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
             switch (first) {
                 case "name" -> live.screens().nameStyle(player);
                 case "particle", "particles" -> live.screens().particles(player);
+                case "wings" -> new de.raindancer.modules.cosmetics.screen.ParticleMenu(live, player, null,
+                        live.particles().wings()).open();
                 case "teleport", "tp" -> live.screens().teleports(player);
                 default -> live.screens().hub(player);
             }
@@ -171,27 +178,54 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
         }
     }
 
-    private void particle(CosmeticsServices live, CommandSender sender, String[] args) {
+    private void particle(CosmeticsServices live, CommandSender sender, String[] args,
+                          de.raindancer.modules.cosmetics.service.ParticleSlot slot) {
         if (!(sender instanceof Player player)) {
             live.messages().send(sender, "cosmetics.only-a-player");
             return;
         }
         String word = args[0].toLowerCase(Locale.ROOT);
         switch (word) {
-            case "off" -> live.particles().takeOff(player, true);
+            case "off" -> {
+                slot.takeOff(player);
+                live.messages().send(player, slot.wingsOnly() ? "cosmetics.wings.cleared" : "cosmetics.particle.cleared");
+            }
+            case "reserve", "unreserve", "reserved" -> {
+                if (!slot.wingsOnly()) {
+                    live.messages().send(player, "cosmetics.usage");
+                    return;
+                }
+                reservation(live, player, word, args.length > 1 ? args[1] : null);
+            }
+            case "style" -> {
+                if (!slot.hasStyle() || args.length < 2 || !(args[1].equalsIgnoreCase("natural")
+                        || args[1].equalsIgnoreCase("crisp"))) {
+                    live.messages().send(player, "cosmetics.wings.style-usage");
+                    return;
+                }
+                if (slot.current(player).isNone()) {
+                    live.messages().send(player, "cosmetics.wings.none-worn");
+                    return;
+                }
+                boolean natural = args[1].equalsIgnoreCase("natural");
+                slot.natural(player, natural);
+                live.messages().send(player, natural ? "cosmetics.wings.natural" : "cosmetics.wings.crisp");
+            }
             case "shape" -> {
                 java.util.Optional<ParticleShape> shape =
                         args.length > 1 ? ParticleShape.of(args[1]) : java.util.Optional.empty();
-                if (shape.isEmpty()) {
-                    live.messages().send(player, "cosmetics.particle.unknown-shape");
+                if (shape.isEmpty() || shape.get().isWings() != slot.wingsOnly()) {
+                    live.messages().send(player, slot.wingsOnly() ? "cosmetics.wings.unknown-kind"
+                            : "cosmetics.particle.unknown-shape");
                     return;
                 }
-                if (live.particles().current(player).isNone()) {
+                if (slot.current(player).isNone()) {
                     live.messages().send(player, "cosmetics.particle.none-worn");
                     return;
                 }
-                live.particles().shape(player, shape.get());
-                live.messages().send(player, "cosmetics.particle.shaped", "shape", shape.get().title());
+                if (slot.shape(player, shape.get())) {
+                    live.messages().send(player, "cosmetics.particle.shaped", "shape", shape.get().title());
+                }
             }
             case "density" -> {
                 java.util.Optional<de.raindancer.modules.cosmetics.model.ParticleDensity> density =
@@ -201,11 +235,11 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                     live.messages().send(player, "cosmetics.particle.unknown-density");
                     return;
                 }
-                if (live.particles().current(player).isNone()) {
+                if (slot.current(player).isNone()) {
                     live.messages().send(player, "cosmetics.particle.none-worn");
                     return;
                 }
-                live.particles().density(player, density.get());
+                slot.density(player, density.get());
                 live.messages().send(player, "cosmetics.particle.densified", "density", density.get().title());
             }
             case "speed" -> {
@@ -216,11 +250,11 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                     live.messages().send(player, "cosmetics.particle.unknown-speed");
                     return;
                 }
-                if (live.particles().current(player).isNone()) {
+                if (slot.current(player).isNone()) {
                     live.messages().send(player, "cosmetics.particle.none-worn");
                     return;
                 }
-                live.particles().speed(player, speed.get());
+                slot.speed(player, speed.get());
                 live.messages().send(player, "cosmetics.particle.sped", "speed", speed.get().title());
             }
             case "colour", "color" -> {
@@ -231,21 +265,23 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                             "detail", "Name a palette colour, a chat colour or a #hex code.");
                     return;
                 }
-                if (live.particles().current(player).isNone()) {
+                if (slot.current(player).isNone()) {
                     live.messages().send(player, "cosmetics.particle.none-worn");
                     return;
                 }
-                live.particles().colour(player, colour.value());
-                live.messages().send(player, "cosmetics.particle.coloured");
+                if (slot.colour(player, colour.value())) {
+                    live.messages().send(player, "cosmetics.particle.coloured");
+                }
             }
             case "gradient" -> {
-                if (live.particles().current(player).isNone()) {
+                if (slot.current(player).isNone()) {
                     live.messages().send(player, "cosmetics.particle.none-worn");
                     return;
                 }
                 if (args.length > 1 && (args[1].equalsIgnoreCase("off") || args[1].equalsIgnoreCase("none"))) {
-                    live.particles().colourTo(player, null);
-                    live.messages().send(player, "cosmetics.particle.gradient-off");
+                    if (slot.colourTo(player, null)) {
+                        live.messages().send(player, "cosmetics.particle.gradient-off");
+                    }
                     return;
                 }
                 TextColor to = args.length > 1 ? live.offered().colourNamed(args[1])
@@ -255,11 +291,58 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                             "detail", "Name a palette colour, a chat colour or a #hex code — or off.");
                     return;
                 }
-                live.particles().colourTo(player, to.value());
-                live.messages().send(player, "cosmetics.particle.gradient-set");
+                if (slot.colourTo(player, to.value())) {
+                    live.messages().send(player, "cosmetics.particle.gradient-set");
+                }
             }
-            default -> live.particles().wear(player, word, true);
+            default -> {
+                if (slot.wear(player, word)) {
+                    live.messages().send(player, "cosmetics.particle.set", "particle", ParticleCatalogue.readable(
+                            slot.current(player).particle()));
+                }
+            }
         }
+    }
+
+    private void reservation(CosmeticsServices live, Player player, String word, String whose) {
+        if (word.equals("reserved")) {
+            var all = live.particles().reservations().all();
+            if (all.isEmpty()) {
+                live.messages().send(player, "cosmetics.wings.reserved-none");
+            }
+            for (var held : all) {
+                live.messages().send(player, "cosmetics.wings.reserved-entry", "owner", held.ownerName(),
+                        "wings", held.shown());
+            }
+            return;
+        }
+        if (!player.hasPermission(PermissionNodes.WINGS_RESERVE)) {
+            live.messages().send(player, "cosmetics.wings.may-not-reserve");
+            return;
+        }
+        if (word.equals("unreserve") && whose != null) {
+            if (!player.hasPermission(PermissionNodes.ADMIN)) {
+                live.messages().send(player, "cosmetics.wings.release-not-yours", "owner", whose);
+                return;
+            }
+            live.messages().send(player, "cosmetics.wings.released-all", "owner", whose,
+                    "count", live.particles().reservations().releaseAllOf(whose));
+            return;
+        }
+        var outcome = word.equals("reserve") ? live.particles().reserve(player) : live.particles().release(player);
+        String said = switch (outcome) {
+            case RESERVED -> "cosmetics.wings.reserve-done";
+            case ALREADY_YOURS -> "cosmetics.wings.reserve-already";
+            case TAKEN -> "cosmetics.wings.reserved";
+            case NOTHING_WORN -> "cosmetics.wings.none-worn";
+            case RELEASED -> "cosmetics.wings.release-done";
+            case NOT_RESERVED -> "cosmetics.wings.release-not-reserved";
+            case NOT_YOURS -> "cosmetics.wings.release-not-yours";
+        };
+        String owner = live.particles().reservations()
+                .holderOf(live.particles().wings().current(player))
+                .map(de.raindancer.modules.cosmetics.store.WingReservations.Reservation::ownerName).orElse("somebody");
+        live.messages().send(player, said, "owner", owner);
     }
 
     @Override
@@ -271,6 +354,7 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
         if (args.length <= 1) {
             options.add("name");
             options.add("particle");
+            options.add("wings");
             options.add("clear");
             options.add("teleport");
             if (admin) {
@@ -289,13 +373,38 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
             } else if (part.isPresent()) {
                 live.particles().offered().stream().map(name -> name.toLowerCase(Locale.ROOT)).forEach(options::add);
             }
+        } else if (args[0].equalsIgnoreCase("wings") && args.length == 2) {
+            options.addAll(List.of("off", "shape", "colour", "gradient", "density", "style", "reserved"));
+            if (sender.hasPermission(PermissionNodes.WINGS_RESERVE)) {
+                options.addAll(List.of("reserve", "unreserve"));
+            }
+            live.particles().offered().stream().map(name -> name.toLowerCase(Locale.ROOT)).forEach(options::add);
+        } else if (args[0].equalsIgnoreCase("wings") && args.length == 3 && args[1].equalsIgnoreCase("shape")) {
+            ParticleShape.wings().forEach(shape -> options.add(shape.key()));
+        } else if (args[0].equalsIgnoreCase("wings") && args.length == 3 && args[1].equalsIgnoreCase("unreserve")
+                && admin) {
+            live.particles().reservations().all().stream()
+                    .map(de.raindancer.modules.cosmetics.store.WingReservations.Reservation::ownerName)
+                    .distinct().forEach(options::add);
+        } else if (args[0].equalsIgnoreCase("wings") && args.length == 3 && args[1].equalsIgnoreCase("style")) {
+            options.addAll(List.of("crisp", "natural"));
+        } else if (args[0].equalsIgnoreCase("wings") && args.length == 3 && args[1].equalsIgnoreCase("density")) {
+            for (var density : de.raindancer.modules.cosmetics.model.ParticleDensity.values()) {
+                options.add(density.key());
+            }
+        } else if (args[0].equalsIgnoreCase("wings") && args.length == 3
+                && (args[1].toLowerCase(Locale.ROOT).startsWith("colo") || args[1].equalsIgnoreCase("gradient"))) {
+            live.offered().palette().stream().map(PaletteColour::label)
+                    .map(label -> label.replace(' ', '_')).forEach(options::add);
         } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 2) {
             options.addAll(List.of("off", "shape", "colour", "gradient", "density", "speed"));
             live.particles().offered().stream().map(name -> name.toLowerCase(Locale.ROOT)).forEach(options::add);
         } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 3
                 && args[1].equalsIgnoreCase("shape")) {
             for (ParticleShape shape : ParticleShape.values()) {
-                options.add(shape.key());
+                if (!shape.isWings()) {
+                    options.add(shape.key());
+                }
             }
         } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 3
                 && args[1].equalsIgnoreCase("speed")) {

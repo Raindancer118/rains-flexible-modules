@@ -126,9 +126,11 @@ class ParticleRuleTest {
     void pace() {
         var rule = new de.raindancer.modules.cosmetics.rules.ParticleRule();
 
-        org.assertj.core.api.Assertions.assertThat(rule.everyTick(ParticleShape.WINGS, true)).isTrue();
-        org.assertj.core.api.Assertions.assertThat(rule.everyTick(ParticleShape.WINGS, false)).isFalse();
-        org.assertj.core.api.Assertions.assertThat(rule.everyTick(ParticleShape.HALO, true)).isFalse();
+        org.assertj.core.api.Assertions.assertThat(rule.everyTick(ParticleShape.WINGS, true, false)).isTrue();
+        org.assertj.core.api.Assertions.assertThat(rule.everyTick(ParticleShape.WINGS, false, false)).isFalse();
+        org.assertj.core.api.Assertions.assertThat(rule.everyTick(ParticleShape.HALO, true, false)).isFalse();
+        org.assertj.core.api.Assertions.assertThat(rule.everyTick(ParticleShape.WINGS, true, true))
+                .as("natural wings are the particle as Minecraft draws it, at the server's pace").isFalse();
 
         org.assertj.core.api.Assertions.assertThat(rule.drawsNow(7, 4, true)).isTrue();
         org.assertj.core.api.Assertions.assertThat(rule.drawsNow(7, 4, false)).isFalse();
@@ -136,5 +138,45 @@ class ParticleRuleTest {
         // A halo drawn every fourth tick moves on one frame per draw, as it always did.
         org.assertj.core.api.Assertions.assertThat(rule.animationTick(8, 4, false)).isEqualTo(2);
         org.assertj.core.api.Assertions.assertThat(rule.animationTick(8, 4, true)).isEqualTo(8);
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("wings chosen as the particle before wings had their own slot move there, and the particle is free again")
+    void wingsMoveToTheirOwnSlot() {
+        var rule = new de.raindancer.modules.cosmetics.rules.ParticleRule();
+        ParticleChoice wornWings = new ParticleChoice("DUST", ParticleShape.WINGS, 0xFFFFFF);
+        ParticleChoice halo = new ParticleChoice("FLAME", ParticleShape.HALO, null);
+
+        var moved = rule.split(wornWings, ParticleChoice.NONE);
+        org.assertj.core.api.Assertions.assertThat(moved.particle().isNone()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(moved.wings()).isEqualTo(wornWings);
+
+        var kept = rule.split(halo, ParticleChoice.NONE);
+        org.assertj.core.api.Assertions.assertThat(kept.particle()).isEqualTo(halo);
+        org.assertj.core.api.Assertions.assertThat(kept.wings().isNone()).isTrue();
+
+        ParticleChoice ownWings = new ParticleChoice("FLAME", ParticleShape.DRAGON_WINGS, null);
+        var both = rule.split(wornWings, ownWings);
+        org.assertj.core.api.Assertions.assertThat(both.wings()).as("wings already chosen are not replaced")
+                .isEqualTo(ownWings);
+        org.assertj.core.api.Assertions.assertThat(both.particle().isNone()).isTrue();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("a choice can be natural — the particle as Minecraft draws it — and keeps that through every change")
+    void natural() {
+        ParticleChoice crisp = new ParticleChoice("DUST", ParticleShape.WINGS, 0xFFFFFF);
+        org.assertj.core.api.Assertions.assertThat(crisp.natural()).isFalse();
+        ParticleChoice natural = crisp.withNatural(true);
+        org.assertj.core.api.Assertions.assertThat(natural.withColour(0x112233).withShape(ParticleShape.PHOENIX_WINGS)
+                .natural()).isTrue();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("wings nobody chose a density for are drawn Dense, as their page says — not at the server's light default")
+    void wingsDefaultToDense() {
+        var rule = new ParticleRule();
+        org.assertj.core.api.Assertions.assertThat(rule.wingDensity(null)).isEqualTo(ParticleDensity.DENSE);
+        org.assertj.core.api.Assertions.assertThat(rule.wingDensity(ParticleDensity.ULTRA)).isEqualTo(ParticleDensity.ULTRA);
     }
 }

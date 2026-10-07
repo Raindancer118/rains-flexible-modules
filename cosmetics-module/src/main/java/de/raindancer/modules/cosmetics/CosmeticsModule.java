@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.11.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.12.0")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -71,8 +71,13 @@ public final class CosmeticsModule implements FlexModule {
                 context.core().messages(), catalogue::current, settings.current());
         names.applyNametagSetting();
         context.closeWith(() -> context.core().nametags().enabled(false));
+        // Kept apart from config.yml: these are players' own, not settings an admin edits.
+        de.raindancer.modules.cosmetics.store.WingReservations reservations =
+                new de.raindancer.modules.cosmetics.store.WingReservations(
+                        context.dataFolder().resolve("wing-reservations.yml"));
+        reservations.load();
         ParticleService particles = new ParticleService(context.plugin(), server, context.core().vanish(),
-                context.core().messages(), settings.current());
+                context.core().messages(), settings.current(), reservations);
         particles.start();
         context.closeWith(particles::stop);
         ReloadService reloading = new ReloadService(settings, catalogue, server, log);
