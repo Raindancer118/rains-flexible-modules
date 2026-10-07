@@ -186,7 +186,9 @@ class PackageGrammarTest {
     void everyServiceTakesTheSettings() {
         List<String> forgetful = new ArrayList<>();
         for (Source source : in("service")) {
-            if (source.name().equals("ICosmeticsService")) {
+            // An interface holds no settings to be told about; the services implementing it do.
+            if (source.name().equals("ICosmeticsService")
+                    || source.body().contains("public interface " + source.name())) {
                 continue;
             }
             if (!source.body().contains("void settings(CosmeticsSettings")) {

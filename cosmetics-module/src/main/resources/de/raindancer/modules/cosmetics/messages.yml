@@ -45,6 +45,8 @@ cosmetics:
     cleared: "<green>No more sparkles. Very understated."
     shaped: "<green>It is drawn <white><shape></white> now."
     coloured: "<green>Its colour is changed."
+    gradient-set: "<green>It now blends into that colour along its shape."
+    gradient-off: "<green>One colour again."
     densified: "<green>Density: <white><density></white>. Sparkle responsibly."
     unknown-density: "<red>Densities are <white>light</white>, <white>normal</white>, <white>dense</white> and <white>very_dense</white>."
     sped: "<green>Speed: <white><speed></white>. Zoom zoom — or not, your call."

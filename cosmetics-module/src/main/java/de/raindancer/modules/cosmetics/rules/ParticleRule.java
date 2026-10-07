@@ -31,8 +31,19 @@ public final class ParticleRule implements ICosmeticsRule {
      * ceiling, and never none.
      */
     public int count(de.raindancer.modules.cosmetics.model.ParticleDensity chosen, int serverDefault, int ceiling) {
+        if (chosen == de.raindancer.modules.cosmetics.model.ParticleDensity.ULTRA) {
+            // Past the ceiling on purpose: only somebody given the Ultra node can have chosen it.
+            return chosen.count();
+        }
         int wanted = chosen == null ? serverDefault : chosen.count();
         return Math.max(1, Math.min(Math.max(1, ceiling), wanted));
+    }
+
+    /** The density somebody may actually have: Ultra falls back to the densest below it without the node. */
+    public de.raindancer.modules.cosmetics.model.ParticleDensity allowed(
+            de.raindancer.modules.cosmetics.model.ParticleDensity chosen, boolean mayUltra) {
+        return chosen == de.raindancer.modules.cosmetics.model.ParticleDensity.ULTRA && !mayUltra
+                ? de.raindancer.modules.cosmetics.model.ParticleDensity.VERY_DENSE : chosen;
     }
 
     /**
@@ -41,6 +52,25 @@ public final class ParticleRule implements ICosmeticsRule {
      */
     public long frame(long tick, de.raindancer.modules.cosmetics.model.ParticleSpeed speed) {
         return (long) Math.floor(tick * (speed == null ? 1.0 : speed.factor()));
+    }
+
+    /**
+     * Whether this is drawn every tick: coloured wings, whose points live exactly one tick so a beating
+     * wing never shows two frames at once. A particle without a colour cannot be given a lifetime, and
+     * drawn every tick it would pile up — so it keeps the server's pace.
+     */
+    public boolean everyTick(de.raindancer.core.ui.effect.ParticleShape shape, boolean takesColour) {
+        return shape.isWings() && takesColour;
+    }
+
+    /** Whether to draw on this game tick. */
+    public boolean drawsNow(long tick, int every, boolean everyTick) {
+        return everyTick || tick % Math.max(1, every) == 0;
+    }
+
+    /** The tick a shape's animation is at: one step per draw, however often that is. */
+    public long animationTick(long tick, int every, boolean everyTick) {
+        return everyTick ? tick : tick / Math.max(1, every);
     }
 
     /** Somebody hidden must not give themselves away by a ring of flames. */

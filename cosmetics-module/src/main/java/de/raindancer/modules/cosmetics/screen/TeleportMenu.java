@@ -1,7 +1,6 @@
 package de.raindancer.modules.cosmetics.screen;
 
 import de.raindancer.core.platform.util.Scheduling;
-import de.raindancer.core.ui.choose.ParticleChooser;
 import de.raindancer.core.ui.choose.SoundChooser;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
@@ -97,8 +96,8 @@ public final class TeleportMenu extends Menu implements ICosmeticsScreen {
             new SoundChooser(viewer, services.brand(), this, heading,
                     sound -> chooseLater(part, sound), looks.sounds(viewer)).open();
         } else {
-            new ParticleChooser(viewer, services.brand(), this, heading,
-                    particle -> chooseLater(part, particle), looks.waitParticles()).open();
+            // The same page as the particle you wear: pick it, then its shape, colour and density.
+            new ParticleMenu(services, viewer, this, looks.waitParticle()).open();
         }
     }
 

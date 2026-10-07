@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.10.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.11.0")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -81,7 +81,7 @@ public final class CosmeticsModule implements FlexModule {
                 (who, task) -> Scheduling.entity(context.plugin(), who, task), settings.current());
         // Handed to Core, so a player's choice follows them through every plugin's teleports.
         de.raindancer.modules.cosmetics.service.TeleportLookService teleports =
-                new de.raindancer.modules.cosmetics.service.TeleportLookService(context.core().messages(),
+                new de.raindancer.modules.cosmetics.service.TeleportLookService(context.plugin(), context.core().messages(),
                         context.core().travelShow(), particles, settings.current());
         teleports.start();
         context.closeWith(teleports::stop);

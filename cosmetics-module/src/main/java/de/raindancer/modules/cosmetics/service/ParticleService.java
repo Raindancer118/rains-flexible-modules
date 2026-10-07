@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * choice is read and drawn there, because on Folia a player and the people near them belong to that
  * region.
  */
-public final class ParticleService implements ICosmeticsService {
+public final class ParticleService implements ICosmeticsService, ParticleSlot {
 
     /** Whether a player sees other people's particles. Their own choice, on by default. */
     public static final PlayerSwitch SEES = new PlayerSwitch("rainscosmetics", "see-particles", true);
@@ -64,19 +64,17 @@ public final class ParticleService implements ICosmeticsService {
 
     @Override
     public synchronized void settings(CosmeticsSettings fresh) {
-        boolean newPace = settings.everyTicks() != fresh.everyTicks();
+        // Read on every tick, so a changed pace takes hold without restarting the timer.
         this.settings = fresh;
-        if (newPace && timer != null) {
-            start();
-        }
     }
 
     // ------------------------------------------------------------------ the timer
 
     public synchronized void start() {
         stop();
-        long every = settings.everyTicks();
-        timer = Scheduling.globalTimer(plugin, every, every, task -> {
+        // Every tick: coloured wings are redrawn each tick (see ParticleRule.everyTick); the rest is
+        // skipped in draw() until its own turn comes round.
+        timer = Scheduling.globalTimer(plugin, 1, 1, task -> {
             long tick = ticks.incrementAndGet();
             for (Player player : server.getOnlinePlayers()) {
                 Scheduling.entity(plugin, player, () -> draw(player, tick));
@@ -100,24 +98,31 @@ public final class ParticleService implements ICosmeticsService {
             return;
         }
         CosmeticsSettings now = settings;
+        boolean everyTick = rule.everyTick(choice.shape(), ParticleShows.takesColour(choice.particle()));
+        if (!rule.drawsNow(tick, now.everyTicks(), everyTick)) {
+            return;
+        }
         if (!rule.shows(now.particlesEnabled(), vanish.isVanished(wearer.getUniqueId()),
                 wearer.getGameMode() == GameMode.SPECTATOR,
                 wearer.hasPotionEffect(PotionEffectType.INVISIBILITY), wearer.isDead())
                 || now.blocked().contains(choice.particle())) {
             return;
         }
-        ParticleShows.around(wearer, choice.particle(), choice.colour(),
-                rule.count(choice.density(), now.count(), now.maxCount()), choice.shape(),
-                rule.frame(tick, choice.speed()),
-                RANGE, viewer -> viewer.equals(wearer) || SEES.isOn(viewer));
+        ParticleShows.around(wearer, choice.particle(), choice.colour(), choice.colourTo(),
+                rule.count(rule.allowed(choice.density(), mayUltra(wearer)), now.count(), now.maxCount()),
+                choice.shape(),
+                rule.frame(rule.animationTick(tick, now.everyTicks(), everyTick), choice.speed()),
+                RANGE, viewer -> viewer.equals(wearer) || SEES.isOn(viewer), everyTick ? 1 : null);
     }
 
     // ------------------------------------------------------------------ choosing
 
+    @Override
     public ParticleChoice current(Player who) {
         return choices.read(who);
     }
 
+    @Override
     public boolean mayUse(Player who) {
         return settings.particlesEnabled() && who.hasPermission(PermissionNodes.PARTICLES);
     }
@@ -151,6 +156,7 @@ public final class ParticleService implements ICosmeticsService {
         return true;
     }
 
+    @Override
     public void shape(Player who, ParticleShape shape) {
         ParticleChoice choice = choices.read(who);
         if (!choice.isNone()) {
@@ -159,6 +165,7 @@ public final class ParticleService implements ICosmeticsService {
     }
 
     /** Their density, or the one the server draws with when they have not chosen. */
+    @Override
     public ParticleDensity densityOf(Player who) {
         ParticleDensity chosen = choices.read(who).density();
         if (chosen != null) {
@@ -174,11 +181,13 @@ public final class ParticleService implements ICosmeticsService {
     }
 
     /** Their speed, normal when they have not chosen. */
+    @Override
     public ParticleSpeed speedOf(Player who) {
         ParticleSpeed chosen = choices.read(who).speed();
         return chosen == null ? ParticleSpeed.NORMAL : chosen;
     }
 
+    @Override
     public void speed(Player who, ParticleSpeed speed) {
         ParticleChoice choice = choices.read(who);
         if (!choice.isNone()) {
@@ -187,17 +196,20 @@ public final class ParticleService implements ICosmeticsService {
     }
 
     /** Whether this density would be drawn as asked, or held down by the server's ceiling. */
+    @Override
     public boolean isCapped(ParticleDensity density) {
         return density.count() > settings.maxCount();
     }
 
+    @Override
     public void density(Player who, ParticleDensity density) {
         ParticleChoice choice = choices.read(who);
         if (!choice.isNone()) {
-            choices.write(who, choice.withDensity(density));
+            choices.write(who, choice.withDensity(rule.allowed(density, mayUltra(who))));
         }
     }
 
+    @Override
     public void colour(Player who, int rgb) {
         ParticleChoice choice = choices.read(who);
         if (!choice.isNone()) {
@@ -213,16 +225,73 @@ public final class ParticleService implements ICosmeticsService {
     }
 
     /** Shows them their particle, in its shape, in front of them for a few seconds. */
+    @Override
     public void preview(Player who) {
         ParticleChoice choice = choices.read(who);
         if (choice.isNone()) {
             messages.send(who, "cosmetics.particle.none-worn");
             return;
         }
-        ParticleShows.preview(plugin, who, choice.particle(), choice.colour(),
-                rule.count(choice.density(), settings.count(), settings.maxCount()), choice.shape(), 5,
+        ParticleShows.preview(plugin, who, choice.particle(), choice.colour(), choice.colourTo(),
+                rule.count(rule.allowed(choice.density(), mayUltra(who)), settings.count(), settings.maxCount()),
+                choice.shape(), 5,
                 choice.speed() == null ? 1.0 : choice.speed().factor());
         messages.send(who, "cosmetics.preview.particle");
+    }
+
+    // ------------------------------------------------------------------ as the particle page's slot
+
+    @Override
+    public String heading() {
+        return "Your particles";
+    }
+
+    @Override
+    public String locked() {
+        return "Needs " + PermissionNodes.PARTICLES;
+    }
+
+    @Override
+    public ParticleCatalogue catalogue() {
+        return new ParticleCatalogue(this::offered);
+    }
+
+    @Override
+    public boolean wear(Player who, String particle) {
+        return wear(who, particle, false);
+    }
+
+    @Override
+    public boolean hasSpeed() {
+        return true;
+    }
+
+    @Override
+    public boolean mayUltra(Player who) {
+        return who.hasPermission(PermissionNodes.PARTICLES_ULTRA);
+    }
+
+    @Override
+    public void colourTo(Player who, Integer rgb) {
+        ParticleChoice choice = choices.read(who);
+        if (!choice.isNone()) {
+            choices.write(who, choice.withColourTo(rgb == null ? null : rgb & 0xFFFFFF));
+        }
+    }
+
+    @Override
+    public String takeOffTitle() {
+        return "Take it off";
+    }
+
+    @Override
+    public void takeOff(Player who) {
+        takeOff(who, false);
+    }
+
+    @Override
+    public boolean isWorn() {
+        return true;
     }
 
     /** Flips whether this player sees other people's particles. @return whether they now do */

@@ -238,6 +238,26 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                 live.particles().colour(player, colour.value());
                 live.messages().send(player, "cosmetics.particle.coloured");
             }
+            case "gradient" -> {
+                if (live.particles().current(player).isNone()) {
+                    live.messages().send(player, "cosmetics.particle.none-worn");
+                    return;
+                }
+                if (args.length > 1 && (args[1].equalsIgnoreCase("off") || args[1].equalsIgnoreCase("none"))) {
+                    live.particles().colourTo(player, null);
+                    live.messages().send(player, "cosmetics.particle.gradient-off");
+                    return;
+                }
+                TextColor to = args.length > 1 ? live.offered().colourNamed(args[1])
+                        .map(PaletteColour::colour).orElseGet(() -> NameStyle.colourOf(args[1])) : null;
+                if (to == null) {
+                    live.messages().send(player, "cosmetics.not-a-style",
+                            "detail", "Name a palette colour, a chat colour or a #hex code — or off.");
+                    return;
+                }
+                live.particles().colourTo(player, to.value());
+                live.messages().send(player, "cosmetics.particle.gradient-set");
+            }
             default -> live.particles().wear(player, word, true);
         }
     }
@@ -270,7 +290,7 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                 live.particles().offered().stream().map(name -> name.toLowerCase(Locale.ROOT)).forEach(options::add);
             }
         } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 2) {
-            options.addAll(List.of("off", "shape", "colour", "density", "speed"));
+            options.addAll(List.of("off", "shape", "colour", "gradient", "density", "speed"));
             live.particles().offered().stream().map(name -> name.toLowerCase(Locale.ROOT)).forEach(options::add);
         } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 3
                 && args[1].equalsIgnoreCase("shape")) {
@@ -288,7 +308,8 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                 options.add(density.key());
             }
         } else if (args[0].toLowerCase(Locale.ROOT).startsWith("particle") && args.length == 3
-                && args[1].toLowerCase(Locale.ROOT).startsWith("colo")) {
+                && (args[1].toLowerCase(Locale.ROOT).startsWith("colo")
+                || args[1].equalsIgnoreCase("gradient"))) {
             live.offered().palette().stream().map(PaletteColour::label)
                     .map(label -> label.replace(' ', '_')).forEach(options::add);
         } else if (args[0].equalsIgnoreCase("clear") && args.length == 2) {

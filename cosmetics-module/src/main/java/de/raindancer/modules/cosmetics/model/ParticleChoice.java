@@ -11,11 +11,17 @@ import java.util.Locale;
  * @param colour   0xRRGGBB, or null where the particle takes none
  * @param density  how thick it is drawn; null for the server's default
  * @param speed    how fast its shape moves; null for normal
+ * @param colourTo the other end of a gradient from {@code colour} along the shape; null for one colour
  */
 public record ParticleChoice(String particle, ParticleShape shape, Integer colour, ParticleDensity density,
-                             ParticleSpeed speed) {
+                             ParticleSpeed speed, Integer colourTo) {
 
-    public static final ParticleChoice NONE = new ParticleChoice("", ParticleShape.AMBIENT, null, null, null);
+    public static final ParticleChoice NONE = new ParticleChoice("", ParticleShape.AMBIENT, null, null, null, null);
+
+    public ParticleChoice(String particle, ParticleShape shape, Integer colour, ParticleDensity density,
+                          ParticleSpeed speed) {
+        this(particle, shape, colour, density, speed, null);
+    }
 
     /** Without a density of its own: drawn at the server's default. */
     public ParticleChoice(String particle, ParticleShape shape, Integer colour) {
@@ -36,22 +42,27 @@ public record ParticleChoice(String particle, ParticleShape shape, Integer colou
     }
 
     public ParticleChoice withParticle(String next) {
-        return new ParticleChoice(next, shape, colour, density, speed);
+        return new ParticleChoice(next, shape, colour, density, speed, colourTo);
     }
 
     public ParticleChoice withShape(ParticleShape next) {
-        return new ParticleChoice(particle, next, colour, density, speed);
+        return new ParticleChoice(particle, next, colour, density, speed, colourTo);
     }
 
     public ParticleChoice withColour(Integer next) {
-        return new ParticleChoice(particle, shape, next, density, speed);
+        return new ParticleChoice(particle, shape, next, density, speed, colourTo);
     }
 
     public ParticleChoice withDensity(ParticleDensity next) {
-        return new ParticleChoice(particle, shape, colour, next, speed);
+        return new ParticleChoice(particle, shape, colour, next, speed, colourTo);
+    }
+
+    /** The other end of a gradient; null back to one colour. */
+    public ParticleChoice withColourTo(Integer next) {
+        return new ParticleChoice(particle, shape, colour, density, speed, next);
     }
 
     public ParticleChoice withSpeed(ParticleSpeed next) {
-        return new ParticleChoice(particle, shape, colour, density, next);
+        return new ParticleChoice(particle, shape, colour, density, next, colourTo);
     }
 }

@@ -23,6 +23,7 @@ public final class ParticleChoices {
     private static final NamespacedKey COLOUR = key("particle-colour");
     private static final NamespacedKey DENSITY = key("particle-density");
     private static final NamespacedKey SPEED = key("particle-speed");
+    private static final NamespacedKey COLOUR_TO = key("particle-colour-to");
 
     private static NamespacedKey key(String name) {
         NamespacedKey key = NamespacedKey.fromString("rainscosmetics:" + name);
@@ -41,7 +42,8 @@ public final class ParticleChoices {
         ParticleShape shape = ParticleShape.of(data.get(SHAPE, PersistentDataType.STRING)).orElse(ParticleShape.AMBIENT);
         return new ParticleChoice(particle, shape, data.get(COLOUR, PersistentDataType.INTEGER),
                 ParticleDensity.of(data.get(DENSITY, PersistentDataType.STRING)).orElse(null),
-                ParticleSpeed.of(data.get(SPEED, PersistentDataType.STRING)).orElse(null));
+                ParticleSpeed.of(data.get(SPEED, PersistentDataType.STRING)).orElse(null),
+                data.get(COLOUR_TO, PersistentDataType.INTEGER));
     }
 
     public void write(Player player, ParticleChoice choice) {
@@ -52,6 +54,7 @@ public final class ParticleChoices {
             data.remove(COLOUR);
             data.remove(DENSITY);
             data.remove(SPEED);
+            data.remove(COLOUR_TO);
             return;
         }
         if (choice.speed() == null) {
@@ -66,6 +69,11 @@ public final class ParticleChoices {
         }
         data.set(PARTICLE, PersistentDataType.STRING, choice.particle());
         data.set(SHAPE, PersistentDataType.STRING, choice.shape().key());
+        if (choice.colourTo() == null) {
+            data.remove(COLOUR_TO);
+        } else {
+            data.set(COLOUR_TO, PersistentDataType.INTEGER, choice.colourTo());
+        }
         if (choice.colour() == null) {
             data.remove(COLOUR);
         } else {

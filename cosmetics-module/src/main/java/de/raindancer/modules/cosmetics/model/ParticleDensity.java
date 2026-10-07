@@ -9,7 +9,9 @@ public enum ParticleDensity {
     LIGHT("Light", 1),
     NORMAL("Normal", 2),
     DENSE("Dense", 4),
-    VERY_DENSE("Very dense", 6);
+    VERY_DENSE("Very dense", 6),
+    /** Inside lines on wings and hundreds of points a draw — {@code rainscosmetics.particles.ultra} only. */
+    ULTRA("Ultra", 16);
 
     private final String title;
     private final int count;

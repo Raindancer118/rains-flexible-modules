@@ -69,7 +69,8 @@ class ParticleRuleTest {
     @DisplayName("densities step up and down, and stop at the ends")
     void stepping() {
         assertThat(ParticleDensity.LIGHT.denser()).isEqualTo(ParticleDensity.NORMAL);
-        assertThat(ParticleDensity.VERY_DENSE.denser()).isEqualTo(ParticleDensity.VERY_DENSE);
+        assertThat(ParticleDensity.VERY_DENSE.denser()).isEqualTo(ParticleDensity.ULTRA);
+        assertThat(ParticleDensity.ULTRA.denser()).isEqualTo(ParticleDensity.ULTRA);
         assertThat(ParticleDensity.NORMAL.lighter()).isEqualTo(ParticleDensity.LIGHT);
         assertThat(ParticleDensity.LIGHT.lighter()).isEqualTo(ParticleDensity.LIGHT);
         assertThat(ParticleDensity.of("very_dense")).contains(ParticleDensity.VERY_DENSE);
@@ -103,5 +104,37 @@ class ParticleRuleTest {
                 .withDensity(ParticleDensity.DENSE);
         assertThat(flame.speed()).isEqualTo(ParticleSpeed.FAST);
         assertThat(flame.withShape(ParticleShape.AURA).speed()).isEqualTo(ParticleSpeed.FAST);
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("Ultra is for those allowed it: it passes the server's ceiling, and anybody else gets the densest they may have")
+    void ultra() {
+        var rule = new de.raindancer.modules.cosmetics.rules.ParticleRule();
+        var ultra = de.raindancer.modules.cosmetics.model.ParticleDensity.ULTRA;
+
+        org.assertj.core.api.Assertions.assertThat(ultra.count())
+                .isGreaterThanOrEqualTo(de.raindancer.core.ui.effect.ParticleShape.ULTRA);
+        org.assertj.core.api.Assertions.assertThat(rule.count(ultra, 2, 4)).isEqualTo(ultra.count());
+        org.assertj.core.api.Assertions.assertThat(rule.allowed(ultra, false))
+                .isEqualTo(de.raindancer.modules.cosmetics.model.ParticleDensity.VERY_DENSE);
+        org.assertj.core.api.Assertions.assertThat(rule.allowed(ultra, true)).isEqualTo(ultra);
+        org.assertj.core.api.Assertions.assertThat(rule.allowed(null, false)).isNull();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("coloured wings are drawn every tick to live one tick; everything else at the server's pace, its animation unhurried")
+    void pace() {
+        var rule = new de.raindancer.modules.cosmetics.rules.ParticleRule();
+
+        org.assertj.core.api.Assertions.assertThat(rule.everyTick(ParticleShape.WINGS, true)).isTrue();
+        org.assertj.core.api.Assertions.assertThat(rule.everyTick(ParticleShape.WINGS, false)).isFalse();
+        org.assertj.core.api.Assertions.assertThat(rule.everyTick(ParticleShape.HALO, true)).isFalse();
+
+        org.assertj.core.api.Assertions.assertThat(rule.drawsNow(7, 4, true)).isTrue();
+        org.assertj.core.api.Assertions.assertThat(rule.drawsNow(7, 4, false)).isFalse();
+        org.assertj.core.api.Assertions.assertThat(rule.drawsNow(8, 4, false)).isTrue();
+        // A halo drawn every fourth tick moves on one frame per draw, as it always did.
+        org.assertj.core.api.Assertions.assertThat(rule.animationTick(8, 4, false)).isEqualTo(2);
+        org.assertj.core.api.Assertions.assertThat(rule.animationTick(8, 4, true)).isEqualTo(8);
     }
 }

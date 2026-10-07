@@ -46,4 +46,10 @@ public final class TeleportLookRule implements ICosmeticsRule {
         }
         return Verdict.allowed();
     }
+
+    /** Ultra only for somebody given it — the same answer the worn particle gets. */
+    public de.raindancer.modules.cosmetics.model.ParticleDensity allowedDensity(
+            de.raindancer.modules.cosmetics.model.ParticleDensity chosen, boolean mayUltra) {
+        return new ParticleRule().allowed(chosen, mayUltra);
+    }
 }

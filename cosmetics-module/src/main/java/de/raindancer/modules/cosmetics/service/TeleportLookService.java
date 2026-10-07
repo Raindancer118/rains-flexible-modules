@@ -3,11 +3,16 @@ package de.raindancer.modules.cosmetics.service;
 import de.raindancer.core.platform.rule.Verdict;
 import de.raindancer.core.ui.choose.ParticleCatalogue;
 import de.raindancer.core.ui.choose.SoundCatalogue;
+import de.raindancer.core.ui.effect.ParticleShape;
+import de.raindancer.core.ui.effect.ParticleShows;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.teleport.TravelLook;
 import de.raindancer.core.world.teleport.TravelLooks;
 import de.raindancer.core.world.teleport.TravelShow;
 import de.raindancer.modules.cosmetics.CosmeticsSettings;
+import de.raindancer.modules.cosmetics.model.ParticleChoice;
+import de.raindancer.modules.cosmetics.model.ParticleDensity;
+import de.raindancer.modules.cosmetics.model.ParticleSpeed;
 import de.raindancer.modules.cosmetics.model.TeleportLookChoice;
 import de.raindancer.modules.cosmetics.model.TeleportPart;
 import de.raindancer.modules.cosmetics.rules.TeleportLookRule;
@@ -33,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class TeleportLookService implements ICosmeticsService, TravelLooks {
 
+    private final org.bukkit.plugin.Plugin plugin;
     private final Messages messages;
     private final TravelShow show;
     private final ParticleService particles;
@@ -42,8 +48,9 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
 
     private volatile CosmeticsSettings settings;
 
-    public TeleportLookService(Messages messages, TravelShow show, ParticleService particles,
-                               CosmeticsSettings settings) {
+    public TeleportLookService(org.bukkit.plugin.Plugin plugin, Messages messages, TravelShow show,
+                               ParticleService particles, CosmeticsSettings settings) {
+        this.plugin = plugin;
         this.messages = messages;
         this.show = show;
         this.particles = particles;
@@ -135,12 +142,12 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
             return false;
         }
         TeleportLookChoice now = current(who).with(part, value);
-        store.write(who, now);
-        if (now.isServers()) {
-            chosen.remove(who.getUniqueId());
-        } else {
-            chosen.put(who.getUniqueId(), now);
+        if (part == TeleportPart.WAIT && value != null && ParticleShows.takesColour(value)
+                && now.waitColour() == null) {
+            // Dust with no colour chosen would be drawn white; the worn particle starts red, so this does too.
+            now = now.withWait(now.waitStyle().withColour(0xFF5555));
         }
+        keep(who, now);
         if (value == null) {
             messages.send(who, "cosmetics.teleport.back-to-default", "part", partName(part));
         } else if (TeleportLookChoice.NONE.equals(value)) {
@@ -150,6 +157,138 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
             messages.send(who, "cosmetics.teleport.set", "part", partName(part), "value", readable(part, value));
         }
         return true;
+    }
+
+    private void keep(Player who, TeleportLookChoice now) {
+        store.write(who, now);
+        if (now.isServers()) {
+            chosen.remove(who.getUniqueId());
+        } else {
+            chosen.put(who.getUniqueId(), now);
+        }
+    }
+
+    /** The waiting particle, as the particle page edits it — the same page as the worn one. */
+    public ParticleSlot waitParticle() {
+        return new WaitParticle();
+    }
+
+    private final class WaitParticle implements ParticleSlot {
+
+        @Override
+        public String heading() {
+            return "While you wait to teleport";
+        }
+
+        @Override
+        public ParticleChoice current(Player who) {
+            return TeleportLookService.this.current(who).waitStyle();
+        }
+
+        @Override
+        public boolean mayUse(Player who) {
+            return TeleportLookService.this.mayUse(who);
+        }
+
+        @Override
+        public String locked() {
+            return "Needs " + PermissionNodes.TELEPORT;
+        }
+
+        @Override
+        public ParticleCatalogue catalogue() {
+            return waitParticles();
+        }
+
+        @Override
+        public boolean wear(Player who, String particle) {
+            return choose(who, TeleportPart.WAIT, particle);
+        }
+
+        private void restyle(Player who, java.util.function.UnaryOperator<ParticleChoice> change) {
+            TeleportLookChoice now = TeleportLookService.this.current(who);
+            if (!now.waitStyle().isNone()) {
+                keep(who, now.withWait(change.apply(now.waitStyle())));
+            }
+        }
+
+        @Override
+        public void shape(Player who, ParticleShape shape) {
+            restyle(who, style -> style.withShape(shape));
+        }
+
+        @Override
+        public void colour(Player who, int rgb) {
+            restyle(who, style -> style.withColour(rgb & 0xFFFFFF));
+        }
+
+        @Override
+        public void colourTo(Player who, Integer rgb) {
+            restyle(who, style -> style.withColourTo(rgb == null ? null : rgb & 0xFFFFFF));
+        }
+
+        @Override
+        public boolean mayUltra(Player who) {
+            return who.hasPermission(PermissionNodes.PARTICLES_ULTRA);
+        }
+
+        @Override
+        public ParticleDensity densityOf(Player who) {
+            ParticleDensity density = current(who).density();
+            return density == null ? ParticleDensity.NORMAL : density;
+        }
+
+        @Override
+        public void density(Player who, ParticleDensity density) {
+            restyle(who, style -> style.withDensity(rule.allowedDensity(density, mayUltra(who))));
+        }
+
+        @Override
+        public boolean isCapped(ParticleDensity density) {
+            // Core holds a waiting particle to twenty points; Ultra asks for thirty-two.
+            return density == ParticleDensity.ULTRA;
+        }
+
+        @Override
+        public boolean hasSpeed() {
+            return false;
+        }
+
+        @Override
+        public ParticleSpeed speedOf(Player who) {
+            return ParticleSpeed.NORMAL;
+        }
+
+        @Override
+        public void speed(Player who, ParticleSpeed speed) {
+        }
+
+        @Override
+        public String takeOffTitle() {
+            return "Back to the server's";
+        }
+
+        @Override
+        public void takeOff(Player who) {
+            choose(who, TeleportPart.WAIT, null);
+        }
+
+        @Override
+        public void preview(Player who) {
+            ParticleChoice style = current(who);
+            if (style.isNone()) {
+                messages.send(who, "cosmetics.particle.none-worn");
+                return;
+            }
+            ParticleShows.preview(plugin, who, style.particle(), style.colour(), style.colourTo(),
+                    Math.min(20, densityOf(who).count() * 2), style.shape(), 5, 1.0);
+            messages.send(who, "cosmetics.preview.particle");
+        }
+
+        @Override
+        public boolean isWorn() {
+            return false;
+        }
     }
 
     private Verdict judge(Player who, TeleportPart part, String value) {

@@ -2,6 +2,9 @@ package de.raindancer.modules.cosmetics;
 
 import de.raindancer.core.platform.rule.Verdict;
 import de.raindancer.core.world.teleport.TravelLook;
+import de.raindancer.core.ui.effect.ParticleShape;
+import de.raindancer.modules.cosmetics.model.ParticleChoice;
+import de.raindancer.modules.cosmetics.model.ParticleDensity;
 import de.raindancer.modules.cosmetics.model.TeleportLookChoice;
 import de.raindancer.modules.cosmetics.model.TeleportPart;
 import de.raindancer.modules.cosmetics.rules.TeleportLookRule;
@@ -82,5 +85,36 @@ class TeleportLookTest {
 
         assertThat(choice.keeping((part, value) -> false).waitParticle())
                 .as("choosing nothing needs no permission").isEqualTo("none");
+    }
+
+    @Test
+    @DisplayName("the waiting particle keeps its shape, colour and density, as a worn particle does, and Core gets all three")
+    void waitStyle() {
+        TeleportLookChoice choice = TeleportLookChoice.SERVERS.with(TeleportPart.WAIT, "DUST")
+                .withWait(new ParticleChoice("DUST", ParticleShape.HALO, 0xFF8800, ParticleDensity.DENSE));
+
+        TravelLook look = choice.toLook();
+        assertThat(look.waitParticle()).isEqualTo("DUST");
+        assertThat(look.waitShape()).isEqualTo(ParticleShape.HALO);
+        assertThat(look.waitColour()).isEqualTo(0xFF8800);
+        assertThat(look.waitDensity()).isEqualTo(ParticleDensity.DENSE.count() * 2);
+        assertThat(choice.waitStyle().particle()).isEqualTo("DUST");
+        assertThat(choice.withWait(choice.waitStyle().withColourTo(0x0000FF)).toLook().waitColourTo())
+                .isEqualTo(0x0000FF);
+
+        // Picking another particle keeps how it is drawn.
+        TeleportLookChoice flame = choice.with(TeleportPart.WAIT, "FLAME");
+        assertThat(flame.toLook().waitShape()).isEqualTo(ParticleShape.HALO);
+        assertThat(flame.toLook().waitColour()).isEqualTo(0xFF8800);
+    }
+
+    @Test
+    @DisplayName("not chosen, the shape and density are the server's")
+    void waitStyleUnset() {
+        TravelLook look = TeleportLookChoice.SERVERS.with(TeleportPart.WAIT, "HEART").toLook();
+
+        assertThat(look.waitShape()).isNull();
+        assertThat(look.waitColour()).isNull();
+        assertThat(look.waitDensity()).isNull();
     }
 }

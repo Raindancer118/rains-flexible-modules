@@ -26,6 +26,7 @@ public final class CosmeticsCommands {
                                 "particle <particle> — wears a vanilla particle",
                                 "particle shape ambient|aura|halo|trail|spiral — how it is drawn",
                                 "particle colour <colour> — for dust and the tinted ones",
+                                "particle gradient <colour|off> — blend into a second colour along the shape",
                                 "particle density light|normal|dense|very_dense — how thick it is drawn",
                                 "particle speed slow|normal|fast|very_fast — how fast it moves",
                                 "particle off — takes it off",
