@@ -72,9 +72,20 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
         return chosen.getOrDefault(traveller, TeleportLookChoice.SERVERS).toLook();
     }
 
-    /** Read as they join, on their own thread. */
+    /**
+     * Read as they join, on their own thread, and checked again: a sound picked with a permission they no
+     * longer have, or one the owner has since taken off the list, goes back to the server's — and they are
+     * told. Called again for everybody online when the settings change.
+     */
     public void load(Player who) {
-        TeleportLookChoice stored = store.read(who);
+        TeleportLookChoice read = store.read(who);
+        // Switched off, nothing is played anyway, and the setting promises what they picked is kept.
+        TeleportLookChoice stored = !settings.teleportLooks() ? read
+                : read.keeping((part, value) -> judge(who, part, value).isAllowed());
+        if (!stored.equals(read)) {
+            store.write(who, stored);
+            messages.send(who, "cosmetics.teleport.dropped");
+        }
         if (stored.isServers()) {
             chosen.remove(who.getUniqueId());
         } else {

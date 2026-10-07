@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.9.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.9.1")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -98,6 +98,10 @@ public final class CosmeticsModule implements FlexModule {
             reloading.settings(fresh);
             clearing.settings(fresh);
             teleports.settings(fresh);
+            // A sound taken off the list, or a particle blocked, stops being played for whoever had picked it.
+            for (Player online : server.getOnlinePlayers()) {
+                Scheduling.entity(context.plugin(), online, () -> teleports.load(online));
+            }
         });
 
         context.listener(new JoinListener(services));

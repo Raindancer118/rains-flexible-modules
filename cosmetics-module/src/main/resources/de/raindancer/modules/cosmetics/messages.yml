@@ -106,6 +106,8 @@ cosmetics:
     set-none: "<green><part>: nothing at all."
     back-to-default: "<green><part>: back to the server's own."
     usage: "<gray>Use <white>/cosmetics teleport depart|tick|wait|arrive <sound or particle></white>, or <white>default</white> or <white>none</white> instead of one."
+    # Said as they join, or when the settings change, if something they had picked is no longer allowed.
+    dropped: "<yellow>One of your teleport effects is no longer available to you, so it is back to the server's own."
     switched-off: "<red>Teleport effects cannot be chosen on this server."
     no-permission: "<red>You may not choose your teleport effects."
     sound-unknown: "<red>There is no sound called <white><value></white>. <gray>Tab shows the ones you can pick."

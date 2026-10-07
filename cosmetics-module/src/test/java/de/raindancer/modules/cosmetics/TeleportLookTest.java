@@ -69,4 +69,18 @@ class TeleportLookTest {
         assertThat(rule.judgeSound(false, false, null, OFFERED, false, false).isAllowed()).isTrue();
         assertThat(rule.judgeSound(true, true, "none", OFFERED, false, false).isAllowed()).isTrue();
     }
+
+    @Test
+    @DisplayName("a choice no longer allowed is dropped back to the server's, the rest is kept, and nothing is never dropped")
+    void revalidate() {
+        TeleportLookChoice choice = new TeleportLookChoice("entity.ender_dragon.death", "block.bell.use", "none", "block.note_block.pling");
+        TeleportLookChoice kept = choice.keeping((part, value) -> !value.equals("entity.ender_dragon.death"));
+        assertThat(kept.depart()).isNull();
+        assertThat(kept.arrive()).isEqualTo("block.bell.use");
+        assertThat(kept.waitParticle()).isEqualTo("none");
+        assertThat(kept.tick()).isEqualTo("block.note_block.pling");
+
+        assertThat(choice.keeping((part, value) -> false).waitParticle())
+                .as("choosing nothing needs no permission").isEqualTo("none");
+    }
 }

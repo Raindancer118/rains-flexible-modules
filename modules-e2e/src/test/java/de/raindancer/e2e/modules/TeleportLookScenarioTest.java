@@ -60,6 +60,13 @@ class TeleportLookScenarioTest {
                 bo.runAndExpect("cosmetics teleport arrive " + sound, "Landing sound");
             }
 
+            // The owner takes the bell off the list: Bo's arrival sound goes back to the server's, and Bo is told.
+            bo.runAndExpect("cosmetics teleport arrive block.bell.use", "Landing sound");
+            bo.forgetChat();
+            assertThat(server.console("settings set teleport-sounds entity.enderman.teleport,block.note_block.pling"))
+                    .contains("is now");
+            bo.expectChat("no longer available");
+
             assertThat(server.console("settings set teleport-looks false")).contains("is now");
             goToSpawn(server, bo);
             assertThat(bo.soundsHeard()).contains("entity.enderman.teleport").doesNotContain("block.bell.use");

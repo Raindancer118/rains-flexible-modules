@@ -47,6 +47,21 @@ public record TeleportLookChoice(String depart, String arrive, String waitPartic
         };
     }
 
+    /**
+     * The same, with every part {@code allowed} refuses put back to the server's. A part set to
+     * {@link #NONE} is never asked about: going without is not a privilege.
+     */
+    public TeleportLookChoice keeping(java.util.function.BiPredicate<TeleportPart, String> allowed) {
+        TeleportLookChoice kept = this;
+        for (TeleportPart part : TeleportPart.values()) {
+            String value = of(part);
+            if (value != null && !NONE.equals(value) && !allowed.test(part, value)) {
+                kept = kept.with(part, null);
+            }
+        }
+        return kept;
+    }
+
     public boolean isServers() {
         return depart == null && arrive == null && waitParticle == null && tick == null;
     }
