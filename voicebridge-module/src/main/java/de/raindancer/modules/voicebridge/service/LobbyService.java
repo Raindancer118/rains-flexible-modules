@@ -58,6 +58,8 @@ public final class LobbyService implements IVoiceBridgeService {
     private final Map<Long, ProximityLine> byDiscord = new ConcurrentHashMap<>();
     private final Map<UUID, ProximityLine> byPlayer = new ConcurrentHashMap<>();
     private final Events events = new Events();
+    /** Users whose channel is being made right now, so a second lobby join cannot take a second bot. */
+    private final java.util.Set<Long> opening = ConcurrentHashMap.newKeySet();
 
     private volatile VoiceBridgeSettings settings;
     private volatile JDA main;
@@ -166,35 +168,50 @@ public final class LobbyService implements IVoiceBridgeService {
         if (!settings.proximityEnabled() || member.getUser().isBot() || byDiscord.containsKey(member.getIdLong())) {
             return;
         }
+        if (!opening.add(member.getIdLong())) {
+            return;
+        }
+        try {
+            if (!beginOpening(member)) {
+                opening.remove(member.getIdLong());
+            }
+        } catch (RuntimeException failed) {
+            opening.remove(member.getIdLong());
+            throw failed;
+        }
+    }
+
+    /** @return whether a channel is on its way — if so, {@link #start} or a failure path ends the reservation */
+    private boolean beginOpening(Member member) {
         Optional<UUID> linked = links.playerOf(member.getIdLong());
         if (linked.isEmpty()) {
             dm(member, "voicebridge.proximity.dm.not-linked");
-            return;
+            return false;
         }
         Player player = server.getPlayer(linked.get());
         if (player == null) {
             dm(member, "voicebridge.proximity.dm.not-online");
-            return;
+            return false;
         }
         Optional<VoicechatServerApi> api = voicechat.get();
         VoicechatConnection connection = api.map(live -> live.getConnectionOf(linked.get())).orElse(null);
         if (api.isEmpty() || connection == null) {
             dm(member, "voicebridge.proximity.dm.not-ready");
-            return;
+            return false;
         }
         if (connection.isInstalled()) {
             dm(member, "voicebridge.proximity.dm.has-mod");
-            return;
+            return false;
         }
         // Speaking is checked by SVC on every packet; hearing through a listener is not, so here.
         if (!PermissionNodes.svc(player, "voicechat.listen")) {
             dm(member, "voicebridge.proximity.dm.no-permission");
-            return;
+            return false;
         }
         Optional<BotPool.LineBot> claimed = pool.claim();
         if (claimed.isEmpty()) {
             dm(member, "voicebridge.proximity.dm.no-free-bot");
-            return;
+            return false;
         }
         BotPool.LineBot bot = claimed.get();
         Guild guild = member.getGuild();
@@ -212,13 +229,24 @@ public final class LobbyService implements IVoiceBridgeService {
                                 failed -> {
                                     log.warn("Could not move {} into their channel: {}", member.getEffectiveName(), failed.getMessage());
                                     pool.release(bot);
+                                    opening.remove(member.getIdLong());
                                     channel.delete().queue();
                                 }),
                         failed -> {
                             log.warn("Could not make a private voice channel (Manage Channels?): {}", failed.getMessage());
                             pool.release(bot);
+                            opening.remove(member.getIdLong());
                             dm(member, "voicebridge.proximity.dm.failed");
                         });
+        return true;
+    }
+
+    private boolean stillAllowed(long discordUser, UUID player) {
+        Player online = server.getPlayer(player);
+        return settings.proximityEnabled()
+                && links.playerOf(discordUser).map(player::equals).orElse(false)
+                && online != null && PermissionNodes.svc(online, "voicechat.listen")
+                && !byDiscord.containsKey(discordUser);
     }
 
     private Category categoryFor(Guild guild) {
@@ -242,6 +270,7 @@ public final class LobbyService implements IVoiceBridgeService {
         if (triesLeft <= 0) {
             log.warn("Proximity bot never saw channel {}.", channelId);
             pool.release(bot);
+            then.accept(null);
             return;
         }
         Scheduling.asyncLater(plugin, 200, TimeUnit.MILLISECONDS, () -> whenBotSees(bot, channelId, triesLeft - 1, then));
@@ -249,6 +278,15 @@ public final class LobbyService implements IVoiceBridgeService {
 
     private void start(Member member, UUID player, BotPool.LineBot bot, VoicechatServerApi api, AudioChannel view,
                        VoiceChannel channel) {
+        opening.remove(member.getIdLong());
+        if (view == null || !stillAllowed(member.getIdLong(), player)) {
+            // Seconds passed while the channel was made: they may have left, unlinked or lost the right.
+            if (view != null) {
+                pool.release(bot);
+            }
+            channel.delete().queue(ok -> { }, failed -> { });
+            return;
+        }
         ProximityLine line = new ProximityLine(player, member.getIdLong(), bot, api, positions, log, settings);
         if (!line.open(view)) {
             pool.release(bot);
