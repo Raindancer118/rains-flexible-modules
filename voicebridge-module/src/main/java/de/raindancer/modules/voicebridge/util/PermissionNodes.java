@@ -23,12 +23,12 @@ public final class PermissionNodes {
     }
 
     /**
-     * One of Simple Voice Chat's own nodes ({@code voicechat.groups}, {@code voicechat.listen}). SVC
-     * treats them as everybody's unless taken away, and on Paper does not register them — and Bukkit
-     * reads an unregistered node as operators only. So: allowed unless explicitly set to false.
+     * One of Simple Voice Chat's own nodes ({@code voicechat.groups}, {@code voicechat.listen}), decided
+     * exactly as SVC decides it on Bukkit: a node an owner set wins, otherwise SVC's default of
+     * everybody. SVC does not register these on Paper, so asking by name would read "operators only".
      */
     public static boolean svc(Permissible who, String node) {
-        return !who.isPermissionSet(node) || who.hasPermission(node);
+        return who.hasPermission(new Permission(node, PermissionDefault.TRUE));
     }
 
     public static List<Permission> declared() {
