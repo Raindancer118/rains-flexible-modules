@@ -78,4 +78,19 @@ class LinkServiceTest {
         assertThat(links.redeem(code, 99L)).as("even the right code, while locked").isEmpty();
         assertThat(links.redeem(code, 98L)).as("another account is not punished").contains(alex);
     }
+
+    @Test
+    @DisplayName("guesses from many accounts together are capped too, so alt accounts do not multiply the tries")
+    void guessingIsLimitedAcrossAccounts() {
+        String code = links.codeFor(alex);
+        for (long account = 1; account <= LinkService.MOST_WRONG_GUESSES_OVERALL; account++) {
+            links.redeem("AAAAAA", 1000 + account);
+        }
+
+        assertThat(links.redeem(code, 99L)).as("nobody links while the server-wide cap is hit").isEmpty();
+
+        now.set(LinkService.CODE_LIFETIME_MILLIS);
+        String fresh = links.codeFor(alex);
+        assertThat(links.redeem(fresh, 99L)).as("the cap lifts after the window").contains(alex);
+    }
 }

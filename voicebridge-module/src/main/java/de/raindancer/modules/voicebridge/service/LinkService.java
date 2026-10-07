@@ -20,6 +20,8 @@ public final class LinkService implements IVoiceBridgeService {
 
     public static final long CODE_LIFETIME_MILLIS = 10 * 60 * 1000L;
     public static final int MOST_WRONG_GUESSES = 5;
+    /** Across every account: 31^6 codes against 30 guesses per 10 minutes is never going to land. */
+    public static final int MOST_WRONG_GUESSES_OVERALL = 30;
 
     /** No 0/O, 1/I/L: a code is read off a screen and typed somewhere else. */
     private static final String ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -33,6 +35,7 @@ public final class LinkService implements IVoiceBridgeService {
     private final LongSupplier clock;
     private final Map<UUID, PendingLink> pending = new HashMap<>();
     private final Map<Long, Guesses> guesses = new HashMap<>();
+    private Guesses overall = new Guesses(0, 0);
 
     public LinkService(LinkStore store, LinkCodeRule rule, Random random, LongSupplier clock) {
         this.store = store;
@@ -63,7 +66,10 @@ public final class LinkService implements IVoiceBridgeService {
             guesses.remove(discordUser);
             tried = null;
         }
-        if (tried != null && tried.wrong() >= MOST_WRONG_GUESSES) {
+        if (now - overall.since() >= CODE_LIFETIME_MILLIS) {
+            overall = new Guesses(0, now);
+        }
+        if ((tried != null && tried.wrong() >= MOST_WRONG_GUESSES) || overall.wrong() >= MOST_WRONG_GUESSES_OVERALL) {
             return Optional.empty();
         }
         pending.values().removeIf(link -> now >= link.expiresAt());
@@ -75,6 +81,7 @@ public final class LinkService implements IVoiceBridgeService {
                 return Optional.of(link.player());
             }
         }
+        overall = new Guesses(overall.wrong() + 1, overall.since());
         guesses.put(discordUser, tried == null ? new Guesses(1, now) : new Guesses(tried.wrong() + 1, tried.since()));
         return Optional.empty();
     }
