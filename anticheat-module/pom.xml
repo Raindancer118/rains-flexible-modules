@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>anticheat-module</artifactId>
+    <!-- Own version, independent of the reactor's, published on its own schedule. -->
+    <version>${anticheat-module.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Anti-Cheat</name>
+    <description>
+        Server-side cheat detection: movement physics, combat, world interaction, inventory and packet
+        checks, with violation levels, staff alerts, setbacks and punishments through RainsCore.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${modules-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- The packet tap sits in the server's own Netty pipeline; the server ships Netty. -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport</artifactId>
+            <version>4.2.7.Final</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>

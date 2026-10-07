@@ -1,0 +1,14 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+anticheat:
+  kicked: "<red><white><player></white> was kicked for <yellow><check></yellow> <gray>(level <level>)."
+  kick-screen: "<red>Kicked: unfair advantage (<check>).\n<gray>Contact the staff if you believe this is a mistake."
+  client-refused: "<red><white><player></white> tried to join with <yellow><client></yellow> and was refused."
+  alerts-on: "<green>Anti-cheat alerts are on."
+  alerts-off: "<yellow>Anti-cheat alerts are off."
+  verbose-on: "<green>Verbose is on: every failure is shown."
+  not-online: "<red><white><player></white> is not online."
+  only-a-player: "<red>Only a player can do that."
+  no-permission: "<red>You do not have permission to do that."
+  info-clean: "<green> No failed checks."
+  log-empty: "<green>No evidence against <white><player></white>."
+  reset: "<green><white><player></white>'s violation levels are cleared."

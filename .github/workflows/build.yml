@@ -49,6 +49,7 @@ on:
       - 'manhunt-module-v*'
       - 'worldutils-module-v*'
       - 'veintoggle-module-v*'
+      - 'anticheat-module-v*'
     branches:
       - '**'
   pull_request:
@@ -161,6 +162,7 @@ jobs:
             pack-standalone/target/RainsServerPack-*.jar
             worldutils-bundle/target/RainsWorldUtils-*.jar
             veintoggle-standalone/target/RainsVeinToggle-*.jar
+            anticheat-standalone/target/RainsAntiCheat-*.jar
             speedrun-bundle/target/RainsSpeedrunServer-*.jar
             yeuksmp/target/YeukSMP-*.jar
             !**/original-*.jar
@@ -518,7 +520,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           set -euo pipefail
-          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module essentials-module chat-module farmworld-module pack-module chained-module rtp-module speedrun-module mannequin-module worldgate-module invsnap-module xpbottle-module xaeromap-module wallsroads-module manhunt-module worldutils-module veintoggle-module"
+          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module essentials-module chat-module farmworld-module pack-module chained-module rtp-module speedrun-module mannequin-module worldgate-module invsnap-module xpbottle-module xaeromap-module wallsroads-module manhunt-module worldutils-module veintoggle-module anticheat-module"
           new=""
           for module in $modules; do
             version="$(grep -oPm1 "(?<=<${module}\.version>)[^<]+" pom.xml)"

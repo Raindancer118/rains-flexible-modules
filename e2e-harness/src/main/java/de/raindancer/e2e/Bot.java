@@ -28,6 +28,11 @@ import org.geysermc.mcprotocollib.protocol.data.game.level.notify.GameEvent;
 import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.ObjectiveAction;
 import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.ScoreboardPosition;
 import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.TeamAction;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundAddEntityPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundClientTickEndPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundAttackPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundMovePlayerRotPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundSwingPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundBossEventPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundDisguisedChatPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundLoginPacket;
@@ -181,6 +186,8 @@ public final class Bot {
     private final Map<String, String> objectiveTitles = new ConcurrentHashMap<>();
     private volatile String sidebarObjective = "";
     private final List<Window> windowsSeen = new CopyOnWriteArrayList<>();
+    /** Entity ids the server gave the things it showed this client, by their UUID. */
+    private final Map<UUID, Integer> entityIds = new ConcurrentHashMap<>();
 
     Bot(PaperServer server, String name) {
         this.server = server;
@@ -338,6 +345,7 @@ public final class Bot {
                 from.send(ServerboundPlayerLoadedPacket.INSTANCE);
                 loaded = true;
             }
+            case ClientboundAddEntityPacket added -> entityIds.put(added.getUuid(), added.getEntityId());
             case ClientboundChunkBatchFinishedPacket ignored -> from.send(new ServerboundChunkBatchReceivedPacket(64f));
             case ClientboundGameEventPacket event -> {
                 if (event.getNotification() == GameEvent.CHANGE_GAME_MODE && event.getValue() instanceof GameMode mode) {
@@ -735,6 +743,49 @@ public final class Bot {
         session.send(new ServerboundMovePlayerPosPacket(true, false, now.getX() + dx, now.getY(), now.getZ() + dz));
         position = Vector3d.from(now.getX() + dx, now.getY(), now.getZ() + dz);
         return this;
+    }
+
+    // ------------------------------------------------------------------- what a modified client does
+
+    /** Sends a packet exactly as given, whether or not a real client would. */
+    public Bot send(Packet packet) {
+        session.send(packet);
+        return this;
+    }
+
+    /** Claims to be at a position — anywhere, as a hacked client may. */
+    public Bot moveTo(double x, double y, double z, boolean onGround) {
+        session.send(new ServerboundMovePlayerPosPacket(onGround, false, x, y, z));
+        position = Vector3d.from(x, y, z);
+        return this;
+    }
+
+    /** Turns the head without moving. */
+    public Bot look(float yaw, float pitch) {
+        session.send(new ServerboundMovePlayerRotPacket(true, false, yaw, pitch));
+        return this;
+    }
+
+    /** The packet a client sends at the end of each of its ticks. */
+    public Bot tickEnd() {
+        session.send(ServerboundClientTickEndPacket.INSTANCE);
+        return this;
+    }
+
+    public Bot swing() {
+        session.send(new ServerboundSwingPacket(Hand.MAIN_HAND));
+        return this;
+    }
+
+    /** Hits whatever has this UUID, wherever it is — reach and walls are the server's to judge. */
+    public Bot attack(UUID target) {
+        session.send(new ServerboundAttackPacket(entityIdOf(target)));
+        return this;
+    }
+
+    /** The entity id the server uses for something this client has been shown. */
+    public int entityIdOf(UUID target) {
+        return Await.value(name + " has been shown " + target, Duration.ofSeconds(10), () -> entityIds.get(target));
     }
 
     /** Clicks the first chat button whose command contains {@code fragment} — a click event, run as the client would. */

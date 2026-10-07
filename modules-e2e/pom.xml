@@ -57,6 +57,18 @@
         </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>
+            <artifactId>anticheat-standalone</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
             <artifactId>essentials-standalone</artifactId>
             <version>${project.parent.version}</version>
             <scope>test</scope>
