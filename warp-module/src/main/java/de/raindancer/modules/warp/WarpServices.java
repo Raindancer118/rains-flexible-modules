@@ -48,8 +48,19 @@ public record WarpServices(
         TravelService travelling,
         WarpAdminService admin,
         de.raindancer.modules.warp.service.WarpTokens tokens,
+        de.raindancer.modules.warp.service.ClaimWarpDirectory claimWarps,
 
         IWarpScreensOpener screens) {
+
+    /**
+     * Whether this player would be let in at a claim's warp: its world is loaded and the claim's own
+     * teleport-in rules admit them. The arrival is checked again by the claim itself.
+     */
+    public java.util.function.Predicate<de.raindancer.core.world.poi.Poi> arriving(org.bukkit.entity.Player who) {
+        return point -> point.location()
+                .map(at -> core.land().mayTeleportInto(who, at))
+                .orElse(false);
+    }
 
     /** The settings as they are right now. */
     public WarpSettings config() {

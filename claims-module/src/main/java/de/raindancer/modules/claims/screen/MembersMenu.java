@@ -97,6 +97,7 @@ public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implemen
             // everything by definition, so there would be seventeen buttons that all say yes.
             if (mayRemoveAsCoOwner(entry.who())) {
                 if (claim.removeOwner(entry.who())) {
+                    services.claimWarps().ownerRemoved(claim, entry.who());
                     services.claims().reindex(claim);
                     services.claimService().saveAsync(claim);
                     services.messages().send(viewer, "claim.owner-removed",
@@ -226,6 +227,7 @@ public final class MembersMenu extends PaginatedMenu<MembersMenu.Entry> implemen
                         "<gray>This cannot be undone from here."),
                 () -> {
                     claim.transferTo(person.id());
+                    services.claimWarps().transferred(claim);
                     services.claims().reindex(claim);
                     services.claimService().saveAsync(claim);
                     services.messages().send(viewer, "claim.transferred",

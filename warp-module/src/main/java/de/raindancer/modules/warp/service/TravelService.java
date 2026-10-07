@@ -97,7 +97,22 @@ public final class TravelService implements IWarpService {
             messages.send(traveller, "warps.on-cooldown", "time", waitLeft(traveller.getUniqueId()));
             return;
         }
-        depart(traveller, warp);
+        depart(traveller, warp.label(), warp.poi());
+    }
+
+    /**
+     * Sends somebody to a claim's warp — the same journey, wait and cooldown as a warp. Whether the claim
+     * lets them in is the caller's to have asked; the claim asks again on arrival.
+     */
+    public void goToPlace(Player traveller, String label, de.raindancer.core.world.poi.Poi place) {
+        if (traveller == null || place == null) {
+            return;
+        }
+        if (!warps.isReadyToWarp(traveller.getUniqueId())) {
+            messages.send(traveller, "warps.on-cooldown", "time", waitLeft(traveller.getUniqueId()));
+            return;
+        }
+        depart(traveller, label, place);
     }
 
     /** Whether this traveller may use it — their own warp, one they were let into, or one their permissions open. */
@@ -106,17 +121,17 @@ public final class TravelService implements IWarpService {
                 warp.owner().orElse(null), warp.members());
     }
 
-    private void depart(Player traveller, Warp warp) {
-        Location target = warp.poi().location().orElse(null);
+    private void depart(Player traveller, String label, de.raindancer.core.world.poi.Poi place) {
+        Location target = place.location().orElse(null);
         if (target == null) {
             // Not a fault: a multiverse server unloads worlds for maintenance and the warp works
             // again when the world comes back. Nothing has been charged, so there is nothing to
             // give back.
-            messages.send(traveller, "warps.world-missing", "name", warp.label());
+            messages.send(traveller, "warps.world-missing", "name", label);
             return;
         }
         WarpSettings now = settings;
-        Trip trip = Trip.to(warp.label())
+        Trip trip = Trip.to(label)
                 .after(now.warmup())
                 .searching(now.arrivalRadius())
                 // What the player is holding on to. Gathered and moved by Core, which is what the
@@ -125,7 +140,7 @@ public final class TravelService implements IWarpService {
         if (!now.safeArrival()) {
             trip = trip.exactly();
         }
-        travel.go(traveller, target, trip, new Wording(warp));
+        travel.go(traveller, target, trip, new Wording(label));
     }
 
     private String waitLeft(UUID traveller) {
@@ -141,16 +156,16 @@ public final class TravelService implements IWarpService {
      */
     private final class Wording implements TravelWatcher {
 
-        private final Warp warp;
+        private final String label;
 
-        private Wording(Warp warp) {
-            this.warp = warp;
+        private Wording(String label) {
+            this.label = label;
         }
 
         @Override
         public void counting(Player traveller, int secondsLeft, Trip trip) {
             messages.send(traveller, "warps.warming-up",
-                    "name", warp.label(), "seconds", secondsLeft);
+                    "name", label, "seconds", secondsLeft);
         }
 
         /**
@@ -164,17 +179,17 @@ public final class TravelService implements IWarpService {
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
             warps.recordUse(traveller.getUniqueId());
-            messages.send(traveller, "warps.arrived", "name", warp.label());
+            messages.send(traveller, "warps.arrived", "name", label);
         }
 
         @Override
         public void cancelled(Player traveller, TravelReason why, Trip trip) {
-            messages.send(traveller, keyFor(why), "name", warp.label());
+            messages.send(traveller, keyFor(why), "name", label);
         }
 
         @Override
         public void refused(Player traveller, TravelReason why, Trip trip) {
-            messages.send(traveller, keyFor(why), "name", warp.label());
+            messages.send(traveller, keyFor(why), "name", label);
         }
     }
 

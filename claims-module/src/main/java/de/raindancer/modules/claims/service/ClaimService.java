@@ -419,9 +419,20 @@ public final class ClaimService implements IClaimService {
         return Optional.empty();
     }
 
+    /** The claim warps to keep in step with renames and deletions; null until the module wires it. */
+    private volatile ClaimWarpService warps;
+
+    public void warps(ClaimWarpService warps) {
+        this.warps = warps;
+    }
+
     public void rename(Claim claim, String newName) {
         registry.rename(claim, newName);
         saveAsync(claim);
+        ClaimWarpService following = warps;
+        if (following != null) {
+            following.renamed(claim);
+        }
     }
 
     /** Deletes a claim, optionally refunding what was actually paid to a present owner. */
@@ -454,6 +465,12 @@ public final class ClaimService implements IClaimService {
             }
         }
         registry.remove(claim);
+        ClaimWarpService following = warps;
+        if (following != null) {
+            // Before anything else can be sent there: a warp outliving its claim leads onto whatever
+            // is built on that ground next.
+            following.deleted(claim);
+        }
         UUID id = claim.id();
         Scheduling.async(plugin, () -> {
             try {

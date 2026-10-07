@@ -118,6 +118,37 @@ public final class ClaimMenu extends ClaimScreen {
                 "The owner's to change",
                 click -> new ClaimIdentityMenu(services(), viewer, claim, this).open());
 
+        boolean hasWarp = claim.entrance().isPresent();
+        band(MenuLayout.LAND, 6, services().rights().isOwnerOrServerAdmin(claim, viewer),
+                Icons.of(Material.LODESTONE, "<green>Its warp",
+                        hasWarp ? "<gray>Set. People arrive at its front door," : "<gray>None yet. Set one, and people can",
+                        hasWarp ? "<gray>if this claim lets them teleport in." : "<gray>warp here with /warp claim.",
+                        "",
+                        "<dark_gray>Click to put it where you stand.",
+                        hasWarp ? "<dark_gray>Right click to take it away." : ""),
+                "The owner's to change",
+                click -> {
+                    if (click.isRightClick()) {
+                        services().claimWarps().clear(viewer.getUniqueId(),
+                                services().rights().isServerAdmin(viewer), claim);
+                        services().claimService().saveAsync(claim);
+                        services().messages().send(viewer, "claim.warp-removed", "claim", claim.name());
+                        refresh();
+                        return;
+                    }
+                    org.bukkit.Location at = viewer.getLocation();
+                    var outcome = services().claimWarps().set(viewer.getUniqueId(),
+                            services().rights().isServerAdmin(viewer), claim, at.getWorld().getName(),
+                            at.getX(), at.getY(), at.getZ(), at.getYaw(), at.getPitch());
+                    if (outcome == de.raindancer.modules.claims.service.ClaimWarpService.Outcome.SET) {
+                        services().claimService().saveAsync(claim);
+                        services().messages().send(viewer, "claim.warp-set", "claim", claim.name());
+                    } else {
+                        services().messages().send(viewer, "claim.warp-outside", "claim", claim.name());
+                    }
+                    refresh();
+                });
+
         // ── whatever another module has to say about this claim ─────────────────────────────────────────
         // The RULES band is otherwise unused here (ConfigMenu owns its own row on its own page), so a
         // contributor gets a whole band to itself rather than squeezing in beside WHO or LAND. Extensions
@@ -156,6 +187,20 @@ public final class ClaimMenu extends ClaimScreen {
                             "<gray>Items and experience the claim holds.",
                             "<dark_gray>" + claim.bank().items().size() + " item(s)"),
                     click -> new BankMenu(services(), viewer, claim, this).open());
+        }
+
+        if (claim.isOwner(viewer.getUniqueId())) {
+            toolbar(7, Icons.of(Material.RED_BED, "<white>Make this my main home",
+                            "<gray>Others reach it with /warp home and your name,",
+                            "<gray>if this claim lets them teleport in.",
+                            hasWarp ? "" : "<dark_gray>Needs its warp set first."),
+                    click -> {
+                        var outcome = services().claimWarps().makeHome(viewer.getUniqueId(), claim);
+                        services().messages().send(viewer,
+                                outcome == de.raindancer.modules.claims.service.ClaimWarpService.Outcome.HOME
+                                        ? "claim.home-set" : "claim.home-needs-a-warp",
+                                "claim", claim.name());
+                    });
         }
 
         // ── the one irreversible thing ────────────────────────────────────────────────────────

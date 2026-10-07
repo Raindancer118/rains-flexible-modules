@@ -122,7 +122,12 @@ class WarpCommandsTest {
 
             assertThat(switchedOn).as("no cases were found, so this rule is checking nothing")
                     .isNotEmpty();
+            assertThat(cases).as("a word that falls back to a warp has to actually go to it")
+                    .contains("go(live, sender, args[0])");
             for (String word : switchedOn) {
+                if (WarpNameRule.FALLS_BACK_TO_A_WARP.contains(word)) {
+                    continue;
+                }
                 assertThat(WarpNameRule.RESERVED)
                         .as("/warp %s is read as an instruction, so a warp of that name could "
                                 + "never be reached — the rule has to refuse it", word)

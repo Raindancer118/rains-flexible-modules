@@ -420,6 +420,7 @@ public final class ClaimAdminCommand implements IClaimCommand {
         Claim theClaim = claim.get();
         String oldName = claims.names().qualified(theClaim);
         theClaim.transferTo(newOwner.get());
+        claims.claimWarps().transferred(theClaim);
         claims.claims().reindex(theClaim);
         claims.claimService().saveAsync(theClaim);
         claims.messages().send(sender, "admin.claim-transferred",

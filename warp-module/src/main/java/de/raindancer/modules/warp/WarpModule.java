@@ -54,7 +54,7 @@ import java.util.List;
  */
 public final class WarpModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.4.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.5.0")
             .describedAs("Named places anybody can be sent to, with a menu to pick one from — and "
                     + "warps only the staff, or one permission, can reach")
             .by("Raindancer118");
@@ -136,6 +136,8 @@ public final class WarpModule implements FlexModule {
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, settings,
                 catalogue, access, travel, travelling, admin, tokens,
+                new de.raindancer.modules.warp.service.ClaimWarpDirectory(context.core().claimWarps(),
+                        id -> context.core().identities().nameOf(id).orElse(null)),
                 new LiveScreens());
 
         // Every setting is a snapshot, so a reload hands each service a fresh one. Missing one of
@@ -209,6 +211,11 @@ public final class WarpModule implements FlexModule {
         @Override
         public void mine(Player viewer) {
             AdminWarpMenu.mine(services, viewer, null).open();
+        }
+
+        @Override
+        public void claims(Player viewer) {
+            new de.raindancer.modules.warp.screen.ClaimWarpsMenu(services, viewer, null).open();
         }
     }
 

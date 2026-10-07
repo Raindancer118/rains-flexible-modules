@@ -79,6 +79,14 @@ warps:
   no-such-player: "<red>Nobody called <white><player></white> has ever been here."
   not-online: "<red><white><player></white> is not online right now."
 
+  # ---------------------------------------------------------------- claims' warps and homes
+  claim:
+    unknown: "<red>No claim warp called <white><name></white> that you may use."
+    several: "<yellow>More than one claim is called <white><name></white>. Say whose: <white><which></white>"
+    how: "<gray>A claim's owner sets its warp by standing inside it and typing <white>/claim warp</white>."
+  home:
+    none: "<red><white><player></white> has no main home you may warp to."
+
   # ---------------------------------------------------------------- warp tokens
   token:
     ask-name: "<gray>Type what to call your new warp, or <white>cancel</white>. It goes right where you stand."
@@ -117,6 +125,8 @@ warps:
     - "<gray>/warp <dark_gray>— the warps you can go to"
     - "<gray>/warp somewhere <dark_gray>— straight there"
     - "<gray>/warp list <dark_gray>— the same list, as text you can paste"
+    - "<gray>/warp claim <dark_gray>— players' claims you may warp into"
+    - "<gray>/warp home somebody <dark_gray>— the claim they call home"
   help-own:
     - "<gray>/warp mine <dark_gray>— your own warps, and the page to change them"
     - "<gray>/warp set somewhere <dark_gray>— a warp of your own, right here"

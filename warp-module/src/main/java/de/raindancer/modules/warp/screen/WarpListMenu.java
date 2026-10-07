@@ -188,6 +188,12 @@ public final class WarpListMenu extends PaginatedMenu<Warp> implements IWarpScre
                             "<gray>rename them, decide who may use them."),
                     click -> services.screens().mine(viewer));
         }
+        if (!filtered && !services.claimWarps().visible(services.arriving(viewer)).isEmpty()) {
+            toolbar(8, Icons.of(Material.RED_BED, "<white>Claims' warps",
+                            "<gray>Players' claims you may warp into,",
+                            "<gray>and their main homes."),
+                    click -> new ClaimWarpsMenu(services, viewer, this).open());
+        }
         if (services.access().mayManage(viewer::hasPermission)) {
             toolbar(6, Icons.of(Material.COMPARATOR, "<white>Manage warps",
                             "<gray>Make one here, move one, decide who each is for.",

@@ -4,6 +4,7 @@ import de.raindancer.modules.warp.model.Warp;
 import de.raindancer.modules.warp.WarpServices;
 import de.raindancer.modules.warp.model.WarpAccess;
 import de.raindancer.modules.warp.rules.WarpNameRule;
+import de.raindancer.modules.warp.service.ClaimWarpDirectory;
 import de.raindancer.modules.warp.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Material;
@@ -73,6 +74,24 @@ public final class WarpCommand implements IWarpCommand {
             case "member", "members" -> member(live, sender, args);
             case "mine" -> mine(live, sender);
             case "token", "tokens" -> token(live, sender, args);
+            // With nothing after them these are still a warp of that name, if the server has one: a
+            // warp called "home" was reachable as /warp home before claims had homes, and stays so.
+            case "claim", "claims" -> {
+                if (args.length >= 2) {
+                    claim(live, sender, args);
+                } else if (live.catalogue().byName(args[0]).isPresent()) {
+                    go(live, sender, args[0]);
+                } else {
+                    claims(live, sender);
+                }
+            }
+            case "home" -> {
+                if (args.length >= 2) {
+                    home(live, sender, args[1]);
+                } else {
+                    go(live, sender, args[0]);
+                }
+            }
             // Anything else is a warp's name, so /warp spawn needs no subcommand.
             default -> go(live, sender, args[0]);
         }
@@ -325,6 +344,53 @@ public final class WarpCommand implements IWarpCommand {
         live.tokens().give(sender, to, amount);
     }
 
+    // ------------------------------------------------------------------------ claims' warps
+
+    /** {@code /warp claim <claim>}: a claim's warp, by its name or owner/claim. */
+    private void claim(WarpServices live, CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "warps.only-a-player");
+            return;
+        }
+        String typed = String.join("_", java.util.Arrays.copyOfRange(args, 1, args.length));
+        switch (live.claimWarps().find(typed, live.arriving(player))) {
+            case ClaimWarpDirectory.Found.One one -> live.travelling().goToPlace(player,
+                    one.point().name(), one.point());
+            case ClaimWarpDirectory.Found.Several several -> live.messages().send(player, "warps.claim.several",
+                    "name", typed, "which", String.join(", ", several.points().stream()
+                            .map(point -> live.claimWarps().ownerName(point).toLowerCase(Locale.ROOT) + "/" + typed)
+                            .toList()));
+            case ClaimWarpDirectory.Found.None none -> live.messages().send(player, "warps.claim.unknown",
+                    "name", typed);
+        }
+    }
+
+    /** {@code /warp claim}, bare: the claims' warps this player may go to, as a page. */
+    private void claims(WarpServices live, CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "warps.only-a-player");
+            return;
+        }
+        live.screens().claims(player);
+    }
+
+    /** {@code /warp home <player>}: the claim that player calls home. */
+    private void home(WarpServices live, CommandSender sender, String whose) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "warps.only-a-player");
+            return;
+        }
+        OfflinePlayer owner = known(whose);
+        java.util.Optional<de.raindancer.core.world.poi.Poi> home = owner == null ? java.util.Optional.empty()
+                : live.claimWarps().homeOf(owner.getUniqueId(), live.arriving(player));
+        if (home.isEmpty()) {
+            // The same line for "has none" and "would not let you in": which it is, is theirs to know.
+            live.messages().send(player, "warps.home.none", "player", whose);
+            return;
+        }
+        live.travelling().goToPlace(player, nameOf(owner, whose) + "'s home", home.get());
+    }
+
     /** A player the server has seen, by name — online or not. Null for somebody it never has. */
     private static OfflinePlayer known(String name) {
         OfflinePlayer online = org.bukkit.Bukkit.getPlayerExact(name);
@@ -355,7 +421,7 @@ public final class WarpCommand implements IWarpCommand {
 
         if (args.length <= 1) {
             List<String> options = new ArrayList<>(names(live, sender));
-            options.addAll(List.of("list", "help", "mine"));
+            options.addAll(List.of("list", "help", "mine", "claim", "home"));
             if (owner) {
                 options.addAll(List.of("set", "move", "delete", "label", "icon", "access", "member"));
             }
@@ -365,6 +431,14 @@ public final class WarpCommand implements IWarpCommand {
             return startingWith(options, sub);
         }
         String typed = args[args.length - 1].toLowerCase(Locale.ROOT);
+        if (args.length == 2 && (sub.equals("claim") || sub.equals("claims")) && sender instanceof Player player) {
+            java.util.function.Predicate<de.raindancer.core.world.poi.Poi> may = live.arriving(player);
+            return startingWith(live.claimWarps().visible(may).stream()
+                    .map(point -> live.claimWarps().typedAs(point, may)).toList(), typed);
+        }
+        if (args.length == 2 && sub.equals("home")) {
+            return startingWith(online(live), typed);
+        }
         if (args.length == 2 && admin && sub.equals("token")) {
             return startingWith(online(live), typed);
         }

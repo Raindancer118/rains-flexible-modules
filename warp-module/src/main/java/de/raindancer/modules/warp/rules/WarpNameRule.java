@@ -31,6 +31,13 @@ public final class WarpNameRule implements IWarpRule {
             "owner", "give", "member", "members", "mine", "token", "tokens");
 
     /**
+     * Words {@code /warp} reads as an instruction only when something follows them — {@code /warp home
+     * lilly}, {@code /warp claim farm}. Alone they are still a warp of that name, so they are not refused:
+     * a server that had a warp called "home" before claims had homes keeps reaching it as it always did.
+     */
+    public static final List<String> FALLS_BACK_TO_A_WARP = List.of("claim", "claims", "home");
+
+    /**
      * What a name may be made of.
      *
      * <p>Letters, digits, a dash and an underscore. Everything else is refused rather than escaped,

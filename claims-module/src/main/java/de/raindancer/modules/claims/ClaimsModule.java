@@ -60,7 +60,7 @@ import java.io.UncheckedIOException;
  */
 public final class ClaimsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.4.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.5.0")
             .describedAs("Land claims: who owns what, who may do what there, and the screens for it")
             .by("Raindancer118");
 
@@ -79,6 +79,7 @@ public final class ClaimsModule implements FlexModule {
     private ZoneStorage zoneStorage;
     private CostService costs;
     private ClaimService claimService;
+    private de.raindancer.modules.claims.service.ClaimWarpService claimWarps;
     private BorderVisualizer visualizer;
     private SelectionService selections;
     private SelectionStick stick;
@@ -201,12 +202,22 @@ public final class ClaimsModule implements FlexModule {
                 context.core().prompts(), selections, stick, claims, claimService, zones,
                 this::saveZones, visualizer, rights, settings::current);
 
+        // A claim's front door as a warp, in Core's place store: a warps plugin offers it without
+        // knowing this module exists. Caught up now, so front doors set before this existed are warps
+        // and warps of claims deleted while the module was down are gone.
+        claimWarps = new de.raindancer.modules.claims.service.ClaimWarpService(context.core().claimWarps());
+        claimService.warps(claimWarps);
+        claimWarps.catchUp(claims.all(), worldId -> {
+            org.bukkit.World world = context.plugin().getServer().getWorld(worldId);
+            return world == null ? null : world.getName();
+        });
+
         services = new ClaimServices(context.plugin(), context.plugin().getServer(), log,
                 context.core().messages(), context.chat().brand(), context.core().prompts(), land,
                 land.flags(), features, claims, storage, zones, claimService, names, rights, provider,
                 costs, selections, stick, selectionFlow, visualizer, fences, ambience, entryFees,
                 eviction, equipment, broadcasts, settings::current, new LiveScreens(), () -> movement,
-                this::saveZones, this::saveFeaturePolicies, context.core());
+                this::saveZones, this::saveFeaturePolicies, context.core(), claimWarps);
         movement = new MovementListener(services);
         ambience.movement(movement);
 

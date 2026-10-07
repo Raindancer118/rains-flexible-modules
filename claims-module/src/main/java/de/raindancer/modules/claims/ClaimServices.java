@@ -106,7 +106,8 @@ public record ClaimServices(
          * already a seam onto exactly what it needs, and this should not become the way to get at anything
          * Core happens to expose.
          */
-        de.raindancer.core.RainsCore core) {
+        de.raindancer.core.RainsCore core,
+        de.raindancer.modules.claims.service.ClaimWarpService claimWarps) {
 
     /**
      * The border tracker.

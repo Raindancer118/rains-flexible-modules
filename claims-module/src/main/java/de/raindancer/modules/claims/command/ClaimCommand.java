@@ -104,6 +104,8 @@ public final class ClaimCommand implements IClaimCommand {
             case "timeout", "mute" -> timeout(claims, player, args);
             case "owner" -> owner(claims, player, args);
             case "transfer" -> transfer(claims, player, args);
+            case "warp", "setwarp", "door" -> warp(claims, player, args);
+            case "home", "sethome" -> home(claims, player, args);
             case "cancel" -> claims.selectionFlow().cancel(player);
             // The two halves of an entry-fee prompt. Without these the prompt is unanswerable, which makes
             // the whole feature a dead end rather than a degraded one.
@@ -225,6 +227,7 @@ public final class ClaimCommand implements IClaimCommand {
             return;
         }
         claim.transferTo(who);
+        claims.claimWarps().transferred(claim);
         claims.claims().reindex(claim);
         claims.claimService().saveAsync(claim);
         claims.messages().send(player, "claim.transferred", "player", args[1], "claim", claim.name());
@@ -256,6 +259,52 @@ public final class ClaimCommand implements IClaimCommand {
     }
 
     /** Opens the claim under the player's feet, or says there is none. */
+    /** {@code /claim warp [remove]}: the claim's warp — its front door — where you stand, or none. */
+    private void warp(ClaimServices claims, Player player, String[] args) {
+        Optional<Claim> standing = ownedHere(claims, player);
+        if (standing.isEmpty()) {
+            return;
+        }
+        Claim claim = standing.get();
+        boolean staff = claims.rights().isServerAdmin(player);
+        if (args.length >= 2 && (args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("clear"))) {
+            claims.claimWarps().clear(player.getUniqueId(), staff, claim);
+            claims.claimService().saveAsync(claim);
+            claims.messages().send(player, "claim.warp-removed", "claim", claim.name());
+            return;
+        }
+        org.bukkit.Location at = player.getLocation();
+        switch (claims.claimWarps().set(player.getUniqueId(), staff, claim, at.getWorld().getName(),
+                at.getX(), at.getY(), at.getZ(), at.getYaw(), at.getPitch())) {
+            case SET -> {
+                claims.claimService().saveAsync(claim);
+                claims.messages().send(player, "claim.warp-set", "claim", claim.name());
+            }
+            case OUTSIDE -> claims.messages().send(player, "claim.warp-outside", "claim", claim.name());
+            default -> claims.messages().send(player, "claim.warp-not-yours", "claim", claim.name());
+        }
+    }
+
+    /** {@code /claim home [clear]}: the claim you stand in becomes your main home — or you have none. */
+    private void home(ClaimServices claims, Player player, String[] args) {
+        if (args.length >= 2 && (args[1].equalsIgnoreCase("clear") || args[1].equalsIgnoreCase("remove"))) {
+            claims.messages().send(player, claims.claimWarps().clearHome(player.getUniqueId())
+                    ? "claim.home-cleared" : "claim.no-home");
+            return;
+        }
+        Optional<Claim> standing = claims.claimAround(player);
+        if (standing.isEmpty()) {
+            claims.messages().send(player, "claim.none-here");
+            return;
+        }
+        Claim claim = standing.get();
+        switch (claims.claimWarps().makeHome(player.getUniqueId(), claim)) {
+            case HOME -> claims.messages().send(player, "claim.home-set", "claim", claim.name());
+            case NO_WARP -> claims.messages().send(player, "claim.home-needs-a-warp", "claim", claim.name());
+            default -> claims.messages().send(player, "claim.home-not-yours", "claim", claim.name());
+        }
+    }
+
     private void here(ClaimServices claims, Player player) {
         Optional<Claim> standing = claims.claimAround(player);
         if (standing.isEmpty()) {
@@ -530,6 +579,7 @@ public final class ClaimCommand implements IClaimCommand {
             return;
         }
         if (claim.removeOwner(who)) {
+            claims.claimWarps().ownerRemoved(claim, who);
             claims.claims().reindex(claim);
             claims.claimService().saveAsync(claim);
             claims.messages().send(player, "claim.owner-removed", "player", args[2], "claim", claim.name());
@@ -574,7 +624,7 @@ public final class ClaimCommand implements IClaimCommand {
             List<String> words = new ArrayList<>(List.of(
                     "new", "create", "list", "here", "info", "show", "border", "hide", "delete",
                     "rename", "trust", "untrust", "kick", "ban", "unban", "timeout", "owner", "transfer",
-                    "cancel", "accept", "decline", "manual", "stick", "select", "help"));
+                    "cancel", "accept", "decline", "manual", "stick", "select", "help", "warp", "home"));
             if (args.length == 1) {
                 String prefix = args[0].toLowerCase(Locale.ROOT);
                 words.removeIf(word -> !word.startsWith(prefix));
@@ -590,6 +640,10 @@ public final class ClaimCommand implements IClaimCommand {
             List<String> sub = new ArrayList<>(List.of("add", "remove"));
             sub.removeIf(word -> !word.startsWith(prefix));
             return sub;
+        }
+        if (args.length == 2 && (args[0].equalsIgnoreCase("warp") || args[0].equalsIgnoreCase("home"))) {
+            String option = args[0].equalsIgnoreCase("warp") ? "remove" : "clear";
+            return option.startsWith(args[1].toLowerCase(Locale.ROOT)) ? List.of(option) : List.of();
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("owner")) {
             return nameSuggestions(source, args[2]);

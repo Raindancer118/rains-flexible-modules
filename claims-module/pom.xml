@@ -24,6 +24,13 @@
     </description>
 
     <dependencies>
+        <!-- Paper ships the SQLite driver on a server; a test has to bring its own to store places. -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.49.1.0</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>

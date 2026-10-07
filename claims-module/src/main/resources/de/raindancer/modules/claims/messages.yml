@@ -27,6 +27,7 @@ claim:
     <gray>/claim ban <white>somebody<dark_gray> · <gray>unban<dark_gray>
     <gray>/claim rename <white>a new name<dark_gray> · <gray>delete<dark_gray>
     <gray>/claim transfer <white>somebody<dark_gray> — hand it over entirely
+    <gray>/claim warp<dark_gray> · <gray>home<dark_gray> — its warp where you stand, your main home
     <dark_gray>everything else is in the menus
   manual-given: "<green>The manual is in your inventory. <gray>Read it any time."
   stick-given: "<green>There is your marking-out tool. <gray>Left click one corner, right click the other."
@@ -36,6 +37,17 @@ claim:
   gone: "<red>That claim no longer exists."
   belongs-to: "<gray>This is <white><claim></white>."
   border-elsewhere: "<gray><claim> is in <white><world></white> — the border can only be shown there."
+
+  # ── its warp, and your main home ───────────────────────────────────────────
+  warp-set: "<green><white><claim></white>'s warp is here now. People arrive right where you stand, if the claim lets them teleport in."
+  warp-removed: "<green><white><claim></white> has no warp any more."
+  warp-outside: "<red>Stand inside <white><claim></white> to set its warp."
+  warp-not-yours: "<red>Only the owners of <white><claim></white> set its warp."
+  home-set: "<green><white><claim></white> is your main home now. Others reach it with <white>/warp home</white> and your name."
+  home-needs-a-warp: "<red><white><claim></white> has no warp yet. Set one with <white>/claim warp</white> first."
+  home-not-yours: "<red><white><claim></white> is not yours to call home."
+  home-cleared: "<green>You have no main home any more."
+  no-home: "<gray>You have no main home to clear."
 
   # ── people ───────────────────────────────────────────────────────────────
   trusted: "<green>Trusted <white><player></white> in <white><claim></white>."

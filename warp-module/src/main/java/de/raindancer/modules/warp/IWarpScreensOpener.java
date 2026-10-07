@@ -31,4 +31,7 @@ public interface IWarpScreensOpener {
 
     /** The warps this player owns, and the way to make one if they may. */
     void mine(Player viewer);
+
+    /** The claims' warps this player may use. */
+    void claims(Player viewer);
 }
