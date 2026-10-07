@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.speedrun.manhunt.ManhuntServices;
 import de.raindancer.modules.speedrun.manhunt.util.PermissionNodes;
 import de.raindancer.core.platform.util.Scheduling;
@@ -138,6 +139,7 @@ public final class WhitelistCommand implements IManhuntCommand {
      * <h2>Why three places are tried, in this order</h2>
      * Online is the certain answer and the common one. The server's own cache is next, which is what
      * makes {@code vip add} work for somebody who has played here before but is not on right now.
+     * A nickname answers after both, through {@link PlayerTargets#find}.
      * Last is this module's own VIP list, which is the only one of the three that can still answer
      * for somebody who was made a VIP long ago and has not been seen since — exactly the person
      * {@code vip remove} is usually about. What is deliberately <em>not</em> here is
@@ -145,15 +147,8 @@ public final class WhitelistCommand implements IManhuntCommand {
      * calling thread on a web request and then invents an id for a player who may not exist.
      */
     private Optional<UUID> resolve(ManhuntServices live, String name) {
-        Player online = Bukkit.getPlayerExact(name);
-        if (online != null) {
-            return Optional.of(online.getUniqueId());
-        }
-        OfflinePlayer cached = Bukkit.getOfflinePlayerIfCached(name);
-        if (cached != null) {
-            return Optional.of(cached.getUniqueId());
-        }
-        return live.whitelist().vips().byName(name);
+        Optional<UUID> known = PlayerTargets.idOf(Bukkit.getServer(), name);
+        return known.isPresent() ? known : live.whitelist().vips().byName(name);
     }
 
     private void openOrClose(ManhuntServices live, CommandSender sender, boolean open) {
@@ -244,12 +239,8 @@ public final class WhitelistCommand implements IManhuntCommand {
                         .toList();
             }
             if (args.length == 3) {
-                String typed = args[2].toLowerCase(Locale.ROOT);
-                return Bukkit.getOnlinePlayers().stream()
-                        .map(Player::getName)
-                        .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(typed))
-                        .limit(50)
-                        .toList();
+                return PlayerTargets.suggest(Bukkit.getServer(), args[2]).stream()
+                        .filter(name -> !PlayerTargets.isSelector(name)).toList();
             }
             return List.of();
         }

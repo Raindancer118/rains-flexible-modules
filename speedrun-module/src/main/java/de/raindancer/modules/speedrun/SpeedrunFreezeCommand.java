@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.speedrun.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Bukkit;
@@ -53,7 +54,7 @@ abstract class SpeedrunFreezeCommand implements ISpeedrunCommand {
                 live.messages().send(sender, key("no-permission-for-others"));
                 return;
             }
-            target = Bukkit.getPlayerExact(args[0]);
+            target = PlayerTargets.online(Bukkit.getServer(), args[0]).orElse(null);
             if (target == null) {
                 live.messages().send(sender, key("player-not-found"), "player", args[0]);
                 return;
@@ -78,7 +79,8 @@ abstract class SpeedrunFreezeCommand implements ISpeedrunCommand {
         if (args.length > 1 || !source.getSender().hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)) {
             return List.of();
         }
-        return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+        return PlayerTargets.suggest(Bukkit.getServer(), args.length == 0 ? "" : args[0]).stream()
+                .filter(name -> !PlayerTargets.isSelector(name)).toList();
     }
 
     @Override

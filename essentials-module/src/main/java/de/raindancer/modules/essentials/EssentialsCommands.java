@@ -2,11 +2,13 @@ package de.raindancer.modules.essentials;
 
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.essentials.command.AfkCommand;
+import de.raindancer.modules.essentials.command.EnchantCommand;
 import de.raindancer.modules.essentials.command.IgnoreCommand;
 import de.raindancer.modules.essentials.command.MsgCommand;
 import de.raindancer.modules.essentials.command.NickCommand;
 import de.raindancer.modules.essentials.command.PlayerCommand;
 import de.raindancer.modules.essentials.command.PlayersCommand;
+import de.raindancer.modules.essentials.command.RepairCommand;
 import de.raindancer.modules.essentials.command.ReplyCommand;
 import de.raindancer.modules.essentials.command.SeenCommand;
 import de.raindancer.modules.essentials.command.SetSpawnCommand;
@@ -66,7 +68,20 @@ public final class EssentialsCommands {
                         .taking("(nothing) — opens the nickname menu",
                                 "set <name> — colour allowed", "<name> — the same, directly",
                                 "clear — back to your own name", "off — the same",
-                                "blocklist — the blocklist editor, for whoever may manage it"),
+                                "blocklist — the blocklist editor, for whoever may manage it",
+                                "<player> <name> — somebody else's, for staff; <player> clear removes it"),
+
+                ModuleCommand.of("enchant", "Enchants the item in your hand, up to level 255 if you may",
+                                new EnchantCommand(EssentialsCommands::require))
+                        .taking("(nothing) — opens a list to pick from",
+                                "<enchantment> [level] [player] — level 0 or remove takes it off",
+                                "clear [player] — takes every enchantment off"),
+                ModuleCommand.of("repair", "Repairs the item in your hand",
+                                new RepairCommand(EssentialsCommands::require, false))
+                        .taking("[player] — somebody else's, for staff"),
+                ModuleCommand.of("repairall", "Repairs everything you carry",
+                                new RepairCommand(EssentialsCommands::require, true))
+                        .taking("[player] — somebody else's, for staff"),
 
                 ModuleCommand.of("afk", "Marks you away from the keyboard, or back, right now",
                         new AfkCommand(EssentialsCommands::require)));

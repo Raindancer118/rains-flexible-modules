@@ -1,6 +1,7 @@
 package de.raindancer.modules.moderation.util;
 
 import de.raindancer.core.moderation.vanish.Vanish;
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.ui.choose.PlayerEntry;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
@@ -8,7 +9,6 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,21 +33,14 @@ public final class Players {
     private Players() {
     }
 
-    /** Somebody the server has actually seen, online or not. */
+    /** Somebody the server has actually seen, online or not, by real name or nickname. */
     public static Optional<OfflinePlayer> find(Server server, String name) {
-        if (server == null || name == null || name.isBlank()) {
-            return Optional.empty();
-        }
-        Player online = server.getPlayerExact(name);
-        if (online != null) {
-            return Optional.of(online);
-        }
-        return Optional.ofNullable(server.getOfflinePlayerIfCached(name));
+        return PlayerTargets.find(server, name);
     }
 
     /** Their id, when the server has seen them. */
     public static Optional<UUID> idOf(Server server, String name) {
-        return find(server, name).map(OfflinePlayer::getUniqueId);
+        return PlayerTargets.idOf(server, name);
     }
 
     /** What to call somebody in a message, given that a name is the one thing that can be missing. */
@@ -114,68 +107,27 @@ public final class Players {
     }
 
     /**
-     * Names to complete, online first, then everybody else the server has seen before. Capped, because
-     * a four-year-old server has thousands.
-     *
-     * <p>Offline players matter here as much as online ones — {@code /promote}, {@code /ban} and the
-     * rest of this module's commands are usually aimed at somebody who is not currently on, and a
-     * suggestion list that only ever offers online names is one that works for every case except the
-     * one those commands exist for.
+     * Names and nicknames to complete, online first, then everybody else the server has seen. Offline
+     * players matter as much as online ones: {@code /promote}, {@code /ban} and the rest are usually
+     * aimed at somebody who is not currently on.
      */
     public static List<String> suggestions(Server server, String typed) {
-        String wanted = typed == null ? "" : typed.toLowerCase(Locale.ROOT);
-        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
-        if (server == null) {
-            return new ArrayList<>(names);
-        }
-        for (Player who : server.getOnlinePlayers()) {
-            if (who.getName().toLowerCase(Locale.ROOT).startsWith(wanted)) {
-                names.add(who.getName());
-            }
-        }
-        for (OfflinePlayer who : server.getOfflinePlayers()) {
-            if (names.size() >= 50) {
-                break;
-            }
-            String name = who.getName();
-            if (name != null && name.toLowerCase(Locale.ROOT).startsWith(wanted)) {
-                names.add(name);
-            }
-        }
-        List<String> result = new ArrayList<>(names);
-        return result.size() > 50 ? result.subList(0, 50) : result;
+        return PlayerTargets.suggestKnown(server, typed, who -> true);
     }
 
     /**
      * The same, for a caller who is not staff and so must not be handed a vanished name to complete —
      * {@code /report}'s tab-complete is the one place in this module a plain player reaches this list.
+     * Offline players are not hidden by vanish: there is no live entity to hide. A vanished player's
+     * nickname is dropped though, since that one would be new information about somebody who is "away".
      */
     public static List<String> suggestions(Server server, String typed, Vanish vanish, UUID viewer) {
-        String wanted = typed == null ? "" : typed.toLowerCase(Locale.ROOT);
-        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
-        if (server == null) {
-            return new ArrayList<>(names);
-        }
-        for (Player who : server.getOnlinePlayers()) {
-            if (!vanish.canSee(viewer, who.getUniqueId())) {
-                continue;
-            }
-            if (who.getName().toLowerCase(Locale.ROOT).startsWith(wanted)) {
-                names.add(who.getName());
-            }
-        }
-        // Offline players are not hidden by vanish — there is no live entity to hide — so they are
-        // added the same way the plain overload above adds them.
-        for (OfflinePlayer who : server.getOfflinePlayers()) {
-            if (names.size() >= 50) {
-                break;
-            }
-            String name = who.getName();
-            if (name != null && name.toLowerCase(Locale.ROOT).startsWith(wanted)) {
-                names.add(name);
-            }
-        }
-        List<String> result = new ArrayList<>(names);
-        return result.size() > 50 ? result.subList(0, 50) : result;
+        return PlayerTargets.suggestKnown(server, typed, who -> vanish.canSee(viewer, who.getUniqueId()))
+                .stream()
+                .filter(entry -> PlayerTargets.online(server, entry)
+                        .map(who -> vanish.canSee(viewer, who.getUniqueId())
+                                || who.getName().equalsIgnoreCase(entry))
+                        .orElse(true))
+                .toList();
     }
 }

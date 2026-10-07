@@ -9,7 +9,7 @@ cosmetics:
 
   only-a-player: "<red>The console has no name to paint. We checked."
 
-  usage: "<gray>Use <white>/cosmetics</white> for the menu, <white>/cosmetics name preset|set|reset</white> or <white>/cosmetics particle</white>."
+  usage: "<gray>Use <white>/cosmetics</white> for the menu, <white>/cosmetics name preset|set|reset</white>, <white>/cosmetics particle</white> or <white>/cosmetics clear</white>."
 
   reloaded: "<green>Reloaded. <white><colours></white> palette colour(s), <white><presets></white> preset(s)."
 
@@ -26,6 +26,17 @@ cosmetics:
     reset-other: "<green><white><player></white>'s name is plain again."
     reset-by-staff: "<yellow>A staff member took your name style off. Fashion police, probably."
     dropped: "<yellow>Your name style needed a permission you no longer have, so your name is plain again. Easy come, easy go."
+
+  clear:
+    usage: "<gray>Use <white>/cosmetics clear [name|particles|all] [player]</white>. Leave the player out to tidy up yourself."
+    not-allowed: "<red>You may not clear your own cosmetics. Whatever you are wearing, you are stuck with it."
+    not-allowed-others: "<red>Clearing somebody else's cosmetics is staff business. Their sparkles are safe from you."
+    nothing: "<gray>There is nothing to clear — <white><player></white> is already as plain as it gets."
+    offline-particles: "<red><white><player></white> is not online, and a particle only comes off while its owner is here. Their name style can be cleared, though."
+    offline-particles-note: "<gray><white><player></white>'s particle is still on — it can only come off while they are online."
+    done: "<green>Cleared your <white><what></white>. Fresh as a daisy."
+    done-other: "<green>Cleared <white><player></white>'s <white><what></white>. They have been told."
+    by-staff: "<yellow>A staff member cleared your <white><what></white>. Fashion police, probably."
 
   particle:
     set: "<green>You are wearing <white><particle></white> now."
@@ -62,7 +73,7 @@ cosmetics:
     - "<gray>Presets are ready-made styles — click one to wear it."
     - "<gray>Your own colours: one colour, or several for a gradient"
     - "<gray>that runs from the first to the last across your name."
-    - "<gray>The dyes below switch bold, italic and the rest on and off."
+    - "<gray>In the colour editor, the dyes switch bold, italic and the rest."
     - "<dark_gray>It shows in chat, in the player list and on your nickname."
 
   help-hub:
@@ -78,9 +89,3 @@ cosmetics:
     - "<gray>Density sets how many are drawn — from a light dusting to a proper cloud."
     - "<gray>Speed sets how fast it moves round you."
     - "<dark_gray>Hidden while you are vanished, invisible or spectating."
-
-  help-gradient:
-    - "<gold><bold>Your colours"
-    - "<gray>Up to <white><stops></white> colours, running left to right across your name."
-    - "<gray>Click a colour in the bottom row to take it out again."
-    - "<dark_gray>Every click is worn at once — the head shows how it looks."

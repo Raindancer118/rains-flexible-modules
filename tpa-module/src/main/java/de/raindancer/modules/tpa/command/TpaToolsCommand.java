@@ -1,5 +1,7 @@
 package de.raindancer.modules.tpa.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
+import de.raindancer.core.ui.identity.Nicknames;
 import de.raindancer.modules.tpa.TpaServices;
 import de.raindancer.modules.tpa.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -102,7 +104,7 @@ public final class TpaToolsCommand implements ITpaCommand {
     }
 
     /**
-     * Somebody by name, without ever asking Mojang.
+     * Somebody by name or nickname, without ever asking Mojang.
      *
      * <p>{@code getOfflinePlayer(String)} blocks on a lookup against Mojang, from what on Folia may be
      * a region thread — so it is never called. Blocking looks among people online; unblocking looks
@@ -110,10 +112,11 @@ public final class TpaToolsCommand implements ITpaCommand {
      */
     private static OfflinePlayer known(TpaServices live, Player who, String name, boolean blocking) {
         if (blocking) {
-            return live.server().getPlayerExact(name);
+            return PlayerTargets.online(live.server(), name).orElse(null);
         }
+        UUID byNickname = PlayerTargets.idOf(live.server(), name).orElse(null);
         for (UUID blocked : live.prefs().of(who.getUniqueId()).blocked()) {
-            if (live.prefs().nameOf(blocked).equalsIgnoreCase(name)) {
+            if (live.prefs().nameOf(blocked).equalsIgnoreCase(name) || blocked.equals(byNickname)) {
                 return live.server().getOfflinePlayer(blocked);
             }
         }
@@ -130,14 +133,14 @@ public final class TpaToolsCommand implements ITpaCommand {
         String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
         List<String> options = switch (what) {
             case TOGGLE -> List.of("on", "off");
-            case BLOCK -> live.server().getOnlinePlayers().stream()
-                    .filter(other -> !other.equals(player))
-                    .map(Player::getName)
-                    .toList();
+            case BLOCK -> PlayerTargets.suggest(live.server(), typed, other -> !other.equals(player))
+                    .stream().filter(name -> !PlayerTargets.isSelector(name)).toList();
             // Only who they have actually blocked. Completing everybody would suggest names that
             // cannot be unblocked because they never were.
             case UNBLOCK -> live.prefs().of(player.getUniqueId()).blocked().stream()
-                    .map(blocked -> live.prefs().nameOf(blocked))
+                    .flatMap(blocked -> java.util.stream.Stream.of(live.prefs().nameOf(blocked),
+                            Nicknames.suggestion(PlayerTargets.shownName(live.server().getOfflinePlayer(blocked)))))
+                    .distinct()
                     .toList();
             case CANCEL -> List.of();
         };

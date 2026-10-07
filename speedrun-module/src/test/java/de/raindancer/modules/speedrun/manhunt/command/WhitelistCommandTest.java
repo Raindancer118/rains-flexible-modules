@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.command;
 
+import de.raindancer.modules.speedrun.BukkitServerStub;
 import de.raindancer.core.ui.messages.Messages;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Bukkit;
@@ -165,7 +166,7 @@ class WhitelistCommandTest {
         void vipAddUsesTheOnlinePlayer() {
             org.bukkit.entity.Player anna = online("Anna");
             bukkit = mockStatic(Bukkit.class);
-            bukkit.when(() -> Bukkit.getPlayerExact("Anna")).thenReturn(anna);
+            BukkitServerStub.online(bukkit, "Anna", anna);
             when(fake.whitelist.addVip(ANNA, "Anna")).thenReturn(true);
 
             command.execute(source, new String[]{"vip", "add", "Anna"});
@@ -179,7 +180,7 @@ class WhitelistCommandTest {
         void vipAddSaysWhenAlreadyOne() {
             org.bukkit.entity.Player anna = online("Anna");
             bukkit = mockStatic(Bukkit.class);
-            bukkit.when(() -> Bukkit.getPlayerExact("Anna")).thenReturn(anna);
+            BukkitServerStub.online(bukkit, "Anna", anna);
             when(fake.whitelist.addVip(ANNA, "Anna")).thenReturn(false);
 
             command.execute(source, new String[]{"vip", "add", "Anna"});
@@ -191,8 +192,7 @@ class WhitelistCommandTest {
         @DisplayName("a name the server has never heard of is refused, not guessed at")
         void vipAddRefusesAnUnknownName() {
             bukkit = mockStatic(Bukkit.class);
-            bukkit.when(() -> Bukkit.getPlayerExact("Ghost")).thenReturn(null);
-            bukkit.when(() -> Bukkit.getOfflinePlayerIfCached("Ghost")).thenReturn(null);
+            BukkitServerStub.online(bukkit, "Ghost", null);
             when(vipList.byName("Ghost")).thenReturn(java.util.Optional.empty());
 
             command.execute(source, new String[]{"vip", "add", "Ghost"});
@@ -205,8 +205,7 @@ class WhitelistCommandTest {
         @DisplayName("vip remove works off this module's own list, for somebody long gone")
         void vipRemoveFindsThemOnTheVipListItself() {
             bukkit = mockStatic(Bukkit.class);
-            bukkit.when(() -> Bukkit.getPlayerExact("Anna")).thenReturn(null);
-            bukkit.when(() -> Bukkit.getOfflinePlayerIfCached("Anna")).thenReturn(null);
+            BukkitServerStub.online(bukkit, "Anna", null);
             when(vipList.byName("Anna")).thenReturn(java.util.Optional.of(ANNA));
             when(fake.whitelist.removeVip(ANNA)).thenReturn(true);
 
@@ -221,7 +220,7 @@ class WhitelistCommandTest {
         void vipRemoveSaysWhenTheyWereNotOne() {
             org.bukkit.entity.Player anna = online("Anna");
             bukkit = mockStatic(Bukkit.class);
-            bukkit.when(() -> Bukkit.getPlayerExact("Anna")).thenReturn(anna);
+            BukkitServerStub.online(bukkit, "Anna", anna);
             when(vipList.byName("Anna")).thenReturn(java.util.Optional.empty());
             when(fake.whitelist.removeVip(ANNA)).thenReturn(false);
 

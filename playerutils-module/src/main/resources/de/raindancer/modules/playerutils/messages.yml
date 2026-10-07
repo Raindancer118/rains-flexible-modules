@@ -1,0 +1,154 @@
+# Rain's Player Utils — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins. See
+# Messages.defineFrom. Every placeholder a line asks for is supplied where it is sent, and nothing
+# here is YAML's idea of a truth value.
+playerutils:
+
+  usage: "<gray><usage>"
+  did-not-understand: "<red>Hm, <problem>. <gray>Try <white><usage></white>."
+  only-a-player: "<red>That needs a body in the world, and the console does not have one."
+  name-somebody: "<red>The console has no body to do that to. Name somebody."
+  no-selectors: "<red>Selectors like @a are not yours to use. Name one person instead."
+  not-online: "<red><player> is not online. It works better when they are here."
+  nobody: "<red>Nobody here goes by <white><player></white> — not as a name, not as a nickname."
+  too-many: "<red>That matches <white><count></white> players, and the limit is <white><most></white>. Narrow it down a little?"
+  no-permission: "<red>/<action> is not yours to use."
+  no-permission-others: "<red>You may /<action> yourself, but not <player>."
+  exempt: "<red><player> is protected from that. Even you cannot /<action> them."
+  not-on-yourself: "<red>/<action> on yourself? That is a philosophical question, not a command."
+  nothing: "<gray>Nothing to do — <player> is already like that."
+  would-kill: "<red>That would kill <player>. Add <white>lethal</white> if that is really what you meant."
+  out-of-range: "<red>That is further than the game goes. Keep it within reason."
+  not-understood: "<red>That is not something this server understands."
+  summary: "<gray>/<action>: done to <white><done></white> of <white><count></white>."
+  confirm-needed: "<yellow>/<action> on <who> takes things for good. Run <white><command></white> if you mean it."
+  left-meanwhile: "<red><player> left before I could look. Rude."
+
+  player:
+    no-such-action: "<red>There is no <white><action></white> for players. Tab shows what there is."
+
+  heal:
+    self: "<green>All patched up. Good as new."
+    done: "<green><player> is all patched up."
+    notice: "<green><by> patched you up. Feeling better?"
+    nothing: "<gray><player> is already the picture of health."
+  feed:
+    self: "<green>Belly full. Could not eat another bite."
+    done: "<green><player> is fed and happy."
+    notice: "<green><by> fed you. No need to thank the cook."
+    nothing: "<gray><player> could not eat another bite."
+  damage:
+    self: "<red>Ouch. <hearts> heart(s), by your own hand."
+    done: "<red><player> lost <hearts> heart(s)."
+    notice: "<red><by> took <hearts> heart(s) from you. Ouch."
+    lethal-not-allowed: "<red>Only staff with the lethal node may finish somebody off."
+    killed:
+      self: "<dark_red>Well, you asked for it."
+      done: "<dark_red><player> did not survive that."
+      notice: "<dark_red><by> finished you off."
+  starve:
+    self: "<gold>Your stomach rumbles. <drumsticks> drumstick(s) left."
+    done: "<gold><player> is down to <drumsticks> drumstick(s)."
+    notice: "<gold><by> made you hungry. <drumsticks> drumstick(s) left."
+    nothing: "<gray><player> is already that hungry."
+  drown:
+    self: "<blue>Glub glub. Your lungs are empty."
+    done: "<blue><player>'s lungs are empty, and <hearts> heart(s) went with the air."
+    notice: "<blue><by> took your breath away. Literally."
+  breathe:
+    self: "<aqua>A deep breath. Lungs full."
+    done: "<aqua><player> can breathe again."
+    notice: "<aqua><by> gave you your breath back."
+    nothing: "<gray><player> is breathing just fine already."
+  extinguish:
+    self: "<aqua>Fire's out. You smell a bit smoky."
+    done: "<aqua><player> is no longer on fire."
+    notice: "<aqua><by> put you out. You are welcome."
+    nothing: "<gray><player> is not on fire. Not even a little."
+  ignite:
+    self: "<gold>You are on fire. On purpose, apparently."
+    done: "<gold><player> is on fire for <seconds> second(s)."
+    notice: "<gold><by> set you on fire. Run!"
+  fly:
+    kept: "<gray>You can still fly — it was given to you, and it stays."
+    nothing: "<gray>Nothing changed — that was already so."
+    granted:
+      self: "<green>You can fly. Double-tap jump and off you go."
+      done: "<green><player> can fly now."
+      notice: "<green><by> gave you wings. Double-tap jump."
+    taken:
+      self: "<yellow>Back on your feet. Your landing is on the house."
+      done: "<yellow><player> is grounded."
+      notice: "<yellow><by> took your wings. The landing is soft, promise."
+  speed:
+    self: "<white>Your <kind> speed is now <level>."
+    done: "<white><player>'s <kind> speed is now <level>."
+    notice: "<white><by> set your <kind> speed to <level>."
+    reset:
+      self: "<white>Walking and flying back to normal speed."
+      done: "<white><player> moves at normal speed again."
+      notice: "<white><by> put your speed back to normal."
+  launch:
+    self: "<white>Wheee!"
+    done: "<white><player> is airborne."
+    notice: "<white><by> launched you. Enjoy the view."
+  scale:
+    self: "<white>You are now <size>× your size."
+    done: "<white><player> is now <size>× their size."
+    notice: "<white><by> made you <size>× your size. Mind your head."
+    nothing: "<gray><player> is already exactly that size."
+  wipe:
+    self: "<red>Your <parts> are gone. A fresh start."
+    done: "<red><player>'s <parts> are gone."
+    notice: "<red><by> wiped your <parts>. A fresh start, whether you wanted one or not."
+  explode:
+    self: "<red>Boom."
+    done: "<red><player> went boom (power <power>)."
+    notice: "<red><by> blew you up. Nothing personal, probably."
+    no-blocks: "<red>No breaking blocks with /explode here. Either the server says no, or your node does."
+    no-fire: "<red>Starting fires needs its own node."
+  spectate:
+    started: "<light_purple>You are watching <player>. <gray>/spectate stop to come back."
+    stopped: "<light_purple>Back where you were, as you were."
+    not-watching: "<gray>You are not watching anybody."
+    target-left: "<gray><player> left, so the show is over."
+  sudo:
+    switched-off: "<red>Sudo is switched off on this server."
+    no-ops: "<red><player> is an operator. Putting words in their mouth needs its own node."
+    blocked: "<red>No — <reason>."
+    said: "<gray><player> said: <white><line>"
+    ran: "<gray><player> ran: <white>/<line>"
+
+  ping:
+    self: "<gray>Your ping: <white><ms> ms</white> <bars> <grade>"
+    done: "<gray><player>'s ping: <white><ms> ms</white> <bars> <grade>"
+
+  status:
+    header: "<gold>━━ <white><player></white> <gray>(<name>)</gray> ━━"
+  hunger:
+    done: "<gray><player>: <bar> <white><drumsticks></white> drumsticks, saturation <white><saturation></white>, exhaustion <white><exhaustion></white>"
+  effects:
+    none: "<gray><player> has no effects on them."
+    header: "<light_purple><player> has <count> effect(s):"
+    may-not: "<red>Taking effects off counts as healing, and you may not heal them."
+    removed: "<gray>Took <white><effect></white> off <player>."
+  position:
+    done: "<gray><player> is in <white><world></white> at <white><x> <y> <z></white>, facing <white><facing></white> (yaw <yaw>, pitch <pitch>), chunk <chunkx> <chunkz>, <white><biome></white>."
+  near:
+    nobody: "<gray>Nobody within <radius> blocks. Peaceful."
+    header: "<gray><count> within <radius> blocks:"
+
+  lines:
+    health: "  <red>❤</red> <white><hearts></white><gray>/<max> hearts, <absorption> absorption"
+    food: "  <gold>🍖</gold> <white><drumsticks></white><gray> drumsticks, saturation <saturation>, exhaustion <exhaustion>"
+    air: "  <aqua>☁</aqua> <white><air></white><gray>/<max> air"
+    level: "  <green>✦</green> <gray>level <white><level></white>, <progress>% to the next, <total> points"
+    mode: "  <gray><mode>, <flight>, walk <white><walk></white>, fly <white><fly></white>, size <white><scale>×</white>"
+    where: "  <gray><world> <white><x> <y> <z></white>, facing <facing>"
+    connection: "  <gray>ping <white><ms> ms</white> <bars> <gray><client>, <locale>, view <view>"
+    doing: "  <gray><doing>; armour <armour>, burning <fire> s"
+    history: "  <gray>first seen <first>, played <played>, died <deaths> time(s)"
+    effects-count: "  <gray><count> effect(s) — /effects for the list"
+    effect: "  <light_purple>• <white><effect> <level></white> <gray><time>"
+    near-entry: "  <white><player></white> <gray><distance> m <aqua><arrow></aqua> <dark_gray>(<height>)"

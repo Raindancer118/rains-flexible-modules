@@ -1,5 +1,6 @@
 package de.raindancer.modules.cosmetics.model;
 
+import de.raindancer.core.ui.choose.Swatch;
 import de.raindancer.core.ui.text.NameStyle;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -41,6 +42,11 @@ public record Catalogue(List<PaletteColour> palette, List<Preset> presets) {
         }
         String wanted = typed.trim().replace('_', ' ').toLowerCase(Locale.ROOT);
         return palette.stream().filter(swatch -> swatch.label().equals(wanted)).findFirst();
+    }
+
+    /** The palette as Core's style editor wants it. */
+    public List<Swatch> swatches() {
+        return palette.stream().map(swatch -> new Swatch(swatch.label(), swatch.colour(), swatch.icon())).toList();
     }
 
     public boolean inPalette(TextColor colour) {

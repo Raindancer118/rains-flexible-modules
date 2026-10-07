@@ -1,5 +1,6 @@
 package de.raindancer.modules.claims.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.model.Claim;
@@ -333,7 +334,7 @@ public final class ClaimAdminCommand implements IClaimCommand {
             claims.messages().send(admin, "claim.who", "usage", "/claimadmin stick <player>");
             return;
         }
-        Player target = admin.getServer().getPlayerExact(args[1]);
+        Player target = PlayerTargets.online(admin.getServer(), args[1]).orElse(null);
         if (target == null) {
             claims.messages().send(admin, "error.player-not-found", "player", args[1]);
             return;
@@ -434,12 +435,7 @@ public final class ClaimAdminCommand implements IClaimCommand {
 
     /** By name, online or not — an admin reassigning a claim usually means the new owner is not here either. */
     private Optional<UUID> resolvePlayer(ClaimServices claims, String name) {
-        Player online = claims.server().getPlayerExact(name);
-        if (online != null) {
-            return Optional.of(online.getUniqueId());
-        }
-        org.bukkit.OfflinePlayer seen = claims.server().getOfflinePlayer(name);
-        return seen.hasPlayedBefore() ? Optional.of(seen.getUniqueId()) : Optional.empty();
+        return PlayerTargets.idOf(claims.server(), name);
     }
 
     @Override
@@ -462,14 +458,8 @@ public final class ClaimAdminCommand implements IClaimCommand {
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("stick")
                 || args.length == 3 && args[0].equalsIgnoreCase("transfer")) {
-            String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
-            List<String> names = new ArrayList<>();
-            services.get().server().getOnlinePlayers().forEach(who -> {
-                if (who.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
-                    names.add(who.getName());
-                }
-            });
-            return names;
+            return PlayerTargets.suggest(services.get().server(), args[args.length - 1]).stream()
+                    .filter(name -> !PlayerTargets.isSelector(name)).toList();
         }
         return List.of();
     }

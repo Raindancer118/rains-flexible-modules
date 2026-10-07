@@ -38,6 +38,8 @@ class PermissionNodesTest {
                 .containsEntry("rainscosmetics.name.decoration.obfuscated", PermissionDefault.OP)
                 .containsEntry(PermissionNodes.PRESET_ALL, PermissionDefault.OP)
                 .containsEntry(PermissionNodes.PARTICLES, PermissionDefault.TRUE)
+                .containsEntry(PermissionNodes.CLEAR, PermissionDefault.TRUE)
+                .containsEntry(PermissionNodes.CLEAR_OTHERS, PermissionDefault.OP)
                 .containsEntry(PermissionNodes.ADMIN, PermissionDefault.OP);
         assertThat(declared).doesNotContainValue(PermissionDefault.FALSE);
     }

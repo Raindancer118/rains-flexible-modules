@@ -57,6 +57,11 @@ public final class EssentialsStore {
         return who != null && nicknames.remove(who) != null;
     }
 
+    /** Everybody with a nickname, as written — a copy, for syncing it elsewhere. */
+    public Map<UUID, String> nicknames() {
+        return Map.copyOf(nicknames);
+    }
+
     public int nicknameCount() {
         return nicknames.size();
     }

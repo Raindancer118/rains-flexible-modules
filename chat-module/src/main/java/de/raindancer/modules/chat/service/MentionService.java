@@ -1,6 +1,7 @@
 package de.raindancer.modules.chat.service;
 
 import de.raindancer.core.moderation.vanish.Vanish;
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.chat.ChatSettings;
 import net.kyori.adventure.key.Key;
@@ -11,7 +12,6 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 /**
  * @-mentions: turning {@code @Name} in ordinary chat into a ping the named player cannot miss.
  *
- * <h2>Why matching is against online names only</h2>
+ * <h2>Why matching is against online players only</h2>
  * An offline player cannot be pinged — there is nobody to notify — and matching against every name
  * the server has ever seen would make every chat line a lookup over years of history for nothing.
  * Somebody typing {@code @Alex} while Alex is offline gets silence back; the moment Alex is online
@@ -38,12 +38,12 @@ import java.util.regex.Pattern;
  * AsyncChatEvent}'s renderer has to be set before the handler returns, so there is no later tick to
  * defer this to. Core's own {@code Chat} javadoc says building and sending a component needs no
  * region thread; the one Bukkit call this makes, {@code Server#getPlayerExact}, is a single lookup
- * into the already-loaded online-player list, not a walk over the world.
+ * into the already-loaded online-player list (a nickname is one more in-memory map lookup), not a walk over the world.
  */
 public final class MentionService implements IChatService {
 
-    /** {@code @} then a run of characters a Minecraft name is made of. */
-    private static final Pattern TOKEN = Pattern.compile("@([A-Za-z0-9_]{1,16})");
+    /** {@code @} then a run of characters a name, or a nickname in its typed form, is made of. */
+    private static final Pattern TOKEN = Pattern.compile("@([A-Za-z0-9_]{1,32})");
 
     /**
      * By key rather than {@code org.bukkit.Sound}'s own enum — that one resolves through Paper's
@@ -79,7 +79,7 @@ public final class MentionService implements IChatService {
         Set<UUID> seen = new LinkedHashSet<>();
         Matcher matcher = TOKEN.matcher(plainText);
         while (matcher.find()) {
-            Player mentioned = server.getPlayerExact(matcher.group(1));
+            Player mentioned = PlayerTargets.online(server, matcher.group(1)).orElse(null);
             if (mentioned == null || mentioned.equals(sender)) {
                 continue;
             }
@@ -115,21 +115,12 @@ public final class MentionService implements IChatService {
      * names by the same rule.
      */
     public List<String> namesVisibleTo(Player asker, String partial) {
-        List<String> found = new ArrayList<>();
         if (asker == null || partial == null) {
-            return found;
+            return new ArrayList<>();
         }
-        String prefix = partial.toLowerCase(Locale.ROOT);
-        for (Player online : server.getOnlinePlayers()) {
-            if (online.equals(asker) || !online.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
-                continue;
-            }
-            if (!vanish.canSee(asker.getUniqueId(), online.getUniqueId())) {
-                continue;
-            }
-            found.add(online.getName());
-        }
-        return found;
+        return PlayerTargets.suggest(server, partial,
+                        online -> !online.equals(asker) && vanish.canSee(asker.getUniqueId(), online.getUniqueId()))
+                .stream().filter(name -> !PlayerTargets.isSelector(name)).toList();
     }
 
     /**
@@ -137,7 +128,7 @@ public final class MentionService implements IChatService {
      * "not online" to anybody who cannot, exactly as they are to a mention.
      */
     public Optional<Player> visibleNamed(Player asker, String name) {
-        Player found = name == null ? null : server.getPlayerExact(name);
+        Player found = PlayerTargets.online(server, name).orElse(null);
         if (found == null || asker == null || !vanish.canSee(asker.getUniqueId(), found.getUniqueId())) {
             return Optional.empty();
         }

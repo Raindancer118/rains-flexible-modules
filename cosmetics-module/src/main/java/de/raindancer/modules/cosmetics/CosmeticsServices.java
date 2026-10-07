@@ -1,9 +1,11 @@
 package de.raindancer.modules.cosmetics;
 
+import de.raindancer.core.moderation.vanish.Vanish;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.cosmetics.model.Catalogue;
+import de.raindancer.modules.cosmetics.service.ClearService;
 import de.raindancer.modules.cosmetics.service.NameStyleService;
 import de.raindancer.modules.cosmetics.service.ParticleService;
 import de.raindancer.modules.cosmetics.service.ReloadService;
@@ -29,6 +31,8 @@ public record CosmeticsServices(
         NameStyleService names,
         ParticleService particles,
         ReloadService reloading,
+        ClearService clearing,
+        Vanish vanish,
         ICosmeticsScreensOpener screens) {
 
     public Catalogue offered() {

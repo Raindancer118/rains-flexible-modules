@@ -1,6 +1,7 @@
 package de.raindancer.modules.essentials.util;
 
 import de.raindancer.core.moderation.vanish.Vanish;
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.ui.choose.PlayerDirectory;
 import de.raindancer.core.ui.choose.PlayerEntry;
 import org.bukkit.OfflinePlayer;
@@ -9,32 +10,24 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
- * Turning what somebody typed into somebody.
+ * Turning what somebody typed into somebody — by real name or by nickname.
  *
- * <p>Genuinely generic, hence {@code util}: the same lookup moderation-module keeps under its own
- * name, kept here rather than shared because the two modules do not depend on each other and a
- * three-line helper is not worth a dependency for.
+ * <p>All of it is Core's {@link PlayerTargets}, which knows the nickname directory; what stays here is
+ * the part specific to this module: who may be shown to whom, given vanish.
  */
 public final class Players {
 
     private Players() {
     }
 
-    /** Somebody the server has actually seen, online or not. */
+    /** Somebody the server has actually seen, online or not — by name, or by nickname. */
     public static Optional<OfflinePlayer> find(Server server, String name) {
-        if (server == null || name == null || name.isBlank()) {
-            return Optional.empty();
-        }
-        Player online = server.getPlayerExact(name);
-        if (online != null) {
-            return Optional.of(online);
-        }
-        return Optional.ofNullable(server.getOfflinePlayerIfCached(name));
+        return PlayerTargets.find(server, name);
     }
 
     /** What to call somebody in a message, given that a name is the one thing that can be missing. */
@@ -47,49 +40,34 @@ public final class Players {
     }
 
     /**
-     * Names to complete, online first, whoever asked can actually see. Capped, because a
-     * four-year-old server has thousands.
-     *
-     * <p>Filters out a vanished player from anybody who is not allowed to see them — a moderator's
-     * name completing in a tab-complete list is exactly as much of a giveaway as one appearing in
-     * {@code /list}, and easier to miss reviewing for.
+     * Which online players {@code viewer} may know are there. A vanished player is given away just as
+     * much by a nickname in a tab-complete list as by a name, so every suggestion goes through this.
      */
-    public static List<String> suggestions(Server server, String typed, Vanish vanish, UUID viewer) {
-        String wanted = typed == null ? "" : typed.toLowerCase(Locale.ROOT);
-        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
-        if (server == null) {
-            return new ArrayList<>(names);
-        }
-        for (Player who : server.getOnlinePlayers()) {
-            if (viewer != null && !vanish.canSee(viewer, who.getUniqueId())) {
-                continue;
-            }
-            if (who.getName().toLowerCase(Locale.ROOT).startsWith(wanted)) {
-                names.add(who.getName());
-            }
-        }
-        // Offline players are not hidden by vanish — there is no live entity to hide — and a command
-        // like /nick or /ignore is as often aimed at somebody who is not currently on as at somebody
-        // who is.
-        for (OfflinePlayer who : server.getOfflinePlayers()) {
-            if (names.size() >= 50) {
-                break;
-            }
-            String name = who.getName();
-            if (name != null && name.toLowerCase(Locale.ROOT).startsWith(wanted)) {
-                names.add(name);
-            }
-        }
-        List<String> result = new ArrayList<>(names);
-        return result.size() > 50 ? result.subList(0, 50) : result;
+    public static Predicate<Player> visibleTo(Vanish vanish, UUID viewer) {
+        return who -> viewer == null || vanish.canSee(viewer, who.getUniqueId());
     }
 
     /**
-     * The same, for whoever is not a player and so has nobody to hide from — the console, which
-     * already sees everything the server does.
+     * Names and nicknames to complete for a command that may be aimed at somebody who is not here:
+     * online first, then everybody known. Capped by Core.
      */
+    public static List<String> suggestions(Server server, String typed, Vanish vanish, UUID viewer) {
+        return PlayerTargets.suggestKnown(server, typed, visibleTo(vanish, viewer));
+    }
+
+    /** The same, for whoever is not a player and so has nobody to hide from. */
     public static List<String> suggestions(Server server, String typed, Vanish vanish) {
         return suggestions(server, typed, vanish, null);
+    }
+
+    /**
+     * Online players only, for a command that needs somebody here ({@code /msg}). Selectors are left out
+     * of the list: they work in other commands, but offering {@code @a} to a private message is a trap.
+     */
+    public static List<String> onlineSuggestions(Server server, String typed, Vanish vanish, UUID viewer) {
+        return PlayerTargets.suggest(server, typed, visibleTo(vanish, viewer)).stream()
+                .filter(name -> !PlayerTargets.isSelector(name))
+                .toList();
     }
 
     /**
@@ -131,14 +109,6 @@ public final class Players {
 
     /** Whether a real player, online or previously seen, already answers to this exact name. */
     public static boolean realNameInUse(Server server, String name) {
-        if (server == null || name == null || name.isBlank()) {
-            return false;
-        }
-        for (Player online : server.getOnlinePlayers()) {
-            if (online.getName().equalsIgnoreCase(name)) {
-                return true;
-            }
-        }
-        return find(server, name).isPresent();
+        return PlayerTargets.isRealName(server, name);
     }
 }

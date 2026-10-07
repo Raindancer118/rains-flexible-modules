@@ -13,8 +13,10 @@ import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.essentials.listener.EssentialsSessionListener;
 import de.raindancer.modules.essentials.profile.MessageProfileExtension;
 import de.raindancer.modules.essentials.service.AfkService;
+import de.raindancer.modules.essentials.service.EnchantService;
 import de.raindancer.modules.essentials.service.MessagingService;
 import de.raindancer.modules.essentials.service.NicknameService;
+import de.raindancer.modules.essentials.service.RepairService;
 import de.raindancer.modules.essentials.service.SpawnService;
 import de.raindancer.modules.essentials.service.WelcomeService;
 import de.raindancer.modules.essentials.store.EssentialsStore;
@@ -39,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.9.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.10.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, and a nickname")
             .by("Raindancer118");
@@ -97,8 +99,15 @@ public final class EssentialsModule implements FlexModule {
         MessagingService messaging = new MessagingService(store, context.core().messages(),
                 context.chat(), context.core().vanish(), settings.current());
         NicknameService nicknames = new NicknameService(store, blocklist,
-                context.core().identities(), context.core().messages(), context.chat(), server,
-                context.core().punishments(), context.core().audit(), settings.current());
+                context.core().identities(), context.core().nicknames(), context.core().messages(),
+                context.chat(), server, context.core().punishments(), context.core().audit(),
+                (who, task) -> Scheduling.onOwner(context.plugin(), who, task), settings.current());
+        // Nicknames set before Core had a directory become resolvable by every command from here on.
+        int synced = nicknames.syncDirectory();
+        EnchantService enchanting = new EnchantService(context.core().messages(), context.core().audit(),
+                (who, task) -> Scheduling.onOwner(context.plugin(), who, task), settings.current());
+        RepairService repairing = new RepairService(context.core().messages(), context.core().audit(),
+                (who, task) -> Scheduling.onOwner(context.plugin(), who, task), settings.current());
         de.raindancer.modules.essentials.service.ReactionService reactions =
                 new de.raindancer.modules.essentials.service.ReactionService(context.core().messages(),
                         context.core().buttons(), server, context.plugin(), settings.current());
@@ -107,7 +116,8 @@ public final class EssentialsModule implements FlexModule {
 
         services = new EssentialsServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
-                settings::current, store, blocklist, spawn, afk, messaging, nicknames, welcome, reactions);
+                settings::current, store, blocklist, spawn, afk, messaging, nicknames, welcome, reactions,
+                enchanting, repairing);
 
         settings.onChange(fresh -> {
             spawn.settings(fresh);
@@ -116,6 +126,8 @@ public final class EssentialsModule implements FlexModule {
             nicknames.settings(fresh);
             welcome.settings(fresh);
             reactions.settings(fresh);
+            enchanting.settings(fresh);
+            repairing.settings(fresh);
             // Shown everywhere or not is decided when a name is applied, so apply them again now.
             for (org.bukkit.entity.Player online : server.getOnlinePlayers()) {
                 de.raindancer.core.platform.util.Scheduling.entity(context.plugin(), online,
@@ -140,10 +152,10 @@ public final class EssentialsModule implements FlexModule {
         // been answering "not started yet" until now. See EssentialsCommands.
         EssentialsCommands.ready(services);
 
-        log.info("Essentials are up: {}s to /spawn, AFK after {}s, {} player(s) nicknamed, "
-                        + "{} name(s) blocklisted.",
+        log.info("Essentials are up: {}s to /spawn, AFK after {}s, {} player(s) nicknamed ({} in the "
+                        + "shared directory), {} name(s) blocklisted.",
                 settings.current().spawnWarmup(), settings.current().afkTimeout(),
-                store == null ? 0 : store.nicknameCount(), blocklist.enabledNameCount());
+                store == null ? 0 : store.nicknameCount(), synced, blocklist.enabledNameCount());
     }
 
     @Override

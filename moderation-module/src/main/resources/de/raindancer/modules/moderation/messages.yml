@@ -24,7 +24,7 @@ moderation:
   # NB: the keys are "turned-on" and not "on". YAML resolves a bare `on:` key to the boolean true, so
   # the line would be stored as ...instakill.true and every lookup would print its own key. Seen in
   # game once as "<moderation.tool.instakill.on>"; MessagesTest now fails the build over it.
-  # heal / feed / hurt / starve. Events, not toggles — so "done" rather than "turned-on".
+  # heal / feed / hurt / starve, from the player page. Events, not toggles — so "done" rather than "turned-on".
   vitals:
     heal:
       done: "<green>You are whole again. Good as new."
@@ -44,11 +44,6 @@ moderation:
       received: "<gray><white><player></white> emptied your hunger bar."
 
   tool:
-    fly:
-      turned-on: "<green>You can fly. Try not to look down."
-      turned-off: "<gray>You can no longer fly. Gravity says hello."
-      turned-on-other: "<green><white><player></white> can fly."
-      turned-off-other: "<gray><white><player></white> can no longer fly."
     god:
       turned-on: "<green>Nothing can hurt you. <dark_gray>Enjoy it, it goes off when you log out."
       turned-off: "<gray>You can be hurt again. Welcome back to the real world."

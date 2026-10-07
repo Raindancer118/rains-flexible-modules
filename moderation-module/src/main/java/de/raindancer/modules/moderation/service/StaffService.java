@@ -199,7 +199,12 @@ public final class StaffService implements IModerationService {
     public void recordSelfTool(CommandSender by, UUID who, String name,
                                de.raindancer.modules.moderation.command.SelfToolCommand.Tool tool,
                                boolean nowOn) {
-        audit.record(AuditEntry.of("moderation", (nowOn ? "" : "un") + tool.word())
+        recordSelfTool(by, who, name, tool.word(), nowOn);
+    }
+
+    /** The same, for a tool that is a button on the player page and no command, such as flight. */
+    public void recordSelfTool(CommandSender by, UUID who, String name, String word, boolean nowOn) {
+        audit.record(AuditEntry.of("moderation", (nowOn ? "" : "un") + word)
                 .by(by instanceof Player player ? player.getUniqueId() : null, nameOf(by))
                 .to(who, name)
                 .saying(nowOn ? "on" : "off"));
@@ -213,7 +218,7 @@ public final class StaffService implements IModerationService {
      * and neither answer is available from memory afterwards.
      */
     public void recordVital(CommandSender by, UUID who, String name,
-                            de.raindancer.modules.moderation.command.VitalsCommand.Vital vital) {
+                            de.raindancer.modules.moderation.model.Vital vital) {
         audit.record(AuditEntry.of("moderation", vital.word())
                 .by(by instanceof Player player ? player.getUniqueId() : null, nameOf(by))
                 .to(who, name)

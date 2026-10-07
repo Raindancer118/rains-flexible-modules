@@ -99,7 +99,7 @@ class SpeedrunLemmemoveCommandTest {
     void namingSomebodyElseWithPermissionReleasesThem() {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             Player bob = playerWithId(UUID.nameUUIDFromBytes("bob".getBytes()), "Bob");
-            bukkit.when(() -> Bukkit.getPlayerExact("Bob")).thenReturn(bob);
+            BukkitServerStub.online(bukkit, "Bob", bob);
             CommandSender sender = mock(CommandSender.class);
             when(sender.hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)).thenReturn(true);
             when(source.getSender()).thenReturn(sender);
@@ -115,7 +115,7 @@ class SpeedrunLemmemoveCommandTest {
     @DisplayName("naming somebody not online is refused cleanly")
     void namingSomebodyOfflineIsRefused() {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            bukkit.when(() -> Bukkit.getPlayerExact("Ghost")).thenReturn(null);
+            BukkitServerStub.online(bukkit, "Ghost", null);
             CommandSender sender = mock(CommandSender.class);
             when(sender.hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)).thenReturn(true);
             when(source.getSender()).thenReturn(sender);
@@ -123,6 +123,35 @@ class SpeedrunLemmemoveCommandTest {
             command.execute(source, new String[] {"Ghost"});
 
             verify(messages).send(sender, "speedrun.lemmemove.player-not-found", "player", "Ghost");
+        }
+    }
+
+    @Test
+    @DisplayName("a nickname names somebody too, and is offered while typing")
+    void nicknamesCount(@TempDir Path nicknameDir) {
+        de.raindancer.core.data.sql.Database database = de.raindancer.core.data.sql.Database.open(
+                nicknameDir.resolve("core.db"), de.raindancer.core.data.sql.CoreSchema.CORE, () -> false);
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            de.raindancer.core.ui.identity.Nicknames nicknames = new de.raindancer.core.ui.identity.Nicknames(database);
+            de.raindancer.core.platform.command.PlayerTargets.useNicknames(nicknames);
+            Player bob = playerWithId(UUID.nameUUIDFromBytes("bob".getBytes()), "Bob");
+            BukkitServerStub.online(bukkit, "Bob", bob);
+            org.bukkit.Server server = Bukkit.getServer();
+            when(server.getPlayer(bob.getUniqueId())).thenReturn(bob);
+            org.mockito.Mockito.doReturn(java.util.List.of(bob)).when(server).getOnlinePlayers();
+            nicknames.remember(bob.getUniqueId(), "Big Bob");
+            CommandSender sender = mock(CommandSender.class);
+            when(sender.hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)).thenReturn(true);
+            when(source.getSender()).thenReturn(sender);
+
+            command.execute(source, new String[] {"Big_Bob"});
+
+            assertReleased(bob.getUniqueId());
+            org.assertj.core.api.Assertions.assertThat(command.suggest(source, new String[] {"Big_"}))
+                    .containsExactly("Big_Bob");
+        } finally {
+            de.raindancer.core.platform.command.PlayerTargets.useNicknames(null);
+            database.close();
         }
     }
 

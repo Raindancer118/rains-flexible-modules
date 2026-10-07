@@ -1,5 +1,6 @@
 package de.raindancer.modules.essentials.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.essentials.EssentialsServices;
 import de.raindancer.modules.essentials.util.PermissionNodes;
 import de.raindancer.modules.essentials.util.Players;
@@ -11,7 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
 
-/** {@code /msg <player> <text>} — a private message. */
+/** {@code /msg <player> <text>} — a private message, to a name or to a nickname. */
 public final class MsgCommand implements IEssentialsCommand {
 
     private final Supplier<EssentialsServices> services;
@@ -37,7 +38,7 @@ public final class MsgCommand implements IEssentialsCommand {
             live.messages().send(from, "essentials.usage", "usage", "/msg <player> <message>");
             return;
         }
-        Player to = live.server().getPlayerExact(args[0]);
+        Player to = PlayerTargets.online(live.server(), args[0]).orElse(null);
         if (to == null) {
             live.messages().send(from, "essentials.no-such-player", "player", args[0]);
             return;
@@ -52,9 +53,8 @@ public final class MsgCommand implements IEssentialsCommand {
             EssentialsServices live = services.get();
             String typed = args.length == 1 ? args[0] : "";
             CommandSender sender = source.getSender();
-            return sender instanceof Player viewer
-                    ? Players.suggestions(live.server(), typed, live.core().vanish(), viewer.getUniqueId())
-                    : Players.suggestions(live.server(), typed, live.core().vanish());
+            return Players.onlineSuggestions(live.server(), typed, live.core().vanish(),
+                    sender instanceof Player viewer ? viewer.getUniqueId() : null);
         }
         return List.of();
     }

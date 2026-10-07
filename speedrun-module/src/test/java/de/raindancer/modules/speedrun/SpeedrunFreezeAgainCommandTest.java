@@ -114,7 +114,7 @@ class SpeedrunFreezeAgainCommandTest {
     void namingSomebodyElseWithPermissionFreezesThem() {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             Player bob = playerWithId(UUID.nameUUIDFromBytes("bob".getBytes()), "Bob");
-            bukkit.when(() -> Bukkit.getPlayerExact("Bob")).thenReturn(bob);
+            BukkitServerStub.online(bukkit, "Bob", bob);
             lobby.release(bob.getUniqueId());
             CommandSender sender = mock(CommandSender.class);
             when(sender.hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)).thenReturn(true);
@@ -131,7 +131,7 @@ class SpeedrunFreezeAgainCommandTest {
     @DisplayName("naming somebody not online is refused cleanly")
     void namingSomebodyOfflineIsRefused() {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            bukkit.when(() -> Bukkit.getPlayerExact("Ghost")).thenReturn(null);
+            BukkitServerStub.online(bukkit, "Ghost", null);
             CommandSender sender = mock(CommandSender.class);
             when(sender.hasPermission(PermissionNodes.LEMMEMOVE_OTHERS)).thenReturn(true);
             when(source.getSender()).thenReturn(sender);

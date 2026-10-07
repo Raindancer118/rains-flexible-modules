@@ -1,17 +1,15 @@
 package de.raindancer.modules.chained.command;
 
 import de.raindancer.core.world.manage.WorldSeed;
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.chained.ChainedServices;
 import de.raindancer.modules.chained.model.ChainPair;
 import de.raindancer.modules.chained.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
-import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -93,8 +91,8 @@ public final class ChainCommand implements IChainedCommand {
             live.messages().send(sender, "chained.usage.pair");
             return;
         }
-        Player first = Bukkit.getPlayerExact(args[1]);
-        Player second = Bukkit.getPlayerExact(args[2]);
+        Player first = PlayerTargets.online(live.server(), args[1]).orElse(null);
+        Player second = PlayerTargets.online(live.server(), args[2]).orElse(null);
         if (first == null || second == null) {
             live.messages().send(sender, "chained.unknown-player",
                     "name", first == null ? args[1] : args[2]);
@@ -128,8 +126,8 @@ public final class ChainCommand implements IChainedCommand {
             live.messages().send(sender, "chained.usage.unpair");
             return;
         }
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
-        if (!live.chain().unpair(target.getUniqueId())) {
+        java.util.Optional<java.util.UUID> target = PlayerTargets.idOf(live.server(), args[1]);
+        if (target.isEmpty() || !live.chain().unpair(target.get())) {
             live.messages().send(sender, "chained.not-paired", "name", args[1]);
             return;
         }
@@ -196,13 +194,9 @@ public final class ChainCommand implements IChainedCommand {
             de.raindancer.core.moderation.vanish.Vanish vanish = services.get().core().vanish();
             java.util.UUID viewer = source.getSender() instanceof Player asking
                     ? asking.getUniqueId() : null;
-            List<String> names = new ArrayList<>();
-            for (Player online : Bukkit.getOnlinePlayers()) {
-                if (viewer == null || vanish.canSee(viewer, online.getUniqueId())) {
-                    names.add(online.getName());
-                }
-            }
-            return startingWith(names, args[args.length - 1].toLowerCase(Locale.ROOT));
+            return PlayerTargets.suggest(services.get().server(), args[args.length - 1],
+                            online -> viewer == null || vanish.canSee(viewer, online.getUniqueId()))
+                    .stream().filter(name -> !PlayerTargets.isSelector(name)).toList();
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("reset")) {
             return startingWith(List.of("seed"), args[1].toLowerCase(Locale.ROOT));

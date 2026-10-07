@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.command;
 
+import de.raindancer.modules.speedrun.BukkitServerStub;
 import de.raindancer.modules.speedrun.manhunt.ManhuntServices;
 import de.raindancer.modules.speedrun.manhunt.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -171,7 +172,7 @@ class HubCommandsTest {
         Player ben = mock(Player.class);
         when(ben.getUniqueId()).thenReturn(BEN);
         when(ben.getName()).thenReturn("Ben");
-        bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+        BukkitServerStub.online(bukkit, "Ben", ben);
 
         run("unassign", "Ben");
 

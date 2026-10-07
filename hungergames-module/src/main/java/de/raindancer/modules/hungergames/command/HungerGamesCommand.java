@@ -1,5 +1,6 @@
 package de.raindancer.modules.hungergames.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.content.items.CustomItem;
 import de.raindancer.modules.hungergames.HungerGamesServices;
 import de.raindancer.modules.hungergames.model.ChatChannel;
@@ -192,7 +193,7 @@ public final class HungerGamesCommand implements IHungerGamesCommand {
 
         Player recipient;
         if (args.length >= 4) {
-            recipient = hg.server().getPlayerExact(args[3].strip());
+            recipient = PlayerTargets.online(hg.server(), args[3]).orElse(null);
             if (recipient == null) {
                 hg.messages().send(sender, "hungergames.give-nobody", "who", args[3]);
                 return;
@@ -297,6 +298,11 @@ public final class HungerGamesCommand implements IHungerGamesCommand {
         if (args.length == 2 && args[0].equalsIgnoreCase("chat")) {
             String typed = args[1].toLowerCase(Locale.ROOT);
             return List.of("team", "all").stream().filter(one -> one.startsWith(typed)).sorted().toList();
+        }
+        if (args.length == 4 && args[0].equalsIgnoreCase("give")
+                && PermissionNodes.mayOpenTheAdminSuite(source.getSender())) {
+            return PlayerTargets.suggest(services.get().server(), args[3]).stream()
+                    .filter(name -> !PlayerTargets.isSelector(name)).toList();
         }
         if (args.length > 1) {
             return List.of();

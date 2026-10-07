@@ -1,5 +1,7 @@
 package de.raindancer.modules.chat.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
+import de.raindancer.core.ui.identity.Nicknames;
 import de.raindancer.core.ui.chat.ChatChannels;
 import de.raindancer.modules.chat.ChatServices;
 import de.raindancer.modules.chat.model.PrivateChat;
@@ -257,10 +259,16 @@ final class PrivateChatSubcommand {
         if (action.equals("remove") || action.equals("kick")) {
             List<String> members = new ArrayList<>();
             for (UUID member : live.privateChat().readersOf(sender.getUniqueId())) {
+                if (member.equals(sender.getUniqueId())) {
+                    continue;
+                }
                 String name = nameOf(live, member);
-                if (!member.equals(sender.getUniqueId())
-                        && name.toLowerCase(Locale.ROOT).startsWith(typed.toLowerCase(Locale.ROOT))) {
-                    members.add(name);
+                String nickname = Nicknames.suggestion(PlayerTargets.shownName(live.server().getOfflinePlayer(member)));
+                for (String candidate : List.of(name, nickname)) {
+                    if (candidate.toLowerCase(Locale.ROOT).startsWith(typed.toLowerCase(Locale.ROOT))
+                            && !members.contains(candidate)) {
+                        members.add(candidate);
+                    }
                 }
             }
             return members;
@@ -270,7 +278,8 @@ final class PrivateChatSubcommand {
 
     private static Optional<UUID> memberNamed(ChatServices live, Player sender, String name) {
         for (UUID member : live.privateChat().readersOf(sender.getUniqueId())) {
-            if (nameOf(live, member).equalsIgnoreCase(name)) {
+            if (nameOf(live, member).equalsIgnoreCase(name)
+                    || PlayerTargets.idOf(live.server(), name).filter(member::equals).isPresent()) {
                 return Optional.of(member);
             }
         }

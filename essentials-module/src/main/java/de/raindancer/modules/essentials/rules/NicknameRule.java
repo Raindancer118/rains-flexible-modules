@@ -31,6 +31,7 @@ public final class NicknameRule extends AbstractRule<NicknameRule.Request> {
     public static final String TOO_LONG = "essentials.nick.too-long";
     public static final String NAME_TAKEN = "essentials.nick.taken";
     public static final String BLOCKED = "essentials.nick.blocked";
+    public static final String NICK_TAKEN = "essentials.nick.nick-taken";
 
     public NicknameRule() {
         super("a nickname is not blank, not too long, not blocklisted, and not somebody else's real "
@@ -48,11 +49,18 @@ public final class NicknameRule extends AbstractRule<NicknameRule.Request> {
      * @param nameInUse whether a real player already answers to this, worked out by the caller
      * @param blocked   whether this matches a configured blocklist, and which one — worked out by
      *                  the caller, which already has the lists to check against
+     * @param nickTaken whether somebody <em>else</em> already goes by this nickname, as a command
+     *                  would type it — two people sharing one would make {@code /msg} ambiguous
      */
-    public record Request(Nickname nickname, int maxLength, boolean nameInUse, BlockMatch blocked) {
+    public record Request(Nickname nickname, int maxLength, boolean nameInUse, BlockMatch blocked,
+                          boolean nickTaken) {
 
         public Request {
             blocked = blocked == null ? BlockMatch.NONE : blocked;
+        }
+
+        public Request(Nickname nickname, int maxLength, boolean nameInUse, BlockMatch blocked) {
+            this(nickname, maxLength, nameInUse, blocked, false);
         }
 
         /** The common case: nothing on any blocklist. */
@@ -74,6 +82,9 @@ public final class NicknameRule extends AbstractRule<NicknameRule.Request> {
         }
         if (request.nameInUse()) {
             return Verdict.refused(NAME_TAKEN, request.nickname().plain());
+        }
+        if (request.nickTaken()) {
+            return Verdict.refused(NICK_TAKEN, request.nickname().plain());
         }
         return Verdict.allowed();
     }

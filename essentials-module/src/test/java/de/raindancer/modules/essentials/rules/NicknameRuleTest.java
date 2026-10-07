@@ -108,6 +108,30 @@ class NicknameRuleTest {
         }
     }
 
+    @Nested
+    @DisplayName("somebody else's nickname")
+    class Taken {
+
+        @Test
+        @DisplayName("is refused, and says which nickname")
+        void isRefused() {
+            Verdict verdict = rule.judge(new NicknameRule.Request(Nickname.of("Foxy"), 16, false,
+                    NicknameRule.BlockMatch.NONE, true));
+
+            assertThat(verdict.reason()).isEqualTo(NicknameRule.NICK_TAKEN);
+            assertThat(verdict.detail()).isEqualTo("Foxy");
+        }
+
+        @Test
+        @DisplayName("a real name is the more serious refusal and wins")
+        void realNameWins() {
+            Verdict verdict = rule.judge(new NicknameRule.Request(Nickname.of("Foxy"), 16, true,
+                    NicknameRule.BlockMatch.NONE, true));
+
+            assertThat(verdict.reason()).isEqualTo(NicknameRule.NAME_TAKEN);
+        }
+    }
+
     @Test
     @DisplayName("a nickname that fits and belongs to nobody is allowed")
     void allowsAGoodOne() {

@@ -1,6 +1,7 @@
 package de.raindancer.modules.speedrun.manhunt.command;
 
 import de.raindancer.core.platform.util.Closest;
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.speedrun.SpeedrunBoard;
 import de.raindancer.modules.speedrun.manhunt.ManhuntServices;
 import de.raindancer.modules.speedrun.manhunt.mode.ManhuntMode;
@@ -248,7 +249,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             live.compasses().giveEverybody(sender, kind);
             return;
         }
-        Player target = Bukkit.getPlayerExact(args[1]);
+        Player target = PlayerTargets.online(Bukkit.getServer(), args[1]).orElse(null);
         if (target == null) {
             live.messages().send(sender, "manhunt.no-such-player", "player", args[1]);
             return;
@@ -389,13 +390,14 @@ public final class ManhuntCommand implements IManhuntCommand {
         live.messages().send(sender, "manhunt.unassign.done", "player", args[1]);
     }
 
-    /** An online name first, then anybody this server's hunts remember. */
+    /** An online name or nickname first, then anybody this server's hunts remember, then anybody else it knows. */
     private static Optional<UUID> resolve(ManhuntServices live, String name) {
-        Player online = Bukkit.getPlayerExact(name);
-        if (online != null) {
-            return Optional.of(online.getUniqueId());
+        Optional<Player> online = PlayerTargets.online(Bukkit.getServer(), name);
+        if (online.isPresent()) {
+            return Optional.of(online.get().getUniqueId());
         }
-        return live.stats().byName(name);
+        Optional<UUID> remembered = live.stats().byName(name);
+        return remembered.isPresent() ? remembered : PlayerTargets.idOf(Bukkit.getServer(), name);
     }
 
     /** {@code /manhunt door keep-open|close-on-start}: what a start does to the whitelist. */
@@ -459,7 +461,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             whose = self.getUniqueId();
         } else {
             whose = resolve(live, args[1]).orElse(null);
-            if (whose == null || !live.stats().has(whose) && Bukkit.getPlayerExact(args[1]) == null) {
+            if (whose == null || !live.stats().has(whose) && PlayerTargets.online(Bukkit.getServer(), args[1]).isEmpty()) {
                 live.messages().send(sender, "manhunt.stats.unknown", "player", args[1]);
                 return;
             }
@@ -683,7 +685,7 @@ public final class ManhuntCommand implements IManhuntCommand {
             live.messages().send(sender, "manhunt.assign.usage");
             return;
         }
-        Player target = Bukkit.getPlayerExact(args[1]);
+        Player target = PlayerTargets.online(Bukkit.getServer(), args[1]).orElse(null);
         if (target == null) {
             live.messages().send(sender, "manhunt.no-such-player", "player", args[1]);
             return;
@@ -812,7 +814,7 @@ public final class ManhuntCommand implements IManhuntCommand {
                     return sides(typed);
                 }
                 case "stats" -> {
-                    return starting(knownNames(), typed);
+                    return starting(knownNames(typed), typed);
                 }
                 case "top" -> {
                     return starting(Arrays.stream(SpeedrunBoard.values()).map(SpeedrunBoard::id).toList(), typed);
@@ -847,11 +849,11 @@ public final class ManhuntCommand implements IManhuntCommand {
                     return starting(List.of("0:00", "10:00", "30:00", "1:00:00"), typed);
                 }
                 case "assign", "unassign" -> {
-                    return starting(onlineNames(), typed);
+                    return starting(onlineNames(typed), typed);
                 }
                 case "give" -> {
                     List<String> targets = new ArrayList<>(List.of("all"));
-                    targets.addAll(onlineNames());
+                    targets.addAll(onlineNames(typed));
                     return starting(targets, typed);
                 }
                 default -> {
@@ -890,12 +892,13 @@ public final class ManhuntCommand implements IManhuntCommand {
         return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(prefix)).limit(50).toList();
     }
 
-    private static List<String> onlineNames() {
-        return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+    private static List<String> onlineNames(String typed) {
+        return PlayerTargets.suggest(Bukkit.getServer(), typed).stream()
+                .filter(name -> !PlayerTargets.isSelector(name)).toList();
     }
 
-    private List<String> knownNames() {
-        List<String> names = new ArrayList<>(onlineNames());
+    private List<String> knownNames(String typed) {
+        List<String> names = new ArrayList<>(onlineNames(typed));
         for (PlayerStats stats : services.get().stats().top(SpeedrunBoard.RATING, 200)) {
             if (!names.contains(stats.name())) {
                 names.add(stats.name());

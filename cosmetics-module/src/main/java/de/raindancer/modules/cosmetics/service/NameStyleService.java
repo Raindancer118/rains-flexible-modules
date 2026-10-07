@@ -1,6 +1,7 @@
 package de.raindancer.modules.cosmetics.service;
 
 import de.raindancer.core.platform.rule.Verdict;
+import de.raindancer.core.ui.choose.StyleGrants;
 import de.raindancer.core.ui.identity.Identities;
 import de.raindancer.core.ui.identity.Nametags;
 import de.raindancer.core.ui.messages.Messages;
@@ -98,6 +99,25 @@ public final class NameStyleService implements ICosmeticsService {
                 who.hasPermission(PermissionNodes.NAME_ANIMATED), decorations, presets);
     }
 
+    /**
+     * What Core's style editor may offer, worded so a greyed button still says which node unlocks it.
+     * A decoration has one sentence for all of them, so it names the family.
+     */
+    public static StyleGrants styleGrants(Grants grants) {
+        return new StyleGrants(grants.colour(), grants.gradient(), grants.anyColour(), grants.animated(),
+                grants.decorations(), java.util.Map.of())
+                .worded(StyleGrants.Feature.COLOUR, "Needs " + PermissionNodes.NAME_COLOUR)
+                .worded(StyleGrants.Feature.GRADIENT, "Needs " + PermissionNodes.NAME_GRADIENT)
+                .worded(StyleGrants.Feature.ANY_COLOUR, "Needs " + PermissionNodes.NAME_ANY_COLOUR)
+                .worded(StyleGrants.Feature.ANIMATED, "Needs " + PermissionNodes.NAME_ANIMATED)
+                .worded(StyleGrants.Feature.DECORATION,
+                        "Needs a " + PermissionNodes.DECORATION_PREFIX + "* node");
+    }
+
+    public StyleGrants styleGrantsOf(Permissible who) {
+        return styleGrants(grantsOf(who));
+    }
+
     public Verdict judge(Permissible who, NameStyle style) {
         return rule.judge(style, grantsOf(who), catalogue.get(), settings.stops());
     }
@@ -164,6 +184,11 @@ public final class NameStyleService implements ICosmeticsService {
             return false;
         }
         return wear(who, preset.style());
+    }
+
+    /** Takes the style off by id, so it works for somebody who is not here. @return whether it was saved */
+    public boolean strip(UUID who) {
+        return identities.setNameStyle(who, NameStyle.NONE);
     }
 
     /** Staff taking somebody's style off — the one way to do it to somebody else. */

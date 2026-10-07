@@ -1,9 +1,11 @@
 package de.raindancer.modules.hungergames.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.hungergames.HungerGamesServices;
 import de.raindancer.modules.hungergames.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -74,8 +76,10 @@ public final class AllowCommand implements IHungerGamesCommand {
 
         // Every name on the line, not just the first. Somebody working through a sign-up sheet pastes them
         // in batches, and a command that took one per invocation made that forty commands.
-        for (String name : args) {
-            UUID uuid = resolve(hg, name);
+        for (String typed : args) {
+            UUID uuid = resolve(hg, typed);
+            // A nickname is a way to point at somebody, not what the list should remember them as.
+            String name = PlayerTargets.online(hg.server(), typed).map(Player::getName).orElse(typed);
             if (hg.session().whitelistAdd(uuid, name)) {
                 added.add(name);
             } else {
@@ -99,7 +103,7 @@ public final class AllowCommand implements IHungerGamesCommand {
     }
 
     /**
-     * Somebody's UUID: theirs if they are online, otherwise one derived from the name.
+     * Somebody's UUID: theirs if they are online (by name or nickname), otherwise one derived from the name.
      *
      * <p>Deliberately not a Mojang lookup. This is run before an event, often in bulk, sometimes on a server
      * with no outbound internet, and a blocking HTTP call per name would freeze the server for as long as
@@ -110,9 +114,9 @@ public final class AllowCommand implements IHungerGamesCommand {
      * on every join, and the registry keys on whoever actually connects.
      */
     private UUID resolve(HungerGamesServices hg, String name) {
-        var online = hg.server().getPlayerExact(name);
-        if (online != null) {
-            return online.getUniqueId();
+        var online = PlayerTargets.online(hg.server(), name);
+        if (online.isPresent()) {
+            return online.get().getUniqueId();
         }
         return UUID.nameUUIDFromBytes(("hungergames:" + name.toLowerCase(Locale.ROOT))
                 .getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -123,12 +127,11 @@ public final class AllowCommand implements IHungerGamesCommand {
         // Whoever is online and is not a tribute yet. Only a help — the whole point of this command is that
         // it accepts names that are not in that list.
         HungerGamesServices hg = services.get();
-        String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
+        String typed = args.length == 0 ? "" : args[args.length - 1];
 
-        return hg.server().getOnlinePlayers().stream()
-                .filter(player -> !hg.session().isWhitelisted(player.getUniqueId()))
-                .map(player -> player.getName())
-                .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(typed))
+        return PlayerTargets.suggest(hg.server(), typed, player -> !hg.session().isWhitelisted(player.getUniqueId()))
+                .stream()
+                .filter(name -> !PlayerTargets.isSelector(name))
                 .sorted()
                 .toList();
     }

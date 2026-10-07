@@ -61,6 +61,9 @@ public final class ModuleBootstrap implements PluginBootstrap {
             // once, the same way commandList and clickCallback already are, so every module-standalone
             // plugin and every bundle gets it for free regardless of which modules are actually present.
             de.raindancer.core.platform.command.CoreCommands.settings(event.registrar(), "settings");
+            // One /prefix per server, for the same reason: Core declines every plugin but the first.
+            // Its permission, rainscore.prefix, is declared nowhere: undeclared Core nodes are op-only.
+            de.raindancer.core.platform.command.CoreCommands.prefix(event.registrar());
         });
     }
 }

@@ -24,6 +24,20 @@ public final class PermissionNodes {
     public static final String NICK = "essentials.nick";
     public static final String AFK = "essentials.afk";
 
+    public static final String ENCHANT = "essentials.enchant";
+    public static final String ENCHANT_BEYOND_MAX = "essentials.enchant.beyond-max";
+    public static final String ENCHANT_ANY_ITEM = "essentials.enchant.any-item";
+    public static final String ENCHANT_OTHERS = "essentials.enchant.others";
+
+    public static final String REPAIR = "essentials.repair";
+    public static final String REPAIR_ALL = "essentials.repair.all";
+    public static final String REPAIR_OTHERS = "essentials.repair.others";
+
+    /** Setting and clearing somebody else's nickname, online or not. */
+    public static final String NICK_OTHERS = "essentials.nick.others";
+    /** Skipping the blocklist, for staff who set a nickname that would otherwise be refused. */
+    public static final String NICK_BYPASS_BLOCKLIST = "essentials.nick.bypass-blocklist";
+
     /** Who is told automatically when somebody tries a blocklisted nickname. */
     public static final String STAFF_NOTIFY = "essentials.staff.notify";
 
@@ -45,6 +59,19 @@ public final class PermissionNodes {
                         PermissionDefault.TRUE),
                 new Permission(NICK, "Set your own nickname", PermissionDefault.TRUE),
                 new Permission(AFK, "Mark yourself away from the keyboard", PermissionDefault.TRUE),
+                new Permission(ENCHANT, "Enchant the item in your hand with /enchant", PermissionDefault.OP),
+                new Permission(ENCHANT_BEYOND_MAX, "Enchant past the level vanilla allows, up to 255",
+                        PermissionDefault.OP),
+                new Permission(ENCHANT_ANY_ITEM, "Put an enchantment on an item it does not normally fit",
+                        PermissionDefault.OP),
+                new Permission(ENCHANT_OTHERS, "Enchant what somebody else is holding", PermissionDefault.OP),
+                new Permission(REPAIR, "Repair the item in your hand with /repair", PermissionDefault.OP),
+                new Permission(REPAIR_ALL, "Repair everything you carry with /repairall", PermissionDefault.OP),
+                new Permission(REPAIR_OTHERS, "Repair somebody else's items", PermissionDefault.OP),
+                new Permission(NICK_OTHERS, "Set and clear other players' nicknames, online or not",
+                        PermissionDefault.OP),
+                new Permission(NICK_BYPASS_BLOCKLIST, "Set a nickname that is on the blocklist",
+                        PermissionDefault.OP),
                 new Permission(STAFF_NOTIFY,
                         "See automatic reports for blocked nicknames and other flagged attempts",
                         PermissionDefault.OP),

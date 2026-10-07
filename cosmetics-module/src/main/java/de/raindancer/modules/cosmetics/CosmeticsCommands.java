@@ -33,6 +33,8 @@ public final class CosmeticsCommands {
                                 "name set <colours…> [bold|italic|…] — colours in the order typed",
                                 "name reset — back to a plain name",
                                 "name reset <player> — takes somebody's style off (staff)",
+                                "clear [name|particles|all] — takes your own cosmetics off",
+                                "clear [name|particles|all] <player> — takes somebody else's off (staff)",
                                 "reload — re-reads the palette and presets (staff)"));
     }
 

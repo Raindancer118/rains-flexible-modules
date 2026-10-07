@@ -1,10 +1,12 @@
 package de.raindancer.modules.cosmetics.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.ui.prompt.Parsed;
 import de.raindancer.core.ui.effect.ParticleShape;
 import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.cosmetics.CosmeticsServices;
 import de.raindancer.modules.cosmetics.model.Catalogue;
+import de.raindancer.modules.cosmetics.model.ClearScope;
 import de.raindancer.modules.cosmetics.model.PaletteColour;
 import de.raindancer.modules.cosmetics.model.Preset;
 import de.raindancer.modules.cosmetics.rules.TypedStyleRule;
@@ -22,12 +24,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
  * {@code /cosmetics} — the menus, plus what is quicker typed than clicked:
  * {@code name preset <id>}, {@code name set <colours…> [decorations…]}, {@code name reset [player]},
- * {@code particle <name>|off|shape <shape>|colour <colour>}, {@code reload}.
+ * {@code particle <name>|off|shape <shape>|colour <colour>}, {@code clear [name|particles|all] [player]},
+ * {@code reload}.
  */
 public final class CosmeticsCommand implements ICosmeticsCommand {
 
@@ -54,6 +59,10 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                     "colours", loaded.palette().size(), "presets", loaded.presets().size());
             return;
         }
+        if (first.equals("clear")) {
+            clear(live, sender, Arrays.copyOfRange(args, 1, args.length));
+            return;
+        }
         if (first.equals("name") && args.length > 1) {
             name(live, sender, Arrays.copyOfRange(args, 1, args.length));
             return;
@@ -73,6 +82,36 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
         live.messages().send(sender, "cosmetics.usage");
     }
 
+    /** {@code clear [name|particles|all] [player]} — a scope word is optional, so {@code clear Steve} clears all of Steve's. */
+    private void clear(CosmeticsServices live, CommandSender sender, String[] args) {
+        Optional<ClearScope> scope = args.length > 0 ? ClearScope.of(args[0]) : Optional.empty();
+        int next = scope.isPresent() ? 1 : 0;
+        if (args.length > next + 1) {
+            live.messages().send(sender, "cosmetics.clear.usage");
+            return;
+        }
+        OfflinePlayer target;
+        if (args.length > next) {
+            Optional<OfflinePlayer> found = PlayerTargets.find(live.server(), args[next]);
+            if (found.isEmpty()) {
+                live.messages().send(sender, "cosmetics.unknown-player", "player", args[next]);
+                return;
+            }
+            target = found.get();
+        } else if (sender instanceof Player self) {
+            target = self;
+        } else {
+            live.messages().send(sender, "cosmetics.only-a-player");
+            return;
+        }
+        boolean self = sender instanceof Player who && who.getUniqueId().equals(target.getUniqueId());
+        if (!live.clearing().may(sender, self)) {
+            live.messages().send(sender, self ? "cosmetics.clear.not-allowed" : "cosmetics.clear.not-allowed-others");
+            return;
+        }
+        live.clearing().clear(sender, target, scope.orElse(ClearScope.ALL));
+    }
+
     private void name(CosmeticsServices live, CommandSender sender, String[] args) {
         String action = args[0].toLowerCase(Locale.ROOT);
         if (action.equals("reset") && args.length > 1) {
@@ -80,12 +119,12 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                 live.messages().send(sender, "cosmetics.no-permission");
                 return;
             }
-            OfflinePlayer target = live.server().getOfflinePlayerIfCached(args[1]);
-            if (target == null) {
+            Optional<OfflinePlayer> target = PlayerTargets.find(live.server(), args[1]);
+            if (target.isEmpty()) {
                 live.messages().send(sender, "cosmetics.unknown-player", "player", args[1]);
                 return;
             }
-            live.names().resetOther(sender, target);
+            live.names().resetOther(sender, target.get());
             return;
         }
         if (!(sender instanceof Player player)) {
@@ -195,6 +234,7 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
         if (args.length <= 1) {
             options.add("name");
             options.add("particle");
+            options.add("clear");
             if (admin) {
                 options.add("reload");
             }
@@ -220,13 +260,21 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
                 && args[1].toLowerCase(Locale.ROOT).startsWith("colo")) {
             live.offered().palette().stream().map(PaletteColour::label)
                     .map(label -> label.replace(' ', '_')).forEach(options::add);
+        } else if (args[0].equalsIgnoreCase("clear") && args.length == 2) {
+            options.addAll(ClearScope.keys());
+            if (sender.hasPermission(PermissionNodes.CLEAR_OTHERS)) {
+                options.addAll(knownPlayers(live, sender, args[1]));
+            }
+        } else if (args[0].equalsIgnoreCase("clear") && args.length == 3
+                && ClearScope.of(args[1]).isPresent() && sender.hasPermission(PermissionNodes.CLEAR_OTHERS)) {
+            options.addAll(knownPlayers(live, sender, args[2]));
         } else if (args[0].equalsIgnoreCase("name") && args.length == 2) {
             options.addAll(List.of("preset", "set", "reset"));
         } else if (args[0].equalsIgnoreCase("name") && args[1].equalsIgnoreCase("preset") && args.length == 3) {
             live.offered().presets().stream().map(Preset::id).forEach(options::add);
         } else if (args[0].equalsIgnoreCase("name") && args[1].equalsIgnoreCase("reset") && args.length == 3
                 && admin) {
-            live.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
+            options.addAll(knownPlayers(live, sender, args[2]));
         } else if (args[0].equalsIgnoreCase("name") && args[1].equalsIgnoreCase("set") && args.length >= 3) {
             live.offered().palette().stream().map(PaletteColour::label)
                     .map(label -> label.replace(' ', '_')).forEach(options::add);
@@ -236,6 +284,14 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
         }
         String typing = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
         return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(typing)).toList();
+    }
+
+    /** Names and nicknames of everybody known, leaving out online players the sender may not see. */
+    private static List<String> knownPlayers(CosmeticsServices live, CommandSender sender, String typed) {
+        Predicate<Player> visible = sender instanceof Player viewer
+                ? who -> live.vanish().canSee(viewer.getUniqueId(), who.getUniqueId())
+                : who -> true;
+        return PlayerTargets.suggestKnown(live.server(), typed, visible);
     }
 
     @Override

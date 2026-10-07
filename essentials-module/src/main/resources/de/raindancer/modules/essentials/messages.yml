@@ -61,10 +61,53 @@ essentials:
     too-long: "<red>That is too long — <white><detail></white> characters at most, not counting colour. Brevity, please."
     taken: "<red><white><detail></white> is somebody's real name. Pick another — identity theft is frowned upon."
     blocked: "<red>That name is not allowed here. Pick another."
+    nick-taken: "<red>Somebody already goes by <white><detail></white>. Two of them would make every <white>/msg</white> a coin toss — pick another."
+    # Staff setting and clearing somebody else's.
+    not-others: "<red>Other people's nicknames are staff business. Yours, you may of course fiddle with."
+    set-other: "<green><white><player></white> is now known as <nickname>."
+    set-by-staff: "<yellow>A staff member gave you a new name: <nickname><yellow>. Wear it well."
+    cleared-other: "<green><white><player></white> is back to their own name."
+    cleared-by-staff: "<yellow>A staff member took your nickname off. You are yourself again."
+    none-to-clear: "<gray><white><player></white> has no nickname to take off. Already as plain as it gets."
     # What staff see, at once, when somebody tries one — never shown to the player themselves, who
     # only ever gets the plain "blocked" refusal above.
     blocked-report: "<red>⚑ <white><player></white> <gray>tried the blocked nickname <white><attempted></white>."
     blocked-report-banned: "<red>⚑ <white><player></white> <gray>tried the blocked nickname <white><attempted></white> <red>and has been banned for a day."
+
+  # ── /enchant ──────────────────────────────────────────────────────────────
+  enchant:
+    unknown: "<red>There is no enchantment called <white><enchantment></white>. Tab shows the ones there are."
+    nobody-there: "<red>Nobody here answers to <white><player></white>. Enchanting thin air is not a thing."
+    nothing-held: "<red>Nothing in the hand to enchant — you cannot put a spell on thin air."
+    not-others: "<red>Enchanting what somebody else is holding is staff business."
+    wrong-item: "<red><white><enchantment></white> does not go on that. Vanilla would shrug and say no."
+    too-high: "<red>Vanilla stops at <white><detail></white> for that one, and so do you — without the beyond-max permission."
+    level-range: "<red>Levels run from <white>1</white> to <white>255</white>, and <white>0</white> takes it off. Anything else is not a level."
+    not-on-item: "<red>That enchantment is not on the item, so there is nothing to take off."
+    applied: "<green>Done: <white><enchantment></white> on your <white><item></white>. Shiny."
+    removed: "<green><white><enchantment></white> is off your <white><item></white>. It will not be missed."
+    applied-other: "<green><white><enchantment></white> is now on <white><player></white>'s <white><item></white>."
+    removed-other: "<green><white><enchantment></white> is off <white><player></white>'s <white><item></white>."
+    by-staff: "<yellow>A staff member fiddled with your <white><item></white>: <white><enchantment></white>. Check the tooltip."
+    cleared: "<green>Stripped <white><count></white> enchantment(s) off. Plain as the day it was crafted."
+    cleared-other: "<green>Stripped <white><count></white> enchantment(s) off <white><player></white>'s item."
+    nothing-to-clear: "<gray>There is nothing on it to strip. It is already as plain as it gets."
+
+  # ── /repair and /repairall ────────────────────────────────────────────────
+  repair:
+    nobody-there: "<red>Nobody here answers to <white><player></white>. Nobody's tools to fix, then."
+    not-others: "<red>Fixing somebody else's things is staff business. Mind your own pickaxe."
+    not-all: "<red>Fixing the whole inventory at once is a privilege you do not have. One item at a time, then."
+    nothing-held: "<red>Your hands are empty. There is nothing to fix but thin air."
+    not-damageable: "<red>That cannot wear out, so there is nothing to repair. Dirt is immortal."
+    already-fine: "<gray>It is already in perfect shape. Do not fix what is not broken."
+    hand: "<green>Your <white><item></white> is good as new."
+    hand-other: "<green><white><player></white>'s <white><item></white> is good as new."
+    all: "<green>Fixed up <white><things></white>. Good as new — well, almost."
+    all-none: "<gray>Nothing you carry needs fixing. Suspiciously well looked after."
+    all-none-other: "<gray>Nothing <white><player></white> carries needs fixing."
+    all-other: "<green>Fixed up <white><things></white> for <white><player></white>."
+    by-staff: "<yellow>A staff member mended your things: <white><what></white>. You are welcome."
 
   # ── the in-game blocklist editor, /blocklist ─────────────────────────────
   blocklist:

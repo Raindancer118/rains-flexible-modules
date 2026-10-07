@@ -1,5 +1,6 @@
 package de.raindancer.modules.tpa.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.tpa.TpaServices;
 import de.raindancer.modules.tpa.model.TpaKind;
 import de.raindancer.modules.tpa.util.PermissionNodes;
@@ -51,10 +52,10 @@ public final class AskCommand implements ITpaCommand {
             return;
         }
 
-        // By name, among people who are online. Never getOfflinePlayer(String), which blocks on a
+        // By name or nickname, among people who are online. Never getOfflinePlayer(String), which blocks on a
         // lookup against Mojang from what on Folia may be a region thread — and there is nothing to ask
         // of somebody who is not here anyway.
-        Player them = live.server().getPlayerExact(args[0]);
+        Player them = PlayerTargets.online(live.server(), args[0]).orElse(null);
         if (them == null || !them.isOnline()) {
             live.messages().send(player, "tpa.no-such-player", "player", args[0]);
             return;
@@ -68,15 +69,11 @@ public final class AskCommand implements ITpaCommand {
         if (!(source.getSender() instanceof Player player) || args.length > 1) {
             return List.of();
         }
-        String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
         TpaServices live = services.get();
-        return live.server().getOnlinePlayers().stream()
-                .filter(other -> !other.equals(player))
-                .filter(other -> live.core().vanish().canSee(player.getUniqueId(), other.getUniqueId()))
-                .map(Player::getName)
-                .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(typed))
-                .limit(50)
-                .toList();
+        return PlayerTargets.suggest(live.server(), args.length == 0 ? "" : args[0],
+                        other -> !other.equals(player)
+                                && live.core().vanish().canSee(player.getUniqueId(), other.getUniqueId()))
+                .stream().filter(name -> !PlayerTargets.isSelector(name)).toList();
     }
 
     @Override

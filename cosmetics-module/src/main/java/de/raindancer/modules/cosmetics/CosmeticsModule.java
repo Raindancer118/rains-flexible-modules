@@ -2,6 +2,7 @@ package de.raindancer.modules.cosmetics;
 
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
@@ -11,6 +12,7 @@ import de.raindancer.modules.cosmetics.model.Catalogue;
 import de.raindancer.modules.cosmetics.screen.CosmeticsMenu;
 import de.raindancer.modules.cosmetics.screen.NameStyleMenu;
 import de.raindancer.modules.cosmetics.screen.ParticleMenu;
+import de.raindancer.modules.cosmetics.service.ClearService;
 import de.raindancer.modules.cosmetics.service.NameStyleService;
 import de.raindancer.modules.cosmetics.service.ParticleService;
 import de.raindancer.modules.cosmetics.service.ReloadService;
@@ -31,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.6.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.7.0")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -72,14 +74,18 @@ public final class CosmeticsModule implements FlexModule {
         particles.start();
         context.closeWith(particles::stop);
         ReloadService reloading = new ReloadService(settings, catalogue, server, log);
+        ClearService clearing = new ClearService(names, particles, context.core().messages(),
+                context.core().audit(),
+                (who, task) -> Scheduling.entity(context.plugin(), who, task), settings.current());
         services = new CosmeticsServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), catalogue::current, settings::current, names, particles, reloading,
-                new LiveScreens());
+                clearing, context.core().vanish(), new LiveScreens());
 
         settings.onChange(fresh -> {
             names.settings(fresh);
             particles.settings(fresh);
             reloading.settings(fresh);
+            clearing.settings(fresh);
         });
 
         context.listener(new JoinListener(services));

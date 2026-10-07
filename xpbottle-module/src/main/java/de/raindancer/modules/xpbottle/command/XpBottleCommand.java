@@ -1,5 +1,6 @@
 package de.raindancer.modules.xpbottle.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.xpbottle.XpBottleServices;
 import de.raindancer.modules.xpbottle.service.BottleForge;
 import de.raindancer.modules.xpbottle.util.PermissionNodes;
@@ -61,7 +62,7 @@ public final class XpBottleCommand implements IXpBottleCommand {
             live.messages().send(sender, "xpbottle.usage");
             return;
         }
-        Player target = live.server().getPlayerExact(args[1]);
+        Player target = PlayerTargets.online(live.server(), args[1]).orElse(null);
         if (target == null) {
             live.messages().send(sender, "xpbottle.give.not-online", "player", args[1]);
             return;
@@ -108,14 +109,8 @@ public final class XpBottleCommand implements IXpBottleCommand {
             return List.of();
         }
         if (args.length == 2) {
-            String started = args[1].toLowerCase(Locale.ROOT);
-            List<String> names = new ArrayList<>();
-            for (Player online : services.get().server().getOnlinePlayers()) {
-                if (online.getName().toLowerCase(Locale.ROOT).startsWith(started)) {
-                    names.add(online.getName());
-                }
-            }
-            return names;
+            return PlayerTargets.suggest(services.get().server(), args[1]).stream()
+                    .filter(name -> !PlayerTargets.isSelector(name)).toList();
         }
         if (args.length == 3) {
             List<String> tiers = new ArrayList<>();

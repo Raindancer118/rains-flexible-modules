@@ -1,7 +1,7 @@
 package de.raindancer.modules.invsnap.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.invsnap.InvSnapServices;
-import de.raindancer.modules.invsnap.util.Players;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
@@ -39,7 +39,7 @@ public final class InvSnapCommand implements IInvSnapCommand {
             live.screens().root(admin);
             return;
         }
-        Optional<OfflinePlayer> target = Players.find(live.server(), args[0]);
+        Optional<OfflinePlayer> target = PlayerTargets.find(live.server(), args[0]);
         if (target.isEmpty()) {
             live.messages().send(sender, "invsnap.unknown-player", "player", args[0]);
             return;
@@ -54,7 +54,7 @@ public final class InvSnapCommand implements IInvSnapCommand {
         if (args.length != 1) {
             return List.of();
         }
-        return Players.suggestions(services.get().server(), args[0]);
+        return PlayerTargets.suggestKnown(services.get().server(), args[0], who -> true);
     }
 
     @Override

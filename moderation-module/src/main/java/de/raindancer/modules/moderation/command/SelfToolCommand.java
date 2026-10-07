@@ -14,7 +14,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * {@code /fly}, {@code /god}, {@code /ungod}, {@code /instakill}, {@code /instabreak} — the tools a
+ * {@code /god}, {@code /ungod}, {@code /instakill}, {@code /instabreak} — the tools a
  * moderator points at themselves.
  *
  * <h2>Why one class for all of them</h2>
@@ -32,9 +32,6 @@ public final class SelfToolCommand extends StaffCommand {
 
     /** What each of the commands actually does. */
     public enum Tool {
-
-        /** Flight. Off and on again, and remembered by nothing — the game already stores it. */
-        FLY("fly", "Lets somebody fly", ModerationPermission.FLY),
 
         /** Nothing hurts them. */
         GOD("god", "Makes somebody invulnerable", ModerationPermission.GOD),
@@ -140,7 +137,6 @@ public final class SelfToolCommand extends StaffCommand {
 
     private void apply(ModerationServices moderation, CommandSender sender, UUID subject, String name) {
         boolean nowOn = switch (tool) {
-            case FLY -> setFlight(moderation, subject);
             case GOD -> forceTo == null
                     ? moderation.powers().toggleGod(subject)
                     : keep(moderation.powers().god(subject, forceTo), forceTo);
@@ -167,23 +163,6 @@ public final class SelfToolCommand extends StaffCommand {
                         "moderation.tool." + tool.word() + (nowOn ? ".turned-on" : ".turned-off"));
             }
         }
-    }
-
-    /**
-     * Flight, through Core's {@code PlayerAdmin}.
-     *
-     * <p>Not stored here: the game already remembers whether somebody may fly, so a second copy would be
-     * the one that disagrees after a gamemode change.
-     */
-    private boolean setFlight(ModerationServices moderation, UUID subject) {
-        if (forceTo != null) {
-            moderation.players().flight(subject, forceTo);
-            return forceTo;
-        }
-        Player them = moderation.server().getPlayer(subject);
-        boolean wanted = them == null || !them.getAllowFlight();
-        moderation.players().flight(subject, wanted);
-        return wanted;
     }
 
     /** The state after a forced set, whether or not the set changed anything. */

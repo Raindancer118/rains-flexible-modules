@@ -13,7 +13,6 @@ import de.raindancer.modules.moderation.command.PromoteCommand;
 import de.raindancer.modules.moderation.command.ProtectCommand;
 import de.raindancer.modules.moderation.command.PunishCommand;
 import de.raindancer.modules.moderation.command.SelfToolCommand;
-import de.raindancer.modules.moderation.command.VitalsCommand;
 import de.raindancer.modules.moderation.command.ReportCommand;
 import de.raindancer.modules.moderation.command.ReportsCommand;
 import de.raindancer.modules.moderation.command.StaffChatCommand;
@@ -202,33 +201,6 @@ public final class ModerationCommands {
                 // The tools a moderator points at themselves, or at somebody else by naming them.
                 // /god toggles and /ungod switches off: "make sure this is off" is a thing somebody
                 // needs to be able to say without checking first, and a toggle answers "it is on now".
-                // Events rather than states, so not SelfToolCommand — see VitalsCommand.
-                ModuleCommand.of("heal", "Restores somebody to full health",
-                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.HEAL))
-                        .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.HEAL.node())
-                        .auditUsage(),
-                ModuleCommand.of("feed", "Fills somebody's hunger bar",
-                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.FEED))
-                        .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.FEED.node())
-                        .auditUsage(),
-                ModuleCommand.of("hurt", "Takes half of somebody's health",
-                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.HURT))
-                        .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.HURT.node())
-                        .auditUsage(),
-                ModuleCommand.of("starve", "Empties most of somebody's hunger bar",
-                        new VitalsCommand(ModerationCommands::require, VitalsCommand.Vital.STARVE))
-                        .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.STARVE.node())
-                        .auditUsage(),
-                ModuleCommand.of("fly", "Lets somebody fly",
-                        new SelfToolCommand(ModerationCommands::require,
-                                SelfToolCommand.Tool.FLY, null))
-                        .taking("[player] — yourself if you name nobody")
-                        .needing(ModerationPermission.FLY.node())
-                        .auditUsage(),
                 ModuleCommand.of("god", "Makes somebody invulnerable",
                                 new SelfToolCommand(ModerationCommands::require,
                                         SelfToolCommand.Tool.GOD, null))

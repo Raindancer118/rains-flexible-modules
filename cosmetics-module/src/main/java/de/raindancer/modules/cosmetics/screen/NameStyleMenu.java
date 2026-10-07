@@ -1,26 +1,23 @@
 package de.raindancer.modules.cosmetics.screen;
 
+import de.raindancer.core.ui.choose.StyleEditor;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.cosmetics.CosmeticsServices;
-import de.raindancer.modules.cosmetics.model.Grants;
 import de.raindancer.modules.cosmetics.service.NameStyleService;
-import de.raindancer.modules.cosmetics.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
- * {@code /cosmetics}: your name as everybody sees it, and the ways to change it — a preset, your own
- * colours, the decorations. Every click takes effect at once; the preview is the real thing.
+ * {@code /cosmetics}: your name as everybody sees it, and the ways to change it — a preset, or your own
+ * colours and decorations through Core's style editor. Every click takes effect at once; the preview is the real thing.
  */
 public final class NameStyleMenu extends Menu implements ICosmeticsScreen {
 
@@ -47,7 +44,6 @@ public final class NameStyleMenu extends Menu implements ICosmeticsScreen {
     protected void render() {
         NameStyleService names = services.names();
         NameStyle style = names.current(viewer.getUniqueId());
-        Grants grants = names.grantsOf(viewer);
 
         band(MenuLayout.WHO, 2, Icons.of(Material.NAME_TAG, "<white>Presets",
                         "<gray>Ready-made colours and gradients.", "", "<dark_gray>Click to pick one."),
@@ -55,24 +51,20 @@ public final class NameStyleMenu extends Menu implements ICosmeticsScreen {
 
         band(MenuLayout.WHO, 4, preview(style));
 
-        band(MenuLayout.WHO, 6, grants.colour() || grants.gradient(),
-                Icons.of(Material.BRUSH, "<white>Your own colours",
-                        "<gray>One colour, or up to " + names.maxStops() + " in a gradient.",
-                        "", "<dark_gray>Click to mix them."),
-                "Needs " + PermissionNodes.NAME_COLOUR,
-                click -> new GradientMenu(services, viewer, this).open());
-
-        int column = 1;
-        for (TextDecoration decoration : TextDecoration.values()) {
-            boolean allowed = grants.decorations().contains(decoration);
-            band(MenuLayout.RULES, column, allowed, decorationIcon(decoration, style),
-                    "Needs " + PermissionNodes.decoration(decoration),
-                    click -> {
-                        names.wear(viewer, style.toggle(decoration), false);
-                        refresh();
-                    });
-            column += column == 3 ? 2 : 1;
-        }
+        // Always open: whoever may not colour may still have a decoration, and the editor greys each
+        // button with the node it needs.
+        band(MenuLayout.WHO, 6, Icons.of(Material.BRUSH, "<white>Your own colours",
+                        "<gray>One colour, or up to " + names.maxStops() + " in a gradient,",
+                        "<gray>and bold, italic and the rest.", "", "<dark_gray>Click to mix them."),
+                click -> StyleEditor.of(viewer, services.brand(), this)
+                        .heading("Your colours")
+                        .sample(viewer.getName())
+                        .current(() -> names.current(viewer.getUniqueId()))
+                        .onChange(changed -> names.wear(viewer, changed, false))
+                        .grants(names.styleGrantsOf(viewer))
+                        .palette(services.offered().swatches())
+                        .maxStops(names.maxStops())
+                        .open());
 
         band(MenuLayout.LAND, 4, Icons.of(Material.NAME_TAG, "<white>Preview your nametag",
                         "<gray>Closes this and floats the name over",
@@ -101,15 +93,6 @@ public final class NameStyleMenu extends Menu implements ICosmeticsScreen {
                 "<gray>in the player list and on your nickname.",
                 "",
                 "<dark_gray>" + services.names().describe(style));
-    }
-
-    private static ItemStack decorationIcon(TextDecoration decoration, NameStyle style) {
-        boolean on = style.has(decoration);
-        String word = decoration.name().toLowerCase(Locale.ROOT);
-        String label = Character.toUpperCase(word.charAt(0)) + word.substring(1);
-        return Icons.of(on ? Material.LIME_DYE : Material.GRAY_DYE,
-                (on ? "<green>" : "<gray>") + "<" + word + ">" + label,
-                on ? "<green>On — click to turn off." : "<gray>Off — click to turn on.");
     }
 
     @Override

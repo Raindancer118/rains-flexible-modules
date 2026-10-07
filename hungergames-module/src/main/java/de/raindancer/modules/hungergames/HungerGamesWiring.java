@@ -1,5 +1,6 @@
 package de.raindancer.modules.hungergames;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.RainsCore;
 import de.raindancer.core.content.loot.LootTable;
 import de.raindancer.core.data.settings.SettingsStore;
@@ -2625,7 +2626,7 @@ public final class HungerGamesWiring {
             UUID uuid = uuidForName(name);
             // Both spellings: somebody added before their first join is keyed by the derived UUID, and
             // somebody who has since played is keyed by their real one.
-            Player online = server.getPlayerExact(name);
+            Player online = PlayerTargets.online(server, name).orElse(null);
             boolean removed = active.remove(uuid) != null;
             if (online != null) {
                 removed |= active.remove(online.getUniqueId()) != null;
@@ -2640,7 +2641,7 @@ public final class HungerGamesWiring {
 
         /** Whoever that name is: their real UUID if they are here, otherwise a stable derived one. */
         private UUID uuidForName(String name) {
-            Player online = server.getPlayerExact(name);
+            Player online = PlayerTargets.online(server, name).orElse(null);
             if (online != null) {
                 return online.getUniqueId();
             }

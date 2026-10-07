@@ -246,7 +246,7 @@ class MessagesTest {
             }
         }
 
-        // SelfToolCommand — three tools, on and off, for yourself and for somebody else.
+        // SelfToolCommand — the tools, on and off, for yourself and for somebody else.
         for (de.raindancer.modules.moderation.command.SelfToolCommand.Tool tool
                 : de.raindancer.modules.moderation.command.SelfToolCommand.Tool.values()) {
             for (String state : List.of(".turned-on", ".turned-off")) {

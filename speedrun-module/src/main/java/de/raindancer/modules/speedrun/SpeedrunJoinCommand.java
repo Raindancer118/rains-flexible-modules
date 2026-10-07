@@ -8,6 +8,7 @@ import de.raindancer.core.platform.util.Closest;
 import de.raindancer.core.ui.text.Text;
 import de.raindancer.core.ui.chat.ChatButtons;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.speedrun.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
@@ -326,12 +327,7 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
         if (rest.length == 0) {
             return sender instanceof Player player ? Optional.of(player) : Optional.empty();
         }
-        Player online = Bukkit.getPlayerExact(rest[0]);
-        if (online != null) {
-            return Optional.of(online);
-        }
-        OfflinePlayer known = Bukkit.getOfflinePlayerIfCached(rest[0]);
-        return Optional.ofNullable(known);
+        return PlayerTargets.find(Bukkit.getServer(), rest[0]);
     }
 
     private static String nameOf(OfflinePlayer player) {
@@ -351,7 +347,8 @@ public final class SpeedrunJoinCommand implements ISpeedrunCommand {
         String typed = args[args.length - 1].toLowerCase(Locale.ROOT);
         List<String> options = switch (args[0].toLowerCase(Locale.ROOT)) {
             case "resume", "time" -> admin ? List.of("0", "42:05", "1:02:03", "1h30m") : List.of();
-            case "stats", "history" -> Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+            case "stats", "history" -> PlayerTargets.suggest(Bukkit.getServer(), typed).stream()
+                    .filter(name -> !PlayerTargets.isSelector(name)).toList();
             case "hud" -> Arrays.stream(SpeedrunHudMode.values()).map(mode -> mode.name().toLowerCase(Locale.ROOT)).toList();
             case "seed" -> admin ? List.of("random", "same") : List.of();
             case "reset" -> admin && !(sender instanceof Player) ? List.of("confirm") : List.of();

@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.command;
 
+import de.raindancer.modules.speedrun.BukkitServerStub;
 import de.raindancer.modules.speedrun.manhunt.model.Hunt;
 import de.raindancer.modules.speedrun.manhunt.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -103,7 +104,7 @@ class ManhuntCommandTest {
         when(ben.getUniqueId()).thenReturn(BEN);
         when(ben.getName()).thenReturn("Ben");
         bukkit = mockStatic(Bukkit.class);
-        bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+        BukkitServerStub.online(bukkit, "Ben", ben);
         when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
         fake.frozen.set(true);
 
@@ -332,7 +333,7 @@ class ManhuntCommandTest {
         when(ben.getUniqueId()).thenReturn(BEN);
         when(ben.getName()).thenReturn("Ben");
         bukkit = mockStatic(Bukkit.class);
-        bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+        BukkitServerStub.online(bukkit, "Ben", ben);
         when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
 
         command.execute(source, new String[]{"assign", "Ben", "runner"});
@@ -434,7 +435,7 @@ class ManhuntCommandTest {
         when(ben.getUniqueId()).thenReturn(BEN);
         when(ben.getName()).thenReturn(evil);
         bukkit = mockStatic(Bukkit.class);
-        bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+        BukkitServerStub.online(bukkit, "Ben", ben);
         when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
         when(fake.mode.isRunning()).thenReturn(true);
 
@@ -453,7 +454,7 @@ class ManhuntCommandTest {
         when(ben.getUniqueId()).thenReturn(BEN);
         when(ben.getName()).thenReturn("Ben");
         bukkit = mockStatic(Bukkit.class);
-        bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+        BukkitServerStub.online(bukkit, "Ben", ben);
         when(anna.hasPermission(PermissionNodes.ADMIN)).thenReturn(true);
         when(fake.mode.isRunning()).thenReturn(true);
         when(fake.mode.changeSide(BEN, de.raindancer.modules.speedrun.manhunt.mode.ManhuntMode.Side.HUNTER, true))
@@ -478,7 +479,7 @@ class ManhuntCommandTest {
         when(ben.getUniqueId()).thenReturn(BEN);
         when(ben.getName()).thenReturn("Ben");
         bukkit = mockStatic(Bukkit.class);
-        bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+        BukkitServerStub.online(bukkit, "Ben", ben);
         CommandSender console = mock(CommandSender.class);
         when(console.hasPermission(anyString())).thenReturn(true);
         when(source.getSender()).thenReturn(console);
@@ -610,7 +611,7 @@ class ManhuntCommandTest {
             ben = mock(Player.class);
             when(ben.getName()).thenReturn("Ben");
             bukkit = mockStatic(Bukkit.class);
-            bukkit.when(() -> Bukkit.getPlayerExact("Ben")).thenReturn(ben);
+            BukkitServerStub.online(bukkit, "Ben", ben);
         }
 
         @Test

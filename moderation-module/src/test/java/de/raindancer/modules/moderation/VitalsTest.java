@@ -1,8 +1,8 @@
 package de.raindancer.modules.moderation;
 
-import de.raindancer.modules.moderation.command.VitalsCommand;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.model.StaffRank;
+import de.raindancer.modules.moderation.model.Vital;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,26 +12,17 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@code /heal}, {@code /feed}, {@code /hurt}, {@code /starve} — the four that change somebody's body.
- *
- * <h2>Why they are not {@code SelfToolCommand}</h2>
- * Flight, god and one-hit-kill are <em>states</em>: they are on or off, and asking twice changes
- * nothing. These four are <em>events</em> — healing somebody who is already whole is a no-op, but
- * hurting somebody twice hurts them twice. A toggle that fired an event would be a button whose second
- * click did the opposite of what its label said, and the label would be right about neither.
- *
- * <h2>Why the harmful two sit a rank higher</h2>
- * Restoring somebody is unremarkable and reversible. Taking half their health, from a menu, with no
- * record of it, is a way to kill somebody in a fight they were winning — so it is an admin's, and can
- * still be handed to one mod individually if a server wants that.
+ * heal, feed, hurt, starve: the four buttons on the player page that change somebody's body. The typed
+ * commands moved to Player Utils; these are events rather than states, and the harmful two sit a rank
+ * higher than the restoring two.
  */
 class VitalsTest {
 
     @Test
     @DisplayName("all four exist and are wired to Core's PlayerAdmin verbs")
     void allFour() {
-        assertThat(VitalsCommand.Vital.values())
-                .extracting(VitalsCommand.Vital::word)
+        assertThat(Vital.values())
+                .extracting(Vital::word)
                 .containsExactly("heal", "feed", "hurt", "starve");
     }
 
@@ -68,8 +59,8 @@ class VitalsTest {
     @Test
     @DisplayName("each one names the permission it needs, and no two share one")
     void distinctPermissions() {
-        assertThat(VitalsCommand.Vital.values())
-                .extracting(VitalsCommand.Vital::permission)
+        assertThat(Vital.values())
+                .extracting(Vital::permission)
                 .doesNotHaveDuplicates()
                 .containsExactly(ModerationPermission.HEAL, ModerationPermission.FEED,
                         ModerationPermission.HURT, ModerationPermission.STARVE);
@@ -78,10 +69,10 @@ class VitalsTest {
     @Test
     @DisplayName("the two that harm say so, so a screen can colour them apart")
     void harmful() {
-        assertThat(VitalsCommand.Vital.HEAL.harmful()).isFalse();
-        assertThat(VitalsCommand.Vital.FEED.harmful()).isFalse();
-        assertThat(VitalsCommand.Vital.HURT.harmful()).isTrue();
-        assertThat(VitalsCommand.Vital.STARVE.harmful()).isTrue();
+        assertThat(Vital.HEAL.harmful()).isFalse();
+        assertThat(Vital.FEED.harmful()).isFalse();
+        assertThat(Vital.HURT.harmful()).isTrue();
+        assertThat(Vital.STARVE.harmful()).isTrue();
     }
 
     @Test
@@ -90,7 +81,7 @@ class VitalsTest {
         // `on`, `off`, `yes` and `no` are booleans in YAML 1.1, so a key called any of them is filed
         // under `true`/`false` and the lookup prints its own name back at the player. That has already
         // happened once here, with moderation.tool.instakill.on.
-        for (VitalsCommand.Vital vital : VitalsCommand.Vital.values()) {
+        for (Vital vital : Vital.values()) {
             assertThat(vital.word())
                     .as("%s would be read as a boolean by the config loader", vital.word())
                     .isNotIn("on", "off", "yes", "no", "true", "false", "y", "n");

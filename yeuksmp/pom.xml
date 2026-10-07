@@ -390,7 +390,7 @@
           1.22.0: chat-module 1.7.0 — between a private chat and a channel (staff chat included), the
           latest choice wins. Needs RainsCore 1.41.0.
         -->
-        <plugin.version>1.22.0</plugin.version>
+        <plugin.version>1.22.1</plugin.version>
     </properties>
 
     <dependencies>

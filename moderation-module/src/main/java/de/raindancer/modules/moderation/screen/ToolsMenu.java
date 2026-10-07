@@ -4,7 +4,7 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.moderation.ModerationServices;
-import de.raindancer.modules.moderation.command.VitalsCommand;
+import de.raindancer.modules.moderation.model.Vital;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -72,8 +72,7 @@ public final class ToolsMenu extends ModerationScreen {
                 () -> {
                     services().players().flight(subject, !flying);
                     services().staff().recordSelfTool(viewer, subject, subjectName,
-                            de.raindancer.modules.moderation.command.SelfToolCommand.Tool.FLY,
-                            !flying);
+                            "fly", !flying);
                 });
 
         // ── invulnerability ───────────────────────────────────────────────────────────────────
@@ -114,7 +113,7 @@ public final class ToolsMenu extends ModerationScreen {
         // nothing to show as "on". Drawn beside the toggles anyway, because from the moderator's side
         // they are the same kind of thing — something you do to somebody standing in front of you.
         int column = 2;
-        for (VitalsCommand.Vital vital : VitalsCommand.Vital.values()) {
+        for (Vital vital : Vital.values()) {
             vital(column, vital, here);
             column += 2;
         }
@@ -128,7 +127,7 @@ public final class ToolsMenu extends ModerationScreen {
      * fight — which they will report as the server cheating, and nobody will be able to tell them
      * otherwise.
      */
-    private void vital(int column, VitalsCommand.Vital vital, boolean here) {
+    private void vital(int column, Vital vital, boolean here) {
         boolean allowed = may(vital.permission()) && here
                 && (themselves() || canAct(subject, vital.permission()).isAllowed());
 
@@ -170,18 +169,18 @@ public final class ToolsMenu extends ModerationScreen {
     }
 
     /** "Heal", "Feed" — the enum's own word, with a capital. */
-    private static String label(VitalsCommand.Vital vital) {
+    private static String label(Vital vital) {
         String word = vital.word();
         return Character.toUpperCase(word.charAt(0)) + word.substring(1);
     }
 
     /** Actually does it, and says so — the same wording the command uses. */
-    private void doVital(VitalsCommand.Vital vital) {
+    private void doVital(Vital vital) {
         switch (vital) {
             case HEAL -> services().players().heal(subject);
             case FEED -> services().players().feed(subject);
-            case HURT -> services().players().damage(subject, 10.0);
-            case STARVE -> services().players().food(subject, 6);
+            case HURT -> services().players().damage(subject, Vital.HURT_HEARTS);
+            case STARVE -> services().players().food(subject, Vital.STARVE_TO);
         }
         services().staff().recordVital(viewer, subject, subjectName, vital);
         tell(vital.messageKey() + (themselves() ? ".done" : ".done-other"), "player", subjectName);

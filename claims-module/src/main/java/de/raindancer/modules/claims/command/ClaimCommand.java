@@ -1,5 +1,6 @@
 package de.raindancer.modules.claims.command;
 
+import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimBan;
@@ -563,12 +564,7 @@ public final class ClaimCommand implements IClaimCommand {
 
     /** A name to a uuid, online or not. Offline included, or you cannot ban somebody who has left. */
     private Optional<UUID> resolve(ClaimServices claims, String name) {
-        Player online = claims.server().getPlayerExact(name);
-        if (online != null) {
-            return Optional.of(online.getUniqueId());
-        }
-        OfflinePlayer seen = claims.server().getOfflinePlayer(name);
-        return seen.hasPlayedBefore() ? Optional.of(seen.getUniqueId()) : Optional.empty();
+        return PlayerTargets.idOf(claims.server(), name);
     }
 
     @Override
@@ -605,17 +601,11 @@ public final class ClaimCommand implements IClaimCommand {
      * here is the same giveaway it would be anywhere else.
      */
     private List<String> nameSuggestions(CommandSourceStack source, String typed) {
-        String prefix = typed.toLowerCase(Locale.ROOT);
         ClaimServices claims = services.get();
         UUID viewer = source.getSender() instanceof Player player ? player.getUniqueId() : null;
-        List<String> names = new ArrayList<>();
-        claims.server().getOnlinePlayers().forEach(who -> {
-            if ((viewer == null || claims.core().vanish().canSee(viewer, who.getUniqueId()))
-                    && who.getName().toLowerCase(Locale.ROOT).startsWith(prefix)) {
-                names.add(who.getName());
-            }
-        });
-        return names;
+        return PlayerTargets.suggest(claims.server(), typed,
+                        who -> viewer == null || claims.core().vanish().canSee(viewer, who.getUniqueId()))
+                .stream().filter(name -> !PlayerTargets.isSelector(name)).toList();
     }
 
     @Override

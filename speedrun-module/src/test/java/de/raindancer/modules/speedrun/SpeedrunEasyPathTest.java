@@ -325,7 +325,7 @@ class SpeedrunEasyPathTest {
             Player alice = mock(Player.class);
             when(alice.getName()).thenReturn("Alice");
             when(alice.getUniqueId()).thenReturn(ALICE);
-            bukkit.when(() -> Bukkit.getPlayerExact("Alice")).thenReturn(alice);
+            BukkitServerStub.online(bukkit, "Alice", alice);
 
             command.execute(from(console), new String[]{"stats", "Alice"});
 
