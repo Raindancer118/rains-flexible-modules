@@ -70,7 +70,15 @@ class VeinUndoListenerTest {
     private ItemStack stack() {
         ItemStack stack = mock(ItemStack.class);
         when(stack.clone()).thenReturn(stack);
+        when(stack.getAmount()).thenReturn(1);
+        when(stack.isSimilar(stack)).thenReturn(true);
         return stack;
+    }
+
+    private Item item(int x, ItemStack holding) {
+        Item item = item(x);
+        when(item.getItemStack()).thenReturn(holding);
+        return item;
     }
 
     private Item item(int x) {
@@ -177,18 +185,20 @@ class VeinUndoListenerTest {
     void veinDropEntities() {
         Block first = block(0);
         Block second = block(1);
+        ItemStack diamond = stack();
         listener.onBreak(new VeinMinerEvent.VeinminerEvent(second, player, first.getLocation(), 0));
         listener.onExp(new VeinMinerEvent.VeinminerDropEvent(second, mock(BlockState.class), player,
-                new ArrayList<>(List.of(stack())), 0));
-        Item ours = item(1);
+                new ArrayList<>(List.of(diamond)), 0));
+        Item ours = item(1, diamond);
         listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(ours));
-        Item extra = item(1);
+        Item extra = item(1, diamond);
         listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(extra));
         tick.incrementAndGet();
+        ItemStack two = stack();
         listener.onExp(new VeinMinerEvent.VeinminerDropEvent(block(2), mock(BlockState.class), player,
-                new ArrayList<>(List.of(stack(), stack())), 0));
+                new ArrayList<>(List.of(two)), 0));
         tick.incrementAndGet();
-        Item later = item(2);
+        Item later = item(2, two);
         listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(later));
 
         assertThat(latest().find(at(1)).orElseThrow().dropEntities())
@@ -200,9 +210,27 @@ class VeinUndoListenerTest {
     void farItemIsNotTheVeins() {
         Block second = block(1);
         listener.onBreak(new VeinMinerEvent.VeinminerEvent(second, player, block(0).getLocation(), 0));
+        ItemStack diamond = stack();
         listener.onExp(new VeinMinerEvent.VeinminerDropEvent(second, mock(BlockState.class), player,
-                new ArrayList<>(List.of(stack())), 0));
-        listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(item(40)));
+                new ArrayList<>(List.of(diamond)), 0));
+        listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(item(40, diamond)));
+
+        assertThat(latest().find(at(1)).orElseThrow().dropEntities()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a different item, or one after the next block break, is never counted as the vein's — even right there")
+    void onlyTheAnnouncedStacks() {
+        Block second = block(1);
+        listener.onBreak(new VeinMinerEvent.VeinminerEvent(second, player, block(0).getLocation(), 0));
+        ItemStack diamond = stack();
+        listener.onExp(new VeinMinerEvent.VeinminerDropEvent(second, mock(BlockState.class), player,
+                new ArrayList<>(List.of(diamond)), 0));
+        listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(item(1, stack())));
+
+        BlockBreakEvent somebodyElses = new BlockBreakEvent(block(5), player);
+        listener.onBreakEarly(somebodyElses);
+        listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(item(1, diamond)));
 
         assertThat(latest().find(at(1)).orElseThrow().dropEntities()).isEmpty();
     }

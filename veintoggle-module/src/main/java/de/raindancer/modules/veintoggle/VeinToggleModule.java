@@ -26,7 +26,7 @@ import java.util.List;
  */
 public final class VeinToggleModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.2.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.2.2")
             .describedAs("Switch Veinminer on or off for yourself with /vein, and undo a vein with /vein undo")
             .by("Raindancer118");
 

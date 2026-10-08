@@ -26,8 +26,9 @@
         <!-- 0.1.0: /vein switches Veinminer on and off for yourself; the server default is a setting.
              0.2.0: /vein undo puts your last vein back, for exactly what it dropped.
              0.2.1: undo takes only the vein's own items off the ground, never walls anybody in, and
-                    respects protected land; it says "restored." -->
-        <plugin.version>0.2.1</plugin.version>
+                    respects protected land; it says "restored."
+             0.2.2: an item counts as the vein's only if it is exactly a stack Veinminer announced. -->
+        <plugin.version>0.2.2</plugin.version>
     </properties>
 
     <dependencies>

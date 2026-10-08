@@ -37,28 +37,17 @@ import java.util.function.LongSupplier;
  * <p>The item entities are written down too, so an undo takes back from the ground only what this vein
  * dropped. A hand break names its entities in BlockDropItemEvent. Veinminer does not: it calls
  * {@code world.dropItem} once per stack right after its drop event, in the same call on the same
- * thread — so the item spawns that follow it, in the same tick and right at that block, are its.
+ * thread — so an item spawn that follows it in the same tick, right at that block, holding exactly one
+ * of the stacks it announced, before any other block break, is its. Anything less certain is not
+ * counted: an item missed only means its block costs from the inventory instead.
  */
 public final class VeinUndoListener implements Listener {
 
     /** How far from the block, or the vein's source when Veinminer merges drops, its items appear. */
     private static final double DROP_REACH = 2.0;
 
-    /** Veinminer's drops still expected on this thread: where, in which tick, and how many stacks. */
-    private static final class Expected {
-        final UUID player;
-        final BlockKey at;
-        final BlockKey source;
-        final int tick;
-        int left;
-
-        Expected(UUID player, BlockKey at, BlockKey source, int tick, int left) {
-            this.player = player;
-            this.at = at;
-            this.source = source;
-            this.tick = tick;
-            this.left = left;
-        }
+    /** Veinminer's drops still expected on this thread: where, in which tick, and which stacks. */
+    private record Expected(UUID player, BlockKey at, BlockKey source, int tick, List<ItemStack> left) {
     }
 
     private final ThreadLocal<Expected> expected = new ThreadLocal<>();
@@ -80,6 +69,8 @@ public final class VeinUndoListener implements Listener {
     /** A put-back block drops nothing of its own; {@link #onBreak} drops what it cost instead. */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBreakEarly(BlockBreakEvent event) {
+        // Another break means Veinminer's drop call is over; nothing spawning from here on is that vein's.
+        expected.remove();
         Block block = event.getBlock();
         if (restored.holds(BlockKey.of(block), block.getBlockData())) {
             event.setDropItems(false);
@@ -156,7 +147,7 @@ public final class VeinUndoListener implements Listener {
         history.veinDrops(player.getUniqueId(), at, items);
         if (!items.isEmpty()) {
             BlockKey source = history.sourceOf(player.getUniqueId(), at).orElse(at);
-            expected.set(new Expected(player.getUniqueId(), at, source, tick.getAsInt(), items.size()));
+            expected.set(new Expected(player.getUniqueId(), at, source, tick.getAsInt(), new ArrayList<>(items)));
         }
     }
 
@@ -167,18 +158,26 @@ public final class VeinUndoListener implements Listener {
         if (waiting == null) {
             return;
         }
-        if (waiting.tick != tick.getAsInt() || waiting.left <= 0) {
+        if (waiting.tick() != tick.getAsInt() || waiting.left().isEmpty()) {
             expected.remove();
             return;
         }
         Item item = event.getEntity();
         BlockKey spawned = BlockKey.of(item.getLocation());
-        if (spawned == null || !spawned.world().equals(waiting.at.world())
-                || (spawned.distance(waiting.at) > DROP_REACH && spawned.distance(waiting.source) > DROP_REACH)) {
+        if (spawned == null || !spawned.world().equals(waiting.at().world())
+                || (spawned.distance(waiting.at()) > DROP_REACH && spawned.distance(waiting.source()) > DROP_REACH)) {
             return;
         }
-        history.veinDropEntity(waiting.player, waiting.at, item.getUniqueId());
-        if (--waiting.left == 0) {
+        ItemStack holding = item.getItemStack();
+        for (int i = 0; i < waiting.left().size(); i++) {
+            ItemStack announced = waiting.left().get(i);
+            if (holding != null && announced.isSimilar(holding) && announced.getAmount() == holding.getAmount()) {
+                waiting.left().remove(i);
+                history.veinDropEntity(waiting.player(), waiting.at(), item.getUniqueId());
+                break;
+            }
+        }
+        if (waiting.left().isEmpty()) {
             expected.remove();
         }
     }
