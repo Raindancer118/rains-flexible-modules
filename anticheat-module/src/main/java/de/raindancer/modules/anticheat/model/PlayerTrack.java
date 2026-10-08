@@ -17,8 +17,9 @@ import java.util.function.LongSupplier;
  * Everything the checks remember about one player while they are online.
  *
  * <p>Written from two threads: the Netty thread (packets) and the player's own region thread (events
- * and the per-tick engine). Anything read or written by both is touched only while holding this
- * object's monitor; the sample queue is the one hand-off that needs no lock.
+ * and the per-tick engine). The engine holds this object's monitor for its whole tick, so the Netty
+ * thread never takes it — packet state is guarded by {@link #wire}, clicks by {@code combat}'s own
+ * monitor, and what both sides share is in concurrent collections.
  */
 public final class PlayerTrack {
 
@@ -33,6 +34,9 @@ public final class PlayerTrack {
 
     /** Failures found on a packet thread, raised on the player's own thread at the next tick. */
     public final ConcurrentLinkedQueue<Flag> pendingFlags = new ConcurrentLinkedQueue<>();
+
+    /** Guards {@link #packets} and the per-tick target set: the Netty thread's lock, never held long. */
+    public final Object wire = new Object();
 
     /** Samples handed over by the packet tap or the move listener, drained once a tick. */
     public final ConcurrentLinkedQueue<MoveSample> samples = new ConcurrentLinkedQueue<>();
@@ -169,7 +173,7 @@ public final class PlayerTrack {
          * Pending knockback: vx, vy, vz, sentAtMillis, highestRiseSince, blocked (1 when a ceiling, liquid
          * or web could explain it), transaction id (0 none), millis the client confirmed it (0 not yet).
          */
-        public final Deque<double[]> velocities = new ArrayDeque<>();
+        public final Deque<double[]> velocities = new java.util.concurrent.ConcurrentLinkedDeque<>();
         public boolean sprintHitThisTick;
         public long sprintHitMillis;
         /** The last input the client reported. */
@@ -220,7 +224,7 @@ public final class PlayerTrack {
         public final Set<Integer> targetsThisTick = new HashSet<>();
         public long targetsTickStamp;
         /** Attacks still waiting for their swing: millis of each. */
-        public final Deque<Long> unswung = new ArrayDeque<>();
+        public final Deque<Long> unswung = new java.util.concurrent.ConcurrentLinkedDeque<>();
         /** Hits waiting for the next look direction before their hitbox is judged. */
         public final Deque<PendingHit> pendingHits = new ArrayDeque<>();
         public long totemPoppedMillis;
@@ -261,7 +265,7 @@ public final class PlayerTrack {
     /** What arrived on the wire, in order. */
     public static final class Packets {
         public volatile boolean tapped;
-        public boolean sendsTickEnd;
+        public volatile boolean sendsTickEnd;
         public int movesThisTick;
         public boolean movedThisTick;
         public float lastYaw = Float.NaN;

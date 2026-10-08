@@ -17,7 +17,7 @@ public final class ClickService implements IAntiCheatService {
 
     /** @return a failure to raise on the player's own thread, or null */
     public Flag click(PlayerTrack track, long millis) {
-        synchronized (track) {
+        synchronized (track.combat) {
             PlayerTrack.Combat c = track.combat;
             if (c.lastClickMillis > 0) {
                 long interval = millis - c.lastClickMillis;
@@ -50,7 +50,7 @@ public final class ClickService implements IAntiCheatService {
     }
 
     public ClickRule.Stats stats(PlayerTrack track) {
-        synchronized (track) {
+        synchronized (track.combat) {
             return rule.stats(track.combat.clickIntervals.toArray());
         }
     }

@@ -59,13 +59,17 @@ public final class CombatService implements IAntiCheatService {
             }
             if (!track.packets.sendsTickEnd) {
                 c.unswung.addLast(now);
-                if (c.targetsTickStamp == 0 || now - c.targetsTickStamp > 50) {
-                    c.targetsThisTick.clear();
-                    c.targetsTickStamp = now;
+                int targets;
+                synchronized (track.wire) {
+                    if (c.targetsTickStamp == 0 || now - c.targetsTickStamp > 50) {
+                        c.targetsThisTick.clear();
+                        c.targetsTickStamp = now;
+                    }
+                    c.targetsThisTick.add(target.getEntityId());
+                    targets = c.targetsThisTick.size();
                 }
-                c.targetsThisTick.add(target.getEntityId());
-                if (c.targetsThisTick.size() >= 3) {
-                    cancel |= flag(attacker, track, CheckType.MULTI_AURA, 2, 0, c.targetsThisTick.size() + " targets within 50 ms");
+                if (targets >= 3) {
+                    cancel |= flag(attacker, track, CheckType.MULTI_AURA, 2, 0, targets + " targets within 50 ms");
                 }
             }
         }

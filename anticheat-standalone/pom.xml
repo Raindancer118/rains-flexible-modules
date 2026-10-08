@@ -23,8 +23,8 @@
         <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsAntiCheat</plugin.name>
-        <!-- 0.3.0: checks screen (on / watch only / off by click), opt-in damage dampening for combat suspects. -->
-        <plugin.version>0.3.0</plugin.version>
+        <!-- 0.3.1: the packet thread never waits on the movement engine (own lock, lock-free shared queues). -->
+        <plugin.version>0.3.1</plugin.version>
     </properties>
 
     <dependencies>

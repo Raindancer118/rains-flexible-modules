@@ -51,12 +51,10 @@ public final class CombatListener implements IAntiCheatListener {
             return;
         }
         Flag clicked = null;
-        synchronized (track) {
-            track.combat.unswung.pollFirst();
-            long now = track.now();
-            if (!track.world.digging() && now - track.combat.lastUseMillis > 60) {
-                clicked = services.clicks().click(track, now);
-            }
+        track.combat.unswung.pollFirst();
+        long now = track.now();
+        if (!track.world.digging() && now - track.combat.lastUseMillis > 60) {
+            clicked = services.clicks().click(track, now);
         }
         if (clicked != null) {
             services.violations().flag(event.getPlayer(), track, clicked);

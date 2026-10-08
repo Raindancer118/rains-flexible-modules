@@ -139,7 +139,7 @@ public final class PacketTap implements IAntiCheatService {
     }
 
     private static int nextTransaction(PlayerTrack track) {
-        synchronized (track) {
+        synchronized (track.wire) {
             int id = TRANSACTION_BASE - (track.packets.nextTransaction++ & 0xFFFFF);
             track.packets.transactions.put(id, System.nanoTime());
             if (track.packets.transactions.size() > 64) {
@@ -262,7 +262,7 @@ public final class PacketTap implements IAntiCheatService {
                 }
                 if (reader.kind() == Kind.HELD_SLOT_OUT) {
                     int slot = (int) reader.getters()[0].invoke(msg);
-                    synchronized (track) {
+                    synchronized (track.wire) {
                         track.packets.lastSlot = slot;
                     }
                 } else if (reader.kind() == Kind.MOTION_OUT && (int) reader.getters()[0].invoke(msg) == track.entityId) {
@@ -270,7 +270,7 @@ public final class PacketTap implements IAntiCheatService {
                     // the client has applied it, which pins down when the push really happened.
                     int id = nextTransaction(track);
                     follow = newPing.invoke(id);
-                    synchronized (track) {
+                    synchronized (track.wire) {
                         for (var it = track.movement.velocities.descendingIterator(); it.hasNext(); ) {
                             double[] velocity = it.next();
                             if (velocity[6] == 0) {
@@ -298,7 +298,7 @@ public final class PacketTap implements IAntiCheatService {
             long millis = track.now();
             PlayerTrack.Packets p = track.packets;
             MethodHandle[] g = reader.getters();
-            synchronized (track) {
+            synchronized (track.wire) {
                 switch (reader.kind()) {
                     case MOVE -> {
                         boolean hasPos = (boolean) g[0].invoke(msg);
