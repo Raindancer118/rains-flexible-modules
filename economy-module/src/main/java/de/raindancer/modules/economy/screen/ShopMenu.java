@@ -82,6 +82,10 @@ public final class ShopMenu extends Menu implements IEconomyScreen {
                         text -> services.screens().shopSearch(viewer, text), this::open));
         band(MenuLayout.LAND, 5, live.sellingEnabled(), Icons.of(Material.CHEST, "<white>Sell",
                 "<gray>What you carry that the shop buys."), BankMenu.OFF, click -> services.screens().sell(viewer));
+        band(MenuLayout.LAND, 7, live.xpTradeEnabled(), Icons.of(Material.EXPERIENCE_BOTTLE, "<green>Experience",
+                "<gray>Buy levels, priced by the point.",
+                "<gray>A point: " + Mini.of(services.currency().render(live.xpBuyMoney()))), BankMenu.OFF,
+                click -> new ExperienceMenu(services, viewer, this).open());
     }
 
     @Override

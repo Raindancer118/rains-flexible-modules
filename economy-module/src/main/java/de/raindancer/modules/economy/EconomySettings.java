@@ -32,6 +32,7 @@ import java.util.List;
         @Topic(path = "economy/pay", title = "Paying and bills", icon = Material.WRITABLE_BOOK),
         @Topic(path = "economy/cash", title = "Coins and notes", icon = Material.PAPER),
         @Topic(path = "economy/shop", title = "Shop", icon = Material.EMERALD),
+        @Topic(path = "economy/experience", title = "Experience", icon = Material.EXPERIENCE_BOTTLE),
         @Topic(path = "economy/shop/categories", title = "Shop categories", icon = Material.CHEST),
         @Topic(path = "economy/earn", title = "Earning", icon = Material.DIAMOND_PICKAXE),
         @Topic(path = "economy/interest", title = "Interest", icon = Material.CLOCK),
@@ -520,6 +521,18 @@ public record EconomySettings(
 
         @In("economy/raffles") @Title("Cheapest ticket") @Key("raffle.smallest-ticket") String raffleSmallestTicket,
 
+        // ------------------------------------------------------------------ experience
+        @In("economy/experience") @Title("Buying and selling experience")
+        @Describe("Levels to buy in the shop, and an experience bottle to sell in /sell, priced per point — a level "
+                + "near 30 holds far more points than one near 5.")
+        @Key("features.xp-trade") boolean xpTradeEnabled,
+
+        @In("economy/experience") @Title("A point of experience costs") @Key("xp.buy-per-point") String xpBuy,
+
+        @In("economy/experience") @Title("A point of experience sells for")
+        @Describe("Never more than it costs, whatever is written here, so buying and selling cannot make money.")
+        @Key("xp.sell-per-point") String xpSell,
+
         // ------------------------------------------------------------------ wealth tax
         @In("economy/tax") @Title("Wealth tax")
         @Describe("Takes a percentage of every player's bank balance at an interval and destroys it — a money sink. "
@@ -590,6 +603,8 @@ public record EconomySettings(
             true, 120, 60, 600, "10", "10", 5.0, 20, 15, "1000", 5.0, 10, 2, true, true,
             // raffles
             true, true, "0", 5.0, 30, 5, 1440, 5, 1, "1",
+            // experience
+            true, "3", "1",
             // wealth tax
             false, 1.0, 24, "0",
             // display
@@ -708,6 +723,15 @@ public record EconomySettings(
 
     public Money raffleSmallestTicketMoney() {
         return money(raffleSmallestTicket, DEFAULTS.raffleSmallestTicket);
+    }
+
+    public Money xpBuyMoney() {
+        return money(xpBuy, DEFAULTS.xpBuy);
+    }
+
+    /** What a point sells for — never more than it costs. */
+    public Money xpSellMoney() {
+        return money(xpSell, DEFAULTS.xpSell).min(xpBuyMoney());
     }
 
     public Money wealthTaxAllowanceMoney() {

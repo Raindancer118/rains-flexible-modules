@@ -56,6 +56,7 @@ public final class SellMenu extends PaginatedMenu<SaleLot> implements IEconomySc
             everything = everything.plus(lot.total());
         }
         Money total = everything;
+        sellExperience();
         toolbar(4, !lots.isEmpty(), Icons.of(Material.HOPPER, "<green>Sell everything",
                 "<gray>All of it, for " + Mini.of(services.currency().render(total))),
                 "You carry nothing the shop buys.", click -> new ConfirmScreen(viewer, services.brand(), this,
@@ -64,6 +65,25 @@ public final class SellMenu extends PaginatedMenu<SaleLot> implements IEconomySc
                     services.shop().sellEverything(viewer);
                     open();
                 }).open());
+    }
+
+    /** Experience sells here like any item: one bottle, standing for the levels on the bar. */
+    private void sellExperience() {
+        if (!services.config().xpTradeEnabled()) {
+            return;
+        }
+        var experience = services.experience();
+        var one = experience.selling(viewer, 1);
+        var all = experience.selling(viewer, Integer.MAX_VALUE);
+        toolbar(6, all.points() > 0, Icons.of(Material.EXPERIENCE_BOTTLE, "<green>Sell experience",
+                "<gray>Level " + viewer.getLevel() + " · " + all.points() + " points",
+                "<yellow>Click<gray> for 1 level: " + Mini.of(services.currency().render(one.money())),
+                "<yellow>Right click<gray> for 10 levels",
+                "<yellow>Shift click<gray> for all of it: " + Mini.of(services.currency().render(all.money()))),
+                "You have no experience to sell.", click -> {
+                    experience.sell(viewer, click.isShiftClick() ? Integer.MAX_VALUE : click.isRightClick() ? 10 : 1);
+                    refresh();
+                });
     }
 
     @Override

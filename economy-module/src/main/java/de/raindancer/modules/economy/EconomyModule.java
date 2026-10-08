@@ -85,7 +85,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.8.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.9.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -181,18 +181,19 @@ public final class EconomyModule implements FlexModule {
                 messages, effects, buttons, context.core().bossBars(), sounds, System::currentTimeMillis, now);
         var raffles = new de.raindancer.modules.economy.service.RaffleService(context.plugin(), server, economy,
                 messages, effects, buttons, sounds, auctions, System::currentTimeMillis, now);
+        var experience = new de.raindancer.modules.economy.service.ExperienceService(economy, messages, effects, now);
         var tax = new de.raindancer.modules.economy.service.WealthTaxService(context.plugin(), server, economy, messages,
                 System::currentTimeMillis, now);
 
         for (var service : List.of(economy, notifier, payments, bills, cash, shop, rewards, income, hire, statements,
-                interest, daily, gambling, lottery, sidebar, displays, tables, scratch, crash, race, dealers, auctions, raffles, tax)) {
+                interest, daily, gambling, lottery, sidebar, displays, tables, scratch, crash, race, dealers, auctions, raffles, tax, experience)) {
             settings.onChange(service::settings);
         }
 
         services = new EconomyServices(context.plugin(), server, log, messages, context.chat().brand(), context.core(),
                 settings::current, settings, economy, market, payments, bills, cash, shop, rewards, income, hire,
                 statements, interest, daily, leaderboard, sidebar, displays, gambling, lottery, tables, scratch, crash,
-                race, dealers, auctions, raffles, tax, new LiveScreens());
+                race, dealers, auctions, raffles, tax, experience, new LiveScreens());
         sidebar.pot(lottery::pot);
         this.tables = tables;
         this.crash = crash;

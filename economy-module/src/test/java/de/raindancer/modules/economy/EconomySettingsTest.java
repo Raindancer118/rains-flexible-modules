@@ -140,6 +140,11 @@ public class EconomySettingsTest {
         assertThat(d.auctionAnnounceBids()).isTrue();
         assertThat(d.auctionBossBar()).isTrue();
 
+        assertThat(d.xpTradeEnabled()).isTrue();
+        assertThat(d.xpBuyMoney()).isEqualTo(Money.of(3));
+        assertThat(d.xpSellMoney()).isEqualTo(Money.of(1));
+        assertThat(with("xp.sell-per-point", "10").xpSellMoney()).as("never above the buying price")
+                .isEqualTo(Money.of(3));
         assertThat(d.wealthTaxEnabled()).as("nobody's money is taxed unless an owner wants it").isFalse();
         assertThat(d.wealthTaxPercent()).isEqualTo(1.0);
         assertThat(d.wealthTaxHours()).isEqualTo(24);

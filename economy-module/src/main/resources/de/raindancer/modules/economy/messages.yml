@@ -288,6 +288,14 @@ economy:
     done: "<green>Wealth tax of <percent>% taken: <amount><green> from <count> account(s)."
     percent: "<red>The wealth tax is a percentage above 0 and at most 100, like 2 or 0.5."
 
+  xp:
+    off: "<red>Buying and selling experience is switched off on this server."
+    bought: "<green>You bought <levels> level(s) for <amount><green>. You are level <level> now."
+    sold: "<green>You sold <levels> level(s) for <amount><green>. You are level <level> now."
+    nothing: "<red>You have no experience to sell."
+    worthless: "<red>Experience sells for nothing on this server."
+    top: "<red>You cannot go any higher."
+
   sidebar:
     on: "<green>Your balance is in the sidebar again. <gray>/bank sidebar hides it."
     off: "<gray>The sidebar is hidden. /bank sidebar brings it back."
