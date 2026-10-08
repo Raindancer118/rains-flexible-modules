@@ -87,4 +87,36 @@ class PlayerUtilsScenarioTest {
             assertThat(server.paper.errorsFrom("RainsCore", "RainsEssentials", "RainsPlayerUtils")).isEmpty();
         }
     }
+
+    @Test
+    @DisplayName("/player opens a page for yourself, for somebody else, and for a nickname full of symbols")
+    void detailPages() {
+        try (Server server = Server.start("playerutils-pages",
+                List.of("essentials-standalone:RainsEssentials-.*", "playerutils-standalone:RainsPlayerUtils-.*"),
+                List.of("Player utils are up"))) {
+            Bot ada = server.admin("Ada");
+            Bot bo = server.player("Bo");
+            ada.runAndExpect("nick lillyy⚞^._.^⚟", "lillyy");
+
+            ada.run("player Bo");
+            assertThat(ada.awaitWindow("").items()).as("an admin's page on somebody else").isNotEmpty();
+            ada.closeWindow();
+            Await.ticks(5);
+
+            ada.run("player Ada");
+            assertThat(ada.awaitWindow("").items()).as("an admin's page on themselves").isNotEmpty();
+            ada.closeWindow();
+            Await.ticks(5);
+
+            ada.run("playertools lillyy⚞^._.^⚟");
+            assertThat(ada.awaitWindow("").items()).as("by a nickname full of symbols").isNotEmpty();
+            ada.closeWindow();
+            Await.ticks(5);
+
+            bo.run("player Ada");
+            assertThat(bo.awaitWindow("").items()).as("a player's view of somebody's profile").isNotEmpty();
+
+            assertThat(server.paper.errorsFrom("RainsCore", "RainsEssentials", "RainsPlayerUtils")).isEmpty();
+        }
+    }
 }

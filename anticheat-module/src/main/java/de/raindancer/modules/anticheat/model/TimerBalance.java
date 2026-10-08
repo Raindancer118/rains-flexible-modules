@@ -38,10 +38,18 @@ public final class TimerBalance {
     }
 
     /**
-     * Forgets the clock — after a join, a teleport, a world change, a respawn. Starts with the full lag
-     * credit: the ticks a client queued up while the server was busy loading arrive as one burst.
+     * Restarts the clock after a teleport. The balance stays: a player can teleport at will (an ender
+     * pearl), so a teleport must neither wipe what was flag-worthy nor hand out fresh credit.
      */
     public synchronized void reset() {
+        lastNanos = Long.MIN_VALUE;
+    }
+
+    /**
+     * Starts over after a join, a respawn or a world change, with the full lag credit: the ticks a client
+     * queued up while the server was busy loading it in arrive as one burst.
+     */
+    public synchronized void restart() {
         lastNanos = Long.MIN_VALUE;
         balance = -lagCreditMillis;
     }

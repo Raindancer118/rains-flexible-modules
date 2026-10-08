@@ -98,7 +98,7 @@ class BufferAndBalanceTest {
     @DisplayName("the burst of ticks queued up while a join or teleport loads is not a fast clock")
     void burstAfterReset() {
         TimerBalance balance = new TimerBalance(1000);
-        balance.reset();
+        balance.restart();
         long t = 0;
         for (int i = 0; i < 6; i++) {
             balance.tick(t);
@@ -110,5 +110,20 @@ class BufferAndBalanceTest {
             balance.tick(t);
         }
         assertThat(balance.balance()).as("a really fast clock still climbs").isGreaterThan(1000);
+    }
+
+    @Test
+    @DisplayName("a teleport — an ender pearl away — restarts the clock but never refills the credit")
+    void teleportGivesNoCredit() {
+        TimerBalance balance = new TimerBalance(1000);
+        balance.reset();
+        assertThat(balance.balance()).isZero();
+        long t = 0;
+        for (int i = 0; i < 12; i++) {
+            balance.tick(t);
+            t += 25 * MS;
+        }
+        balance.reset();
+        assertThat(balance.balance()).as("what was flagged-worthy stays").isGreaterThan(200);
     }
 }

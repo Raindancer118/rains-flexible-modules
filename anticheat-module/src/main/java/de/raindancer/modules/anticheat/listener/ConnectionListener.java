@@ -36,7 +36,7 @@ public final class ConnectionListener implements IAntiCheatListener {
         Player player = event.getPlayer();
         PlayerTrack track = services.tracks().of(player);
         track.entityId = player.getEntityId();
-        track.timer.reset();
+        track.timer.restart();
         track.exempt(PlayerTrack.Exemption.JOINED, 3000);
         services.alerts().joined(player);
         services.tap().inject(player);
@@ -112,7 +112,7 @@ public final class ConnectionListener implements IAntiCheatListener {
         synchronized (track) {
             track.movement.forget();
             track.movement.known = false;
-            track.timer.reset();
+            track.timer.restart();
         }
         track.exempt(PlayerTrack.Exemption.RESPAWNED, 3000);
     }
@@ -122,7 +122,7 @@ public final class ConnectionListener implements IAntiCheatListener {
         PlayerTrack track = services.tracks().of(event.getPlayer());
         synchronized (track) {
             track.movement.known = false;
-            track.timer.reset();
+            track.timer.restart();
         }
         track.exempt(PlayerTrack.Exemption.WORLD_CHANGED, 3000);
     }
