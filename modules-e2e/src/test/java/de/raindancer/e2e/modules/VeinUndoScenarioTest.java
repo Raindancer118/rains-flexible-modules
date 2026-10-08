@@ -88,7 +88,7 @@ class VeinUndoScenarioTest {
             // Somebody else's diamond, lying in the tunnel out of the miner's reach: never part of the price.
             server.console("summon item 0.5 " + Y + " 5.5 {Item:{id:\"minecraft:diamond\",count:1},PickupDelay:32767}");
             miner.forgetChat();
-            miner.run("vein undo");
+            miner.run("ctrl-z");
             miner.expectChat("restored.");
             Await.until("the ore is back", Duration.ofSeconds(10), () -> all(server, "minecraft:diamond_ore"));
             Await.until("every diamond of the vein is taken back", Duration.ofSeconds(10),
@@ -99,7 +99,7 @@ class VeinUndoScenarioTest {
             server.console("kill @e[type=item]");
 
             miner.forgetChat();
-            miner.run("vein undo");
+            miner.run("ctrl-z");
             miner.expectChat("No vein of yours to undo");
 
             // Mined again: the same diamonds, and no experience for ore that was already paid for once.
@@ -125,12 +125,92 @@ class VeinUndoScenarioTest {
             server.console("tp Miner 2.5 " + Y + " 5.5");
             Await.ticks(40);
             miner.forgetChat();
-            miner.run("vein undo");
+            miner.run("ctrl-z");
             miner.expectChat("None of that vein could go back");
             miner.expectChat("what they dropped is gone");
             assertThat(all(server, "minecraft:air")).isTrue();
 
             assertThat(server.paper.errorsFrom("RainsCore", "RainsVeinToggle")).isEmpty();
+        }
+    }
+
+    /** Lays the vein again and has {@code miner}, at the tunnel mouth, mine it. */
+    private static void mineVein(Server server, Bot miner) {
+        server.console("fill " + FIRST + " " + Y + " 5 " + LAST + " " + Y + " 5 minecraft:diamond_ore");
+        server.console("tp " + miner.name() + " 2.5 " + Y + " 5.5 -90 0");
+        Await.ticks(10);
+        miner.dig(FIRST, Y, 5);
+        Await.until("the vein comes down", Duration.ofSeconds(15), () -> all(server, "minecraft:air"));
+        // Out of reach of its drops, still near enough to undo it.
+        server.console("tp " + miner.name() + " 0.5 " + Y + " 5.5");
+    }
+
+    /** {@code collector} walks the tunnel and picks up every diamond in it. */
+    private static void collect(Server server, Bot collector, String name) {
+        for (int x : new int[]{7, 6, 5, 4, 3, 4, 5, 6, 7}) {
+            server.console("tp " + name + " " + x + ".5 " + Y + " 5.5");
+            Await.ticks(15);
+        }
+        Await.until(name + " has picked up the whole vein", Duration.ofSeconds(15),
+                () -> diamonds(collector) == VEIN && !anyLying(server, "item"));
+        server.console("tp " + name + " 10.5 " + Y + " 5.5");
+    }
+
+    @Test
+    @DisplayName("/ctrl-z takes the vein back from whoever picked it up: their items, then their money, then the undoer pays what is left")
+    void collectorsPay() {
+        Path veinminer = Downloads.pinned("veinminer-paper-2.12.3.jar", VEINMINER_URL, VEINMINER_SHA1);
+        try (Server server = Server.start("veinundo-collectors",
+                List.of("veintoggle-standalone:RainsVeinToggle-.*", "economy-standalone:RainsEconomy-.*"),
+                List.of(veinminer), List.of("Vein toggle is up: Veinminer is on", "The economy is up"))) {
+            server.console("forceload add -16 -16 16 16");
+            server.console("fill -4 " + (Y - 4) + " -4 12 " + (Y + 4) + " 12 minecraft:stone");
+            server.console("fill 0 " + Y + " 5 11 " + (Y + 1) + " 5 minecraft:air");
+            server.console("fill 0 " + Y + " 5 2 " + (Y + 1) + " 5 minecraft:air");
+
+            Bot miner = server.player("Miner");
+            Bot ada = server.player("Ada");
+            for (String name : List.of("Miner", "Ada")) {
+                server.console("gamemode survival " + name);
+                server.console("clear " + name);
+            }
+            server.console("item replace entity Miner weapon.mainhand with " + PICKAXE);
+            server.console("tp Ada 10.5 " + Y + " 5.5");
+            server.console("eco set Ada 10000000");
+            server.console("eco set Miner 10000000");
+            Await.ticks(20);
+
+            // Ada picks the whole vein up and throws two away: three come out of her inventory, two
+            // out of her account.
+            mineVein(server, miner);
+            collect(server, ada, "Ada");
+            server.console("clear Ada minecraft:diamond 2");
+            Await.ticks(20);
+            ada.forgetChat();
+            miner.forgetChat();
+            miner.run("veinundo");
+            miner.expectChat("restored.");
+            ada.expectChat("went back out of your inventory");
+            ada.expectChat("was taken from your account for 2 item(s)");
+            Await.until("the ore is back", Duration.ofSeconds(10), () -> all(server, "minecraft:diamond_ore"));
+            Await.until("Ada has none of it left", Duration.ofSeconds(10), () -> diamonds(ada) == 0);
+
+            // Ada has nothing now — no diamonds, no money — so the miner is billed and pays.
+            server.console("fill " + FIRST + " " + Y + " 5 " + LAST + " " + Y + " 5 minecraft:air");
+            mineVein(server, miner);
+            collect(server, ada, "Ada");
+            server.console("clear Ada minecraft:diamond");
+            assertThat(server.console("eco reset Ada")).as("Ada is broke").doesNotContain("not");
+            Await.ticks(20);
+            miner.forgetChat();
+            miner.run("ctrl-z");
+            miner.expectChat("were not given back by anybody");
+            assertThat(all(server, "minecraft:air")).as("nothing goes back before the bill is settled").isTrue();
+            miner.run("ctrl-z pay");
+            miner.expectChat("restored.");
+            Await.until("the ore is back again", Duration.ofSeconds(10), () -> all(server, "minecraft:diamond_ore"));
+
+            assertThat(server.paper.errorsFrom("RainsCore", "RainsVeinToggle", "RainsEconomy")).isEmpty();
         }
     }
 }

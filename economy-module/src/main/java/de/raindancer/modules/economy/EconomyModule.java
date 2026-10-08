@@ -5,6 +5,7 @@ import de.raindancer.core.data.sql.Database;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.social.economy.Economies;
+import de.raindancer.core.social.economy.ItemValues;
 import de.raindancer.core.ui.choose.Category;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.profile.ProfileButton;
@@ -54,7 +55,9 @@ import de.raindancer.modules.economy.store.AccountBook;
 import de.raindancer.modules.economy.store.BasePrices;
 import de.raindancer.modules.economy.store.EconomyDatabase;
 import de.raindancer.modules.economy.store.MarketBook;
+import de.raindancer.modules.economy.store.CashTags;
 import de.raindancer.modules.economy.store.PriceBook;
+import de.raindancer.modules.economy.service.ShopItemValuer;
 import de.raindancer.modules.economy.util.Mini;
 import de.raindancer.modules.economy.util.PermissionNodes;
 import org.bukkit.Material;
@@ -82,7 +85,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.7.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.8.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -226,6 +229,9 @@ public final class EconomyModule implements FlexModule {
 
         Economies.provide(context.plugin(), economy);
         context.closeWith(() -> Economies.retract(economy));
+        ShopItemValuer valuer = new ShopItemValuer(prices::tag, CashTags::isCash, ShopItemValuer::materialName);
+        ItemValues.provide(context.plugin(), valuer);
+        context.closeWith(() -> ItemValues.retract(valuer));
 
         var flushing = Scheduling.asyncTimer(context.plugin(), FLUSH_SECONDS, FLUSH_SECONDS, task -> {
             book.flush();

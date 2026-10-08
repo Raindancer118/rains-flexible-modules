@@ -1,6 +1,7 @@
 package de.raindancer.modules.veintoggle;
 
 import de.raindancer.modules.api.ModuleCommand;
+import de.raindancer.modules.veintoggle.command.UndoCommand;
 import de.raindancer.modules.veintoggle.command.VeinCommand;
 
 import java.util.List;
@@ -16,14 +17,20 @@ public final class VeinToggleCommands {
     private VeinToggleCommands() {
     }
 
-    /** {@code /vein}, not {@code /veinminer}: that one is Veinminer's own. */
+    /** {@code /vein}, not {@code /veinminer}: that one is Veinminer's own. {@code /ctrl-z} undoes a vein. */
     public static List<ModuleCommand> declared() {
         return List.of(
                 ModuleCommand.of("vein", "Switches Veinminer on or off for you",
                                 new VeinCommand(VeinToggleCommands::require))
                         .aliased("veintoggle")
                         .taking("(nothing) — switch it", "on | off | status", "undo — put your last vein back", "<player> [on|off] — for staff")
-                        .needing("rainsveintoggle.use"));
+                        .needing("rainsveintoggle.use"),
+                ModuleCommand.of("ctrl-z", "Puts your last vein back",
+                                new UndoCommand(VeinToggleCommands::require))
+                        .aliased("veinundo")
+                        .taking("(nothing) — put your last vein back", "pay — pay for what nobody gave back",
+                                "cancel — leave the rest mined")
+                        .needing("rainsveintoggle.undo"));
     }
 
     static void ready(VeinToggleServices live) {

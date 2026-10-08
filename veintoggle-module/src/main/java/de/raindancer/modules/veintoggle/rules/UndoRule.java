@@ -1,9 +1,13 @@
 package de.raindancer.modules.veintoggle.rules;
 
+import de.raindancer.core.social.economy.Money;
+
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -63,5 +67,38 @@ public final class UndoRule {
     /** Whether it is too late to undo it. A window of zero means undo is switched off. */
     public boolean expired(long changedAt, long now, long windowMillis) {
         return windowMillis <= 0 || now - changedAt > windowMillis;
+    }
+
+    /**
+     * How many of each wanted item {@code balance} pays for — whole items only, kinds in the order
+     * given, and nothing for a kind without a price.
+     */
+    public <K> Map<K, Integer> affordable(Map<K, Integer> wanted, Function<K, Optional<Money>> price, Money balance) {
+        Map<K, Integer> units = new LinkedHashMap<>();
+        long left = Math.max(0, balance.minor());
+        for (Map.Entry<K, Integer> want : wanted.entrySet()) {
+            Optional<Money> each = price.apply(want.getKey());
+            if (each.isEmpty() || !each.get().isPositive() || want.getValue() <= 0) {
+                continue;
+            }
+            int count = (int) Math.min(want.getValue(), left / each.get().minor());
+            if (count > 0) {
+                units.put(want.getKey(), count);
+                left -= count * each.get().minor();
+            }
+        }
+        return units;
+    }
+
+    /** What all of {@code wanted} costs, counting only kinds that have a price. */
+    public <K> Money cost(Map<K, Integer> wanted, Function<K, Optional<Money>> price) {
+        Money total = Money.ZERO;
+        for (Map.Entry<K, Integer> want : wanted.entrySet()) {
+            Optional<Money> each = price.apply(want.getKey());
+            if (each.isPresent() && want.getValue() > 0) {
+                total = total.plus(each.get().times(want.getValue()));
+            }
+        }
+        return total;
     }
 }

@@ -4,7 +4,7 @@ version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
 api-version: '1.21'
-description: 'Switch Veinminer on or off for yourself with /vein, and undo a vein with /vein undo.'
+description: 'Switch Veinminer on or off for yourself with /vein, and undo a vein with /ctrl-z.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
 

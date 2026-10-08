@@ -1,6 +1,8 @@
 package de.raindancer.modules.veintoggle;
 
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.social.economy.Economies;
+import de.raindancer.core.social.economy.ItemValues;
 import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
@@ -10,6 +12,8 @@ import de.raindancer.modules.veintoggle.listener.VeinListener;
 import de.raindancer.modules.veintoggle.listener.VeinUndoListener;
 import de.raindancer.modules.veintoggle.rules.UndoRule;
 import de.raindancer.modules.veintoggle.rules.VeinRule;
+import de.raindancer.modules.veintoggle.service.ServerThreads;
+import de.raindancer.modules.veintoggle.service.UndoNotices;
 import de.raindancer.modules.veintoggle.service.VeinUndoService;
 import de.raindancer.modules.veintoggle.store.RestoredBlocks;
 import de.raindancer.modules.veintoggle.store.VeinHistory;
@@ -26,8 +30,11 @@ import java.util.List;
  */
 public final class VeinToggleModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.2.2")
-            .describedAs("Switch Veinminer on or off for yourself with /vein, and undo a vein with /vein undo")
+    /** How long the undoer has to agree to pay for what nobody could give back. */
+    private static final long BILL_SECONDS = 60;
+
+    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.3.0")
+            .describedAs("Switch Veinminer on or off for yourself with /vein, and undo a vein with /ctrl-z")
             .by("Raindancer118");
 
     @Override
@@ -53,7 +60,9 @@ public final class VeinToggleModule implements FlexModule {
         VeinToggleServices services = new VeinToggleServices(context.plugin(), server, context.core(),
                 context.log(), context.core().messages(), settings::current, history,
                 new VeinUndoService(server, new UndoRule(), history, restored,
-                        (player, where) -> context.core().land().verdict(player, where, LandAction.BUILD).orAllow()));
+                        (player, where) -> context.core().land().verdict(player, where, LandAction.BUILD).orAllow(),
+                        new ServerThreads(context.plugin()), Economies::current, ItemValues::valueOf,
+                        new UndoNotices(context.core().messages()), BILL_SECONDS));
         context.listener(new VeinListener(new VeinRule(), services::wantsVeins,
                 player -> {
                     if (settings.current().sayWhenHeldBack()) {

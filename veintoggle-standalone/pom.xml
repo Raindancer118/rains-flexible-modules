@@ -27,8 +27,10 @@
              0.2.0: /vein undo puts your last vein back, for exactly what it dropped.
              0.2.1: undo takes only the vein's own items off the ground, never walls anybody in, and
                     respects protected land; it says "restored."
-             0.2.2: an item counts as the vein's only if it is exactly a stack Veinminer announced. -->
-        <plugin.version>0.2.2</plugin.version>
+             0.2.2: an item counts as the vein's only if it is exactly a stack Veinminer announced.
+             0.3.0: /ctrl-z and /veinundo; whoever picked up the drops gives them back, or pays their
+                    shop buy price; the undoer may pay the rest. -->
+        <plugin.version>0.3.0</plugin.version>
     </properties>
 
     <dependencies>

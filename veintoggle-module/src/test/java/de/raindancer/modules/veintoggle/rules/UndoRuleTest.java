@@ -91,4 +91,24 @@ class UndoRuleTest {
         assertThat(rule.expired(1_000, 61_001, 60_000)).isTrue();
         assertThat(rule.expired(1_000, 1_000, 0)).as("zero switches undo off").isTrue();
     }
+
+    @Test
+    @DisplayName("money buys whole items only, kinds in order, and nothing without a price")
+    void affordable() {
+        java.util.Map<String, Integer> wanted = new java.util.LinkedHashMap<>();
+        wanted.put("diamond", 3);
+        wanted.put("coal", 5);
+        wanted.put("bedrock", 1);
+        java.util.function.Function<String, java.util.Optional<de.raindancer.core.social.economy.Money>> price =
+                kind -> switch (kind) {
+                    case "diamond" -> java.util.Optional.of(de.raindancer.core.social.economy.Money.of(1_000));
+                    case "coal" -> java.util.Optional.of(de.raindancer.core.social.economy.Money.of(10));
+                    default -> java.util.Optional.empty();
+                };
+
+        assertThat(rule.affordable(wanted, price, de.raindancer.core.social.economy.Money.of(2_035)))
+                .containsExactly(java.util.Map.entry("diamond", 2), java.util.Map.entry("coal", 3));
+        assertThat(rule.cost(wanted, price)).isEqualTo(de.raindancer.core.social.economy.Money.of(3_050));
+        assertThat(rule.affordable(wanted, price, de.raindancer.core.social.economy.Money.of(-5))).isEmpty();
+    }
 }

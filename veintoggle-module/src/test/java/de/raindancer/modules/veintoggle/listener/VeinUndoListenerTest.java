@@ -67,6 +67,20 @@ class VeinUndoListenerTest {
         return block;
     }
 
+    /** A stack that keeps its amount through clone and setAmount, similar to its own copies. */
+    private ItemStack counted(int amount) {
+        ItemStack stack = mock(ItemStack.class);
+        java.util.concurrent.atomic.AtomicInteger count = new java.util.concurrent.atomic.AtomicInteger(amount);
+        when(stack.getAmount()).thenAnswer(call -> count.get());
+        org.mockito.Mockito.doAnswer(call -> {
+            count.set(call.getArgument(0));
+            return null;
+        }).when(stack).setAmount(org.mockito.ArgumentMatchers.anyInt());
+        when(stack.isSimilar(any())).thenReturn(true);
+        when(stack.clone()).thenAnswer(call -> counted(count.get()));
+        return stack;
+    }
+
     private ItemStack stack() {
         ItemStack stack = mock(ItemStack.class);
         when(stack.clone()).thenReturn(stack);
@@ -123,7 +137,7 @@ class VeinUndoListenerTest {
         assertThat(operation.find(at(0)).orElseThrow().drops()).containsExactly(handDrop);
         assertThat(operation.find(at(1)).orElseThrow().drops()).containsExactly(veinDrop);
         assertThat(operation.find(at(1)).orElseThrow().data()).isSameAs(ore);
-        assertThat(operation.find(at(0)).orElseThrow().dropEntities()).containsExactly(dropped.getUniqueId());
+        assertThat(operation.find(at(0)).orElseThrow().dropEntities()).containsOnlyKeys(dropped.getUniqueId());
         assertThat(vein.getExpToDrop()).as("an ordinary vein block keeps its experience").isEqualTo(3);
     }
 
@@ -155,7 +169,7 @@ class VeinUndoListenerTest {
         verify(world).dropItemNaturally(any(Location.class), org.mockito.ArgumentMatchers.eq(diamond));
         assertThat(restored.holds(at(1), ore)).isFalse();
         assertThat(latest().find(at(1)).orElseThrow().drops()).as("so it can be undone again").containsExactly(diamond);
-        assertThat(latest().find(at(1)).orElseThrow().dropEntities()).containsExactly(redropped.getUniqueId());
+        assertThat(latest().find(at(1)).orElseThrow().dropEntities()).containsOnlyKeys(redropped.getUniqueId());
     }
 
     @Test
@@ -202,7 +216,7 @@ class VeinUndoListenerTest {
         listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(later));
 
         assertThat(latest().find(at(1)).orElseThrow().dropEntities())
-                .as("one item for one stack; the next spawn is somebody else's").containsExactly(ours.getUniqueId());
+                .as("one item for one stack; the next spawn is somebody else's").containsOnlyKeys(ours.getUniqueId());
     }
 
     @Test
@@ -233,5 +247,30 @@ class VeinUndoListenerTest {
         listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(item(1, diamond)));
 
         assertThat(latest().find(at(1)).orElseThrow().dropEntities()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("whoever picks up a vein's drops owes them, followed through a merge; the miner owes nobody")
+    void pickups() {
+        Block second = block(1);
+        listener.onBreak(new VeinMinerEvent.VeinminerEvent(second, player, block(0).getLocation(), 0));
+        ItemStack diamonds = counted(3);
+        listener.onExp(new VeinMinerEvent.VeinminerDropEvent(second, mock(BlockState.class), player,
+                new ArrayList<>(List.of(diamonds)), 0));
+        Item ours = item(1, diamonds);
+        listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(ours));
+        Item pile = item(1, diamonds);
+        listener.onMerge(new org.bukkit.event.entity.ItemMergeEvent(ours, pile));
+
+        Player ada = mock(Player.class);
+        when(ada.getUniqueId()).thenReturn(UUID.randomUUID());
+        listener.onPickup(new org.bukkit.event.entity.EntityPickupItemEvent(ada, pile, 1));
+        listener.onPickup(new org.bukkit.event.entity.EntityPickupItemEvent(player, pile, 0));
+
+        VeinOperation vein = latest();
+        assertThat(vein.collected()).containsOnlyKeys(ada.getUniqueId());
+        assertThat(vein.collected().get(ada.getUniqueId()).getFirst().getAmount()).as("3 picked, 1 left lying")
+                .isEqualTo(2);
+        assertThat(vein.find(at(1)).orElseThrow().dropEntities()).isEmpty();
     }
 }

@@ -42,7 +42,7 @@ class VeinHistoryTest {
     void oneVein() {
         history.brokeByHand(player, broken(0), 1_000);
         ItemStack handDrop = mock(ItemStack.class);
-        history.handDrops(player, at(0), List.of(handDrop), List.of());
+        history.handDrops(player, at(0), List.of(handDrop), java.util.Map.of());
         history.veinBlock(player, at(0), broken(1), 1_050);
         history.veinBlock(player, at(0), broken(2), 1_100);
 

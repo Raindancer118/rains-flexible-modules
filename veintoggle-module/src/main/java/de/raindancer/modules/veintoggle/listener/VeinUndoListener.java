@@ -16,12 +16,16 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.event.block.BlockExpEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.ItemMergeEvent;
 import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.IntSupplier;
@@ -102,16 +106,16 @@ public final class VeinUndoListener implements Listener {
         if (owed.isEmpty() || creative) {
             return;
         }
-        List<UUID> entities = new ArrayList<>();
+        Map<UUID, Integer> entities = new LinkedHashMap<>();
         for (ItemStack stack : owed.get()) {
             Item dropped = block.getWorld().dropItemNaturally(at.centre(block.getWorld()), stack.clone());
             if (dropped != null) {
-                entities.add(dropped.getUniqueId());
+                entities.put(dropped.getUniqueId(), stack.getAmount());
             }
         }
         if (vein) {
             history.veinDrops(id, at, owed.get());
-            entities.forEach(entity -> history.veinDropEntity(id, at, entity));
+            entities.forEach((entity, amount) -> history.veinDropEntity(id, at, entity, amount));
         } else {
             history.handDrops(id, at, owed.get(), entities);
         }
@@ -120,12 +124,12 @@ public final class VeinUndoListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDrop(BlockDropItemEvent event) {
         List<ItemStack> drops = new ArrayList<>();
-        List<UUID> entities = new ArrayList<>();
+        Map<UUID, Integer> entities = new LinkedHashMap<>();
         for (Item item : event.getItems()) {
             ItemStack stack = item.getItemStack();
             if (stack != null && !stack.isEmpty()) {
                 drops.add(stack.clone());
-                entities.add(item.getUniqueId());
+                entities.put(item.getUniqueId(), stack.getAmount());
             }
         }
         history.handDrops(event.getPlayer().getUniqueId(), BlockKey.of(event.getBlock()), drops, entities);
@@ -173,12 +177,31 @@ public final class VeinUndoListener implements Listener {
             ItemStack announced = waiting.left().get(i);
             if (holding != null && announced.isSimilar(holding) && announced.getAmount() == holding.getAmount()) {
                 waiting.left().remove(i);
-                history.veinDropEntity(waiting.player(), waiting.at(), item.getUniqueId());
+                history.veinDropEntity(waiting.player(), waiting.at(), item.getUniqueId(), holding.getAmount());
                 break;
             }
         }
         if (waiting.left().isEmpty()) {
             expected.remove();
+        }
+    }
+
+    /** Two lying stacks became one: what was a vein's in the first now lies in the second. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onMerge(ItemMergeEvent event) {
+        history.merged(event.getEntity().getUniqueId(), event.getTarget().getUniqueId());
+    }
+
+    /** Somebody picked up a vein's drops: they are now theirs to give back if it is undone. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPickup(EntityPickupItemEvent event) {
+        if (!(event.getEntity() instanceof Player collector)) {
+            return;
+        }
+        ItemStack stack = event.getItem().getItemStack();
+        int picked = stack.getAmount() - event.getRemaining();
+        if (picked > 0) {
+            history.pickedUp(event.getItem().getUniqueId(), collector.getUniqueId(), stack, picked);
         }
     }
 

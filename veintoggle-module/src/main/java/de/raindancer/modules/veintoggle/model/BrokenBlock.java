@@ -5,9 +5,9 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -20,7 +20,8 @@ public final class BrokenBlock {
     private final BlockKey at;
     private final BlockData data;
     private final List<ItemStack> drops = new ArrayList<>();
-    private final Set<UUID> dropEntities = new LinkedHashSet<>();
+    /** Item entity → how many of this block's drops lie in it; a merge moves them, a pickup takes them. */
+    private final Map<UUID, Integer> dropEntities = new LinkedHashMap<>();
 
     public BrokenBlock(BlockKey at, BlockData data) {
         this.at = at;
@@ -43,11 +44,30 @@ public final class BrokenBlock {
         return List.copyOf(drops);
     }
 
-    public synchronized void addDropEntity(UUID item) {
-        dropEntities.add(item);
+    public synchronized void addDropEntity(UUID item, int amount) {
+        if (amount > 0) {
+            dropEntities.merge(item, amount, Integer::sum);
+        }
     }
 
-    public synchronized Set<UUID> dropEntities() {
-        return Set.copyOf(dropEntities);
+    /** How many of this block's drops lie in {@code item}. */
+    public synchronized int lyingIn(UUID item) {
+        return dropEntities.getOrDefault(item, 0);
+    }
+
+    /** Takes up to {@code amount} of them out of {@code item}. @return how many were there to take */
+    public synchronized int takeFrom(UUID item, int amount) {
+        int there = dropEntities.getOrDefault(item, 0);
+        int taken = Math.min(there, Math.max(0, amount));
+        if (there - taken <= 0) {
+            dropEntities.remove(item);
+        } else {
+            dropEntities.put(item, there - taken);
+        }
+        return taken;
+    }
+
+    public synchronized Map<UUID, Integer> dropEntities() {
+        return Map.copyOf(dropEntities);
     }
 }
