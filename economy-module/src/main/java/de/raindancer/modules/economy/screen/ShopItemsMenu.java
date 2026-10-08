@@ -39,6 +39,10 @@ public final class ShopItemsMenu extends PaginatedMenu<Material> implements IEco
                 materials(services.shop().prices().tradableIn(category)));
     }
 
+    public static ShopItemsMenu eggs(EconomyServices services, Player viewer, Menu parent) {
+        return new ShopItemsMenu(services, viewer, parent, "Spawn eggs", materials(services.shop().prices().tradableEggs()));
+    }
+
     public static ShopItemsMenu search(EconomyServices services, Player viewer, Menu parent, String text) {
         String wanted = text.strip().toUpperCase(Locale.ROOT).replace(' ', '_');
         List<String> found = new ArrayList<>();
@@ -47,6 +51,11 @@ public final class ShopItemsMenu extends PaginatedMenu<Material> implements IEco
                 if (name.contains(wanted)) {
                     found.add(name);
                 }
+            }
+        }
+        for (String name : services.shop().prices().tradableEggs()) {
+            if (name.contains(wanted)) {
+                found.add(name);
             }
         }
         found.sort((a, b) -> a.equals(wanted) ? -1 : b.equals(wanted) ? 1 : a.compareTo(b));

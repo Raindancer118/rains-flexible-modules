@@ -8,6 +8,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuAnimation;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.model.SlotSymbol;
 import de.raindancer.modules.economy.service.GamblingService;
 import de.raindancer.modules.economy.util.Mini;
@@ -43,7 +44,7 @@ public final class SlotsMenu extends Menu implements IEconomyScreen, Bet.BetMenu
     SlotsMenu(EconomyServices services, Player viewer, Menu parent, Bet bet) {
         super(viewer, services.brand(), parent);
         this.services = services;
-        this.bet = bet;
+        this.bet = bet.at(Game.SLOTS);
         for (int reel = 0; reel < 3; reel++) {
             strips.add(randomStrip(3, null));
         }

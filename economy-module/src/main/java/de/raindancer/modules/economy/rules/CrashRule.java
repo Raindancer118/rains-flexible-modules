@@ -18,9 +18,14 @@ public final class CrashRule implements IEconomyRule {
 
     /** @param uniform a number in (0, 1] */
     public double crashPoint(double uniform, double edge) {
+        return crashPoint(uniform, edge, MOST);
+    }
+
+    /** @param most the highest a round goes, at least 1 */
+    public double crashPoint(double uniform, double edge, double most) {
         double u = Math.max(1e-9, Math.min(1, uniform));
         double point = (1.0 - Math.max(0, Math.min(0.5, edge))) / u;
-        return Math.min(MOST, Math.max(1.0, Math.floor(point * 100) / 100.0));
+        return Math.min(Math.max(1.0, most), Math.max(1.0, Math.floor(point * 100) / 100.0));
     }
 
     public double multiplierAt(long millis) {

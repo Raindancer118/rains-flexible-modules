@@ -1,5 +1,6 @@
 package de.raindancer.modules.economy.service;
 
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.core.content.items.NonIngredients;
 import de.raindancer.core.social.economy.EconomyResult;
 import de.raindancer.core.social.economy.Money;
@@ -70,7 +71,7 @@ public final class ScratchService implements IEconomyService {
 
     public void buy(Player player, int count) {
         EconomySettings live = settings;
-        if (!live.gameOpen(live.scratchEnabled()) || !player.hasPermission(PermissionNodes.GAMBLE)) {
+        if (!live.gameOn(Game.SCRATCH) || !player.hasPermission(PermissionNodes.GAMBLE)) {
             gambling.tell(player, "economy.gamble.off");
             return;
         }
@@ -147,7 +148,7 @@ public final class ScratchService implements IEconomyService {
         }
         player.getInventory().setItem(slot, null);
         ScratchRule.Prize won = rule.draw(random.nextDouble());
-        Money payout = price.share(rule.multiplier(won, settings.houseEdge()));
+        Money payout = price.share(rule.multiplier(won, settings.edge(Game.SCRATCH)));
         gambling.payOut(player.getUniqueId(), price, payout, "Scratch card");
         return Optional.of(new Scratched(rule.fields(won, random), won, price, payout));
     }

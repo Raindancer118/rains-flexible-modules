@@ -5,6 +5,7 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.rules.MinesRule;
 import de.raindancer.modules.economy.service.TableService;
 import de.raindancer.modules.economy.util.Mini;
@@ -26,7 +27,7 @@ public final class MinesMenu extends Menu implements IEconomyScreen {
     MinesMenu(EconomyServices services, Player viewer, Menu parent, Bet bet) {
         super(viewer, services.brand(), parent);
         this.services = services;
-        this.bet = bet;
+        this.bet = bet.at(Game.MINES);
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
@@ -104,7 +105,7 @@ public final class MinesMenu extends Menu implements IEconomyScreen {
             });
         } else {
             set(17, Icons.of(Material.LIME_CONCRETE, "<green>Start", "<gray>" + mineCount + " mines, next tile ×"
-                    + String.format("%.2f", tables.minesRule().multiplier(mineCount, 1, tables.edge()))), click -> {
+                    + String.format("%.2f", tables.minesRule().multiplier(mineCount, 1, tables.edge(Game.MINES)))), click -> {
                 tables.startMines(viewer, bet.amount(), mineCount);
                 refresh();
             });

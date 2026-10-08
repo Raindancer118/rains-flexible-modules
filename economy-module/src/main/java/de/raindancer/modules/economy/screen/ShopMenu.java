@@ -77,6 +77,11 @@ public final class ShopMenu extends Menu implements IEconomyScreen {
             });
         }
 
+        // The free column in the middle of the second row of drawers.
+        int eggs = live.spawnEggs() ? services.shop().prices().tradableEggs().size() : 0;
+        band(MenuLayout.RULES, 4, live.spawnEggs(), Icons.of(Material.PIG_SPAWN_EGG, "<green>Spawn eggs",
+                "<gray>" + eggs + " mob(s) to hatch."), BankMenu.OFF,
+                click -> ShopItemsMenu.eggs(services, viewer, this).open());
         band(MenuLayout.LAND, 3, Icons.of(Material.SPYGLASS, "<white>Search", "<gray>Find an item by name."),
                 click -> AnvilInput.open(viewer, "Search the shop", "", Parsers.text(32),
                         text -> services.screens().shopSearch(viewer, text), this::open));

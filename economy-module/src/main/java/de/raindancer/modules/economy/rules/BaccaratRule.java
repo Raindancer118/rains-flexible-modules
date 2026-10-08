@@ -59,13 +59,21 @@ public final class BaccaratRule implements IEconomyRule {
 
     /** What a bet returns per unit staked, stake included. */
     public double returns(Side bet, Side winner) {
+        return returns(bet, winner, 8, 0.05);
+    }
+
+    /**
+     * @param tiePays          a tie bet's winnings to one: 8 at the usual table
+     * @param bankerCommission taken from a banker win's winnings, as a fraction: 0.05 at the usual table
+     */
+    public double returns(Side bet, Side winner, int tiePays, double bankerCommission) {
         if (winner == Side.TIE) {
-            return bet == Side.TIE ? 9 : 1;
+            return bet == Side.TIE ? 1 + tiePays : 1;
         }
         if (bet != winner) {
             return 0;
         }
-        return bet == Side.BANKER ? 1.95 : 2;
+        return bet == Side.BANKER ? 2 - Math.max(0, Math.min(0.5, bankerCommission)) : 2;
     }
 
     @Override

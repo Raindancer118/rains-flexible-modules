@@ -1,5 +1,6 @@
 package de.raindancer.modules.economy.service;
 
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.social.economy.Currency;
@@ -119,10 +120,10 @@ public final class GamblingService implements IEconomyService {
 
     // ---------------------------------------------------------------------------- the checks every game shares
 
-    public boolean mayBet(Player player, Money stake, boolean gameOn) {
+    public boolean mayBet(Player player, Money stake, Game game) {
         EconomySettings live = settings;
         Currency currency = live.currency();
-        if (!live.gameOpen(gameOn)) {
+        if (!live.gameOn(game)) {
             refuse(player, "economy.gamble.off");
             return false;
         }
@@ -134,12 +135,12 @@ public final class GamblingService implements IEconomyService {
             refuse(player, "economy.not-an-amount");
             return false;
         }
-        Optional<BetRefusal> refusal = rule.refusal(stake, live.minBetMoney(), live.maxBetMoney(),
+        Optional<BetRefusal> refusal = rule.refusal(stake, live.minBet(game), live.maxBet(game),
                 lostToday(player.getUniqueId()), live.dailyLossLimitMoney());
         if (refusal.isPresent()) {
             switch (refusal.get()) {
-                case BELOW_MINIMUM -> refuse(player, "economy.gamble.too-little", "amount", currency.render(live.minBetMoney()));
-                case ABOVE_MAXIMUM -> refuse(player, "economy.gamble.too-much", "amount", currency.render(live.maxBetMoney()));
+                case BELOW_MINIMUM -> refuse(player, "economy.gamble.too-little", "amount", currency.render(live.minBet(game)));
+                case ABOVE_MAXIMUM -> refuse(player, "economy.gamble.too-much", "amount", currency.render(live.maxBet(game)));
                 case LOSS_LIMIT -> refuse(player, "economy.gamble.loss-limit", "amount",
                         currency.render(live.dailyLossLimitMoney()));
             }
@@ -187,11 +188,11 @@ public final class GamblingService implements IEconomyService {
 
     /** Heads or tails against the house, settled; the caller reveals it when its coin stops. */
     public Optional<Flip> flip(Player player, Money stake, boolean heads) {
-        if (!mayBet(player, stake, settings.coinflipEnabled())) {
+        if (!mayBet(player, stake, Game.COINFLIP)) {
             return Optional.empty();
         }
         boolean landedHeads = random.nextBoolean();
-        Money payout = landedHeads == heads ? rule.payout(stake, 0.5, settings.houseEdge()) : Money.ZERO;
+        Money payout = landedHeads == heads ? rule.payout(stake, 0.5, settings.edge(Game.COINFLIP)) : Money.ZERO;
         return settle(player, stake, payout, "Coin flip").map(result -> new Flip(landedHeads, heads, stake, payout));
     }
 
@@ -202,7 +203,7 @@ public final class GamblingService implements IEconomyService {
 
     /** What a winning flip pays, for the menu to show before the bet. */
     public Money flipWouldPay(Money stake) {
-        return rule.payout(stake, 0.5, settings.houseEdge());
+        return rule.payout(stake, 0.5, settings.edge(Game.COINFLIP));
     }
 
     /** Challenges another player; nothing is staked until they accept. */
@@ -213,7 +214,7 @@ public final class GamblingService implements IEconomyService {
             refuse(from, "economy.gamble.duel-yourself");
             return;
         }
-        if (!mayBet(from, stake, live.coinflipEnabled())) {
+        if (!mayBet(from, stake, Game.COINFLIP)) {
             return;
         }
         if (!economy.has(from.getUniqueId(), stake)) {
@@ -241,7 +242,7 @@ public final class GamblingService implements IEconomyService {
             refuse(to, "economy.gamble.duel-gone");
             return;
         }
-        if (!live.gameOpen(live.coinflipEnabled())) {
+        if (!live.gameOn(Game.COINFLIP)) {
             refuse(to, "economy.gamble.off");
             return;
         }
@@ -249,7 +250,7 @@ public final class GamblingService implements IEconomyService {
         boolean challengerWins = random.nextBoolean();
         UUID winner = challengerWins ? challenge.from() : to.getUniqueId();
         UUID loser = challengerWins ? to.getUniqueId() : challenge.from();
-        Money cut = challenge.stake().share(live.houseEdge());
+        Money cut = challenge.stake().share(live.edge(Game.COINFLIP));
         EconomyResult result = book.duel(winner, loser, challenge.stake(), cut, "Coin flip duel", economy.most());
         Player from = server.getPlayer(challenge.from());
         if (!result.succeeded()) {
@@ -292,12 +293,12 @@ public final class GamblingService implements IEconomyService {
             refuse(player, "economy.gamble.dice-bad-target");
             return Optional.empty();
         }
-        if (!mayBet(player, stake, settings.diceEnabled())) {
+        if (!mayBet(player, stake, Game.DICE)) {
             return Optional.empty();
         }
         int roll = random.nextInt(100) + 1;
         boolean won = rule.diceWins(over, target, roll);
-        Money payout = won ? rule.payout(stake, rule.diceChance(over, target), settings.houseEdge()) : Money.ZERO;
+        Money payout = won ? rule.payout(stake, rule.diceChance(over, target), settings.edge(Game.DICE)) : Money.ZERO;
         return settle(player, stake, payout, "Dice").map(result -> new Roll(roll, over, target, stake, payout));
     }
 
@@ -317,18 +318,18 @@ public final class GamblingService implements IEconomyService {
     /** What a dice bet would pay if it won, for showing before it is placed. */
     public Money diceWouldPay(Money stake, boolean over, int target) {
         return rule.diceValid(over, target)
-                ? rule.payout(stake, rule.diceChance(over, target), settings.houseEdge()) : Money.ZERO;
+                ? rule.payout(stake, rule.diceChance(over, target), settings.edge(Game.DICE)) : Money.ZERO;
     }
 
     // ---------------------------------------------------------------------------- roulette
 
     /** One spin of the wheel, settled; the caller reveals it when its ball stops. */
     public Optional<Wheel> roulette(Player player, Money stake, RouletteBet bet) {
-        if (!mayBet(player, stake, settings.rouletteEnabled())) {
+        if (!mayBet(player, stake, Game.ROULETTE)) {
             return Optional.empty();
         }
         int pocket = roulette.spin(random::nextInt);
-        Money payout = roulette.wins(bet, pocket) ? roulette.payout(stake, bet, settings.houseEdge()) : Money.ZERO;
+        Money payout = roulette.wins(bet, pocket) ? roulette.payout(stake, bet, settings.edge(Game.ROULETTE)) : Money.ZERO;
         return settle(player, stake, payout, "Roulette: " + bet.label())
                 .map(result -> new Wheel(pocket, bet, stake, payout));
     }
@@ -351,7 +352,7 @@ public final class GamblingService implements IEconomyService {
     }
 
     public Money rouletteWouldPay(Money stake, RouletteBet bet) {
-        return roulette.payout(stake, bet, settings.houseEdge());
+        return roulette.payout(stake, bet, settings.edge(Game.ROULETTE));
     }
 
     public GameSounds sounds() {
@@ -362,16 +363,16 @@ public final class GamblingService implements IEconomyService {
 
     /** Spins and settles at once; the menu only shows what has already happened. */
     public Optional<Spin> spin(Player player, Money stake) {
-        if (!mayBet(player, stake, settings.slotsEnabled())) {
+        if (!mayBet(player, stake, Game.SLOTS)) {
             return Optional.empty();
         }
         List<SlotSymbol> reels = slots.spin(random::nextInt);
-        Money payout = slots.payout(stake, reels, settings.houseEdge());
+        Money payout = slots.payout(stake, reels, settings.edge(Game.SLOTS));
         return settle(player, stake, payout, "Slots").map(result -> new Spin(reels, stake, payout, result.balance()));
     }
 
     public double slotsMultiplier(List<SlotSymbol> reels) {
-        return slots.multiplier(reels, settings.houseEdge());
+        return slots.multiplier(reels, settings.edge(Game.SLOTS));
     }
 
     /** Called by the slot machine once its reels have stopped. */

@@ -72,13 +72,24 @@ public final class ShopService implements IEconomyService {
     @Override
     public void settings(EconomySettings updated) {
         this.settings = updated == null ? EconomySettings.DEFAULTS : updated;
-        prices.recompute(this.settings, knownRecipes);
+        prices.recompute(this.settings, knownRecipes, spawnEggs());
+    }
+
+    /** Every spawn egg this server knows. */
+    private static List<String> spawnEggs() {
+        List<String> eggs = new ArrayList<>();
+        for (Material material : Material.values()) {
+            if (!material.isLegacy() && material.name().endsWith("_SPAWN_EGG")) {
+                eggs.add(material.name());
+            }
+        }
+        return eggs;
     }
 
     /** Reads the server's recipes again and reprices everything. On the global thread. */
     public int reprice() {
         knownRecipes = recipes.get();
-        prices.recompute(settings, knownRecipes);
+        prices.recompute(settings, knownRecipes, spawnEggs());
         return knownRecipes.size();
     }
 

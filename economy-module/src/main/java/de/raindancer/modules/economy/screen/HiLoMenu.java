@@ -7,6 +7,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuAnimation;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.service.GameSounds;
 import de.raindancer.modules.economy.service.TableService;
 import de.raindancer.modules.economy.util.Mini;
@@ -28,7 +29,7 @@ public final class HiLoMenu extends Menu implements IEconomyScreen {
     HiLoMenu(EconomyServices services, Player viewer, Menu parent, Bet bet) {
         super(viewer, services.brand(), parent);
         this.services = services;
-        this.bet = bet;
+        this.bet = bet.at(Game.HILO);
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
@@ -80,7 +81,7 @@ public final class HiLoMenu extends Menu implements IEconomyScreen {
             double lower = tables.hiLoRule().chance(game.showing.rank(), false, left);
             toolbar(2, higher > 0, Icons.of(Material.LIME_CONCRETE, "<green>Higher",
                     "<gray>Chance " + Math.round(higher * 100) + "%",
-                    "<gray>×" + String.format("%.2f", tables.hiLoRule().step(higher, tables.edge()))),
+                    "<gray>×" + String.format("%.2f", tables.hiLoRule().step(higher, tables.edge(Game.HILO)))),
                     "Nothing is higher.", click -> guess(true));
             toolbar(4, game.streak > 0, Icons.of(Material.GOLD_BLOCK, "<gold>Cash out",
                     "<gray>Take " + Mini.of(currency.render(game.stake.share(game.multiplier)))),
@@ -90,7 +91,7 @@ public final class HiLoMenu extends Menu implements IEconomyScreen {
                     });
             toolbar(6, lower > 0, Icons.of(Material.RED_CONCRETE, "<red>Lower",
                     "<gray>Chance " + Math.round(lower * 100) + "%",
-                    "<gray>×" + String.format("%.2f", tables.hiLoRule().step(lower, tables.edge()))),
+                    "<gray>×" + String.format("%.2f", tables.hiLoRule().step(lower, tables.edge(Game.HILO)))),
                     "Nothing is lower.", click -> guess(false));
         } else if (!flipping) {
             toolbar(4, Icons.of(Material.EMERALD, "<green>Start", "<gray>Draw the first card for "

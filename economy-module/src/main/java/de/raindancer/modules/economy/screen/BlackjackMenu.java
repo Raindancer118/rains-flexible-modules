@@ -7,6 +7,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuAnimation;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.model.Card;
 import de.raindancer.modules.economy.rules.BlackjackRule;
 import de.raindancer.modules.economy.service.GameSounds;
@@ -36,7 +37,7 @@ public final class BlackjackMenu extends Menu implements IEconomyScreen {
     BlackjackMenu(EconomyServices services, Player viewer, Menu parent, Bet bet) {
         super(viewer, services.brand(), parent);
         this.services = services;
-        this.bet = bet;
+        this.bet = bet.at(Game.BLACKJACK);
         services.tables().blackjack(viewer.getUniqueId()).ifPresent(game -> {
             shownDealer = game.dealer.size();
             shownPlayer = game.hands.stream().mapToInt(List::size).sum();

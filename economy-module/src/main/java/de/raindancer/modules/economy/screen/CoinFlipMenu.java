@@ -8,6 +8,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuAnimation;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.service.GamblingService;
 import de.raindancer.modules.economy.util.Mini;
 import net.kyori.adventure.text.Component;
@@ -37,7 +38,7 @@ public final class CoinFlipMenu extends Menu implements IEconomyScreen, Bet.BetM
     CoinFlipMenu(EconomyServices services, Player viewer, Menu parent, Bet bet) {
         super(viewer, services.brand(), parent);
         this.services = services;
-        this.bet = bet;
+        this.bet = bet.at(Game.COINFLIP);
     }
 
     /** Opens with this bet; with a call, the coin is flipped at once. */

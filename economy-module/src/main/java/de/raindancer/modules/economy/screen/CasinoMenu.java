@@ -6,6 +6,7 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.util.Mini;
 import net.kyori.adventure.text.Component;
@@ -44,48 +45,43 @@ public final class CasinoMenu extends Menu implements IEconomyScreen, Bet.BetMen
         set(MenuLayout.HEADER_LEFT, Icons.of(Material.GOLD_INGOT, "<white>Your balance",
                 Mini.of(currency.render(services.economy().balance(viewer.getUniqueId())))));
         set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.GOLD_BLOCK, "<gold>Casino",
-                "<gray>The house keeps " + String.format("%.1f", live.houseEdge() * 100) + "% on average.",
+                "<gray>The house keeps " + percent(live.houseEdge()) + "% on average,",
+                "<gray>unless a game says otherwise.",
                 "<dark_gray>Blackjack and baccarat: the real casino rules."));
         Money limit = live.dailyLossLimitMoney();
         set(MenuLayout.HEADER_RIGHT, Icons.of(Material.CLOCK, "<white>Lost today",
                 Mini.of(currency.render(services.gambling().lostToday(viewer.getUniqueId()))),
                 limit.isPositive() ? "<gray>of at most " + Mini.of(currency.render(limit)) : "<dark_gray>No daily limit"));
 
-        bet.buttons(this, MenuLayout.WHO, viewer);
+        bet.at(null).buttons(this, MenuLayout.WHO, viewer);
 
-        game(MenuLayout.RULES, 1, live.coinflipEnabled(), Material.SUNFLOWER, "Coin flip", "Heads or tails.",
-                () -> new CoinFlipMenu(services, viewer, this, bet).open());
-        game(MenuLayout.RULES, 2, live.diceEnabled(), Material.WHITE_WOOL, "Dice", "Over or under your number.",
-                () -> new DiceMenu(services, viewer, this, bet).open());
-        game(MenuLayout.RULES, 3, live.slotsEnabled(), Material.DIAMOND, "Slot machine", "Three reels.",
-                () -> new SlotsMenu(services, viewer, this, bet).open());
-        game(MenuLayout.RULES, 4, live.rouletteEnabled(), Material.ENDER_PEARL, "Roulette", "Red, black, numbers.",
-                () -> new RouletteMenu(services, viewer, this, bet).open());
-        game(MenuLayout.RULES, 5, live.blackjackEnabled(), Material.PAPER, "Blackjack", "Beat the dealer to 21.",
-                () -> new BlackjackMenu(services, viewer, this, bet).open());
-        game(MenuLayout.RULES, 6, live.baccaratEnabled(), Material.RED_CONCRETE, "Baccarat", "Player, banker or tie.",
-                () -> new BaccaratMenu(services, viewer, this, bet).open());
-        game(MenuLayout.RULES, 7, live.hiloEnabled(), Material.LIME_CONCRETE, "Hi-Lo", "Higher or lower?",
-                () -> new HiLoMenu(services, viewer, this, bet).open());
-        game(MenuLayout.LAND, 2, live.minesEnabled(), Material.TNT, "Mines", "Clear tiles, avoid mines.",
-                () -> new MinesMenu(services, viewer, this, bet).open());
-        game(MenuLayout.LAND, 3, live.crashEnabled(), Material.FIREWORK_ROCKET, "Crash", "Cash out before it crashes.",
-                () -> CrashMenu.open(services, viewer, this));
-        game(MenuLayout.LAND, 4, live.raceEnabled(), Material.SADDLE, "Horse race", "Bet and watch them run.",
-                () -> RaceMenu.open(services, viewer, this));
-        game(MenuLayout.LAND, 5, live.scratchEnabled(), Material.MAP, "Scratch card",
-                "Buy one for " + Mini.of(currency.render(live.scratchPriceMoney())), () -> {
-                    services.scratch().buy(viewer, 1);
-                    refresh();
-                });
-        game(MenuLayout.LAND, 6, live.lotteryEnabled(), Material.FILLED_MAP, "Lottery",
-                "Pot: " + Mini.of(currency.render(services.lottery().pot())),
+        game(MenuLayout.RULES, 1, Game.COINFLIP, "Heads or tails.", () -> new CoinFlipMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 2, Game.DICE, "Over or under your number.", () -> new DiceMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 3, Game.SLOTS, "Three reels.", () -> new SlotsMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 4, Game.ROULETTE, "Red, black, numbers.", () -> new RouletteMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 5, Game.BLACKJACK, "Beat the dealer to 21.", () -> new BlackjackMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 6, Game.BACCARAT, "Player, banker or tie.", () -> new BaccaratMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 7, Game.HILO, "Higher or lower?", () -> new HiLoMenu(services, viewer, this, bet).open());
+        game(MenuLayout.LAND, 2, Game.MINES, "Clear tiles, avoid mines.", () -> new MinesMenu(services, viewer, this, bet).open());
+        game(MenuLayout.LAND, 3, Game.CRASH, "Cash out before it crashes.", () -> CrashMenu.open(services, viewer, this));
+        game(MenuLayout.LAND, 4, Game.RACE, "Bet and watch them run.", () -> RaceMenu.open(services, viewer, this));
+        game(MenuLayout.LAND, 5, Game.SCRATCH, "Buy one for " + Mini.of(currency.render(live.scratchPriceMoney())), () -> {
+            services.scratch().buy(viewer, 1);
+            refresh();
+        });
+        game(MenuLayout.LAND, 6, Game.LOTTERY, "Pot: " + Mini.of(currency.render(services.lottery().pot())),
                 () -> new LotteryMenu(services, viewer, this).open());
     }
 
-    private void game(int band, int column, boolean on, Material icon, String name, String line, Runnable open) {
-        band(band, column, services.config().gameOpen(on), Icons.of(icon, "<yellow>" + name, "<gray>" + line), BankMenu.OFF,
-                click -> open.run());
+    private void game(int band, int column, Game game, String line, Runnable open) {
+        EconomySettings live = services.config();
+        String keeps = game.edge() ? "<dark_gray>The house keeps " + percent(live.edge(game)) + "%" : "";
+        band(band, column, live.gameOn(game), Icons.of(game.icon(), "<yellow>" + game.title(), "<gray>" + line, keeps),
+                BankMenu.OFF, click -> open.run());
+    }
+
+    static String percent(double fraction) {
+        return String.format(java.util.Locale.ROOT, "%.1f", fraction * 100);
     }
 
     @Override

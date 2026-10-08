@@ -9,6 +9,7 @@ import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.core.ui.prompt.AnvilInput;
 import de.raindancer.core.ui.prompt.Parsers;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.model.RouletteBet;
 import de.raindancer.modules.economy.rules.RouletteRule;
 import de.raindancer.modules.economy.service.GamblingService;
@@ -44,7 +45,7 @@ public final class RouletteMenu extends Menu implements IEconomyScreen, Bet.BetM
     RouletteMenu(EconomyServices services, Player viewer, Menu parent, Bet bet) {
         super(viewer, services.brand(), parent);
         this.services = services;
-        this.bet = bet;
+        this.bet = bet.at(Game.ROULETTE);
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent, Money stake) {

@@ -205,4 +205,49 @@ public class EconomySettingsTest {
             assertThat(with(EconomySettings.categoryKey(category), "false").categoryOpen(category)).isFalse();
         }
     }
+
+    @Test
+    @DisplayName("a game with nothing of its own set plays by the casino's bets and edge")
+    void gamesFollowTheCasino() {
+        EconomySettings d = EconomySettings.DEFAULTS;
+        for (de.raindancer.modules.economy.model.Game game : de.raindancer.modules.economy.model.Game.values()) {
+            assertThat(d.minBet(game)).as(game.key()).isEqualTo(d.minBetMoney());
+            assertThat(d.maxBet(game)).as(game.key()).isEqualTo(d.maxBetMoney());
+            assertThat(d.edge(game)).as(game.key()).isEqualTo(d.houseEdge());
+            assertThat(d.gameOn(game)).as(game.key()).isTrue();
+        }
+        assertThat(d.naturalPays()).isEqualTo(de.raindancer.modules.economy.model.NaturalPay.THREE_TO_TWO);
+        assertThat(d.dealerHitsSoft17()).isFalse();
+        assertThat(d.baccaratTiePays()).isEqualTo(8);
+        assertThat(d.baccaratCommission()).isEqualTo(0.05);
+        assertThat(d.crashMost()).isEqualTo(1000);
+    }
+
+    @Test
+    @DisplayName("a game's own bets and edge win over the casino's; a typo falls back rather than to zero")
+    void gamesOwnSettings() {
+        var slots = de.raindancer.modules.economy.model.Game.SLOTS;
+        var dice = de.raindancer.modules.economy.model.Game.DICE;
+        EconomySettings s = with("gamble.max-bet", "1000", "slots.max-bet", "50", "slots.min-bet", "5",
+                "slots.house-edge-percent", "8", "dice.house-edge-percent", "nonsense", "dice.max-bet", "0",
+                "roulette.house-edge-percent", "90");
+        assertThat(s.maxBet(slots)).isEqualTo(Money.of(50));
+        assertThat(s.minBet(slots)).isEqualTo(Money.of(5));
+        assertThat(s.edge(slots)).isEqualTo(0.08);
+        assertThat(s.edge(dice)).as("unreadable: the casino's").isEqualTo(s.houseEdge());
+        assertThat(s.maxBet(dice)).as("0: no limit for this game").isEqualTo(Money.ZERO);
+        assertThat(s.maxBet(de.raindancer.modules.economy.model.Game.MINES)).isEqualTo(Money.of(1000));
+        assertThat(s.edge(de.raindancer.modules.economy.model.Game.ROULETTE)).as("at most 50 %").isEqualTo(0.5);
+        assertThat(with("features.gambling", "false").gameOn(slots)).as("gambling off closes every game").isFalse();
+        assertThat(with("features.slots", "false").gameOn(slots)).isFalse();
+    }
+
+    @Test
+    @DisplayName("spawn eggs are for sale by default, the bosses' eggs not")
+    void spawnEggs() {
+        EconomySettings d = EconomySettings.DEFAULTS;
+        assertThat(d.spawnEggs()).isTrue();
+        assertThat(d.spawnEggValueMoney()).isEqualTo(Money.of(2_000));
+        assertThat(d.spawnEggsClosed()).contains("ender_dragon", "wither");
+    }
 }

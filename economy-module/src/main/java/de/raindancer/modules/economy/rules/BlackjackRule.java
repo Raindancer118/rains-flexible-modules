@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * Blackjack as casinos play it: aces one or eleven, the dealer draws to 16 and stands on every 17 (soft
- * included), a natural pays three to two, a double or a split pays even money. The house edge here is the
+ * included), a natural pays three to two unless the table says less, a double or a split pays even money. The house edge here is the
  * game's own — about half a percent against good play — not the configurable one.
  */
 public final class BlackjackRule implements IEconomyRule {
@@ -41,7 +41,13 @@ public final class BlackjackRule implements IEconomyRule {
     }
 
     public boolean dealerDraws(List<Card> hand) {
-        return total(hand) < 17;
+        return dealerDraws(hand, false);
+    }
+
+    /** @param hitsSoft17 whether the table has the dealer draw to a soft 17 too */
+    public boolean dealerDraws(List<Card> hand, boolean hitsSoft17) {
+        int total = total(hand);
+        return total < 17 || hitsSoft17 && total == 17 && soft(hand);
     }
 
     public boolean canSplit(List<Card> hand) {
@@ -58,6 +64,11 @@ public final class BlackjackRule implements IEconomyRule {
      * @param fromSplit a 21 on two cards after a split is 21, not a natural
      */
     public double returns(List<Card> player, List<Card> dealer, boolean fromSplit) {
+        return returns(player, dealer, fromSplit, 2.5);
+    }
+
+    /** @param naturalReturns what a natural returns per unit staked, stake included — 2.5 at three to two */
+    public double returns(List<Card> player, List<Card> dealer, boolean fromSplit, double naturalReturns) {
         if (bust(player)) {
             return 0;
         }
@@ -67,7 +78,7 @@ public final class BlackjackRule implements IEconomyRule {
             return 1;
         }
         if (playerNatural) {
-            return 2.5;
+            return naturalReturns;
         }
         if (dealerNatural) {
             return 0;

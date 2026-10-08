@@ -6,6 +6,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuAnimation;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.rules.BaccaratRule;
 import de.raindancer.modules.economy.service.GameSounds;
 import de.raindancer.modules.economy.service.TableService;
@@ -29,7 +30,7 @@ public final class BaccaratMenu extends Menu implements IEconomyScreen {
     BaccaratMenu(EconomyServices services, Player viewer, Menu parent, Bet bet) {
         super(viewer, services.brand(), parent);
         this.services = services;
-        this.bet = bet;
+        this.bet = bet.at(Game.BACCARAT);
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {

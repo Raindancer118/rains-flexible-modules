@@ -1,5 +1,6 @@
 package de.raindancer.modules.economy.service;
 
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.rules.CrashRule;
@@ -91,7 +92,7 @@ public final class CrashService implements IEconomyService {
                 if (now - phaseStarted >= settings.crashBettingSeconds() * 1000L) {
                     phase = Phase.RUNNING;
                     phaseStarted = now;
-                    crashPoint = rule.crashPoint(1 - random.nextDouble(), settings.houseEdge());
+                    crashPoint = rule.crashPoint(1 - random.nextDouble(), settings.edge(Game.CRASH), settings.crashMost());
                     shown = 1.0;
                 }
             }
@@ -155,7 +156,7 @@ public final class CrashService implements IEconomyService {
             gambling.tell(player, "economy.gamble.crash-already");
             return false;
         }
-        if (!gambling.mayBet(player, stake, settings.crashEnabled()) || !gambling.takeStake(player, stake, "Crash")) {
+        if (!gambling.mayBet(player, stake, Game.CRASH) || !gambling.takeStake(player, stake, "Crash")) {
             return false;
         }
         bets.put(player.getUniqueId(), new Bet(stake, autoCashOut));

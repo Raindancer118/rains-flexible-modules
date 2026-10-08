@@ -239,4 +239,43 @@ class CardGamesTest {
             }
         }
     }
+
+    @Nested
+    @DisplayName("each game's own rules, as an owner sets them")
+    class OwnRules {
+
+        @Test
+        @DisplayName("blackjack: a natural pays what the table says; a dealer may be told to hit a soft 17")
+        void blackjack() {
+            BlackjackRule rule = new BlackjackRule();
+            List<Card> natural = List.of(c(1), c(13));
+            assertThat(rule.returns(natural, List.of(c(10), c(9)), false, 2.2)).as("six to five").isEqualTo(2.2);
+            assertThat(rule.returns(natural, List.of(c(10), c(9)), true, 2.2)).as("21 after a split is 21").isEqualTo(2);
+            assertThat(rule.returns(List.of(c(10), c(8)), List.of(c(10), c(6), c(9)), false, 2.2)).isEqualTo(2);
+            assertThat(rule.dealerDraws(List.of(c(1), c(6)), true)).as("soft 17, hits").isTrue();
+            assertThat(rule.dealerDraws(List.of(c(1), c(6)), false)).isFalse();
+            assertThat(rule.dealerDraws(List.of(c(10), c(7)), true)).as("hard 17 always stands").isFalse();
+            assertThat(rule.dealerDraws(List.of(c(1), c(7)), true)).as("soft 18 stands").isFalse();
+        }
+
+        @Test
+        @DisplayName("baccarat: the tie and the banker's commission follow the table")
+        void baccarat() {
+            BaccaratRule rule = new BaccaratRule();
+            assertThat(rule.returns(BaccaratRule.Side.TIE, BaccaratRule.Side.TIE, 8, 0.05)).isEqualTo(9);
+            assertThat(rule.returns(BaccaratRule.Side.TIE, BaccaratRule.Side.TIE, 9, 0.05)).isEqualTo(10);
+            assertThat(rule.returns(BaccaratRule.Side.BANKER, BaccaratRule.Side.BANKER, 8, 0.0)).isEqualTo(2);
+            assertThat(rule.returns(BaccaratRule.Side.BANKER, BaccaratRule.Side.BANKER, 8, 0.04)).isCloseTo(1.96, within(1e-9));
+            assertThat(rule.returns(BaccaratRule.Side.PLAYER, BaccaratRule.Side.TIE, 9, 0.05)).as("a push").isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("crash: a round goes no higher than the table's highest multiplier")
+        void crash() {
+            CrashRule rule = new CrashRule();
+            assertThat(rule.crashPoint(1e-9, 0.0, 50)).isEqualTo(50.0);
+            assertThat(rule.crashPoint(1e-9, 0.0, CrashRule.MOST)).isEqualTo(CrashRule.MOST);
+            assertThat(rule.crashPoint(0.5, 0.0, 50)).isEqualTo(2.0);
+        }
+    }
 }

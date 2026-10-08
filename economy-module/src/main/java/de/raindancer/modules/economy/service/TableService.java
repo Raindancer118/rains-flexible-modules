@@ -1,5 +1,6 @@
 package de.raindancer.modules.economy.service;
 
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.model.Card;
@@ -117,8 +118,8 @@ public final class TableService implements IEconomyService {
         return minesRule;
     }
 
-    public double edge() {
-        return settings.houseEdge();
+    public double edge(Game game) {
+        return settings.edge(game);
     }
 
     private Card draw(UUID player) {
@@ -140,7 +141,7 @@ public final class TableService implements IEconomyService {
         if (open != null && !open.finished) {
             return Optional.of(open);
         }
-        if (!gambling.mayBet(player, stake, settings.blackjackEnabled())
+        if (!gambling.mayBet(player, stake, Game.BLACKJACK)
                 || !gambling.takeStake(player, stake, "Blackjack")) {
             return Optional.empty();
         }
@@ -239,13 +240,14 @@ public final class TableService implements IEconomyService {
         boolean allBust = game.hands.stream().allMatch(blackjackRule::bust);
         boolean naturalShown = !game.split && blackjackRule.natural(game.hands.getFirst());
         if (!allBust && !naturalShown) {
-            while (blackjackRule.dealerDraws(game.dealer)) {
+            while (blackjackRule.dealerDraws(game.dealer, settings.dealerHitsSoft17())) {
                 game.dealer.add(draw(id));
             }
         }
         long paid = 0;
         for (int i = 0; i < game.hands.size(); i++) {
-            double returns = blackjackRule.returns(game.hands.get(i), game.dealer, game.split);
+            double returns = blackjackRule.returns(game.hands.get(i), game.dealer, game.split,
+                    settings.naturalPays().returns());
             paid = Math.addExact(paid, game.stakes.get(i).share(returns).minor());
         }
         game.paid = Money.of(paid);
@@ -277,7 +279,7 @@ public final class TableService implements IEconomyService {
     // ---------------------------------------------------------------------------- baccarat
 
     public Optional<Coup> baccarat(Player player, Money stake, BaccaratRule.Side bet) {
-        if (!gambling.mayBet(player, stake, settings.baccaratEnabled())) {
+        if (!gambling.mayBet(player, stake, Game.BACCARAT)) {
             return Optional.empty();
         }
         UUID id = player.getUniqueId();
@@ -294,7 +296,7 @@ public final class TableService implements IEconomyService {
             }
         }
         BaccaratRule.Side winner = baccaratRule.winner(punto, banco);
-        Money payout = stake.share(baccaratRule.returns(bet, winner));
+        Money payout = stake.share(baccaratRule.returns(bet, winner, settings.baccaratTiePays(), settings.baccaratCommission()));
         return gambling.settle(player, stake, payout, "Baccarat: " + bet.name().toLowerCase())
                 .map(result -> new Coup(punto, banco, winner, bet, stake, payout));
     }
@@ -324,7 +326,7 @@ public final class TableService implements IEconomyService {
         if (open != null && !open.finished) {
             return Optional.of(open);
         }
-        if (!gambling.mayBet(player, stake, settings.hiloEnabled()) || !gambling.takeStake(player, stake, "Hi-Lo")) {
+        if (!gambling.mayBet(player, stake, Game.HILO) || !gambling.takeStake(player, stake, "Hi-Lo")) {
             return Optional.empty();
         }
         HiLo game = new HiLo();
@@ -347,7 +349,7 @@ public final class TableService implements IEconomyService {
         Card next = draw(player.getUniqueId());
         game.last = game.showing;
         if (hiLoRule.wins(game.showing.rank(), next.rank(), higher)) {
-            game.multiplier *= hiLoRule.step(chance, settings.houseEdge());
+            game.multiplier *= hiLoRule.step(chance, settings.edge(Game.HILO));
             game.streak++;
             game.showing = next;
             gambling.sounds().play(player.getUniqueId(), GameSounds.WIN_STEP);
@@ -389,7 +391,7 @@ public final class TableService implements IEconomyService {
             gambling.tell(player, "economy.gamble.mines-count");
             return Optional.empty();
         }
-        if (!gambling.mayBet(player, stake, settings.minesEnabled()) || !gambling.takeStake(player, stake, "Mines")) {
+        if (!gambling.mayBet(player, stake, Game.MINES) || !gambling.takeStake(player, stake, "Mines")) {
             return Optional.empty();
         }
         Mines field = new Mines();
@@ -424,7 +426,7 @@ public final class TableService implements IEconomyService {
     }
 
     public Money minesWorth(Mines field) {
-        return field.stake.share(minesRule.multiplier(field.count, field.cleared.size(), settings.houseEdge()));
+        return field.stake.share(minesRule.multiplier(field.count, field.cleared.size(), settings.edge(Game.MINES)));
     }
 
     public void cashOutMines(Player player) {

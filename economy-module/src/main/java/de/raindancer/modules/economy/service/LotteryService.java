@@ -1,5 +1,6 @@
 package de.raindancer.modules.economy.service;
 
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.EconomyResult;
@@ -113,7 +114,7 @@ public final class LotteryService implements IEconomyService {
     public boolean buy(Player player, List<Integer> numbers, int wanted) {
         EconomySettings live = settings;
         Currency currency = live.currency();
-        if (!live.gameOpen(live.lotteryEnabled())) {
+        if (!live.gameOn(Game.LOTTERY)) {
             refuse(player, "economy.gamble.off");
             return false;
         }
@@ -167,7 +168,7 @@ public final class LotteryService implements IEconomyService {
     /** Asked once a minute. */
     public void minute() {
         EconomySettings live = settings;
-        if (!live.gameOpen(live.lotteryEnabled()) || !book.isLoaded() || drawing) {
+        if (!live.gameOn(Game.LOTTERY) || !book.isLoaded() || drawing) {
             return;
         }
         long now = clock.getAsLong();

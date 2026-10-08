@@ -6,6 +6,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuAnimation;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.rules.HorseRaceRule;
 import de.raindancer.modules.economy.service.RaceService;
 import de.raindancer.modules.economy.util.Mini;
@@ -31,7 +32,7 @@ public final class RaceMenu extends Menu implements IEconomyScreen {
     RaceMenu(EconomyServices services, Player viewer, Menu parent, Bet bet) {
         super(viewer, services.brand(), parent);
         this.services = services;
-        this.bet = bet;
+        this.bet = bet.at(Game.RACE);
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {

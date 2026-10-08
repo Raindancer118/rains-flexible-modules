@@ -144,4 +144,23 @@ class PriceBookTest {
         assertThat(book.tradableIn(de.raindancer.core.ui.choose.Category.BUILDING_BLOCKS)).contains("OAK_LOG", "OAK_PLANKS");
         assertThat(book.tradableIn(de.raindancer.core.ui.choose.Category.MISC)).contains("DIAMOND", "RAW_IRON");
     }
+
+    @Test
+    @DisplayName("spawn eggs: every egg at the egg value, in a drawer of their own, bosses closed, custom prices win")
+    void spawnEggs() {
+        List<String> eggs = List.of("PIG_SPAWN_EGG", "ZOMBIE_SPAWN_EGG", "WITHER_SPAWN_EGG", "ENDER_DRAGON_SPAWN_EGG");
+        PriceBook book = new PriceBook(currency -> Map.of(), material -> 0.0, material -> 64);
+        book.recompute(EconomySettingsTest.with("shop.buy-prices", "zombie_spawn_egg 9000"), List.of(), eggs);
+        assertThat(book.tag("PIG_SPAWN_EGG").buy()).isEqualTo(Money.of(2_000));
+        assertThat(book.tag("PIG_SPAWN_EGG").buyable()).isTrue();
+        assertThat(book.tag("ZOMBIE_SPAWN_EGG").buy()).isEqualTo(Money.of(9_000));
+        assertThat(book.tag("WITHER_SPAWN_EGG").buyable()).as("a boss's egg is not for sale").isFalse();
+        assertThat(book.tradableEggs()).containsExactly("PIG_SPAWN_EGG", "ZOMBIE_SPAWN_EGG");
+        assertThat(book.tradableIn(de.raindancer.core.ui.choose.Category.MISC))
+                .as("not mixed into Everything Else").noneMatch(name -> name.endsWith("_SPAWN_EGG"));
+
+        book.recompute(EconomySettingsTest.with("shop.spawn-eggs", "false"), List.of(), eggs);
+        assertThat(book.tag("PIG_SPAWN_EGG").buyable()).isFalse();
+        assertThat(book.tradableEggs()).isEmpty();
+    }
 }

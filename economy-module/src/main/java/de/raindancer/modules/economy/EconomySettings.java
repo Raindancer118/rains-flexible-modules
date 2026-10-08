@@ -11,6 +11,8 @@ import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.choose.Category;
 import de.raindancer.core.ui.text.NameStyle;
+import de.raindancer.modules.economy.model.Game;
+import de.raindancer.modules.economy.model.NaturalPay;
 import de.raindancer.modules.economy.model.SellPricing;
 import org.bukkit.Material;
 
@@ -36,7 +38,20 @@ import java.util.List;
         @Topic(path = "economy/shop/categories", title = "Shop categories", icon = Material.CHEST),
         @Topic(path = "economy/earn", title = "Earning", icon = Material.DIAMOND_PICKAXE),
         @Topic(path = "economy/interest", title = "Interest", icon = Material.CLOCK),
+        @Topic(path = "economy/shop/spawn-eggs", title = "Spawn eggs", icon = Material.PIG_SPAWN_EGG),
         @Topic(path = "economy/gambling", title = "Gambling", icon = Material.GOLD_BLOCK),
+        @Topic(path = "economy/gambling/coinflip", title = "Coin flip", icon = Material.SUNFLOWER),
+        @Topic(path = "economy/gambling/dice", title = "Dice", icon = Material.WHITE_WOOL),
+        @Topic(path = "economy/gambling/slots", title = "Slot machine", icon = Material.DIAMOND),
+        @Topic(path = "economy/gambling/roulette", title = "Roulette", icon = Material.ENDER_PEARL),
+        @Topic(path = "economy/gambling/blackjack", title = "Blackjack", icon = Material.PAPER),
+        @Topic(path = "economy/gambling/baccarat", title = "Baccarat", icon = Material.RED_CONCRETE),
+        @Topic(path = "economy/gambling/hilo", title = "Hi-Lo", icon = Material.LIME_CONCRETE),
+        @Topic(path = "economy/gambling/mines", title = "Mines", icon = Material.TNT),
+        @Topic(path = "economy/gambling/crash", title = "Crash", icon = Material.FIREWORK_ROCKET),
+        @Topic(path = "economy/gambling/race", title = "Horse race", icon = Material.SADDLE),
+        @Topic(path = "economy/gambling/scratch", title = "Scratch card", icon = Material.MAP),
+        @Topic(path = "economy/gambling/lottery", title = "Lottery", icon = Material.FILLED_MAP),
         @Topic(path = "economy/auctions", title = "Auctions", icon = Material.BELL),
         @Topic(path = "economy/raffles", title = "Raffles", icon = Material.NAME_TAG),
         @Topic(path = "economy/tax", title = "Wealth tax", icon = Material.IRON_BARS),
@@ -258,6 +273,18 @@ public record EconomySettings(
         @Describe("Treasure enchantments like Mending count double; curses take value away.")
         @Key("shop.enchant-value") String enchantValue,
 
+        @In("economy/shop/spawn-eggs") @Title("Spawn eggs for sale")
+        @Describe("A Spawn eggs drawer in the shop: every mob's egg at the price below.")
+        @Key("shop.spawn-eggs") boolean spawnEggs,
+
+        @In("economy/shop/spawn-eggs") @Title("A spawn egg is worth")
+        @Describe("Before the shop's markup. A single egg can be priced on its own in /eco → Shop items.")
+        @Key("shop.spawn-egg-value") String spawnEggValue,
+
+        @In("economy/shop/spawn-eggs") @Title("Eggs not for sale")
+        @Describe("Mob names, comma separated: wither, ender_dragon.")
+        @Key("shop.spawn-eggs-closed") List<String> spawnEggsClosed,
+
         @In("economy/shop/categories") @Title("Building Blocks") @Key("shop.category.building-blocks")
         boolean shopBuildingBlocks,
 
@@ -339,32 +366,19 @@ public record EconomySettings(
 
         // ------------------------------------------------------------------ gambling
         @In("economy/gambling") @Title("Gambling")
-        @Describe("Every game of chance at once.")
+        @Describe("Every game of chance at once. Each game also has a switch and a page of its own.")
         @Key("features.gambling") boolean gamblingEnabled,
 
-        @In("economy/gambling") @Title("Coin flips") @Describe("/coinflip: against the house, or a duel between two players.")
-        @Key("features.coinflip") boolean coinflipEnabled,
+        @In("economy/gambling") @Title("Smallest bet") @Describe("At any game without one of its own.")
+        @Key("gamble.min-bet") String minBet,
 
-        @In("economy/gambling") @Title("Dice") @Describe("/dice: roll over or under a number you choose.")
-        @Key("features.dice") boolean diceEnabled,
-
-        @In("economy/gambling") @Title("Slot machine") @Describe("/slots.")
-        @Key("features.slots") boolean slotsEnabled,
-
-        @In("economy/gambling") @Title("Roulette") @Describe("/roulette: red, black, green, numbers, dozens.")
-        @Key("features.roulette") boolean rouletteEnabled,
-
-        @In("economy/gambling") @Title("Lottery") @Describe("/lottery: tickets into a pot, one winner per draw.")
-        @Key("features.lottery") boolean lotteryEnabled,
-
-        @In("economy/gambling") @Title("Smallest bet") @Key("gamble.min-bet") String minBet,
-
-        @In("economy/gambling") @Title("Largest bet") @Describe("For one bet in any game. 0 for no limit.")
+        @In("economy/gambling") @Title("Largest bet")
+        @Describe("For one bet at any game without one of its own. 0 for no limit.")
         @Key("gamble.max-bet") String maxBet,
 
         @In("economy/gambling") @Title("House edge, percent")
-        @Describe("What every game keeps on average, 0 to 50. The payouts are worked out from it exactly, so "
-                + "this is the real edge, not a guess.")
+        @Describe("What the casino keeps on average, 0 to 50, at every game without an edge of its own. The "
+                + "payouts are worked out from it exactly, so this is the real edge, not a guess.")
         @Key("gamble.house-edge-percent") double houseEdgePercent,
 
         @In("economy/gambling") @Title("Most anybody may lose in a day")
@@ -375,70 +389,231 @@ public record EconomySettings(
         @Describe("Seconds.")
         @Key("gamble.cooldown-seconds") int gambleCooldownSeconds,
 
-        @In("economy/gambling") @Title("A duel challenge stays open for") @Range(min = 10, max = 600)
-        @Describe("Seconds.")
-        @Key("gamble.duel-seconds") int duelSeconds,
-
-        @In("economy/gambling") @Title("Lottery ticket") @Key("lottery.ticket-price") String ticketPrice,
-
-        @In("economy/gambling") @Title("Lottery draws every") @Range(min = 1, max = 720)
-        @Describe("Hours.")
-        @Key("lottery.draw-hours") int drawHours,
-
-        @In("economy/gambling") @Title("Most tickets per player per draw") @Range(min = 0, max = 100000)
-        @Describe("0 for no limit.")
-        @Key("lottery.most-tickets") int mostTickets,
-
-        @In("economy/gambling") @Title("Numbers on a lottery ticket") @Range(min = 2, max = 8)
-        @Describe("How many numbers a ticket has, and how many balls are drawn.")
-        @Key("lottery.pick") int lotteryPick,
-
-        @In("economy/gambling") @Title("Lottery numbers go up to") @Range(min = 10, max = 60)
-        @Describe("Picked from 1 to this. 4 from 20 is a jackpot in 4,845; 6 from 49 is one in 14 million.")
-        @Key("lottery.numbers") int lotteryNumbers,
-
-        @In("economy/gambling") @Title("Lottery keeps, percent")
-        @Describe("Of every ticket's price — destroyed, a money sink; the rest goes into the pot. 0 to 50.")
-        @Key("lottery.cut-percent") double lotteryCutPercent,
-
-        @In("economy/gambling") @Title("Blackjack") @Describe("Against the dealer: hit, stand, double, split.")
-        @Key("features.blackjack") boolean blackjackEnabled,
-
-        @In("economy/gambling") @Title("Baccarat") @Describe("Player, banker or tie, with the real third-card rules.")
-        @Key("features.baccarat") boolean baccaratEnabled,
-
-        @In("economy/gambling") @Title("Hi-Lo") @Describe("Higher or lower than the card showing; cash out any time.")
-        @Key("features.hilo") boolean hiloEnabled,
-
-        @In("economy/gambling") @Title("Crash")
-        @Describe("One round for everybody: a multiplier climbs until it crashes; cash out before.")
-        @Key("features.crash") boolean crashEnabled,
-
-        @In("economy/gambling") @Title("Mines") @Describe("Clear tiles on a field hiding mines; cash out any time.")
-        @Key("features.mines") boolean minesEnabled,
-
-        @In("economy/gambling") @Title("Scratch cards") @Describe("Tickets you buy, carry, give away and scratch.")
-        @Key("features.scratch") boolean scratchEnabled,
-
-        @In("economy/gambling") @Title("Horse races") @Describe("One race for everybody: bet on a horse and watch it run.")
-        @Key("features.race") boolean raceEnabled,
-
-        @In("economy/gambling") @Title("Decks in a shoe") @Range(min = 1, max = 8)
-        @Key("casino.decks") int decks,
-
-        @In("economy/gambling") @Title("A scratch card costs") @Key("scratch.price") String scratchPrice,
-
-        @In("economy/gambling") @Title("Bets for a crash round close after") @Range(min = 3, max = 120)
-        @Describe("Seconds.")
-        @Key("crash.betting-seconds") int crashBettingSeconds,
-
-        @In("economy/gambling") @Title("Bets for a horse race close after") @Range(min = 10, max = 600)
-        @Describe("Seconds.")
-        @Key("race.betting-seconds") int raceBettingSeconds,
-
         @In("economy/gambling") @Title("Dealers wear the skin of")
         @Describe("A player name. Empty: the plain mannequin look.")
         @Key("casino.dealer-skin") String dealerSkin,
+
+        @In("economy/gambling/coinflip") @Title("Coin flips") @Describe("/coinflip: against the house, or a duel between two players.")
+        @Key("features.coinflip") boolean coinflipEnabled,
+
+        @In("economy/gambling/coinflip") @Title("Smallest bet")
+        @Describe("Empty: the casino's smallest bet.")
+        @Key("coinflip.min-bet") String coinflipMinBet,
+
+        @In("economy/gambling/coinflip") @Title("Largest bet")
+        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
+        @Key("coinflip.max-bet") String coinflipMaxBet,
+
+        @In("economy/gambling/coinflip") @Title("The house keeps, percent")
+        @Describe("What a coin flip keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
+                + "Empty: the casino's house edge.")
+        @Key("coinflip.house-edge-percent") String coinflipEdge,
+
+        @In("economy/gambling/coinflip") @Title("A duel challenge stays open for") @Range(min = 10, max = 600)
+        @Describe("Seconds. In a duel the house keeps its edge of the pot.")
+        @Key("gamble.duel-seconds") int duelSeconds,
+
+        @In("economy/gambling/dice") @Title("Dice") @Describe("/dice: roll over or under a number you choose.")
+        @Key("features.dice") boolean diceEnabled,
+
+        @In("economy/gambling/dice") @Title("Smallest bet")
+        @Describe("Empty: the casino's smallest bet.")
+        @Key("dice.min-bet") String diceMinBet,
+
+        @In("economy/gambling/dice") @Title("Largest bet")
+        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
+        @Key("dice.max-bet") String diceMaxBet,
+
+        @In("economy/gambling/dice") @Title("The house keeps, percent")
+        @Describe("What dice keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
+                + "Empty: the casino's house edge.")
+        @Key("dice.house-edge-percent") String diceEdge,
+
+        @In("economy/gambling/slots") @Title("Slot machine") @Describe("/slots.")
+        @Key("features.slots") boolean slotsEnabled,
+
+        @In("economy/gambling/slots") @Title("Smallest bet")
+        @Describe("Empty: the casino's smallest bet.")
+        @Key("slots.min-bet") String slotsMinBet,
+
+        @In("economy/gambling/slots") @Title("Largest bet")
+        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
+        @Key("slots.max-bet") String slotsMaxBet,
+
+        @In("economy/gambling/slots") @Title("The house keeps, percent")
+        @Describe("What the slot machine keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
+                + "Empty: the casino's house edge.")
+        @Key("slots.house-edge-percent") String slotsEdge,
+
+        @In("economy/gambling/roulette") @Title("Roulette") @Describe("/roulette: red, black, green, numbers, dozens.")
+        @Key("features.roulette") boolean rouletteEnabled,
+
+        @In("economy/gambling/roulette") @Title("Smallest bet")
+        @Describe("Empty: the casino's smallest bet.")
+        @Key("roulette.min-bet") String rouletteMinBet,
+
+        @In("economy/gambling/roulette") @Title("Largest bet")
+        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
+        @Key("roulette.max-bet") String rouletteMaxBet,
+
+        @In("economy/gambling/roulette") @Title("The house keeps, percent")
+        @Describe("What roulette keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
+                + "Empty: the casino's house edge.")
+        @Key("roulette.house-edge-percent") String rouletteEdge,
+
+        @In("economy/gambling/blackjack") @Title("Blackjack") @Describe("Against the dealer: hit, stand, double, split.")
+        @Key("features.blackjack") boolean blackjackEnabled,
+
+        @In("economy/gambling/blackjack") @Title("Smallest bet")
+        @Describe("Empty: the casino's smallest bet.")
+        @Key("blackjack.min-bet") String blackjackMinBet,
+
+        @In("economy/gambling/blackjack") @Title("Largest bet")
+        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
+        @Key("blackjack.max-bet") String blackjackMaxBet,
+
+        @In("economy/gambling/blackjack") @Title("A natural pays")
+        @Describe("Three to two is the fair table, about half a percent to the house. Six to five takes about 1.4 "
+                + "percent more, even money about 2.3 percent more.")
+        @Key("blackjack.natural-pays") NaturalPay naturalPays,
+
+        @In("economy/gambling/blackjack") @Title("The dealer hits a soft 17")
+        @Describe("Another 0.2 percent to the house.")
+        @Key("blackjack.dealer-hits-soft-17") boolean dealerHitsSoft17,
+
+        @In("economy/gambling/blackjack") @Title("Decks in a shoe") @Range(min = 1, max = 8)
+        @Describe("For blackjack, baccarat and Hi-Lo.")
+        @Key("casino.decks") int decks,
+
+        @In("economy/gambling/baccarat") @Title("Baccarat") @Describe("Player, banker or tie, with the real third-card rules.")
+        @Key("features.baccarat") boolean baccaratEnabled,
+
+        @In("economy/gambling/baccarat") @Title("Smallest bet")
+        @Describe("Empty: the casino's smallest bet.")
+        @Key("baccarat.min-bet") String baccaratMinBet,
+
+        @In("economy/gambling/baccarat") @Title("Largest bet")
+        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
+        @Key("baccarat.max-bet") String baccaratMaxBet,
+
+        @In("economy/gambling/baccarat") @Title("A tie pays, to one") @Range(min = 5, max = 9)
+        @Describe("8 is the usual table (about 14 percent to the house on a tie bet), 9 the generous one.")
+        @Key("baccarat.tie-pays") int baccaratTiePays,
+
+        @In("economy/gambling/baccarat") @Title("Commission on a banker win, percent")
+        @Describe("5 is the usual table, about 1 percent to the house. 0 to 50.")
+        @Key("baccarat.banker-commission-percent") double baccaratCommissionPercent,
+
+        @In("economy/gambling/hilo") @Title("Hi-Lo") @Describe("Higher or lower than the card showing; cash out any time.")
+        @Key("features.hilo") boolean hiloEnabled,
+
+        @In("economy/gambling/hilo") @Title("Smallest bet")
+        @Describe("Empty: the casino's smallest bet.")
+        @Key("hilo.min-bet") String hiloMinBet,
+
+        @In("economy/gambling/hilo") @Title("Largest bet")
+        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
+        @Key("hilo.max-bet") String hiloMaxBet,
+
+        @In("economy/gambling/hilo") @Title("The house keeps, percent")
+        @Describe("What Hi-Lo keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
+                + "Empty: the casino's house edge.")
+        @Key("hilo.house-edge-percent") String hiloEdge,
+
+        @In("economy/gambling/mines") @Title("Mines") @Describe("Clear tiles on a field hiding mines; cash out any time.")
+        @Key("features.mines") boolean minesEnabled,
+
+        @In("economy/gambling/mines") @Title("Smallest bet")
+        @Describe("Empty: the casino's smallest bet.")
+        @Key("mines.min-bet") String minesMinBet,
+
+        @In("economy/gambling/mines") @Title("Largest bet")
+        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
+        @Key("mines.max-bet") String minesMaxBet,
+
+        @In("economy/gambling/mines") @Title("The house keeps, percent")
+        @Describe("What mines keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
+                + "Empty: the casino's house edge.")
+        @Key("mines.house-edge-percent") String minesEdge,
+
+        @In("economy/gambling/crash") @Title("Crash") @Describe("One round for everybody: a multiplier climbs until it crashes; cash out before.")
+        @Key("features.crash") boolean crashEnabled,
+
+        @In("economy/gambling/crash") @Title("Smallest bet")
+        @Describe("Empty: the casino's smallest bet.")
+        @Key("crash.min-bet") String crashMinBet,
+
+        @In("economy/gambling/crash") @Title("Largest bet")
+        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
+        @Key("crash.max-bet") String crashMaxBet,
+
+        @In("economy/gambling/crash") @Title("The house keeps, percent")
+        @Describe("What crash keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
+                + "Empty: the casino's house edge.")
+        @Key("crash.house-edge-percent") String crashEdge,
+
+        @In("economy/gambling/crash") @Title("Bets for a round close after") @Range(min = 3, max = 120)
+        @Describe("Seconds.")
+        @Key("crash.betting-seconds") int crashBettingSeconds,
+
+        @In("economy/gambling/crash") @Title("A round goes no higher than") @Range(min = 2, max = 10000)
+        @Describe("Times the stake. 1,000 is about two minutes of climbing.")
+        @Key("crash.most-multiplier") int crashMost,
+
+        @In("economy/gambling/race") @Title("Horse races") @Describe("One race for everybody: bet on a horse and watch it run.")
+        @Key("features.race") boolean raceEnabled,
+
+        @In("economy/gambling/race") @Title("Smallest bet")
+        @Describe("Empty: the casino's smallest bet.")
+        @Key("race.min-bet") String raceMinBet,
+
+        @In("economy/gambling/race") @Title("Largest bet")
+        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
+        @Key("race.max-bet") String raceMaxBet,
+
+        @In("economy/gambling/race") @Title("The house keeps, percent")
+        @Describe("What a horse race keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
+                + "Empty: the casino's house edge.")
+        @Key("race.house-edge-percent") String raceEdge,
+
+        @In("economy/gambling/race") @Title("Bets close after") @Range(min = 10, max = 600)
+        @Describe("Seconds.")
+        @Key("race.betting-seconds") int raceBettingSeconds,
+
+        @In("economy/gambling/scratch") @Title("Scratch cards") @Describe("Tickets you buy, carry, give away and scratch.")
+        @Key("features.scratch") boolean scratchEnabled,
+
+        @In("economy/gambling/scratch") @Title("A scratch card costs") @Key("scratch.price") String scratchPrice,
+
+        @In("economy/gambling/scratch") @Title("The house keeps, percent")
+        @Describe("What a scratch card keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
+                + "Empty: the casino's house edge.")
+        @Key("scratch.house-edge-percent") String scratchEdge,
+
+        @In("economy/gambling/lottery") @Title("Lottery") @Describe("/lottery: tickets into a pot, one winner per draw.")
+        @Key("features.lottery") boolean lotteryEnabled,
+
+        @In("economy/gambling/lottery") @Title("A ticket costs") @Key("lottery.ticket-price") String ticketPrice,
+
+        @In("economy/gambling/lottery") @Title("Draws every") @Range(min = 1, max = 720)
+        @Describe("Hours.")
+        @Key("lottery.draw-hours") int drawHours,
+
+        @In("economy/gambling/lottery") @Title("Most tickets per player per draw") @Range(min = 0, max = 100000)
+        @Describe("0 for no limit.")
+        @Key("lottery.most-tickets") int mostTickets,
+
+        @In("economy/gambling/lottery") @Title("Numbers on a ticket") @Range(min = 2, max = 8)
+        @Describe("How many numbers a ticket has, and how many balls are drawn.")
+        @Key("lottery.pick") int lotteryPick,
+
+        @In("economy/gambling/lottery") @Title("Numbers go up to") @Range(min = 10, max = 60)
+        @Describe("Picked from 1 to this. 4 from 20 is a jackpot in 4,845; 6 from 49 is one in 14 million.")
+        @Key("lottery.numbers") int lotteryNumbers,
+
+        @In("economy/gambling/lottery") @Title("The lottery keeps, percent")
+        @Describe("Of every ticket's price — destroyed, a money sink; the rest goes into the pot. 0 to 50.")
+        @Key("lottery.cut-percent") double lotteryCutPercent,
 
         // ------------------------------------------------------------------ auctions
         @In("economy/auctions") @Title("Auctions")
@@ -605,6 +780,7 @@ public record EconomySettings(
             // shop
             true, true, 1.0, 0.4, SellPricing.AUTOMATIC, List.of(), List.of(), List.of(), List.of(), List.of(),
             true, 0.1, 0.15, true, 0.5, 0.02, 12.0, true, "500", false, List.of(), true, "40",
+            true, "2000", List.of("ender_dragon", "wither"),
             true, true, true, true, true, true, true, true, true,
             // earning
             false, "10", "2", 30, 5,
@@ -613,8 +789,19 @@ public record EconomySettings(
             // interest
             true, 0.25, 60, "250",
             // gambling
-            true, true, true, true, true, true, "1", "0", 3.0, "0", 0, 60, "100", 24, 0, 4, 20, 10.0,
-            true, true, true, true, true, true, true, 6, "50", 10, 45, "",
+            true, "1", "0", 3.0, "0", 0, "",
+            true, "", "", "", 60,
+            true, "", "", "",
+            true, "", "", "",
+            true, "", "", "",
+            true, "", "", NaturalPay.THREE_TO_TWO, false, 6,
+            true, "", "", 8, 5.0,
+            true, "", "", "",
+            true, "", "", "",
+            true, "", "", "", 10, 1000,
+            true, "", "", "", 45,
+            true, "50", "",
+            true, "100", 24, 0, 4, 20, 10.0,
             // auctions
             true, 120, 60, 600, "10", "10", 5.0, 20, 15, "1000", 5.0, 10, 2, true, true,
             // raffles
@@ -768,6 +955,102 @@ public record EconomySettings(
 
     public double lotteryCut() {
         return percent(lotteryCutPercent, 50);
+    }
+
+    public Money spawnEggValueMoney() {
+        return money(spawnEggValue, DEFAULTS.spawnEggValue);
+    }
+
+    /** Whether a game may be played: gambling as a whole and that game both switched on. */
+    public boolean gameOn(Game game) {
+        return gameOpen(switch (game) {
+            case COINFLIP -> coinflipEnabled;
+            case DICE -> diceEnabled;
+            case SLOTS -> slotsEnabled;
+            case ROULETTE -> rouletteEnabled;
+            case BLACKJACK -> blackjackEnabled;
+            case BACCARAT -> baccaratEnabled;
+            case HILO -> hiloEnabled;
+            case MINES -> minesEnabled;
+            case CRASH -> crashEnabled;
+            case RACE -> raceEnabled;
+            case SCRATCH -> scratchEnabled;
+            case LOTTERY -> lotteryEnabled;
+        });
+    }
+
+    /** A game's smallest bet: its own, else the casino's. */
+    public Money minBet(Game game) {
+        return ownMoney(switch (game) {
+            case COINFLIP -> coinflipMinBet;
+            case DICE -> diceMinBet;
+            case SLOTS -> slotsMinBet;
+            case ROULETTE -> rouletteMinBet;
+            case BLACKJACK -> blackjackMinBet;
+            case BACCARAT -> baccaratMinBet;
+            case HILO -> hiloMinBet;
+            case MINES -> minesMinBet;
+            case CRASH -> crashMinBet;
+            case RACE -> raceMinBet;
+            case SCRATCH, LOTTERY -> "";
+        }).orElseGet(this::minBetMoney);
+    }
+
+    /** A game's largest bet: its own, else the casino's; zero for no limit. */
+    public Money maxBet(Game game) {
+        return ownMoney(switch (game) {
+            case COINFLIP -> coinflipMaxBet;
+            case DICE -> diceMaxBet;
+            case SLOTS -> slotsMaxBet;
+            case ROULETTE -> rouletteMaxBet;
+            case BLACKJACK -> blackjackMaxBet;
+            case BACCARAT -> baccaratMaxBet;
+            case HILO -> hiloMaxBet;
+            case MINES -> minesMaxBet;
+            case CRASH -> crashMaxBet;
+            case RACE -> raceMaxBet;
+            case SCRATCH, LOTTERY -> "";
+        }).orElseGet(this::maxBetMoney);
+    }
+
+    /** A game's house edge as a fraction: its own, else the casino's. */
+    public double edge(Game game) {
+        String own = switch (game) {
+            case COINFLIP -> coinflipEdge;
+            case DICE -> diceEdge;
+            case SLOTS -> slotsEdge;
+            case ROULETTE -> rouletteEdge;
+            case HILO -> hiloEdge;
+            case MINES -> minesEdge;
+            case CRASH -> crashEdge;
+            case RACE -> raceEdge;
+            case SCRATCH -> scratchEdge;
+            case BLACKJACK, BACCARAT, LOTTERY -> "";
+        };
+        if (own == null || own.isBlank()) {
+            return houseEdge();
+        }
+        try {
+            double read = Double.parseDouble(own.strip().replace("%", "").replace(',', '.'));
+            return Double.isFinite(read) ? percent(read, 50) : houseEdge();
+        } catch (NumberFormatException unreadable) {
+            return houseEdge();
+        }
+    }
+
+    /** An amount a game sets for itself; empty when it leaves it to the casino or it cannot be read. */
+    private java.util.Optional<Money> ownMoney(String written) {
+        if (written == null || written.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        if (written.strip().equals("0")) {
+            return java.util.Optional.of(Money.ZERO);
+        }
+        return currency().parse(written);
+    }
+
+    public double baccaratCommission() {
+        return percent(baccaratCommissionPercent, 50);
     }
 
     /** Whether one game may be played: gambling as a whole and that game both switched on. */

@@ -3,6 +3,7 @@ package de.raindancer.modules.economy.screen;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.rules.StakeRule;
 import de.raindancer.modules.economy.util.Mini;
 import org.bukkit.Material;
@@ -16,11 +17,28 @@ final class Bet {
     private final EconomyServices services;
     private final Player viewer;
     private Money amount;
+    /** The game whose bet limits apply; null in the casino's lobby, where the casino's do. */
+    private Game game;
 
     Bet(EconomyServices services, Player viewer) {
         this.services = services;
         this.viewer = viewer;
-        this.amount = STAKES.opening(balance(), services.config().minBetMoney(), services.config().maxBetMoney());
+        this.amount = STAKES.opening(balance(), least(), most());
+    }
+
+    /** The same stake, now at this game and inside its limits; null for the lobby. */
+    Bet at(Game game) {
+        this.game = game;
+        set(amount);
+        return this;
+    }
+
+    private Money least() {
+        return game == null ? services.config().minBetMoney() : services.config().minBet(game);
+    }
+
+    private Money most() {
+        return game == null ? services.config().maxBetMoney() : services.config().maxBet(game);
     }
 
     Money amount() {
@@ -28,7 +46,7 @@ final class Bet {
     }
 
     void set(Money value) {
-        this.amount = STAKES.clamp(value, services.config().minBetMoney(), services.config().maxBetMoney());
+        this.amount = STAKES.clamp(value, least(), most());
     }
 
     private Money balance() {
@@ -40,8 +58,8 @@ final class Bet {
      * type one), half, all in, double. Each stays within the server's smallest and largest bet.
      */
     void buttons(BetMenu menu, int band, Player viewer) {
-        Money least = services.config().minBetMoney();
-        Money most = services.config().maxBetMoney();
+        Money least = least();
+        Money most = most();
         Money balance = balance();
         menu.placeBand(band, 1, Icons.of(Material.RED_STAINED_GLASS_PANE, "<red>Halve the bet"), click -> {
             set(Money.of(Math.max(1, amount.minor() / 2)));

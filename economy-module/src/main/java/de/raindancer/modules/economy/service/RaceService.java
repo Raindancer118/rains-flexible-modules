@@ -1,5 +1,6 @@
 package de.raindancer.modules.economy.service;
 
+import de.raindancer.modules.economy.model.Game;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.rules.HorseRaceRule;
@@ -88,7 +89,7 @@ public final class RaceService implements IEconomyService {
     }
 
     public double pays(int horse) {
-        return rule.pays(horse, settings.houseEdge());
+        return rule.pays(horse, settings.edge(Game.RACE));
     }
 
     public synchronized void tick() {
@@ -165,7 +166,7 @@ public final class RaceService implements IEconomyService {
         if (horse < 0 || horse >= rule.horses()) {
             return false;
         }
-        if (!gambling.mayBet(player, stake, settings.raceEnabled()) || !gambling.takeStake(player, stake,
+        if (!gambling.mayBet(player, stake, Game.RACE) || !gambling.takeStake(player, stake,
                 "Horse race: " + HorseRaceRule.NAMES.get(horse))) {
             return false;
         }

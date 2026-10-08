@@ -35,8 +35,10 @@ public final class PriceBook {
 
     private record Snapshot(EconomySettings settings, Map<String, Money> values, Set<String> custom,
                             PricedNames buyPrices, PricedNames sellPrices, Set<String> notSold,
-                            Set<String> notBought) {
+                            Set<String> notBought, List<String> eggs) {
     }
+
+    private static final String EGG = "_SPAWN_EGG";
 
     private final java.util.function.Function<Currency, Map<String, Money>> shippedIn;
     private volatile Map<String, Money> shipped;
@@ -58,11 +60,19 @@ public final class PriceBook {
         this.pressure = pressure;
         this.stackSize = stackSize;
         this.snapshot = new Snapshot(EconomySettings.DEFAULTS, this.shipped, Set.of(), PricedNames.NONE,
-                PricedNames.NONE, Set.of(), Set.of());
+                PricedNames.NONE, Set.of(), Set.of(), List.of());
     }
 
     /** Works every price out again — on start, on a settings change, on {@code /eco reprice}. */
     public void recompute(EconomySettings settings, List<RecipeShape> recipes) {
+        recompute(settings, recipes, List.of());
+    }
+
+    /**
+     * @param eggs every spawn egg this server has, by material name — priced at the egg value when the
+     *             owner sells them, unless an egg already has a value of its own
+     */
+    public void recompute(EconomySettings settings, List<RecipeShape> recipes, List<String> eggs) {
         Currency currency = settings.currency();
         // Read again in the current currency: the same "2" is 200 minor units with two decimals and 2 with none.
         shipped = Map.copyOf(shippedIn.apply(currency));
@@ -73,12 +83,24 @@ public final class PriceBook {
                 base.put(name, value);
             }
         });
-        Map<String, Money> values = settings.deriveFromRecipes()
+        Map<String, Money> values = new HashMap<>(settings.deriveFromRecipes()
                 ? solver.solve(base, recipes, settings.craftMarkupClamped(), settings.smeltMarkupClamped())
-                : base;
+                : base);
+        Set<String> closedEggs = new HashSet<>();
+        for (String mob : names(settings.spawnEggsClosed())) {
+            closedEggs.add(mob.endsWith(EGG) ? mob : mob + EGG);
+        }
+        Set<String> openEggs = new TreeSet<>();
+        for (String egg : eggs) {
+            String name = egg.toUpperCase(Locale.ROOT);
+            if (settings.spawnEggs() && name.endsWith(EGG) && !closedEggs.contains(name)) {
+                openEggs.add(name);
+                values.putIfAbsent(name, settings.spawnEggValueMoney());
+            }
+        }
         snapshot = new Snapshot(settings, Map.copyOf(values), Set.copyOf(customValues.amounts().keySet()),
                 PricedNames.parse(settings.buyPrices(), currency), PricedNames.parse(settings.sellPrices(), currency),
-                names(settings.notSold()), names(settings.notBought()));
+                names(settings.notSold()), names(settings.notBought()), List.copyOf(openEggs));
     }
 
     private static Set<String> names(List<String> list) {
@@ -119,7 +141,8 @@ public final class PriceBook {
             sell = trade.capSellBelowBuy(sell, buy);
         }
 
-        boolean open = settings.categoryOpen(Catalogue.categoryOf(name));
+        boolean open = name.endsWith(EGG) ? now.eggs().contains(name)
+                : settings.categoryOpen(Catalogue.categoryOf(name));
         boolean buyable = settings.shopEnabled() && open && buy != null && buy.isPositive()
                 && !now.notSold().contains(name);
         boolean sellable = settings.sellingEnabled() && open && sell != null && sell.isPositive()
@@ -138,9 +161,14 @@ public final class PriceBook {
         candidates.addAll(now.buyPrices().amounts().keySet());
         candidates.addAll(now.sellPrices().amounts().keySet());
         return candidates.stream()
-                .filter(name -> Catalogue.categoryOf(name) == category)
+                .filter(name -> !name.endsWith(EGG) && Catalogue.categoryOf(name) == category)
                 .filter(name -> tag(name).tradable())
                 .toList();
+    }
+
+    /** Every spawn egg the shop sells or buys, alphabetically — the Spawn eggs drawer. */
+    public List<String> tradableEggs() {
+        return snapshot.eggs().stream().filter(name -> tag(name).tradable()).toList();
     }
 
     /** Every priced item — for the admin screen, open or not. */
