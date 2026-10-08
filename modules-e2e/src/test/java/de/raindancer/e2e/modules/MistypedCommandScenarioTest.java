@@ -17,7 +17,8 @@ class MistypedCommandScenarioTest {
     @Test
     @DisplayName("a typo gets clickable guesses with its arguments kept, never a command the player may not use")
     void didYouMean() {
-        try (Server server = Server.start("mistyped", List.of(), List.of())) {
+        try (Server server = Server.start("mistyped",
+                List.of("claims-standalone:RainsExtendedClaims-.*"), List.of("Claims are up"))) {
             Bot bo = server.player("Bo");
 
             bo.run("hlep");
@@ -45,7 +46,21 @@ class MistypedCommandScenarioTest {
             bo.run(bare.clicks().getFirst());
             bo.expectChat("Help");
 
-            assertThat(server.paper.errorsFrom("RainsCore")).isEmpty();
+            // A command that exists, with a sub-command typed wrong: the words around it are kept.
+            bo.forgetChat();
+            bo.run("claim trsut Ada");
+            Bot.Line sub = bo.expectChat("Did you mean");
+            assertThat(sub.text()).contains("/claim does not do trsut").contains("[/claim trust Ada]");
+            assertThat(sub.clicks()).contains("/claim trust Ada");
+            bo.expectNoChat("Unknown subcommand", Duration.ofSeconds(1));
+
+            // Nothing close: the module's own answer, as before.
+            bo.forgetChat();
+            bo.run("claim xyzzyplugh");
+            bo.expectChat("Unknown subcommand");
+            bo.expectNoChat("Did you mean", Duration.ofSeconds(1));
+
+            assertThat(server.paper.errorsFrom("RainsCore", "RainsExtendedClaims")).isEmpty();
         }
     }
 }

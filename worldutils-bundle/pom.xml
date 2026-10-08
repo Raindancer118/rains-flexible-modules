@@ -36,7 +36,7 @@
              0.1.1: /dim and /w found "nowhere safe" in a nether or end nobody was standing in — RainsCore
              1.36.1 keeps a chunk loaded for the ground search; a Nether landing never goes on the roof.
              Needs RainsCore 1.36.1. -->
-        <plugin.version>0.3.0</plugin.version>
+        <plugin.version>0.4.0</plugin.version>
     </properties>
 
     <dependencies>

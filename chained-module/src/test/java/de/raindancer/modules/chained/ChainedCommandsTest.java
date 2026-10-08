@@ -75,7 +75,7 @@ class ChainedCommandsTest {
     class UnknownSubcommand {
 
         @Test
-        @DisplayName("does not silently do nothing — it falls through to help")
+        @DisplayName("does not silently do nothing — it guesses, or falls through to help")
         void unknownSubcommandPrintsHelp() {
             // Read out of the source rather than run against a live command: this module has no
             // predecessor plugin, so there is no old-names-still-answer list to keep in step with a
@@ -88,7 +88,10 @@ class ChainedCommandsTest {
             int defaultAt = body.indexOf("default ->", switchAt);
             assertThat(defaultAt).as("the switch has no default case").isPositive();
 
-            String defaultBranch = body.substring(defaultAt, Math.min(body.length(), defaultAt + 60));
+            String defaultBranch = body.substring(defaultAt, Math.min(body.length(), defaultAt + 220));
+            assertThat(defaultBranch)
+                    .as("a typo is first answered with the close words, as buttons")
+                    .contains("MistypedCommand.subcommand(");
             assertThat(defaultBranch)
                     .as("an unrecognised word must fall through to help, not to nothing")
                     .contains("help(");

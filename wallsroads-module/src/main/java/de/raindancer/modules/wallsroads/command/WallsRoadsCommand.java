@@ -1,5 +1,6 @@
 package de.raindancer.modules.wallsroads.command;
 
+import de.raindancer.core.platform.command.MistypedCommand;
 import de.raindancer.modules.wallsroads.WallsRoadsServices;
 import de.raindancer.modules.wallsroads.WallsRoadsSettings;
 import de.raindancer.modules.wallsroads.model.RoadPath;
@@ -78,7 +79,11 @@ public final class WallsRoadsCommand implements IWallsRoadsCommand {
                     live.messages().send(sender, "wallsroads.only-a-player");
                 }
             }
-            default -> live.messages().send(sender, "wallsroads.usage");
+            default -> {
+                if (!MistypedCommand.subcommand(sender, "wallsroads", args, 0, suggest(source, new String[]{""}))) {
+                    live.messages().send(sender, "wallsroads.usage");
+                }
+            }
         }
     }
 

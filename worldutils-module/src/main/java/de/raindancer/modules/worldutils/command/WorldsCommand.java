@@ -1,5 +1,6 @@
 package de.raindancer.modules.worldutils.command;
 
+import de.raindancer.core.platform.command.MistypedCommand;
 import de.raindancer.core.platform.util.Times;
 import de.raindancer.core.world.manage.SeedHistory;
 import de.raindancer.core.world.manage.WorldFamily;
@@ -55,7 +56,11 @@ public final class WorldsCommand implements IWorldUtilsCommand {
             case "delete", "remove" -> delete(live, sender, args);
             case "seeds", "seed" -> seeds(live, sender, args);
             case "info" -> info(live, sender, args);
-            default -> help(live, sender);
+            default -> {
+                if (!MistypedCommand.subcommand(sender, "worlds", args, 0, suggest(source, new String[]{""}))) {
+                    help(live, sender);
+                }
+            }
         }
     }
 

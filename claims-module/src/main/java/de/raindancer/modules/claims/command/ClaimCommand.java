@@ -1,5 +1,6 @@
 package de.raindancer.modules.claims.command;
 
+import de.raindancer.core.platform.command.MistypedCommand;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimBan;
@@ -112,8 +113,10 @@ public final class ClaimCommand implements IClaimCommand {
             case "accept" -> claims.entryFees().accept(player);
             case "decline", "deny" -> claims.entryFees().decline(player);
             default -> {
-                claims.messages().send(player, "claim.unknown-subcommand", "word", args[0]);
-                help(claims, player);
+                if (!MistypedCommand.subcommand(player, "claim", args, 0, suggest(source, new String[]{""}))) {
+                    claims.messages().send(player, "claim.unknown-subcommand", "word", args[0]);
+                    help(claims, player);
+                }
             }
         }
     }

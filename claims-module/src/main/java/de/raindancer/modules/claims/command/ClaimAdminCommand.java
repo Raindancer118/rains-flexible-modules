@@ -1,5 +1,6 @@
 package de.raindancer.modules.claims.command;
 
+import de.raindancer.core.platform.command.MistypedCommand;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimNames;
 import de.raindancer.modules.claims.model.Claim;
@@ -79,7 +80,11 @@ public final class ClaimAdminCommand implements IClaimCommand {
             case "stick" -> giveStick(claims, sender, args);
             case "save" -> save(claims, sender);
             case "manual", "book", "guide" -> manual(claims, sender);
-            default -> claims.messages().send(sender, "claim.unknown-subcommand", "word", args[0]);
+            default -> {
+                if (!MistypedCommand.subcommand(sender, "claimadmin", args, 0, suggest(source, new String[]{""}))) {
+                    claims.messages().send(sender, "claim.unknown-subcommand", "word", args[0]);
+                }
+            }
         }
     }
 

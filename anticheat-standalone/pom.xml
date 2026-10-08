@@ -24,7 +24,7 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsAntiCheat</plugin.name>
         <!-- 0.4.0: blocks the client has not been told about yet count as still there; real-player false positives fixed. -->
-        <plugin.version>0.4.0</plugin.version>
+        <plugin.version>0.5.0</plugin.version>
     </properties>
 
     <dependencies>

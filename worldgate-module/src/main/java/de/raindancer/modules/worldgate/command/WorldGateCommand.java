@@ -1,5 +1,6 @@
 package de.raindancer.modules.worldgate.command;
 
+import de.raindancer.core.platform.command.MistypedCommand;
 import de.raindancer.modules.worldgate.WorldGateServices;
 import de.raindancer.modules.worldgate.model.Dimension;
 import de.raindancer.modules.worldgate.model.GateState;
@@ -54,7 +55,11 @@ public final class WorldGateCommand implements IWorldGateCommand {
             case "lock" -> lock(live, sender, args);
             case "open" -> open(live, sender, args);
             case "evacuate" -> evacuate(live, sender, args);
-            default -> usage(live, sender);
+            default -> {
+                if (!MistypedCommand.subcommand(sender, "worldgate", args, 0, suggest(source, new String[]{""}))) {
+                    usage(live, sender);
+                }
+            }
         }
     }
 

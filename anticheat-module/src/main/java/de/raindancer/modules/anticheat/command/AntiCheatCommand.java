@@ -1,5 +1,6 @@
 package de.raindancer.modules.anticheat.command;
 
+import de.raindancer.core.platform.command.MistypedCommand;
 import de.raindancer.modules.anticheat.AntiCheatServices;
 import de.raindancer.modules.anticheat.AntiCheatSettings;
 import de.raindancer.modules.anticheat.model.CheckType;
@@ -98,7 +99,11 @@ public final class AntiCheatCommand implements BasicCommand {
             }
             case "checks" -> checks(live, sender);
             case "status" -> status(live, sender);
-            default -> live.messages().send(sender, "anticheat.usage");
+            default -> {
+                if (!MistypedCommand.subcommand(sender, "anticheat", args, 0, SUBCOMMANDS)) {
+                    live.messages().send(sender, "anticheat.usage");
+                }
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun.manhunt.command;
 
+import de.raindancer.core.platform.command.MistypedCommand;
 import de.raindancer.core.platform.util.Closest;
 import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
@@ -441,7 +442,11 @@ public final class ManhuntCommand implements IManhuntCommand {
                 live.desk().closeDoorOnStart();
                 live.messages().send(sender, "manhunt.door.closes");
             }
-            default -> live.messages().send(sender, "manhunt.door.usage");
+            default -> {
+                if (!MistypedCommand.subcommand(sender, "manhunt", args, 1, List.of("keep-open", "close-on-start"))) {
+                    live.messages().send(sender, "manhunt.door.usage");
+                }
+            }
         }
     }
 

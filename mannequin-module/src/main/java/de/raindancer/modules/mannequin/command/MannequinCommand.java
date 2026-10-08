@@ -1,5 +1,6 @@
 package de.raindancer.modules.mannequin.command;
 
+import de.raindancer.core.platform.command.MistypedCommand;
 import de.raindancer.modules.mannequin.MannequinServices;
 import de.raindancer.modules.mannequin.MannequinSettings;
 import de.raindancer.modules.mannequin.model.Mannequin;
@@ -65,7 +66,11 @@ public final class MannequinCommand implements IMannequinCommand {
             case "skin" -> withMannequin(live, sender, args, (l, p, m) -> l.screens().skin(p, m));
             case "stats" -> withMannequin(live, sender, args, (l, p, m) -> l.screens().stats(p, m));
             case "list" -> list(live, sender);
-            default -> live.messages().send(sender, "mannequin.usage");
+            default -> {
+                if (!MistypedCommand.subcommand(sender, "mannequin", args, 0, suggest(source, new String[]{""}))) {
+                    live.messages().send(sender, "mannequin.usage");
+                }
+            }
         }
     }
 

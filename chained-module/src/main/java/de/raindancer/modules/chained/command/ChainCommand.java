@@ -1,5 +1,6 @@
 package de.raindancer.modules.chained.command;
 
+import de.raindancer.core.platform.command.MistypedCommand;
 import de.raindancer.core.world.manage.WorldSeed;
 import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
@@ -56,7 +57,11 @@ public final class ChainCommand implements IChainedCommand {
             case "status" -> status(live, sender);
             case "admin" -> admin(live, sender);
             // Anything else did not silently do nothing: it is read as a request for help.
-            default -> help(live, sender);
+            default -> {
+                if (!MistypedCommand.subcommand(sender, "chain", args, 0, suggest(source, new String[]{""}))) {
+                    help(live, sender);
+                }
+            }
         }
     }
 

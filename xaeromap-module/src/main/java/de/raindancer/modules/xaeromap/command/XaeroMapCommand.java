@@ -1,5 +1,6 @@
 package de.raindancer.modules.xaeromap.command;
 
+import de.raindancer.core.platform.command.MistypedCommand;
 import de.raindancer.modules.xaeromap.XaeroMapServices;
 import de.raindancer.modules.xaeromap.model.ClaimMapSnapshot;
 import de.raindancer.modules.xaeromap.model.Waypoint;
@@ -53,7 +54,11 @@ public final class XaeroMapCommand implements IXaeroMapCommand {
             case "resync" -> resyncEverybody(live, sender);
             case "homes" -> offer(live, sender, "homes");
             case "warps" -> offer(live, sender, "warps");
-            default -> live.messages().send(sender, "xaeromap.usage");
+            default -> {
+                if (!MistypedCommand.subcommand(sender, "xaeromap", args, 0, suggest(source, new String[]{""}))) {
+                    live.messages().send(sender, "xaeromap.usage");
+                }
+            }
         }
     }
 
