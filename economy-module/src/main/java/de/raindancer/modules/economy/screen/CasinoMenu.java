@@ -45,7 +45,7 @@ public final class CasinoMenu extends Menu implements IEconomyScreen, Bet.BetMen
                 Mini.of(currency.render(services.economy().balance(viewer.getUniqueId())))));
         set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.GOLD_BLOCK, "<gold>Casino",
                 "<gray>The house keeps " + String.format("%.1f", live.houseEdge() * 100) + "% on average.",
-                "<dark_gray>That is the exact edge, not an estimate."));
+                "<dark_gray>Blackjack and baccarat: the real casino rules."));
         Money limit = live.dailyLossLimitMoney();
         set(MenuLayout.HEADER_RIGHT, Icons.of(Material.CLOCK, "<white>Lost today",
                 Mini.of(currency.render(services.gambling().lostToday(viewer.getUniqueId()))),
@@ -53,34 +53,39 @@ public final class CasinoMenu extends Menu implements IEconomyScreen, Bet.BetMen
 
         bet.buttons(this, MenuLayout.WHO, viewer);
 
-        band(MenuLayout.RULES, 2, live.gameOpen(live.coinflipEnabled()), Icons.of(Material.SUNFLOWER,
-                "<yellow>Coin flip", "<gray>Heads or tails. Win: " + Mini.of(currency.render(
-                        services.gambling().flipWouldPay(bet.amount())))), BankMenu.OFF,
-                click -> new CoinFlipMenu(services, viewer, this, bet).open());
-        band(MenuLayout.RULES, 4, live.gameOpen(live.diceEnabled()), Icons.of(Material.WHITE_WOOL,
-                "<yellow>Dice", "<gray>Roll 1 to 100, over or under your number.",
-                "<gray>Long odds pay more."), BankMenu.OFF,
-                click -> new DiceMenu(services, viewer, this, bet).open());
-        band(MenuLayout.RULES, 6, live.gameOpen(live.slotsEnabled()), Icons.of(Material.DIAMOND,
-                "<yellow>Slot machine", "<gray>Three reels. Netherite is wild money."), BankMenu.OFF,
-                click -> new SlotsMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 1, live.coinflipEnabled(), Material.SUNFLOWER, "Coin flip", "Heads or tails.",
+                () -> new CoinFlipMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 2, live.diceEnabled(), Material.WHITE_WOOL, "Dice", "Over or under your number.",
+                () -> new DiceMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 3, live.slotsEnabled(), Material.DIAMOND, "Slot machine", "Three reels.",
+                () -> new SlotsMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 4, live.rouletteEnabled(), Material.ENDER_PEARL, "Roulette", "Red, black, numbers.",
+                () -> new RouletteMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 5, live.blackjackEnabled(), Material.PAPER, "Blackjack", "Beat the dealer to 21.",
+                () -> new BlackjackMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 6, live.baccaratEnabled(), Material.RED_CONCRETE, "Baccarat", "Player, banker or tie.",
+                () -> new BaccaratMenu(services, viewer, this, bet).open());
+        game(MenuLayout.RULES, 7, live.hiloEnabled(), Material.LIME_CONCRETE, "Hi-Lo", "Higher or lower?",
+                () -> new HiLoMenu(services, viewer, this, bet).open());
+        game(MenuLayout.LAND, 2, live.minesEnabled(), Material.TNT, "Mines", "Clear tiles, avoid mines.",
+                () -> new MinesMenu(services, viewer, this, bet).open());
+        game(MenuLayout.LAND, 3, live.crashEnabled(), Material.FIREWORK_ROCKET, "Crash", "Cash out before it crashes.",
+                () -> CrashMenu.open(services, viewer, this));
+        game(MenuLayout.LAND, 4, live.raceEnabled(), Material.SADDLE, "Horse race", "Bet and watch them run.",
+                () -> RaceMenu.open(services, viewer, this));
+        game(MenuLayout.LAND, 5, live.scratchEnabled(), Material.MAP, "Scratch card",
+                "Buy one for " + Mini.of(currency.render(live.scratchPriceMoney())), () -> {
+                    services.scratch().buy(viewer, 1);
+                    refresh();
+                });
+        game(MenuLayout.LAND, 6, live.lotteryEnabled(), Material.FILLED_MAP, "Lottery",
+                "Pot: " + Mini.of(currency.render(services.lottery().pot())),
+                () -> new LotteryMenu(services, viewer, this).open());
+    }
 
-        band(MenuLayout.LAND, 1, live.gameOpen(live.rouletteEnabled()), Icons.of(Material.ENDER_PEARL,
-                "<yellow>Roulette", "<gray>Red, black, green, numbers, dozens."), BankMenu.OFF,
-                click -> new RouletteMenu(services, viewer, this, bet).open());
-
-        boolean lottery = live.gameOpen(live.lotteryEnabled());
-        band(MenuLayout.LAND, 4, lottery, Icons.of(Material.FILLED_MAP, "<aqua>Lottery ticket",
-                "<gray>One for " + Mini.of(currency.render(live.ticketPriceMoney())),
-                "<gray>Pot: " + Mini.of(currency.render(services.lottery().pot())),
-                "<gray>You hold " + services.economy().book().ticketsOf(viewer.getUniqueId()) + " ticket(s)",
-                "", "<yellow>Click<gray> for one, <yellow>shift click<gray> for ten"), BankMenu.OFF, click -> {
-            services.lottery().buy(viewer, click.isShiftClick() ? 10 : 1);
-            refresh();
-        });
-        band(MenuLayout.LAND, 6, lottery, Icons.of(Material.CLOCK, "<aqua>Next draw",
-                "<gray>In " + de.raindancer.core.world.time.Times.describe(services.lottery().untilDraw())),
-                BankMenu.OFF, click -> services.lottery().status(viewer));
+    private void game(int band, int column, boolean on, Material icon, String name, String line, Runnable open) {
+        band(band, column, services.config().gameOpen(on), Icons.of(icon, "<yellow>" + name, "<gray>" + line), BankMenu.OFF,
+                click -> open.run());
     }
 
     @Override

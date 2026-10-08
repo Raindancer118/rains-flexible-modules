@@ -30,6 +30,7 @@ public final class SidebarService implements IEconomyService {
 
     private final RainEconomy economy;
     private final LeaderboardService leaderboard;
+    private volatile java.util.function.Supplier<de.raindancer.core.social.economy.Money> pot = () -> null;
     private final Scoreboards scoreboards;
     private final LeaderboardRule rule = new LeaderboardRule();
     private volatile EconomySettings settings;
@@ -70,6 +71,12 @@ public final class SidebarService implements IEconomyService {
         if (place > 0) {
             lines.add(Component.text(" #" + place + " on the server", NamedTextColor.DARK_GRAY));
         }
+        var jackpot = live.gameOpen(live.lotteryEnabled()) ? pot.get() : null;
+        if (jackpot != null) {
+            lines.add(Component.empty());
+            lines.add(Component.text("Lottery pot", NamedTextColor.GRAY));
+            lines.add(Component.text(" ").append(currency.render(jackpot)));
+        }
         if (!top.isEmpty()) {
             lines.add(Component.empty());
             lines.add(Component.text("Richest", NamedTextColor.GRAY));
@@ -82,6 +89,11 @@ public final class SidebarService implements IEconomyService {
         }
         return Sidebar.of(Component.text().append(currency.renderSymbol()).append(Component.text(" "))
                 .append(currency.renderName(true)).build(), lines);
+    }
+
+    /** The lottery's pot, shown when there is a lottery. */
+    public void pot(java.util.function.Supplier<de.raindancer.core.social.economy.Money> source) {
+        this.pot = source;
     }
 
     /** Shows or hides it for one player; answers what it is now. */

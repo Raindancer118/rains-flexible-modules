@@ -225,24 +225,29 @@ class AccountBookTest {
     }
 
     @Test
-    @DisplayName("lottery tickets fill the pot, survive a restart, and a draw pays the winner and starts afresh")
+    @DisplayName("numbered tickets fill the pot less the cut, survive a restart; a draw pays from the pot and the rest rolls over")
     void lottery() {
         book.open(alice, "Alice", Money.of(1_000));
         book.open(bob, "Bob", Money.of(1_000));
-        assertThat(book.buyTickets(alice, 3, Money.of(100), most).succeeded()).isTrue();
-        assertThat(book.buyTickets(bob, 1, Money.of(100), most).succeeded()).isTrue();
-        assertThat(book.buyTickets(bob, 50, Money.of(100), most).outcome()).isEqualTo(Outcome.NOT_ENOUGH);
-        assertThat(book.balance(AccountBook.LOTTERY_POT)).isEqualTo(Money.of(400));
+        assertThat(book.buyTickets(alice, List.of(List.of(1, 2, 3, 4), List.of(5, 6, 7, 8)), Money.of(100),
+                Money.of(10), most).succeeded()).isTrue();
+        assertThat(book.buyTickets(bob, List.of(List.of(9, 10, 11, 12)), Money.of(100), Money.of(10), most)
+                .succeeded()).isTrue();
+        assertThat(book.buyTickets(bob, java.util.Collections.nCopies(50, List.of(1, 2, 3, 4)), Money.of(100),
+                Money.of(10), most).outcome()).isEqualTo(Outcome.NOT_ENOUGH);
+        assertThat(book.balance(AccountBook.LOTTERY_POT)).as("300 in, 30 cut").isEqualTo(Money.of(270));
         book.scheduleDraw(99L);
 
         AccountBook fresh = reopened();
-        assertThat(fresh.tickets()).containsEntry(alice, 3).containsEntry(bob, 1);
+        assertThat(fresh.tickets()).hasSize(3);
+        assertThat(fresh.ticketsOf(alice)).extracting(de.raindancer.modules.economy.model.LotteryTicket::numbers)
+                .containsExactly(List.of(1, 2, 3, 4), List.of(5, 6, 7, 8));
         assertThat(fresh.nextDrawAt()).isEqualTo(99L);
         long drawn = fresh.drawNumber();
 
-        assertThat(fresh.settleDraw(bob, Money.of(360), 500L)).isEqualTo(Money.of(360));
-        assertThat(fresh.balance(bob)).isEqualTo(Money.of(1_260));
-        assertThat(fresh.balance(AccountBook.LOTTERY_POT)).isEqualTo(Money.ZERO);
+        assertThat(fresh.settleDraw(Map.of(bob, Money.of(100)), 500L)).isEqualTo(Money.of(100));
+        assertThat(fresh.balance(bob)).isEqualTo(Money.of(1_000));
+        assertThat(fresh.balance(AccountBook.LOTTERY_POT)).as("what nobody won rolls over").isEqualTo(Money.of(170));
         assertThat(fresh.tickets()).isEmpty();
         assertThat(fresh.drawNumber()).isEqualTo(drawn + 1);
 
@@ -250,7 +255,7 @@ class AccountBookTest {
         AccountBook again = reopened();
         assertThat(again.tickets()).isEmpty();
         assertThat(again.drawNumber()).isEqualTo(drawn + 1);
-        assertThat(again.nextDrawAt()).isEqualTo(500L);
+        assertThat(again.balance(AccountBook.LOTTERY_POT)).isEqualTo(Money.of(170));
     }
 
     @Test

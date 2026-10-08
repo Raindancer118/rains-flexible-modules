@@ -49,7 +49,14 @@ public final class AdminMenu extends Menu implements IEconomyScreen {
             new Switch("features.dice", "Dice", Material.WHITE_WOOL),
             new Switch("features.slots", "Slots", Material.DIAMOND),
             new Switch("features.roulette", "Roulette", Material.ENDER_PEARL),
-            new Switch("features.lottery", "Lottery", Material.FILLED_MAP));
+            new Switch("features.lottery", "Lottery", Material.FILLED_MAP),
+            new Switch("features.blackjack", "Blackjack", Material.PAPER),
+            new Switch("features.baccarat", "Baccarat", Material.RED_CONCRETE),
+            new Switch("features.hilo", "Hi-Lo", Material.LIME_CONCRETE),
+            new Switch("features.mines", "Mines", Material.TNT),
+            new Switch("features.crash", "Crash", Material.FIREWORK_ROCKET),
+            new Switch("features.race", "Horse races", Material.SADDLE),
+            new Switch("features.scratch", "Scratch cards", Material.MAP));
 
     private final EconomyServices services;
 

@@ -62,12 +62,26 @@ public final class EconomyCommands {
                         .taking("<amount> <over|under> <number>"),
                 ModuleCommand.of("roulette", "Red, black, green and numbers",
                         new GambleCommand(EconomyCommands::require, GambleCommand.Game.ROULETTE)).taking("[bet]"),
-                ModuleCommand.of("lottery", "Tickets, the pot and the next draw",
+                ModuleCommand.of("lottery", "Pick numbers, the pot and the next draw",
                         new GambleCommand(EconomyCommands::require, GambleCommand.Game.LOTTERY)).aliased("lotto")
-                        .taking("[buy <tickets>]"),
+                        .taking("[buy [tickets] | buy <numbers…> | info]"),
+                ModuleCommand.of("blackjack", "Blackjack against the dealer",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.BLACKJACK)).aliased("bj"),
+                ModuleCommand.of("baccarat", "Baccarat: player, banker or tie",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.BACCARAT)),
+                ModuleCommand.of("hilo", "Higher or lower than the card showing",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.HILO)),
+                ModuleCommand.of("mines", "Clear tiles, avoid the mines",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.MINES)),
+                ModuleCommand.of("crash", "The server's crash round",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.CRASH)),
+                ModuleCommand.of("race", "The server's horse race",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.RACE)).aliased("horserace"),
+                ModuleCommand.of("scratch", "Buy scratch cards",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.SCRATCH)).taking("[buy <count>]"),
                 ModuleCommand.of("eco", "Staff: run the economy", new EcoCommand(EconomyCommands::require))
                         .taking("give|take|set <player> <amount> [reason]", "reset|freeze|unfreeze|history <player>",
-                                "menu|reprice|draw|calm|coin", "leaderboard place|remove")
+                                "menu|reprice|draw|calm|coin", "leaderboard place|remove", "dealer place <game>|remove")
                         .auditUsage());
     }
 

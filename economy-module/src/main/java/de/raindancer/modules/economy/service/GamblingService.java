@@ -119,7 +119,7 @@ public final class GamblingService implements IEconomyService {
 
     // ---------------------------------------------------------------------------- the checks every game shares
 
-    private boolean mayBet(Player player, Money stake, boolean gameOn) {
+    public boolean mayBet(Player player, Money stake, boolean gameOn) {
         EconomySettings live = settings;
         Currency currency = live.currency();
         if (!live.gameOpen(gameOn)) {
@@ -158,7 +158,7 @@ public final class GamblingService implements IEconomyService {
         return loss == null || loss.day() != today() ? Money.ZERO : loss.lost();
     }
 
-    private void count(UUID player, Money stake, Money payout) {
+    public void count(UUID player, Money stake, Money payout) {
         long day = today();
         losses.compute(player, (id, before) -> {
             Money lost = before == null || before.day() != day ? Money.ZERO : before.lost();
@@ -172,7 +172,7 @@ public final class GamblingService implements IEconomyService {
     }
 
     /** One game against the house, settled; empty when the ledger refused it (and the player was told). */
-    private Optional<EconomyResult> settle(Player player, Money stake, Money payout, String game) {
+    public Optional<EconomyResult> settle(Player player, Money stake, Money payout, String game) {
         EconomyResult result = book.play(player.getUniqueId(), stake, payout, game, economy.most());
         if (!result.succeeded()) {
             Outcomes.tell(messages, effects, player, result, settings.currency(), "");
@@ -391,6 +391,46 @@ public final class GamblingService implements IEconomyService {
         values[extra.length + 3] = currency.render(economy.balance(player.getUniqueId()));
         messages.send(player, key + (won ? "-won" : "-lost"), values);
         sounds.outcome(player.getUniqueId(), stake.minor(), won ? payout.minor() : 0);
+    }
+
+    /**
+     * Takes a stake for a game that is decided over several steps — a blackjack hand, a mines field, a
+     * crash round. What it pays comes later through {@link #payOut}; losses are counted when it ends.
+     */
+    public boolean takeStake(Player player, Money stake, String game) {
+        EconomyResult result = book.play(player.getUniqueId(), stake, Money.ZERO, game, economy.most());
+        if (!result.succeeded()) {
+            Outcomes.tell(messages, effects, player, result, settings.currency(), "");
+            return false;
+        }
+        economy.tell(player.getUniqueId(), stake.negate(), result.balance(), TransactionKind.GAMBLE);
+        return true;
+    }
+
+    /** Pays what a multi-step game returned, stake included, and counts the day's loss. */
+    public void payOut(UUID player, Money stake, Money payout, String game) {
+        count(player, stake, payout);
+        if (payout.isPositive()) {
+            EconomyResult result = economy.move(player, payout, TransactionKind.GAMBLE, game + " — won");
+            if (!result.succeeded()) {
+                // An account that cannot take its winnings (frozen, full) gets the stake back at least.
+                economy.move(player, stake, TransactionKind.GAMBLE, game + " — returned");
+            }
+        }
+    }
+
+    /** Says how a multi-step game ended and plays its sound. */
+    public void finish(Player player, boolean won, Money stake, Money payout, String key, Object... extra) {
+        announce(player, won, stake, payout, key, extra);
+    }
+
+    public Currency currency() {
+        return settings.currency();
+    }
+
+    /** A line of a table game that is neither a win nor a loss — a push, a returned stake. */
+    public void tell(Player player, String key, Object... values) {
+        messages.send(player, key, values);
     }
 
     public void forget(UUID player) {

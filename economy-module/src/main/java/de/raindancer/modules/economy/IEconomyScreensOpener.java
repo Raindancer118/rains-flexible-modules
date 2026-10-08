@@ -38,5 +38,10 @@ public interface IEconomyScreensOpener {
 
     void jobs(Player viewer);
 
+    /** A dealer's table, or any game by name. */
+    void table(Player viewer, de.raindancer.modules.economy.model.DealerGame game);
+
+    void scratch(Player viewer, de.raindancer.modules.economy.service.ScratchService.Scratched card);
+
     void roulette(Player viewer, de.raindancer.core.social.economy.Money stake);
 }

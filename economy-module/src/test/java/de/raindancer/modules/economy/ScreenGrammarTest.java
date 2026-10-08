@@ -20,7 +20,7 @@ class ScreenGrammarTest {
 
     private static final Path SCREENS = Path.of("src/main/java/de/raindancer/modules/economy/screen");
 
-    private static final List<String> BASE_CLASSES = List.of("IEconomyScreen", "MoneyPrompt", "Bet", "ConfirmScreen");
+    private static final List<String> BASE_CLASSES = List.of("IEconomyScreen", "MoneyPrompt", "Bet", "ConfirmScreen", "CardIcons");
 
     private record Screen(String name, String body) {
     }

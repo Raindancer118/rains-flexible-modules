@@ -21,6 +21,30 @@ class EconomyScenarioTest {
 
     private static final Duration WAIT = Duration.ofSeconds(15);
 
+    private static void clickNamed(Bot bot, String name) {
+        int slot = Await.value(() -> bot.name() + " sees a button named exactly " + name, WAIT, () -> bot.window()
+                .flatMap(window -> window.top().entrySet().stream().filter(entry -> entry.getValue().name().equals(name))
+                        .map(java.util.Map.Entry::getKey).findFirst()).orElse(null));
+        bot.clickSlot(slot);
+    }
+
+    /** What the window shows, written beside the server's logs for a look at it later. */
+    private static void snapshot(Bot bot, String name) {
+        bot.window().ifPresent(window -> {
+            StringBuilder out = new StringBuilder(window.title()).append('\n');
+            window.top().forEach((slot, item) -> out.append(slot).append('\t').append(item.material()).append('\t')
+                    .append(item.amount()).append('\t').append(item.name()).append('\t')
+                    .append(String.join(" | ", item.lore())).append('\n'));
+            try {
+                java.nio.file.Path file = java.nio.file.Path.of("target", "e2e", "screens", name + ".tsv");
+                java.nio.file.Files.createDirectories(file.getParent());
+                java.nio.file.Files.writeString(file, out);
+            } catch (java.io.IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            }
+        });
+    }
+
     private static boolean said(Bot bot, String text) {
         return bot.chatText().stream().anyMatch(line -> line.contains(text));
     }
@@ -222,10 +246,7 @@ class EconomyScenarioTest {
             // ---- the lottery
             bo.forgetChat();
             bo.run("lottery buy 2");
-            Await.until("Bo holds tickets", WAIT, () -> said(bo, "You bought 2 ticket(s)"));
-            ada.forgetChat();
-            ada.run("eco draw");
-            Await.until("everybody hears who won", WAIT, () -> said(ada, "Lottery: Bo won"));
+            Await.until("Bo holds quick-picked tickets", WAIT, () -> said(bo, "You bought 2 ticket(s)"));
 
             // ---- staff
             bo.forgetChat();
@@ -287,6 +308,102 @@ class EconomyScenarioTest {
             Await.until("plain gold goes into the grid", WAIT, () -> server.paper.eventsText().lines()
                     .anyMatch(line -> line.contains("\"title\":\"Crafting\",\"slot\":1,") && line.contains("\"cancelled\":false")));
             ada.closeWindow();
+
+            // ---- blackjack: dealt card by card, stood, settled by the dealer
+            server.console("settings set economy:gamble.cooldown-seconds 0");
+            ada.forgetChat();
+            ada.run("blackjack");
+            ada.awaitWindow("Blackjack");
+            // "Deal" is also part of the dealer's name in the header.
+            clickNamed(ada, "Deal");
+            Await.ticks(60);
+            snapshot(ada, "blackjack-hand");
+            ada.window().flatMap(window -> window.slotNamed("Stand")).ifPresent(ada::clickSlot);
+            Await.ticks(60);
+            snapshot(ada, "blackjack-settled");
+            Await.until("the dealer settles it", Duration.ofSeconds(20), () -> said(ada, "Dealer:")
+                    || said(ada, "A push"));
+            ada.closeWindow();
+
+            // ---- baccarat: a bet on the player, the coup laid out by the rules
+            ada.forgetChat();
+            ada.run("baccarat");
+            ada.awaitWindow("Baccarat");
+            ada.click("Player");
+            Await.until("the coup is settled", Duration.ofSeconds(20), () -> said(ada, "You win") || said(ada, "You lose")
+                    || said(ada, "comes back"));
+            ada.closeWindow();
+
+            // ---- hi-lo and mines: started, then the window closed — which cashes out
+            ada.forgetChat();
+            ada.run("hilo");
+            ada.awaitWindow("Hi-Lo");
+            ada.click("Start");
+            Await.until("the first card shows", WAIT, () -> ada.window().flatMap(window -> window.slotNamed("Higher")
+                    .or(() -> window.slotNamed("Lower"))).isPresent());
+            ada.closeWindow();
+            Await.until("the stake comes back", WAIT, () -> said(ada, "comes back"));
+            ada.forgetChat();
+            ada.run("mines");
+            ada.awaitWindow("Mines");
+            ada.click("Start");
+            Await.until("the field is ready", WAIT, () -> ada.window().flatMap(window -> window.slotNamed("Cash out")).isPresent());
+            ada.clickSlot(ada.window().orElseThrow().slotNamed("?").orElseThrow());
+            Await.ticks(10);
+            ada.closeWindow();
+            Await.until("cashed out or blown up", WAIT, () -> said(ada, "tiles cleared") || said(ada, "Boom"));
+
+            // ---- crash: join, cash out by itself at 1.5×, or crash before
+            server.console("settings set economy:crash.betting-seconds 3");
+            ada.forgetChat();
+            ada.run("crash");
+            ada.awaitWindow("Crash");
+            Await.until("bets are open", Duration.ofSeconds(20), () -> ada.window()
+                    .flatMap(window -> window.slotNamed("Join the round")).isPresent());
+            ada.click("Cash out by itself");
+            Await.ticks(5);
+            ada.click("Join the round");
+            Await.until("the round ends for Ada", Duration.ofSeconds(40), () -> said(ada, "Cashed out at")
+                    || said(ada, "Crashed at"));
+            ada.closeWindow();
+
+            // ---- the horse race: a bet on Thunder, then the race
+            server.console("settings set economy:race.betting-seconds 10");
+            ada.forgetChat();
+            ada.run("race");
+            ada.awaitWindow("Horse race");
+            Await.until("the gate is closed", Duration.ofSeconds(40), () -> ada.window()
+                    .flatMap(window -> window.slotNamed("Gate opens")).isPresent());
+            ada.click("Thunder");
+            Await.until("the race is run", Duration.ofSeconds(60), () -> said(ada, "wins"));
+            ada.closeWindow();
+
+            // ---- a scratch card, bought, scratched
+            ada.forgetChat();
+            ada.run("scratch buy 1");
+            Await.until("the ticket arrives", WAIT, () -> ada.carrying(item -> item.is("map")).isPresent());
+            ada.hold(ada.hotbarSlotOf(item -> item.is("map")));
+            Await.ticks(5);
+            ada.useHeld();
+            ada.awaitWindow("Scratch card");
+            ada.click("Scratch everything");
+            Await.until("the card is told", WAIT, () -> said(ada, "Three alike") || said(ada, "No three alike"));
+            ada.closeWindow();
+
+            // ---- the lottery: Ada's own numbers, then the draw called ball by ball
+            ada.forgetChat();
+            ada.run("lottery buy 1 2 3 4");
+            Await.until("the ticket is bought", WAIT, () -> said(ada, "You bought 1 ticket(s) (1 2 3 4)"));
+            ada.forgetChat();
+            ada.run("eco draw");
+            Await.until("the balls are called", Duration.ofSeconds(30), () -> said(ada, "Ball 4 of 4"));
+            Await.until("and the result told", Duration.ofSeconds(30), () -> said(ada, "rolls over") || said(ada, "wins"));
+
+            // ---- a dealer, placed in the casino
+            ada.forgetChat();
+            ada.run("eco dealer place blackjack");
+            Await.until("the dealer stands there", WAIT, () -> server.console(
+                    "execute if entity @e[type=minecraft:mannequin]").contains("passed"));
 
             // ---- any item can be the coin; coins already out keep working
             server.console("item replace entity Ada weapon.mainhand with minecraft:emerald");

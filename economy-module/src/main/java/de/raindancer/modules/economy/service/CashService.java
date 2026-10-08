@@ -82,6 +82,10 @@ public final class CashService implements IEconomyService {
         this.settings = updated == null ? EconomySettings.DEFAULTS : updated;
     }
 
+    public CashSeal seal() {
+        return seal;
+    }
+
     /** What a coin is made of right now. */
     public Material coinMaterial() {
         Material material = settings.coinItem();

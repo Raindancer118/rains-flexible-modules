@@ -27,7 +27,8 @@ class MessageKeysTest {
 
     /** Keys built at run time: the game's base key with -won or -lost. */
     private static final List<String> BUILT = List.of("economy.gamble.flip", "economy.gamble.dice", "economy.gamble.slots",
-            "economy.gamble.roulette");
+            "economy.gamble.roulette", "economy.gamble.blackjack", "economy.gamble.baccarat", "economy.gamble.hilo",
+            "economy.gamble.mines", "economy.gamble.crash", "economy.gamble.race", "economy.gamble.scratch");
 
     @Test
     @DisplayName("every message the code sends is written down")

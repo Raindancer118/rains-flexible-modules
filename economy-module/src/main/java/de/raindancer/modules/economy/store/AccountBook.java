@@ -7,6 +7,7 @@ import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.Account;
 import de.raindancer.modules.economy.model.BalanceChange;
 import de.raindancer.modules.economy.model.Contract;
+import de.raindancer.modules.economy.model.LotteryTicket;
 import de.raindancer.modules.economy.model.Payday;
 import de.raindancer.modules.economy.model.DailyClaim;
 import de.raindancer.modules.economy.model.Transaction;
@@ -68,10 +69,12 @@ public final class AccountBook {
     /** The lottery's pot is an account of its own, so tickets bought and the pot are one ledger. */
     public static final UUID LOTTERY_POT = new UUID(0L, 0x1077E7L);
     private static final Money SYSTEM_MOST = Money.of(Long.MAX_VALUE / 4);
+    /** Scratch tickets share the cheque register; this keeps a ticket from ever passing for a cheque. */
+    private static final String TICKET = "ticket:";
     private long draw = 1;
     private long nextDrawAt;
-    private final Map<UUID, Integer> tickets = new HashMap<>();
-    private final Set<UUID> dirtyTickets = new LinkedHashSet<>();
+    private final List<LotteryTicket> tickets = new ArrayList<>();
+    private final List<LotteryTicket> newTickets = new ArrayList<>();
     private boolean lotteryDirty;
     private long clearedDraw = -1;
 
@@ -135,13 +138,14 @@ public final class AccountBook {
                     nextRead = rows.getLong(2);
                 }
             }
-            Map<UUID, Integer> held = new HashMap<>();
+            List<LotteryTicket> held = new ArrayList<>();
             try (PreparedStatement select = connection.prepareStatement(
-                    "SELECT player, tickets FROM lottery_ticket WHERE draw = ?")) {
+                    "SELECT player, numbers FROM lottery_pick WHERE draw = ? ORDER BY id")) {
                 select.setLong(1, drawRead);
                 try (ResultSet rows = select.executeQuery()) {
                     while (rows.next()) {
-                        held.put(UUID.fromString(rows.getString(1)), rows.getInt(2));
+                        held.add(new LotteryTicket(UUID.fromString(rows.getString(1)),
+                                LotteryTicket.read(rows.getString(2))));
                     }
                 }
             }
@@ -152,7 +156,7 @@ public final class AccountBook {
                 jobs.forEach(job -> contracts.put(job.id(), job));
                 draw = drawRead;
                 nextDrawAt = nextRead;
-                tickets.putAll(held);
+                tickets.addAll(held);
             }
             return true;
         });
@@ -583,24 +587,29 @@ public final class AccountBook {
         }
     }
 
-    public Map<UUID, Integer> tickets() {
+    public List<LotteryTicket> tickets() {
         synchronized (lock) {
-            return Map.copyOf(tickets);
+            return List.copyOf(tickets);
         }
     }
 
-    public int ticketsOf(UUID id) {
+    public List<LotteryTicket> ticketsOf(UUID id) {
         synchronized (lock) {
-            return tickets.getOrDefault(id, 0);
+            return tickets.stream().filter(ticket -> ticket.player().equals(id)).toList();
         }
     }
 
-    /** Tickets for the current draw: their price goes into the pot in the same change. */
-    public EconomyResult buyTickets(UUID id, int count, Money price, Money most) {
+    /**
+     * Tickets for the current draw: their price goes into the pot in the same change, less the cut, which
+     * is destroyed.
+     */
+    public EconomyResult buyTickets(UUID id, List<List<Integer>> picks, Money price, Money cut, Money most) {
         synchronized (lock) {
             Money cost;
+            Money cuts;
             try {
-                cost = price.times(Math.max(0, count));
+                cost = price.times(picks.size());
+                cuts = cut.times(picks.size());
             } catch (ArithmeticException overflow) {
                 return EconomyResult.failed(Outcome.INVALID_AMOUNT, price, balance(id));
             }
@@ -609,47 +618,74 @@ public final class AccountBook {
                 return refused.get();
             }
             EconomyResult paid = transfer(id, LOTTERY_POT, cost, Money.ZERO, TransactionKind.LOTTERY,
-                    count + " ticket(s), draw " + draw, most.max(SYSTEM_MOST));
+                    picks.size() + " ticket(s), draw " + draw, most.max(SYSTEM_MOST));
             if (paid.succeeded()) {
-                tickets.merge(id, count, Integer::sum);
-                dirtyTickets.add(id);
+                if (cuts.isPositive()) {
+                    change(LOTTERY_POT, cuts.negate(), TransactionKind.TAX, "Lottery cut", null, SYSTEM_MOST);
+                }
+                for (List<Integer> numbers : picks) {
+                    LotteryTicket ticket = new LotteryTicket(id, numbers);
+                    tickets.add(ticket);
+                    newTickets.add(ticket);
+                }
             }
             return paid;
         }
     }
 
     /**
-     * Ends the current draw: the prize goes to the winner, the rest of the pot is destroyed, and the next
-     * draw starts with no tickets. With no winner — nobody bought a ticket — the pot carries over.
+     * Ends the current draw: every prize is paid out of the pot, what nobody won stays in it, and the next
+     * draw starts with no tickets.
      *
-     * @return what the winner was paid; zero when nothing was drawn
+     * @return what was paid in all
      */
-    public Money settleDraw(UUID winner, Money prize, long nextAt) {
+    public Money settleDraw(Map<UUID, Money> prizes, long nextAt) {
         synchronized (lock) {
-            Money won = Money.ZERO;
-            Account pot = accounts.get(LOTTERY_POT);
-            if (winner != null && pot != null && accounts.containsKey(winner)) {
-                Money paid = prize.min(pot.balance());
-                Money destroyed = pot.balance().minus(paid);
-                if (paid.isPositive()) {
-                    transfer(LOTTERY_POT, winner, paid, Money.ZERO, TransactionKind.LOTTERY, "Won draw " + draw,
-                            SYSTEM_MOST);
-                    won = paid;
-                }
-                if (destroyed.isPositive()) {
-                    change(LOTTERY_POT, destroyed.negate(), TransactionKind.TAX, "Lottery cut, draw " + draw,
-                            null, SYSTEM_MOST);
+            long paid = 0;
+            for (Map.Entry<UUID, Money> each : prizes.entrySet()) {
+                Money left = balance(LOTTERY_POT);
+                Money prize = each.getValue().min(left);
+                if (prize.isPositive() && accounts.containsKey(each.getKey())) {
+                    EconomyResult result = transfer(LOTTERY_POT, each.getKey(), prize, Money.ZERO,
+                            TransactionKind.LOTTERY, "Won draw " + draw, SYSTEM_MOST);
+                    if (result.succeeded()) {
+                        paid += prize.minor();
+                    }
                 }
             }
-            if (winner != null || tickets.isEmpty()) {
-                clearedDraw = draw;
-                draw++;
-                tickets.clear();
-                dirtyTickets.clear();
-            }
+            clearedDraw = draw;
+            draw++;
+            tickets.clear();
+            newTickets.clear();
             nextDrawAt = nextAt;
             lotteryDirty = true;
-            return won;
+            return Money.of(paid);
+        }
+    }
+
+    // ---------------------------------------------------------------------------- scratch tickets
+
+    /** Buys a scratch ticket: the price leaves and the ticket's serial is registered, as one change. */
+    public EconomyResult buyTicket(UUID id, String serial, Money price, Money most) {
+        synchronized (lock) {
+            EconomyResult paid = play(id, price, Money.ZERO, "Scratch card", most);
+            if (paid.succeeded()) {
+                outstanding.put(TICKET + serial, price);
+                notes.add(new NoteWrite(TICKET + serial, price, id, clock.getAsLong(), null, 0));
+            }
+            return paid;
+        }
+    }
+
+    /** Uses a ticket up; false when it was never sold or is already scratched — a copy. */
+    public boolean useTicket(UUID by, String serial) {
+        synchronized (lock) {
+            Money price = outstanding.remove(TICKET + serial);
+            if (price == null) {
+                return false;
+            }
+            notes.add(new NoteWrite(TICKET + serial, price, null, 0, by, clock.getAsLong()));
+            return true;
         }
     }
 
@@ -738,7 +774,7 @@ public final class AccountBook {
             List<Account> changed = new ArrayList<>();
             List<Transaction> lines;
             List<NoteWrite> noteWrites;
-            Map<UUID, Integer> ticketWrites = new HashMap<>();
+            List<LotteryTicket> ticketWrites;
             Map<Money, Long> coinWrites = new HashMap<>();
             Map<UUID, Contract> contractWrites = new LinkedHashMap<>();
             boolean writeLottery;
@@ -746,7 +782,7 @@ public final class AccountBook {
             long nextNow;
             long cleared;
             synchronized (lock) {
-                if (dirty.isEmpty() && journal.isEmpty() && notes.isEmpty() && !lotteryDirty && dirtyTickets.isEmpty()
+                if (dirty.isEmpty() && journal.isEmpty() && notes.isEmpty() && !lotteryDirty && newTickets.isEmpty()
                         && dirtyCoins.isEmpty() && dirtyContracts.isEmpty()) {
                     return 0;
                 }
@@ -758,14 +794,12 @@ public final class AccountBook {
                     coinWrites.put(value, circulation.getOrDefault(value, 0L));
                 }
                 dirtyCoins.clear();
-                for (UUID id : dirtyTickets) {
-                    ticketWrites.put(id, tickets.getOrDefault(id, 0));
-                }
-                writeLottery = lotteryDirty || !dirtyTickets.isEmpty();
+                ticketWrites = List.copyOf(newTickets);
+                writeLottery = lotteryDirty || !newTickets.isEmpty();
                 drawNow = draw;
                 nextNow = nextDrawAt;
                 cleared = clearedDraw;
-                dirtyTickets.clear();
+                newTickets.clear();
                 lotteryDirty = false;
                 clearedDraw = -1;
                 for (UUID id : dirty) {
@@ -858,18 +892,17 @@ public final class AccountBook {
                     }
                     if (cleared >= 0) {
                         try (PreparedStatement clear = connection.prepareStatement(
-                                "DELETE FROM lottery_ticket WHERE draw <= ?")) {
+                                "DELETE FROM lottery_pick WHERE draw <= ?")) {
                             clear.setLong(1, cleared);
                             clear.executeUpdate();
                         }
                     }
                     try (PreparedStatement held = connection.prepareStatement(
-                            "INSERT INTO lottery_ticket (draw, player, tickets) VALUES (?, ?, ?) "
-                                    + "ON CONFLICT(draw, player) DO UPDATE SET tickets = excluded.tickets")) {
-                        for (Map.Entry<UUID, Integer> each : ticketWrites.entrySet()) {
+                            "INSERT INTO lottery_pick (draw, player, numbers) VALUES (?, ?, ?)")) {
+                        for (LotteryTicket ticket : ticketWrites) {
                             held.setLong(1, drawNow);
-                            held.setString(2, each.getKey().toString());
-                            held.setInt(3, each.getValue());
+                            held.setString(2, ticket.player().toString());
+                            held.setString(3, ticket.written());
                             held.addBatch();
                         }
                         held.executeBatch();
@@ -900,7 +933,7 @@ public final class AccountBook {
                     changed.forEach(account -> dirty.add(account.id()));
                     journal.addAll(0, lines);
                     notes.addAll(0, noteWrites);
-                    dirtyTickets.addAll(ticketWrites.keySet());
+                    newTickets.addAll(0, ticketWrites);
                     dirtyCoins.addAll(coinWrites.keySet());
                     dirtyContracts.addAll(contractWrites.keySet());
                     lotteryDirty |= writeLottery;

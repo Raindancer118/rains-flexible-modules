@@ -17,7 +17,7 @@ import java.util.function.Supplier;
  */
 public final class GambleCommand extends EconomyCommand {
 
-    public enum Game { COINFLIP, DICE, ROULETTE, LOTTERY }
+    public enum Game { COINFLIP, DICE, ROULETTE, LOTTERY, BLACKJACK, BACCARAT, HILO, MINES, CRASH, RACE, SCRATCH }
 
     private final Game game;
 
@@ -74,6 +74,19 @@ public final class GambleCommand extends EconomyCommand {
                 }
                 case LOTTERY -> {
                     if (args.length >= 1 && args[0].equalsIgnoreCase("buy")) {
+                        if (args.length == 1 + live.lottery().pick()) {
+                            java.util.List<Integer> numbers = new java.util.ArrayList<>();
+                            try {
+                                for (int i = 1; i < args.length; i++) {
+                                    numbers.add(Integer.parseInt(args[i]));
+                                }
+                            } catch (NumberFormatException notANumber) {
+                                live.messages().send(player, "economy.usage.lottery");
+                                return;
+                            }
+                            live.lottery().buy(player, numbers, 1);
+                            return;
+                        }
                         int count = 1;
                         if (args.length >= 2) {
                             try {
@@ -83,10 +96,29 @@ public final class GambleCommand extends EconomyCommand {
                                 return;
                             }
                         }
-                        live.lottery().buy(player, count);
-                    } else {
+                        live.lottery().buy(player, null, count);
+                    } else if (args.length >= 1 && args[0].equalsIgnoreCase("info")) {
                         live.lottery().status(player);
+                    } else {
+                        live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.LOTTERY);
                     }
+                }
+                case BLACKJACK -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.BLACKJACK);
+                case BACCARAT -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.BACCARAT);
+                case HILO -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.HILO);
+                case MINES -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.MINES);
+                case CRASH -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.CRASH);
+                case RACE -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.RACE);
+                case SCRATCH -> {
+                    int count = 1;
+                    if (args.length >= 2 && args[0].equalsIgnoreCase("buy")) {
+                        try {
+                            count = Math.max(1, Integer.parseInt(args[1]));
+                        } catch (NumberFormatException notANumber) {
+                            count = 1;
+                        }
+                    }
+                    live.scratch().buy(player, count);
                 }
             }
         });
@@ -100,6 +132,8 @@ public final class GambleCommand extends EconomyCommand {
             case DICE -> args.length == 2 ? starting(args[1], List.of("over", "under")) : List.of();
             case ROULETTE -> List.of();
             case LOTTERY -> args.length <= 1 ? starting(args.length == 0 ? "" : args[0], List.of("buy", "info")) : List.of();
+            case SCRATCH -> args.length <= 1 ? starting(args.length == 0 ? "" : args[0], List.of("buy")) : List.of();
+            default -> List.of();
         };
     }
 
@@ -110,6 +144,13 @@ public final class GambleCommand extends EconomyCommand {
             case DICE -> "rolling the dice";
             case ROULETTE -> "the roulette wheel";
             case LOTTERY -> "the lottery";
+            case BLACKJACK -> "blackjack against the dealer";
+            case BACCARAT -> "baccarat";
+            case HILO -> "hi-lo";
+            case MINES -> "mines";
+            case CRASH -> "the crash round";
+            case RACE -> "the horse race";
+            case SCRATCH -> "buying scratch cards";
         };
     }
 }

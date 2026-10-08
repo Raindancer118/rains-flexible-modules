@@ -367,9 +367,56 @@ public record EconomySettings(
         @In("economy/gambling") @Title("Most tickets per player per draw") @Range(min = 1, max = 100000)
         @Key("lottery.most-tickets") int mostTickets,
 
+        @In("economy/gambling") @Title("Numbers on a lottery ticket") @Range(min = 2, max = 8)
+        @Describe("How many numbers a ticket has, and how many balls are drawn.")
+        @Key("lottery.pick") int lotteryPick,
+
+        @In("economy/gambling") @Title("Lottery numbers go up to") @Range(min = 10, max = 60)
+        @Describe("Picked from 1 to this. 4 from 20 is a jackpot in 4,845; 6 from 49 is one in 14 million.")
+        @Key("lottery.numbers") int lotteryNumbers,
+
         @In("economy/gambling") @Title("Lottery keeps, percent")
-        @Describe("Of the pot, at every draw — destroyed, a money sink. 0 to 50.")
+        @Describe("Of every ticket's price — destroyed, a money sink; the rest goes into the pot. 0 to 50.")
         @Key("lottery.cut-percent") double lotteryCutPercent,
+
+        @In("economy/gambling") @Title("Blackjack") @Describe("Against the dealer: hit, stand, double, split.")
+        @Key("features.blackjack") boolean blackjackEnabled,
+
+        @In("economy/gambling") @Title("Baccarat") @Describe("Player, banker or tie, with the real third-card rules.")
+        @Key("features.baccarat") boolean baccaratEnabled,
+
+        @In("economy/gambling") @Title("Hi-Lo") @Describe("Higher or lower than the card showing; cash out any time.")
+        @Key("features.hilo") boolean hiloEnabled,
+
+        @In("economy/gambling") @Title("Crash")
+        @Describe("One round for everybody: a multiplier climbs until it crashes; cash out before.")
+        @Key("features.crash") boolean crashEnabled,
+
+        @In("economy/gambling") @Title("Mines") @Describe("Clear tiles on a field hiding mines; cash out any time.")
+        @Key("features.mines") boolean minesEnabled,
+
+        @In("economy/gambling") @Title("Scratch cards") @Describe("Tickets you buy, carry, give away and scratch.")
+        @Key("features.scratch") boolean scratchEnabled,
+
+        @In("economy/gambling") @Title("Horse races") @Describe("One race for everybody: bet on a horse and watch it run.")
+        @Key("features.race") boolean raceEnabled,
+
+        @In("economy/gambling") @Title("Decks in a shoe") @Range(min = 1, max = 8)
+        @Key("casino.decks") int decks,
+
+        @In("economy/gambling") @Title("A scratch card costs") @Key("scratch.price") String scratchPrice,
+
+        @In("economy/gambling") @Title("Bets for a crash round close after") @Range(min = 3, max = 120)
+        @Describe("Seconds.")
+        @Key("crash.betting-seconds") int crashBettingSeconds,
+
+        @In("economy/gambling") @Title("Bets for a horse race close after") @Range(min = 10, max = 600)
+        @Describe("Seconds.")
+        @Key("race.betting-seconds") int raceBettingSeconds,
+
+        @In("economy/gambling") @Title("Dealers wear the skin of")
+        @Describe("A player name. Empty: the plain mannequin look.")
+        @Key("casino.dealer-skin") String dealerSkin,
 
         // ------------------------------------------------------------------ display
         @In("economy/display") @Title("Balance in the sidebar")
@@ -418,7 +465,8 @@ public record EconomySettings(
             // interest
             true, 0.25, 60, "250",
             // gambling
-            true, true, true, true, true, true, "1", "100000", 3.0, "0", 1, 60, "100", 24, 100, 10.0,
+            true, true, true, true, true, true, "1", "100000", 3.0, "0", 1, 60, "100", 24, 100, 4, 20, 10.0,
+            true, true, true, true, true, true, true, 6, "50", 10, 45, "",
             // display
             true, 3, true, 10, List.of(),
             // general
@@ -506,6 +554,10 @@ public record EconomySettings(
 
     public Money dailyLossLimitMoney() {
         return settingOrZero(dailyLossLimit);
+    }
+
+    public Money scratchPriceMoney() {
+        return money(scratchPrice, DEFAULTS.scratchPrice);
     }
 
     public Money ticketPriceMoney() {

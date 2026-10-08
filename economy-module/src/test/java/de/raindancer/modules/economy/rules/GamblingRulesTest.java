@@ -113,24 +113,52 @@ class GamblingRulesTest {
     }
 
     @Test
-    @DisplayName("a lottery ticket number names exactly one holder, each with a chance per ticket")
-    void lotteryDraw() {
-        UUID a = new UUID(0, 1);
-        UUID b = new UUID(0, 2);
-        Map<UUID, Integer> tickets = Map.of(a, 3, b, 1);
-        assertThat(lottery.total(tickets)).isEqualTo(4);
-        assertThat(lottery.winner(tickets, 0)).contains(a);
-        assertThat(lottery.winner(tickets, 2)).contains(a);
-        assertThat(lottery.winner(tickets, 3)).contains(b);
-        assertThat(lottery.winner(tickets, 4)).isEmpty();
-        assertThat(lottery.winner(Map.of(), 0)).isEmpty();
+    @DisplayName("a pick is that many different numbers in range, and a draw is too")
+    void lotteryPicks() {
+        assertThat(lottery.valid(List.of(1, 7, 13, 20), 4, 20)).isTrue();
+        assertThat(lottery.valid(List.of(1, 7, 7, 20), 4, 20)).as("the same number twice").isFalse();
+        assertThat(lottery.valid(List.of(1, 7, 13, 21), 4, 20)).isFalse();
+        assertThat(lottery.valid(List.of(1, 7, 13), 4, 20)).isFalse();
+        RandomGenerator random = RandomGenerator.of("L64X128MixRandom");
+        for (int i = 0; i < 100; i++) {
+            assertThat(lottery.valid(lottery.draw(new java.util.Random(i), 4, 20), 4, 20)).isTrue();
+        }
+        assertThat(random).isNotNull();
     }
 
     @Test
-    @DisplayName("the pot loses its cut, and nobody buys past the per-draw cap")
-    void lotteryMoney() {
-        assertThat(lottery.prize(m(10_000), 0.1)).isEqualTo(m(9_000));
+    @DisplayName("tiers: all right, one short, two short; fewer right wins nothing")
+    void lotteryTiers() {
+        assertThat(lottery.matches(List.of(1, 2, 3, 4), List.of(2, 3, 4, 9))).isEqualTo(3);
+        assertThat(lottery.tier(4, 4)).isZero();
+        assertThat(lottery.tier(3, 4)).isEqualTo(1);
+        assertThat(lottery.tier(2, 4)).isEqualTo(2);
+        assertThat(lottery.tier(1, 4)).isEqualTo(-1);
+        double total = 0;
+        for (int right = 0; right <= 4; right++) {
+            total += lottery.chance(right, 4, 20);
+        }
+        assertThat(total).isCloseTo(1.0, within(1e-9));
+        assertThat(lottery.chance(4, 4, 20)).isCloseTo(1 / 4845.0, within(1e-12));
+    }
+
+    @Test
+    @DisplayName("each tier's pool is split between its winners, and a tier nobody hit stays in the pot")
+    void lotteryPrizes() {
+        UUID a = new UUID(0, 1);
+        UUID b = new UUID(0, 2);
+        UUID c = new UUID(0, 3);
+        List<Integer> drawn = List.of(1, 2, 3, 4);
+        var tickets = List.of(
+                new de.raindancer.modules.economy.model.LotteryTicket(a, List.of(1, 2, 3, 9)),
+                new de.raindancer.modules.economy.model.LotteryTicket(b, List.of(1, 2, 3, 10)),
+                new de.raindancer.modules.economy.model.LotteryTicket(c, List.of(1, 2, 11, 12)),
+                new de.raindancer.modules.economy.model.LotteryTicket(c, List.of(13, 14, 15, 16)));
+        Map<UUID, Money> prizes = lottery.prizes(tickets, drawn, m(10_000), 4);
+        assertThat(prizes).containsEntry(a, m(1_250)).containsEntry(b, m(1_250)).containsEntry(c, m(1_500));
+        long paid = prizes.values().stream().mapToLong(Money::minor).sum();
+        assertThat(10_000 - paid).as("the jackpot pool rolls over").isEqualTo(6_000);
+        assertThat(lottery.afterCut(m(100), 0.1)).isEqualTo(m(90));
         assertThat(lottery.allowed(95, 10, 100)).isEqualTo(5);
-        assertThat(lottery.allowed(100, 10, 100)).isZero();
     }
 }

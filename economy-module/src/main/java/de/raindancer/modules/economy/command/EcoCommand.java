@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class EcoCommand extends EconomyCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("give", "take", "set", "reset", "freeze", "unfreeze",
-            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard");
+            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer");
 
     public EcoCommand(Supplier<EconomyServices> services) {
         super(services);
@@ -49,9 +49,7 @@ public final class EcoCommand extends EconomyCommand {
                     "economy.admin.repriced", "recipes", String.valueOf(live.shop().reprice())));
             case "draw" -> {
                 long next = System.currentTimeMillis() + Math.max(1, live.config().drawHours()) * 3_600_000L;
-                if (live.lottery().draw(next).isEmpty()) {
-                    live.messages().send(sender, "economy.lottery.no-tickets");
-                }
+                live.lottery().draw(next);
             }
             case "coin" -> player(live, sender).ifPresent(player -> {
                 org.bukkit.inventory.ItemStack held = player.getInventory().getItemInMainHand();
@@ -67,6 +65,20 @@ public final class EcoCommand extends EconomyCommand {
                 audit(live, sender, "coin", player, held.getType().name());
                 live.messages().send(player, "economy.admin.coin", "item",
                         held.getType().name().toLowerCase(Locale.ROOT).replace('_', ' '));
+            });
+            case "dealer" -> player(live, sender).ifPresent(player -> {
+                if (args.length > 1 && args[1].equalsIgnoreCase("remove")) {
+                    live.messages().send(player, live.dealers().remove(player)
+                            ? "economy.admin.dealer-removed" : "economy.admin.dealer-none");
+                    return;
+                }
+                var game = de.raindancer.modules.economy.model.DealerGame.read(args.length > 2 ? args[2] : "casino");
+                if (game.isEmpty()) {
+                    live.messages().send(player, "economy.usage.eco");
+                    return;
+                }
+                live.dealers().place(player, game.get());
+                live.messages().send(player, "economy.admin.dealer-placed", "game", game.get().title());
             });
             case "leaderboard" -> player(live, sender).ifPresent(player -> {
                 boolean removing = args.length > 1 && args[1].equalsIgnoreCase("remove");
@@ -176,6 +188,13 @@ public final class EcoCommand extends EconomyCommand {
         }
         if (args.length <= 1) {
             return starting(args.length == 0 ? "" : args[0], SUBCOMMANDS);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("dealer")) {
+            return starting(args[1], List.of("place", "remove"));
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("dealer")) {
+            return starting(args[2], java.util.Arrays.stream(de.raindancer.modules.economy.model.DealerGame.values())
+                    .map(game -> game.name().toLowerCase(Locale.ROOT)).toList());
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("leaderboard")) {
             return starting(args[1], List.of("place", "remove"));

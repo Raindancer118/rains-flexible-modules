@@ -82,7 +82,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.4.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -94,6 +94,9 @@ public final class EconomyModule implements FlexModule {
     private AccountBook book;
     private MarketBook market;
     private EconomyServices services;
+    private de.raindancer.modules.economy.service.TableService tables;
+    private de.raindancer.modules.economy.service.CrashService crash;
+    private de.raindancer.modules.economy.service.RaceService race;
 
     @Override
     public ModuleInfo info() {
@@ -164,22 +167,41 @@ public final class EconomyModule implements FlexModule {
                 leaderboard, settings, now);
         GamblingService gambling = new GamblingService(context.plugin(), server, economy, messages, effects, buttons,
                 Clock.systemDefaultZone(), sounds, now);
-        LotteryService lottery = new LotteryService(server, economy, messages, effects, System::currentTimeMillis, now);
+        LotteryService lottery = new LotteryService(context.plugin(), server, economy, messages, effects,
+                System::currentTimeMillis, now);
+        var tables = new de.raindancer.modules.economy.service.TableService(server, gambling, now);
+        var scratch = new de.raindancer.modules.economy.service.ScratchService(economy, gambling, cash.seal(), messages, now);
+        var crash = new de.raindancer.modules.economy.service.CrashService(server, gambling, System::currentTimeMillis, now);
+        var race = new de.raindancer.modules.economy.service.RaceService(server, gambling, System::currentTimeMillis, now);
+        var dealers = new de.raindancer.modules.economy.service.DealerService(now);
 
         for (var service : List.of(economy, notifier, payments, bills, cash, shop, rewards, income, hire, statements,
-                interest, daily, gambling, lottery, sidebar, displays)) {
+                interest, daily, gambling, lottery, sidebar, displays, tables, scratch, crash, race, dealers)) {
             settings.onChange(service::settings);
         }
 
         services = new EconomyServices(context.plugin(), server, log, messages, context.chat().brand(), context.core(),
                 settings::current, settings, economy, market, payments, bills, cash, shop, rewards, income, hire,
-                statements, interest, daily, leaderboard, sidebar, displays, gambling, lottery, new LiveScreens());
+                statements, interest, daily, leaderboard, sidebar, displays, gambling, lottery, tables, scratch, crash,
+                race, dealers, new LiveScreens());
+        sidebar.pot(lottery::pot);
+        this.tables = tables;
+        this.crash = crash;
+        this.race = race;
 
         int recipes = shop.reprice();
 
         context.listener(new AccountListener(services));
         context.listener(new CashListener(services));
         context.listener(new RewardListener(services));
+        context.listener(new de.raindancer.modules.economy.listener.DealerListener(services));
+        var rounds = Scheduling.globalTimer(context.plugin(), 2L, 2L, task -> {
+            crash.tick();
+            race.tick();
+        });
+        if (rounds != null) {
+            context.closeWith(rounds::cancel);
+        }
         for (Player online : server.getOnlinePlayers()) {
             economy.open(online.getUniqueId(), online.getName());
         }
@@ -290,6 +312,16 @@ public final class EconomyModule implements FlexModule {
     @Override
     public void disable() {
         EconomyCommands.stopped();
+        // Nobody's stake is lost to a stop: open hands are finished in the player's favour, open rounds refunded.
+        if (tables != null) {
+            tables.leaveAll();
+        }
+        if (crash != null) {
+            crash.refundAll();
+        }
+        if (race != null) {
+            race.refundAll();
+        }
         if (book != null) {
             offTheServerThread(() -> {
                 int written = book.flush();
@@ -369,6 +401,27 @@ public final class EconomyModule implements FlexModule {
         @Override
         public void admin(Player viewer) {
             new AdminMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void table(Player viewer, de.raindancer.modules.economy.model.DealerGame game) {
+            switch (game) {
+                case BLACKJACK -> de.raindancer.modules.economy.screen.BlackjackMenu.open(services, viewer, null);
+                case BACCARAT -> de.raindancer.modules.economy.screen.BaccaratMenu.open(services, viewer, null);
+                case HILO -> de.raindancer.modules.economy.screen.HiLoMenu.open(services, viewer, null);
+                case ROULETTE -> RouletteMenu.open(services, viewer, null, null);
+                case SLOTS -> SlotsMenu.open(services, viewer, null);
+                case MINES -> de.raindancer.modules.economy.screen.MinesMenu.open(services, viewer, null);
+                case CRASH -> de.raindancer.modules.economy.screen.CrashMenu.open(services, viewer, null);
+                case RACE -> de.raindancer.modules.economy.screen.RaceMenu.open(services, viewer, null);
+                case LOTTERY -> new de.raindancer.modules.economy.screen.LotteryMenu(services, viewer, null).open();
+                case CASINO -> new CasinoMenu(services, viewer, null).open();
+            }
+        }
+
+        @Override
+        public void scratch(Player viewer, de.raindancer.modules.economy.service.ScratchService.Scratched card) {
+            new de.raindancer.modules.economy.screen.ScratchMenu(services, viewer, card).open();
         }
 
         @Override
