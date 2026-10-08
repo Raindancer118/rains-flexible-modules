@@ -62,7 +62,7 @@ public final class SlotsMenu extends Menu implements IEconomyScreen, Bet.BetMenu
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
-        new SlotsMenu(services, viewer, parent, new Bet(services)).open();
+        new SlotsMenu(services, viewer, parent, new Bet(services, viewer)).open();
     }
 
     @Override

@@ -33,6 +33,7 @@ public final class AdminMenu extends Menu implements IEconomyScreen {
             new Switch("cash.right-click", "Right click pays in", Material.HOPPER),
             new Switch("features.shop", "Shop", Material.EMERALD),
             new Switch("features.selling", "Selling", Material.CHEST),
+            new Switch("features.auctions", "Auctions", Material.BELL),
             new Switch("shop.enchanted-selling", "Enchanted items sell", Material.ENCHANTED_BOOK),
             new Switch("features.dynamic-prices", "Supply and demand", Material.COMPARATOR),
             new Switch("shop.derive-from-recipes", "Recipe prices", Material.CRAFTING_TABLE),

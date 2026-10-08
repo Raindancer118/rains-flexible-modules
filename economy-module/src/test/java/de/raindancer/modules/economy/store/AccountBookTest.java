@@ -196,7 +196,7 @@ class AccountBookTest {
         clock.set(10_000_000L);
         book.change(alice, Money.of(50), TransactionKind.REWARD, "", null, most);
         book.flush();
-        assertThat(book.forgetHistoryBefore(5_000_000L)).as("alice's opening and the lottery pot's").isEqualTo(2);
+        assertThat(book.forgetHistoryBefore(5_000_000L)).as("the openings of alice, the lottery pot and the auction escrow").isEqualTo(3);
         assertThat(book.history(alice, 10, 0)).hasSize(1);
         assertThat(book.balance(alice)).isEqualTo(Money.of(150));
     }

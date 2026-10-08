@@ -32,7 +32,7 @@ public final class HiLoMenu extends Menu implements IEconomyScreen {
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
-        new HiLoMenu(services, viewer, parent, new Bet(services)).open();
+        new HiLoMenu(services, viewer, parent, new Bet(services, viewer)).open();
     }
 
     @Override

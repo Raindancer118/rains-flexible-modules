@@ -33,7 +33,7 @@ public final class BaccaratMenu extends Menu implements IEconomyScreen {
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
-        new BaccaratMenu(services, viewer, parent, new Bet(services)).open();
+        new BaccaratMenu(services, viewer, parent, new Bet(services, viewer)).open();
     }
 
     @Override

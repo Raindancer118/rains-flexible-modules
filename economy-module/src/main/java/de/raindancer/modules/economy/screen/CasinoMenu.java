@@ -24,7 +24,7 @@ public final class CasinoMenu extends Menu implements IEconomyScreen, Bet.BetMen
     public CasinoMenu(EconomyServices services, Player viewer, Menu parent) {
         super(viewer, services.brand(), parent);
         this.services = services;
-        this.bet = new Bet(services);
+        this.bet = new Bet(services, viewer);
     }
 
     @Override

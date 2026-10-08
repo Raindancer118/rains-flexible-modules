@@ -36,6 +36,7 @@ import java.util.List;
         @Topic(path = "economy/earn", title = "Earning", icon = Material.DIAMOND_PICKAXE),
         @Topic(path = "economy/interest", title = "Interest", icon = Material.CLOCK),
         @Topic(path = "economy/gambling", title = "Gambling", icon = Material.GOLD_BLOCK),
+        @Topic(path = "economy/auctions", title = "Auctions", icon = Material.BELL),
         @Topic(path = "economy/display", title = "Sidebar and leaderboards", icon = Material.OAK_SIGN),
 })
 public record EconomySettings(
@@ -339,7 +340,8 @@ public record EconomySettings(
 
         @In("economy/gambling") @Title("Smallest bet") @Key("gamble.min-bet") String minBet,
 
-        @In("economy/gambling") @Title("Largest bet") @Key("gamble.max-bet") String maxBet,
+        @In("economy/gambling") @Title("Largest bet") @Describe("For one bet in any game. 0 for no limit.")
+        @Key("gamble.max-bet") String maxBet,
 
         @In("economy/gambling") @Title("House edge, percent")
         @Describe("What every game keeps on average, 0 to 50. The payouts are worked out from it exactly, so "
@@ -418,6 +420,64 @@ public record EconomySettings(
         @Describe("A player name. Empty: the plain mannequin look.")
         @Key("casino.dealer-skin") String dealerSkin,
 
+        // ------------------------------------------------------------------ auctions
+        @In("economy/auctions") @Title("Auctions")
+        @Describe("Players put up an item from their hand; one auction at a time for the whole server, announced "
+                + "in chat with a countdown, the bids on a boss bar. The rest wait in a queue.")
+        @Key("features.auctions") boolean auctionsEnabled,
+
+        @In("economy/auctions") @Title("An auction runs, unless the seller says otherwise") @Range(min = 30, max = 3600)
+        @Describe("Seconds.")
+        @Key("auction.default-seconds") int auctionDefaultSeconds,
+
+        @In("economy/auctions") @Title("Shortest a seller may choose") @Range(min = 30, max = 3600)
+        @Describe("Seconds.")
+        @Key("auction.min-seconds") int auctionMinSeconds,
+
+        @In("economy/auctions") @Title("Longest a seller may choose") @Range(min = 30, max = 3600)
+        @Describe("Seconds.")
+        @Key("auction.max-seconds") int auctionMaxSeconds,
+
+        @In("economy/auctions") @Title("Lowest starting price") @Key("auction.smallest-start") String auctionSmallestStart,
+
+        @In("economy/auctions") @Title("A bid must beat the last by at least")
+        @Describe("Or by the percentage below, whichever is more.")
+        @Key("auction.step") String auctionStep,
+
+        @In("economy/auctions") @Title("…or by this percentage of it") @Key("auction.step-percent") double auctionStepPercent,
+
+        @In("economy/auctions") @Title("A late bid gives everybody this long again") @Range(min = 0, max = 120)
+        @Describe("Seconds. A bid with less time left than this pushes the end back to it, so nobody wins by "
+                + "bidding in the last second. 0 to switch off.")
+        @Key("auction.snipe-seconds") int auctionSnipeSeconds,
+
+        @In("economy/auctions") @Title("Pause between two auctions") @Range(min = 0, max = 600)
+        @Describe("Seconds.")
+        @Key("auction.gap-seconds") int auctionGapSeconds,
+
+        @In("economy/auctions") @Title("Listing an item costs")
+        @Describe("Paid when the item goes up, sold or not; the money leaves the economy.")
+        @Key("auction.listing-fee") String auctionListingFee,
+
+        @In("economy/auctions") @Title("The auction house keeps, percent")
+        @Describe("Of the price an item sells for; the money leaves the economy. 0 to 50.")
+        @Key("auction.fee-percent") double auctionFeePercent,
+
+        @In("economy/auctions") @Title("Auctions waiting at most") @Range(min = 1, max = 100)
+        @Key("auction.queue-size") int auctionQueueSize,
+
+        @In("economy/auctions") @Title("Auctions per player at once") @Range(min = 1, max = 20)
+        @Describe("Live and waiting together.")
+        @Key("auction.per-player") int auctionsPerPlayer,
+
+        @In("economy/auctions") @Title("Every bid in chat")
+        @Describe("Off: only the start, the countdown and the result are announced.")
+        @Key("auction.announce-bids") boolean auctionAnnounceBids,
+
+        @In("economy/auctions") @Title("The auction on a boss bar")
+        @Describe("The item, the highest bid and the time left, for everybody who has not muted auctions.")
+        @Key("auction.bossbar") boolean auctionBossBar,
+
         // ------------------------------------------------------------------ display
         @In("economy/display") @Title("Balance in the sidebar")
         @Describe("Every player's balance, rank and the richest players on the right of the screen. Each player "
@@ -467,6 +527,8 @@ public record EconomySettings(
             // gambling
             true, true, true, true, true, true, "1", "100000", 3.0, "0", 1, 60, "100", 24, 100, 4, 20, 10.0,
             true, true, true, true, true, true, true, 6, "50", 10, 45, "",
+            // auctions
+            true, 120, 60, 600, "10", "10", 5.0, 20, 15, "1000", 5.0, 10, 2, true, true,
             // display
             true, 3, true, 10, List.of(),
             // general
@@ -558,6 +620,23 @@ public record EconomySettings(
 
     public Money scratchPriceMoney() {
         return money(scratchPrice, DEFAULTS.scratchPrice);
+    }
+
+    public Money auctionSmallestStartMoney() {
+        return money(auctionSmallestStart, DEFAULTS.auctionSmallestStart);
+    }
+
+    public Money auctionStepMoney() {
+        return money(auctionStep, DEFAULTS.auctionStep);
+    }
+
+    public Money auctionListingFeeMoney() {
+        return money(auctionListingFee, DEFAULTS.auctionListingFee);
+    }
+
+    /** The sale fee as a percentage, 0 to 50. */
+    public double auctionFee() {
+        return Math.max(0, Math.min(50, auctionFeePercent));
     }
 
     public Money ticketPriceMoney() {

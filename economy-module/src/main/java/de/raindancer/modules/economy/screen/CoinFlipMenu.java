@@ -42,7 +42,7 @@ public final class CoinFlipMenu extends Menu implements IEconomyScreen, Bet.BetM
 
     /** Opens with this bet; with a call, the coin is flipped at once. */
     public static void open(EconomyServices services, Player viewer, Menu parent, Money stake, Boolean call) {
-        Bet bet = new Bet(services);
+        Bet bet = new Bet(services, viewer);
         if (stake != null) {
             bet.set(stake);
         }

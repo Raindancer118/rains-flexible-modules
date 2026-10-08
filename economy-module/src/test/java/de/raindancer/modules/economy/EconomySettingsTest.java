@@ -122,6 +122,23 @@ public class EconomySettingsTest {
         assertThat(d.houseEdge()).isEqualTo(0.03);
         assertThat(d.dailyLossLimitMoney()).isEqualTo(Money.ZERO);
         assertThat(d.ticketPriceMoney()).isEqualTo(Money.of(100));
+        assertThat(d.auctionsEnabled()).isTrue();
+        assertThat(d.auctionDefaultSeconds()).isEqualTo(120);
+        assertThat(d.auctionMinSeconds()).isEqualTo(60);
+        assertThat(d.auctionMaxSeconds()).isEqualTo(600);
+        assertThat(d.auctionSmallestStartMoney()).isEqualTo(Money.of(10));
+        assertThat(d.auctionStepMoney()).isEqualTo(Money.of(10));
+        assertThat(d.auctionStepPercent()).isEqualTo(5.0);
+        assertThat(d.auctionSnipeSeconds()).isEqualTo(20);
+        assertThat(d.auctionGapSeconds()).isEqualTo(15);
+        assertThat(d.auctionListingFeeMoney()).as("so the queue is not filled with junk").isEqualTo(Money.of(1_000));
+        assertThat(d.auctionFeePercent()).isEqualTo(5.0);
+        assertThat(d.auctionQueueSize()).isEqualTo(10);
+        assertThat(d.auctionsPerPlayer()).isEqualTo(2);
+        assertThat(d.auctionAnnounceBids()).isTrue();
+        assertThat(d.auctionBossBar()).isTrue();
+
+        assertThat(d.sidebarEnabled()).as("the balance is in the sidebar from the start").isTrue();
         assertThat(d.baltopEnabled()).isTrue();
     }
 

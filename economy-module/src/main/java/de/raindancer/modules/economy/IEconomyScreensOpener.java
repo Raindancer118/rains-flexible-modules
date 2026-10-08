@@ -44,4 +44,6 @@ public interface IEconomyScreensOpener {
     void scratch(Player viewer, de.raindancer.modules.economy.service.ScratchService.Scratched card);
 
     void roulette(Player viewer, de.raindancer.core.social.economy.Money stake);
+
+    void auctions(Player viewer);
 }

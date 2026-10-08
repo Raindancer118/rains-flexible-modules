@@ -48,7 +48,7 @@ public final class RouletteMenu extends Menu implements IEconomyScreen, Bet.BetM
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent, Money stake) {
-        Bet bet = new Bet(services);
+        Bet bet = new Bet(services, viewer);
         if (stake != null) {
             bet.set(stake);
         }

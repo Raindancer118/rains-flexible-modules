@@ -109,13 +109,17 @@ public final class BankMenu extends Menu implements IEconomyScreen {
                             open();
                         }, this::open));
 
-        band(MenuLayout.LAND, 2, live.shopEnabled() && viewer.hasPermission(PermissionNodes.SHOP),
+        band(MenuLayout.LAND, 1, live.shopEnabled() && viewer.hasPermission(PermissionNodes.SHOP),
                 Icons.of(Material.EMERALD, "<green>Shop", "<gray>Sorted like the creative inventory."),
                 live.shopEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().shop(viewer));
-        band(MenuLayout.LAND, 4, live.sellingEnabled() && viewer.hasPermission(PermissionNodes.SELL),
+        band(MenuLayout.LAND, 3, live.sellingEnabled() && viewer.hasPermission(PermissionNodes.SELL),
                 Icons.of(Material.CHEST, "<green>Sell", "<gray>What you carry that the shop buys."),
                 live.sellingEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().sell(viewer));
-        band(MenuLayout.LAND, 6, live.gamblingEnabled() && viewer.hasPermission(PermissionNodes.GAMBLE),
+        band(MenuLayout.LAND, 5, live.auctionsEnabled() && viewer.hasPermission(PermissionNodes.AUCTION),
+                Icons.of(Material.BELL, "<gold>Auction house", "<gray>Bid on what players put up,",
+                        "<gray>or sell to the highest bidder."),
+                live.auctionsEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().auctions(viewer));
+        band(MenuLayout.LAND, 7, live.gamblingEnabled() && viewer.hasPermission(PermissionNodes.GAMBLE),
                 Icons.of(Material.GOLD_BLOCK, "<gold>Casino", "<gray>Coin flips, dice, slots, roulette, the lottery."),
                 live.gamblingEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().casino(viewer));
 

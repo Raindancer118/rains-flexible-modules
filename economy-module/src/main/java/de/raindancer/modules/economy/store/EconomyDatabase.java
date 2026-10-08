@@ -27,7 +27,13 @@ public final class EconomyDatabase {
                     + "employee TEXT NOT NULL, employee_name TEXT NOT NULL, wage INTEGER NOT NULL, every INTEGER NOT NULL, "
                     + "next_at INTEGER NOT NULL, missed INTEGER NOT NULL, title TEXT NOT NULL, since INTEGER NOT NULL)",
             "CREATE TABLE lottery_pick (id INTEGER PRIMARY KEY AUTOINCREMENT, draw INTEGER NOT NULL, "
-                    + "player TEXT NOT NULL, numbers TEXT NOT NULL)");
+                    + "player TEXT NOT NULL, numbers TEXT NOT NULL)",
+            "CREATE TABLE auction (id TEXT PRIMARY KEY, seller TEXT NOT NULL, seller_name TEXT NOT NULL, "
+                    + "item BLOB NOT NULL, item_name TEXT NOT NULL, start INTEGER NOT NULL, buyout INTEGER NOT NULL, "
+                    + "bid INTEGER NOT NULL, bidder TEXT, bidder_name TEXT NOT NULL, bids INTEGER NOT NULL, "
+                    + "seconds INTEGER NOT NULL, listed_at INTEGER NOT NULL, ends_at INTEGER NOT NULL)",
+            "CREATE TABLE auction_claim (id TEXT PRIMARY KEY, player TEXT NOT NULL, item BLOB NOT NULL, "
+                    + "item_name TEXT NOT NULL, reason TEXT NOT NULL, at INTEGER NOT NULL)");
 
     private EconomyDatabase() {
     }

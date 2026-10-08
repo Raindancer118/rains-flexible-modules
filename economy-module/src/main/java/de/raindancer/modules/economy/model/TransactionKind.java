@@ -20,6 +20,7 @@ public enum TransactionKind {
     INTEREST("Interest", Material.EXPERIENCE_BOTTLE),
     GAMBLE("Game of chance", Material.GOLD_BLOCK),
     LOTTERY("Lottery", Material.FILLED_MAP),
+    AUCTION("Auction", Material.BELL),
     ADMIN("Staff adjustment", Material.COMMAND_BLOCK),
     PLUGIN("Another plugin", Material.REPEATER);
 

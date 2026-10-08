@@ -354,7 +354,7 @@ class EconomyScenarioTest {
             Await.until("cashed out or blown up", WAIT, () -> said(ada, "tiles cleared") || said(ada, "Boom"));
 
             // ---- crash: join, cash out by itself at 1.5×, or crash before
-            server.console("settings set economy:crash.betting-seconds 3");
+            server.console("settings set economy:crash.betting-seconds 10");
             ada.forgetChat();
             ada.run("crash");
             ada.awaitWindow("Crash");
@@ -430,6 +430,54 @@ class EconomyScenarioTest {
             Await.until("it is placed", WAIT, () -> said(ada, "leaderboard of the richest players floats here"));
             Await.until("and a display stands there", WAIT, () -> server.console(
                     "execute if entity @e[type=minecraft:text_display]").contains("passed"));
+
+            // ---- an auction: announced to everybody, bid on, outbid and paid back, sold under the hammer
+            ada.run("eco unfreeze Bo");
+            ada.run("eco set Bo 5000");
+            Bot cy = server.player("Cy");
+            server.console("settings set economy:auction.gap-seconds 0");
+            server.console("settings set economy:auction.snipe-seconds 5");
+            server.console("item replace entity Bo weapon.mainhand with minecraft:diamond 3");
+            Await.ticks(10);
+            ada.forgetChat();
+            bo.forgetChat();
+            cy.forgetChat();
+            bo.run("auction sell 50 30s");
+            Await.until("everybody hears of it", Duration.ofSeconds(20), () -> said(ada, "puts up") && said(cy, "puts up"));
+            Await.until("listing cost Bo the fee", WAIT, () -> said(bo, "Listing fee: ⛃1,000"));
+            assertThat(bo.carrying(item -> item.is("diamond"))).as("the auction house holds the diamonds").isEmpty();
+            Await.until("the auction is on a boss bar", WAIT, () -> ada.bossBars().stream()
+                    .anyMatch(bar -> bar.contains("Auction")));
+            bo.run("auction bid 60");
+            Await.until("nobody bids on their own", WAIT, () -> said(bo, "cannot bid on your own"));
+            ada.run("auction bid");
+            Await.until("Ada bids the starting price", WAIT, () -> said(cy, "Ada bids ⛃50"));
+            cy.run("auction bid 55");
+            Await.until("too small a step is refused", WAIT, () -> said(cy, "at least ⛃60"));
+            cy.run("auction bid 100");
+            Await.until("Ada is outbid and paid back", WAIT, () -> said(ada, "You were outbid")
+                    && said(ada, "Your ⛃50 is back"));
+            ada.run("auction");
+            ada.awaitWindow("Auction house");
+            assertThat(ada.window().orElseThrow().top().values()).as("the item, live in the window")
+                    .anyMatch(item -> item.is("diamond") && item.amount() == 3);
+            ada.closeWindow();
+            Await.until("sold", Duration.ofSeconds(60), () -> said(ada, "SOLD!") && said(ada, "Cy wins"));
+            assertThat(ada.chatText()).as("the countdown is on the boss bar only, not in chat")
+                    .noneMatch(line -> line.contains("s left"));
+            Await.until("Cy has the diamonds", WAIT, () -> cy.carrying(item -> item.is("diamond") && item.amount() == 3)
+                    .isPresent());
+            Await.until("Bo is paid, less the fee", WAIT, () -> said(bo, "sold for ⛃100") && said(bo, "⛃95"));
+            Await.until("the bar is gone", WAIT, () -> ada.bossBars().stream().noneMatch(bar -> bar.contains("Auction")));
+
+            // ---- bets offered from what you have, not from a fixed ladder
+            ada.run("eco set Ada 10000000");
+            ada.run("casino");
+            ada.awaitWindow("Casino");
+            Await.until("a tenth of ten million", WAIT, () -> ada.window().flatMap(window -> window.slotNamed("A tenth: ⛃"))
+                    .isPresent());
+            assertThat(ada.window().orElseThrow().slotNamed("All in")).isPresent();
+            ada.closeWindow();
 
             assertThat(server.paper.logLines(line -> line.contains("Exception"))).as("nothing threw").isEmpty();
         }

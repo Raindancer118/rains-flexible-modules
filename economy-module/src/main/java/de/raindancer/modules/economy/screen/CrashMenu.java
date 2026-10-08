@@ -36,7 +36,7 @@ public final class CrashMenu extends Menu implements IEconomyScreen {
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
-        CrashMenu menu = new CrashMenu(services, viewer, parent, new Bet(services));
+        CrashMenu menu = new CrashMenu(services, viewer, parent, new Bet(services, viewer));
         menu.open();
         MenuAnimation.loop(services.plugin(), menu, 4L, menu::frame, () -> { });
     }

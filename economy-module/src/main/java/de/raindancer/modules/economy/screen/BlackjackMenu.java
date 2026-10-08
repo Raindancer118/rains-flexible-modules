@@ -44,7 +44,7 @@ public final class BlackjackMenu extends Menu implements IEconomyScreen {
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
-        new BlackjackMenu(services, viewer, parent, new Bet(services)).open();
+        new BlackjackMenu(services, viewer, parent, new Bet(services, viewer)).open();
     }
 
     @Override

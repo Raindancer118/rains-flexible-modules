@@ -32,6 +32,10 @@ public final class GameSounds {
     public static final String GALLOP = "economy:gallop";
     public static final String BELL = "economy:bell";
     public static final String CRASH = "economy:crash";
+    public static final String AUCTION_START = "economy:auction-start";
+    public static final String BID = "economy:bid";
+    public static final String OUTBID = "economy:outbid";
+    public static final String SOLD = "economy:sold";
 
     /** A win at least this many times the stake is a jackpot, and sounds like one. */
     public static final long JACKPOT_TIMES = 10;
@@ -57,6 +61,11 @@ public final class GameSounds {
         DEFAULTS.put(GALLOP, "ENTITY_HORSE_GALLOP@0.4~1.1");
         DEFAULTS.put(BELL, "BLOCK_BELL_USE@0.8~1.0");
         DEFAULTS.put(CRASH, "ENTITY_GENERIC_EXPLODE@0.5~0.8;BLOCK_NOTE_BLOCK_BASS~0.5>100");
+        DEFAULTS.put(AUCTION_START, "BLOCK_BELL_USE@0.9~0.8;BLOCK_BELL_USE@0.9~1.0>250;BLOCK_BELL_RESONATE@0.5>500");
+        DEFAULTS.put(BID, "BLOCK_NOTE_BLOCK_PLING@0.6~1.2;ENTITY_EXPERIENCE_ORB_PICKUP@0.4~1.6>80");
+        DEFAULTS.put(OUTBID, "BLOCK_NOTE_BLOCK_BASS~1.0;BLOCK_NOTE_BLOCK_BASS~0.8>150");
+        DEFAULTS.put(SOLD, "BLOCK_ANVIL_LAND@0.5~1.4;BLOCK_ANVIL_LAND@0.5~1.4>350;"
+                + "UI_TOAST_CHALLENGE_COMPLETE@0.8>600");
         DEFAULTS.put(CASH, "ENTITY_ITEM_PICKUP@0.7~1.4;BLOCK_CHAIN_PLACE@0.4~1.8>60");
     }
 

@@ -79,9 +79,14 @@ public final class EconomyCommands {
                         new GambleCommand(EconomyCommands::require, GambleCommand.Game.RACE)).aliased("horserace"),
                 ModuleCommand.of("scratch", "Buy scratch cards",
                         new GambleCommand(EconomyCommands::require, GambleCommand.Game.SCRATCH)).taking("[buy <count>]"),
+                ModuleCommand.of("auction", "The auction house: sell to the highest bidder, bid, pick up",
+                        new de.raindancer.modules.economy.command.AuctionCommand(EconomyCommands::require))
+                        .aliased("ah", "auctions")
+                        .taking("[sell <start> [buy it now] [length] | bid [amount] | cancel | claim | mute | info]"),
                 ModuleCommand.of("eco", "Staff: run the economy", new EcoCommand(EconomyCommands::require))
                         .taking("give|take|set <player> <amount> [reason]", "reset|freeze|unfreeze|history <player>",
-                                "menu|reprice|draw|calm|coin", "leaderboard place|remove", "dealer place <game>|remove")
+                                "menu|reprice|draw|calm|coin", "leaderboard place|remove", "dealer place <game>|remove",
+                                "auction stop|clear")
                         .auditUsage());
     }
 

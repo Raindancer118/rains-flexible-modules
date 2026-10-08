@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class EcoCommand extends EconomyCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("give", "take", "set", "reset", "freeze", "unfreeze",
-            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer");
+            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction");
 
     public EcoCommand(Supplier<EconomyServices> services) {
         super(services);
@@ -92,6 +92,19 @@ public final class EcoCommand extends EconomyCommand {
                     live.messages().send(player, "economy.admin.leaderboard-placed");
                 }
             });
+            case "auction" -> {
+                if (args.length > 1 && args[1].equalsIgnoreCase("clear")) {
+                    live.messages().send(sender, "economy.auction.cleared",
+                            "count", String.valueOf(live.auctions().callOffAll()));
+                    return;
+                }
+                var running = live.auctions().live();
+                if (running.isEmpty() || !live.auctions().callOff(running.get().id())) {
+                    live.messages().send(sender, "economy.auction.nothing-running");
+                    return;
+                }
+                live.messages().send(sender, "economy.auction.stopped");
+            }
             case "calm" -> {
                 live.market().calm();
                 live.messages().send(sender, "economy.admin.calmed");
@@ -195,6 +208,9 @@ public final class EcoCommand extends EconomyCommand {
         if (args.length == 3 && args[0].equalsIgnoreCase("dealer")) {
             return starting(args[2], java.util.Arrays.stream(de.raindancer.modules.economy.model.DealerGame.values())
                     .map(game -> game.name().toLowerCase(Locale.ROOT)).toList());
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("auction")) {
+            return starting(args[1], List.of("stop", "clear"));
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("leaderboard")) {
             return starting(args[1], List.of("place", "remove"));

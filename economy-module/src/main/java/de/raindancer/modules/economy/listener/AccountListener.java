@@ -17,7 +17,8 @@ import java.util.UUID;
 public final class AccountListener implements IEconomyListener {
 
     private static final EnumSet<TransactionKind> AWAY = EnumSet.of(TransactionKind.PAY, TransactionKind.BILL,
-            TransactionKind.PLUGIN, TransactionKind.ADMIN, TransactionKind.LOTTERY, TransactionKind.GAMBLE, TransactionKind.WAGE);
+            TransactionKind.PLUGIN, TransactionKind.ADMIN, TransactionKind.LOTTERY, TransactionKind.GAMBLE, TransactionKind.WAGE,
+            TransactionKind.AUCTION);
 
     private final EconomyServices services;
 
@@ -30,6 +31,8 @@ public final class AccountListener implements IEconomyListener {
         Player player = event.getPlayer();
         long lastSeen = player.getLastSeen();
         services.economy().open(player.getUniqueId(), player.getName());
+        services.auctions().joined(player);
+        services.auctions().deliver(player);
         if (lastSeen <= 0) {
             return;
         }

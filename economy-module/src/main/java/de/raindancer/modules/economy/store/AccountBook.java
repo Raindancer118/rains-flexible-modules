@@ -5,6 +5,10 @@ import de.raindancer.core.social.economy.EconomyResult;
 import de.raindancer.core.social.economy.EconomyResult.Outcome;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.Account;
+import de.raindancer.modules.economy.model.Auction;
+import de.raindancer.modules.economy.model.AuctionBid;
+import de.raindancer.modules.economy.model.AuctionClaim;
+import de.raindancer.modules.economy.model.AuctionEnd;
 import de.raindancer.modules.economy.model.BalanceChange;
 import de.raindancer.modules.economy.model.Contract;
 import de.raindancer.modules.economy.model.LotteryTicket;
@@ -27,7 +31,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
+import java.util.function.LongUnaryOperator;
 
 /**
  * Every account, every statement line and every outstanding banknote — the one place money changes.
@@ -68,6 +74,12 @@ public final class AccountBook {
 
     /** The lottery's pot is an account of its own, so tickets bought and the pot are one ledger. */
     public static final UUID LOTTERY_POT = new UUID(0L, 0x1077E7L);
+    /** Where bids wait while their auction runs. */
+    public static final UUID AUCTION_ESCROW = new UUID(0L, 0xA0C710L);
+    private final Map<UUID, Auction> auctions = new LinkedHashMap<>();
+    private final Set<UUID> dirtyAuctions = new LinkedHashSet<>();
+    private final Map<UUID, AuctionClaim> claims = new LinkedHashMap<>();
+    private final Set<UUID> dirtyClaims = new LinkedHashSet<>();
     private static final Money SYSTEM_MOST = Money.of(Long.MAX_VALUE / 4);
     /** Scratch tickets share the cheque register; this keeps a ticket from ever passing for a cheque. */
     private static final String TICKET = "ticket:";
@@ -149,7 +161,33 @@ public final class AccountBook {
                     }
                 }
             }
+            List<Auction> listed = new ArrayList<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT id, seller, seller_name, item, item_name, start, buyout, bid, bidder, bidder_name, bids, "
+                            + "seconds, listed_at, ends_at FROM auction ORDER BY listed_at, rowid");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    String bidder = rows.getString(9);
+                    listed.add(new Auction(UUID.fromString(rows.getString(1)), UUID.fromString(rows.getString(2)),
+                            rows.getString(3), rows.getBytes(4), rows.getString(5), Money.of(rows.getLong(6)),
+                            Money.of(rows.getLong(7)), Money.of(rows.getLong(8)),
+                            bidder == null ? null : UUID.fromString(bidder), rows.getString(10), rows.getInt(11),
+                            rows.getInt(12), rows.getLong(13), rows.getLong(14)));
+                }
+            }
+            List<AuctionClaim> owed = new ArrayList<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT id, player, item, item_name, reason, at FROM auction_claim ORDER BY at, rowid");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    owed.add(new AuctionClaim(UUID.fromString(rows.getString(1)), UUID.fromString(rows.getString(2)),
+                            rows.getBytes(3), rows.getString(4), AuctionClaim.Reason.valueOf(rows.getString(5)),
+                            rows.getLong(6)));
+                }
+            }
             synchronized (lock) {
+                listed.forEach(auction -> auctions.put(auction.id(), auction));
+                owed.forEach(claim -> claims.put(claim.id(), claim));
                 accounts.putAll(found);
                 outstanding.putAll(open);
                 circulation.putAll(coinsOut);
@@ -163,6 +201,7 @@ public final class AccountBook {
         loaded = read.orElse(false);
         if (loaded) {
             open(LOTTERY_POT, "Lottery pot", Money.ZERO);
+            open(AUCTION_ESCROW, "Auction escrow", Money.ZERO);
         }
         return loaded;
     }
@@ -754,12 +793,221 @@ public final class AccountBook {
         }
     }
 
+    // ---------------------------------------------------------------------------- auctions
+
+    /** Queues an auction, taking the listing fee (which leaves the economy) in the same change. */
+    public EconomyResult listAuction(Auction auction, Money fee, Money most) {
+        synchronized (lock) {
+            if (fee.isPositive()) {
+                EconomyResult paid = change(auction.seller(), fee.negate(), TransactionKind.AUCTION,
+                        "Listing fee: " + auction.itemName(), null, most);
+                if (!paid.succeeded()) {
+                    return paid;
+                }
+                remember(auction);
+                return paid;
+            }
+            if (!loaded || !accounts.containsKey(auction.seller())) {
+                return EconomyResult.failed(loaded ? Outcome.NO_ACCOUNT : Outcome.UNAVAILABLE, fee, Money.ZERO);
+            }
+            Account seller = accounts.get(auction.seller());
+            if (seller.frozen()) {
+                return EconomyResult.failed(Outcome.FROZEN, fee, seller.balance());
+            }
+            remember(auction);
+            return EconomyResult.done(Money.ZERO, accounts.get(auction.seller()).balance());
+        }
+    }
+
+    private void remember(Auction auction) {
+        auctions.put(auction.id(), auction);
+        dirtyAuctions.add(auction.id());
+    }
+
+    /** The live auction first, then the queue in the order it was listed. */
+    public List<Auction> auctions() {
+        synchronized (lock) {
+            List<Auction> all = new ArrayList<>(auctions.values());
+            all.sort((a, b) -> Boolean.compare(b.live(), a.live()));
+            return all;
+        }
+    }
+
+    public Optional<Auction> auction(UUID id) {
+        synchronized (lock) {
+            return Optional.ofNullable(auctions.get(id));
+        }
+    }
+
+    public Optional<Auction> liveAuction() {
+        synchronized (lock) {
+            return auctions.values().stream().filter(Auction::live).findFirst();
+        }
+    }
+
+    /** Starts the oldest queued auction, unless one is already running. */
+    public Optional<Auction> startNextAuction(long now) {
+        synchronized (lock) {
+            if (auctions.values().stream().anyMatch(Auction::live)) {
+                return Optional.empty();
+            }
+            Optional<Auction> next = auctions.values().stream().findFirst().map(auction -> auction.started(now));
+            next.ifPresent(this::remember);
+            return next;
+        }
+    }
+
+    public void extendAuction(UUID id, long endsAt) {
+        synchronized (lock) {
+            Auction auction = auctions.get(id);
+            if (auction != null && auction.live()) {
+                remember(auction.endingAt(endsAt));
+            }
+        }
+    }
+
+    /**
+     * A bid: the money goes into escrow and the bidder it beats is paid back, in one change.
+     *
+     * @param minimum the smallest bid accepted, asked of the auction as it is at this moment
+     * @param end     the auction's end after this bid, from its end before
+     */
+    public AuctionBid bid(UUID auctionId, UUID bidder, String name, Money amount, Function<Auction, Money> minimum,
+                          LongUnaryOperator end, Money most) {
+        synchronized (lock) {
+            Auction auction = auctions.get(auctionId);
+            if (auction == null || !auction.live()) {
+                return new AuctionBid(AuctionBid.Kind.GONE, auction, null, Money.ZERO, null);
+            }
+            if (auction.seller().equals(bidder)) {
+                return new AuctionBid(AuctionBid.Kind.OWN, auction, null, Money.ZERO, null);
+            }
+            if (bidder.equals(auction.bidder())) {
+                return new AuctionBid(AuctionBid.Kind.TOP, auction, null, Money.ZERO, null);
+            }
+            if (!amount.isAtLeast(minimum.apply(auction))) {
+                return new AuctionBid(AuctionBid.Kind.TOO_LOW, auction, null, Money.ZERO, null);
+            }
+            Optional<EconomyResult> refused = refuseEarly(bidder, amount);
+            if (refused.isPresent()) {
+                return new AuctionBid(AuctionBid.Kind.REFUSED, auction, null, Money.ZERO, refused.get());
+            }
+            Account account = accounts.get(bidder);
+            BalanceChange leaving = rule.apply(account.balance(), amount.negate(), most, account.frozen());
+            if (!leaving.allowed()) {
+                return new AuctionBid(AuctionBid.Kind.REFUSED, auction, null, Money.ZERO,
+                        EconomyResult.failed(leaving.outcome(), amount, account.balance()));
+            }
+            commit(account, leaving.after(), amount.negate(), TransactionKind.AUCTION, "Bid: " + auction.itemName(),
+                    AUCTION_ESCROW);
+            credit(AUCTION_ESCROW, amount, "Bid by " + name + ": " + auction.itemName(), bidder);
+            UUID outbid = auction.bidder();
+            Money refunded = Money.ZERO;
+            if (outbid != null) {
+                release(outbid, auction.bid(), "Outbid: " + auction.itemName());
+                refunded = auction.bid();
+            }
+            Auction after = auction.withBid(bidder, name, amount, end.applyAsLong(auction.endsAt()));
+            remember(after);
+            return new AuctionBid(AuctionBid.Kind.PLACED, after, outbid, refunded,
+                    EconomyResult.done(amount, leaving.after()));
+        }
+    }
+
+    /**
+     * Ends an auction: sold, the seller is paid the bid less the fee (which leaves the economy) and the item
+     * is owed to the winner; unsold, the item is owed back to the seller.
+     */
+    public Optional<AuctionEnd> endAuction(UUID id, Money fee) {
+        synchronized (lock) {
+            Auction auction = auctions.remove(id);
+            if (auction == null) {
+                return Optional.empty();
+            }
+            dirtyAuctions.add(id);
+            if (!auction.hasBid()) {
+                return Optional.of(new AuctionEnd(auction, owe(auction, auction.seller(), AuctionClaim.Reason.UNSOLD),
+                        false, Money.ZERO, Money.ZERO));
+            }
+            Money kept = fee.min(auction.bid()).max(Money.ZERO);
+            Money paid = auction.bid().minus(kept);
+            if (paid.isPositive()) {
+                release(auction.seller(), paid, "Sold: " + auction.itemName());
+            }
+            if (kept.isPositive()) {
+                Account escrow = accounts.get(AUCTION_ESCROW);
+                commit(escrow, escrow.balance().minus(kept), kept.negate(), TransactionKind.FEE,
+                        "Auction fee: " + auction.itemName(), auction.seller());
+            }
+            return Optional.of(new AuctionEnd(auction, owe(auction, auction.bidder(), AuctionClaim.Reason.WON),
+                    true, paid, kept));
+        }
+    }
+
+    /** Takes an auction off, queued or live: any bid goes back and the item is owed to the seller. */
+    public Optional<AuctionEnd> cancelAuction(UUID id) {
+        synchronized (lock) {
+            Auction auction = auctions.remove(id);
+            if (auction == null) {
+                return Optional.empty();
+            }
+            dirtyAuctions.add(id);
+            if (auction.hasBid()) {
+                release(auction.bidder(), auction.bid(), "Auction called off: " + auction.itemName());
+            }
+            return Optional.of(new AuctionEnd(auction, owe(auction, auction.seller(), AuctionClaim.Reason.CANCELLED),
+                    false, Money.ZERO, Money.ZERO));
+        }
+    }
+
+    private AuctionClaim owe(Auction auction, UUID to, AuctionClaim.Reason reason) {
+        AuctionClaim claim = new AuctionClaim(UUID.randomUUID(), to, auction.item(), auction.itemName(), reason,
+                clock.getAsLong());
+        claims.put(claim.id(), claim);
+        dirtyClaims.add(claim.id());
+        return claim;
+    }
+
+    public List<AuctionClaim> claimsOf(UUID player) {
+        synchronized (lock) {
+            return claims.values().stream().filter(claim -> claim.player().equals(player)).toList();
+        }
+    }
+
+    /** Marks an owed item as handed over. Whoever gets {@code true} hands it over; only one caller ever does. */
+    public boolean takeClaim(UUID id) {
+        synchronized (lock) {
+            if (claims.remove(id) == null) {
+                return false;
+            }
+            dirtyClaims.add(id);
+            return true;
+        }
+    }
+
+    // Escrow moves skip the balance rule: the money already belonged to whoever it goes back to, so neither a
+    // freeze nor the balance cap may strand it.
+    private void credit(UUID to, Money amount, String reason, UUID other) {
+        Account account = accounts.get(to);
+        if (account == null) {
+            account = new Account(to, "", Money.ZERO, false, clock.getAsLong(), -1, 0);
+        }
+        commit(account, account.balance().plus(amount), amount, TransactionKind.AUCTION, reason, other);
+    }
+
+    private void release(UUID to, Money amount, String reason) {
+        Account escrow = accounts.get(AUCTION_ESCROW);
+        commit(escrow, escrow.balance().minus(amount), amount.negate(), TransactionKind.AUCTION, reason, to);
+        credit(to, amount, reason, AUCTION_ESCROW);
+    }
+
     // ---------------------------------------------------------------------------- writing
 
     /** Whether anything is waiting to be written. */
     public boolean isDirty() {
         synchronized (lock) {
-            return !dirty.isEmpty() || !journal.isEmpty() || !notes.isEmpty();
+            return !dirty.isEmpty() || !journal.isEmpty() || !notes.isEmpty() || !dirtyAuctions.isEmpty()
+                    || !dirtyClaims.isEmpty();
         }
     }
 
@@ -777,15 +1025,26 @@ public final class AccountBook {
             List<LotteryTicket> ticketWrites;
             Map<Money, Long> coinWrites = new HashMap<>();
             Map<UUID, Contract> contractWrites = new LinkedHashMap<>();
+            Map<UUID, Auction> auctionWrites = new LinkedHashMap<>();
+            Map<UUID, AuctionClaim> claimWrites = new LinkedHashMap<>();
             boolean writeLottery;
             long drawNow;
             long nextNow;
             long cleared;
             synchronized (lock) {
                 if (dirty.isEmpty() && journal.isEmpty() && notes.isEmpty() && !lotteryDirty && newTickets.isEmpty()
-                        && dirtyCoins.isEmpty() && dirtyContracts.isEmpty()) {
+                        && dirtyCoins.isEmpty() && dirtyContracts.isEmpty() && dirtyAuctions.isEmpty()
+                        && dirtyClaims.isEmpty()) {
                     return 0;
                 }
+                for (UUID id : dirtyAuctions) {
+                    auctionWrites.put(id, auctions.get(id));
+                }
+                dirtyAuctions.clear();
+                for (UUID id : dirtyClaims) {
+                    claimWrites.put(id, claims.get(id));
+                }
+                dirtyClaims.clear();
                 for (UUID id : dirtyContracts) {
                     contractWrites.put(id, contracts.get(id));
                 }
@@ -872,6 +1131,56 @@ public final class AccountBook {
                         upsert.executeUpdate();
                     }
                 }
+                try (PreparedStatement upsert = connection.prepareStatement(
+                        "INSERT INTO auction (id, seller, seller_name, item, item_name, start, buyout, bid, bidder, "
+                                + "bidder_name, bids, seconds, listed_at, ends_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                                + "ON CONFLICT(id) DO UPDATE SET bid = excluded.bid, bidder = excluded.bidder, "
+                                + "bidder_name = excluded.bidder_name, bids = excluded.bids, ends_at = excluded.ends_at");
+                     PreparedStatement delete = connection.prepareStatement("DELETE FROM auction WHERE id = ?")) {
+                    for (Map.Entry<UUID, Auction> each : auctionWrites.entrySet()) {
+                        Auction auction = each.getValue();
+                        if (auction == null) {
+                            delete.setString(1, each.getKey().toString());
+                            delete.executeUpdate();
+                            continue;
+                        }
+                        upsert.setString(1, auction.id().toString());
+                        upsert.setString(2, auction.seller().toString());
+                        upsert.setString(3, auction.sellerName());
+                        upsert.setBytes(4, auction.item());
+                        upsert.setString(5, auction.itemName());
+                        upsert.setLong(6, auction.start().minor());
+                        upsert.setLong(7, auction.buyout().minor());
+                        upsert.setLong(8, auction.bid().minor());
+                        upsert.setString(9, auction.bidder() == null ? null : auction.bidder().toString());
+                        upsert.setString(10, auction.bidderName());
+                        upsert.setInt(11, auction.bids());
+                        upsert.setInt(12, auction.seconds());
+                        upsert.setLong(13, auction.listedAt());
+                        upsert.setLong(14, auction.endsAt());
+                        upsert.executeUpdate();
+                    }
+                }
+                try (PreparedStatement insert = connection.prepareStatement(
+                        "INSERT OR IGNORE INTO auction_claim (id, player, item, item_name, reason, at) "
+                                + "VALUES (?, ?, ?, ?, ?, ?)");
+                     PreparedStatement delete = connection.prepareStatement("DELETE FROM auction_claim WHERE id = ?")) {
+                    for (Map.Entry<UUID, AuctionClaim> each : claimWrites.entrySet()) {
+                        AuctionClaim claim = each.getValue();
+                        if (claim == null) {
+                            delete.setString(1, each.getKey().toString());
+                            delete.executeUpdate();
+                            continue;
+                        }
+                        insert.setString(1, claim.id().toString());
+                        insert.setString(2, claim.player().toString());
+                        insert.setBytes(3, claim.item());
+                        insert.setString(4, claim.itemName());
+                        insert.setString(5, claim.reason().name());
+                        insert.setLong(6, claim.at());
+                        insert.executeUpdate();
+                    }
+                }
                 try (PreparedStatement coins = connection.prepareStatement(
                         "INSERT INTO coin_float (value, outstanding) VALUES (?, ?) ON CONFLICT(value) "
                                 + "DO UPDATE SET outstanding = excluded.outstanding")) {
@@ -936,6 +1245,8 @@ public final class AccountBook {
                     newTickets.addAll(0, ticketWrites);
                     dirtyCoins.addAll(coinWrites.keySet());
                     dirtyContracts.addAll(contractWrites.keySet());
+                    dirtyAuctions.addAll(auctionWrites.keySet());
+                    dirtyClaims.addAll(claimWrites.keySet());
                     lotteryDirty |= writeLottery;
                     if (cleared >= 0 && clearedDraw < 0) {
                         clearedDraw = cleared;

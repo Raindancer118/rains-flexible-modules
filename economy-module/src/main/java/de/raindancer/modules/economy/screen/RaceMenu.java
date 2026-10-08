@@ -35,7 +35,7 @@ public final class RaceMenu extends Menu implements IEconomyScreen {
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
-        RaceMenu menu = new RaceMenu(services, viewer, parent, new Bet(services));
+        RaceMenu menu = new RaceMenu(services, viewer, parent, new Bet(services, viewer));
         menu.open();
         MenuAnimation.loop(services.plugin(), menu, 8L, menu::refresh, () -> { });
     }

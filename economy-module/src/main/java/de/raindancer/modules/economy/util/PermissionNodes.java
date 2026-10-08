@@ -25,6 +25,7 @@ public final class PermissionNodes {
     public static final String DAILY = "rainseconomy.daily";
     public static final String EARN = "rainseconomy.earn";
     public static final String GAMBLE = "rainseconomy.gamble";
+    public static final String AUCTION = "rainseconomy.auction";
     public static final String HISTORY_OTHERS = "rainseconomy.history.others";
     public static final String ADMIN = "rainseconomy.admin";
     public static final String ALERTS = "rainseconomy.alerts";
@@ -46,6 +47,7 @@ public final class PermissionNodes {
                 new Permission(DAILY, "Claim the daily reward", PermissionDefault.TRUE),
                 new Permission(EARN, "Be paid passive income and for advancements", PermissionDefault.TRUE),
                 new Permission(GAMBLE, "Play the games of chance", PermissionDefault.TRUE),
+                new Permission(AUCTION, "Put items up for auction and bid on them", PermissionDefault.TRUE),
                 new Permission(HISTORY_OTHERS, "Read somebody else's statement", PermissionDefault.OP),
                 new Permission(ADMIN, "Give, take, set and freeze money; change the economy", PermissionDefault.OP),
                 new Permission(ALERTS, "Be told about counterfeit notes", PermissionDefault.OP));

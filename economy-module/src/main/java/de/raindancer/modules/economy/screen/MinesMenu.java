@@ -30,7 +30,7 @@ public final class MinesMenu extends Menu implements IEconomyScreen {
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
-        new MinesMenu(services, viewer, parent, new Bet(services)).open();
+        new MinesMenu(services, viewer, parent, new Bet(services, viewer)).open();
     }
 
     @Override

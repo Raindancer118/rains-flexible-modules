@@ -47,7 +47,7 @@ public final class DiceMenu extends Menu implements IEconomyScreen, Bet.BetMenu 
     /** Opens with this bet and number; with both given, the dice are rolled at once. */
     public static void open(EconomyServices services, Player viewer, Menu parent, Money stake, Boolean over,
                             Integer target) {
-        Bet bet = new Bet(services);
+        Bet bet = new Bet(services, viewer);
         if (stake != null) {
             bet.set(stake);
         }

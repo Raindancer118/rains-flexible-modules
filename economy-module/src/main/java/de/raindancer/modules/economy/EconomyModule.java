@@ -82,9 +82,9 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.4.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.5.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
-                    + "passive income, and a casino with sounds and animations — every part switchable.")
+                    + "passive income, live auctions, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
 
     /** How often what changed is written to the database. A crash loses at most this much. */
@@ -174,16 +174,18 @@ public final class EconomyModule implements FlexModule {
         var crash = new de.raindancer.modules.economy.service.CrashService(server, gambling, System::currentTimeMillis, now);
         var race = new de.raindancer.modules.economy.service.RaceService(server, gambling, System::currentTimeMillis, now);
         var dealers = new de.raindancer.modules.economy.service.DealerService(now);
+        var auctions = new de.raindancer.modules.economy.service.AuctionService(context.plugin(), server, economy,
+                messages, effects, buttons, context.core().bossBars(), sounds, System::currentTimeMillis, now);
 
         for (var service : List.of(economy, notifier, payments, bills, cash, shop, rewards, income, hire, statements,
-                interest, daily, gambling, lottery, sidebar, displays, tables, scratch, crash, race, dealers)) {
+                interest, daily, gambling, lottery, sidebar, displays, tables, scratch, crash, race, dealers, auctions)) {
             settings.onChange(service::settings);
         }
 
         services = new EconomyServices(context.plugin(), server, log, messages, context.chat().brand(), context.core(),
                 settings::current, settings, economy, market, payments, bills, cash, shop, rewards, income, hire,
                 statements, interest, daily, leaderboard, sidebar, displays, gambling, lottery, tables, scratch, crash,
-                race, dealers, new LiveScreens());
+                race, dealers, auctions, new LiveScreens());
         sidebar.pot(lottery::pot);
         this.tables = tables;
         this.crash = crash;
@@ -201,6 +203,11 @@ public final class EconomyModule implements FlexModule {
         });
         if (rounds != null) {
             context.closeWith(rounds::cancel);
+        }
+        auctions.resume();
+        var hammer = Scheduling.globalTimer(context.plugin(), 20L, 20L, task -> auctions.tick());
+        if (hammer != null) {
+            context.closeWith(hammer::cancel);
         }
         for (Player online : server.getOnlinePlayers()) {
             economy.open(online.getUniqueId(), online.getName());
@@ -432,6 +439,11 @@ public final class EconomyModule implements FlexModule {
         @Override
         public void roulette(Player viewer, de.raindancer.core.social.economy.Money stake) {
             RouletteMenu.open(services, viewer, null, stake);
+        }
+
+        @Override
+        public void auctions(Player viewer) {
+            de.raindancer.modules.economy.screen.AuctionMenu.open(services, viewer, null);
         }
     }
 }
