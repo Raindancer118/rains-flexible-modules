@@ -78,6 +78,16 @@ public final class BanhammerRule implements IModerationRule {
     }
 
     /**
+     * Whether a right click puts the hammer away into its owner's vault: sneaking, with the main hand,
+     * holding the Banhammer, and having a vault at all. Only the main hand, because Paper asks once per
+     * hand and the hammer must not be put away by the hand that is not holding it.
+     */
+    public boolean stashes(boolean sneaking, boolean mainHand, Material held, String heldName,
+                           boolean hasVault) {
+        return sneaking && mainHand && hasVault && isBanhammer(held, heldName);
+    }
+
+    /**
      * Whether a hit of this damage type is somebody swinging what they hold. Thorns, for one, is booked
      * to the player wearing the armour — so without this, hitting an op who held the Banhammer while
      * wearing Thorns got the attacker banned, by an op who never swung.

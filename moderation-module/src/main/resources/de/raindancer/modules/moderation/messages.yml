@@ -76,6 +76,21 @@ moderation:
     self: "<gray>The Banhammer does not work on its owner."
     already-banned: "<gray>That player is already banned."
 
+  # /vault — an operator's own stash. Sneak-right-click with the Banhammer puts it in.
+  vault:
+    stashed: "<gold>The Banhammer is in your vault. <gray>Get it back with <white>/vault</white>."
+    no-room-for-hammer: "<red>Your vault is full, so the Banhammer stays in your hand."
+    full: "<red>Your vault is full — the rest stayed with you."
+    inventory-full: "<yellow>Your inventory is full; what did not fit stayed in the vault."
+    took-all: "<green>Took <white><count></white> stack(s) out of your vault."
+    took-some: "<yellow>Took <white><count></white> stack(s); your inventory is full, the rest stayed in the vault."
+    not-that-piece: "<red>Only a <white><piece></white> goes on that stand, one at a time."
+    cursed: "<gray>Your <white><piece></white> is bound to you by a curse and stays on."
+    equipped: "<green>Put on <white><count></white> piece(s) of armour from your vault."
+    stored-worn: "<green>Put <white><count></white> piece(s) of armour into your vault."
+    no-room: "<red>Your vault has no room for what you are wearing."
+    not-yours: "<red>You no longer have a vault on this server."
+
   ban:
     too-long-for-you: "<red>That is longer than you may ban for. <gray>Your limit is <white><detail></white> — an admin can go further."
     not-for-ever-for-you: "<red>A permanent ban is an admin's decision. <gray>You can ban for up to <white><detail></white>."

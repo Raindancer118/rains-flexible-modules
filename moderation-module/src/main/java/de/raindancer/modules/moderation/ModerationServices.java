@@ -105,6 +105,7 @@ public record ModerationServices(
         StaffService staff,
         WorldToolsService worldTools,
         de.raindancer.modules.moderation.service.BanhammerService banhammer,
+        de.raindancer.modules.moderation.service.VaultService vaults,
         Supplier<de.raindancer.modules.moderation.listener.StaffChatListener> staffChatSpeaker,
 
         Supplier<ModerationSettings> settings,

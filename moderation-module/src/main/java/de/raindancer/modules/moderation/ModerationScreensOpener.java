@@ -60,6 +60,9 @@ public interface ModerationScreensOpener {
     /** Everybody this server has learnt anything about, ranked by how worth checking they look. */
     void xraySuspicion(Player viewer);
 
+    /** The viewer's own vault. */
+    void vault(Player viewer);
+
     /** The audit journal, whole and newest first — the screen next to {@code /audit}. */
     void audit(Player viewer);
 

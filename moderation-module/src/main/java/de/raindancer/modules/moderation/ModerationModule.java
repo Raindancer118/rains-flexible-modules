@@ -68,7 +68,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.25.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.26.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -100,6 +100,7 @@ public final class ModerationModule implements FlexModule {
     private StaffService staffService;
     private WorldToolsService worldTools;
     private de.raindancer.modules.moderation.service.BanhammerService banhammer;
+    private de.raindancer.modules.moderation.service.VaultService vaults;
 
     private StaffChatListener staffChatListener;
     private de.raindancer.modules.moderation.util.StaffChannel staffChannel;
@@ -215,6 +216,10 @@ public final class ModerationModule implements FlexModule {
 
         banhammer = new de.raindancer.modules.moderation.service.BanhammerService(punishmentService,
                 staffRule, context.core().messages(), settings.current());
+        vaults = new de.raindancer.modules.moderation.service.VaultService(context.plugin(),
+                new de.raindancer.modules.moderation.store.VaultStorage(context.dataFolder(),
+                        de.raindancer.core.data.nbt.ItemText.ofTheServer()),
+                context.core().messages(), settings.current());
 
         // Who is staff, at what rank. The nodes themselves are Core's Grants — see StaffRoster for why
         // the label and the power are kept apart.
@@ -249,7 +254,7 @@ public final class ModerationModule implements FlexModule {
                 reasons, reports, notes, staffRule, escalation, announcements, this::standingRule,
                 this::banLimitRule, this::promotionRule, this::filingRule,
                 punishmentService, reportService, suspiciousCommands, xrayEvidence, noteService, staffChat, roster, immune,
-                staffService, worldTools, banhammer,
+                staffService, worldTools, banhammer, vaults,
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
 
@@ -274,6 +279,7 @@ public final class ModerationModule implements FlexModule {
             staffService.settings(fresh);
             worldTools.settings(fresh);
             banhammer.settings(fresh);
+            vaults.settings(fresh);
             context.core().punishmentGuard().appealMessage(fresh.appealMessage());
         });
 
@@ -291,6 +297,7 @@ public final class ModerationModule implements FlexModule {
         }
         warnIfPaperAntiXrayIsOff(server, log);
         context.listener(new de.raindancer.modules.moderation.listener.BanhammerListener(services));
+        context.listener(new de.raindancer.modules.moderation.listener.VaultListener());
 
         // Reports and notes reach the disk on a timer as well as on every change: the per-change save
         // is asynchronous and can fail, and a queue that only reaches disk on shutdown is one crash
@@ -441,6 +448,11 @@ public final class ModerationModule implements FlexModule {
         }
 
         @Override
+        public void vault(Player viewer) {
+            new de.raindancer.modules.moderation.screen.VaultMenu(services, viewer, null).open();
+        }
+
+        @Override
         public void audit(Player viewer) {
             new de.raindancer.modules.moderation.screen.AuditMenu(services, viewer, null).open();
         }
@@ -513,6 +525,10 @@ public final class ModerationModule implements FlexModule {
         // exists to stop, and a shutdown is when it would happen.
         if (pending != null && !pending.flush()) {
             log.error("Undelivered notices could not be written on shutdown.");
+        }
+        // Every change is already on its way to disk; this catches the ones still in flight.
+        if (vaults != null && !vaults.flushNow()) {
+            log.error("A vault could not be written on shutdown.");
         }
         if (roster != null && !roster.flush()) {
             log.error("The staff roster could not be written on shutdown.");

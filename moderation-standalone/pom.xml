@@ -126,8 +126,10 @@
           2.25.0: the first-generation x-ray detection is gone — ratio window, threshold, learnt
           baseline, approach directness and their settings and files (xray-findings.yml,
           xray-suspicion.yml are left on disk, unread). The review screen lists the veins and bait
-          ores the evidence recorded. -->
-        <plugin.version>2.25.1</plugin.version>
+          ores the evidence recorded.
+          2.26.0: /vault, an operator's own vault — six pages, take all, four armour stands with equip
+          all and put away what you wear; sneak-right-click with the Banhammer puts it in. -->
+        <plugin.version>2.26.0</plugin.version>
     </properties>
 
     <dependencies>

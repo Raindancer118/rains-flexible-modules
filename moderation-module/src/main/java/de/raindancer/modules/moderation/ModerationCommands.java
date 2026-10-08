@@ -17,6 +17,7 @@ import de.raindancer.modules.moderation.command.ReportCommand;
 import de.raindancer.modules.moderation.command.ReportsCommand;
 import de.raindancer.modules.moderation.command.StaffChatCommand;
 import de.raindancer.modules.moderation.command.VanishCommand;
+import de.raindancer.modules.moderation.command.VaultCommand;
 import de.raindancer.modules.moderation.command.WarnCommand;
 import de.raindancer.modules.moderation.command.WorldToolCommands;
 import de.raindancer.modules.moderation.command.WorldToolsCommand;
@@ -126,6 +127,9 @@ public final class ModerationCommands {
                         .taking("[player] — somebody else, if you may")
                         .needing(ModerationPermission.VANISH.node())
                         .auditUsage(),
+                ModuleCommand.of("vault", "Opens your personal vault",
+                                new VaultCommand(ModerationCommands::require))
+                        .needing(VaultCommand.USE),
                 ModuleCommand.of("invsee", "Opens somebody's inventory, online or not",
                                 new InvseeCommand(ModerationCommands::require))
                         .taking("<player>")

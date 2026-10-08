@@ -99,6 +99,15 @@ class PermissionDefaultsTest {
     }
 
     @Test
+    @DisplayName("the vault is for operators, and no rank hands it out")
+    void theVaultIsTheOperators() {
+        assertThat(defaultOf(de.raindancer.modules.moderation.command.VaultCommand.USE))
+                .isEqualTo(PermissionDefault.OP);
+        assertThat(de.raindancer.modules.moderation.model.StaffRank.everyGrantableNode())
+                .doesNotContain(de.raindancer.modules.moderation.command.VaultCommand.USE);
+    }
+
+    @Test
     @DisplayName("handing out ranks is the owner's, and no preset grants it")
     void promotingIsTheOwners() {
         assertThat(defaultOf(PromoteCommand.USE)).isEqualTo(PermissionDefault.OP);

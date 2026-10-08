@@ -2,6 +2,7 @@ package de.raindancer.modules.moderation.util;
 
 import de.raindancer.modules.moderation.command.PromoteCommand;
 import de.raindancer.modules.moderation.command.ReportCommand;
+import de.raindancer.modules.moderation.command.VaultCommand;
 import de.raindancer.modules.moderation.listener.SuspiciousCommandListener;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.model.StaffRank;
@@ -77,6 +78,11 @@ public final class PermissionNodes {
                 "Hand out and take away staff ranks. Deliberately not grantable by any rank",
                 PermissionDefault.OP));
 
+        // Operators only, and in no preset — see VaultCommand.
+        wanted.add(new Permission(VaultCommand.USE,
+                "A personal vault (/vault); sneak-right-click with the Banhammer puts it in",
+                PermissionDefault.OP));
+
         // The one node every player has. TRUE rather than NOT_OP: a moderator is a player too, and
         // should be able to report somebody rather than being told they may not.
         wanted.add(new Permission(ReportCommand.USE,
@@ -142,6 +148,7 @@ public final class PermissionNodes {
             nodes.add(permission.node());
         }
         nodes.add(PromoteCommand.USE);
+        nodes.add(VaultCommand.USE);
         nodes.add(ReportCommand.USE);
         nodes.add(SuspiciousCommandListener.BYPASS);
         for (String granted : StaffRank.everyGrantableNode()) {

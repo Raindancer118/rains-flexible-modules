@@ -87,6 +87,16 @@ class BanhammerRuleTest {
     }
 
     @Test
+    @DisplayName("sneaking and right-clicking with the hammer puts it away, for somebody with a vault")
+    void stashing() {
+        assertThat(rule.stashes(true, true, Material.MACE, "Banhammer", true)).isTrue();
+        assertThat(rule.stashes(false, true, Material.MACE, "Banhammer", true)).as("not sneaking").isFalse();
+        assertThat(rule.stashes(true, false, Material.MACE, "Banhammer", true)).as("the off hand").isFalse();
+        assertThat(rule.stashes(true, true, Material.MACE, "Hammer", true)).as("another mace").isFalse();
+        assertThat(rule.stashes(true, true, Material.MACE, "Banhammer", false)).as("no vault").isFalse();
+    }
+
+    @Test
     @DisplayName("only a real swing counts — thorns on the op's armour must never ban whoever hit them")
     void onlyASwing() {
         assertThat(BanhammerRule.isSwing("minecraft:player_attack")).isTrue();

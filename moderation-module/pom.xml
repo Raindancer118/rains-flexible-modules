@@ -36,5 +36,13 @@
             <version>${modules-api.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- RainsCore's testkit: real item stacks without a server, for the vault. -->
+        <dependency>
+            <groupId>de.raindancer</groupId>
+            <artifactId>RainsCore</artifactId>
+            <version>${rainscore.version}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
