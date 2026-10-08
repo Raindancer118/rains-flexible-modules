@@ -56,7 +56,9 @@ class VeinUndoServiceTest {
     private final List<Item> ground = new ArrayList<>();
     private final VeinHistory history = new VeinHistory();
     private final RestoredBlocks restored = new RestoredBlocks();
-    private final VeinUndoService service = new VeinUndoService(server, new UndoRule(), history, restored);
+    private final java.util.Set<BlockKey> protectedSpots = new java.util.HashSet<>();
+    private final VeinUndoService service = new VeinUndoService(server, new UndoRule(), history, restored,
+            (who, where) -> !protectedSpots.contains(new BlockKey(worldId, where.getBlockX(), where.getBlockY(), where.getBlockZ())));
     private ItemStack[] storage = new ItemStack[36];
 
     VeinUndoServiceTest() {
@@ -99,12 +101,22 @@ class VeinUndoServiceTest {
         return stack;
     }
 
-    private Item lying(ItemStack stack) {
+    /** An item lying near the vein — dropped by {@code from}, or by anybody else when that is null. */
+    private Item lying(ItemStack stack, BrokenBlock from) {
         Item item = mock(Item.class);
+        UUID id = UUID.randomUUID();
+        when(item.getUniqueId()).thenReturn(id);
         when(item.isValid()).thenReturn(true);
         when(item.getItemStack()).thenReturn(stack);
         ground.add(item);
+        if (from != null) {
+            from.addDropEntity(id);
+        }
         return item;
+    }
+
+    private BrokenBlock block(VeinOperation vein, int x) {
+        return vein.find(at(x)).orElseThrow();
     }
 
     private BlockKey at(int x) {
@@ -134,7 +146,7 @@ class VeinUndoServiceTest {
     @DisplayName("the whole vein goes back, paid for with the drops still lying on the ground and then the inventory")
     void wholeVein() {
         VeinOperation vein = vein(3, "diamond");
-        Item onGround = lying(stack("diamond", 2));
+        Item onGround = lying(stack("diamond", 2), block(vein, 0));
         storage[0] = stack("diamond", 5);
 
         VeinUndoService.Outcome outcome = service.undo(player, vein);
@@ -217,7 +229,7 @@ class VeinUndoServiceTest {
     void shrinkGroundStack() {
         VeinOperation vein = vein(1, "diamond");
         ItemStack pile = stack("diamond", 5);
-        Item onGround = lying(pile);
+        Item onGround = lying(pile, block(vein, 0));
 
         service.undo(player, vein);
 
@@ -225,5 +237,51 @@ class VeinUndoServiceTest {
         ArgumentCaptor<ItemStack> put = ArgumentCaptor.forClass(ItemStack.class);
         verify(onGround).setItemStack(put.capture());
         assertThat(put.getValue().getAmount()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("somebody else's items lying near the vein are never taken to pay for it")
+    void notOtherPeoplesItems() {
+        VeinOperation vein = vein(1, "diamond");
+        Item theirs = lying(stack("diamond", 3), null);
+
+        VeinUndoService.Outcome outcome = service.undo(player, vein);
+
+        assertThat(outcome.restored()).isZero();
+        assertThat(outcome.unpaid()).isEqualTo(1);
+        verify(theirs, never()).remove();
+        verify(theirs, never()).setItemStack(any());
+    }
+
+    @Test
+    @DisplayName("nobody is walled in: a block whose space somebody stands in stays mined")
+    void nobodyEntombed() {
+        VeinOperation vein = vein(2, "diamond");
+        storage[0] = stack("diamond", 2);
+        org.bukkit.entity.Player standing = mock(org.bukkit.entity.Player.class);
+        when(world.getNearbyEntities(any(org.bukkit.util.BoundingBox.class), any())).thenAnswer(call -> {
+            org.bukkit.util.BoundingBox box = call.getArgument(0);
+            return box.contains(1.5, 12.5, 0.5) ? List.of(standing) : List.of();
+        });
+
+        VeinUndoService.Outcome outcome = service.undo(player, vein);
+
+        assertThat(outcome.restored()).isEqualTo(1);
+        assertThat(outcome.inTheWay()).isEqualTo(1);
+        verify(blocks.get(at(1)), never()).setBlockData(any(BlockData.class), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("nothing goes back where the player may not build now")
+    void protectedGround() {
+        VeinOperation vein = vein(2, "diamond");
+        storage[0] = stack("diamond", 2);
+        protectedSpots.add(at(0));
+
+        VeinUndoService.Outcome outcome = service.undo(player, vein);
+
+        assertThat(outcome.restored()).isEqualTo(1);
+        assertThat(outcome.inTheWay()).isEqualTo(1);
+        assertThat(inInventory("diamond")).isEqualTo(1);
     }
 }

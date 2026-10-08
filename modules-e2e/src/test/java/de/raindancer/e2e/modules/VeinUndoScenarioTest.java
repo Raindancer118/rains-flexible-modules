@@ -15,9 +15,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@code /vein undo} against the real Veinminer: a bot mines a vein of diamond ore, undoes it, and the
- * ore is back while every diamond it dropped is gone — from the ground and from the inventory. Mined
- * again, the vein gives the same diamonds and no experience; with the diamonds thrown away, undo
- * refuses.
+ * ore is back while every diamond it dropped is gone — from the ground and from the inventory — and a
+ * diamond somebody else dropped in the tunnel is still there. Mined again, the vein gives the same
+ * diamonds and no experience; with the diamonds thrown away, undo refuses.
  */
 @Tag("e2e")
 class VeinUndoScenarioTest {
@@ -51,9 +51,14 @@ class VeinUndoScenarioTest {
         return server.console("execute if entity @e[type=" + type + "]").contains("passed");
     }
 
-    private static int points(Server server) {
-        String answer = server.console("xp query Miner points");
+    private static int query(Server server, String what) {
+        String answer = server.console("xp query Miner " + what);
         return Integer.parseInt(answer.replaceAll("\\D+", " ").trim().split(" ")[0]);
+    }
+
+    /** Whether Miner has any experience at all — points alone are only the part into the current level. */
+    private static boolean experienced(Server server) {
+        return query(server, "levels") > 0 || query(server, "points") > 0;
     }
 
     @Test
@@ -77,15 +82,21 @@ class VeinUndoScenarioTest {
             miner.dig(FIRST, Y, 5);
             Await.until("the whole vein comes down", Duration.ofSeconds(15), () -> all(server, "minecraft:air"));
             Await.ticks(40);
-            assertThat(points(server) > 0 || anyLying(server, "experience_orb"))
+            assertThat(experienced(server) || anyLying(server, "experience_orb"))
                     .as("the first mining gives experience, as Veinminer always does").isTrue();
 
+            // Somebody else's diamond, lying in the tunnel out of the miner's reach: never part of the price.
+            server.console("summon item 0.5 " + Y + " 5.5 {Item:{id:\"minecraft:diamond\",count:1},PickupDelay:32767}");
             miner.forgetChat();
             miner.run("vein undo");
-            miner.expectChat("Your vein is back");
+            miner.expectChat("restored.");
             Await.until("the ore is back", Duration.ofSeconds(10), () -> all(server, "minecraft:diamond_ore"));
-            Await.until("every diamond is taken back", Duration.ofSeconds(10),
-                    () -> diamonds(miner) == 0 && !anyLying(server, "item"));
+            Await.until("every diamond of the vein is taken back", Duration.ofSeconds(10),
+                    () -> diamonds(miner) == 0
+                            && server.console("execute if entity @e[type=item]").contains("Count: 1")
+                            && server.console("execute if entity @e[type=item,x=0.5,y=" + Y + ",z=5.5,distance=..1]")
+                                    .contains("passed"));
+            server.console("kill @e[type=item]");
 
             miner.forgetChat();
             miner.run("vein undo");
@@ -93,6 +104,7 @@ class VeinUndoScenarioTest {
 
             // Mined again: the same diamonds, and no experience for ore that was already paid for once.
             server.console("kill @e[type=experience_orb]");
+            server.console("xp set Miner 0 levels");
             server.console("xp set Miner 0 points");
             server.console("tp Miner 2.5 " + Y + " 5.5 -90 0");
             miner.dig(FIRST, Y, 5);
@@ -105,11 +117,12 @@ class VeinUndoScenarioTest {
             Await.until("all " + VEIN + " diamonds are picked up", Duration.ofSeconds(15),
                     () -> diamonds(miner) == VEIN);
             Await.ticks(20);
-            assertThat(points(server)).as("no experience the second time").isZero();
+            assertThat(experienced(server)).as("no experience the second time").isFalse();
             assertThat(anyLying(server, "experience_orb")).isFalse();
 
             // Thrown away, the diamonds cannot pay for the vein, so it stays mined.
             server.console("clear Miner minecraft:diamond");
+            server.console("tp Miner 2.5 " + Y + " 5.5");
             Await.ticks(40);
             miner.forgetChat();
             miner.run("vein undo");

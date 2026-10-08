@@ -147,7 +147,7 @@ public final class VeinCommand implements BasicCommand {
             return;
         }
         if (outcome.restored() == total) {
-            live.messages().send(player, "veintoggle.undo-done", "blocks", String.valueOf(total));
+            live.messages().send(player, "veintoggle.undo-done");
             return;
         }
         if (outcome.restored() == 0) {

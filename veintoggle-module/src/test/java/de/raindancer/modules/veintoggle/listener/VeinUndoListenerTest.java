@@ -45,7 +45,9 @@ class VeinUndoListenerTest {
     private final AtomicLong clock = new AtomicLong(1_000L);
     private final VeinHistory history = new VeinHistory();
     private final RestoredBlocks restored = new RestoredBlocks();
-    private final VeinUndoListener listener = new VeinUndoListener(new VeinRule(), history, restored, clock::get);
+    private final java.util.concurrent.atomic.AtomicInteger tick = new java.util.concurrent.atomic.AtomicInteger(100);
+    private final VeinUndoListener listener = new VeinUndoListener(new VeinRule(), history, restored, clock::get,
+            tick::get);
 
     VeinUndoListenerTest() {
         when(world.getUID()).thenReturn(worldId);
@@ -71,6 +73,14 @@ class VeinUndoListenerTest {
         return stack;
     }
 
+    private Item item(int x) {
+        Item item = mock(Item.class);
+        when(item.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(item.getWorld()).thenReturn(world);
+        when(item.getLocation()).thenReturn(new Location(world, x + 0.5, 12.5, 0.5));
+        return item;
+    }
+
     private BlockKey at(int x) {
         return new BlockKey(worldId, x, 12, 0);
     }
@@ -86,7 +96,7 @@ class VeinUndoListenerTest {
         Block second = block(1);
         ItemStack handDrop = stack();
         ItemStack veinDrop = stack();
-        Item dropped = mock(Item.class);
+        Item dropped = item(0);
         when(dropped.getItemStack()).thenReturn(handDrop);
 
         BlockBreakEvent hand = new BlockBreakEvent(first, player);
@@ -105,6 +115,7 @@ class VeinUndoListenerTest {
         assertThat(operation.find(at(0)).orElseThrow().drops()).containsExactly(handDrop);
         assertThat(operation.find(at(1)).orElseThrow().drops()).containsExactly(veinDrop);
         assertThat(operation.find(at(1)).orElseThrow().data()).isSameAs(ore);
+        assertThat(operation.find(at(0)).orElseThrow().dropEntities()).containsExactly(dropped.getUniqueId());
         assertThat(vein.getExpToDrop()).as("an ordinary vein block keeps its experience").isEqualTo(3);
     }
 
@@ -129,11 +140,14 @@ class VeinUndoListenerTest {
         listener.onBreakEarly(vein);
         assertThat(vein.isDropItems()).isFalse();
         assertThat(vein.getExpToDrop()).isZero();
+        Item redropped = item(1);
+        when(world.dropItemNaturally(any(Location.class), org.mockito.ArgumentMatchers.eq(diamond))).thenReturn(redropped);
         listener.onBreak(vein);
 
         verify(world).dropItemNaturally(any(Location.class), org.mockito.ArgumentMatchers.eq(diamond));
         assertThat(restored.holds(at(1), ore)).isFalse();
         assertThat(latest().find(at(1)).orElseThrow().drops()).as("so it can be undone again").containsExactly(diamond);
+        assertThat(latest().find(at(1)).orElseThrow().dropEntities()).containsExactly(redropped.getUniqueId());
     }
 
     @Test
@@ -156,5 +170,40 @@ class VeinUndoListenerTest {
         listener.onBreak(new VeinMinerEvent.VeinminerEvent(block(1), player, block(0).getLocation(), 0));
         listener.forget(player.getUniqueId());
         assertThat(history.latest(player.getUniqueId(), clock.get(), WINDOW)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the items Veinminer spawns straight after its drop event are known as this vein's, and nothing later is")
+    void veinDropEntities() {
+        Block first = block(0);
+        Block second = block(1);
+        listener.onBreak(new VeinMinerEvent.VeinminerEvent(second, player, first.getLocation(), 0));
+        listener.onExp(new VeinMinerEvent.VeinminerDropEvent(second, mock(BlockState.class), player,
+                new ArrayList<>(List.of(stack())), 0));
+        Item ours = item(1);
+        listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(ours));
+        Item extra = item(1);
+        listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(extra));
+        tick.incrementAndGet();
+        listener.onExp(new VeinMinerEvent.VeinminerDropEvent(block(2), mock(BlockState.class), player,
+                new ArrayList<>(List.of(stack(), stack())), 0));
+        tick.incrementAndGet();
+        Item later = item(2);
+        listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(later));
+
+        assertThat(latest().find(at(1)).orElseThrow().dropEntities())
+                .as("one item for one stack; the next spawn is somebody else's").containsExactly(ours.getUniqueId());
+    }
+
+    @Test
+    @DisplayName("an item spawned far from the vein block is not taken for one of its drops")
+    void farItemIsNotTheVeins() {
+        Block second = block(1);
+        listener.onBreak(new VeinMinerEvent.VeinminerEvent(second, player, block(0).getLocation(), 0));
+        listener.onExp(new VeinMinerEvent.VeinminerDropEvent(second, mock(BlockState.class), player,
+                new ArrayList<>(List.of(stack())), 0));
+        listener.onItemSpawn(new org.bukkit.event.entity.ItemSpawnEvent(item(40)));
+
+        assertThat(latest().find(at(1)).orElseThrow().dropEntities()).isEmpty();
     }
 }

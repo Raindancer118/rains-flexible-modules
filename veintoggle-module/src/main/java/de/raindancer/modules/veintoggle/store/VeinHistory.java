@@ -41,13 +41,15 @@ public final class VeinHistory {
         lastByHand.put(player, new HandBreak(block, now));
     }
 
-    public void handDrops(UUID player, BlockKey at, Collection<ItemStack> drops) {
+    public void handDrops(UUID player, BlockKey at, Collection<ItemStack> drops, Collection<UUID> entities) {
         HandBreak hand = lastByHand.get(player);
         if (hand != null && hand.block().at().equals(at)) {
             hand.block().addDrops(drops);
+            entities.forEach(hand.block()::addDropEntity);
             return;
         }
         veinDrops(player, at, drops);
+        entities.forEach(entity -> veinDropEntity(player, at, entity));
     }
 
     /**
@@ -83,19 +85,39 @@ public final class VeinHistory {
 
     /** What Veinminer dropped for one of its blocks. */
     public void veinDrops(UUID player, BlockKey at, Collection<ItemStack> drops) {
+        find(player, at).ifPresent(block -> block.addDrops(drops));
+    }
+
+    /** One of the item entities a vein block's drops became. */
+    public void veinDropEntity(UUID player, BlockKey at, UUID entity) {
+        find(player, at).ifPresent(block -> block.addDropEntity(entity));
+    }
+
+    /** The source of the vein a block belongs to. */
+    public Optional<BlockKey> sourceOf(UUID player, BlockKey at) {
         Deque<VeinOperation> mine = veins.get(player);
         if (mine == null) {
-            return;
+            return Optional.empty();
+        }
+        synchronized (mine) {
+            return mine.stream().filter(vein -> vein.find(at).isPresent()).map(VeinOperation::source).findFirst();
+        }
+    }
+
+    private Optional<BrokenBlock> find(UUID player, BlockKey at) {
+        Deque<VeinOperation> mine = veins.get(player);
+        if (mine == null) {
+            return Optional.empty();
         }
         synchronized (mine) {
             for (VeinOperation vein : mine) {
                 Optional<BrokenBlock> block = vein.find(at);
                 if (block.isPresent()) {
-                    block.get().addDrops(drops);
-                    return;
+                    return block;
                 }
             }
         }
+        return Optional.empty();
     }
 
     /** The newest vein still in time to be undone; older ones that ran out are let go on the way. */

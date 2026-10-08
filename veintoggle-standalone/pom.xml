@@ -24,8 +24,10 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsVeinToggle</plugin.name>
         <!-- 0.1.0: /vein switches Veinminer on and off for yourself; the server default is a setting.
-             0.2.0: /vein undo puts your last vein back, for exactly what it dropped. -->
-        <plugin.version>0.2.0</plugin.version>
+             0.2.0: /vein undo puts your last vein back, for exactly what it dropped.
+             0.2.1: undo takes only the vein's own items off the ground, never walls anybody in, and
+                    respects protected land; it says "restored." -->
+        <plugin.version>0.2.1</plugin.version>
     </properties>
 
     <dependencies>

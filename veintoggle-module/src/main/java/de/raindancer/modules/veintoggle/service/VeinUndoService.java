@@ -10,19 +10,28 @@ import org.bukkit.Server;
 import org.bukkit.SoundGroup;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.Location;
 import org.bukkit.entity.Item;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.BoundingBox;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.BiPredicate;
 
 /**
- * Puts a vein back. Each block costs exactly what it dropped, taken from the items still lying around
- * the vein first and then from the player's inventory; a block that cannot be paid for stays mined.
+ * Puts a vein back. Each block costs exactly what it dropped, taken from this vein's own items still
+ * lying on the ground first — never anybody else's — and then from the player's inventory; a block that
+ * cannot be paid for stays mined. Nothing goes back where the player may not build now, nor into the
+ * space somebody is standing in.
  *
  * <p>Must run on the thread owning the vein's region (and the player, who has to be standing near it).
  * Blocks and items in another region are left alone rather than touched from the wrong thread.
@@ -39,12 +48,16 @@ public final class VeinUndoService {
     private final UndoRule rule;
     private final VeinHistory history;
     private final RestoredBlocks restored;
+    private final BiPredicate<Player, Location> mayBuild;
 
-    public VeinUndoService(Server server, UndoRule rule, VeinHistory history, RestoredBlocks restored) {
+    /** @param mayBuild whether the player may place a block there now — Core's land answer */
+    public VeinUndoService(Server server, UndoRule rule, VeinHistory history, RestoredBlocks restored,
+                           BiPredicate<Player, Location> mayBuild) {
         this.server = server;
         this.rule = rule;
         this.history = history;
         this.restored = restored;
+        this.mayBuild = mayBuild;
     }
 
     public Outcome undo(Player player, VeinOperation vein) {
@@ -82,7 +95,7 @@ public final class VeinUndoService {
             available.put(kind, count);
         }
 
-        UndoRule.Plan<BrokenBlock, Integer> plan = rule.plan(blocks, block -> free(world, block.at()),
+        UndoRule.Plan<BrokenBlock, Integer> plan = rule.plan(blocks, block -> free(player, world, block.at()),
                 needs::get, available);
 
         plan.toTake().forEach((kind, amount) -> {
@@ -123,23 +136,37 @@ public final class VeinUndoService {
         return kinds.size() - 1;
     }
 
-    private boolean free(World world, BlockKey at) {
+    private boolean free(Player player, World world, BlockKey at) {
         int chunkX = at.x() >> 4;
         int chunkZ = at.z() >> 4;
         if (!world.isChunkLoaded(chunkX, chunkZ) || !server.isOwnedByCurrentRegion(world, chunkX, chunkZ)) {
             return false;
         }
         Block now = world.getBlockAt(at.x(), at.y(), at.z());
-        return now.isReplaceable();
+        if (!now.isReplaceable()) {
+            return false;
+        }
+        BoundingBox space = new BoundingBox(at.x(), at.y(), at.z(), at.x() + 1, at.y() + 1, at.z() + 1);
+        if (!world.getNearbyEntities(space, entity -> entity instanceof LivingEntity).isEmpty()) {
+            return false;
+        }
+        return mayBuild.test(player, at.centre(world));
     }
 
+    /** This vein's own items still lying around it. Similar items that somebody else dropped are not touched. */
     private List<Item> groundAround(World world, VeinOperation vein, List<BrokenBlock> blocks) {
         double reach = 0;
+        Set<UUID> ours = new HashSet<>();
         for (BrokenBlock block : blocks) {
             reach = Math.max(reach, block.at().distance(vein.source()));
+            ours.addAll(block.dropEntities());
+        }
+        if (ours.isEmpty()) {
+            return List.of();
         }
         return world.getNearbyEntitiesByType(Item.class, vein.source().centre(world), reach + GROUND_MARGIN)
                 .stream()
+                .filter(item -> ours.contains(item.getUniqueId()))
                 .filter(Item::isValid)
                 .filter(server::isOwnedByCurrentRegion)
                 .toList();

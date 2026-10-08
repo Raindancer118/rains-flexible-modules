@@ -1,6 +1,7 @@
 package de.raindancer.modules.veintoggle;
 
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
@@ -25,7 +26,7 @@ import java.util.List;
  */
 public final class VeinToggleModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.2.1")
             .describedAs("Switch Veinminer on or off for yourself with /vein, and undo a vein with /vein undo")
             .by("Raindancer118");
 
@@ -51,7 +52,8 @@ public final class VeinToggleModule implements FlexModule {
         RestoredBlocks restored = new RestoredBlocks();
         VeinToggleServices services = new VeinToggleServices(context.plugin(), server, context.core(),
                 context.log(), context.core().messages(), settings::current, history,
-                new VeinUndoService(server, new UndoRule(), history, restored));
+                new VeinUndoService(server, new UndoRule(), history, restored,
+                        (player, where) -> context.core().land().verdict(player, where, LandAction.BUILD).orAllow()));
         context.listener(new VeinListener(new VeinRule(), services::wantsVeins,
                 player -> {
                     if (settings.current().sayWhenHeldBack()) {
@@ -59,7 +61,8 @@ public final class VeinToggleModule implements FlexModule {
                     }
                 },
                 System::currentTimeMillis));
-        context.listener(new VeinUndoListener(new VeinRule(), history, restored, System::currentTimeMillis));
+        context.listener(new VeinUndoListener(new VeinRule(), history, restored, System::currentTimeMillis,
+                server::getCurrentTick));
         VeinToggleCommands.ready(services);
 
         if (services.veinminerInstalled()) {
