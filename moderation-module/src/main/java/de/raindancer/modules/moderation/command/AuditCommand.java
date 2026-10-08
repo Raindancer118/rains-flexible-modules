@@ -2,6 +2,7 @@ package de.raindancer.modules.moderation.command;
 
 import de.raindancer.core.moderation.audit.AuditEntry;
 import de.raindancer.core.moderation.audit.AuditSearch;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.time.Times;
@@ -65,9 +66,8 @@ public final class AuditCommand extends StaffCommand {
         ModerationServices moderation = services();
 
         if (args.length == 0) {
-            List<AuditEntry> found =
-                    moderation.audit().search(AuditSearch.everything().limit(MOST_LINES));
-            show(moderation, sender, found, null);
+            readThenShow(moderation, sender,
+                    () -> moderation.audit().search(AuditSearch.everything().limit(MOST_LINES)), null);
             return;
         }
 
@@ -78,7 +78,22 @@ public final class AuditCommand extends StaffCommand {
         OfflinePlayer them = found.get();
         String name = Players.nameOf(them);
         String feature = args.length >= 2 ? args[1] : null;
-        show(moderation, sender, merged(moderation, them.getUniqueId(), feature), name);
+        UUID id = them.getUniqueId();
+        readThenShow(moderation, sender, () -> merged(moderation, id, feature), name);
+    }
+
+    /** The journal is a database read, and commands run on the thread running the world. */
+    private void readThenShow(ModerationServices moderation, CommandSender sender,
+                              Supplier<List<AuditEntry>> read, String player) {
+        Scheduling.async(moderation.plugin(), () -> {
+            List<AuditEntry> found = read.get();
+            Runnable answer = () -> show(moderation, sender, found, player);
+            if (sender instanceof Player viewer) {
+                Scheduling.entity(moderation.plugin(), viewer, answer);
+            } else {
+                Scheduling.global(moderation.plugin(), answer);
+            }
+        });
     }
 
     private void show(ModerationServices moderation, CommandSender sender, List<AuditEntry> found,

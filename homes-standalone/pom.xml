@@ -44,7 +44,7 @@
           2.3.2: logging out no longer clears the wait between trips home — the same hole /rtp had,
           fixed the same way: quitting sweeps the waits that are over, not the running ones.
         -->
-        <plugin.version>2.4.2</plugin.version>
+        <plugin.version>2.4.3</plugin.version>
     </properties>
 
     <dependencies>

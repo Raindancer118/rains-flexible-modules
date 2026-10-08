@@ -127,7 +127,7 @@
           baseline, approach directness and their settings and files (xray-findings.yml,
           xray-suspicion.yml are left on disk, unread). The review screen lists the veins and bait
           ores the evidence recorded. -->
-        <plugin.version>2.25.0</plugin.version>
+        <plugin.version>2.25.1</plugin.version>
     </properties>
 
     <dependencies>

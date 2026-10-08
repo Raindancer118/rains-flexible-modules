@@ -72,8 +72,35 @@ public final class AuditMenu extends ModerationList<AuditEntry> {
         return subject == null ? "Audit" : "Audit";
     }
 
+    /** Read once per opening: a page flip redraws, and a redraw must not query the database again. */
+    private volatile List<AuditEntry> loaded;
+
+    /**
+     * Reads the journal off the world's thread, then shows the page on the viewer's. The journal is a
+     * database, and every opening and every page flip used to read it on the thread running the world.
+     */
+    @Override
+    public void open() {
+        if (loaded != null) {
+            super.open();
+            return;
+        }
+        de.raindancer.core.platform.util.Scheduling.async(services().plugin(), () -> {
+            List<AuditEntry> read = read();
+            de.raindancer.core.platform.util.Scheduling.entity(services().plugin(), viewer, () -> {
+                loaded = read;
+                super.open();
+            });
+        });
+    }
+
     @Override
     protected List<AuditEntry> entries() {
+        List<AuditEntry> read = loaded;
+        return read == null ? List.of() : read;
+    }
+
+    private List<AuditEntry> read() {
         if (subject == null) {
             return services().audit().search(AuditSearch.everything().limit(SEARCH_LIMIT));
         }

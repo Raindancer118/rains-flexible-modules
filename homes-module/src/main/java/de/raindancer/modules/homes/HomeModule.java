@@ -57,7 +57,7 @@ import java.util.Optional;
  */
 public final class HomeModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.4.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.4.3")
             .describedAs("Somewhere of your own to come back to: name it, set it, go to it, and pick "
                     + "from a menu of them")
             .by("Raindancer118");
@@ -142,7 +142,12 @@ public final class HomeModule implements FlexModule {
 
         HomeNameRule names = new HomeNameRule();
         HomeLimitRule limits = new HomeLimitRule();
-        homes = new HomeCatalogue(context.core().places(), context.core().places()::flush);
+        // A database write, and /sethome, /delhome and the home screens run on the thread running the
+        // world — so it goes async, the way warps and spawn hand it over.
+        homes = new HomeCatalogue(context.core().places(), () -> {
+            de.raindancer.core.platform.util.Scheduling.async(context.plugin(), context.core().places()::flush);
+            return true;
+        });
 
         // Before anything reads the homes, so a server upgrading from the standalone plugin has them
         // all by the time the first player types /home.
