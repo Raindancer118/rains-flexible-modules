@@ -169,6 +169,19 @@ class EconomyLoansScenarioTest {
             assertThat(bo.window().orElseThrow().slotNamed("Buy 1")).as("a netherite sword is for sale").isPresent();
             bo.closeWindow();
 
+            // ---- hanging signs: stripped logs and stems cost what the plain ones do, so the signs have prices
+            // ---- and what tools, water and time make: paths, concrete, aged copper
+            for (String made : List.of("oak_hanging_sign", "crimson_hanging_sign", "dirt_path", "red_concrete",
+                    "oxidized_copper")) {
+                bo.run("shop " + made);
+                // The trade window is titled with the item, cut short when long — its first word is enough.
+                String first = made.substring(0, 1).toUpperCase() + made.substring(1).split("_")[0];
+                bo.awaitWindow(first);
+                Await.until(made + " is for sale", WAIT,
+                        () -> bo.window().flatMap(window -> window.slotNamed("Buy 1")).isPresent());
+                bo.closeWindow();
+            }
+
             // ---- auctioning straight from the inventory: click the stack below, set it up, put it up
             ada.run("eco give Bo 5000");
             server.console("give Bo minecraft:diamond 3");

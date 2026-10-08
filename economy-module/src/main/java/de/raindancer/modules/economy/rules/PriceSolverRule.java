@@ -30,8 +30,11 @@ public final class PriceSolverRule implements IEconomyRule {
                 if (base.containsKey(recipe.result())) {
                     continue;
                 }
-                Money cost = costOf(recipe, known, recipe.process() == RecipeShape.Process.SMELT
-                        ? smeltMarkup : craftMarkup);
+                Money cost = costOf(recipe, known, switch (recipe.process()) {
+                    case SMELT -> smeltMarkup;
+                    case WORLD -> 0;
+                    default -> craftMarkup;
+                });
                 if (cost == null) {
                     continue;
                 }

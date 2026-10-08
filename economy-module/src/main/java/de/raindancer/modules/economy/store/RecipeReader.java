@@ -135,6 +135,42 @@ public final class RecipeReader {
         return false;
     }
 
+    /**
+     * What tools, water and time make, as recipes the server's list does not have: an axe strips a log, a shovel
+     * makes a path, a hoe farmland, water turns dirt to mud and powder to concrete, and copper ages. Each costs
+     * what it is made from. Without these, nothing made of them — hanging signs, for one — had a price.
+     *
+     * @param materials every item name on the server; only pairs that both exist become recipes
+     */
+    public static List<RecipeShape> inWorld(java.util.Collection<String> materials) {
+        java.util.Set<String> known = new java.util.HashSet<>(materials);
+        List<RecipeShape> shapes = new ArrayList<>();
+        java.util.function.BiConsumer<String, List<String>> add = (result, from) -> {
+            List<String> present = from.stream().filter(known::contains).toList();
+            if (known.contains(result) && !present.isEmpty()) {
+                shapes.add(new RecipeShape(result, 1, List.of(present), RecipeShape.Process.WORLD));
+            }
+        };
+        add.accept("DIRT_PATH", List.of("DIRT", "GRASS_BLOCK"));
+        add.accept("FARMLAND", List.of("DIRT", "GRASS_BLOCK"));
+        add.accept("MUD", List.of("DIRT"));
+        for (String name : materials) {
+            if (name.startsWith("STRIPPED_")) {
+                add.accept(name, List.of(name.substring("STRIPPED_".length())));
+            } else if (name.endsWith("_CONCRETE")) {
+                add.accept(name, List.of(name + "_POWDER"));
+            } else if (name.startsWith("EXPOSED_")) {
+                String plain = name.substring("EXPOSED_".length());
+                add.accept(name, List.of(known.contains(plain) ? plain : plain + "_BLOCK"));
+            } else if (name.startsWith("WEATHERED_")) {
+                add.accept(name, List.of("EXPOSED_" + name.substring("WEATHERED_".length())));
+            } else if (name.startsWith("OXIDIZED_")) {
+                add.accept(name, List.of("WEATHERED_" + name.substring("OXIDIZED_".length())));
+            }
+        }
+        return shapes;
+    }
+
     /** Vanilla item keys as material names; anything from another namespace is left out. */
     static List<String> materialNames(Iterable<? extends Key> keys) {
         List<String> names = new ArrayList<>();

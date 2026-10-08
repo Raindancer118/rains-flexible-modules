@@ -9,7 +9,8 @@ import java.util.List;
  */
 public record RecipeShape(String result, int amount, List<List<String>> slots, Process process) {
 
-    public enum Process { CRAFT, SMELT, CUT, SMITH }
+    /** {@code WORLD}: made by a tool, water or time rather than a recipe — no cost of its own. */
+    public enum Process { CRAFT, SMELT, CUT, SMITH, WORLD }
 
     public RecipeShape {
         amount = Math.max(1, amount);

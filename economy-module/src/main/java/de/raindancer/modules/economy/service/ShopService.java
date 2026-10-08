@@ -66,7 +66,11 @@ public final class ShopService implements IEconomyService {
         this.messages = messages;
         this.effects = effects;
         this.store = store;
-        this.recipes = () -> RecipeReader.read(server.recipeIterator());
+        this.recipes = () -> {
+            List<RecipeShape> all = new ArrayList<>(RecipeReader.read(server.recipeIterator()));
+            all.addAll(RecipeReader.inWorld(itemNames()));
+            return all;
+        };
         this.settings = settings == null ? EconomySettings.DEFAULTS : settings;
     }
 
@@ -78,13 +82,17 @@ public final class ShopService implements IEconomyService {
 
     /** Every spawn egg this server knows. */
     private static List<String> spawnEggs() {
-        List<String> eggs = new ArrayList<>();
+        return itemNames().stream().filter(name -> name.endsWith("_SPAWN_EGG")).toList();
+    }
+
+    private static List<String> itemNames() {
+        List<String> names = new ArrayList<>();
         for (Material material : Material.values()) {
-            if (!material.isLegacy() && material.name().endsWith("_SPAWN_EGG")) {
-                eggs.add(material.name());
+            if (!material.isLegacy() && material.isItem()) {
+                names.add(material.name());
             }
         }
-        return eggs;
+        return names;
     }
 
     /** Reads the server's recipes again and reprices everything. On the global thread. */

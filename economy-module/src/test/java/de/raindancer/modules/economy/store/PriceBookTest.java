@@ -187,4 +187,18 @@ class PriceBookTest {
         assertThat(book.tag("NETHERITE_SWORD").buyable()).as("netherite gear is for sale").isTrue();
         assertThat(book.tag("NETHERITE_SWORD").buy()).isGreaterThan(book.tag("NETHERITE_INGOT").buy());
     }
+
+    @Test
+    @DisplayName("hanging signs: a stripped log costs what its log costs, so the sign made of it has a price")
+    void hangingSigns() {
+        List<RecipeShape> recipes = new java.util.ArrayList<>(RecipeReader.inWorld(List.of("OAK_LOG", "STRIPPED_OAK_LOG")));
+        recipes.add(new RecipeShape("OAK_HANGING_SIGN", 6, List.of(List.of("IRON_CHAIN"), List.of("IRON_CHAIN"),
+                List.of("STRIPPED_OAK_LOG"), List.of("STRIPPED_OAK_LOG"), List.of("STRIPPED_OAK_LOG"),
+                List.of("STRIPPED_OAK_LOG"), List.of("STRIPPED_OAK_LOG"), List.of("STRIPPED_OAK_LOG")),
+                RecipeShape.Process.CRAFT));
+        recipes.add(new RecipeShape("IRON_CHAIN", 1, List.of(List.of("RAW_IRON")), RecipeShape.Process.CRAFT));
+        PriceBook book = book(EconomySettings.DEFAULTS, recipes);
+        assertThat(book.tag("STRIPPED_OAK_LOG").value()).as("stripping is free").isEqualTo(book.tag("OAK_LOG").value());
+        assertThat(book.tag("OAK_HANGING_SIGN").buyable()).isTrue();
+    }
 }
