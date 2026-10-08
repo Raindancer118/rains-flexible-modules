@@ -12,7 +12,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -21,6 +20,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,6 +42,8 @@ public final class HoneypotService implements IModerationService {
 
     private static final int INNER = 6;
     private static final int ATTEMPTS_PER_BAIT = 40;
+    /** Extra probes every cycle, only to measure how much enclosed rock is around the miner right now. */
+    private static final int PROBES = 64;
     private static final int[][] SIDES = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
     /** A position in one world. */
@@ -101,6 +103,22 @@ public final class HoneypotService implements IModerationService {
             }
             baits.center = here.clone();
             World world = here.getWorld();
+            // Measured afresh around where they are now: an estimate kept from hours of solid rock
+            // would overstate the rock in a cave system and understate the chance of hitting bait.
+            baits.tries = 0;
+            baits.eligible = 0;
+            ThreadLocalRandom probes = ThreadLocalRandom.current();
+            for (int probe = 0; probe < PROBES; probe++) {
+                Optional<int[]> spot = spotInShell(probes, here.getBlockX(), here.getBlockY(), here.getBlockZ(), radius,
+                        world.getMinHeight(), world.getMaxHeight());
+                if (spot.isPresent() && !Bukkit.isOwnedByCurrentRegion(world, spot.get()[0] >> 4, spot.get()[2] >> 4)) {
+                    continue;
+                }
+                baits.tries++;
+                if (spot.isPresent() && eligibleRock(world, spot.get())) {
+                    baits.eligible++;
+                }
+            }
             for (Iterator<Map.Entry<Key, Material>> it = baits.fakes.entrySet().iterator(); it.hasNext(); ) {
                 Map.Entry<Key, Material> bait = it.next();
                 double distance = distance(here, bait.getKey());
@@ -112,18 +130,16 @@ public final class HoneypotService implements IModerationService {
                 }
             }
             int missing = now.xrayHoneypotCount() - baits.fakes.size();
+            ThreadLocalRandom random = ThreadLocalRandom.current();
             for (int attempt = 0; attempt < missing * ATTEMPTS_PER_BAIT && baits.fakes.size() < now.xrayHoneypotCount(); attempt++) {
-                Key spot = randomSpot(world, here, radius);
-                if (!Bukkit.isOwnedByCurrentRegion(world, spot.x() >> 4, spot.z() >> 4)
-                        || !world.isChunkLoaded(spot.x() >> 4, spot.z() >> 4)) {
+                Optional<int[]> found = spotInShell(random, here.getBlockX(), here.getBlockY(), here.getBlockZ(), radius,
+                        world.getMinHeight(), world.getMaxHeight());
+                if (found.isEmpty() || !Bukkit.isOwnedByCurrentRegion(world, found.get()[0] >> 4, found.get()[2] >> 4)
+                        || !eligibleRock(world, found.get())) {
                     continue;
                 }
-                baits.tries++;
+                Key spot = new Key(world.getUID(), found.get()[0], found.get()[1], found.get()[2]);
                 Block block = world.getBlockAt(spot.x(), spot.y(), spot.z());
-                if (!OreKind.isHostRock(block.getType()) || !RevealRule.enclosed(new WorldGrid(world), spot.x(), spot.y(), spot.z())) {
-                    continue;
-                }
-                baits.eligible++;
                 Material fake = fakeFor(world, block);
                 if (fake == null || nearOre(world, spot) || nearBait(baits, spot)) {
                     continue;
@@ -286,8 +302,12 @@ public final class HoneypotService implements IModerationService {
             return;
         }
         Location at = new Location(world, key.x(), key.y(), key.z());
-        BlockData real = Bukkit.isOwnedByCurrentRegion(at) ? world.getBlockAt(at).getBlockData() : Material.STONE.createBlockData();
-        player.sendBlockChange(at, real);
+        if (Bukkit.isOwnedByCurrentRegion(at)) {
+            player.sendBlockChange(at, world.getBlockAt(at).getBlockData());
+        } else {
+            // Folia: the block belongs to another region; read it there, never guess.
+            Scheduling.region(plugin, at, () -> player.sendBlockChange(at, world.getBlockAt(at).getBlockData()));
+        }
     }
 
     /** Under cover in the overworld below sea level, anywhere in the nether — where x-ray pays. */
@@ -340,20 +360,34 @@ public final class HoneypotService implements IModerationService {
         return false;
     }
 
-    /** Uniform over the shell between {@link #INNER} and {@code radius}, so the density is the same everywhere. */
-    private static Key randomSpot(World world, Location center, int radius) {
-        ThreadLocalRandom random = ThreadLocalRandom.current();
+    /**
+     * A spot uniform over the shell between {@link #INNER} and {@code radius} — or nothing, when it
+     * falls outside the world. Never moved to the edge: that would pile bait into the bottom layers,
+     * where honest players dig for diamonds, and break the uniform spread the expectation relies on.
+     */
+    static Optional<int[]> spotInShell(java.util.Random random, int x, int y, int z, int radius, int minY, int maxY) {
         while (true) {
-            int dx = random.nextInt(-radius, radius + 1);
-            int dy = random.nextInt(-radius, radius + 1);
-            int dz = random.nextInt(-radius, radius + 1);
+            int dx = random.nextInt(2 * radius + 1) - radius;
+            int dy = random.nextInt(2 * radius + 1) - radius;
+            int dz = random.nextInt(2 * radius + 1) - radius;
             double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (distance < INNER || distance > radius) {
                 continue;
             }
-            int y = Math.max(world.getMinHeight() + 1, Math.min(world.getMaxHeight() - 2, center.getBlockY() + dy));
-            return new Key(world.getUID(), center.getBlockX() + dx, y, center.getBlockZ() + dz);
+            int at = y + dy;
+            if (at <= minY || at >= maxY - 1) {
+                return Optional.empty();
+            }
+            return Optional.of(new int[]{x + dx, at, z + dz});
         }
+    }
+
+    private static boolean eligibleRock(World world, int[] spot) {
+        if (!world.isChunkLoaded(spot[0] >> 4, spot[2] >> 4)) {
+            return false;
+        }
+        return OreKind.isHostRock(world.getBlockAt(spot[0], spot[1], spot[2]).getType())
+                && RevealRule.enclosed(new WorldGrid(world), spot[0], spot[1], spot[2]);
     }
 
     private static double distance(Location center, Key key) {

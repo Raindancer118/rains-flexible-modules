@@ -119,8 +119,11 @@
 
           2.24.0: x-ray detection, second generation: bait ores only an x-ray shows, ore found against the
           world's own sampled density, steering toward hidden ore against matched controls, combined into
-          one probability with its reasons on the review screen, and a particle replay of the tunnels. -->
-        <plugin.version>2.24.0</plugin.version>
+          one probability with its reasons on the review screen, and a particle replay of the tunnels.
+          2.24.1: bait is never piled onto the bottom layers (a spot outside the world is a miss, not
+          clamped), the enclosed-rock estimate is taken afresh around the miner each cycle, and a bait
+          in another Folia region is reverted to its real block. -->
+        <plugin.version>2.24.1</plugin.version>
     </properties>
 
     <dependencies>
