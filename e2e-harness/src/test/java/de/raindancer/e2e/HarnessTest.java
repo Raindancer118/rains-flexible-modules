@@ -41,7 +41,11 @@ class HarnessTest {
         Bot alex = server.bot("Alex").join();
 
         server.console("give Alex minecraft:compass[custom_name='Finder',custom_data={PublicBukkitValues:{\"e2e:kind\":\"tracker\"}}] 1");
-        Bot.Item compass = alex.expectItem("the compass", item -> item.is("COMPASS"));
+        // On the CI runner the inventory update for a /give arrives late — 10.5 s, then 15 s, then just
+        // over 15 s in successive runs (measured from the probe's event log), instantly on a desk. Why is
+        // not known yet; waiting longer keeps the harness's own test about what it reads, not about that.
+        Bot.Item compass = Await.value("Alex carries the compass", Duration.ofSeconds(45),
+                () -> alex.carrying(item -> item.is("COMPASS")).orElse(null));
         assertThat(compass.name()).isEqualTo("Finder");
         assertThat(compass.tag("kind")).contains("tracker");
 
