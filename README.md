@@ -24,6 +24,7 @@ and never shaded in.
 | `worldgate-module` | locking, draining or closing the Nether and the End, and pulling everybody out |
 | `worldutils-module` | `/w` and `/dim` (names and selectors), and creating, resetting and deleting worlds with a chosen seed and a seed history — the dangerous parts are RainsCore's `WorldRegenerator` |
 | `xaeromap-module` | Xaero's Minimap and World Map, told what they cannot work out for themselves: which world a player is in, their homes and warps as waypoints to add, and where the claims are (that last one for clients that also have Open Parties and Claims, whose protocol both mods read) |
+| `economy-module` | money: a bank, paying and bills, coins and numbered banknotes, a creative-style shop priced from the server's recipes, ways to earn, and an animated casino — every part switchable; provides RainsCore's economy (and Vault's) |
 | `<x>-standalone` | a thin shade shell: module + wrapper = one loadable jar |
 | `yeuksmp` | the bundle: thirteen modules in one jar, for the server that runs all of them |
 | `worldutils-bundle` | **RainsWorldUtils**: the world gate and world utils in one jar |

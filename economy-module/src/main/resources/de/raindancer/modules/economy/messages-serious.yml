@@ -1,0 +1,7 @@
+# The serious wording for this module, for a server whose Message tone is SERIOUS. Only lines that differ.
+economy:
+  gamble:
+    duel-won: "<green>You won the coin flip: <amount><green>."
+    duel-lost: "<red><player> won the coin flip. You lost <amount><red>."
+    wait: "<red>Please wait a moment before the next game."
+  away: "<green>Received while you were offline: <amount><green>."

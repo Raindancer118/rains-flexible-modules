@@ -1,0 +1,24 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see rtp-standalone's own copy.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Money: a bank, paying, coins and banknotes, a creative-style shop and ways to earn.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Every timer goes through Core's Scheduling; every touch of a player runs on that player's own thread.
+folia-supported: true
+
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

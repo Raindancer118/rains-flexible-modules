@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>economy-module</artifactId>
+    <!-- Own version, published under its own tag (economy-module-vX.Y.Z). -->
+    <version>${economy-module.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Economy</name>
+    <description>
+        A server's money: accounts and a bank, paying and billing, coins and banknotes you can carry,
+        a shop sorted like the creative inventory with prices worked out from the server's own recipes,
+        and ways to earn — every part switchable on its own. Provides RainsCore's economy, so every other
+        plugin (and every Vault plugin) charges through it.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>modules-api</artifactId>
+            <type>test-jar</type>
+            <version>${modules-api.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- The driver Paper ships, for tests only: the ledger is tested against real SQLite. -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.49.1.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

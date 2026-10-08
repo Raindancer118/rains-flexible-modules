@@ -1,0 +1,87 @@
+package de.raindancer.modules.economy;
+
+import de.raindancer.modules.api.ModuleCommand;
+import de.raindancer.modules.economy.command.BalanceCommand;
+import de.raindancer.modules.economy.command.BankCommand;
+import de.raindancer.modules.economy.command.BillCommand;
+import de.raindancer.modules.economy.command.CashCommand;
+import de.raindancer.modules.economy.command.EcoCommand;
+import de.raindancer.modules.economy.command.GambleCommand;
+import de.raindancer.modules.economy.command.PayCommand;
+import de.raindancer.modules.economy.command.ShopCommand;
+
+import java.util.List;
+
+/**
+ * What this module declares at bootstrap. Paper registers commands before any module runs, so each holds
+ * a supplier of the services and the state to design for is "registered, module not running".
+ */
+public final class EconomyCommands {
+
+    private static volatile EconomyServices services;
+
+    private EconomyCommands() {
+    }
+
+    public static List<ModuleCommand> declared() {
+        return List.of(
+                ModuleCommand.of("balance", "Your balance, or somebody else's",
+                        new BalanceCommand(EconomyCommands::require)).aliased("bal", "money").taking("[player]"),
+                ModuleCommand.of("pay", "Pay another player", new PayCommand(EconomyCommands::require))
+                        .taking("<player> <amount>"),
+                ModuleCommand.of("bill", "Ask another player to pay you", new BillCommand(EconomyCommands::require))
+                        .aliased("request").taking("<player> <amount> [what for]"),
+                ModuleCommand.of("bank", "Open the bank",
+                        new BankCommand(EconomyCommands::require, BankCommand.Door.BANK)).aliased("economy"),
+                ModuleCommand.of("withdraw", "Take money out as coins, notes or a cheque",
+                        new CashCommand(EconomyCommands::require, true)).taking("[amount] [cheque]"),
+                ModuleCommand.of("deposit", "Pay cash back in",
+                        new CashCommand(EconomyCommands::require, false)).taking("[hand|all]"),
+                ModuleCommand.of("shop", "Buy from the server's shop",
+                        new ShopCommand(EconomyCommands::require, false)).aliased("market")
+                        .taking("[category|item|search <text>]"),
+                ModuleCommand.of("sell", "Sell to the server's shop",
+                        new ShopCommand(EconomyCommands::require, true)).taking("[hand|all]"),
+                ModuleCommand.of("baltop", "The richest players",
+                        new BankCommand(EconomyCommands::require, BankCommand.Door.BALTOP)).aliased("richest"),
+                ModuleCommand.of("daily", "Claim the daily reward",
+                        new BankCommand(EconomyCommands::require, BankCommand.Door.DAILY)),
+                ModuleCommand.of("casino", "Games of chance",
+                        new BankCommand(EconomyCommands::require, BankCommand.Door.CASINO)),
+                ModuleCommand.of("slots", "The slot machine",
+                        new BankCommand(EconomyCommands::require, BankCommand.Door.SLOTS)),
+                ModuleCommand.of("coinflip", "Heads or tails, against the house or a player",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.COINFLIP)).aliased("cf")
+                        .taking("<amount> [heads|tails]", "<player> <amount>"),
+                ModuleCommand.of("dice", "Roll over or under a number",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.DICE))
+                        .taking("<amount> <over|under> <number>"),
+                ModuleCommand.of("lottery", "Tickets, the pot and the next draw",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.LOTTERY)).aliased("lotto")
+                        .taking("[buy <tickets>]"),
+                ModuleCommand.of("eco", "Staff: run the economy", new EcoCommand(EconomyCommands::require))
+                        .taking("give|take|set <player> <amount> [reason]", "reset|freeze|unfreeze|history <player>",
+                                "menu|reprice|draw|calm")
+                        .auditUsage());
+    }
+
+    static void ready(EconomyServices live) {
+        services = live;
+    }
+
+    static void stopped() {
+        services = null;
+    }
+
+    public static boolean isRunning() {
+        return services != null;
+    }
+
+    private static EconomyServices require() {
+        EconomyServices live = services;
+        if (live == null) {
+            throw new IllegalStateException("the economy module is not running");
+        }
+        return live;
+    }
+}

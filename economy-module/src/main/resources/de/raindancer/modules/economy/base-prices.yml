@@ -1,0 +1,179 @@
+# What raw materials are worth, in whole units of the server's currency. Everything that can be crafted,
+# smelted, cut or smithed from these is priced from its recipe (shop.derive-from-recipes). Anything with
+# no price here and no recipe leading to it is simply not for sale.
+#
+# Not edited here — this file is inside the jar. An owner changes a value with shop.values in config.yml,
+# and everything made from it follows.
+
+# ---- earth and stone
+dirt: 0.5
+grass_block: 1
+podzol: 2
+mycelium: 3
+rooted_dirt: 1
+mud: 1
+clay_ball: 1
+gravel: 0.5
+sand: 0.5
+red_sand: 0.6
+cobblestone: 0.5
+stone: 1
+deepslate: 1
+cobbled_deepslate: 0.6
+granite: 0.8
+diorite: 0.8
+andesite: 0.8
+tuff: 1
+calcite: 2
+blackstone: 1
+basalt: 1
+netherrack: 0.3
+soul_sand: 1
+soul_soil: 1
+end_stone: 2
+obsidian: 15
+crying_obsidian: 25
+ice: 2
+snowball: 0.2
+moss_block: 3
+pointed_dripstone: 1
+amethyst_shard: 4
+magma_block: 3
+sculk: 2
+cobweb: 4
+
+# ---- wood
+oak_log: 2
+spruce_log: 2
+birch_log: 2
+jungle_log: 2
+acacia_log: 2
+dark_oak_log: 2
+mangrove_log: 2
+cherry_log: 2
+pale_oak_log: 2
+crimson_stem: 2.5
+warped_stem: 2.5
+bamboo: 0.3
+oak_sapling: 1
+spruce_sapling: 1
+birch_sapling: 1
+jungle_sapling: 1
+acacia_sapling: 1
+dark_oak_sapling: 1
+cherry_sapling: 1
+pale_oak_sapling: 1
+mangrove_propagule: 1
+oak_leaves: 0.5
+spruce_leaves: 0.5
+birch_leaves: 0.5
+
+# ---- minerals
+coal: 3
+raw_iron: 8
+raw_copper: 3
+raw_gold: 12
+diamond: 100
+emerald: 50
+lapis_lazuli: 4
+redstone: 2
+quartz: 4
+glowstone_dust: 3
+ancient_debris: 380
+netherite_scrap: 400
+flint: 0.5
+
+# ---- farming
+wheat: 1
+wheat_seeds: 0.2
+carrot: 1
+potato: 1
+beetroot: 1
+beetroot_seeds: 0.2
+melon_slice: 0.3
+pumpkin: 3
+sugar_cane: 1
+cactus: 1
+cocoa_beans: 2
+sweet_berries: 0.5
+glow_berries: 1
+kelp: 0.3
+apple: 3
+egg: 1
+nether_wart: 2
+chorus_fruit: 2
+brown_mushroom: 1
+red_mushroom: 1
+vine: 0.5
+lily_pad: 1
+sea_pickle: 2
+honeycomb: 3
+honey_bottle: 3
+
+# ---- flowers
+dandelion: 0.5
+poppy: 0.5
+blue_orchid: 1
+allium: 1
+azure_bluet: 1
+red_tulip: 1
+orange_tulip: 1
+white_tulip: 1
+pink_tulip: 1
+oxeye_daisy: 1
+cornflower: 1
+lily_of_the_valley: 1.5
+wither_rose: 10
+sunflower: 2
+lilac: 2
+rose_bush: 2
+peony: 2
+torchflower: 5
+pitcher_plant: 5
+
+# ---- creatures
+rotten_flesh: 0.2
+bone: 1
+string: 1
+spider_eye: 2
+gunpowder: 3
+ender_pearl: 10
+blaze_rod: 12
+breeze_rod: 15
+ghast_tear: 25
+slime_ball: 4
+leather: 3
+feather: 1
+ink_sac: 2
+glow_ink_sac: 4
+phantom_membrane: 10
+rabbit_hide: 1.5
+rabbit_foot: 10
+prismarine_shard: 2
+prismarine_crystals: 3
+nautilus_shell: 30
+heart_of_the_sea: 300
+shulker_shell: 80
+dragon_breath: 30
+nether_star: 2000
+totem_of_undying: 300
+turtle_scute: 20
+armadillo_scute: 8
+echo_shard: 40
+white_wool: 3
+beef: 2
+porkchop: 2
+chicken: 1.5
+mutton: 1.5
+rabbit: 1.5
+cod: 1.5
+salmon: 2
+tropical_fish: 3
+pufferfish: 3
+
+# ---- rare finds
+saddle: 40
+name_tag: 30
+sponge: 50
+trident: 200
+enchanted_golden_apple: 1500

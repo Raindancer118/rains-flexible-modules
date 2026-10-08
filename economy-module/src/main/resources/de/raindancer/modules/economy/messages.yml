@@ -1,0 +1,138 @@
+# Rain's Economy — every line this module says.
+#
+# Offered as a floor: anything an owner has already written in their own messages.yml wins. Amounts arrive
+# already painted in the currency's colours; write <amount> and they appear as the owner styled them.
+economy:
+
+  only-a-player: "<red>Only a player standing in the world can do that."
+  not-allowed: "<red>You may not do that."
+  not-online: "<red><player> is not online."
+  unknown-player: "<red>Nobody called <player> has played here."
+  not-an-amount: "<red>That is not an amount of money."
+  not-an-amount-typed: "<red><typed> is not an amount — try 12, 12.50 or 1.5k."
+  not-enough: "<red>You do not have <amount>. You have <balance>."
+  too-much: "<red>That would take an account past the most it may hold."
+  no-account: "<red><player> has no account here."
+  frozen: "<red>That account is frozen. Ask staff."
+  unavailable: "<red>The bank is not open right now. Nothing was taken — try again in a moment."
+  refused: "<red>That was refused, and nothing moved."
+  away: "<green>While you were away, <amount> arrived in your account."
+
+  menu:
+    locked: "<red><reason>"
+
+  balance:
+    yours: "<gray>You have <amount><gray>. <dark_gray>(#<place> on the server)"
+    theirs: "<white><player></white><gray> has <amount><gray>. <dark_gray>(#<place>)"
+
+  baltop:
+    off: "<red>The richest players list is switched off on this server."
+
+  usage:
+    pay: "<gray>/pay <player> <amount>"
+    bill: "<gray>/bill <player> <amount> [what for]"
+    dice: "<gray>/dice <amount> <over|under> <number from 1 to 100>"
+    lottery: "<gray>/lottery  ·  /lottery buy [tickets]"
+    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm"
+
+  pay:
+    off: "<red>Paying each other is switched off on this server."
+    yourself: "<red>You cannot pay yourself."
+    too-little: "<red>The least anybody may pay is <amount>."
+    offline-off: "<red><player> is offline, and payments only reach players who are online."
+    wait: "<red>Wait <seconds> second(s) before paying again."
+    confirm: "<yellow>Pay <amount><yellow> to <white><player></white>? <button>"
+    sent: "<green>You paid <amount><green> to <white><player></white>. You have <balance><green> left."
+    taxed: "<gray><tax><gray> of that went in tax; <player> received the rest."
+    received: "<green><white><player></white> paid you <amount><green>."
+    how: "<gray>Type <white>/pay <player> <amount></white> to pay them."
+
+  bill:
+    off: "<red>Bills are switched off on this server."
+    yourself: "<red>You cannot bill yourself."
+    already: "<red>You have already sent <player> a bill. Wait for an answer."
+    sent: "<gray>You asked <white><player></white> for <amount><gray>. It stays open for <minutes> minute(s)."
+    received: "<yellow><white><player></white> asks you to pay <amount><yellow>. <buttons>"
+    received-for: "<yellow><white><player></white> asks you to pay <amount><yellow> for <white><reason></white>. <buttons>"
+    gone: "<red>That bill has run out or was already answered."
+    paid: "<green>You paid <amount><green> to <white><player></white>."
+    was-paid: "<green><white><player></white> paid your bill of <amount><green>."
+    failed: "<red><player> could not pay your bill."
+    declined: "<red><player> declined your bill."
+    you-declined: "<gray>You declined <player>'s bill."
+
+  cash:
+    off: "<red>Coins and notes are switched off on this server."
+    cheques-off: "<red>Cheques are switched off on this server."
+    too-small: "<red><amount><red> is smaller than the smallest coin."
+    too-many: "<red>That would be <pieces> pieces; at most <most> come out at once."
+    no-room: "<red>Your inventory has no room for that. Nothing was taken."
+    leftover: "<gray><amount><gray> could not be made from coins and stays in your account."
+    withdrawn: "<green>You took out <amount><green> in cash. Your account holds <balance><green>."
+    cheque-written: "<green>You wrote a cheque for <amount><green>. Your account holds <balance><green>."
+    fee: "<gray>The bank kept <fee><gray> as a fee."
+    deposited: "<green>You paid in <amount><green>. Your account holds <balance><green>."
+    none: "<red>You are not carrying any cash."
+    counterfeit: "<red><count> note(s) had already been paid in or were never issued, and were taken. Staff have been told."
+    counterfeit-alert: "<red>[Economy] <white><player></white> tried to pay in note No. <white><serial></white> (<amount><red>), which was already paid in or never issued. It was confiscated."
+
+  shop:
+    off: "<red>The shop is switched off on this server."
+    selling-off: "<red>Selling to the shop is switched off on this server."
+    category-closed: "<red>The <category> drawer is closed on this server."
+    not-for-sale: "<red>The shop does not sell <item>."
+    not-bought: "<red>The shop does not buy <item>."
+    none-carried: "<red>You are not carrying any plain <item>."
+    nothing-in-hand: "<red>You are not holding anything."
+    nothing-to-sell: "<red>You carry nothing the shop buys."
+    no-room: "<red>Your inventory has no room for that. Nothing was taken."
+    bought: "<green>You bought <count> × <white><item></white> for <amount><green>."
+    sold: "<green>You sold <white><what></white> for <amount><green>."
+
+  earn:
+    salary: "<green>Salary: <amount><green> for <minutes> minutes of play."
+    interest: "<green>Interest: <amount><green> on what is in your account."
+
+  daily:
+    off: "<red>The daily reward is switched off on this server."
+    already: "<red>You have had today's reward. Come back in <hours> hour(s)."
+    claimed: "<green>Daily reward: <amount><green>. Day <white><streak></white> in a row."
+
+  gamble:
+    off: "<red>That game is switched off on this server."
+    not-allowed: "<red>You may not gamble."
+    too-little: "<red>The smallest bet is <amount><red>."
+    too-much: "<red>The largest bet is <amount><red>."
+    loss-limit: "<red>That would take you past the most anybody may lose in a day (<amount><red>). Come back tomorrow."
+    wait: "<red>Not so fast."
+    flip-won: "<green>It landed <white><side></white>! You won <amount><green>. Balance: <balance><green>."
+    flip-lost: "<red>It landed <white><side></white>. You lost <amount><red>. Balance: <balance><red>."
+    dice-won: "<green>You rolled <white><roll></white>! You won <amount><green>. Balance: <balance><green>."
+    dice-lost: "<red>You rolled <white><roll></white>. You lost <amount><red>. Balance: <balance><red>."
+    dice-bad-target: "<red>The house does not take that bet: pick a number that wins between 1 and 95 rolls in 100."
+    slots-won: "<green><white><reels></white> — you won <amount><green>! Balance: <balance><green>."
+    slots-lost: "<red><white><reels></white> — you lost <amount><red>. Balance: <balance><red>."
+    duel-yourself: "<red>You cannot flip against yourself."
+    duel-sent: "<gray>You challenged <white><player></white> to a coin flip for <amount><gray>."
+    duel-received: "<yellow><white><player></white> challenges you to a coin flip for <amount><yellow>, winner takes both. <buttons>"
+    duel-gone: "<red>That challenge has run out or was already answered."
+    duel-failed: "<red>The duel could not be settled — one of you does not have the stake any more."
+    duel-won: "<green>The coin favoured you! You won <amount><green>."
+    duel-lost: "<red>The coin favoured <player>. You lost <amount><red>."
+    duel-declined: "<red><player> declined your challenge."
+    duel-you-declined: "<gray>You declined <player>'s challenge."
+
+  lottery:
+    most: "<red>You already hold the most tickets anybody may (<most>) for this draw."
+    bought: "<green>You bought <count> ticket(s) for <amount><green>. The pot is <pot><green>; the draw is in <when>."
+    status: "<gray>Lottery pot: <pot><gray> · <tickets> ticket(s) sold · you hold <mine> (<chance>%) · a ticket costs <price><gray> · draw in <when>."
+    drawn: "<gold>Lottery: <white><player></white> won <amount><gold> with <tickets> of <total> tickets!"
+    no-tickets: "<gray>Nobody had bought a ticket, so the pot carries over."
+
+  admin:
+    done: "<green>Done. <white><player></white> now has <balance><green>."
+    refused: "<red>Refused for <player>: <reason>."
+    frozen: "<green><player>'s account is frozen."
+    unfrozen: "<green><player>'s account is no longer frozen."
+    repriced: "<green>Repriced everything from <recipes> recipe(s)."
+    calmed: "<green>Every price is back to plain."
