@@ -38,6 +38,7 @@ import java.util.List;
         @Topic(path = "economy/gambling", title = "Gambling", icon = Material.GOLD_BLOCK),
         @Topic(path = "economy/auctions", title = "Auctions", icon = Material.BELL),
         @Topic(path = "economy/raffles", title = "Raffles", icon = Material.NAME_TAG),
+        @Topic(path = "economy/tax", title = "Wealth tax", icon = Material.IRON_BARS),
         @Topic(path = "economy/display", title = "Sidebar and leaderboards", icon = Material.OAK_SIGN),
 })
 public record EconomySettings(
@@ -367,7 +368,8 @@ public record EconomySettings(
         @Describe("Hours.")
         @Key("lottery.draw-hours") int drawHours,
 
-        @In("economy/gambling") @Title("Most tickets per player per draw") @Range(min = 1, max = 100000)
+        @In("economy/gambling") @Title("Most tickets per player per draw") @Range(min = 0, max = 100000)
+        @Describe("0 for no limit.")
         @Key("lottery.most-tickets") int mostTickets,
 
         @In("economy/gambling") @Title("Numbers on a lottery ticket") @Range(min = 2, max = 8)
@@ -485,6 +487,11 @@ public record EconomySettings(
                 + "can run at once. Staff raffle off money with /eco raffle.")
         @Key("features.raffles") boolean rafflesEnabled,
 
+        @In("economy/raffles") @Title("Giveaways")
+        @Describe("Like a raffle, but free to join, once each: a player gives away an item or money, staff give away "
+                + "server money with /eco giveaway.")
+        @Key("features.giveaways") boolean giveawaysEnabled,
+
         @In("economy/raffles") @Title("Starting a raffle costs")
         @Describe("Paid by the player who starts it; the money leaves the economy.")
         @Key("raffle.listing-fee") String raffleListingFee,
@@ -512,6 +519,23 @@ public record EconomySettings(
         @Key("raffle.per-host") int rafflesPerHost,
 
         @In("economy/raffles") @Title("Cheapest ticket") @Key("raffle.smallest-ticket") String raffleSmallestTicket,
+
+        // ------------------------------------------------------------------ wealth tax
+        @In("economy/tax") @Title("Wealth tax")
+        @Describe("Takes a percentage of every player's bank balance at an interval and destroys it — a money sink. "
+                + "Frozen accounts pay too. Switching it on starts its clock; the first run is one interval later.")
+        @Key("features.wealth-tax") boolean wealthTaxEnabled,
+
+        @In("economy/tax") @Title("Percent of a balance") @Describe("0 to 100.")
+        @Key("wealth-tax.percent") double wealthTaxPercent,
+
+        @In("economy/tax") @Title("Taken every") @Range(min = 1, max = 8760)
+        @Describe("Hours.")
+        @Key("wealth-tax.every-hours") int wealthTaxHours,
+
+        @In("economy/tax") @Title("Tax free up to")
+        @Describe("Only what is above this is taxed. 0 to tax every coin.")
+        @Key("wealth-tax.allowance") String wealthTaxAllowance,
 
         // ------------------------------------------------------------------ display
         @In("economy/display") @Title("Balance in the sidebar")
@@ -560,12 +584,14 @@ public record EconomySettings(
             // interest
             true, 0.25, 60, "250",
             // gambling
-            true, true, true, true, true, true, "1", "100000", 3.0, "0", 1, 60, "100", 24, 100, 4, 20, 10.0,
+            true, true, true, true, true, true, "1", "0", 3.0, "0", 0, 60, "100", 24, 0, 4, 20, 10.0,
             true, true, true, true, true, true, true, 6, "50", 10, 45, "",
             // auctions
             true, 120, 60, 600, "10", "10", 5.0, 20, 15, "1000", 5.0, 10, 2, true, true,
             // raffles
-            true, "0", 5.0, 30, 5, 1440, 5, 1, "1",
+            true, true, "0", 5.0, 30, 5, 1440, 5, 1, "1",
+            // wealth tax
+            false, 1.0, 24, "0",
             // display
             true, 3, true, 10, List.of(),
             // general
@@ -682,6 +708,10 @@ public record EconomySettings(
 
     public Money raffleSmallestTicketMoney() {
         return money(raffleSmallestTicket, DEFAULTS.raffleSmallestTicket);
+    }
+
+    public Money wealthTaxAllowanceMoney() {
+        return money(wealthTaxAllowance, DEFAULTS.wealthTaxAllowance);
     }
 
     public Money ticketPriceMoney() {

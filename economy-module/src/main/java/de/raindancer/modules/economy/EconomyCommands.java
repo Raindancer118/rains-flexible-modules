@@ -88,10 +88,15 @@ public final class EconomyCommands {
                         .aliased("raffles")
                         .taking("[start <ticket price> [length] [most tickets] [per player] | buy <number> [tickets] "
                                 + "| cancel <number> | info]"),
+                ModuleCommand.of("giveaway", "Giveaways: give something away, or join one",
+                        new de.raindancer.modules.economy.command.GiveawayCommand(EconomyCommands::require))
+                        .aliased("giveaways")
+                        .taking("[start [length] | money <amount> [length] | join <number> | cancel <number>]"),
                 ModuleCommand.of("eco", "Staff: run the economy", new EcoCommand(EconomyCommands::require))
                         .taking("give|take|set <player> <amount> [reason]", "reset|freeze|unfreeze|history <player>",
                                 "menu|reprice|draw|calm|coin", "leaderboard place|remove", "dealer place <game>|remove",
-                                "auction stop|clear", "raffle <prize> <ticket price> [length] | cancel <number>")
+                                "auction stop|clear", "raffle <prize> <ticket price> [length] | cancel <number>",
+                                "giveaway <prize> [length]", "tax <percent> [confirm]")
                         .auditUsage());
     }
 

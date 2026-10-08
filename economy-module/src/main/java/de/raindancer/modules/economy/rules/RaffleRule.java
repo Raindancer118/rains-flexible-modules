@@ -8,6 +8,11 @@ import java.util.UUID;
 /** Who a raffle's draw picks, how many tickets anybody may still buy, and the house's share. */
 public final class RaffleRule implements IEconomyRule {
 
+    /** Tickets one purchase can buy. Buy again for more. */
+    public static final int MOST_AT_ONCE = 10_000;
+    /** Tickets one raffle can sell, whatever its own limit says — so no count of them can ever overflow. */
+    public static final int MOST_IN_A_RAFFLE = 1_000_000;
+
     /**
      * The holder of the ticket at {@code uniform} along all tickets in a row — each ticket an equal share.
      *
@@ -38,7 +43,8 @@ public final class RaffleRule implements IEconomyRule {
 
     /** How many of {@code wanted} may be bought; a limit of zero is no limit. */
     public int allowed(int wanted, int mine, int perPlayer, int sold, int mostTickets) {
-        int count = Math.max(0, wanted);
+        int count = Math.min(MOST_AT_ONCE, Math.max(0, wanted));
+        count = Math.min(count, MOST_IN_A_RAFFLE - sold);
         if (perPlayer > 0) {
             count = Math.min(count, perPlayer - mine);
         }

@@ -43,6 +43,14 @@ class RaffleRuleTest {
     }
 
     @Test
+    @DisplayName("no count can ever overflow: at most so many at once, and so many in one raffle")
+    void bounded() {
+        assertThat(rule.allowed(Integer.MAX_VALUE, 0, 0, 0, 0)).isEqualTo(RaffleRule.MOST_AT_ONCE);
+        assertThat(rule.allowed(5_000, 0, 0, RaffleRule.MOST_IN_A_RAFFLE - 1_000, 0)).isEqualTo(1_000);
+        assertThat(rule.allowed(5, 0, 0, RaffleRule.MOST_IN_A_RAFFLE, 0)).isZero();
+    }
+
+    @Test
     @DisplayName("the house's share of the pot, rounded down")
     void fee() {
         assertThat(rule.fee(Money.of(1_000), 5)).isEqualTo(Money.of(50));

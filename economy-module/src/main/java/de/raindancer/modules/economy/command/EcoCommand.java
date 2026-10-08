@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class EcoCommand extends EconomyCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("give", "take", "set", "reset", "freeze", "unfreeze",
-            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle");
+            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle", "giveaway", "tax");
 
     public EcoCommand(Supplier<EconomyServices> services) {
         super(services);
@@ -118,6 +118,32 @@ public final class EcoCommand extends EconomyCommand {
                         .map(length -> (int) Math.max(1, length.toMinutes())).orElse(0) : 0;
                 amount(live, sender, args[1]).ifPresent(prize -> amount(live, sender, args[2]).ifPresent(price ->
                         live.raffles().startServer(sender, prize, price, minutes)));
+            }
+            case "giveaway" -> {
+                if (args.length > 2 && args[1].equalsIgnoreCase("cancel")) {
+                    RaffleCommand.whole(args, 2).ifPresent(number -> live.raffles().cancel(sender, number, true));
+                    return;
+                }
+                if (args.length < 2) {
+                    live.messages().send(sender, "economy.usage.eco");
+                    return;
+                }
+                amount(live, sender, args[1]).ifPresent(prize ->
+                        live.raffles().giveServer(sender, prize, GiveawayCommand.minutes(args, 2)));
+            }
+            case "tax" -> {
+                if (args.length < 2) {
+                    live.messages().send(sender, "economy.usage.eco");
+                    return;
+                }
+                double percent;
+                try {
+                    percent = Double.parseDouble(args[1].replace("%", "").replace(',', '.'));
+                } catch (NumberFormatException notANumber) {
+                    live.messages().send(sender, "economy.tax.percent");
+                    return;
+                }
+                live.tax().byHand(sender, percent, args.length > 2 && args[2].equalsIgnoreCase("confirm"));
             }
             case "calm" -> {
                 live.market().calm();

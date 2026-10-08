@@ -118,7 +118,9 @@ public class EconomySettingsTest {
         assertThat(d.gamblingEnabled()).isTrue();
         assertThat(d.rouletteEnabled()).isTrue();
         assertThat(d.minBetMoney()).isEqualTo(Money.of(1));
-        assertThat(d.maxBetMoney()).isEqualTo(Money.of(100_000));
+        assertThat(d.maxBetMoney()).as("no largest bet unless an owner sets one").isEqualTo(Money.ZERO);
+        assertThat(d.gambleCooldownSeconds()).as("no wait between games").isZero();
+        assertThat(d.mostTickets()).as("no cap on lottery tickets").isZero();
         assertThat(d.houseEdge()).isEqualTo(0.03);
         assertThat(d.dailyLossLimitMoney()).isEqualTo(Money.ZERO);
         assertThat(d.ticketPriceMoney()).isEqualTo(Money.of(100));
@@ -138,7 +140,12 @@ public class EconomySettingsTest {
         assertThat(d.auctionAnnounceBids()).isTrue();
         assertThat(d.auctionBossBar()).isTrue();
 
+        assertThat(d.wealthTaxEnabled()).as("nobody's money is taxed unless an owner wants it").isFalse();
+        assertThat(d.wealthTaxPercent()).isEqualTo(1.0);
+        assertThat(d.wealthTaxHours()).isEqualTo(24);
+        assertThat(d.wealthTaxAllowanceMoney()).isEqualTo(Money.ZERO);
         assertThat(d.rafflesEnabled()).isTrue();
+        assertThat(d.giveawaysEnabled()).isTrue();
         assertThat(d.raffleListingFeeMoney()).as("starting a raffle is free").isEqualTo(Money.ZERO);
         assertThat(d.raffleFeePercent()).isEqualTo(5.0);
         assertThat(d.raffleDefaultMinutes()).isEqualTo(30);

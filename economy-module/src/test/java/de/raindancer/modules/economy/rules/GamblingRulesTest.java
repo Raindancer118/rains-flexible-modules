@@ -161,4 +161,12 @@ class GamblingRulesTest {
         assertThat(lottery.afterCut(m(100), 0.1)).isEqualTo(m(90));
         assertThat(lottery.allowed(95, 10, 100)).isEqualTo(5);
     }
+
+    @Test
+    @DisplayName("a lottery ticket limit of zero is no limit")
+    void lotteryNoLimit() {
+        LotteryRule lottery = new LotteryRule();
+        assertThat(lottery.allowed(5_000, 20, 0)).isEqualTo(20);
+        assertThat(lottery.allowed(95, 20, 100)).isEqualTo(5);
+    }
 }

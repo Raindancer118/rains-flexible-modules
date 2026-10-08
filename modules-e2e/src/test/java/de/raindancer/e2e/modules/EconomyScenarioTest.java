@@ -358,7 +358,7 @@ class EconomyScenarioTest {
             ada.forgetChat();
             ada.run("crash");
             ada.awaitWindow("Crash");
-            Await.until("bets are open", Duration.ofSeconds(20), () -> ada.window()
+            Await.until("bets are open", Duration.ofSeconds(150), () -> ada.window()
                     .flatMap(window -> window.slotNamed("Join the round")).isPresent());
             ada.click("Cash out by itself");
             Await.ticks(5);
@@ -504,6 +504,17 @@ class EconomyScenarioTest {
             Await.until("Bo is the only one in Cy's raffle", WAIT, () -> said(bo, "for raffle #3"));
             assertThat(server.console("raffle info")).as("the console sees the raffles").contains("#2");
 
+            // ---- giveaways: free to join, once each — a player's money, and the server's from the console
+            ada.run("giveaway money 200 1m");
+            Await.until("Ada's giveaway is announced", WAIT, () -> said(cy, "Ada gives away"));
+            server.console("eco giveaway 300 1m");
+            Await.until("the server's giveaway is announced", WAIT, () -> said(bo, "The server gives away"));
+            cy.clickButtonOn("Ada gives away", 0);
+            Await.until("Cy joins from chat, free", WAIT, () -> said(cy, "You joined giveaway #4"));
+            bo.run("giveaway join 5");
+            Await.until("Bo joins the server's", WAIT, () -> said(bo, "You joined giveaway #5"));
+            bo.run("giveaway join 5");
+            Await.until("but only once", WAIT, () -> said(bo, "in giveaway #5 already"));
             Await.until("the drumroll", Duration.ofSeconds(90), () -> said(ada, "The draw for"));
             Await.until("and the winner", WAIT, () -> said(ada, "[Raffle #1]") && said(ada, " wins "));
             Await.until("the winner has the apples", WAIT, () -> ada.carrying(item -> item.is("golden_apple")).isPresent()
@@ -512,6 +523,15 @@ class EconomyScenarioTest {
             Await.until("Ada wins the server's money", WAIT, () -> said(ada, "[Raffle #2] Ada wins ⛃500"));
             Await.until("Bo wins Cy's money", WAIT, () -> said(bo, "[Raffle #3] Bo wins ⛃100"));
             Await.until("Cy is paid for the tickets", WAIT, () -> said(cy, "Your raffle #3 sold 2 ticket(s)"));
+            Await.until("Cy wins Ada's money", Duration.ofSeconds(90), () -> said(cy, "[Giveaway #4] Cy wins ⛃200"));
+            Await.until("Bo wins the server's", WAIT, () -> said(bo, "[Giveaway #5] Bo wins ⛃300"));
+
+
+            // ---- the wealth tax, by hand from the console: a preview first, then for real
+            assertThat(server.console("eco tax 10")).contains("would take");
+            bo.forgetChat();
+            assertThat(server.console("eco tax 10 confirm")).contains("Wealth tax of 10% taken");
+            Await.until("Bo is told what he paid", WAIT, () -> said(bo, "wealth tax") && said(bo, "You paid"));
 
             // ---- bets offered from what you have, not from a fixed ladder
             ada.run("eco set Ada 10000000");

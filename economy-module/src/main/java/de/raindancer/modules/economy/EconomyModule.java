@@ -82,7 +82,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.6.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.7.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -178,16 +178,18 @@ public final class EconomyModule implements FlexModule {
                 messages, effects, buttons, context.core().bossBars(), sounds, System::currentTimeMillis, now);
         var raffles = new de.raindancer.modules.economy.service.RaffleService(context.plugin(), server, economy,
                 messages, effects, buttons, sounds, auctions, System::currentTimeMillis, now);
+        var tax = new de.raindancer.modules.economy.service.WealthTaxService(context.plugin(), server, economy, messages,
+                System::currentTimeMillis, now);
 
         for (var service : List.of(economy, notifier, payments, bills, cash, shop, rewards, income, hire, statements,
-                interest, daily, gambling, lottery, sidebar, displays, tables, scratch, crash, race, dealers, auctions, raffles)) {
+                interest, daily, gambling, lottery, sidebar, displays, tables, scratch, crash, race, dealers, auctions, raffles, tax)) {
             settings.onChange(service::settings);
         }
 
         services = new EconomyServices(context.plugin(), server, log, messages, context.chat().brand(), context.core(),
                 settings::current, settings, economy, market, payments, bills, cash, shop, rewards, income, hire,
                 statements, interest, daily, leaderboard, sidebar, displays, gambling, lottery, tables, scratch, crash,
-                race, dealers, auctions, raffles, new LiveScreens());
+                race, dealers, auctions, raffles, tax, new LiveScreens());
         sidebar.pot(lottery::pot);
         this.tables = tables;
         this.crash = crash;
@@ -237,6 +239,7 @@ public final class EconomyModule implements FlexModule {
             hire.minute();
             interest.minute(server.getOnlinePlayers());
             lottery.minute();
+            tax.minute();
             window.sweep();
         });
         if (minutes != null) {

@@ -10,11 +10,17 @@ public final class CrashRule implements IEconomyRule {
     /** How fast it climbs: doubles about every eleven and a half seconds. */
     public static final double GROWTH_PER_MILLI = Math.log(2) / 11_500.0;
 
+    /**
+     * The highest a round goes — about two minutes of climbing. Above it the odds would be exact only for
+     * rounds nobody waits for; the cap costs a player cashing out below it nothing.
+     */
+    public static final double MOST = 1_000.0;
+
     /** @param uniform a number in (0, 1] */
     public double crashPoint(double uniform, double edge) {
         double u = Math.max(1e-9, Math.min(1, uniform));
         double point = (1.0 - Math.max(0, Math.min(0.5, edge))) / u;
-        return Math.max(1.0, Math.floor(point * 100) / 100.0);
+        return Math.min(MOST, Math.max(1.0, Math.floor(point * 100) / 100.0));
     }
 
     public double multiplierAt(long millis) {

@@ -33,6 +33,9 @@ import java.util.function.LongSupplier;
  */
 public final class LotteryService implements IEconomyService {
 
+    /** Each ticket is a row; one purchase is held to this so one command cannot write millions. Buy again for more. */
+    private static final int MOST_AT_ONCE = 10_000;
+
     /** Ticks between two balls when a draw is called out. */
     private static final long BALL_TICKS = 50L;
 
@@ -126,7 +129,8 @@ public final class LotteryService implements IEconomyService {
             refuse(player, "economy.lottery.pick", "pick", String.valueOf(pick()), "range", String.valueOf(range()));
             return false;
         }
-        int count = rule.allowed(book.ticketsOf(player.getUniqueId()).size(), Math.max(1, wanted), live.mostTickets());
+        int count = rule.allowed(book.ticketsOf(player.getUniqueId()).size(),
+                Math.min(MOST_AT_ONCE, Math.max(1, wanted)), live.mostTickets());
         if (count == 0) {
             refuse(player, "economy.lottery.most", "most", String.valueOf(live.mostTickets()));
             return false;

@@ -138,26 +138,36 @@ public final class RaffleService implements IEconomyService {
      * @param perPlayer   zero for no limit
      */
     public boolean start(Player host, Money ticketPrice, int minutes, int mostTickets, int perPlayer) {
+        return startItem(host, ticketPrice, minutes, mostTickets, perPlayer, false);
+    }
+
+    /** Gives away the item in the host's hand: free to join, once each. */
+    public boolean giveItem(Player host, int minutes) {
+        return startItem(host, Money.ZERO, minutes, 0, 1, true);
+    }
+
+    private boolean startItem(Player host, Money ticketPrice, int minutes, int mostTickets, int perPlayer,
+                              boolean giveaway) {
         EconomySettings live = settings;
         Currency currency = live.currency();
-        if (!open(host)) {
+        if (!open(host, giveaway)) {
             return false;
         }
         ItemStack hand = host.getInventory().getItemInMainHand();
         if (hand.getType().isAir() || hand.getAmount() <= 0) {
-            refuse(host, "economy.raffle.empty-hand");
+            refuse(host, kind(giveaway, "empty-hand"));
             return false;
         }
         if (CashTags.isCash(hand)) {
-            refuse(host, "economy.raffle.money");
+            refuse(host, kind(giveaway, "money"));
             return false;
         }
-        if (!roomFor(host, ticketPrice)) {
+        if (!roomFor(host, ticketPrice, giveaway)) {
             return false;
         }
         long hosting = book.raffles().stream().filter(raffle -> host.getUniqueId().equals(raffle.host())).count();
         if (hosting >= live.rafflesPerHost()) {
-            refuse(host, "economy.raffle.hosting", "count", String.valueOf(live.rafflesPerHost()));
+            refuse(host, kind(giveaway, "hosting"), "count", String.valueOf(live.rafflesPerHost()));
             return false;
         }
         ItemStack taken = hand.clone();
@@ -172,7 +182,7 @@ public final class RaffleService implements IEconomyService {
                 taken.serializeAsBytes(), name, ticketPrice, Math.max(0, mostTickets), Math.max(0, perPlayer), now,
                 now + length * 60_000L);
         Money fee = live.raffleListingFeeMoney();
-        EconomyResult paid = book.startRaffle(raffle, fee, economy.most());
+        EconomyResult paid = book.startRaffle(raffle, fee, economy.most(), live.raffleMostRunning(), live.rafflesPerHost());
         if (!paid.succeeded()) {
             Outcomes.tell(messages, effects, host, paid, currency, "");
             return false;
@@ -184,7 +194,7 @@ public final class RaffleService implements IEconomyService {
         if (fee.isPositive()) {
             economy.tell(host.getUniqueId(), fee.negate(), paid.balance(), TransactionKind.RAFFLE);
         }
-        messages.send(host, "economy.raffle.started-host", "number", String.valueOf(raffle.number()),
+        messages.send(host, kind(giveaway, "started-host"), "number", String.valueOf(raffle.number()),
                 "item", shown(raffle), "price", currency.render(ticketPrice), "fee", currency.render(fee),
                 "duration", Times.describe(Duration.ofMinutes(length)));
         announceStart(raffle);
@@ -193,21 +203,31 @@ public final class RaffleService implements IEconomyService {
 
     /** Raffles off money from the host's own account; it leaves the account now and reaches the winner at the draw. */
     public boolean startMoney(Player host, Money prize, Money ticketPrice, int minutes, int mostTickets, int perPlayer) {
+        return startMoney(host, prize, ticketPrice, minutes, mostTickets, perPlayer, false);
+    }
+
+    /** Gives away money from the host's own account. */
+    public boolean giveMoney(Player host, Money prize, int minutes) {
+        return startMoney(host, prize, Money.ZERO, minutes, 0, 1, true);
+    }
+
+    private boolean startMoney(Player host, Money prize, Money ticketPrice, int minutes, int mostTickets,
+                               int perPlayer, boolean giveaway) {
         EconomySettings live = settings;
         Currency currency = live.currency();
-        if (!open(host)) {
+        if (!open(host, giveaway)) {
             return false;
         }
         if (!prize.isPositive()) {
             refuse(host, "economy.not-an-amount");
             return false;
         }
-        if (!roomFor(host, ticketPrice)) {
+        if (!roomFor(host, ticketPrice, giveaway)) {
             return false;
         }
         long hosting = book.raffles().stream().filter(raffle -> host.getUniqueId().equals(raffle.host())).count();
         if (hosting >= live.rafflesPerHost()) {
-            refuse(host, "economy.raffle.hosting", "count", String.valueOf(live.rafflesPerHost()));
+            refuse(host, kind(giveaway, "hosting"), "count", String.valueOf(live.rafflesPerHost()));
             return false;
         }
         long now = clock.getAsLong();
@@ -216,14 +236,14 @@ public final class RaffleService implements IEconomyService {
         Raffle raffle = Raffle.money(UUID.randomUUID(), book.nextRaffleNumber(), host.getUniqueId(), host.getName(),
                 prize, ticketPrice, Math.max(0, mostTickets), Math.max(0, perPlayer), now, now + length * 60_000L);
         Money fee = live.raffleListingFeeMoney();
-        EconomyResult paid = book.startRaffle(raffle, fee, economy.most());
+        EconomyResult paid = book.startRaffle(raffle, fee, economy.most(), live.raffleMostRunning(), live.rafflesPerHost());
         if (!paid.succeeded()) {
             Outcomes.tell(messages, effects, host, paid, currency, "");
             return false;
         }
         Scheduling.async(plugin, book::flush);
         economy.tell(host.getUniqueId(), paid.amount().negate(), paid.balance(), TransactionKind.RAFFLE);
-        messages.send(host, "economy.raffle.started-host", "number", String.valueOf(raffle.number()),
+        messages.send(host, kind(giveaway, "started-host"), "number", String.valueOf(raffle.number()),
                 "item", shown(raffle), "price", currency.render(ticketPrice), "fee", currency.render(fee),
                 "duration", Times.describe(Duration.ofMinutes(length)));
         announceStart(raffle);
@@ -232,37 +252,47 @@ public final class RaffleService implements IEconomyService {
 
     /** Staff raffling off money the server puts up. Works from the console. */
     public Optional<Raffle> startServer(CommandSender staff, Money prize, Money ticketPrice, int minutes) {
-        if (!settings.rafflesEnabled()) {
-            messages.send(staff, "economy.raffle.off");
+        return startServer(staff, prize, ticketPrice, minutes, false);
+    }
+
+    /** Staff giving away money the server puts up. Works from the console. */
+    public Optional<Raffle> giveServer(CommandSender staff, Money prize, int minutes) {
+        return startServer(staff, prize, Money.ZERO, minutes, true);
+    }
+
+    private Optional<Raffle> startServer(CommandSender staff, Money prize, Money ticketPrice, int minutes,
+                                         boolean giveaway) {
+        if (!(giveaway ? settings.giveawaysEnabled() : settings.rafflesEnabled())) {
+            messages.send(staff, kind(giveaway, "off"));
             return Optional.empty();
         }
-        if (!prize.isPositive() || !roomFor(staff, ticketPrice)) {
+        if (!prize.isPositive() || !roomFor(staff, ticketPrice, giveaway)) {
             return Optional.empty();
         }
         long now = clock.getAsLong();
         int length = length(minutes);
-        Raffle raffle = Raffle.server(UUID.randomUUID(), book.nextRaffleNumber(), prize, ticketPrice, 0, 0, now,
+        Raffle raffle = Raffle.server(UUID.randomUUID(), book.nextRaffleNumber(), prize, ticketPrice, 0, giveaway ? 1 : 0, now,
                 now + length * 60_000L);
-        if (!book.startRaffle(raffle, Money.ZERO, economy.most()).succeeded()) {
+        if (!book.startRaffle(raffle, Money.ZERO, economy.most(), settings.raffleMostRunning(), Integer.MAX_VALUE).succeeded()) {
             messages.send(staff, "economy.unavailable");
             return Optional.empty();
         }
         Scheduling.async(plugin, book::flush);
-        messages.send(staff, "economy.raffle.server-started", "number", String.valueOf(raffle.number()),
+        messages.send(staff, kind(giveaway, "server-started"), "number", String.valueOf(raffle.number()),
                 "amount", settings.currency().render(prize));
         announceStart(raffle);
         return Optional.of(raffle);
     }
 
-    private boolean roomFor(CommandSender who, Money ticketPrice) {
+    private boolean roomFor(CommandSender who, Money ticketPrice, boolean giveaway) {
         EconomySettings live = settings;
-        if (!ticketPrice.isAtLeast(live.raffleSmallestTicketMoney()) || !ticketPrice.isPositive()) {
-            messages.send(who, "economy.raffle.ticket-too-low",
+        if (!giveaway && (!ticketPrice.isAtLeast(live.raffleSmallestTicketMoney()) || !ticketPrice.isPositive())) {
+            messages.send(who, kind(giveaway, "ticket-too-low"),
                     "amount", live.currency().render(live.raffleSmallestTicketMoney()));
             return false;
         }
         if (book.raffles().size() >= live.raffleMostRunning()) {
-            messages.send(who, "economy.raffle.too-many-running", "count", String.valueOf(live.raffleMostRunning()));
+            messages.send(who, kind(giveaway, "too-many-running"), "count", String.valueOf(live.raffleMostRunning()));
             return false;
         }
         return true;
@@ -278,14 +308,16 @@ public final class RaffleService implements IEconomyService {
 
     private void announceStart(Raffle raffle) {
         Currency currency = settings.currency();
-        Component row = buttons.row(
-                buttons.label("<green>[Buy a ticket]").tooltip("<gray>" + currency.format(raffle.ticketPrice()))
+        Component row = raffle.giveaway()
+                ? buttons.row(buttons.label("<green>[Join]").tooltip("<gray>Free").runs("/giveaway join " + raffle.number()),
+                buttons.label("<yellow>[All giveaways]").runs("/giveaway"))
+                : buttons.row(buttons.label("<green>[Buy a ticket]").tooltip("<gray>" + currency.format(raffle.ticketPrice()))
                         .runs("/raffle buy " + raffle.number() + " 1"),
                 buttons.label("<yellow>[All raffles]").runs("/raffle"));
-        String key = raffle.serverRaffle() ? "economy.raffle.started-server" : "economy.raffle.started";
+        String key = raffle.serverRaffle() ? kind(raffle.giveaway(), "started-server") : kind(raffle.giveaway(), "started");
         String duration = Times.describe(left(raffle).plusSeconds(1));
         for (Player listener : audience()) {
-            messages.send(listener, "economy.raffle.banner", "number", String.valueOf(raffle.number()));
+            messages.send(listener, kind(raffle.giveaway(), "banner"), "number", String.valueOf(raffle.number()));
             messages.send(listener, key, "player", raffle.hostName(), "item", shown(raffle),
                     "price", currency.render(raffle.ticketPrice()), "duration", duration,
                     "buttons", listener.getUniqueId().equals(raffle.host()) ? Component.empty() : row);
@@ -297,12 +329,13 @@ public final class RaffleService implements IEconomyService {
 
     public boolean buy(Player player, int number, int count) {
         Currency currency = settings.currency();
-        if (!open(player)) {
-            return false;
-        }
         Optional<Raffle> found = book.raffleNumber(number);
         if (found.isEmpty()) {
             refuse(player, "economy.raffle.none", "number", String.valueOf(number));
+            return false;
+        }
+        boolean giveaway = found.get().giveaway();
+        if (!open(player, giveaway)) {
             return false;
         }
         economy.open(player.getUniqueId(), player.getName());
@@ -310,17 +343,17 @@ public final class RaffleService implements IEconomyService {
                 Math.max(1, count), clock.getAsLong(), economy.most());
         String which = String.valueOf(number);
         switch (result.kind()) {
-            case GONE -> refuse(player, "economy.raffle.gone", "number", which);
-            case OWN -> refuse(player, "economy.raffle.own");
-            case LIMIT -> refuse(player, "economy.raffle.limit", "number", which);
-            case SOLD_OUT -> refuse(player, "economy.raffle.sold-out", "number", which);
+            case GONE -> refuse(player, kind(giveaway, "gone"), "number", which);
+            case OWN -> refuse(player, kind(giveaway, "own"));
+            case LIMIT -> refuse(player, kind(giveaway, "limit"), "number", which);
+            case SOLD_OUT -> refuse(player, kind(giveaway, "sold-out"), "number", which);
             case REFUSED -> Outcomes.tell(messages, effects, player, result.payment(), currency, "");
             case BOUGHT -> {
                 Raffle after = result.raffle();
                 economy.tell(player.getUniqueId(), result.payment().amount().negate(), result.payment().balance(),
                         TransactionKind.RAFFLE);
                 int mine = after.ticketsOf(player.getUniqueId());
-                messages.send(player, "economy.raffle.bought", "count", String.valueOf(result.bought()),
+                messages.send(player, kind(giveaway, "bought"), "count", String.valueOf(result.bought()),
                         "number", which, "item", shown(after), "mine", String.valueOf(mine),
                         "total", String.valueOf(after.sold()),
                         "chance", String.format("%.1f%%", rule.chance(mine, after.sold()) * 100));
@@ -343,11 +376,11 @@ public final class RaffleService implements IEconomyService {
         Raffle raffle = found.get();
         if (!staff) {
             if (!(who instanceof Player player) || !player.getUniqueId().equals(raffle.host())) {
-                messages.send(who, "economy.raffle.not-yours", "number", which);
+                messages.send(who, kind(raffle.giveaway(), "not-yours"), "number", which);
                 return false;
             }
             if (raffle.sold() > 0) {
-                messages.send(who, "economy.raffle.cannot-cancel", "number", which);
+                messages.send(who, kind(raffle.giveaway(), "cannot-cancel"), "number", which);
                 return false;
             }
         }
@@ -358,7 +391,7 @@ public final class RaffleService implements IEconomyService {
         Optional<RaffleDraw> off = book.cancelRaffle(id);
         off.ifPresent(draw -> {
             Raffle raffle = draw.raffle();
-            broadcast("economy.raffle.called-off", "number", String.valueOf(raffle.number()), "item", shown(raffle));
+            broadcast(kind(raffle.giveaway(), "called-off"), "number", String.valueOf(raffle.number()), "item", shown(raffle));
             raffle.tickets().forEach((holder, count) -> economy.tell(holder, raffle.ticketPrice().times(count),
                     economy.balance(holder), TransactionKind.RAFFLE));
             deliverTo(raffle.host());
@@ -376,9 +409,8 @@ public final class RaffleService implements IEconomyService {
             return;
         }
         long now = clock.getAsLong();
-        boolean on = settings.rafflesEnabled();
         for (Raffle raffle : book.raffles()) {
-            if (!on) {
+            if (!(raffle.giveaway() ? settings.giveawaysEnabled() : settings.rafflesEnabled())) {
                 callOff(raffle.id());
             } else if (raffle.over(now)) {
                 draw(raffle, now);
@@ -400,12 +432,12 @@ public final class RaffleService implements IEconomyService {
         Component prize = shown(raffle);
         items.remove(raffle.id());
         if (draw.winner() == null) {
-            broadcast("economy.raffle.nobody", "number", which, "item", prize, "player", raffle.hostName());
+            broadcast(kind(raffle.giveaway(), "nobody"), "number", which, "item", prize, "player", raffle.hostName());
             deliverTo(raffle.host());
             return;
         }
         for (Player listener : audience()) {
-            messages.send(listener, "economy.raffle.drawing", "number", which, "item", prize,
+            messages.send(listener, kind(raffle.giveaway(), "drawing"), "number", which, "item", prize,
                     "total", String.valueOf(raffle.sold()));
             sounds.play(listener.getUniqueId(), GameSounds.DRUMROLL);
         }
@@ -414,7 +446,7 @@ public final class RaffleService implements IEconomyService {
         String winnerName = winner.getName() == null ? "somebody" : winner.getName();
         Scheduling.globalLater(plugin, DRUMROLL_TICKS, () -> {
             for (Player listener : audience()) {
-                messages.send(listener, "economy.raffle.won", "number", which, "player", winnerName, "item", prize,
+                messages.send(listener, kind(raffle.giveaway(), "won"), "number", which, "player", winnerName, "item", prize,
                         "mine", String.valueOf(raffle.ticketsOf(draw.winner())), "total", String.valueOf(raffle.sold()));
             }
             if (raffle.moneyPrize()) {
@@ -422,8 +454,8 @@ public final class RaffleService implements IEconomyService {
             }
             Player online = winner.getPlayer();
             if (online != null) {
-                online.showTitle(net.kyori.adventure.title.Title.title(messages.get("economy.raffle.title-won"),
-                        messages.get("economy.raffle.subtitle-won", "item", prize)));
+                online.showTitle(net.kyori.adventure.title.Title.title(messages.get(kind(raffle.giveaway(), "title-won")),
+                        messages.get(kind(raffle.giveaway(), "subtitle-won"), "item", prize)));
                 sounds.play(online.getUniqueId(), GameSounds.JACKPOT);
                 auctions.deliver(online);
             }
@@ -431,13 +463,19 @@ public final class RaffleService implements IEconomyService {
                 economy.tell(raffle.host(), draw.paid(), economy.balance(raffle.host()), TransactionKind.RAFFLE);
                 Player host = server.getPlayer(raffle.host());
                 if (host != null) {
-                    messages.send(host, "economy.raffle.host-paid", "number", which,
+                    messages.send(host, kind(raffle.giveaway(), "host-paid"), "number", which,
                             "total", String.valueOf(raffle.sold()), "paid", currency.render(draw.paid()),
                             "fee", currency.render(draw.fee()));
                     effects.play(host.getUniqueId(), GameSounds.CASH);
                 }
             }
         });
+    }
+
+    /** A giveaway's line where it has one of its own, the raffle's otherwise. */
+    private static String kind(boolean giveaway, String name) {
+        // Built from parts: the message-key scan reads every quoted "economy." literal as a whole key.
+        return "economy." + (giveaway ? "giveaway" : "raffle") + "." + name;
     }
 
     private void deliverTo(UUID player) {
@@ -452,13 +490,13 @@ public final class RaffleService implements IEconomyService {
 
     // ---------------------------------------------------------------------------- telling
 
-    private boolean open(Player player) {
-        if (!settings.rafflesEnabled()) {
-            refuse(player, "economy.raffle.off");
+    private boolean open(Player player, boolean giveaway) {
+        if (!(giveaway ? settings.giveawaysEnabled() : settings.rafflesEnabled())) {
+            refuse(player, kind(giveaway, "off"));
             return false;
         }
         if (!player.hasPermission(PermissionNodes.AUCTION)) {
-            refuse(player, "economy.raffle.not-allowed");
+            refuse(player, kind(giveaway, "not-allowed"));
             return false;
         }
         if (!book.isLoaded()) {

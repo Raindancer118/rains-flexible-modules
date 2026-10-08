@@ -33,9 +33,10 @@ economy:
     bill: "<gray>/bill <player> <amount> [what for]"
     dice: "<gray>/dice <amount> <over|under> <number from 1 to 100>"
     lottery: "<gray>/lottery  ·  /lottery buy [tickets]  ·  /lottery buy <your numbers>  ·  /lottery info"
-    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm|coin  ·  /eco auction stop|clear  ·  /eco raffle <prize> <ticket price> [length] | cancel <number>"
+    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm|coin  ·  /eco auction stop|clear  ·  /eco raffle <prize> <ticket price> [length] | cancel <number>  ·  /eco giveaway <prize> [length] | cancel <number>  ·  /eco tax <percent> [confirm]"
     hire: "<gray>/hire <player> <wage> <every, like 1h or 30m> [job]  ·  /hire list  ·  /hire fire|quit <player>"
     raffle: "<gray>/raffle  ·  /raffle start <ticket price> [length, like 30m] [most tickets] [per player]  ·  /raffle money <prize> <ticket price> [length] [most tickets] [per player]  ·  /raffle buy <number> [tickets]  ·  /raffle cancel <number>  ·  /raffle info"
+    giveaway: "<gray>/giveaway  ·  /giveaway start [length, like 30m]  ·  /giveaway money <amount> [length]  ·  /giveaway join <number>  ·  /giveaway cancel <number>"
     auction: "<gray>/auction  ·  /auction sell <start> [buy it now] [length, like 5m]  ·  /auction bid [amount]  ·  /auction claim  ·  /auction mute"
 
   pay:
@@ -246,6 +247,46 @@ economy:
     not-yours: "<red>Raffle #<number> is not yours."
     list-none: "<gray>No raffle is running."
     status: "<light_purple>#<number> <item> <gray>· <price><gray> a ticket · <total> sold · drawn in <duration>"
+
+  # Picked instead of the raffle's line of the same name whenever a raffle is free to join.
+  giveaway:
+    off: "<red>Giveaways are switched off on this server."
+    not-allowed: "<red>You may not take part in giveaways."
+    empty-hand: "<red>Hold the item you want to give away in your main hand."
+    money: "<red>To give away money, use /giveaway money <amount>."
+    ticket-too-low: "<red>That cannot be given away."
+    too-many-running: "<red><count> raffles and giveaways are running already — wait for one to be drawn."
+    hosting: "<red>You are running <count> giveaway(s) or raffle(s) already."
+    started-host: "<green>Your giveaway #<number> for <item><green> is on — drawn in <duration>."
+    server-started: "<green>Giveaway #<number> for <amount><green> is on."
+    banner: "<aqua><strikethrough>          </strikethrough> <yellow><bold>GIVEAWAY #<number></bold></yellow> <aqua><strikethrough>          </strikethrough>"
+    started: "<white><player></white><gray> gives away <item><gray>! Free to join, drawn in <duration>.  <buttons>"
+    started-server: "<gold>The server<gray> gives away <item><gray>! Free to join, drawn in <duration>.  <buttons>"
+    bought: "<green>You joined giveaway #<number> for <item><green> — one of <total>, a <chance> chance."
+    none: "<red>There is no giveaway #<number>."
+    gone: "<red>Giveaway #<number> is over."
+    own: "<red>You cannot join your own giveaway."
+    limit: "<yellow>You are in giveaway #<number> already."
+    sold-out: "<red>Giveaway #<number> is full."
+    drawing: "<aqua>[Giveaway #<number>] <gray>The draw for <item><gray>… <dark_gray>(<total> joined)"
+    won: "<aqua>[Giveaway #<number>] <white><player></white><gray> wins <item><gray>!"
+    nobody: "<aqua>[Giveaway #<number>] <gray>Nobody joined for <item><gray>; it goes back to <white><player><gray>."
+    host-paid: "<gray>Your giveaway #<number> is drawn — <total> joined."
+    title-won: "<aqua>You won the giveaway!"
+    subtitle-won: "<item>"
+    called-off: "<aqua>[Giveaway #<number>] <gray>The giveaway for <item><gray> was called off."
+    cannot-cancel: "<red>Players have joined giveaway #<number> already — it runs to the draw."
+    not-yours: "<red>Giveaway #<number> is not yours."
+    list-none: "<gray>No giveaway is running."
+    status: "<aqua>#<number> <item> <gray>· free · <total> joined · drawn in <duration>"
+
+  tax:
+    ran: "<gold>[Wealth tax] <gray><percent>% of every balance — <amount><gray> from <count> account(s) has left the economy."
+    ran-allowance: "<gold>[Wealth tax] <gray><percent>% of every balance above <allowance><gray> — <amount><gray> from <count> account(s) has left the economy."
+    you-paid: "<gray>You paid <amount><gray> wealth tax. Balance: <balance><gray>."
+    preview: "<yellow>A <percent>% wealth tax now would take <amount><yellow> from <count> account(s) and destroy it. To do it: <white>/eco tax <percent> confirm"
+    done: "<green>Wealth tax of <percent>% taken: <amount><green> from <count> account(s)."
+    percent: "<red>The wealth tax is a percentage above 0 and at most 100, like 2 or 0.5."
 
   sidebar:
     on: "<green>Your balance is in the sidebar again. <gray>/bank sidebar hides it."

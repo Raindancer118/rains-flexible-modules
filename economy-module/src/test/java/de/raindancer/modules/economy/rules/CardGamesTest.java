@@ -159,6 +159,14 @@ class CardGamesTest {
     }
 
     @Test
+    @DisplayName("a crash round ends by 1,000× at the latest, so no round can hold the game up for long")
+    void crashCapped() {
+        CrashRule rule = new CrashRule();
+        assertThat(rule.crashPoint(1e-12, 0.03)).isEqualTo(CrashRule.MOST);
+        assertThat(rule.crashPoint(0.5, 0.0)).isEqualTo(2.0);
+    }
+
+    @Test
     @DisplayName("an auto cash-out is paid whenever the round reached it — also when the same step crashed")
     void crashAutoCashOut() {
         CrashRule rule = new CrashRule();

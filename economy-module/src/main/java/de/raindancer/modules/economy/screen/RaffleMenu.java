@@ -44,7 +44,7 @@ public final class RaffleMenu extends PaginatedMenu<Raffle> implements IEconomyS
 
     @Override
     protected Component title() {
-        return MiniMessage.miniMessage().deserialize("<dark_gray>Raffles");
+        return MiniMessage.miniMessage().deserialize("<dark_gray>Raffles and giveaways");
     }
 
     @Override
@@ -73,16 +73,29 @@ public final class RaffleMenu extends PaginatedMenu<Raffle> implements IEconomyS
             item.editMeta(meta -> meta.displayName(line("<gold>" + Mini.of(currency.render(raffle.prize())))));
         }
         lore.add(Component.empty());
-        lore.add(line("<light_purple>Raffle #" + raffle.number() + " <gray>by <white>" + raffle.hostName()));
-        lore.add(line("<gray>A ticket: " + Mini.of(currency.render(raffle.ticketPrice()))
-                + " <gray>· " + raffle.sold() + (raffle.mostTickets() > 0 ? " of " + raffle.mostTickets() : "") + " sold"));
-        lore.add(line("<gray>Drawn in " + Times.describe(services.raffles().left(raffle))));
-        if (mine > 0) {
-            lore.add(line("<green>You hold " + mine + " · " + String.format("%.1f%%",
-                    services.raffles().rule().chance(mine, raffle.sold()) * 100) + " chance"));
-        }
-        if (!viewer.getUniqueId().equals(raffle.host())) {
-            lore.add(line("<yellow>Click<gray> for a ticket, <yellow>right click<gray> for ten"));
+        boolean yours = viewer.getUniqueId().equals(raffle.host());
+        if (raffle.giveaway()) {
+            lore.add(line("<aqua>Giveaway #" + raffle.number() + " <gray>by <white>" + raffle.hostName()));
+            lore.add(line("<gray>Free to join · " + raffle.sold() + " joined"));
+            lore.add(line("<gray>Drawn in " + Times.describe(services.raffles().left(raffle))));
+            if (mine > 0) {
+                lore.add(line("<green>You are in · " + String.format("%.1f%%",
+                        services.raffles().rule().chance(mine, raffle.sold()) * 100) + " chance"));
+            } else if (!yours) {
+                lore.add(line("<yellow>Click<gray> to join"));
+            }
+        } else {
+            lore.add(line("<light_purple>Raffle #" + raffle.number() + " <gray>by <white>" + raffle.hostName()));
+            lore.add(line("<gray>A ticket: " + Mini.of(currency.render(raffle.ticketPrice())) + " <gray>· "
+                    + raffle.sold() + (raffle.mostTickets() > 0 ? " of " + raffle.mostTickets() : "") + " sold"));
+            lore.add(line("<gray>Drawn in " + Times.describe(services.raffles().left(raffle))));
+            if (mine > 0) {
+                lore.add(line("<green>You hold " + mine + " · " + String.format("%.1f%%",
+                        services.raffles().rule().chance(mine, raffle.sold()) * 100) + " chance"));
+            }
+            if (!yours) {
+                lore.add(line("<yellow>Click<gray> for a ticket, <yellow>right click<gray> for ten"));
+            }
         }
         item.lore(lore);
         return item;
@@ -90,7 +103,7 @@ public final class RaffleMenu extends PaginatedMenu<Raffle> implements IEconomyS
 
     @Override
     protected void onClick(Raffle raffle, InventoryClickEvent event) {
-        services.raffles().buy(viewer, raffle.number(), event.isRightClick() ? 10 : 1);
+        services.raffles().buy(viewer, raffle.number(), event.isRightClick() && !raffle.giveaway() ? 10 : 1);
         refresh();
     }
 
@@ -119,6 +132,17 @@ public final class RaffleMenu extends PaginatedMenu<Raffle> implements IEconomyS
                             services.raffles().startMoney(viewer, prize, price, 0, 0, 0);
                             open(services, viewer, back);
                         }, () -> open(services, viewer, back)), () -> open(services, viewer, back)));
+        toolbar(5, Icons.of(Material.CAKE, "<aqua>Give away what you hold",
+                "<gray>Free for everybody to join, once each.", "<gray>Length: <white>/giveaway start [30m]"), click -> {
+            services.raffles().giveItem(viewer, 0);
+            refresh();
+        });
+        toolbar(7, Icons.of(Material.GOLD_NUGGET, "<aqua>Give away money",
+                "<gray>From your account.", "<gray>Length: <white>/giveaway money <amount> [30m]"), click ->
+                MoneyPrompt.ask(viewer, "How much to give away?", currency, prize -> {
+                    services.raffles().giveMoney(viewer, prize, 0);
+                    open(services, viewer, back);
+                }, () -> open(services, viewer, back)));
     }
 
     private static Component line(String text) {

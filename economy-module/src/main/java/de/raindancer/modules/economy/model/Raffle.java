@@ -49,6 +49,11 @@ public record Raffle(UUID id, int number, UUID host, String hostName, byte[] ite
         return host == null;
     }
 
+    /** Free to enter: a giveaway rather than a raffle. */
+    public boolean giveaway() {
+        return ticketPrice.isZero();
+    }
+
     public boolean moneyPrize() {
         return item == null;
     }

@@ -70,7 +70,7 @@ class AuctionBookTest {
     private Auction listed(long start, long buyout) {
         Auction auction = Auction.listed(UUID.randomUUID(), seller, "Sel", sword, "Diamond Sword", Money.of(start),
                 Money.of(buyout), 120, clock.get());
-        assertThat(book.listAuction(auction, Money.ZERO, most).succeeded()).isTrue();
+        assertThat(book.listAuction(auction, Money.ZERO, most, 100, 100).succeeded()).isTrue();
         return auction;
     }
 
@@ -87,11 +87,11 @@ class AuctionBookTest {
     void queue() {
         Auction first = Auction.listed(UUID.randomUUID(), seller, "Sel", sword, "Sword", Money.of(100), Money.ZERO,
                 120, 1);
-        assertThat(book.listAuction(first, Money.of(25), most).succeeded()).isTrue();
+        assertThat(book.listAuction(first, Money.of(25), most, 100, 100).succeeded()).isTrue();
         assertThat(book.balance(seller)).as("the listing fee is gone").isEqualTo(Money.of(975));
         Auction second = Auction.listed(UUID.randomUUID(), seller, "Sel", sword, "Sword", Money.of(100), Money.ZERO,
                 60, 2);
-        book.listAuction(second, Money.ZERO, most);
+        book.listAuction(second, Money.ZERO, most, 100, 100);
 
         assertThat(book.liveAuction()).isEmpty();
         assertThat(bid(first, ada, "Ada", 100).kind()).as("not started yet").isEqualTo(AuctionBid.Kind.GONE);
@@ -101,7 +101,7 @@ class AuctionBookTest {
         assertThat(book.auctions()).extracting(Auction::id).containsExactly(first.id(), second.id());
 
         Auction poor = Auction.listed(UUID.randomUUID(), bo, "Bo", sword, "Sword", Money.of(100), Money.ZERO, 60, 3);
-        assertThat(book.listAuction(poor, Money.of(5_000), most).succeeded()).as("cannot pay the fee").isFalse();
+        assertThat(book.listAuction(poor, Money.of(5_000), most, 100, 100).succeeded()).as("cannot pay the fee").isFalse();
         assertThat(book.auctions()).hasSize(2);
     }
 
@@ -111,8 +111,20 @@ class AuctionBookTest {
         book.freeze(seller, true);
         Auction auction = Auction.listed(UUID.randomUUID(), seller, "Sel", sword, "Sword", Money.of(100), Money.ZERO,
                 120, 1);
-        assertThat(book.listAuction(auction, Money.ZERO, most).succeeded()).isFalse();
+        assertThat(book.listAuction(auction, Money.ZERO, most, 100, 100).succeeded()).isFalse();
         assertThat(book.auctions()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the queue's limits hold under the ledger's lock, whatever two callers counted at once")
+    void limits() {
+        Auction one = Auction.listed(UUID.randomUUID(), seller, "Sel", sword, "Sword", Money.of(100), Money.ZERO, 120, 1);
+        Auction two = Auction.listed(UUID.randomUUID(), seller, "Sel", sword, "Sword", Money.of(100), Money.ZERO, 120, 2);
+        Auction other = Auction.listed(UUID.randomUUID(), ada, "Ada", sword, "Sword", Money.of(100), Money.ZERO, 120, 3);
+        assertThat(book.listAuction(one, Money.ZERO, most, 10, 1).succeeded()).isTrue();
+        assertThat(book.listAuction(two, Money.ZERO, most, 10, 1).succeeded()).as("one per player").isFalse();
+        assertThat(book.listAuction(other, Money.ZERO, most, 1, 5).succeeded()).as("the queue is full").isFalse();
+        assertThat(book.auctions()).hasSize(1);
     }
 
     @Test

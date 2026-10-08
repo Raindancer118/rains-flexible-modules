@@ -200,7 +200,8 @@ public final class AuctionService implements IEconomyService {
         Auction auction = Auction.listed(UUID.randomUUID(), seller.getUniqueId(), seller.getName(),
                 taken.serializeAsBytes(), name, start, buyout, length, clock.getAsLong());
         Money listingFee = live.auctionListingFeeMoney();
-        EconomyResult paid = book.listAuction(auction, listingFee, economy.most());
+        EconomyResult paid = book.listAuction(auction, listingFee, economy.most(), live.auctionQueueSize(),
+                live.auctionsPerPlayer());
         if (!paid.succeeded()) {
             Outcomes.tell(messages, effects, seller, paid, currency, "");
             return false;

@@ -96,8 +96,9 @@ public final class LotteryRule implements IEconomyRule {
     }
 
     /** How many of the wanted tickets fit under the per-player cap. */
+    /** How many of {@code wanted} may still be bought; a limit of zero is no limit. */
     public int allowed(int already, int wanted, int most) {
-        return Math.max(0, Math.min(wanted, most - already));
+        return most <= 0 ? Math.max(0, wanted) : Math.max(0, Math.min(wanted, most - already));
     }
 
     public Money afterCut(Money price, double cut) {

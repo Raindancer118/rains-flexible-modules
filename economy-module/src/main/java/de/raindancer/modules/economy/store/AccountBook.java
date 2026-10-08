@@ -12,6 +12,7 @@ import de.raindancer.modules.economy.model.AuctionEnd;
 import de.raindancer.modules.economy.model.Raffle;
 import de.raindancer.modules.economy.model.RaffleBuy;
 import de.raindancer.modules.economy.model.RaffleDraw;
+import de.raindancer.modules.economy.model.TaxRun;
 import de.raindancer.modules.economy.rules.RaffleRule;
 import de.raindancer.modules.economy.model.BalanceChange;
 import de.raindancer.modules.economy.model.Contract;
@@ -91,6 +92,8 @@ public final class AccountBook {
     private final Set<UUID> dirtyRaffles = new LinkedHashSet<>();
     private int nextRaffle = 1;
     private boolean raffleCounterDirty;
+    private long lastWealthTax;
+    private boolean wealthTaxDirty;
     private static final Money SYSTEM_MOST = Money.of(Long.MAX_VALUE / 4);
     /** Scratch tickets share the cheque register; this keeps a ticket from ever passing for a cheque. */
     private static final String TICKET = "ticket:";
@@ -227,7 +230,16 @@ public final class AccountBook {
                 }
             }
             int counted = counter;
+            long taxedAt = 0;
+            try (PreparedStatement select = connection.prepareStatement("SELECT last_at FROM wealth_tax WHERE id = 1");
+                 ResultSet rows = select.executeQuery()) {
+                if (rows.next()) {
+                    taxedAt = rows.getLong(1);
+                }
+            }
+            long lastTaxed = taxedAt;
             synchronized (lock) {
+                lastWealthTax = lastTaxed;
                 running.forEach(raffle -> raffles.put(raffle.id(), raffle));
                 nextRaffle = Math.max(counted, running.stream().mapToInt(Raffle::number).max().orElse(0) + 1);
                 listed.forEach(auction -> auctions.put(auction.id(), auction));
@@ -840,9 +852,20 @@ public final class AccountBook {
 
     // ---------------------------------------------------------------------------- auctions
 
-    /** Queues an auction, taking the listing fee (which leaves the economy) in the same change. */
-    public EconomyResult listAuction(Auction auction, Money fee, Money most) {
+    /**
+     * Queues an auction, taking the listing fee (which leaves the economy) in the same change.
+     *
+     * @param queueSize how many may wait at most — checked here, under the lock, so two listings at once
+     *                  cannot both squeeze into the last place
+     * @param perPlayer how many one seller may have running or waiting
+     */
+    public EconomyResult listAuction(Auction auction, Money fee, Money most, int queueSize, int perPlayer) {
         synchronized (lock) {
+            long waiting = auctions.values().stream().filter(listed -> !listed.live()).count();
+            long mine = auctions.values().stream().filter(listed -> listed.seller().equals(auction.seller())).count();
+            if (waiting >= queueSize || mine >= perPlayer) {
+                return EconomyResult.failed(Outcome.REFUSED, fee, balance(auction.seller()));
+            }
             if (fee.isPositive()) {
                 EconomyResult paid = change(auction.seller(), fee.negate(), TransactionKind.AUCTION,
                         "Listing fee: " + auction.itemName(), null, most);
@@ -1069,11 +1092,22 @@ public final class AccountBook {
         }
     }
 
-    /** Starts a raffle; a player hosting it pays the fee (which leaves the economy) in the same change. */
-    public EconomyResult startRaffle(Raffle raffle, Money fee, Money most) {
+    /**
+     * Starts a raffle; a player hosting it pays the fee (which leaves the economy) in the same change.
+     *
+     * @param mostRunning how many may run at once, checked here under the lock
+     * @param perHost     how many one player may host at once
+     */
+    public EconomyResult startRaffle(Raffle raffle, Money fee, Money most, int mostRunning, int perHost) {
         synchronized (lock) {
             if (!loaded) {
                 return EconomyResult.failed(Outcome.UNAVAILABLE, fee, Money.ZERO);
+            }
+            long hosting = raffle.host() == null ? 0
+                    : raffles.values().stream().filter(running -> raffle.host().equals(running.host())).count();
+            if (raffles.size() >= mostRunning || hosting >= perHost) {
+                return EconomyResult.failed(Outcome.REFUSED, fee, raffle.host() == null ? Money.ZERO
+                        : balance(raffle.host()));
             }
             EconomyResult result = EconomyResult.done(Money.ZERO, Money.ZERO);
             if (raffle.host() != null) {
@@ -1150,6 +1184,18 @@ public final class AccountBook {
                 return new RaffleBuy(soldOut ? RaffleBuy.Kind.SOLD_OUT : RaffleBuy.Kind.LIMIT, raffle, 0, null);
             }
             Money cost = raffle.ticketPrice().times(count);
+            if (cost.isZero()) {
+                Account entrant = accounts.get(player);
+                if (!loaded || entrant == null || entrant.frozen()) {
+                    return new RaffleBuy(RaffleBuy.Kind.REFUSED, raffle, 0, EconomyResult.failed(
+                            !loaded ? Outcome.UNAVAILABLE : entrant == null ? Outcome.NO_ACCOUNT : Outcome.FROZEN,
+                            cost, entrant == null ? Money.ZERO : entrant.balance()));
+                }
+                Raffle after = raffle.withTickets(player, count);
+                raffles.put(id, after);
+                dirtyRaffles.add(id);
+                return new RaffleBuy(RaffleBuy.Kind.BOUGHT, after, count, EconomyResult.done(cost, entrant.balance()));
+            }
             Optional<EconomyResult> refused = refuseEarly(player, cost);
             if (refused.isPresent()) {
                 return new RaffleBuy(RaffleBuy.Kind.REFUSED, raffle, 0, refused.get());
@@ -1245,13 +1291,56 @@ public final class AccountBook {
         return owe(raffle.item(), raffle.prizeName(), raffle.host(), reason);
     }
 
+    // ---------------------------------------------------------------------------- wealth tax
+
+    /**
+     * Takes the wealth tax from every player's account — frozen ones too; a freeze stops the player, not the
+     * server — and destroys it. The server's own accounts are left alone. One change, under one lock.
+     *
+     * @param owed what one balance owes
+     */
+    public TaxRun wealthTax(Function<Money, Money> owed, String reason, long now) {
+        synchronized (lock) {
+            int paid = 0;
+            Money total = Money.ZERO;
+            for (Account account : List.copyOf(accounts.values())) {
+                if (isSystem(account.id()) || !account.balance().isPositive()) {
+                    continue;
+                }
+                Money due = owed.apply(account.balance()).min(account.balance());
+                if (!due.isPositive()) {
+                    continue;
+                }
+                commit(account, account.balance().minus(due), due.negate(), TransactionKind.TAX, reason, null);
+                paid++;
+                total = total.plus(due);
+            }
+            markWealthTax(now);
+            return new TaxRun(paid, total);
+        }
+    }
+
+    public long lastWealthTax() {
+        synchronized (lock) {
+            return lastWealthTax;
+        }
+    }
+
+    /** Sets when the tax last ran without taxing — switching it on starts its clock here. */
+    public void markWealthTax(long at) {
+        synchronized (lock) {
+            lastWealthTax = at;
+            wealthTaxDirty = true;
+        }
+    }
+
     // ---------------------------------------------------------------------------- writing
 
     /** Whether anything is waiting to be written. */
     public boolean isDirty() {
         synchronized (lock) {
             return !dirty.isEmpty() || !journal.isEmpty() || !notes.isEmpty() || !dirtyAuctions.isEmpty()
-                    || !dirtyClaims.isEmpty() || !dirtyRaffles.isEmpty() || raffleCounterDirty;
+                    || !dirtyClaims.isEmpty() || !dirtyRaffles.isEmpty() || raffleCounterDirty || wealthTaxDirty;
         }
     }
 
@@ -1274,6 +1363,8 @@ public final class AccountBook {
             Map<UUID, Raffle> raffleWrites = new LinkedHashMap<>();
             boolean writeCounter;
             int counterNow;
+            boolean writeTax;
+            long taxNow;
             boolean writeLottery;
             long drawNow;
             long nextNow;
@@ -1281,9 +1372,12 @@ public final class AccountBook {
             synchronized (lock) {
                 if (dirty.isEmpty() && journal.isEmpty() && notes.isEmpty() && !lotteryDirty && newTickets.isEmpty()
                         && dirtyCoins.isEmpty() && dirtyContracts.isEmpty() && dirtyAuctions.isEmpty()
-                        && dirtyClaims.isEmpty() && dirtyRaffles.isEmpty() && !raffleCounterDirty) {
+                        && dirtyClaims.isEmpty() && dirtyRaffles.isEmpty() && !raffleCounterDirty && !wealthTaxDirty) {
                     return 0;
                 }
+                writeTax = wealthTaxDirty;
+                taxNow = lastWealthTax;
+                wealthTaxDirty = false;
                 for (UUID id : dirtyRaffles) {
                     raffleWrites.put(id, raffles.get(id));
                 }
@@ -1477,6 +1571,13 @@ public final class AccountBook {
                         ticket.executeBatch();
                     }
                 }
+                if (writeTax) {
+                    try (PreparedStatement tax = connection.prepareStatement(
+                            "INSERT INTO wealth_tax (id, last_at) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET last_at = excluded.last_at")) {
+                        tax.setLong(1, taxNow);
+                        tax.executeUpdate();
+                    }
+                }
                 if (writeCounter) {
                     try (PreparedStatement counter = connection.prepareStatement(
                             "INSERT INTO raffle_counter (id, next) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET next = excluded.next")) {
@@ -1552,6 +1653,7 @@ public final class AccountBook {
                     dirtyClaims.addAll(claimWrites.keySet());
                     dirtyRaffles.addAll(raffleWrites.keySet());
                     raffleCounterDirty |= writeCounter;
+                    wealthTaxDirty |= writeTax;
                     lotteryDirty |= writeLottery;
                     if (cleared >= 0 && clearedDraw < 0) {
                         clearedDraw = cleared;

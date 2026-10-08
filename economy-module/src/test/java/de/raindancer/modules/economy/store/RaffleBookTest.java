@@ -69,7 +69,7 @@ class RaffleBookTest {
     private Raffle itemRaffle(int mostTickets, int perPlayer) {
         Raffle raffle = Raffle.item(UUID.randomUUID(), book.nextRaffleNumber(), host, "Host", sword, "Diamond Sword",
                 Money.of(10), mostTickets, perPlayer, clock.get(), clock.get() + 60_000);
-        assertThat(book.startRaffle(raffle, Money.of(1_000), most).succeeded()).isTrue();
+        assertThat(book.startRaffle(raffle, Money.of(1_000), most, 100, 100).succeeded()).isTrue();
         return raffle;
     }
 
@@ -91,8 +91,21 @@ class RaffleBookTest {
         book.freeze(ada, true);
         Raffle frozen = Raffle.item(UUID.randomUUID(), 2, ada, "Ada", sword, "Sword", Money.of(10), 0, 0,
                 clock.get(), clock.get() + 60_000);
-        assertThat(book.startRaffle(frozen, Money.ZERO, most).succeeded()).isFalse();
+        assertThat(book.startRaffle(frozen, Money.ZERO, most, 100, 100).succeeded()).isFalse();
         assertThat(book.raffles()).extracting(Raffle::id).containsExactly(one.id());
+    }
+
+    @Test
+    @DisplayName("how many run, and how many one host runs, hold under the ledger's lock")
+    void limits() {
+        Raffle one = Raffle.item(UUID.randomUUID(), 1, host, "Host", sword, "Sword", Money.of(10), 0, 0, 0, 60_000);
+        Raffle two = Raffle.item(UUID.randomUUID(), 2, host, "Host", sword, "Sword", Money.of(10), 0, 0, 0, 60_000);
+        Raffle other = Raffle.item(UUID.randomUUID(), 3, ada, "Ada", sword, "Sword", Money.of(10), 0, 0, 0, 60_000);
+        assertThat(book.startRaffle(one, Money.of(100), most, 5, 1).succeeded()).isTrue();
+        assertThat(book.startRaffle(two, Money.of(100), most, 5, 1).succeeded()).as("one per host").isFalse();
+        assertThat(book.balance(host)).as("and no fee for the refused one").isEqualTo(Money.of(4_900));
+        assertThat(book.startRaffle(other, Money.ZERO, most, 1, 1).succeeded()).as("enough running").isFalse();
+        assertThat(book.raffles()).hasSize(1);
     }
 
     @Test
@@ -164,7 +177,7 @@ class RaffleBookTest {
     void serverRaffle() {
         Raffle raffle = Raffle.server(UUID.randomUUID(), book.nextRaffleNumber(), Money.of(5_000), Money.of(10), 0, 0,
                 clock.get(), clock.get() + 60_000);
-        assertThat(book.startRaffle(raffle, Money.ZERO, most).succeeded()).isTrue();
+        assertThat(book.startRaffle(raffle, Money.ZERO, most, 100, 100).succeeded()).isTrue();
         buy(raffle, ada, "Ada", 3);
         RaffleDraw drawn = book.drawRaffle(raffle.id(), first, fivePercent, Long.MAX_VALUE).orElseThrow();
         assertThat(drawn.claim()).isNull();
@@ -175,7 +188,7 @@ class RaffleBookTest {
     private Raffle moneyRaffle(long prize) {
         Raffle raffle = Raffle.money(UUID.randomUUID(), book.nextRaffleNumber(), host, "Host", Money.of(prize),
                 Money.of(10), 0, 0, clock.get(), clock.get() + 60_000);
-        assertThat(book.startRaffle(raffle, Money.ZERO, most).succeeded()).isTrue();
+        assertThat(book.startRaffle(raffle, Money.ZERO, most, 100, 100).succeeded()).isTrue();
         return raffle;
     }
 
@@ -199,7 +212,7 @@ class RaffleBookTest {
     void playerMoneyTooMuch() {
         Raffle raffle = Raffle.money(UUID.randomUUID(), 1, host, "Host", Money.of(6_000), Money.of(10), 0, 0,
                 clock.get(), clock.get() + 60_000);
-        assertThat(book.startRaffle(raffle, Money.ZERO, most).succeeded()).isFalse();
+        assertThat(book.startRaffle(raffle, Money.ZERO, most, 100, 100).succeeded()).isFalse();
         assertThat(book.balance(host)).isEqualTo(Money.of(5_000));
         assertThat(book.raffles()).isEmpty();
     }
@@ -216,6 +229,26 @@ class RaffleBookTest {
         assertThat(book.balance(host)).isEqualTo(Money.of(5_000));
         assertThat(book.balance(bo)).isEqualTo(Money.of(1_000));
         assertThat(pot()).isEqualTo(Money.ZERO);
+    }
+
+    @Test
+    @DisplayName("a giveaway: joining is free, once per player, and the winner gets the prize")
+    void giveaway() {
+        Raffle free = Raffle.item(UUID.randomUUID(), book.nextRaffleNumber(), host, "Host", sword, "Diamond Sword",
+                Money.ZERO, 0, 1, clock.get(), clock.get() + 60_000);
+        assertThat(free.giveaway()).isTrue();
+        assertThat(book.startRaffle(free, Money.ZERO, most, 100, 100).succeeded()).isTrue();
+        RaffleBuy joined = buy(free, ada, "Ada", 1);
+        assertThat(joined.kind()).isEqualTo(RaffleBuy.Kind.BOUGHT);
+        assertThat(book.balance(ada)).as("free").isEqualTo(Money.of(1_000));
+        assertThat(buy(free, ada, "Ada", 1).kind()).as("once").isEqualTo(RaffleBuy.Kind.LIMIT);
+        book.freeze(bo, true);
+        assertThat(buy(free, bo, "Bo", 1).kind()).as("not with a frozen account").isEqualTo(RaffleBuy.Kind.REFUSED);
+        RaffleDraw drawn = book.drawRaffle(free.id(), first, fivePercent, Long.MAX_VALUE).orElseThrow();
+        assertThat(drawn.winner()).isEqualTo(ada);
+        assertThat(drawn.claim().player()).isEqualTo(ada);
+        assertThat(drawn.paid()).isEqualTo(Money.ZERO);
+        assertThat(book.balance(host)).isEqualTo(Money.of(5_000));
     }
 
     @Test
