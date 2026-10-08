@@ -17,7 +17,7 @@ import java.util.UUID;
 public final class AccountListener implements IEconomyListener {
 
     private static final EnumSet<TransactionKind> AWAY = EnumSet.of(TransactionKind.PAY, TransactionKind.BILL,
-            TransactionKind.PLUGIN, TransactionKind.ADMIN, TransactionKind.LOTTERY, TransactionKind.GAMBLE);
+            TransactionKind.PLUGIN, TransactionKind.ADMIN, TransactionKind.LOTTERY, TransactionKind.GAMBLE, TransactionKind.WAGE);
 
     private final EconomyServices services;
 
@@ -52,7 +52,7 @@ public final class AccountListener implements IEconomyListener {
         services.payments().forget(player);
         services.bills().forget(player);
         services.gambling().forget(player);
-        services.salary().forget(player);
+        services.income().forget(player);
         services.core().actionBars().forget(player);
     }
 

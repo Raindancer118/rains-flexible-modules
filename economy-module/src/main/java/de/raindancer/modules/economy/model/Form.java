@@ -2,8 +2,8 @@ package de.raindancer.modules.economy.model;
 
 /** The two kinds of cash. */
 public enum Form {
-    /** Stacks like any item, carries no serial. Small change. */
+    /** The coin: worth one, stacks like any item. */
     COIN,
-    /** One per slot, numbered, and paid in once only. */
+    /** A cheque: one numbered, signed paper for any amount, paid in once. */
     NOTE
 }

@@ -6,6 +6,8 @@ import de.raindancer.core.social.economy.EconomyResult.Outcome;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.Account;
 import de.raindancer.modules.economy.model.BalanceChange;
+import de.raindancer.modules.economy.model.Contract;
+import de.raindancer.modules.economy.model.Payday;
 import de.raindancer.modules.economy.model.DailyClaim;
 import de.raindancer.modules.economy.model.Transaction;
 import de.raindancer.modules.economy.model.TransactionKind;
@@ -16,6 +18,7 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +58,8 @@ public final class AccountBook {
     /** Coins in circulation, by value: issued and not yet paid back in. More cannot be paid in. */
     private final Map<Money, Long> circulation = new HashMap<>();
     private final Set<Money> dirtyCoins = new LinkedHashSet<>();
+    private final Map<UUID, Contract> contracts = new LinkedHashMap<>();
+    private final Set<UUID> dirtyContracts = new LinkedHashSet<>();
     private final Set<UUID> dirty = new LinkedHashSet<>();
     private final List<Transaction> journal = new ArrayList<>();
     private final List<NoteWrite> notes = new ArrayList<>();
@@ -109,6 +114,18 @@ public final class AccountBook {
                     coinsOut.put(Money.of(rows.getLong(1)), rows.getLong(2));
                 }
             }
+            List<Contract> jobs = new ArrayList<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT id, employer, employer_name, employee, employee_name, wage, every, next_at, missed, title, "
+                            + "since FROM contract ORDER BY since");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    jobs.add(new Contract(UUID.fromString(rows.getString(1)), UUID.fromString(rows.getString(2)),
+                            rows.getString(3), UUID.fromString(rows.getString(4)), rows.getString(5),
+                            Money.of(rows.getLong(6)), rows.getInt(7), rows.getLong(8), rows.getInt(9),
+                            rows.getString(10), rows.getLong(11)));
+                }
+            }
             long drawRead = 1;
             long nextRead = 0;
             try (PreparedStatement select = connection.prepareStatement("SELECT draw, next_at FROM lottery WHERE id = 1");
@@ -132,6 +149,7 @@ public final class AccountBook {
                 accounts.putAll(found);
                 outstanding.putAll(open);
                 circulation.putAll(coinsOut);
+                jobs.forEach(job -> contracts.put(job.id(), job));
                 draw = drawRead;
                 nextDrawAt = nextRead;
                 tickets.putAll(held);
@@ -635,6 +653,71 @@ public final class AccountBook {
         }
     }
 
+    // ---------------------------------------------------------------------------- hiring
+
+    public void hire(Contract contract) {
+        synchronized (lock) {
+            contracts.put(contract.id(), contract);
+            dirtyContracts.add(contract.id());
+        }
+    }
+
+    public boolean endContract(UUID id) {
+        synchronized (lock) {
+            if (contracts.remove(id) == null) {
+                return false;
+            }
+            dirtyContracts.add(id);
+            return true;
+        }
+    }
+
+    /** Every job somebody is in, as employer or employee, oldest first. */
+    public List<Contract> contractsOf(UUID player) {
+        synchronized (lock) {
+            return contracts.values().stream().filter(contract -> contract.involves(player)).toList();
+        }
+    }
+
+    public List<Contract> employing(UUID employer) {
+        synchronized (lock) {
+            return contracts.values().stream().filter(contract -> contract.employer().equals(employer)).toList();
+        }
+    }
+
+    /**
+     * Pays every wage that is due. Each wage and its contract's next due date are one change, so a crash
+     * can neither pay a wage twice nor skip one.
+     */
+    public List<Payday> payroll(long now, int mostMissed, Money most) {
+        synchronized (lock) {
+            List<Payday> days = new ArrayList<>();
+            for (Contract due : List.copyOf(contracts.values())) {
+                if (due.nextAt() > now) {
+                    continue;
+                }
+                EconomyResult paid = transfer(due.employer(), due.employee(), due.wage(), Money.ZERO,
+                        TransactionKind.WAGE, due.title().isEmpty() ? "Wage" : "Wage: " + due.title(), most);
+                if (paid.succeeded()) {
+                    Contract next = due.paid(now);
+                    contracts.put(due.id(), next);
+                    days.add(new Payday(next, Payday.Kind.PAID));
+                } else {
+                    Contract next = due.missedAt(now);
+                    if (next.missed() >= Math.max(1, mostMissed)) {
+                        contracts.remove(due.id());
+                        days.add(new Payday(next, Payday.Kind.ENDED));
+                    } else {
+                        contracts.put(due.id(), next);
+                        days.add(new Payday(next, Payday.Kind.MISSED));
+                    }
+                }
+                dirtyContracts.add(due.id());
+            }
+            return days;
+        }
+    }
+
     // ---------------------------------------------------------------------------- writing
 
     /** Whether anything is waiting to be written. */
@@ -657,15 +740,20 @@ public final class AccountBook {
             List<NoteWrite> noteWrites;
             Map<UUID, Integer> ticketWrites = new HashMap<>();
             Map<Money, Long> coinWrites = new HashMap<>();
+            Map<UUID, Contract> contractWrites = new LinkedHashMap<>();
             boolean writeLottery;
             long drawNow;
             long nextNow;
             long cleared;
             synchronized (lock) {
                 if (dirty.isEmpty() && journal.isEmpty() && notes.isEmpty() && !lotteryDirty && dirtyTickets.isEmpty()
-                        && dirtyCoins.isEmpty()) {
+                        && dirtyCoins.isEmpty() && dirtyContracts.isEmpty()) {
                     return 0;
                 }
+                for (UUID id : dirtyContracts) {
+                    contractWrites.put(id, contracts.get(id));
+                }
+                dirtyContracts.clear();
                 for (Money value : dirtyCoins) {
                     coinWrites.put(value, circulation.getOrDefault(value, 0L));
                 }
@@ -723,6 +811,32 @@ public final class AccountBook {
                         insert.addBatch();
                     }
                     insert.executeBatch();
+                }
+                try (PreparedStatement upsert = connection.prepareStatement(
+                        "INSERT INTO contract (id, employer, employer_name, employee, employee_name, wage, every, next_at, "
+                                + "missed, title, since) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE "
+                                + "SET next_at = excluded.next_at, missed = excluded.missed, wage = excluded.wage");
+                     PreparedStatement delete = connection.prepareStatement("DELETE FROM contract WHERE id = ?")) {
+                    for (Map.Entry<UUID, Contract> each : contractWrites.entrySet()) {
+                        Contract job = each.getValue();
+                        if (job == null) {
+                            delete.setString(1, each.getKey().toString());
+                            delete.executeUpdate();
+                            continue;
+                        }
+                        upsert.setString(1, job.id().toString());
+                        upsert.setString(2, job.employer().toString());
+                        upsert.setString(3, job.employerName());
+                        upsert.setString(4, job.employee().toString());
+                        upsert.setString(5, job.employeeName());
+                        upsert.setLong(6, job.wage().minor());
+                        upsert.setInt(7, job.everyMinutes());
+                        upsert.setLong(8, job.nextAt());
+                        upsert.setInt(9, job.missed());
+                        upsert.setString(10, job.title());
+                        upsert.setLong(11, job.since());
+                        upsert.executeUpdate();
+                    }
                 }
                 try (PreparedStatement coins = connection.prepareStatement(
                         "INSERT INTO coin_float (value, outstanding) VALUES (?, ?) ON CONFLICT(value) "
@@ -788,6 +902,7 @@ public final class AccountBook {
                     notes.addAll(0, noteWrites);
                     dirtyTickets.addAll(ticketWrites.keySet());
                     dirtyCoins.addAll(coinWrites.keySet());
+                    dirtyContracts.addAll(contractWrites.keySet());
                     lotteryDirty |= writeLottery;
                     if (cleared >= 0 && clearedDraw < 0) {
                         clearedDraw = cleared;

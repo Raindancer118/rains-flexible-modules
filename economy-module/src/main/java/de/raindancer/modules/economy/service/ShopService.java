@@ -12,6 +12,7 @@ import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.model.PriceTag;
 import de.raindancer.modules.economy.model.PricedNames;
 import de.raindancer.modules.economy.model.RecipeShape;
+import de.raindancer.modules.economy.model.SaleLot;
 import de.raindancer.modules.economy.model.TransactionKind;
 import de.raindancer.modules.economy.rules.TradePriceRule;
 import de.raindancer.modules.economy.store.CashTags;
@@ -49,6 +50,8 @@ public final class ShopService implements IEconomyService {
     private final Effects effects;
     private final SettingsStore<EconomySettings> store;
     private final TradePriceRule trade = new TradePriceRule();
+    private final de.raindancer.modules.economy.rules.EnchantValueRule enchants =
+            new de.raindancer.modules.economy.rules.EnchantValueRule();
     private final Supplier<List<RecipeShape>> recipes;
     private volatile EconomySettings settings;
     private volatile List<RecipeShape> knownRecipes = List.of();
@@ -167,41 +170,152 @@ public final class ShopService implements IEconomyService {
             refuse(player, "economy.shop.nothing-in-hand");
             return;
         }
-        sell(player, held.getType(), held.getAmount());
+        Optional<SaleLot> lot = appraise(held, player.getInventory().getHeldItemSlot());
+        if (lot.isPresent() && !lot.get().plain()) {
+            sellLot(player, lot.get());
+        } else {
+            sell(player, held.getType(), held.getAmount());
+        }
+    }
+
+    /**
+     * What one stack fetches, if the shop takes it: plain items by kind, and — when enchanted selling is on —
+     * enchanted or worn ones one at a time, for more or for less. A renamed item is valued as itself; an
+     * item carrying anything else (lore, plugin data, contents) is not bought at all.
+     */
+    public Optional<SaleLot> appraise(ItemStack stack, int slot) {
+        if (stack == null || stack.getType().isAir() || CashTags.isCash(stack)
+                || de.raindancer.core.content.items.NonIngredients.isMarked(stack)) {
+            return Optional.empty();
+        }
+        Material material = stack.getType();
+        if (sellableStack(stack, material)) {
+            PriceTag tag = tag(material);
+            return tag.sellable()
+                    ? trade.total(tag.sell(), stack.getAmount()).map(total -> new SaleLot(material, -1,
+                    stack.getAmount(), total, Catalogue.readable(material.name())))
+                    : Optional.empty();
+        }
+        EconomySettings live = settings;
+        if (!live.enchantedSelling() || !onlyWornOrEnchanted(stack)) {
+            return Optional.empty();
+        }
+        PriceTag tag = tag(material == Material.ENCHANTED_BOOK ? Material.BOOK : material);
+        if (!tag.sellable() || !live.sellingEnabled()) {
+            return Optional.empty();
+        }
+        java.util.List<de.raindancer.modules.economy.model.EnchantLevel> levels = new ArrayList<>();
+        org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
+        java.util.Map<org.bukkit.enchantments.Enchantment, Integer> all = new java.util.HashMap<>(meta.getEnchants());
+        if (meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta stored) {
+            all.putAll(stored.getStoredEnchants());
+        }
+        all.forEach((enchantment, level) -> levels.add(new de.raindancer.modules.economy.model.EnchantLevel(
+                enchantment.getKey().getKey(), level, enchantment.isTreasure(), enchantment.isCursed())));
+        int damage = meta instanceof org.bukkit.inventory.meta.Damageable worn ? worn.getDamage() : 0;
+        Money each = enchants.sellValue(tag.sell(), enchants.durabilityLeft(material.getMaxDurability(), damage),
+                enchants.bonus(levels, live.enchantValueMoney()), live.sellRatioClamped());
+        if (!each.isPositive()) {
+            return Optional.empty();
+        }
+        String label = Catalogue.readable(material.name()) + (levels.isEmpty() ? " (worn)" : " (enchanted)");
+        return trade.total(each, stack.getAmount()).map(total -> new SaleLot(material, slot, stack.getAmount(), total,
+                label));
+    }
+
+    /** Whether the only differences from a plain item are enchantments, wear, a name and the anvil's cost. */
+    private static boolean onlyWornOrEnchanted(ItemStack stack) {
+        ItemStack stripped = stack.clone();
+        org.bukkit.inventory.meta.ItemMeta meta = stripped.getItemMeta();
+        if (meta == null) {
+            return false;
+        }
+        new ArrayList<>(meta.getEnchants().keySet()).forEach(meta::removeEnchant);
+        if (meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta stored) {
+            new ArrayList<>(stored.getStoredEnchants().keySet()).forEach(stored::removeStoredEnchant);
+        }
+        if (meta instanceof org.bukkit.inventory.meta.Damageable worn) {
+            worn.setDamage(0);
+        }
+        if (meta instanceof org.bukkit.inventory.meta.Repairable repairable) {
+            repairable.setRepairCost(0);
+        }
+        meta.displayName(null);
+        stripped.setItemMeta(meta);
+        stripped.setAmount(1);
+        return stripped.isSimilar(new ItemStack(stack.getType()));
+    }
+
+    /** Everything carried that the shop takes: plain items grouped by kind, special ones one by one. */
+    public List<SaleLot> lots(Player player) {
+        Map<Material, Integer> plain = new LinkedHashMap<>();
+        List<SaleLot> special = new ArrayList<>();
+        ItemStack[] contents = player.getInventory().getStorageContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            ItemStack stack = contents[slot];
+            Optional<SaleLot> lot = appraise(stack, slot);
+            if (lot.isEmpty()) {
+                continue;
+            }
+            if (lot.get().plain()) {
+                plain.merge(stack.getType(), stack.getAmount(), Integer::sum);
+            } else {
+                special.add(lot.get());
+            }
+        }
+        List<SaleLot> all = new ArrayList<>();
+        plain.forEach((material, count) -> trade.total(tag(material).sell(), count).ifPresent(total ->
+                all.add(new SaleLot(material, -1, count, total, Catalogue.readable(material.name())))));
+        all.addAll(special);
+        return all;
     }
 
     /** Everything carried that the shop takes, in one go. */
     public void sellEverything(Player player) {
-        Map<Material, Integer> all = new LinkedHashMap<>();
-        for (ItemStack stack : player.getInventory().getStorageContents()) {
-            if (stack != null && !stack.getType().isAir() && sellableStack(stack, stack.getType())
-                    && tag(stack.getType()).sellable()) {
-                all.merge(stack.getType(), stack.getAmount(), Integer::sum);
-            }
-        }
+        List<SaleLot> all = lots(player);
         if (all.isEmpty()) {
             refuse(player, "economy.shop.nothing-to-sell");
             return;
         }
-        sellMany(player, all, true);
-    }
-
-    /** What everything sellable in this inventory would fetch, per material. */
-    public Map<Material, Money> valueOfInventory(Player player) {
-        Map<Material, Integer> counts = new LinkedHashMap<>();
-        for (ItemStack stack : player.getInventory().getStorageContents()) {
-            if (stack != null && !stack.getType().isAir() && sellableStack(stack, stack.getType())) {
-                counts.merge(stack.getType(), stack.getAmount(), Integer::sum);
+        Map<Material, Integer> plain = new LinkedHashMap<>();
+        for (SaleLot lot : all) {
+            if (lot.plain()) {
+                plain.put(lot.material(), lot.count());
+            } else {
+                sellLot(player, lot);
             }
         }
-        Map<Material, Money> worth = new LinkedHashMap<>();
-        counts.forEach((material, count) -> {
-            PriceTag tag = tag(material);
-            if (tag.sellable()) {
-                trade.total(tag.sell(), count).ifPresent(total -> worth.put(material, total));
-            }
-        });
-        return worth;
+        if (!plain.isEmpty()) {
+            sellMany(player, plain, true);
+        }
+    }
+
+    /** Sells one enchanted or worn item, if it is still the item that was appraised. */
+    public void sellLot(Player player, SaleLot lot) {
+        if (lot.plain()) {
+            sell(player, lot.material(), lot.count());
+            return;
+        }
+        PlayerInventory inventory = player.getInventory();
+        ItemStack there = inventory.getItem(lot.slot());
+        Optional<SaleLot> now = appraise(there, lot.slot());
+        if (now.isEmpty() || now.get().plain() || !now.get().total().equals(lot.total())) {
+            refuse(player, "economy.shop.changed");
+            return;
+        }
+        ItemStack taken = there.clone();
+        inventory.setItem(lot.slot(), null);
+        Currency currency = settings.currency();
+        EconomyResult result = economy.move(player.getUniqueId(), lot.total(), TransactionKind.SELL, lot.label());
+        if (!result.succeeded()) {
+            inventory.addItem(taken).values()
+                    .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+            Outcomes.tell(messages, effects, player, result, currency, "");
+            return;
+        }
+        effects.play(player.getUniqueId(), Cues.EARNED);
+        messages.send(player, "economy.shop.sold", "count", String.valueOf(lot.count()), "what", lot.label(),
+                "amount", currency.render(lot.total()));
     }
 
     private void sellMany(Player player, Map<Material, Integer> wanted, boolean everything) {

@@ -22,7 +22,10 @@ public final class EconomyDatabase {
             "CREATE TABLE lottery (id INTEGER PRIMARY KEY CHECK (id = 1), draw INTEGER NOT NULL, next_at INTEGER NOT NULL)",
             "CREATE TABLE lottery_ticket (draw INTEGER NOT NULL, player TEXT NOT NULL, tickets INTEGER NOT NULL, "
                     + "PRIMARY KEY (draw, player))",
-            "CREATE TABLE coin_float (value INTEGER PRIMARY KEY, outstanding INTEGER NOT NULL)");
+            "CREATE TABLE coin_float (value INTEGER PRIMARY KEY, outstanding INTEGER NOT NULL)",
+            "CREATE TABLE contract (id TEXT PRIMARY KEY, employer TEXT NOT NULL, employer_name TEXT NOT NULL, "
+                    + "employee TEXT NOT NULL, employee_name TEXT NOT NULL, wage INTEGER NOT NULL, every INTEGER NOT NULL, "
+                    + "next_at INTEGER NOT NULL, missed INTEGER NOT NULL, title TEXT NOT NULL, since INTEGER NOT NULL)");
 
     private EconomyDatabase() {
     }

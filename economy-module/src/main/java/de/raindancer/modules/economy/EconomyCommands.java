@@ -31,6 +31,9 @@ public final class EconomyCommands {
                         .taking("<player> <amount>"),
                 ModuleCommand.of("bill", "Ask another player to pay you", new BillCommand(EconomyCommands::require))
                         .aliased("request").taking("<player> <amount> [what for]"),
+                ModuleCommand.of("hire", "Hire somebody for a wage paid at an interval",
+                        new de.raindancer.modules.economy.command.HireCommand(EconomyCommands::require))
+                        .aliased("jobs").taking("<player> <wage> <every> [job]", "list", "fire|quit <player>"),
                 ModuleCommand.of("bank", "Open the bank",
                         new BankCommand(EconomyCommands::require, BankCommand.Door.BANK)).aliased("economy"),
                 ModuleCommand.of("withdraw", "Take money out as coins, notes or a cheque",
@@ -56,12 +59,14 @@ public final class EconomyCommands {
                 ModuleCommand.of("dice", "Roll over or under a number",
                         new GambleCommand(EconomyCommands::require, GambleCommand.Game.DICE))
                         .taking("<amount> <over|under> <number>"),
+                ModuleCommand.of("roulette", "Red, black, green and numbers",
+                        new GambleCommand(EconomyCommands::require, GambleCommand.Game.ROULETTE)).taking("[bet]"),
                 ModuleCommand.of("lottery", "Tickets, the pot and the next draw",
                         new GambleCommand(EconomyCommands::require, GambleCommand.Game.LOTTERY)).aliased("lotto")
                         .taking("[buy <tickets>]"),
                 ModuleCommand.of("eco", "Staff: run the economy", new EcoCommand(EconomyCommands::require))
                         .taking("give|take|set <player> <amount> [reason]", "reset|freeze|unfreeze|history <player>",
-                                "menu|reprice|draw|calm")
+                                "menu|reprice|draw|calm|coin")
                         .auditUsage());
     }
 

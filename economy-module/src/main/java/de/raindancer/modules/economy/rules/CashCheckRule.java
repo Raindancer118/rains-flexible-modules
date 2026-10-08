@@ -3,9 +3,7 @@ package de.raindancer.modules.economy.rules;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.CashCheck;
 import de.raindancer.modules.economy.model.CashPiece;
-import de.raindancer.modules.economy.model.Denomination;
 import de.raindancer.modules.economy.model.Form;
-import org.bukkit.Material;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,26 +14,29 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 
 /**
  * Which of the cash being paid in is real, before a cent is credited.
  *
- * <p>Nothing written on an item is trusted on its own: a creative client can send any item it likes. A
- * note is checked against the serial register (its value included) and is worth one, however many copies
- * are stacked on it. A coin must be one this server issues — that value in that material — and no more
- * coins of a value can be paid in than are in circulation. Forged items are confiscated; coins over the
- * circulation are only refused, because they may be an honest player's while a forger got there first.
+ * <p>Nothing written on an item is trusted on its own: a creative client can send any item it likes. Every
+ * piece must carry the server's seal over exactly what it claims. A coin is worth one coin, and no more
+ * coins can be paid in than are in circulation — the backstop against a duplication glitch, since a copied
+ * coin carries a genuine seal. A cheque must be outstanding in the register at its value, and is worth one
+ * however many copies are stacked on it. Forgeries are confiscated; coins over the circulation are only
+ * refused, because they may be an honest player's while a forger got there first.
  */
 public final class CashCheckRule implements IEconomyRule {
 
     /**
      * @param slots       inventory slot to what the stack there says it is
-     * @param materials   inventory slot to the material actually there
-     * @param registry    a serial's issued value, if it is outstanding
+     * @param coinValue   what one coin is worth
+     * @param sealed      whether a piece carries this server's seal over what it claims
+     * @param registry    a cheque's issued value, if it is outstanding
      * @param circulation how many coins of a value are out
      */
-    public CashCheck check(Map<Integer, CashPiece> slots, Map<Integer, Material> materials, List<Denomination> issued,
+    public CashCheck check(Map<Integer, CashPiece> slots, Money coinValue, Predicate<CashPiece> sealed,
                            Function<String, Optional<Money>> registry, ToLongFunction<Money> circulation) {
         Map<Integer, Integer> taken = new LinkedHashMap<>();
         Map<Integer, Integer> confiscated = new LinkedHashMap<>();
@@ -51,6 +52,11 @@ public final class CashCheckRule implements IEconomyRule {
             CashPiece piece = each.getValue();
             int count = Math.max(0, piece.count());
             if (count == 0) {
+                continue;
+            }
+            if (!sealed.test(piece)) {
+                taken.put(slot, count);
+                confiscated.put(slot, count);
                 continue;
             }
             if (piece.numbered()) {
@@ -70,10 +76,7 @@ public final class CashCheckRule implements IEconomyRule {
                 }
                 continue;
             }
-            boolean issuedHere = piece.form() == Form.COIN && issued.stream().anyMatch(denomination ->
-                    denomination.form() == Form.COIN && denomination.value().equals(piece.each())
-                            && denomination.material() == materials.get(slot));
-            if (!issuedHere) {
+            if (piece.form() != Form.COIN || !piece.each().equals(coinValue)) {
                 taken.put(slot, count);
                 confiscated.put(slot, count);
                 continue;

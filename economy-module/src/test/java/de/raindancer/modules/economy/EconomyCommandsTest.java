@@ -16,9 +16,9 @@ class EconomyCommandsTest {
     @DisplayName("every command can be declared without the module running, each with a handler")
     void declaring() {
         List<ModuleCommand> declared = EconomyCommands.declared();
-        assertThat(declared).extracting(ModuleCommand::name).containsExactly("balance", "pay", "bill", "bank",
+        assertThat(declared).extracting(ModuleCommand::name).containsExactly("balance", "pay", "bill", "hire", "bank",
                 "withdraw", "deposit", "shop", "sell", "baltop", "daily", "casino", "slots", "coinflip", "dice",
-                "lottery", "eco");
+                "roulette", "lottery", "eco");
         assertThat(declared).allMatch(command -> command.handler() != null);
         assertThat(declared.getFirst().names()).contains("bal", "money");
     }

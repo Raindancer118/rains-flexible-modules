@@ -27,18 +27,16 @@ public final class AdminMenu extends Menu implements IEconomyScreen {
     private static final List<Switch> SWITCHES = List.of(
             new Switch("features.pay", "Paying", Material.WRITABLE_BOOK),
             new Switch("features.bills", "Bills", Material.PAPER),
-            new Switch("features.cash", "Coins and notes", Material.GOLD_NUGGET),
+            new Switch("features.hire", "Hiring", Material.IRON_PICKAXE),
+            new Switch("features.cash", "Coins", Material.GOLD_NUGGET),
             new Switch("features.cheques", "Cheques", Material.FILLED_MAP),
-            new Switch("cash.serials", "Serial numbers", Material.NAME_TAG),
             new Switch("cash.right-click", "Right click pays in", Material.HOPPER),
             new Switch("features.shop", "Shop", Material.EMERALD),
             new Switch("features.selling", "Selling", Material.CHEST),
+            new Switch("shop.enchanted-selling", "Enchanted items sell", Material.ENCHANTED_BOOK),
             new Switch("features.dynamic-prices", "Supply and demand", Material.COMPARATOR),
             new Switch("shop.derive-from-recipes", "Recipe prices", Material.CRAFTING_TABLE),
-            new Switch("features.mob-rewards", "Mob rewards", Material.ZOMBIE_HEAD),
-            new Switch("earn.spawner-mobs-pay", "Spawner mobs pay", Material.SPAWNER),
-            new Switch("features.mining-rewards", "Mining rewards", Material.DIAMOND_PICKAXE),
-            new Switch("features.salary", "Salary", Material.CLOCK),
+            new Switch("features.income", "Passive income", Material.CLOCK),
             new Switch("features.daily", "Daily reward", Material.SUNFLOWER),
             new Switch("features.advancement-rewards", "Advancement rewards", Material.KNOWLEDGE_BOOK),
             new Switch("features.interest", "Interest", Material.EXPERIENCE_BOTTLE),
@@ -48,6 +46,7 @@ public final class AdminMenu extends Menu implements IEconomyScreen {
             new Switch("features.coinflip", "Coin flips", Material.SUNFLOWER),
             new Switch("features.dice", "Dice", Material.WHITE_WOOL),
             new Switch("features.slots", "Slots", Material.DIAMOND),
+            new Switch("features.roulette", "Roulette", Material.ENDER_PEARL),
             new Switch("features.lottery", "Lottery", Material.FILLED_MAP));
 
     private final EconomyServices services;
@@ -100,6 +99,17 @@ public final class AdminMenu extends Menu implements IEconomyScreen {
             });
         }
 
+        toolbar(1, Icons.of(services.cash().coinMaterial(), "<yellow>The coin",
+                "<gray>Made of " + services.cash().coinMaterial().name().toLowerCase().replace('_', ' '),
+                "<yellow>Click<gray> to pick any item", "<dark_gray>or /eco coin with it in your hand"), click ->
+                new de.raindancer.core.ui.choose.ItemChooser(viewer, services.brand(), this, "The coin is made of…",
+                        material -> {
+                            store.set("cash.coin-item", material.name());
+                            store.set("cash.coin-model", "");
+                            store.trySave();
+                            services.messages().send(viewer, "economy.admin.coin", "item",
+                                    material.name().toLowerCase().replace('_', ' '));
+                        }).open());
         toolbar(2, Icons.of(Material.CRAFTING_TABLE, "<white>Reprice everything",
                 "<gray>Reads every recipe on the server again."), click -> Scheduling.global(services.plugin(), () -> {
             int recipes = services.shop().reprice();

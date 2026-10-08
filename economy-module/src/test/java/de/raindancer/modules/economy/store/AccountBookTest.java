@@ -254,6 +254,53 @@ class AccountBookTest {
     }
 
     @Test
+    @DisplayName("a wage is paid when due, a missed one is counted, and too many in a row end the job")
+    void payroll() {
+        book.open(alice, "Alice", Money.of(250));
+        book.open(bob, "Bob", Money.ZERO);
+        de.raindancer.modules.economy.model.Contract job = new de.raindancer.modules.economy.model.Contract(
+                UUID.randomUUID(), alice, "Alice", bob, "Bob", Money.of(100), 60, 1_000_000L, 0, "miner", 0);
+        book.hire(job);
+        assertThat(book.contractsOf(bob)).hasSize(1);
+
+        assertThat(book.payroll(999_999L, 3, most)).as("not due yet").isEmpty();
+        assertThat(book.payroll(1_000_000L, 3, most)).extracting(de.raindancer.modules.economy.model.Payday::kind)
+                .containsExactly(de.raindancer.modules.economy.model.Payday.Kind.PAID);
+        assertThat(book.balance(bob)).isEqualTo(Money.of(100));
+        long next = book.contractsOf(bob).getFirst().nextAt();
+        assertThat(next).isEqualTo(1_000_000L + 3_600_000L);
+
+        book.payroll(next, 3, most);
+        assertThat(book.balance(alice)).isEqualTo(Money.of(50));
+        long later = book.contractsOf(bob).getFirst().nextAt();
+        assertThat(book.payroll(later, 2, most)).extracting(de.raindancer.modules.economy.model.Payday::kind)
+                .containsExactly(de.raindancer.modules.economy.model.Payday.Kind.MISSED);
+        long last = book.contractsOf(bob).getFirst().nextAt();
+        assertThat(book.payroll(last, 2, most)).extracting(de.raindancer.modules.economy.model.Payday::kind)
+                .containsExactly(de.raindancer.modules.economy.model.Payday.Kind.ENDED);
+        assertThat(book.contractsOf(bob)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a job survives a restart, and one ended stays ended")
+    void contractsSurvive() {
+        book.open(alice, "Alice", Money.of(1_000));
+        book.open(bob, "Bob", Money.ZERO);
+        UUID kept = UUID.randomUUID();
+        UUID ended = UUID.randomUUID();
+        book.hire(new de.raindancer.modules.economy.model.Contract(kept, alice, "Alice", bob, "Bob", Money.of(5), 30,
+                5L, 0, "guard", 1L));
+        book.hire(new de.raindancer.modules.economy.model.Contract(ended, alice, "Alice", bob, "Bob", Money.of(5), 30,
+                5L, 0, "cook", 1L));
+        book.endContract(ended);
+
+        AccountBook fresh = reopened();
+        assertThat(fresh.contractsOf(alice)).extracting(de.raindancer.modules.economy.model.Contract::id)
+                .containsExactly(kept);
+        assertThat(fresh.contractsOf(alice).getFirst().title()).isEqualTo("guard");
+    }
+
+    @Test
     @DisplayName("hammered from eight threads at once, not one cent appears or disappears")
     void concurrency() throws InterruptedException {
         int people = 8;

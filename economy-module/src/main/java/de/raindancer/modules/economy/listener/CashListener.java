@@ -14,8 +14,8 @@ import org.bukkit.inventory.EquipmentSlot;
 import java.util.UUID;
 
 /**
- * Right clicking cash pays it in. And cash is never placed: a coin made of a block would become an
- * ordinary block, and its value would vanish with the tag.
+ * Right clicking cash pays it in. Cash is never placed — a coin made of a block would become an ordinary
+ * block and its value would vanish with the tag — and never passes through the creative inventory.
  */
 public final class CashListener implements IEconomyListener {
 
@@ -48,6 +48,20 @@ public final class CashListener implements IEconomyListener {
         }
     }
 
+    /**
+     * The creative inventory lets a client conjure any item it likes, a perfect copy of a coin included —
+     * the seal cannot tell a clone from the original. So cash never passes through it.
+     */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onCreative(org.bukkit.event.inventory.InventoryCreativeEvent event) {
+        if (CashTags.isCash(event.getCursor()) || CashTags.isCash(event.getCurrentItem())) {
+            event.setCancelled(true);
+            if (event.getWhoClicked() instanceof Player player) {
+                services.messages().send(player, "economy.cash.no-creative");
+            }
+        }
+    }
+
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
         if (CashTags.isCash(event.getItemInHand())) {
@@ -62,6 +76,6 @@ public final class CashListener implements IEconomyListener {
 
     @Override
     public String describe() {
-        return "paying cash in with a right click, and keeping cash from being placed";
+        return "paying cash in with a right click; keeping cash from being placed or cloned in creative";
     }
 }

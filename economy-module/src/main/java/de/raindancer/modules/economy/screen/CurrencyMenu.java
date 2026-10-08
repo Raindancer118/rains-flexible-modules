@@ -2,7 +2,6 @@ package de.raindancer.modules.economy.screen;
 
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.social.economy.Currency;
-import de.raindancer.core.ui.choose.AmountChooser;
 import de.raindancer.core.ui.choose.StyleEditor;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
@@ -47,8 +46,7 @@ public final class CurrencyMenu extends Menu implements IEconomyScreen {
     protected void render() {
         EconomySettings live = services.config();
         Currency currency = live.currency();
-        set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.GOLD_INGOT, Mini.of(currency.render(currency.ofMajor(1234)
-                        .plus(de.raindancer.core.social.economy.Money.of(currency.unit() / 2)))),
+        set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.GOLD_INGOT, Mini.of(currency.render(currency.ofMajor(1234))),
                 "<gray>" + Mini.of(currency.render(currency.ofMajor(1))) + " is one " + Mini.of(currency.renderName(false)),
                 "<gray>Shortened: " + Mini.of(currency.renderCompact(currency.ofMajor(2_500_000)))));
 
@@ -59,27 +57,15 @@ public final class CurrencyMenu extends Menu implements IEconomyScreen {
         paint(2, "Name colours", "currency.name-style", EconomySettings::nameStyle, currency.plural());
         paint(4, "Symbol colours", "currency.symbol-style", EconomySettings::symbolStyle,
                 currency.symbol().isEmpty() ? "$" : currency.symbol());
-        paint(6, "Number colours", "currency.amount-style", EconomySettings::amountStyle, "1,234.50");
+        paint(6, "Number colours", "currency.amount-style", EconomySettings::amountStyle, "1,234");
 
         band(MenuLayout.LAND, 2, Icons.of(Material.COMPASS, "<white>Symbol goes: "
                 + live.currencyPlacement().name().toLowerCase(), "<yellow>Click<gray> to switch"), click -> {
             write("currency.placement", null);
         });
-        band(MenuLayout.LAND, 4, Icons.of(Material.REPEATER, "<white>Decimals: " + live.currencyDecimals(),
-                "<red>Set before anybody has money:", "<red>stored amounts are re-read in the new unit."),
-                click -> new AmountChooser(viewer, services.brand(), this, "Decimals", live.currencyDecimals(), 0, 4,
-                        value -> write("currency.decimals", String.valueOf(value))).open());
         band(MenuLayout.LAND, 6, Icons.of(Material.COMPARATOR, "<white>Writing: " + currency.format(currency.ofMajor(1000)),
-                "<yellow>Click<gray> to swap , and .", "<gray>Hide .00: " + (live.trimZeros() ? "yes" : "no"),
-                "<yellow>Right click<gray> to switch that"), click -> {
-            if (click.isRightClick()) {
-                write("currency.trim-zeros", null);
-            } else {
-                boolean comma = ",".equals(live.decimalSeparator());
-                services.store().set("currency.decimal-separator", comma ? "." : ",");
-                write("currency.group-separator", comma ? "," : ".");
-            }
-        });
+                "<yellow>Click<gray> to swap , and ."), click ->
+                write("currency.group-separator", ",".equals(live.groupSeparator()) ? "." : ","));
     }
 
     private void text(int band, int column, Material icon, String what, String key, String now) {

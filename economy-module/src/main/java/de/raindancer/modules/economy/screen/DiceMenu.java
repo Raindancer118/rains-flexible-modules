@@ -2,7 +2,7 @@ package de.raindancer.modules.economy.screen;
 
 import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.Money;
-import de.raindancer.core.ui.effect.Cues;
+import de.raindancer.modules.economy.service.GameSounds;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuAnimation;
@@ -143,7 +143,7 @@ public final class DiceMenu extends Menu implements IEconomyScreen, Bet.BetMenu 
             last = result;
             MenuAnimation.play(services.plugin(), this, MenuAnimation.schedule(FRAMES, 1, 4), frame -> {
                 shown = frame == FRAMES - 1 ? result.roll() : ThreadLocalRandom.current().nextInt(1, 101);
-                services.effects().play(viewer.getUniqueId(), Cues.CLICK);
+                services.gambling().sounds().play(viewer.getUniqueId(), GameSounds.DICE);
                 refresh();
             }, () -> {
                 rolling = false;

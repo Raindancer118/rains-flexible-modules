@@ -6,6 +6,7 @@ import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.choose.Category;
 import de.raindancer.modules.economy.model.SellPricing;
+import org.bukkit.Material;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -44,30 +45,34 @@ public class EconomySettingsTest {
         assertThat(currency.singular()).isEqualTo("Coin");
         assertThat(currency.plural()).isEqualTo("Coins");
         assertThat(currency.symbol()).isEqualTo("⛃");
-        assertThat(currency.decimals()).isEqualTo(2);
+        assertThat(currency.decimals()).as("whole coins only").isZero();
         assertThat(currency.placement()).isEqualTo(Currency.Placement.BEFORE);
         assertThat(currency.nameStyle().isGradient()).isTrue();
-        assertThat(d.starting()).isEqualTo(Money.of(10_000));
-        assertThat(d.most()).isEqualTo(Money.of(100_000_000_000_000L));
+        assertThat(d.starting()).isEqualTo(Money.of(1_000));
+        assertThat(d.most()).isEqualTo(Money.of(1_000_000_000_000L));
         assertThat(d.balanceOnActionBar()).isTrue();
         assertThat(d.historyDays()).isEqualTo(90);
 
         assertThat(d.payEnabled()).isTrue();
         assertThat(d.payMinimumMoney()).isEqualTo(Money.of(1));
         assertThat(d.payTax()).isZero();
-        assertThat(d.payConfirmAboveMoney()).isEqualTo(Money.of(100_000));
+        assertThat(d.payConfirmAboveMoney()).isEqualTo(Money.of(10_000));
         assertThat(d.payCooldownSeconds()).isEqualTo(2);
         assertThat(d.payOffline()).isTrue();
         assertThat(d.billsEnabled()).isTrue();
         assertThat(d.billMinutes()).isEqualTo(5);
+        assertThat(d.hireEnabled()).isTrue();
+        assertThat(d.hireLeastMinutes()).isEqualTo(10);
+        assertThat(d.hireMostContracts()).isEqualTo(10);
+        assertThat(d.hireMostMissed()).isEqualTo(3);
 
         assertThat(d.cashEnabled()).isTrue();
-        assertThat(d.denominations()).hasSize(6);
+        assertThat(d.coinItem()).isEqualTo(Material.GOLD_NUGGET);
+        assertThat(d.coinModel()).isEmpty();
         assertThat(d.chequesEnabled()).isTrue();
-        assertThat(d.serialNotes()).isTrue();
         assertThat(d.depositOnRightClick()).isTrue();
         assertThat(d.withdrawFee()).isZero();
-        assertThat(d.mostPieces()).isEqualTo(576);
+        assertThat(d.mostPieces()).isEqualTo(2304);
 
         assertThat(d.shopEnabled()).isTrue();
         assertThat(d.sellingEnabled()).isTrue();
@@ -86,38 +91,52 @@ public class EconomySettingsTest {
         assertThat(d.priceSwingClamped()).isEqualTo(0.5);
         assertThat(d.pressurePerStackClamped()).isEqualTo(0.02);
         assertThat(d.recoveryHoursClamped()).isEqualTo(12.0);
+        assertThat(d.enchantedSelling()).isTrue();
+        assertThat(d.enchantValueMoney()).isEqualTo(Money.of(40));
         for (Category category : Category.values()) {
             assertThat(d.categoryOpen(category)).as(category.title()).isTrue();
         }
 
-        assertThat(d.mobRewardsEnabled()).isTrue();
-        assertThat(d.mobRewards()).contains("zombie 2", "warden 250");
-        assertThat(d.spawnerMobsPay()).isFalse();
-        assertThat(d.miningRewardsEnabled()).isTrue();
-        assertThat(d.miningRewards()).contains("diamond_ore 10");
-        assertThat(d.salaryEnabled()).isTrue();
-        assertThat(d.salaryMoney()).isEqualTo(Money.of(1_000));
-        assertThat(d.salaryMinutes()).isEqualTo(30);
+        assertThat(d.incomeEnabled()).as("passive income is off until an owner wants it").isFalse();
+        assertThat(d.incomeMoney()).isEqualTo(Money.of(10));
+        assertThat(d.incomeAwayMoney()).isEqualTo(Money.of(2));
+        assertThat(d.incomeMinutes()).isEqualTo(30);
         assertThat(d.afkMinutes()).isEqualTo(5);
         assertThat(d.dailyEnabled()).isTrue();
-        assertThat(d.dailyMoney()).isEqualTo(Money.of(5_000));
-        assertThat(d.dailyBonusMoney()).isEqualTo(Money.of(1_000));
+        assertThat(d.dailyMoney()).isEqualTo(Money.of(500));
+        assertThat(d.dailyBonusMoney()).isEqualTo(Money.of(100));
         assertThat(d.dailyStreakMost()).isEqualTo(7);
         assertThat(d.advancementRewardsEnabled()).isTrue();
-        assertThat(d.advancementMoney()).isEqualTo(Money.of(2_500));
-        assertThat(d.hourlyCapMoney()).isEqualTo(Money.of(200_000));
+        assertThat(d.advancementMoney()).isEqualTo(Money.of(250));
+        assertThat(d.hourlyCapMoney()).isEqualTo(Money.of(20_000));
 
         assertThat(d.interestEnabled()).isTrue();
         assertThat(d.interestRate()).isEqualTo(0.0025);
         assertThat(d.interestMinutes()).isEqualTo(60);
-        assertThat(d.interestCapMoney()).isEqualTo(Money.of(2_500));
+        assertThat(d.interestCapMoney()).isEqualTo(Money.of(250));
+
+        assertThat(d.gamblingEnabled()).isTrue();
+        assertThat(d.rouletteEnabled()).isTrue();
+        assertThat(d.minBetMoney()).isEqualTo(Money.of(1));
+        assertThat(d.maxBetMoney()).isEqualTo(Money.of(100_000));
+        assertThat(d.houseEdge()).isEqualTo(0.03);
+        assertThat(d.dailyLossLimitMoney()).isEqualTo(Money.ZERO);
+        assertThat(d.ticketPriceMoney()).isEqualTo(Money.of(100));
         assertThat(d.baltopEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("an amount with decimals is not money here: there are only whole coins")
+    void wholeCoins() {
+        assertThat(EconomySettings.DEFAULTS.currency().parse("2.5")).isEmpty();
+        assertThat(EconomySettings.DEFAULTS.currency().parse("1.5k")).contains(Money.of(1_500));
+        assertThat(EconomySettings.DEFAULTS.currency().format(Money.of(1_234_567))).isEqualTo("⛃1,234,567");
     }
 
     @Test
     @DisplayName("an unreadable amount falls back to its default, never to free")
     void unreadable() {
-        assertThat(with("accounts.starting-balance", "lots").starting()).isEqualTo(Money.of(10_000));
+        assertThat(with("accounts.starting-balance", "lots").starting()).isEqualTo(Money.of(1_000));
         assertThat(with("pay.minimum", "five").payMinimumMoney()).isEqualTo(Money.of(1));
     }
 

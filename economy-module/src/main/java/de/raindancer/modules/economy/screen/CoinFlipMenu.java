@@ -2,7 +2,7 @@ package de.raindancer.modules.economy.screen;
 
 import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.Money;
-import de.raindancer.core.ui.effect.Cues;
+import de.raindancer.modules.economy.service.GameSounds;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuAnimation;
@@ -104,7 +104,7 @@ public final class CoinFlipMenu extends Menu implements IEconomyScreen, Bet.BetM
                 // The last frame shows the side it landed on: count back from it, alternating.
                 boolean fromEnd = (FRAMES - 1 - frame) % 2 == 0;
                 showingHeads = fromEnd == flip.landedHeads();
-                services.effects().play(viewer.getUniqueId(), Cues.CLICK);
+                services.gambling().sounds().play(viewer.getUniqueId(), GameSounds.COIN);
                 refresh();
             }, () -> {
                 spinning = false;

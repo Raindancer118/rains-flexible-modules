@@ -65,8 +65,12 @@ public final class CasinoMenu extends Menu implements IEconomyScreen, Bet.BetMen
                 "<yellow>Slot machine", "<gray>Three reels. Netherite is wild money."), BankMenu.OFF,
                 click -> new SlotsMenu(services, viewer, this, bet).open());
 
+        band(MenuLayout.LAND, 1, live.gameOpen(live.rouletteEnabled()), Icons.of(Material.ENDER_PEARL,
+                "<yellow>Roulette", "<gray>Red, black, green, numbers, dozens."), BankMenu.OFF,
+                click -> new RouletteMenu(services, viewer, this, bet).open());
+
         boolean lottery = live.gameOpen(live.lotteryEnabled());
-        band(MenuLayout.LAND, 3, lottery, Icons.of(Material.FILLED_MAP, "<aqua>Lottery ticket",
+        band(MenuLayout.LAND, 4, lottery, Icons.of(Material.FILLED_MAP, "<aqua>Lottery ticket",
                 "<gray>One for " + Mini.of(currency.render(live.ticketPriceMoney())),
                 "<gray>Pot: " + Mini.of(currency.render(services.lottery().pot())),
                 "<gray>You hold " + services.economy().book().ticketsOf(viewer.getUniqueId()) + " ticket(s)",
@@ -74,7 +78,7 @@ public final class CasinoMenu extends Menu implements IEconomyScreen, Bet.BetMen
             services.lottery().buy(viewer, click.isShiftClick() ? 10 : 1);
             refresh();
         });
-        band(MenuLayout.LAND, 5, lottery, Icons.of(Material.CLOCK, "<aqua>Next draw",
+        band(MenuLayout.LAND, 6, lottery, Icons.of(Material.CLOCK, "<aqua>Next draw",
                 "<gray>In " + de.raindancer.core.world.time.Times.describe(services.lottery().untilDraw())),
                 BankMenu.OFF, click -> services.lottery().status(viewer));
     }

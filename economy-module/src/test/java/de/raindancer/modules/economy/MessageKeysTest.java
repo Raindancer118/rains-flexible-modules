@@ -26,7 +26,8 @@ class MessageKeysTest {
     private static final Path WORDING = Path.of("src/main/resources/de/raindancer/modules/economy/messages.yml");
 
     /** Keys built at run time: the game's base key with -won or -lost. */
-    private static final List<String> BUILT = List.of("economy.gamble.flip", "economy.gamble.dice", "economy.gamble.slots");
+    private static final List<String> BUILT = List.of("economy.gamble.flip", "economy.gamble.dice", "economy.gamble.slots",
+            "economy.gamble.roulette");
 
     @Test
     @DisplayName("every message the code sends is written down")

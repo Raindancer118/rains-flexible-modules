@@ -24,9 +24,9 @@ class PriceBookTest {
     private PriceBook book(EconomySettings settings, List<RecipeShape> recipes) {
         byte[] raw = """
                 # raw materials
-                oak_log: 2
-                diamond: 100
-                raw_iron: 8
+                oak_log: 200
+                diamond: 10000
+                raw_iron: 800
                 """.getBytes(StandardCharsets.UTF_8);
         PriceBook book = new PriceBook(currency -> BasePrices.parse(new ByteArrayInputStream(raw), currency), material -> pressure.getOrDefault(material, 0.0), material -> 64);
         book.recompute(settings, recipes);
@@ -40,10 +40,10 @@ class PriceBookTest {
     @DisplayName("the shipped list reads plain names and decimals, and skips what it cannot read")
     void basePrices() {
         Map<String, Money> read = BasePrices.parse(new ByteArrayInputStream(
-                "dirt: 0.5\nnonsense\nstone: x\n  # comment\nDIAMOND: 100\n".getBytes(StandardCharsets.UTF_8)),
+                "dirt: 5\nnonsense\nstone: x\nhalf: 0.5\n  # comment\nDIAMOND: 100\n".getBytes(StandardCharsets.UTF_8)),
                 EconomySettings.DEFAULTS.currency());
         assertThat(read).containsOnlyKeys("DIRT", "DIAMOND");
-        assertThat(read.get("DIRT")).isEqualTo(Money.of(50));
+        assertThat(read.get("DIRT")).isEqualTo(Money.of(5));
     }
 
     @Test
@@ -74,7 +74,7 @@ class PriceBookTest {
     @Test
     @DisplayName("a custom value replaces the shipped one, and what is crafted from it follows")
     void customValues() {
-        EconomySettings settings = EconomySettingsTest.with("shop.values", "oak_log 4");
+        EconomySettings settings = EconomySettingsTest.with("shop.values", "oak_log 400");
         PriceBook book = book(settings, PLANKS);
         assertThat(book.tag("OAK_LOG").source()).isEqualTo(PriceTag.Source.CUSTOM);
         assertThat(book.tag("OAK_PLANKS").value()).isEqualTo(Money.of(110));
@@ -83,7 +83,7 @@ class PriceBookTest {
     @Test
     @DisplayName("a custom sell price wins over the automatic one, but never reaches the buy price")
     void customSell() {
-        EconomySettings settings = EconomySettingsTest.with("shop.sell-prices", "diamond 60, raw_iron 50");
+        EconomySettings settings = EconomySettingsTest.with("shop.sell-prices", "diamond 6000, raw_iron 5000");
         PriceBook book = book(settings, PLANKS);
         assertThat(book.tag("DIAMOND").sell()).isEqualTo(Money.of(6_000));
         assertThat(book.tag("DIAMOND").source()).isEqualTo(PriceTag.Source.CUSTOM);
@@ -106,7 +106,7 @@ class PriceBookTest {
     @Test
     @DisplayName("a custom buy price is exact, even for something with no other price")
     void customBuy() {
-        EconomySettings settings = EconomySettingsTest.with("shop.buy-prices", "elytra 5000");
+        EconomySettings settings = EconomySettingsTest.with("shop.buy-prices", "elytra 500000");
         PriceTag elytra = book(settings, PLANKS).tag("ELYTRA");
         assertThat(elytra.buyable()).isTrue();
         assertThat(elytra.buy()).isEqualTo(Money.of(500_000));

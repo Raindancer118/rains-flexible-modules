@@ -4,7 +4,6 @@ import de.raindancer.core.ui.choose.Category;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
-import java.util.UUID;
 
 /** Opening this module's screens without naming the classes that draw them. */
 public interface IEconomyScreensOpener {
@@ -23,8 +22,6 @@ public interface IEconomyScreensOpener {
 
     void baltop(Player viewer);
 
-    void history(Player viewer, UUID whose, String name);
-
     void withdraw(Player viewer);
 
     void casino(Player viewer);
@@ -38,4 +35,8 @@ public interface IEconomyScreensOpener {
     void dice(Player viewer, de.raindancer.core.social.economy.Money stake, Boolean over, Integer target);
 
     void admin(Player viewer);
+
+    void jobs(Player viewer);
+
+    void roulette(Player viewer, de.raindancer.core.social.economy.Money stake);
 }

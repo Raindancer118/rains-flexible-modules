@@ -33,7 +33,8 @@ economy:
     bill: "<gray>/bill <player> <amount> [what for]"
     dice: "<gray>/dice <amount> <over|under> <number from 1 to 100>"
     lottery: "<gray>/lottery  ·  /lottery buy [tickets]"
-    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm"
+    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm|coin"
+    hire: "<gray>/hire <player> <wage> <every, like 1h or 30m> [job]  ·  /hire list  ·  /hire fire|quit <player>"
 
   pay:
     off: "<red>Paying each other is switched off on this server."
@@ -64,15 +65,14 @@ economy:
   cash:
     off: "<red>Coins and notes are switched off on this server."
     cheques-off: "<red>Cheques are switched off on this server."
-    too-small: "<red><amount><red> is smaller than the smallest coin."
-    too-many: "<red>That would be <pieces> pieces; at most <most> come out at once."
+    too-many: "<red>That would be <pieces> coins; at most <most> come out at once. Write a cheque for more."
     no-room: "<red>Your inventory has no room for that. Nothing was taken."
-    leftover: "<gray><amount><gray> could not be made from coins and stays in your account."
     withdrawn: "<green>You took out <amount><green> in cash. Your account holds <balance><green>."
     cheque-written: "<green>You wrote a cheque for <amount><green>. Your account holds <balance><green>."
     fee: "<gray>The bank kept <fee><gray> as a fee."
     deposited: "<green>You paid in <amount><green>. Your account holds <balance><green>."
     none: "<red>You are not carrying any cash."
+    no-creative: "<red>Money cannot be moved through the creative inventory — switch to survival to handle it."
     counterfeit: "<red><count> piece(s) had already been paid in, were never issued or are not this server's money, and were taken. Staff have been told."
     counterfeit-alert: "<red>[Economy] <white><player></white> tried to pay in <count> forged piece(s) — No. <white><serial></white>, worth <amount><red> each. Confiscated."
     over-circulation: "<red><count> coin(s) were not paid in: more coins of that value were offered than are in circulation. Staff have been told."
@@ -87,12 +87,14 @@ economy:
     none-carried: "<red>You are not carrying any plain <item>."
     nothing-in-hand: "<red>You are not holding anything."
     nothing-to-sell: "<red>You carry nothing the shop buys."
+    changed: "<red>That item changed before it could be sold. Open the list again."
     no-room: "<red>Your inventory has no room for that. Nothing was taken."
     bought: "<green>You bought <count> × <white><item></white> for <amount><green>."
     sold: "<green>You sold <white><what></white> for <amount><green>."
 
   earn:
-    salary: "<green>Salary: <amount><green> for <minutes> minutes of play."
+    income: "<green>Income: <amount><green> for <minutes> minutes online."
+    income-away: "<gray>Income while away: <amount><gray> for <minutes> minutes online."
     interest: "<green>Interest: <amount><green> on what is in your account."
 
   daily:
@@ -112,6 +114,8 @@ economy:
     dice-won: "<green>You rolled <white><roll></white>! You won <amount><green>. Balance: <balance><green>."
     dice-lost: "<red>You rolled <white><roll></white>. You lost <amount><red>. Balance: <balance><red>."
     dice-bad-target: "<red>The house does not take that bet: pick a number that wins between 1 and 95 rolls in 100."
+    roulette-won: "<green>The ball lands on <white><pocket></white> — <bet> wins! You won <amount><green>. Balance: <balance><green>."
+    roulette-lost: "<red>The ball lands on <white><pocket></white>. <bet> loses <amount><red>. Balance: <balance><red>."
     slots-won: "<green><white><reels></white> — you won <amount><green>! Balance: <balance><green>."
     slots-lost: "<red><white><reels></white> — you lost <amount><red>. Balance: <balance><red>."
     duel-yourself: "<red>You cannot flip against yourself."
@@ -131,7 +135,34 @@ economy:
     drawn: "<gold>Lottery: <white><player></white> won <amount><gold> with <tickets> of <total> tickets!"
     no-tickets: "<gray>Nobody had bought a ticket, so the pot carries over."
 
+  statement:
+    printed: "<green>Your statement is being printed — it lands in your inventory in a moment."
+
+  hire:
+    off: "<red>Hiring is switched off on this server."
+    yourself: "<red>You cannot hire yourself."
+    too-often: "<red>Wages may be paid every <minutes> minutes at most."
+    too-many: "<red>You already employ the most anybody may (<most>)."
+    offered: "<gray>You offered <white><player></white> <amount><gray> every <every>. Waiting for an answer."
+    offer: "<yellow><white><player></white> wants to hire you for <amount><yellow> every <every>. <buttons>"
+    offer-as: "<yellow><white><player></white> wants to hire you as <white><job></white> for <amount><yellow> every <every>. <buttons>"
+    declined: "<red><player> turned the job down."
+    started: "<green>You work for <white><player></white> now: <amount><green> every <every>."
+    accepted: "<green><white><player></white> took the job: <amount><green> every <every>, from your account."
+    not-yours: "<red>There is no such job of yours."
+    you-fired: "<gray>You let <white><player></white> go. No more wages are paid."
+    you-quit: "<gray>You quit working for <white><player></white>."
+    fired: "<red><player> let you go."
+    quit: "<red><player> quit working for you."
+    paid: "<green>Wage from <white><player></white>: <amount><green>."
+    missed: "<red><player> could not pay your wage (<count> missed in a row)."
+    could-not-pay: "<red>You could not pay <white><player></white>'s wage of <amount><red> — top up your account."
+    ended: "<red>Your job for <player> ended: too many wages were missed."
+    ended-employer: "<red><player>'s job ended: you missed too many wages."
+
   admin:
+    coin: "<green>Coins are now made of <white><item></white>. Coins already out keep working."
+    coin-hold: "<red>Hold the item coins should be made of — anything but money."
     done: "<green>Done. <white><player></white> now has <balance><green>."
     refused: "<red>Refused for <player>: <reason>."
     frozen: "<green><player>'s account is frozen."

@@ -33,6 +33,13 @@ class EconomyScenarioTest {
         return bot.items().stream().filter(cash()).mapToInt(Bot.Item::amount).sum();
     }
 
+    /** What the last sale fetched, read off the line that said so. */
+    private static long soldFor(Bot bot) {
+        String line = bot.chatText().stream().filter(text -> text.contains("You sold")).reduce((a, b) -> b).orElseThrow();
+        String amount = line.substring(line.lastIndexOf('⛃') + 1).replaceAll("[^0-9]", "");
+        return Long.parseLong(amount);
+    }
+
     @Test
     @DisplayName("accounts, paying, cash, a caught duplicate, the shop, the casino and the staff tools")
     void economy() {
@@ -43,7 +50,7 @@ class EconomyScenarioTest {
 
             // ---- an account for everybody who joins, with the starting balance
             ada.run("balance");
-            Await.until("Ada sees her balance", WAIT, () -> said(ada, "You have ⛃100"));
+            Await.until("Ada sees her balance", WAIT, () -> said(ada, "You have ⛃1,000"));
 
             // ---- paying
             ada.forgetChat();
@@ -52,20 +59,17 @@ class EconomyScenarioTest {
             Await.until("Bo is told", WAIT, () -> said(bo, "Ada paid you ⛃25"));
             bo.forgetChat();
             bo.run("balance");
-            Await.until("Bo has 125", WAIT, () -> said(bo, "You have ⛃125"));
+            Await.until("Bo has 1,025", WAIT, () -> said(bo, "You have ⛃1,025"));
             ada.forgetChat();
             ada.run("pay Ada 5");
             Await.until("nobody pays themselves", WAIT, () -> said(ada, "cannot pay yourself"));
 
-            // ---- cash out: one 50 note and two 10 coins for 70
+            // ---- cash out: seventy coins, one kind of coin worth one
             ada.forgetChat();
             ada.run("withdraw 70");
-            Await.until("the cash arrives", WAIT, () -> cashPieces(ada) == 3);
-            assertThat(ada.carrying(item -> item.is("paper") && item.tag("rainseconomy:serial").isPresent()))
-                    .as("the note is numbered").isPresent();
-            assertThat(ada.carrying(item -> item.is("gold_ingot") && item.amount() == 2)).isPresent();
-            String serial = ada.carrying(item -> item.is("paper")).flatMap(item -> item.tag("rainseconomy:serial"))
-                    .orElseThrow();
+            Await.until("the coins arrive", WAIT, () -> cashPieces(ada) == 70);
+            assertThat(ada.items().stream().filter(cash()).allMatch(item -> item.is("gold_nugget")
+                    && item.tag("rainseconomy:seal").isPresent())).as("sealed gold coins, nothing else").isTrue();
 
             // ---- and back in, all of it
             ada.forgetChat();
@@ -73,10 +77,18 @@ class EconomyScenarioTest {
             Await.until("the cash is gone", WAIT, () -> cashPieces(ada) == 0);
             Await.until("Ada is told", WAIT, () -> said(ada, "You paid in ⛃70"));
 
-            // ---- a copy of that note, made the way a duplication glitch would, is caught
+            // ---- a cheque, paid in; then a perfect copy of it — seal and all, as a duplication glitch makes — is caught
+            ada.run("withdraw 50 cheque");
+            Await.until("the cheque arrives", WAIT, () -> ada.carrying(item -> item.is("paper")).isPresent());
+            Bot.Item cheque = ada.carrying(item -> item.is("paper")).orElseThrow();
+            String serial = cheque.tag("rainseconomy:serial").orElseThrow();
+            String seal = cheque.tag("rainseconomy:seal").orElseThrow();
+            ada.forgetChat();
+            ada.run("deposit all");
+            Await.until("the cheque is paid in", WAIT, () -> said(ada, "You paid in ⛃50"));
             server.console("give Ada minecraft:paper[minecraft:custom_data={PublicBukkitValues:{"
-                    + "\"rainseconomy:value\":5000L,\"rainseconomy:form\":\"NOTE\",\"rainseconomy:serial\":\""
-                    + serial + "\"}}]");
+                    + "\"rainseconomy:value\":50L,\"rainseconomy:form\":\"NOTE\",\"rainseconomy:cheque\":1b,"
+                    + "\"rainseconomy:serial\":\"" + serial + "\",\"rainseconomy:seal\":\"" + seal + "\"}}]");
             Await.until("the copy arrives", WAIT, () -> cashPieces(ada) == 1);
             ada.forgetChat();
             ada.run("deposit all");
@@ -84,19 +96,56 @@ class EconomyScenarioTest {
             Await.until("and called what it is", WAIT, () -> said(ada, "already been paid in"));
             ada.forgetChat();
             ada.run("balance");
-            Await.until("nothing was credited for it", WAIT, () -> said(ada, "You have ⛃75"));
+            Await.until("nothing was credited for it", WAIT, () -> said(ada, "You have ⛃975"));
 
-            // ---- a coin claiming to be worth a million — what a hacked creative client could send — is not
-            server.console("give Ada minecraft:gold_ingot[minecraft:custom_data={PublicBukkitValues:{"
-                    + "\"rainseconomy:value\":100000000L,\"rainseconomy:form\":\"COIN\"}}] 3");
-            Await.until("the forged coins arrive", WAIT, () -> cashPieces(ada) == 3);
+            // ---- a coin without the server's seal — what a hacked creative client could send — is worth nothing
+            server.console("give Ada minecraft:gold_nugget[minecraft:custom_data={PublicBukkitValues:{"
+                    + "\"rainseconomy:value\":1L,\"rainseconomy:form\":\"COIN\"}}] 30");
+            Await.until("the forged coins arrive", WAIT, () -> cashPieces(ada) == 30);
             ada.forgetChat();
             ada.run("deposit all");
             Await.until("they are confiscated", WAIT, () -> cashPieces(ada) == 0);
             Await.until("as forgeries", WAIT, () -> said(ada, "not this server's money"));
             ada.forgetChat();
             ada.run("balance");
-            Await.until("and are worth nothing", WAIT, () -> said(ada, "You have ⛃75"));
+            Await.until("and are worth nothing", WAIT, () -> said(ada, "You have ⛃975"));
+
+            // ---- an enchanted sword sells for more than a plain one
+            server.console("give Ada minecraft:diamond_sword 1");
+            Await.until("the plain sword arrives", WAIT, () -> ada.carrying(item -> item.is("diamond_sword")).isPresent());
+            ada.hold(ada.hotbarSlotOf(item -> item.is("diamond_sword")));
+            Await.ticks(5);
+            ada.forgetChat();
+            ada.run("sell hand");
+            Await.until("the plain sword is sold", WAIT, () -> said(ada, "You sold 1 × Diamond Sword for"));
+            long plainSword = soldFor(ada);
+            server.console("give Ada minecraft:diamond_sword[minecraft:enchantments={\"minecraft:sharpness\":5}] 1");
+            Await.until("the enchanted sword arrives", WAIT, () -> ada.carrying(item -> item.is("diamond_sword")).isPresent());
+            ada.hold(ada.hotbarSlotOf(item -> item.is("diamond_sword")));
+            Await.ticks(5);
+            ada.forgetChat();
+            ada.run("sell hand");
+            Await.until("the enchanted sword is sold", WAIT, () -> said(ada, "Diamond Sword (enchanted) for"));
+            assertThat(soldFor(ada)).as("worth more enchanted").isGreaterThan(plainSword);
+
+            // ---- the statement, printed as a book to keep
+            ada.run("bank");
+            ada.awaitWindow("Bank");
+            ada.shiftClickSlot(ada.window().orElseThrow().slotNamed("Statement").orElseThrow());
+            Await.until("a printed statement arrives", WAIT,
+                    () -> ada.carrying(item -> item.is("written_book")).isPresent());
+            ada.closeWindow();
+
+            // ---- hiring: an offer, accepted from chat, and the job on both pages
+            bo.forgetChat();
+            ada.run("hire Bo 5 1h miner");
+            Await.until("Bo is offered the job", WAIT, () -> said(bo, "wants to hire you as miner"));
+            bo.clickButtonOn("wants to hire you", 0);
+            Await.until("Ada is told", WAIT, () -> said(ada, "Bo took the job"));
+            ada.run("hire");
+            ada.awaitWindow("Jobs");
+            assertThat(ada.window().orElseThrow().slotNamed("You employ Bo")).isPresent();
+            ada.closeWindow();
 
             // ---- the shop: drawers like the creative inventory, then one item
             ada.run("shop");
@@ -135,6 +184,19 @@ class EconomyScenarioTest {
             Await.until("the dice are rolled", WAIT, () -> said(ada, "You rolled"));
             ada.closeWindow();
 
+            // ---- roulette: the wheel turns, slows, and the ball lands
+            ada.forgetChat();
+            ada.run("roulette 1");
+            ada.awaitWindow("Roulette");
+            ada.click("Spin");
+            Await.until("the ball lands", Duration.ofSeconds(30), () -> said(ada, "The ball lands on"));
+            ada.closeWindow();
+            // And it was heard: the coin spinning, the wheel ticking, and a win or a loss.
+            assertThat(ada.soundsHeard()).anyMatch(sound -> sound.contains("experience_orb"));
+            assertThat(ada.soundsHeard()).anyMatch(sound -> sound.contains("note_block.hat"));
+            assertThat(ada.soundsHeard()).anyMatch(sound -> sound.contains("note_block.bell")
+                    || sound.contains("note_block.bass") || sound.contains("challenge_complete"));
+
             // ---- slots: the reels spin and stop
             ada.forgetChat();
             ada.run("slots");
@@ -153,7 +215,7 @@ class EconomyScenarioTest {
             // ---- the daily reward, once
             bo.forgetChat();
             bo.run("daily");
-            Await.until("Bo gets it", WAIT, () -> said(bo, "Daily reward: ⛃50"));
+            Await.until("Bo gets it", WAIT, () -> said(bo, "Daily reward: ⛃500"));
             bo.run("daily");
             Await.until("but not twice", WAIT, () -> said(bo, "You have had today's reward"));
 
@@ -225,6 +287,16 @@ class EconomyScenarioTest {
             Await.until("plain gold goes into the grid", WAIT, () -> server.paper.eventsText().lines()
                     .anyMatch(line -> line.contains("\"title\":\"Crafting\",\"slot\":1,") && line.contains("\"cancelled\":false")));
             ada.closeWindow();
+
+            // ---- any item can be the coin; coins already out keep working
+            server.console("item replace entity Ada weapon.mainhand with minecraft:emerald");
+            Await.ticks(5);
+            ada.forgetChat();
+            ada.run("eco coin");
+            Await.until("coins are emeralds now", WAIT, () -> said(ada, "Coins are now made of emerald"));
+            ada.run("withdraw 3");
+            Await.until("three emerald coins", WAIT, () -> ada.items().stream()
+                    .anyMatch(item -> item.is("emerald") && item.tag("rainseconomy:value").isPresent() && item.amount() == 3));
 
             assertThat(server.paper.logLines(line -> line.contains("Exception"))).as("nothing threw").isEmpty();
         }

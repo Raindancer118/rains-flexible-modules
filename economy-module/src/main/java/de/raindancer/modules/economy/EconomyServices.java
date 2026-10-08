@@ -17,7 +17,9 @@ import de.raindancer.modules.economy.service.LotteryService;
 import de.raindancer.modules.economy.service.PaymentService;
 import de.raindancer.modules.economy.service.RainEconomy;
 import de.raindancer.modules.economy.service.RewardService;
-import de.raindancer.modules.economy.service.SalaryService;
+import de.raindancer.modules.economy.service.IncomeService;
+import de.raindancer.modules.economy.service.HireService;
+import de.raindancer.modules.economy.service.StatementService;
 import de.raindancer.modules.economy.service.ShopService;
 import de.raindancer.modules.economy.store.MarketBook;
 import org.bukkit.Server;
@@ -44,7 +46,9 @@ public record EconomyServices(
         CashService cash,
         ShopService shop,
         RewardService rewards,
-        SalaryService salary,
+        IncomeService income,
+        HireService hire,
+        StatementService statements,
         InterestService interest,
         DailyService daily,
         LeaderboardService leaderboard,

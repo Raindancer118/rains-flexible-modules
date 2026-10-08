@@ -6,8 +6,6 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
-import de.raindancer.modules.economy.model.Denomination;
-import de.raindancer.modules.economy.model.Form;
 import de.raindancer.modules.economy.util.Mini;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -16,10 +14,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.ArrayList;
 import java.util.List;
 
-/** Taking money out as the pieces themselves: one of a kind per click, ten with a shift click. */
+/** Taking money out as coins — one, ten, a stack, or any number — or as a cheque. */
 public final class WithdrawMenu extends Menu implements IEconomyScreen {
 
     private final EconomyServices services;
@@ -42,38 +39,30 @@ public final class WithdrawMenu extends Menu implements IEconomyScreen {
     @Override
     protected void render() {
         Currency currency = services.currency();
-        Money balance = services.economy().balance(viewer.getUniqueId());
         set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.GOLD_INGOT, "<white>Balance",
-                Mini.of(currency.render(balance))));
+                Mini.of(currency.render(services.economy().balance(viewer.getUniqueId())))));
 
-        List<Denomination> pieces = services.cash().denominations();
-        int column = 1;
-        for (Denomination denomination : pieces.reversed()) {
-            if (column > 7) {
-                break;
-            }
-            ItemStack icon = services.cash().piece(denomination, null);
+        int column = 2;
+        for (int count : new int[]{1, 10, 64}) {
+            ItemStack icon = services.cash().coin();
+            icon.setAmount(count);
             ItemMeta meta = icon.getItemMeta();
-            List<Component> lore = new ArrayList<>();
-            lore.add(Icons.loreLine("<gray>" + (denomination.form() == Form.NOTE ? "A numbered banknote" : "A coin")));
-            lore.add(Component.empty());
-            lore.add(Icons.loreLine("<yellow>Click<gray> to take one out"));
-            lore.add(Icons.loreLine("<yellow>Shift click<gray> to take ten"));
-            meta.lore(lore);
+            meta.displayName(Icons.name("<yellow>" + count + " " + (count == 1 ? currency.singular() : currency.plural())));
+            meta.lore(List.of(Icons.loreLine("<yellow>Click<gray> to take them out")));
             icon.setItemMeta(meta);
-            band(MenuLayout.RULES, column++, icon, click -> {
-                services.cash().withdraw(viewer, denomination.value().times(click.isShiftClick() ? 10 : 1), false);
+            band(MenuLayout.RULES, column, icon, click -> {
+                services.cash().withdraw(viewer, Money.of(count), false);
                 refresh();
             });
+            column += 2;
         }
-        band(MenuLayout.LAND, 3, Icons.of(Material.NAME_TAG, "<yellow>Any amount",
-                "<gray>Type it; it comes out in the fewest pieces."), click ->
-                MoneyPrompt.ask(viewer, "Withdraw how much?", currency, amount -> {
+        band(MenuLayout.LAND, 3, Icons.of(Material.NAME_TAG, "<yellow>Any number of coins",
+                "<gray>Type how many."), click -> MoneyPrompt.ask(viewer, "How many coins?", currency, amount -> {
                     services.cash().withdraw(viewer, amount, false);
                     open();
                 }, this::open));
-        band(MenuLayout.LAND, 5, Icons.of(Material.PAPER, "<yellow>A cheque",
-                "<gray>One note for exactly the amount you type."), click ->
+        band(MenuLayout.LAND, 5, services.config().chequesEnabled(), Icons.of(Material.PAPER, "<yellow>A cheque",
+                "<gray>One signed paper for exactly the amount you type."), BankMenu.OFF, click ->
                 MoneyPrompt.ask(viewer, "Cheque for how much?", currency, amount -> {
                     services.cash().withdraw(viewer, amount, true);
                     open();
@@ -88,6 +77,6 @@ public final class WithdrawMenu extends Menu implements IEconomyScreen {
 
     @Override
     public String describe() {
-        return "taking money out as coins, notes and cheques";
+        return "taking money out as coins and cheques";
     }
 }

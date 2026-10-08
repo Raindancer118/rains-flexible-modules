@@ -14,7 +14,9 @@ import de.raindancer.modules.economy.model.BetRefusal;
 import de.raindancer.modules.economy.model.SlotSymbol;
 import de.raindancer.modules.economy.model.TransactionKind;
 import de.raindancer.modules.economy.rules.GambleRule;
+import de.raindancer.modules.economy.rules.RouletteRule;
 import de.raindancer.modules.economy.rules.SlotsRule;
+import de.raindancer.modules.economy.model.RouletteBet;
 import de.raindancer.modules.economy.store.AccountBook;
 import de.raindancer.modules.economy.util.PermissionNodes;
 import org.bukkit.Server;
@@ -32,7 +34,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The games of chance: coin flips against the house or another player, dice, and the slot machine.
+ * The games of chance: coin flips against the house or another player, dice, roulette and the slot machine.
  *
  * <p>Every game is decided by a {@link SecureRandom} and settled in one ledger change before anything is
  * shown — so closing the slot machine mid-spin, or logging out, changes nothing about the result.
@@ -48,6 +50,13 @@ public final class GamblingService implements IEconomyService {
 
     /** A coin flip, already paid. */
     public record Flip(boolean landedHeads, boolean calledHeads, Money stake, Money payout) {
+        public boolean won() {
+            return payout.isPositive();
+        }
+    }
+
+    /** A roulette spin, already paid. */
+    public record Wheel(int pocket, RouletteBet bet, Money stake, Money payout) {
         public boolean won() {
             return payout.isPositive();
         }
@@ -76,6 +85,8 @@ public final class GamblingService implements IEconomyService {
     private final Clock clock;
     private final GambleRule rule = new GambleRule();
     private final SlotsRule slots = new SlotsRule();
+    private final RouletteRule roulette = new RouletteRule();
+    private final GameSounds sounds;
     private final SecureRandom random = new SecureRandom();
     private final Cooldowns<UUID> between = new Cooldowns<>();
     private final Map<UUID, Challenge> challenges = new ConcurrentHashMap<>();
@@ -83,7 +94,8 @@ public final class GamblingService implements IEconomyService {
     private volatile EconomySettings settings;
 
     public GamblingService(Plugin plugin, Server server, RainEconomy economy, Messages messages, Effects effects,
-                           ChatButtons buttons, Clock clock, EconomySettings settings) {
+                           ChatButtons buttons, Clock clock, GameSounds sounds, EconomySettings settings) {
+        this.sounds = sounds;
         this.plugin = plugin;
         this.server = server;
         this.economy = economy;
@@ -259,7 +271,7 @@ public final class GamblingService implements IEconomyService {
             boolean won = each.getUniqueId().equals(winner);
             messages.send(each, won ? "economy.gamble.duel-won" : "economy.gamble.duel-lost",
                     "player", winnerName, "amount", currency.render(won ? gain : challenge.stake()));
-            effects.play(each.getUniqueId(), won ? Cues.REWARD : Cues.NO);
+            sounds.play(each.getUniqueId(), won ? GameSounds.WIN : GameSounds.LOSE);
         }
     }
 
@@ -308,6 +320,44 @@ public final class GamblingService implements IEconomyService {
                 ? rule.payout(stake, rule.diceChance(over, target), settings.houseEdge()) : Money.ZERO;
     }
 
+    // ---------------------------------------------------------------------------- roulette
+
+    /** One spin of the wheel, settled; the caller reveals it when its ball stops. */
+    public Optional<Wheel> roulette(Player player, Money stake, RouletteBet bet) {
+        if (!mayBet(player, stake, settings.rouletteEnabled())) {
+            return Optional.empty();
+        }
+        int pocket = roulette.spin(random::nextInt);
+        Money payout = roulette.wins(bet, pocket) ? roulette.payout(stake, bet, settings.houseEdge()) : Money.ZERO;
+        return settle(player, stake, payout, "Roulette: " + bet.label())
+                .map(result -> new Wheel(pocket, bet, stake, payout));
+    }
+
+    public void revealWheel(Player player, Wheel wheel) {
+        announce(player, wheel.won(), wheel.stake(), wheel.payout(), "economy.gamble.roulette",
+                "pocket", wheel.pocket() + " " + colourName(wheel.pocket()), "bet", wheel.bet().label());
+    }
+
+    public RouletteRule.Colour colourOf(int pocket) {
+        return roulette.colourOf(pocket);
+    }
+
+    private String colourName(int pocket) {
+        return switch (roulette.colourOf(pocket)) {
+            case RED -> "red";
+            case BLACK -> "black";
+            case GREEN -> "green";
+        };
+    }
+
+    public Money rouletteWouldPay(Money stake, RouletteBet bet) {
+        return roulette.payout(stake, bet, settings.houseEdge());
+    }
+
+    public GameSounds sounds() {
+        return sounds;
+    }
+
     // ---------------------------------------------------------------------------- slots
 
     /** Spins and settles at once; the menu only shows what has already happened. */
@@ -340,7 +390,7 @@ public final class GamblingService implements IEconomyService {
         values[extra.length + 2] = "balance";
         values[extra.length + 3] = currency.render(economy.balance(player.getUniqueId()));
         messages.send(player, key + (won ? "-won" : "-lost"), values);
-        effects.play(player.getUniqueId(), won ? Cues.REWARD : Cues.NO);
+        sounds.outcome(player.getUniqueId(), stake.minor(), won ? payout.minor() : 0);
     }
 
     public void forget(UUID player) {

@@ -4,12 +4,8 @@ import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.EconomyResult.Outcome;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.DailyClaim;
-import de.raindancer.modules.economy.model.Denomination;
-import de.raindancer.modules.economy.model.Form;
 import de.raindancer.modules.economy.model.PaymentRefusal;
 import de.raindancer.modules.economy.model.RecipeShape;
-import de.raindancer.modules.economy.model.Split;
-import org.bukkit.Material;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -89,38 +85,6 @@ class RulesTest {
             assertThat(rule.needsConfirming(m(1001), m(1000))).isTrue();
             assertThat(rule.needsConfirming(m(1000), m(1000))).isFalse();
             assertThat(rule.needsConfirming(m(999_999), Money.ZERO)).isFalse();
-        }
-    }
-
-    @Nested
-    @DisplayName("making change")
-    class Change {
-        private final ChangeRule rule = new ChangeRule();
-        private final Denomination one = new Denomination(m(100), Material.GOLD_NUGGET, Form.COIN);
-        private final Denomination ten = new Denomination(m(1000), Material.GOLD_INGOT, Form.COIN);
-        private final Denomination hundred = new Denomination(m(10_000), Material.PAPER, Form.NOTE);
-
-        @Test
-        @DisplayName("uses the largest pieces first and leaves what no piece can make in the account")
-        void greedy() {
-            Split split = rule.split(m(12_350), List.of(hundred, ten, one));
-            assertThat(split.pieces()).containsEntry(hundred, 1).containsEntry(ten, 2).containsEntry(one, 3);
-            assertThat(split.leftover()).isEqualTo(m(50));
-            assertThat(split.paidOut()).isEqualTo(m(12_300));
-            assertThat(split.count()).isEqualTo(6);
-        }
-
-        @Test
-        @DisplayName("accepts the denominations in any order")
-        void order() {
-            assertThat(rule.split(m(1_100), List.of(one, ten)).count()).isEqualTo(2);
-        }
-
-        @Test
-        @DisplayName("with nothing to make it from, everything is left over")
-        void nothing() {
-            assertThat(rule.split(m(500), List.of()).leftover()).isEqualTo(m(500));
-            assertThat(rule.split(m(50), List.of(one)).count()).isZero();
         }
     }
 

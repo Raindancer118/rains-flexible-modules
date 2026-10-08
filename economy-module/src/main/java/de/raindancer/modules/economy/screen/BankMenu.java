@@ -51,7 +51,7 @@ public final class BankMenu extends Menu implements IEconomyScreen {
         set(MenuLayout.HEADER_LEFT, Icons.head(viewer, "<white>" + viewer.getName(),
                 "<gray>Balance: " + Mini.of(currency.render(balance)),
                 place > 0 ? "<dark_gray>#" + place + " on the server" : ""));
-        set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.GOLD_BLOCK, Mini.of(currency.renderName(true)),
+        set(MenuLayout.HEADER_SUBJECT, Icons.of(services.cash().coinMaterial(), Mini.of(currency.renderName(true)),
                 "<gray>One " + currency.singular() + " is written " + Mini.of(currency.render(currency.ofMajor(1))),
                 "<dark_gray>Your money is safe in here. Cash you carry is not."));
         boolean dailyReady = services.daily().ready(viewer);
@@ -69,29 +69,40 @@ public final class BankMenu extends Menu implements IEconomyScreen {
                     }
                 });
 
-        band(MenuLayout.WHO, 2, live.payEnabled() && viewer.hasPermission(PermissionNodes.PAY),
+        band(MenuLayout.WHO, 1, live.payEnabled() && viewer.hasPermission(PermissionNodes.PAY),
                 Icons.of(Material.WRITABLE_BOOK, "<green>Pay somebody",
                         "<gray>Pick a player, then an amount."),
                 live.payEnabled() ? NOT_ALLOWED : OFF, click -> pickPayee());
-        band(MenuLayout.WHO, 4, Icons.of(Material.BOOK, "<white>Statement",
-                "<gray>Everything that went in and out."), click ->
-                services.screens().history(viewer, viewer.getUniqueId(), viewer.getName()));
-        band(MenuLayout.WHO, 6, live.baltopEnabled() && viewer.hasPermission(PermissionNodes.BALTOP),
+        band(MenuLayout.WHO, 3, Icons.of(Material.WRITTEN_BOOK, "<white>Statement",
+                "<gray>Everything that went in and out, as a book.", "",
+                "<yellow>Click<gray> to read it", "<yellow>Shift click<gray> to print a copy to keep"), click -> {
+            if (click.isShiftClick()) {
+                services.statements().print(viewer);
+                services.messages().send(viewer, "economy.statement.printed");
+            } else {
+                services.statements().open(viewer, viewer.getUniqueId(), viewer.getName());
+            }
+        });
+        band(MenuLayout.WHO, 5, live.hireEnabled() && viewer.hasPermission(PermissionNodes.HIRE),
+                Icons.of(Material.IRON_PICKAXE, "<white>Jobs", "<gray>Who you employ, and who employs you.",
+                        "<dark_gray>/hire <player> <wage> <every> [job]"),
+                live.hireEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().jobs(viewer));
+        band(MenuLayout.WHO, 7, live.baltopEnabled() && viewer.hasPermission(PermissionNodes.BALTOP),
                 Icons.of(Material.GOLDEN_HELMET, "<gold>Richest players", "<gray>Who has the most."),
                 live.baltopEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().baltop(viewer));
 
         boolean cash = live.cashEnabled() && viewer.hasPermission(PermissionNodes.CASH);
         String cashReason = live.cashEnabled() ? NOT_ALLOWED : OFF;
-        band(MenuLayout.RULES, 2, cash, Icons.of(Material.GOLD_NUGGET, "<yellow>Withdraw cash",
-                "<gray>Coins and notes you can carry and trade."), cashReason,
+        band(MenuLayout.RULES, 2, cash, Icons.of(services.cash().coinMaterial(), "<yellow>Withdraw cash",
+                "<gray>Coins you can carry and trade."), cashReason,
                 click -> services.screens().withdraw(viewer));
         band(MenuLayout.RULES, 4, cash, Icons.of(Material.HOPPER, "<yellow>Pay in all your cash",
-                "<gray>Every coin and note you carry."), cashReason, click -> {
+                "<gray>Every coin and cheque you carry."), cashReason, click -> {
             services.cash().depositAll(viewer);
             refresh();
         });
         band(MenuLayout.RULES, 6, cash && live.chequesEnabled(), Icons.of(Material.PAPER, "<yellow>Write a cheque",
-                "<gray>One note for any amount, with your name on it."),
+                "<gray>One signed paper for any amount."),
                 live.chequesEnabled() ? cashReason : OFF, click -> MoneyPrompt.ask(viewer, "Cheque for how much?",
                         currency, amount -> {
                             services.cash().withdraw(viewer, amount, true);
@@ -105,7 +116,7 @@ public final class BankMenu extends Menu implements IEconomyScreen {
                 Icons.of(Material.CHEST, "<green>Sell", "<gray>What you carry that the shop buys."),
                 live.sellingEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().sell(viewer));
         band(MenuLayout.LAND, 6, live.gamblingEnabled() && viewer.hasPermission(PermissionNodes.GAMBLE),
-                Icons.of(Material.GOLD_BLOCK, "<gold>Casino", "<gray>Coin flips, dice, slots, the lottery."),
+                Icons.of(Material.GOLD_BLOCK, "<gold>Casino", "<gray>Coin flips, dice, slots, roulette, the lottery."),
                 live.gamblingEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().casino(viewer));
 
         if (viewer.hasPermission(PermissionNodes.ADMIN)) {

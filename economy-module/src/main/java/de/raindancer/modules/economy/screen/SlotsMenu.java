@@ -2,7 +2,7 @@ package de.raindancer.modules.economy.screen;
 
 import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.Money;
-import de.raindancer.core.ui.effect.Cues;
+import de.raindancer.modules.economy.service.GameSounds;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuAnimation;
@@ -162,10 +162,11 @@ public final class SlotsMenu extends Menu implements IEconomyScreen, Bet.BetMenu
                     if (position[reel] < stopAt) {
                         position[reel]++;
                         if (position[reel] == stopAt) {
-                            services.effects().play(viewer.getUniqueId(), Cues.CLICK);
+                            services.gambling().sounds().play(viewer.getUniqueId(), GameSounds.REEL_STOP);
                         }
                     }
                 }
+                services.gambling().sounds().play(viewer.getUniqueId(), GameSounds.TICK);
                 refresh();
             }, () -> {
                 for (int reel = 0; reel < 3; reel++) {

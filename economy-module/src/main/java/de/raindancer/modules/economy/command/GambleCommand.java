@@ -17,7 +17,7 @@ import java.util.function.Supplier;
  */
 public final class GambleCommand extends EconomyCommand {
 
-    public enum Game { COINFLIP, DICE, LOTTERY }
+    public enum Game { COINFLIP, DICE, ROULETTE, LOTTERY }
 
     private final Game game;
 
@@ -65,6 +65,13 @@ public final class GambleCommand extends EconomyCommand {
                     }
                     amount(live, sender, args[0]).ifPresent(stake -> live.screens().dice(player, stake, over, target));
                 }
+                case ROULETTE -> {
+                    if (args.length == 0) {
+                        live.screens().roulette(player, null);
+                    } else {
+                        amount(live, sender, args[0]).ifPresent(stake -> live.screens().roulette(player, stake));
+                    }
+                }
                 case LOTTERY -> {
                     if (args.length >= 1 && args[0].equalsIgnoreCase("buy")) {
                         int count = 1;
@@ -91,6 +98,7 @@ public final class GambleCommand extends EconomyCommand {
             case COINFLIP -> args.length == 2 ? starting(args[1], List.of("heads", "tails"))
                     : args.length <= 1 ? players(source, args.length == 0 ? "" : args[0]) : List.of();
             case DICE -> args.length == 2 ? starting(args[1], List.of("over", "under")) : List.of();
+            case ROULETTE -> List.of();
             case LOTTERY -> args.length <= 1 ? starting(args.length == 0 ? "" : args[0], List.of("buy", "info")) : List.of();
         };
     }
@@ -100,6 +108,7 @@ public final class GambleCommand extends EconomyCommand {
         return switch (game) {
             case COINFLIP -> "a coin flip against the house, or a duel";
             case DICE -> "rolling the dice";
+            case ROULETTE -> "the roulette wheel";
             case LOTTERY -> "the lottery";
         };
     }

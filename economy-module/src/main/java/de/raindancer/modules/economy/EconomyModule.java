@@ -25,7 +25,8 @@ import de.raindancer.modules.economy.screen.BankMenu;
 import de.raindancer.modules.economy.screen.CasinoMenu;
 import de.raindancer.modules.economy.screen.CoinFlipMenu;
 import de.raindancer.modules.economy.screen.DiceMenu;
-import de.raindancer.modules.economy.screen.HistoryMenu;
+import de.raindancer.modules.economy.screen.JobsMenu;
+import de.raindancer.modules.economy.screen.RouletteMenu;
 import de.raindancer.modules.economy.screen.SellMenu;
 import de.raindancer.modules.economy.screen.ShopItemsMenu;
 import de.raindancer.modules.economy.screen.ShopMenu;
@@ -44,7 +45,10 @@ import de.raindancer.modules.economy.service.LotteryService;
 import de.raindancer.modules.economy.service.PaymentService;
 import de.raindancer.modules.economy.service.RainEconomy;
 import de.raindancer.modules.economy.service.RewardService;
-import de.raindancer.modules.economy.service.SalaryService;
+import de.raindancer.modules.economy.service.IncomeService;
+import de.raindancer.modules.economy.service.HireService;
+import de.raindancer.modules.economy.service.StatementService;
+import de.raindancer.modules.economy.service.GameSounds;
 import de.raindancer.modules.economy.service.ShopService;
 import de.raindancer.modules.economy.store.AccountBook;
 import de.raindancer.modules.economy.store.BasePrices;
@@ -67,19 +71,20 @@ import java.util.UUID;
 /**
  * A server's money. Shipped through the standard wrapper this is {@code RainsEconomy}.
  *
- * <p>Accounts and a bank; paying and billing; coins, numbered banknotes and cheques you can carry; a shop
- * sorted like the creative inventory, priced from the server's own recipes, with supply and demand;
- * earning from mobs, mining, playing, advancements, a daily streak and interest; and a casino with coin
- * flips, dice, slots and a lottery. Every part has its own switch.
+ * <p>Accounts and a bank with statements as a real book; paying, billing and hiring; sealed coins and
+ * cheques you can carry; a shop sorted like the creative inventory, priced from the server's own recipes,
+ * with supply and demand and enchanted items worth more; passive income, advancements, a daily streak and
+ * interest; and a casino — coin flips, dice, slots, roulette and a lottery — animated and with sounds.
+ * Every part has its own switch.
  *
  * <p>Provides RainsCore's economy, so every other plugin — and through Core's bridge every Vault plugin —
  * charges through the same accounts.
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.1.1")
-            .describedAs("A bank, paying, coins and banknotes, a creative-style shop priced from recipes, "
-                    + "ways to earn, and a casino — every part switchable.")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.2.0")
+            .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
+                    + "passive income, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
 
     /** How often what changed is written to the database. A crash loses at most this much. */
@@ -141,25 +146,30 @@ public final class EconomyModule implements FlexModule {
         PaymentService payments = new PaymentService(context.plugin(), economy, messages, effects, buttons, now);
         BillService bills = new BillService(context.plugin(), server, economy, messages, effects, buttons,
                 System::currentTimeMillis, now);
-        CashService cash = new CashService(server, economy, messages, effects, context.core().audit(), now);
+        CashService cash = new CashService(server, economy, messages, effects, context.core().audit(),
+                de.raindancer.modules.economy.store.CashSeal.load(context.dataFolder().resolve("cash.key")), now);
         ShopService shop = new ShopService(server, economy, prices, market, messages, effects, settings, now);
         RewardService rewards = new RewardService(economy, window, now);
-        SalaryService salary = new SalaryService(context.plugin(), rewards, messages, System::currentTimeMillis, now);
+        IncomeService income = new IncomeService(context.plugin(), rewards, messages, System::currentTimeMillis, now);
+        HireService hire = new HireService(context.plugin(), server, economy, messages, effects, buttons,
+                System::currentTimeMillis, now);
+        StatementService statements = new StatementService(context.plugin(), server, economy, now);
+        GameSounds sounds = new GameSounds(effects);
         InterestService interest = new InterestService(economy, messages, System::currentTimeMillis, now);
         DailyService daily = new DailyService(economy, messages, effects, Clock.systemDefaultZone(), now);
         LeaderboardService leaderboard = new LeaderboardService(book, System::currentTimeMillis);
         GamblingService gambling = new GamblingService(context.plugin(), server, economy, messages, effects, buttons,
-                Clock.systemDefaultZone(), now);
+                Clock.systemDefaultZone(), sounds, now);
         LotteryService lottery = new LotteryService(server, economy, messages, effects, System::currentTimeMillis, now);
 
-        for (var service : List.of(economy, notifier, payments, bills, cash, shop, rewards, salary, interest, daily,
-                gambling, lottery)) {
+        for (var service : List.of(economy, notifier, payments, bills, cash, shop, rewards, income, hire, statements,
+                interest, daily, gambling, lottery)) {
             settings.onChange(service::settings);
         }
 
         services = new EconomyServices(context.plugin(), server, log, messages, context.chat().brand(), context.core(),
-                settings::current, settings, economy, market, payments, bills, cash, shop, rewards, salary, interest,
-                daily, leaderboard, gambling, lottery, new LiveScreens());
+                settings::current, settings, economy, market, payments, bills, cash, shop, rewards, income, hire,
+                statements, interest, daily, leaderboard, gambling, lottery, new LiveScreens());
 
         int recipes = shop.reprice();
 
@@ -185,7 +195,8 @@ public final class EconomyModule implements FlexModule {
             context.closeWith(flushing::cancel);
         }
         var minutes = Scheduling.globalTimer(context.plugin(), 1200L, 1200L, task -> {
-            salary.minute(server.getOnlinePlayers());
+            income.minute(server.getOnlinePlayers());
+            hire.minute();
             interest.minute(server.getOnlinePlayers());
             lottery.minute();
             window.sweep();
@@ -318,15 +329,6 @@ public final class EconomyModule implements FlexModule {
         }
 
         @Override
-        public void history(Player viewer, UUID whose, String name) {
-            Scheduling.async(services.plugin(), () -> {
-                var lines = book.history(whose, 360, 0);
-                Scheduling.entity(services.plugin(), viewer, () ->
-                        new HistoryMenu(services, viewer, null, name, lines).open());
-            });
-        }
-
-        @Override
         public void withdraw(Player viewer) {
             new WithdrawMenu(services, viewer, null).open();
         }
@@ -354,6 +356,16 @@ public final class EconomyModule implements FlexModule {
         @Override
         public void admin(Player viewer) {
             new AdminMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void jobs(Player viewer) {
+            new JobsMenu(services, viewer, null).open();
+        }
+
+        @Override
+        public void roulette(Player viewer, de.raindancer.core.social.economy.Money stake) {
+            RouletteMenu.open(services, viewer, null, stake);
         }
     }
 }

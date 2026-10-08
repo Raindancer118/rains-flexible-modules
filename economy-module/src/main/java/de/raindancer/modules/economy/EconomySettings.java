@@ -54,20 +54,9 @@ public record EconomySettings(
         @Describe("Before the amount ($5), after it (5 €), or the name instead of a symbol (5 Coins).")
         @Key("currency.placement") Currency.Placement currencyPlacement,
 
-        @In("economy/currency") @Title("Decimals") @Range(min = 0, max = 4)
-        @Describe("Digits after the point. 0 for whole coins only. Changing it later re-reads every "
-                + "stored balance in the new unit, so set it before anybody has money.")
-        @Key("currency.decimals") int currencyDecimals,
-
-        @In("economy/currency") @Title("Thousands separator") @Describe("1,000 or 1.000 — one character.")
+        @In("economy/currency") @Title("Thousands separator") @Describe("1,000 or 1.000 — one character. "
+                + "Money comes in whole coins only: there are no decimals anywhere.")
         @Key("currency.group-separator") String groupSeparator,
-
-        @In("economy/currency") @Title("Decimal separator") @Describe("1.50 or 1,50 — one character.")
-        @Key("currency.decimal-separator") String decimalSeparator,
-
-        @In("economy/currency") @Title("Hide .00 on whole amounts")
-        @Describe("Writes $5 rather than $5.00.")
-        @Key("currency.trim-zeros") boolean trimZeros,
 
         @In("economy/currency") @Title("Name colours")
         @Describe("Colour stops and decorations, as in /cosmetics: '#ffd700,#ff8c00|bold'. Easier in "
@@ -127,24 +116,37 @@ public record EconomySettings(
         @Describe("Minutes.")
         @Key("bills.minutes") int billMinutes,
 
+        @In("economy/pay") @Title("Hiring") @Describe("/hire pays somebody a wage from your account at an interval.")
+        @Key("features.hire") boolean hireEnabled,
+
+        @In("economy/pay") @Title("Shortest pay interval") @Range(min = 1, max = 10080)
+        @Describe("Minutes. Stops a wage every second filling statements.")
+        @Key("hire.least-minutes") int hireLeastMinutes,
+
+        @In("economy/pay") @Title("Most people one player may employ") @Range(min = 1, max = 500)
+        @Key("hire.most-contracts") int hireMostContracts,
+
+        @In("economy/pay") @Title("A job ends after this many missed wages") @Range(min = 1, max = 100)
+        @Describe("A wage the employer cannot pay is missed; the employee is told each time.")
+        @Key("hire.most-missed") int hireMostMissed,
+
         // ------------------------------------------------------------------ cash
         @In("economy/cash") @Title("Coins and notes")
         @Describe("Withdrawing money as items you can carry, trade, drop and lose — and paying it back in.")
         @Key("features.cash") boolean cashEnabled,
 
-        @In("economy/cash") @Title("Denominations")
-        @Describe("'<value> <material> coin|note', comma separated. Coins stack; notes carry a serial "
-                + "number. Coins and notes are never usable as their material — no crafting, smelting, "
-                + "trading or bartering.")
-        @Key("cash.denominations") List<String> denominations,
+        @In("economy/cash") @Title("The coin")
+        @Describe("What one coin is made of — any item. Change it in game with /eco coin and the item in your "
+                + "hand. Coins already out keep working: a coin is recognised by its seal, not its look. A coin "
+                + "is never usable as its item: no crafting, smelting, trading or bartering.")
+        @Key("cash.coin-item") Material coinItem,
 
-        @In("economy/cash") @Title("Cheques") @Describe("A single note for any amount: /withdraw <amount> cheque.")
+        @In("economy/cash") @Title("The coin's model")
+        @Describe("A resource pack item model for the coin, like 'myserver:coin'. Empty keeps the item's own look.")
+        @Key("cash.coin-model") String coinModel,
+
+        @In("economy/cash") @Title("Cheques") @Describe("One signed paper for any amount: /withdraw <amount> cheque. Numbered, paid in once.")
         @Key("features.cheques") boolean chequesEnabled,
-
-        @In("economy/cash") @Title("Serial numbers on notes")
-        @Describe("Every note and cheque is numbered and can be paid in once only, so a duplicated note "
-                + "is caught and reported instead of minting money.")
-        @Key("cash.serials") boolean serialNotes,
 
         @In("economy/cash") @Title("Right click pays cash in")
         @Describe("Right clicking a coin or note pays the stack in; sneaking pays in every piece you carry.")
@@ -153,8 +155,8 @@ public record EconomySettings(
         @In("economy/cash") @Title("Withdrawal fee, percent") @Describe("0 for none, at most 50.")
         @Key("cash.withdraw-fee-percent") double withdrawFeePercent,
 
-        @In("economy/cash") @Title("Most pieces per withdrawal") @Range(min = 1, max = 2304)
-        @Describe("Stops /withdraw 1000000 filling the world with nuggets.")
+        @In("economy/cash") @Title("Most coins per withdrawal") @Range(min = 1, max = 2304)
+        @Describe("Stops /withdraw 1000000 filling the world with coins. Larger sums: a cheque.")
         @Key("cash.most-pieces") int mostPieces,
 
         // ------------------------------------------------------------------ shop
@@ -227,6 +229,14 @@ public record EconomySettings(
         @Describe("Hours for half of any push to wear off.")
         @Key("shop.recovery-hours") double recoveryHours,
 
+        @In("economy/shop") @Title("Sell enchanted items")
+        @Describe("Enchanted tools, armour and books sell for more than plain ones; worn ones for less.")
+        @Key("shop.enchanted-selling") boolean enchantedSelling,
+
+        @In("economy/shop") @Title("Each enchantment level is worth")
+        @Describe("Treasure enchantments like Mending count double; curses take value away.")
+        @Key("shop.enchant-value") String enchantValue,
+
         @In("economy/shop/categories") @Title("Building Blocks") @Key("shop.category.building-blocks")
         boolean shopBuildingBlocks,
 
@@ -255,36 +265,23 @@ public record EconomySettings(
         boolean shopMisc,
 
         // ------------------------------------------------------------------ earning
-        @In("economy/earn") @Title("Pay for killing mobs") @Key("features.mob-rewards")
-        boolean mobRewardsEnabled,
+        @In("economy/earn") @Title("Passive income")
+        @Describe("Money for being online, every so many minutes.")
+        @Key("features.income") boolean incomeEnabled,
 
-        @In("economy/earn") @Title("Mob rewards")
-        @Describe("'<mob> <amount>', comma separated: 'zombie 2, creeper 3'.")
-        @Key("earn.mobs") List<String> mobRewards,
+        @In("economy/earn") @Title("Income while playing") @Key("income.amount") String income,
 
-        @In("economy/earn") @Title("Mobs from spawners pay")
-        @Describe("Off, a mob farm built on a spawner earns nothing.")
-        @Key("earn.spawner-mobs-pay") boolean spawnerMobsPay,
+        @In("economy/earn") @Title("Income while away")
+        @Describe("What somebody away from the keyboard gets instead. 0 for nothing. Away is what Core says "
+                + "(the essentials module's /afk); without it, a player who has not moved for the minutes below.")
+        @Key("income.away-amount") String incomeAway,
 
-        @In("economy/earn") @Title("Pay for mining") @Key("features.mining-rewards")
-        boolean miningRewardsEnabled,
-
-        @In("economy/earn") @Title("Mining rewards")
-        @Describe("'<block> <amount>', comma separated. A block somebody placed never pays when broken.")
-        @Key("earn.mining") List<String> miningRewards,
-
-        @In("economy/earn") @Title("Salary for playing") @Key("features.salary")
-        boolean salaryEnabled,
-
-        @In("economy/earn") @Title("Salary") @Key("earn.salary") String salary,
-
-        @In("economy/earn") @Title("Paid every") @Range(min = 1, max = 1440)
-        @Describe("Minutes of active play. Time spent away from the keyboard does not count.")
-        @Key("earn.salary-minutes") int salaryMinutes,
+        @In("economy/earn") @Title("Paid every") @Range(min = 1, max = 1440) @Describe("Minutes online.")
+        @Key("income.minutes") int incomeMinutes,
 
         @In("economy/earn") @Title("Away after") @Range(min = 1, max = 120)
-        @Describe("Minutes without moving or looking around before a player counts as away.")
-        @Key("earn.afk-minutes") int afkMinutes,
+        @Describe("Minutes without moving or looking around — only used when no plugin tells Core who is away.")
+        @Key("income.afk-minutes") int afkMinutes,
 
         @In("economy/earn") @Title("Daily reward") @Describe("/daily, once a day.")
         @Key("features.daily") boolean dailyEnabled,
@@ -304,7 +301,7 @@ public record EconomySettings(
         @In("economy/earn") @Title("Per advancement") @Key("earn.advancement") String advancementReward,
 
         @In("economy/earn") @Title("Most earned per hour")
-        @Describe("From mobs, mining, salary and advancements together. 0 for no limit.")
+        @Describe("From passive income and advancements together. 0 for no limit.")
         @Key("earn.hourly-cap") String hourlyCap,
 
         // ------------------------------------------------------------------ interest
@@ -321,8 +318,7 @@ public record EconomySettings(
 
         // ------------------------------------------------------------------ gambling
         @In("economy/gambling") @Title("Gambling")
-        @Describe("Every game of chance at once. If players can buy this currency for real money, gambling "
-                + "with it may be regulated where the server is run (in Germany: GlüStV) — keep it off then.")
+        @Describe("Every game of chance at once.")
         @Key("features.gambling") boolean gamblingEnabled,
 
         @In("economy/gambling") @Title("Coin flips") @Describe("/coinflip: against the house, or a duel between two players.")
@@ -333,6 +329,9 @@ public record EconomySettings(
 
         @In("economy/gambling") @Title("Slot machine") @Describe("/slots.")
         @Key("features.slots") boolean slotsEnabled,
+
+        @In("economy/gambling") @Title("Roulette") @Describe("/roulette: red, black, green, numbers, dozens.")
+        @Key("features.roulette") boolean rouletteEnabled,
 
         @In("economy/gambling") @Title("Lottery") @Describe("/lottery: tickets into a pot, one winner per draw.")
         @Key("features.lottery") boolean lotteryEnabled,
@@ -377,47 +376,35 @@ public record EconomySettings(
 
     public static final EconomySettings DEFAULTS = new EconomySettings(
             // currency
-            "Coin", "Coins", "⛃", Currency.Placement.BEFORE, 2, ",", ".", true,
+            "Coin", "Coins", "⛃", Currency.Placement.BEFORE, ",",
             "#ffd700,#ff8c00", "#ffd700,#ff8c00|bold", "#fff3b0",
             // accounts
-            "100", "1000000000000", true, 90,
+            "1000", "1000000000000", true, 90,
             // pay
-            true, "0.01", 0.0, "1000", 2, true, true, 5,
+            true, "1", 0.0, "10000", 2, true, true, 5,
+            true, 10, 10, 3,
             // cash
-            true, List.of("1 gold_nugget coin", "10 gold_ingot coin", "50 paper note", "100 paper note",
-                    "500 paper note", "1000 paper note"),
-            true, true, true, 0.0, 576,
+            true, Material.GOLD_NUGGET, "", true, true, 0.0, 2304,
             // shop
             true, true, 1.0, 0.4, SellPricing.AUTOMATIC, List.of(), List.of(), List.of(), List.of(), List.of(),
-            true, 0.1, 0.15, true, 0.5, 0.02, 12.0,
+            true, 0.1, 0.15, true, 0.5, 0.02, 12.0, true, "40",
             true, true, true, true, true, true, true, true, true,
             // earning
-            true, List.of("zombie 2", "zombie_villager 2", "husk 2", "drowned 2", "skeleton 2", "stray 2",
-                    "bogged 2", "spider 2", "cave_spider 2", "creeper 3", "enderman 5", "witch 5", "slime 1",
-                    "magma_cube 1", "blaze 4", "ghast 6", "wither_skeleton 6", "piglin_brute 8", "hoglin 3",
-                    "zoglin 3", "guardian 4", "elder_guardian 150", "phantom 3", "pillager 3", "vindicator 5",
-                    "evoker 15", "vex 2", "ravager 25", "shulker 6", "breeze 5", "silverfish 0.5",
-                    "endermite 1", "warden 250", "wither 500", "ender_dragon 1000"),
-            false,
-            true, List.of("coal_ore 0.5", "deepslate_coal_ore 0.75", "copper_ore 0.5",
-                    "deepslate_copper_ore 0.75", "iron_ore 1", "deepslate_iron_ore 1.5", "gold_ore 2",
-                    "deepslate_gold_ore 3", "nether_gold_ore 0.5", "redstone_ore 1", "deepslate_redstone_ore 1.5",
-                    "lapis_ore 2", "deepslate_lapis_ore 3", "diamond_ore 10", "deepslate_diamond_ore 12",
-                    "emerald_ore 15", "deepslate_emerald_ore 18", "nether_quartz_ore 0.5", "ancient_debris 40"),
-            true, "10", 30, 5,
-            true, "50", "10", 7,
-            true, "25", "2000",
+            false, "10", "2", 30, 5,
+            true, "500", "100", 7,
+            true, "250", "20000",
             // interest
-            true, 0.25, 60, "25",
+            true, 0.25, 60, "250",
             // gambling
-            true, true, true, true, true, "1", "10000", 3.0, "0", 1, 60, "10", 24, 100, 10.0,
+            true, true, true, true, true, true, "1", "100000", 3.0, "0", 1, 60, "100", 24, 100, 10.0,
             // general
             true);
 
     /** The currency these settings describe. */
     public Currency currency() {
-        return new Currency(currencySingular, currencyPlural, currencySymbol, currencyPlacement, currencyDecimals,
-                firstChar(groupSeparator, ','), firstChar(decimalSeparator, '.'), trimZeros,
+        char group = firstChar(groupSeparator, ',');
+        return new Currency(currencySingular, currencyPlural, currencySymbol, currencyPlacement, 0,
+                group, group == '.' ? ',' : '.', true,
                 NameStyle.parse(nameStyle), NameStyle.parse(symbolStyle), NameStyle.parse(amountStyle));
     }
 
@@ -452,8 +439,21 @@ public record EconomySettings(
         return money(payConfirmAbove, DEFAULTS.payConfirmAbove);
     }
 
-    public Money salaryMoney() {
-        return money(salary, DEFAULTS.salary);
+    public Money incomeMoney() {
+        return money(income, DEFAULTS.income);
+    }
+
+    /** May be zero: nothing while away. */
+    public Money incomeAwayMoney() {
+        return settingOrZero(incomeAway);
+    }
+
+    public Money enchantValueMoney() {
+        return money(enchantValue, DEFAULTS.enchantValue);
+    }
+
+    private Money settingOrZero(String written) {
+        return currency().parse(written).orElse(Money.ZERO);
     }
 
     public Money dailyMoney() {
@@ -469,7 +469,7 @@ public record EconomySettings(
     }
 
     public Money hourlyCapMoney() {
-        return money(hourlyCap, DEFAULTS.hourlyCap);
+        return settingOrZero(hourlyCap);
     }
 
     public Money minBetMoney() {
@@ -481,7 +481,7 @@ public record EconomySettings(
     }
 
     public Money dailyLossLimitMoney() {
-        return money(dailyLossLimit, DEFAULTS.dailyLossLimit);
+        return settingOrZero(dailyLossLimit);
     }
 
     public Money ticketPriceMoney() {

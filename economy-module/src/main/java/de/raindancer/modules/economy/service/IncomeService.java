@@ -2,6 +2,8 @@ package de.raindancer.modules.economy.service;
 
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Money;
+import de.raindancer.core.social.presence.Away;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.model.TransactionKind;
@@ -17,13 +19,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
 
 /**
- * Paid for playing: one salary per so many minutes of <em>active</em> play. Activity is sampled once a
- * minute — where somebody stands and where they look — rather than from every move event, which fire
- * thousands of times a second on a busy server.
+ * Passive income: money for being online, every so many minutes — one amount while playing and another
+ * while away. Who is away is Core's answer ({@link Away}, fed by the essentials module's {@code /afk});
+ * only when nothing on the server tells Core does this look for itself, sampling once a minute where
+ * somebody stands and looks.
  */
-public final class SalaryService implements IEconomyService {
+public final class IncomeService implements IEconomyService {
 
-    private record Seen(String where, long movedAt, int activeMinutes) {
+    private record Seen(String where, long movedAt, int minutes) {
     }
 
     private final Plugin plugin;
@@ -34,7 +37,7 @@ public final class SalaryService implements IEconomyService {
     private final Map<UUID, Seen> seen = new ConcurrentHashMap<>();
     private volatile EconomySettings settings;
 
-    public SalaryService(Plugin plugin, RewardService rewards, Messages messages, LongSupplier clock,
+    public IncomeService(Plugin plugin, RewardService rewards, Messages messages, LongSupplier clock,
                          EconomySettings settings) {
         this.plugin = plugin;
         this.rewards = rewards;
@@ -50,7 +53,7 @@ public final class SalaryService implements IEconomyService {
 
     /** Once a minute. Each player is looked at on their own thread. */
     public void minute(Collection<? extends Player> online) {
-        if (!settings.salaryEnabled()) {
+        if (!settings.incomeEnabled()) {
             return;
         }
         for (Player player : online) {
@@ -66,19 +69,29 @@ public final class SalaryService implements IEconomyService {
                 + ":" + Math.round(at.getYaw()) + ":" + Math.round(at.getPitch());
         Seen before = seen.get(player.getUniqueId());
         long movedAt = before == null || !before.where().equals(where) ? now : before.movedAt();
-        int minutes = before == null ? 0 : before.activeMinutes();
-        if (activity.active(movedAt, now, live.afkMinutes())) {
-            minutes++;
-        }
-        if (minutes >= live.salaryMinutes()) {
+        int minutes = (before == null ? 0 : before.minutes()) + 1;
+        if (minutes >= live.incomeMinutes()) {
             minutes = 0;
-            EconomyResult paid = rewards.pay(player, live.salaryMoney(), "Salary", TransactionKind.SALARY);
-            if (paid.succeeded()) {
-                messages.send(player, "economy.earn.salary", "amount", live.currency().render(live.salaryMoney()),
-                        "minutes", String.valueOf(live.salaryMinutes()));
+            boolean away = isAway(player.getUniqueId(), movedAt, now, live);
+            Money amount = away ? live.incomeAwayMoney() : live.incomeMoney();
+            if (amount.isPositive()) {
+                EconomyResult paid = rewards.pay(player, amount, away ? "Income (away)" : "Income",
+                        TransactionKind.INCOME);
+                if (paid.succeeded()) {
+                    messages.send(player, away ? "economy.earn.income-away" : "economy.earn.income",
+                            "amount", live.currency().render(amount), "minutes", String.valueOf(live.incomeMinutes()));
+                }
             }
         }
         seen.put(player.getUniqueId(), new Seen(where, movedAt, minutes));
+    }
+
+    /** Core's answer when something on the server gives one; this module's own sampling otherwise. */
+    boolean isAway(UUID player, long movedAt, long now, EconomySettings live) {
+        if (Away.isKnown()) {
+            return Away.isAway(player);
+        }
+        return !activity.active(movedAt, now, live.afkMinutes());
     }
 
     public void forget(UUID player) {

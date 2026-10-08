@@ -26,6 +26,7 @@ public final class CashTags {
     public static final NamespacedKey SERIAL = key("serial");
     public static final NamespacedKey CHEQUE = key("cheque");
     public static final NamespacedKey ISSUER = key("issuer");
+    public static final NamespacedKey SEAL = key("seal");
 
     private CashTags() {
     }
@@ -51,16 +52,17 @@ public final class CashTags {
         Form form = "NOTE".equals(tags.get(FORM, PersistentDataType.STRING)) ? Form.NOTE : Form.COIN;
         String serial = tags.get(SERIAL, PersistentDataType.STRING);
         boolean cheque = tags.has(CHEQUE, PersistentDataType.BYTE);
-        return Optional.of(new CashPiece(Money.of(value), stack.getAmount(), form, serial, cheque));
+        return Optional.of(new CashPiece(Money.of(value), stack.getAmount(), form, serial, cheque,
+                tags.get(SEAL, PersistentDataType.STRING)));
     }
 
     public static Optional<String> issuer(ItemStack stack) {
         return container(stack).map(data -> data.get(ISSUER, PersistentDataType.STRING));
     }
 
-    /** Writes the value and form; a serial and an issuer only for numbered notes. Returns the same stack. */
+    /** Writes the value, form and seal; a serial and an issuer only for cheques. Returns the same stack. */
     public static ItemStack stamp(ItemStack stack, Money value, Form form, String serial, boolean cheque,
-                                  String issuer) {
+                                  String issuer, String seal) {
         ItemMeta meta = stack.getItemMeta();
         if (meta == null) {
             return stack;
@@ -76,6 +78,9 @@ public final class CashTags {
         }
         if (issuer != null) {
             tags.set(ISSUER, PersistentDataType.STRING, issuer);
+        }
+        if (seal != null) {
+            tags.set(SEAL, PersistentDataType.STRING, seal);
         }
         stack.setItemMeta(meta);
         return stack;

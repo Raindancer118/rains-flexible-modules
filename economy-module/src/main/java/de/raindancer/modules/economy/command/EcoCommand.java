@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class EcoCommand extends EconomyCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("give", "take", "set", "reset", "freeze", "unfreeze",
-            "history", "menu", "reprice", "draw", "calm");
+            "history", "menu", "reprice", "draw", "calm", "coin");
 
     public EcoCommand(Supplier<EconomyServices> services) {
         super(services);
@@ -53,6 +53,21 @@ public final class EcoCommand extends EconomyCommand {
                     live.messages().send(sender, "economy.lottery.no-tickets");
                 }
             }
+            case "coin" -> player(live, sender).ifPresent(player -> {
+                org.bukkit.inventory.ItemStack held = player.getInventory().getItemInMainHand();
+                if (held.getType().isAir() || de.raindancer.modules.economy.store.CashTags.isCash(held)) {
+                    live.messages().send(player, "economy.admin.coin-hold");
+                    return;
+                }
+                net.kyori.adventure.key.Key model = held.getData(io.papermc.paper.datacomponent.DataComponentTypes.ITEM_MODEL);
+                boolean ownLook = model == null || model.equals(held.getType().getKey());
+                live.store().set("cash.coin-item", held.getType().name());
+                live.store().set("cash.coin-model", ownLook ? "" : model.asString());
+                live.store().trySave();
+                audit(live, sender, "coin", player, held.getType().name());
+                live.messages().send(player, "economy.admin.coin", "item",
+                        held.getType().name().toLowerCase(Locale.ROOT).replace('_', ' '));
+            });
             case "calm" -> {
                 live.market().calm();
                 live.messages().send(sender, "economy.admin.calmed");
@@ -95,7 +110,7 @@ public final class EcoCommand extends EconomyCommand {
                     return;
                 }
                 player(live, sender).ifPresent(player -> target(live, sender, args[1]).ifPresent(who ->
-                        live.screens().history(player, who.getUniqueId(), PlayerTargets.shownName(who))));
+                        live.statements().open(player, who.getUniqueId(), PlayerTargets.shownName(who))));
             }
             default -> live.messages().send(sender, "economy.usage.eco");
         }
