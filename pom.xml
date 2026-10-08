@@ -30,7 +30,7 @@
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
         <!-- The end-to-end harness and its headless client: one timestamped 26.2 build, never the moving SNAPSHOT. -->
-        <e2e-harness.version>0.2.0</e2e-harness.version>
+        <e2e-harness.version>0.3.0</e2e-harness.version>
         <mcprotocollib.version>26.2-20260907.143312-19</mcprotocollib.version>
         <!-- Which tests run: everything but the e2e ones, unless -Pe2e turns it round. -->
         <e2e.excluded>e2e,screenshots</e2e.excluded>
@@ -45,7 +45,7 @@
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
         <claims-module.version>2.5.1</claims-module.version>
-        <moderation-module.version>2.23.1</moderation-module.version>
+        <moderation-module.version>2.24.0</moderation-module.version>
         <names-module.version>2.2.1</names-module.version>
         <cosmetics-module.version>0.12.1</cosmetics-module.version>
         <warp-module.version>1.5.1</warp-module.version>

@@ -115,8 +115,12 @@
 
           2.22.0: /fly, /heal, /feed, /hurt and /starve moved to RainsPlayerUtils; the player page's
           tools screen still has them as buttons. Every player argument takes a nickname (typed with _
-          for spaces) and completes it. Needs RainsCore 1.50.1. -->
-        <plugin.version>2.23.1</plugin.version>
+          for spaces) and completes it. Needs RainsCore 1.50.1.
+
+          2.24.0: x-ray detection, second generation: bait ores only an x-ray shows, ore found against the
+          world's own sampled density, steering toward hidden ore against matched controls, combined into
+          one probability with its reasons on the review screen, and a particle replay of the tunnels. -->
+        <plugin.version>2.24.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -1,6 +1,5 @@
 package de.raindancer.modules.moderation.service;
 
-import de.raindancer.core.platform.rule.Verdict;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.modules.moderation.ModerationSettings;
 import de.raindancer.modules.moderation.model.ApproachReading;
@@ -56,6 +55,7 @@ public final class XrayDetectionService implements IModerationService {
     private final Cooldowns<UUID> between = new Cooldowns<>();
 
     private volatile ModerationSettings settings;
+    private volatile XrayEvidenceService evidence;
     /** {@code xrayOres()} upper-cased into a lookup set, rebuilt only when {@link #settings} is
      * replaced — {@link #mined} runs on every block broken and used to scan the configured list
      * linearly for each one. */
@@ -129,16 +129,8 @@ public final class XrayDetectionService implements IModerationService {
             findings.add(player, reading);
         });
 
-        int threshold = rule.effectiveThresholdPercent(now.xrayThresholdPercent(),
-                now.xrayLearningEnabled(), baseline.ratio(), now.xrayLearnedMultiplier());
-        Verdict verdict = rule.mayBeFlagged(window.oreCount(), window.totalCount(),
-                now.xrayMinimumOre(), threshold);
-        if (verdict.isRefused() || !between.tryUse(player)) {
-            return;
-        }
-        reports.file(null, null, player, playerName,
-                "mining pattern looks like x-ray: " + window.oreCount() + "/" + window.totalCount()
-                        + " of the last blocks mined were valuable ore (threshold " + threshold + "%)");
+        // The ratio is context for a moderator, nothing more: a single lucky vein crosses any
+        // threshold. Reports come from XrayEvidenceService, which asks how unlikely the mining is.
     }
 
     /**
@@ -161,6 +153,10 @@ public final class XrayDetectionService implements IModerationService {
      * that makes that true would be exactly backwards.
      */
     public void forget(UUID who) {
+        XrayEvidenceService attached = evidence;
+        if (attached != null) {
+            attached.forget(who);
+        }
         windows.remove(who);
         trails.remove(who);
         between.forget(who);
@@ -175,6 +171,10 @@ public final class XrayDetectionService implements IModerationService {
         if (player == null) {
             return 0;
         }
+        XrayEvidenceService attached = evidence;
+        if (attached != null) {
+            return attached.verdictFor(player).percent();
+        }
         ModerationSettings now = settings;
         int threshold = rule.effectiveThresholdPercent(now.xrayThresholdPercent(),
                 now.xrayLearningEnabled(), baseline.ratio(), now.xrayLearnedMultiplier());
@@ -188,7 +188,22 @@ public final class XrayDetectionService implements IModerationService {
      * the whole server for a question most of them have never given a reason to ask.
      */
     public Set<UUID> everybodyWorthReviewing() {
-        return findings.everybody();
+        XrayEvidenceService attached = evidence;
+        if (attached == null) {
+            return findings.everybody();
+        }
+        Set<UUID> everybody = new java.util.HashSet<>(findings.everybody());
+        everybody.addAll(attached.everybody());
+        return everybody;
+    }
+
+    /** The second-generation evidence: ledgers, bait, steering, a probability with its reasons. */
+    public void attach(XrayEvidenceService evidence) {
+        this.evidence = evidence;
+    }
+
+    public XrayEvidenceService evidence() {
+        return evidence;
     }
 
     /** Reads what is on disk. Called once, when the module starts. */
@@ -201,7 +216,9 @@ public final class XrayDetectionService implements IModerationService {
     public boolean flush() {
         boolean profilesOk = profiles.flush();
         boolean findingsOk = findings.flush();
-        return profilesOk && findingsOk;
+        XrayEvidenceService attached = evidence;
+        boolean evidenceOk = attached == null || attached.flush();
+        return profilesOk && findingsOk && evidenceOk;
     }
 
     /** What the server has learnt is normal here, for a diagnostic. */

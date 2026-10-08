@@ -73,16 +73,17 @@ class XrayDetectionServiceTest {
     class Filing {
 
         @Test
-        @DisplayName("a ratio past the threshold files exactly one report")
-        void filesWhenSuspicious() {
+        @DisplayName("a high ratio alone files nothing: one lucky vein is not evidence")
+        void ratioAloneIsNotEvidence() {
             ReportService reports = mock(ReportService.class);
-            // One stone, one diamond: a 50% ratio, at a 40% threshold with the minimum already met.
+            // One stone, one diamond: a 50% ratio, at a 40% threshold. The old rule reported this;
+            // reports now come from XrayEvidenceService, which asks how unlikely the mining is.
             XrayDetectionService service = newService(reports, settingsWith(true, 20, 1, 40));
 
             service.mined(MOD, "Mod", stone(0));
             service.mined(MOD, "Mod", diamond(1));
 
-            verify(reports, times(1)).file(any(), any(), any(), any(), anyString());
+            verify(reports, never()).file(any(), any(), any(), any(), anyString());
         }
 
         @Test

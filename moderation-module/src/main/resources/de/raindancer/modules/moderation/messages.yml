@@ -214,6 +214,8 @@ moderation:
     not-enough-ore: "<gray>Not enough valuable ore in the window yet — needs at least <white><detail></white>."
     ratio-too-low: "<gray>Below the <white><detail></white>% threshold."
     world-missing: "<gray>That world (<white><world></white>) is not loaded right now."
+    replay-shown: "<green>Showing <white><count></white> of <white><player></white>'s dug blocks for 30 seconds. <gray>Grey rock, aqua ore, red bait. Look around."
+    replay-empty: "<gray>Nothing of <white><player></white>'s digging is near you. Their tunnels are elsewhere — go there first, the replay does not do tourism."
 
   # ── reports ──────────────────────────────────────────────────────────────
   report:

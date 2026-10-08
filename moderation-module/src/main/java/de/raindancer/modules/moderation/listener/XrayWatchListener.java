@@ -141,6 +141,11 @@ public final class XrayWatchListener implements IModerationListener {
         if (player.hasPermission(SuspiciousCommandListener.BYPASS)) {
             return;
         }
+        // Every dig, exposed ore or not: the evidence service decides what the dig revealed itself.
+        var evidence = services.xrayDetection().evidence();
+        if (evidence != null) {
+            evidence.dug(player, block);
+        }
         // Remembered before the exposure check below reads it — not after — so a face this exact break
         // just opened is never mistaken for one that was already there.
         rememberBreak(player.getUniqueId(), block);

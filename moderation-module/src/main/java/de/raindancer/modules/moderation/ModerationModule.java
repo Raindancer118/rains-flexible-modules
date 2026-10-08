@@ -72,7 +72,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.23.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.24.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -98,6 +98,9 @@ public final class ModerationModule implements FlexModule {
     private ReportService reportService;
     private SuspiciousCommandService suspiciousCommands;
     private XrayDetectionService xrayDetection;
+    private de.raindancer.modules.moderation.service.HoneypotService honeypots;
+    private de.raindancer.modules.moderation.service.OreDensitySampler densitySampler;
+    private de.raindancer.modules.moderation.service.XrayEvidenceService xrayEvidence;
     private NoteService noteService;
     private StaffChatService staffChat;
     private StaffRoster roster;
@@ -207,6 +210,16 @@ public final class ModerationModule implements FlexModule {
         xrayDetection = new XrayDetectionService(reportService, new XrayRule(), miningProfiles,
                 miningFindings, settings.current());
         xrayDetection.load();
+        de.raindancer.modules.moderation.model.OreDensity oreDensity = new de.raindancer.modules.moderation.model.OreDensity();
+        honeypots = new de.raindancer.modules.moderation.service.HoneypotService(context.plugin(), settings.current());
+        densitySampler = new de.raindancer.modules.moderation.service.OreDensitySampler(context.plugin(), oreDensity);
+        densitySampler.settings(settings.current());
+        xrayEvidence = new de.raindancer.modules.moderation.service.XrayEvidenceService(reportService,
+                new de.raindancer.modules.moderation.store.XrayLedgers(context.dataFolder(), System::currentTimeMillis),
+                new de.raindancer.modules.moderation.store.OreDensityStore(context.dataFolder(), oreDensity),
+                honeypots, System::currentTimeMillis, settings.current());
+        xrayEvidence.load();
+        xrayDetection.attach(xrayEvidence);
         noteService = new NoteService(context.plugin(), notes, noteStorage, context.core().audit(),
                 settings.current());
         staffChat = new StaffChatService(settings.current());
@@ -267,6 +280,9 @@ public final class ModerationModule implements FlexModule {
             reportService.settings(fresh);
             suspiciousCommands.settings(fresh);
             xrayDetection.settings(fresh);
+            honeypots.settings(fresh);
+            densitySampler.settings(fresh);
+            xrayEvidence.settings(fresh);
             noteService.settings(fresh);
             staffChat.settings(fresh);
             staffService.settings(fresh);
@@ -278,7 +294,16 @@ public final class ModerationModule implements FlexModule {
         context.listener(session);
         context.listener(staffChatListener);
         context.listener(new SuspiciousCommandListener(services));
-        context.listener(new XrayWatchListener(services));
+        XrayWatchListener xrayWatch = new XrayWatchListener(services);
+        de.raindancer.modules.moderation.listener.XrayBaitListener xrayBait =
+                new de.raindancer.modules.moderation.listener.XrayBaitListener(honeypots, densitySampler);
+        session.alsoTelling(xrayWatch).alsoTelling(xrayBait);
+        context.listener(xrayWatch);
+        context.listener(xrayBait);
+        for (org.bukkit.entity.Player online : server.getOnlinePlayers()) {
+            Scheduling.entity(context.plugin(), online, () -> honeypots.start(online));
+        }
+        warnIfPaperAntiXrayIsOff(server, log);
         context.listener(new de.raindancer.modules.moderation.listener.BanhammerListener(services));
 
         // Reports and notes reach the disk on a timer as well as on every change: the per-change save
@@ -447,6 +472,23 @@ public final class ModerationModule implements FlexModule {
      * <p>Paper wants them before anything is enabled, so they are built pointing at a supplier that is
      * filled in when this module starts. Until then the host's guard answers with one line saying so.
      */
+    /**
+     * Paper's own anti-x-ray hides ore from clients in the first place; this module only catches
+     * those who use x-ray anyway. Both together is the strong setup, so say so when Paper's is off.
+     * Read from Paper's config files — the server API does not expose it.
+     */
+    private static void warnIfPaperAntiXrayIsOff(org.bukkit.Server server, de.raindancer.core.platform.log.LogChannel log) {
+        java.nio.file.Path defaults = server.getWorldContainer().toPath().resolve("config").resolve("paper-world-defaults.yml");
+        if (!java.nio.file.Files.isRegularFile(defaults)) {
+            return;
+        }
+        var yaml = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(defaults.toFile());
+        if (!yaml.getBoolean("anticheat.anti-xray.enabled", false)) {
+            log.info("Paper's own anti-x-ray is off (config/paper-world-defaults.yml, anticheat.anti-xray.enabled). "
+                    + "X-ray detection works without it, but turning it on also stops x-ray from showing real ore.");
+        }
+    }
+
     @Override
     public List<ModuleCommand> commands() {
         return ModerationCommands.declared();

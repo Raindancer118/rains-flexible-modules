@@ -29,6 +29,11 @@ import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.ObjectiveAction;
 import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.ScoreboardPosition;
 import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.TeamAction;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundAddEntityPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundBlockUpdatePacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerActionPacket;
+import org.geysermc.mcprotocollib.protocol.data.game.entity.player.PlayerAction;
+import org.geysermc.mcprotocollib.protocol.data.game.entity.object.Direction;
+import org.cloudburstmc.math.vector.Vector3i;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundClientTickEndPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundAttackPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundMovePlayerRotPacket;
@@ -186,6 +191,8 @@ public final class Bot {
     private final Map<String, String> objectiveTitles = new ConcurrentHashMap<>();
     private volatile String sidebarObjective = "";
     private final List<Window> windowsSeen = new CopyOnWriteArrayList<>();
+    /** Single-block updates the server sent, in order: {x, y, z, block state id}. */
+    private final List<int[]> blockUpdates = new CopyOnWriteArrayList<>();
     /** Entity ids the server gave the things it showed this client, by their UUID. */
     private final Map<UUID, Integer> entityIds = new ConcurrentHashMap<>();
 
@@ -346,6 +353,10 @@ public final class Bot {
                 loaded = true;
             }
             case ClientboundAddEntityPacket added -> entityIds.put(added.getUuid(), added.getEntityId());
+            case ClientboundBlockUpdatePacket update -> {
+                Vector3i at = update.getEntry().getPosition();
+                blockUpdates.add(new int[]{at.getX(), at.getY(), at.getZ(), update.getEntry().getBlock()});
+            }
             case ClientboundChunkBatchFinishedPacket ignored -> from.send(new ServerboundChunkBatchReceivedPacket(64f));
             case ClientboundGameEventPacket event -> {
                 if (event.getNotification() == GameEvent.CHANGE_GAME_MODE && event.getValue() instanceof GameMode mode) {
@@ -764,6 +775,18 @@ public final class Bot {
     public Bot look(float yaw, float pitch) {
         session.send(new ServerboundMovePlayerRotPacket(true, false, yaw, pitch));
         return this;
+    }
+
+    /** Starts digging a block — with a tool that breaks it at once, that is the whole break. */
+    public Bot dig(int x, int y, int z) {
+        session.send(new ServerboundPlayerActionPacket(PlayerAction.START_DIGGING, Vector3i.from(x, y, z), Direction.UP,
+                sequence.incrementAndGet()));
+        return this;
+    }
+
+    /** Every single-block update this client was sent, oldest first: {x, y, z, block state id}. */
+    public List<int[]> blockUpdates() {
+        return List.copyOf(blockUpdates);
     }
 
     /** The packet a client sends at the end of each of its ticks. */

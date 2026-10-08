@@ -45,12 +45,14 @@ public final class XrayReviewMenu extends ModerationList<ApproachReading> {
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
     private final String subjectName;
+    private final UUID subject;
     private final List<ApproachReading> readings;
 
     public XrayReviewMenu(ModerationServices services, Player viewer, Menu parent, UUID subject,
                           String subjectName) {
         super(services, viewer, parent);
         this.subjectName = subjectName == null || subjectName.isBlank() ? "somebody" : subjectName;
+        this.subject = subject;
         // Read once, on open, rather than on every render: a moderator paging through a long list
         // should see the same order all the way through, not one that reshuffles under them because
         // the subject mined another block while the page was open.
@@ -132,6 +134,40 @@ public final class XrayReviewMenu extends ModerationList<ApproachReading> {
         String rawName = found == null ? materialName : found.name();
         String words = rawName.replace('_', ' ').toLowerCase(Locale.ROOT);
         return words.isEmpty() ? words : Character.toUpperCase(words.charAt(0)) + words.substring(1);
+    }
+
+    @Override
+    protected void render() {
+        super.render();
+        var evidence = services().xrayDetection().evidence();
+        if (evidence == null) {
+            return;
+        }
+        var verdict = evidence.verdictFor(subject);
+        List<String> lore = new ArrayList<>();
+        String colour = verdict.score() >= 6 ? "<red>" : verdict.score() >= 3 ? "<yellow>" : "<green>";
+        lore.add("<gray>Honest mining like this: about one in " + colour + "10^"
+                + String.format(Locale.ROOT, "%.1f", verdict.score()));
+        for (var signal : verdict.signals()) {
+            lore.add("<dark_gray> · <white>" + signal.name() + "<gray> 10^-" + String.format(Locale.ROOT, "%.1f", signal.score()));
+            lore.add("<dark_gray>   " + MINI.escapeTags(signal.summary()));
+        }
+        if (verdict.signals().isEmpty()) {
+            lore.add("<dark_gray>Not enough digging seen yet to say anything.");
+        }
+        lore.add("<dark_gray>Bait ores around them now: " + evidence.baitsAround(subject));
+        toolbar(3, Icons.of(Material.SPYGLASS, "<yellow>The evidence", lore), click -> { });
+        var ledger = evidence.ledgerOf(subject);
+        toolbar(5, ledger != null, Icons.of(Material.ENDER_EYE, "<yellow>Show me their tunnels",
+                        "<gray>Draws their recent digging around you for 30 seconds,",
+                        "<gray>only you can see it: <white>grey</white> rock, <aqua>aqua</aqua> ore veins,",
+                        "<red>red</red> bait ores only an x-ray shows.", "<dark_gray>Stand near where they mined."),
+                "Nothing of theirs is recorded yet", click -> {
+                    viewer.closeInventory();
+                    int drawn = de.raindancer.modules.moderation.visual.XrayReplay.show(services().plugin(), viewer, ledger);
+                    tell(drawn > 0 ? "moderation.xray.replay-shown" : "moderation.xray.replay-empty",
+                            "player", subjectName, "count", drawn);
+                });
     }
 
     @Override

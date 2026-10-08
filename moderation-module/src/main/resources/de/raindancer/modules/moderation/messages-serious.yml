@@ -19,3 +19,5 @@ moderation:
   staff-chat:
     turned-off: "<gray>You are talking to the server again."
   vanished: "<gray>You are invisible. <dark_gray>Players cannot see you or hear you arrive."
+  xray:
+    replay-empty: "<gray>None of <white><player></white>'s recorded digging is near you. Go to where they mined first."
