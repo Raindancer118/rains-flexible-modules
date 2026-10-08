@@ -129,6 +129,68 @@ public final class ShopService implements IEconomyService {
                 "item", Catalogue.readable(material.name()), "amount", currency.render(total.get()));
     }
 
+    /** One enchanted book the shop sells. */
+    public record EnchantOffer(org.bukkit.enchantments.Enchantment enchantment, int level, Money price) {
+    }
+
+    /** Every enchanted book on sale: each enchantment the server knows, each level up to its normal maximum. */
+    public List<EnchantOffer> enchantOffers() {
+        EconomySettings live = settings;
+        if (!live.enchantBooks()) {
+            return List.of();
+        }
+        Money book = tag(Material.BOOK).buy();
+        List<EnchantOffer> offers = new ArrayList<>();
+        var registry = io.papermc.paper.registry.RegistryAccess.registryAccess()
+                .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT);
+        List<org.bukkit.enchantments.Enchantment> all = new ArrayList<>();
+        registry.forEach(all::add);
+        all.sort(java.util.Comparator.comparing(enchantment -> enchantment.getKey().getKey()));
+        for (org.bukkit.enchantments.Enchantment enchantment : all) {
+            for (int level = 1; level <= enchantment.getMaxLevel(); level++) {
+                var each = new de.raindancer.modules.economy.model.EnchantLevel(enchantment.getKey().getKey(), level,
+                        enchantment.isTreasure(), enchantment.isCursed());
+                if (enchants.offered(each, live.enchantTreasure(), live.enchantClosed())) {
+                    offers.add(new EnchantOffer(enchantment, level,
+                            enchants.buyPrice(book, each, live.enchantPriceMoney(), live.enchantValueMoney())));
+                }
+            }
+        }
+        return offers;
+    }
+
+    /** Sells one enchanted book: paid first, then handed over — the same order as anything else bought here. */
+    public void buyEnchant(Player player, EnchantOffer offer) {
+        Currency currency = settings.currency();
+        boolean stillOffered = enchantOffers().stream().anyMatch(each -> each.enchantment().equals(offer.enchantment())
+                && each.level() == offer.level() && each.price().equals(offer.price()));
+        if (!stillOffered) {
+            refuse(player, "economy.shop.enchant-gone");
+            return;
+        }
+        ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
+        book.editMeta(org.bukkit.inventory.meta.EnchantmentStorageMeta.class,
+                meta -> meta.addStoredEnchant(offer.enchantment(), offer.level(), false));
+        if (!CashService.fits(player.getInventory(), List.of(book))) {
+            refuse(player, "economy.shop.no-room");
+            return;
+        }
+        String name = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                .serialize(offer.enchantment().displayName(offer.level()));
+        EconomyResult result = economy.move(player.getUniqueId(), offer.price().negate(), TransactionKind.BUY,
+                "Enchanted book: " + name);
+        if (!result.succeeded()) {
+            Outcomes.tell(messages, effects, player, EconomyResult.failed(result.outcome(), offer.price(),
+                    result.balance()), currency, "");
+            return;
+        }
+        player.getInventory().addItem(book).values()
+                .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+        effects.play(player.getUniqueId(), Cues.REWARD);
+        messages.send(player, "economy.shop.bought", "count", "1", "item", "Enchanted Book (" + name + ")",
+                "amount", currency.render(offer.price()));
+    }
+
     private static List<ItemStack> stacksOf(Material material, int amount) {
         List<ItemStack> stacks = new ArrayList<>();
         int max = Math.max(1, material.getMaxStackSize());

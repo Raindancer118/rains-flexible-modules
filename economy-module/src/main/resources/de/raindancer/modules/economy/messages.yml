@@ -93,6 +93,7 @@ economy:
     changed: "<red>That item changed before it could be sold. Open the list again."
     no-room: "<red>Your inventory has no room for that. Nothing was taken."
     bought: "<green>You bought <count> × <white><item></white> for <amount><green>."
+    enchant-gone: "<red>That book is no longer for sale at that price. Nothing was taken."
     sold: "<green>You sold <white><what></white> for <amount><green>."
 
   earn:

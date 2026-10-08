@@ -39,6 +39,27 @@ public final class EnchantValueRule implements IEconomyRule {
         return Money.of(Math.max(0, (long) Math.floor(worn + enchanted + 1e-9)));
     }
 
+    /**
+     * What an enchanted book costs in the shop: the book, plus the levels at the buying price — treasure
+     * double — and never less per level than the shop pays, so buying and selling back cannot make money.
+     */
+    public Money buyPrice(Money book, EnchantLevel enchantment, Money buyPerLevel, Money sellPerLevel) {
+        long perLevel = Math.max(buyPerLevel.minor(), sellPerLevel.minor());
+        long value = Math.multiplyExact(perLevel, Math.max(1, enchantment.level()));
+        if (enchantment.treasure()) {
+            value = Math.multiplyExact(value, 2);
+        }
+        return book.max(Money.ZERO).plus(Money.of(value));
+    }
+
+    /** Whether the shop sells it: never a curse, treasure only when allowed, nothing an owner closed. */
+    public boolean offered(EnchantLevel enchantment, boolean treasureAllowed, List<String> closed) {
+        if (enchantment.curse() || enchantment.treasure() && !treasureAllowed) {
+            return false;
+        }
+        return closed.stream().noneMatch(key -> key.strip().equalsIgnoreCase(enchantment.key()));
+    }
+
     public double durabilityLeft(int maxDurability, int damage) {
         if (maxDurability <= 0) {
             return 1.0;

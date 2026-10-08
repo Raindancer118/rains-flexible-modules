@@ -234,6 +234,22 @@ public record EconomySettings(
         @Describe("Hours for half of any push to wear off.")
         @Key("shop.recovery-hours") double recoveryHours,
 
+        @In("economy/shop") @Title("Enchanted books for sale")
+        @Describe("An Enchantments drawer in the shop: any enchantment at any level up to its normal maximum, as a book.")
+        @Key("shop.enchant-books") boolean enchantBooks,
+
+        @In("economy/shop") @Title("A level of enchantment costs")
+        @Describe("On a book bought from the shop; treasure enchantments like Mending cost double.")
+        @Key("shop.enchant-price") String enchantPrice,
+
+        @In("economy/shop") @Title("Treasure enchantments for sale")
+        @Describe("Mending, Frost Walker, Soul Speed and the others found only as loot.")
+        @Key("shop.enchant-treasure") boolean enchantTreasure,
+
+        @In("economy/shop") @Title("Enchantments not for sale")
+        @Describe("Their keys, like sharpness or mending, comma separated.")
+        @Key("shop.enchant-closed") List<String> enchantClosed,
+
         @In("economy/shop") @Title("Sell enchanted items")
         @Describe("Enchanted tools, armour and books sell for more than plain ones; worn ones for less.")
         @Key("shop.enchanted-selling") boolean enchantedSelling,
@@ -588,7 +604,7 @@ public record EconomySettings(
             true, Material.GOLD_NUGGET, "", true, true, 0.0, 2304,
             // shop
             true, true, 1.0, 0.4, SellPricing.AUTOMATIC, List.of(), List.of(), List.of(), List.of(), List.of(),
-            true, 0.1, 0.15, true, 0.5, 0.02, 12.0, true, "40",
+            true, 0.1, 0.15, true, 0.5, 0.02, 12.0, true, "500", false, List.of(), true, "40",
             true, true, true, true, true, true, true, true, true,
             // earning
             false, "10", "2", 30, 5,
@@ -723,6 +739,10 @@ public record EconomySettings(
 
     public Money raffleSmallestTicketMoney() {
         return money(raffleSmallestTicket, DEFAULTS.raffleSmallestTicket);
+    }
+
+    public Money enchantPriceMoney() {
+        return money(enchantPrice, DEFAULTS.enchantPrice);
     }
 
     public Money xpBuyMoney() {

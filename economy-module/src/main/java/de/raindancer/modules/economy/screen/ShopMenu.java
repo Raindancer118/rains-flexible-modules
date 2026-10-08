@@ -82,6 +82,10 @@ public final class ShopMenu extends Menu implements IEconomyScreen {
                         text -> services.screens().shopSearch(viewer, text), this::open));
         band(MenuLayout.LAND, 5, live.sellingEnabled(), Icons.of(Material.CHEST, "<white>Sell",
                 "<gray>What you carry that the shop buys."), BankMenu.OFF, click -> services.screens().sell(viewer));
+        band(MenuLayout.LAND, 1, live.enchantBooks(), Icons.of(Material.ENCHANTED_BOOK, "<light_purple>Enchantments",
+                "<gray>Any enchantment as a book, for an anvil.",
+                "<gray>A level: " + Mini.of(services.currency().render(live.enchantPriceMoney()))), BankMenu.OFF,
+                click -> new EnchantMenu(services, viewer, this).open());
         band(MenuLayout.LAND, 7, live.xpTradeEnabled(), Icons.of(Material.EXPERIENCE_BOTTLE, "<green>Experience",
                 "<gray>Buy levels, priced by the point.",
                 "<gray>A point: " + Mini.of(services.currency().render(live.xpBuyMoney()))), BankMenu.OFF,

@@ -92,6 +92,10 @@ public class EconomySettingsTest {
         assertThat(d.pressurePerStackClamped()).isEqualTo(0.02);
         assertThat(d.recoveryHoursClamped()).isEqualTo(12.0);
         assertThat(d.enchantedSelling()).isTrue();
+        assertThat(d.enchantBooks()).isTrue();
+        assertThat(d.enchantPriceMoney()).isEqualTo(Money.of(500));
+        assertThat(d.enchantTreasure()).as("Mending and the like stay loot unless an owner sells them").isFalse();
+        assertThat(d.enchantClosed()).isEmpty();
         assertThat(d.enchantValueMoney()).isEqualTo(Money.of(40));
         for (Category category : Category.values()) {
             assertThat(d.categoryOpen(category)).as(category.title()).isTrue();

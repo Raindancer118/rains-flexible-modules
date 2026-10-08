@@ -35,6 +35,7 @@ public final class AdminMenu extends Menu implements IEconomyScreen {
             new Switch("features.selling", "Selling", Material.CHEST),
             new Switch("features.auctions", "Auctions", Material.BELL),
             new Switch("features.xp-trade", "Experience trading", Material.EXPERIENCE_BOTTLE),
+            new Switch("shop.enchant-books", "Enchanted books for sale", Material.ENCHANTED_BOOK),
             new Switch("features.raffles", "Raffles", Material.NAME_TAG),
             new Switch("features.giveaways", "Giveaways", Material.CAKE),
             new Switch("features.wealth-tax", "Wealth tax", Material.IRON_BARS),

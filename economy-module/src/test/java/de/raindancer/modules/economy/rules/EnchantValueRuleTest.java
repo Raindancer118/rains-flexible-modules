@@ -43,4 +43,31 @@ class EnchantValueRuleTest {
         assertThat(rule.durabilityLeft(100, 75)).isEqualTo(0.25);
         assertThat(rule.durabilityLeft(100, 500)).isEqualTo(0.0);
     }
+
+    @Test
+    @DisplayName("a book bought from the shop costs the book plus its levels, treasure double — always more than it sells for")
+    void buying() {
+        EnchantValueRule rule = new EnchantValueRule();
+        Money book = Money.of(30);
+        EnchantLevel sharpness = new EnchantLevel("sharpness", 5, false, false);
+        EnchantLevel mending = new EnchantLevel("mending", 1, true, false);
+        assertThat(rule.buyPrice(book, sharpness, Money.of(500), Money.of(40))).isEqualTo(Money.of(30 + 2_500));
+        assertThat(rule.buyPrice(book, mending, Money.of(500), Money.of(40))).isEqualTo(Money.of(30 + 1_000));
+        assertThat(rule.buyPrice(book, sharpness, Money.of(1), Money.of(40))).as("never under what it sells for")
+                .isEqualTo(Money.of(30 + 200));
+        Money sells = rule.sellValue(Money.of(12), 1.0, rule.bonus(java.util.List.of(sharpness), Money.of(40)), 0.4);
+        assertThat(rule.buyPrice(book, sharpness, Money.of(1), Money.of(40))).isGreaterThan(sells);
+    }
+
+    @Test
+    @DisplayName("what the shop offers: no curses, treasure only when allowed, nothing an owner closed")
+    void offered() {
+        EnchantValueRule rule = new EnchantValueRule();
+        assertThat(rule.offered(new EnchantLevel("sharpness", 1, false, false), false, java.util.List.of())).isTrue();
+        assertThat(rule.offered(new EnchantLevel("binding_curse", 1, true, true), true, java.util.List.of())).isFalse();
+        assertThat(rule.offered(new EnchantLevel("mending", 1, true, false), false, java.util.List.of())).isFalse();
+        assertThat(rule.offered(new EnchantLevel("mending", 1, true, false), true, java.util.List.of())).isTrue();
+        assertThat(rule.offered(new EnchantLevel("sharpness", 1, false, false), true, java.util.List.of("Sharpness")))
+                .as("closed, whatever the case").isFalse();
+    }
 }
