@@ -97,18 +97,19 @@ public final class CrashService implements IEconomyService {
             }
             case RUNNING -> {
                 double at = rule.multiplierAt(now - phaseStarted);
+                // Before the crash: one step can pass a target and the crash point both.
+                for (Map.Entry<UUID, Bet> each : bets.entrySet()) {
+                    Bet bet = each.getValue();
+                    if (bet.cashedAt == 0 && rule.autoCashesOut(bet.autoCashOut, at, crashPoint)) {
+                        cashOut(each.getKey(), bet, bet.autoCashOut);
+                    }
+                }
                 if (at >= crashPoint) {
                     shown = crashPoint;
                     crash();
                     return;
                 }
                 shown = at;
-                for (Map.Entry<UUID, Bet> each : bets.entrySet()) {
-                    Bet bet = each.getValue();
-                    if (bet.cashedAt == 0 && bet.autoCashOut > 1 && at >= bet.autoCashOut) {
-                        cashOut(each.getKey(), bet, bet.autoCashOut);
-                    }
-                }
             }
             case CRASHED -> {
                 if (now - phaseStarted >= CRASHED_MILLIS) {

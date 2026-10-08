@@ -159,6 +159,17 @@ class CardGamesTest {
     }
 
     @Test
+    @DisplayName("an auto cash-out is paid whenever the round reached it — also when the same step crashed")
+    void crashAutoCashOut() {
+        CrashRule rule = new CrashRule();
+        assertThat(rule.autoCashesOut(1.5, 1.53, 1.52)).as("passed on the way to the crash").isTrue();
+        assertThat(rule.autoCashesOut(1.5, 1.53, 1.50)).as("reaching it is enough").isTrue();
+        assertThat(rule.autoCashesOut(1.5, 1.53, 1.49)).as("crashed before it").isFalse();
+        assertThat(rule.autoCashesOut(1.5, 1.49, 3.0)).as("not there yet").isFalse();
+        assertThat(rule.autoCashesOut(1.0, 2.0, 3.0)).as("1× is no target").isFalse();
+    }
+
+    @Test
     @DisplayName("mines pays exactly one minus the edge after any number of safe tiles")
     void mines() {
         MinesRule rule = new MinesRule();

@@ -3,7 +3,7 @@ package de.raindancer.modules.economy.service;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.model.Card;
-import de.raindancer.modules.economy.model.Shoe;
+import de.raindancer.modules.economy.model.Shoes;
 import de.raindancer.modules.economy.rules.BaccaratRule;
 import de.raindancer.modules.economy.rules.BlackjackRule;
 import de.raindancer.modules.economy.rules.HiLoRule;
@@ -83,7 +83,7 @@ public final class TableService implements IEconomyService {
     private final HiLoRule hiLoRule = new HiLoRule();
     private final MinesRule minesRule = new MinesRule();
     private final SecureRandom random = new SecureRandom();
-    private final Map<UUID, Shoe> shoes = new ConcurrentHashMap<>();
+    private final Shoes shoes;
     private final Map<UUID, Blackjack> blackjack = new ConcurrentHashMap<>();
     private final Map<UUID, HiLo> hiLo = new ConcurrentHashMap<>();
     private final Map<UUID, Mines> mines = new ConcurrentHashMap<>();
@@ -93,6 +93,7 @@ public final class TableService implements IEconomyService {
         this.server = server;
         this.gambling = gambling;
         settings(settings);
+        this.shoes = new Shoes(() -> this.settings.decks(), random);
     }
 
     @Override
@@ -121,14 +122,11 @@ public final class TableService implements IEconomyService {
     }
 
     private Card draw(UUID player) {
-        Shoe shoe = shoes.compute(player, (id, old) -> old == null || old.nearlyEmpty()
-                ? new Shoe(settings.decks(), random) : old);
-        return shoe.draw();
+        return shoes.draw(player);
     }
 
     public int[] ranksLeft(UUID player) {
-        Shoe shoe = shoes.computeIfAbsent(player, id -> new Shoe(settings.decks(), random));
-        return shoe.ranksLeft();
+        return shoes.ranksLeft(player);
     }
 
     // ---------------------------------------------------------------------------- blackjack
@@ -465,7 +463,7 @@ public final class TableService implements IEconomyService {
     }
 
     public void forget(UUID player) {
-        shoes.remove(player);
+        shoes.forget(player);
         blackjack.remove(player);
         hiLo.remove(player);
         mines.remove(player);

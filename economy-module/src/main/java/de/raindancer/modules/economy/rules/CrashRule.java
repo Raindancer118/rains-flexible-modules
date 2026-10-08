@@ -21,6 +21,14 @@ public final class CrashRule implements IEconomyRule {
         return Math.floor(Math.exp(Math.max(0, millis) * GROWTH_PER_MILLI) * 100) / 100.0;
     }
 
+    /**
+     * Whether an automatic cash-out is paid: the round reached it, even if the same step also crashed.
+     * Reaching means the crash point is at least the target, the same sense the fair odds are drawn in.
+     */
+    public boolean autoCashesOut(double target, double climbed, double crashPoint) {
+        return target > 1 && target <= climbed && target <= crashPoint;
+    }
+
     @Override
     public String describe() {
         return "where a crash round crashes, and how fast its multiplier climbs";
