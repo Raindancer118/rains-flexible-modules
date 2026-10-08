@@ -53,7 +53,8 @@ public final class PriceEditMenu extends Menu implements IEconomyScreen {
         set(MenuLayout.HEADER_SUBJECT, Icons.of(material, "<white>" + Catalogue.readable(material.name()),
                 "<gray>Value: " + Mini.of(currency.render(tag.value())) + " <dark_gray>(" + tag.source().name().toLowerCase() + ")",
                 "<gray>Buys for: " + Mini.of(currency.render(tag.buy())),
-                "<gray>Sells for: " + Mini.of(currency.render(tag.sell()))));
+                "<gray>Sells for: " + Mini.of(currency.render(tag.sell())),
+                tag.buyable() || tag.sellable() ? "" : "<yellow>Not in the shop yet: give it a value or a buy price."));
 
         priceButton(1, Material.GOLD_INGOT, "Value", "shop.values", live.customValues(),
                 "What it is worth before markups; crafted items follow it.");

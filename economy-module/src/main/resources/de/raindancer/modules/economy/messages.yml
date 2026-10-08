@@ -337,6 +337,7 @@ economy:
     leaderboard-none: "<red>There is no leaderboard within five blocks of you."
     leaderboards-off: "<red>World leaderboards are switched off. /eco menu switches them on."
     coin-hold: "<red>Hold the item coins should be made of — anything but money."
+    shop-hold: "<red>Hold the item you want to put in the shop."
     done: "<green>Done. <white><player></white> now has <balance><green>."
     refused: "<red>Refused for <player>: <reason>."
     frozen: "<green><player>'s account is frozen."

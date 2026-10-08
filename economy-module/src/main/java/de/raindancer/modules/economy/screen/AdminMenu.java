@@ -16,53 +16,10 @@ import org.bukkit.entity.Player;
 import java.util.List;
 
 /**
- * Every switch of the economy on one page, a click each, written straight to the settings file — and the
- * tools an owner reaches for: repricing, drawing the lottery, calming the market, painting the currency.
+ * The owner's desk: the economy's switches and its shop items, each a page of its own, and the tools an owner
+ * reaches for — repricing, drawing the lottery, calming the market, painting the currency.
  */
 public final class AdminMenu extends Menu implements IEconomyScreen {
-
-    private record Switch(String key, String label, Material icon) {
-    }
-
-    private static final List<Switch> SWITCHES = List.of(
-            new Switch("features.pay", "Paying", Material.WRITABLE_BOOK),
-            new Switch("features.bills", "Bills", Material.PAPER),
-            new Switch("features.hire", "Hiring", Material.IRON_PICKAXE),
-            new Switch("features.cash", "Coins", Material.GOLD_NUGGET),
-            new Switch("features.cheques", "Cheques", Material.FILLED_MAP),
-            new Switch("cash.right-click", "Right click pays in", Material.HOPPER),
-            new Switch("features.shop", "Shop", Material.EMERALD),
-            new Switch("features.selling", "Selling", Material.CHEST),
-            new Switch("features.auctions", "Auctions", Material.BELL),
-            new Switch("features.xp-trade", "Experience trading", Material.EXPERIENCE_BOTTLE),
-            new Switch("shop.enchant-books", "Enchanted books for sale", Material.ENCHANTED_BOOK),
-            new Switch("features.raffles", "Raffles", Material.NAME_TAG),
-            new Switch("features.giveaways", "Giveaways", Material.CAKE),
-            new Switch("features.wealth-tax", "Wealth tax", Material.IRON_BARS),
-            new Switch("shop.enchanted-selling", "Enchanted items sell", Material.ENCHANTED_BOOK),
-            new Switch("features.dynamic-prices", "Supply and demand", Material.COMPARATOR),
-            new Switch("shop.derive-from-recipes", "Recipe prices", Material.CRAFTING_TABLE),
-            new Switch("features.income", "Passive income", Material.CLOCK),
-            new Switch("features.daily", "Daily reward", Material.SUNFLOWER),
-            new Switch("features.advancement-rewards", "Advancement rewards", Material.KNOWLEDGE_BOOK),
-            new Switch("features.interest", "Interest", Material.EXPERIENCE_BOTTLE),
-            new Switch("features.baltop", "Richest players", Material.GOLDEN_HELMET),
-            new Switch("features.sidebar", "Sidebar", Material.OAK_SIGN),
-            new Switch("features.leaderboards", "World leaderboards", Material.ITEM_FRAME),
-            new Switch("accounts.action-bar", "Changes above hotbar", Material.OAK_SIGN),
-            new Switch("features.gambling", "Gambling", Material.GOLD_BLOCK),
-            new Switch("features.coinflip", "Coin flips", Material.SUNFLOWER),
-            new Switch("features.dice", "Dice", Material.WHITE_WOOL),
-            new Switch("features.slots", "Slots", Material.DIAMOND),
-            new Switch("features.roulette", "Roulette", Material.ENDER_PEARL),
-            new Switch("features.lottery", "Lottery", Material.FILLED_MAP),
-            new Switch("features.blackjack", "Blackjack", Material.PAPER),
-            new Switch("features.baccarat", "Baccarat", Material.RED_CONCRETE),
-            new Switch("features.hilo", "Hi-Lo", Material.LIME_CONCRETE),
-            new Switch("features.mines", "Mines", Material.TNT),
-            new Switch("features.crash", "Crash", Material.FIREWORK_ROCKET),
-            new Switch("features.race", "Horse races", Material.SADDLE),
-            new Switch("features.scratch", "Scratch cards", Material.MAP));
 
     private final EconomyServices services;
 
@@ -102,17 +59,13 @@ public final class AdminMenu extends Menu implements IEconomyScreen {
             refresh();
         });
 
-        for (int i = 0; i < SWITCHES.size(); i++) {
-            Switch each = SWITCHES.get(i);
-            boolean on = "true".equalsIgnoreCase(store.display(each.key())) || "on".equalsIgnoreCase(store.display(each.key()));
-            cell(1 + i / 9, i % 9, Icons.of(on ? each.icon() : Material.GRAY_DYE,
-                    (on ? "<green>" : "<red>") + each.label(), on ? "<green>On" : "<red>Off",
-                    "<dark_gray>" + each.key(), "<yellow>Click<gray> to switch"), click -> {
-                store.cycle(each.key());
-                store.trySave();
-                refresh();
-            });
-        }
+        band(MenuLayout.WHO, 2, Icons.of(Material.LEVER, "<white>Features",
+                "<gray>" + FeatureSwitchMenu.SWITCHES.size() + " switches, one click each.",
+                "<yellow>Click<gray> to open"), click -> new FeatureSwitchMenu(services, viewer, this).open());
+        band(MenuLayout.WHO, 6, Icons.of(Material.EMERALD, "<green>Shop items",
+                "<gray>Put any item in the shop — elytras, maces, anything —",
+                "<gray>and change what anything costs or pays.",
+                "<yellow>Click<gray> to open"), click -> new ShopEditorMenu(services, viewer, this).open());
 
         toolbar(1, Icons.of(services.cash().coinMaterial(), "<yellow>The coin",
                 "<gray>Made of " + services.cash().coinMaterial().name().toLowerCase().replace('_', ' '),
