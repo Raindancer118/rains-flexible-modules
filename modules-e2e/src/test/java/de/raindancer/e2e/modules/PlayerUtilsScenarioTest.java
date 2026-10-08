@@ -115,6 +115,17 @@ class PlayerUtilsScenarioTest {
 
             bo.run("player Ada");
             assertThat(bo.awaitWindow("").items()).as("a player's view of somebody's profile").isNotEmpty();
+            bo.closeWindow();
+
+            // Picked from the list: the list answers by opening their page — which must then stay open.
+            ada.run("player");
+            Bot.Window list = ada.awaitWindow("Players");
+            int boHead = list.slotNamed("Bo").orElseThrow(() -> new AssertionError("Bo is not on the list: " + list.items()));
+            ada.clickSlot(boHead);
+            ada.awaitWindow("Bo");
+            Await.ticks(20);
+            assertThat(ada.window()).as("the page picked from the list is still open")
+                    .hasValueSatisfying(window -> assertThat(window.title()).contains("Bo"));
 
             assertThat(server.paper.errorsFrom("RainsCore", "RainsEssentials", "RainsPlayerUtils")).isEmpty();
         }
