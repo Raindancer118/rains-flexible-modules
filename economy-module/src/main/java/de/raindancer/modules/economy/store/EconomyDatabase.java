@@ -21,7 +21,8 @@ public final class EconomyDatabase {
             "CREATE TABLE market (material TEXT PRIMARY KEY, pressure REAL NOT NULL, updated INTEGER NOT NULL)",
             "CREATE TABLE lottery (id INTEGER PRIMARY KEY CHECK (id = 1), draw INTEGER NOT NULL, next_at INTEGER NOT NULL)",
             "CREATE TABLE lottery_ticket (draw INTEGER NOT NULL, player TEXT NOT NULL, tickets INTEGER NOT NULL, "
-                    + "PRIMARY KEY (draw, player))");
+                    + "PRIMARY KEY (draw, player))",
+            "CREATE TABLE coin_float (value INTEGER PRIMARY KEY, outstanding INTEGER NOT NULL)");
 
     private EconomyDatabase() {
     }

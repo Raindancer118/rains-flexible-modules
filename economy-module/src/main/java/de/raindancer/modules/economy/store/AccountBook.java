@@ -52,6 +52,9 @@ public final class AccountBook {
     private final Object lock = new Object();
     private final Map<UUID, Account> accounts = new HashMap<>();
     private final Map<String, Money> outstanding = new HashMap<>();
+    /** Coins in circulation, by value: issued and not yet paid back in. More cannot be paid in. */
+    private final Map<Money, Long> circulation = new HashMap<>();
+    private final Set<Money> dirtyCoins = new LinkedHashSet<>();
     private final Set<UUID> dirty = new LinkedHashSet<>();
     private final List<Transaction> journal = new ArrayList<>();
     private final List<NoteWrite> notes = new ArrayList<>();
@@ -99,6 +102,13 @@ public final class AccountBook {
                     open.put(rows.getString(1), Money.of(rows.getLong(2)));
                 }
             }
+            Map<Money, Long> coinsOut = new HashMap<>();
+            try (PreparedStatement select = connection.prepareStatement("SELECT value, outstanding FROM coin_float");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    coinsOut.put(Money.of(rows.getLong(1)), rows.getLong(2));
+                }
+            }
             long drawRead = 1;
             long nextRead = 0;
             try (PreparedStatement select = connection.prepareStatement("SELECT draw, next_at FROM lottery WHERE id = 1");
@@ -121,6 +131,7 @@ public final class AccountBook {
             synchronized (lock) {
                 accounts.putAll(found);
                 outstanding.putAll(open);
+                circulation.putAll(coinsOut);
                 draw = drawRead;
                 nextDrawAt = nextRead;
                 tickets.putAll(held);
@@ -172,6 +183,13 @@ public final class AccountBook {
     public boolean isOutstanding(String serial) {
         synchronized (lock) {
             return outstanding.containsKey(serial);
+        }
+    }
+
+    /** How many coins of this value are out in the world. */
+    public long coinsOut(Money value) {
+        synchronized (lock) {
+            return circulation.getOrDefault(value, 0L);
         }
     }
 
@@ -312,9 +330,11 @@ public final class AccountBook {
      * Takes money out as cash: the total and the fee leave the account, and every note is registered as
      * outstanding, in one change.
      *
-     * @param notes serial to value, for the numbered pieces; coins have none
+     * @param notes serial to value, for the numbered pieces
+     * @param coins how many coins of each value, added to what is in circulation
      */
-    public EconomyResult issueCash(UUID id, Map<String, Money> notes, Money total, Money fee, Money most) {
+    public EconomyResult issueCash(UUID id, Map<String, Money> notes, Map<Money, Integer> coins, Money total, Money fee,
+                                   Money most) {
         synchronized (lock) {
             Optional<EconomyResult> refused = refuseEarly(id, total);
             if (refused.isPresent()) {
@@ -348,6 +368,10 @@ public final class AccountBook {
                 outstanding.put(serial, value);
                 this.notes.add(new NoteWrite(serial, value, id, now, null, 0));
             });
+            coins.forEach((value, count) -> {
+                circulation.merge(value, (long) count, Long::sum);
+                dirtyCoins.add(value);
+            });
             return EconomyResult.done(total, change.after());
         }
     }
@@ -356,9 +380,10 @@ public final class AccountBook {
      * Pays cash back in. Every serial must be outstanding; one that is not — already paid in, or never
      * issued — refuses the whole lot, and nothing is credited.
      *
+     * @param coins how many coins of each value; more than are in circulation refuses the lot
      * @param total what the pieces are worth together, coins included
      */
-    public EconomyResult redeemCash(UUID id, List<String> serials, Money total, Money most) {
+    public EconomyResult redeemCash(UUID id, List<String> serials, Map<Money, Integer> coins, Money total, Money most) {
         synchronized (lock) {
             Optional<EconomyResult> refused = refuseEarly(id, total);
             if (refused.isPresent()) {
@@ -373,6 +398,11 @@ public final class AccountBook {
             if (new LinkedHashSet<>(serials).size() != serials.size()) {
                 return EconomyResult.failed(Outcome.REFUSED, total, account.balance());
             }
+            for (Map.Entry<Money, Integer> each : coins.entrySet()) {
+                if (each.getValue() > circulation.getOrDefault(each.getKey(), 0L)) {
+                    return EconomyResult.failed(Outcome.REFUSED, total, account.balance());
+                }
+            }
             BalanceChange change = rule.apply(account.balance(), total, most, account.frozen());
             if (!change.allowed()) {
                 return EconomyResult.failed(change.outcome(), total, account.balance());
@@ -382,6 +412,10 @@ public final class AccountBook {
                 Money value = outstanding.remove(serial);
                 notes.add(new NoteWrite(serial, value, null, 0, id, now));
             }
+            coins.forEach((value, count) -> {
+                circulation.merge(value, (long) -count, Long::sum);
+                dirtyCoins.add(value);
+            });
             commit(account, change.after(), total, TransactionKind.DEPOSIT, "", null);
             return EconomyResult.done(total, change.after());
         }
@@ -622,14 +656,20 @@ public final class AccountBook {
             List<Transaction> lines;
             List<NoteWrite> noteWrites;
             Map<UUID, Integer> ticketWrites = new HashMap<>();
+            Map<Money, Long> coinWrites = new HashMap<>();
             boolean writeLottery;
             long drawNow;
             long nextNow;
             long cleared;
             synchronized (lock) {
-                if (dirty.isEmpty() && journal.isEmpty() && notes.isEmpty() && !lotteryDirty && dirtyTickets.isEmpty()) {
+                if (dirty.isEmpty() && journal.isEmpty() && notes.isEmpty() && !lotteryDirty && dirtyTickets.isEmpty()
+                        && dirtyCoins.isEmpty()) {
                     return 0;
                 }
+                for (Money value : dirtyCoins) {
+                    coinWrites.put(value, circulation.getOrDefault(value, 0L));
+                }
+                dirtyCoins.clear();
                 for (UUID id : dirtyTickets) {
                     ticketWrites.put(id, tickets.getOrDefault(id, 0));
                 }
@@ -684,6 +724,16 @@ public final class AccountBook {
                     }
                     insert.executeBatch();
                 }
+                try (PreparedStatement coins = connection.prepareStatement(
+                        "INSERT INTO coin_float (value, outstanding) VALUES (?, ?) ON CONFLICT(value) "
+                                + "DO UPDATE SET outstanding = excluded.outstanding")) {
+                    for (Map.Entry<Money, Long> each : coinWrites.entrySet()) {
+                        coins.setLong(1, each.getKey().minor());
+                        coins.setLong(2, each.getValue());
+                        coins.addBatch();
+                    }
+                    coins.executeBatch();
+                }
                 if (writeLottery) {
                     try (PreparedStatement state = connection.prepareStatement(
                             "INSERT INTO lottery (id, draw, next_at) VALUES (1, ?, ?) ON CONFLICT(id) "
@@ -737,6 +787,7 @@ public final class AccountBook {
                     journal.addAll(0, lines);
                     notes.addAll(0, noteWrites);
                     dirtyTickets.addAll(ticketWrites.keySet());
+                    dirtyCoins.addAll(coinWrites.keySet());
                     lotteryDirty |= writeLottery;
                     if (cleared >= 0 && clearedDraw < 0) {
                         clearedDraw = cleared;

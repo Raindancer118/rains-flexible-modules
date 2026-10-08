@@ -130,14 +130,14 @@ class AccountBookTest {
     void notes() {
         book.open(alice, "Alice", Money.of(10_000));
         book.open(bob, "Bob", Money.ZERO);
-        EconomyResult issued = book.issueCash(alice, Map.of("S1", Money.of(5_000)), Money.of(5_000), Money.of(100), most);
+        EconomyResult issued = book.issueCash(alice, Map.of("S1", Money.of(5_000)), Map.of(), Money.of(5_000), Money.of(100), most);
         assertThat(issued.succeeded()).isTrue();
         assertThat(book.balance(alice)).isEqualTo(Money.of(4_900));
         assertThat(book.isOutstanding("S1")).isTrue();
 
-        assertThat(book.redeemCash(bob, List.of("S1"), Money.of(5_000), most).succeeded()).isTrue();
+        assertThat(book.redeemCash(bob, List.of("S1"), Map.of(), Money.of(5_000), most).succeeded()).isTrue();
         assertThat(book.balance(bob)).isEqualTo(Money.of(5_000));
-        assertThat(book.redeemCash(bob, List.of("S1"), Money.of(5_000), most).outcome())
+        assertThat(book.redeemCash(bob, List.of("S1"), Map.of(), Money.of(5_000), most).outcome())
                 .as("the duplicate").isEqualTo(Outcome.REFUSED);
         assertThat(book.balance(bob)).isEqualTo(Money.of(5_000));
     }
@@ -146,9 +146,9 @@ class AccountBookTest {
     @DisplayName("an outstanding note survives a restart, and a redeemed one stays redeemed")
     void notesSurvive() {
         book.open(alice, "Alice", Money.of(10_000));
-        book.issueCash(alice, Map.of("KEEP", Money.of(1_000), "SPENT", Money.of(1_000)), Money.of(2_000),
+        book.issueCash(alice, Map.of("KEEP", Money.of(1_000), "SPENT", Money.of(1_000)), Map.of(), Money.of(2_000),
                 Money.ZERO, most);
-        book.redeemCash(alice, List.of("SPENT"), Money.of(1_000), most);
+        book.redeemCash(alice, List.of("SPENT"), Map.of(), Money.of(1_000), most);
 
         AccountBook fresh = reopened();
         assertThat(fresh.isOutstanding("KEEP")).isTrue();
@@ -156,10 +156,26 @@ class AccountBookTest {
     }
 
     @Test
+    @DisplayName("coins in circulation are counted, survive a restart, and no more can be paid in than are out")
+    void coinCirculation() {
+        book.open(alice, "Alice", Money.of(10_000));
+        assertThat(book.issueCash(alice, Map.of(), Map.of(Money.of(100), 5), Money.of(500), Money.ZERO, most)
+                .succeeded()).isTrue();
+        assertThat(book.coinsOut(Money.of(100))).isEqualTo(5);
+        assertThat(book.redeemCash(alice, List.of(), Map.of(Money.of(100), 6), Money.of(600), most).outcome())
+                .as("a sixth coin was never issued").isEqualTo(Outcome.REFUSED);
+        assertThat(book.redeemCash(alice, List.of(), Map.of(Money.of(100), 2), Money.of(200), most).succeeded()).isTrue();
+
+        AccountBook fresh = reopened();
+        assertThat(fresh.coinsOut(Money.of(100))).isEqualTo(3);
+        assertThat(fresh.balance(alice)).isEqualTo(Money.of(9_700));
+    }
+
+    @Test
     @DisplayName("issuing more cash than the balance holds issues nothing")
     void cashNeedsMoney() {
         book.open(alice, "Alice", Money.of(100));
-        assertThat(book.issueCash(alice, Map.of("X", Money.of(1_000)), Money.of(1_000), Money.ZERO, most).outcome())
+        assertThat(book.issueCash(alice, Map.of("X", Money.of(1_000)), Map.of(), Money.of(1_000), Money.ZERO, most).outcome())
                 .isEqualTo(Outcome.NOT_ENOUGH);
         assertThat(book.isOutstanding("X")).isFalse();
     }

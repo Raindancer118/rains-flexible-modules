@@ -15,7 +15,9 @@ import de.raindancer.modules.economy.model.Denomination;
 import de.raindancer.modules.economy.model.Form;
 import de.raindancer.modules.economy.model.Split;
 import de.raindancer.modules.economy.model.TransactionKind;
+import de.raindancer.modules.economy.rules.CashCheckRule;
 import de.raindancer.modules.economy.rules.ChangeRule;
+import de.raindancer.modules.economy.model.CashCheck;
 import de.raindancer.modules.economy.store.AccountBook;
 import de.raindancer.modules.economy.store.CashTags;
 import de.raindancer.modules.economy.util.PermissionNodes;
@@ -58,6 +60,7 @@ public final class CashService implements IEconomyService {
     private final Effects effects;
     private final Audit audit;
     private final ChangeRule change = new ChangeRule();
+    private final CashCheckRule check = new CashCheckRule();
     private final SecureRandom random = new SecureRandom();
     private volatile EconomySettings settings;
     private volatile List<Denomination> denominations = List.of();
@@ -155,6 +158,7 @@ public final class CashService implements IEconomyService {
         }
         List<ItemStack> items = new ArrayList<>();
         Map<String, Money> numbered = new LinkedHashMap<>();
+        Map<Money, Integer> coins = new LinkedHashMap<>();
         Money total;
         if (asCheque) {
             if (!live.chequesEnabled()) {
@@ -187,6 +191,7 @@ public final class CashService implements IEconomyService {
                         items.add(piece(denomination, serial));
                     }
                 } else {
+                    coins.merge(denomination.value(), each.getValue(), Integer::sum);
                     ItemStack coin = piece(denomination, null);
                     int left = each.getValue();
                     int stack = Math.max(1, coin.getMaxStackSize());
@@ -208,7 +213,7 @@ public final class CashService implements IEconomyService {
             return;
         }
         Money fee = total.share(live.withdrawFee());
-        EconomyResult result = book.issueCash(player.getUniqueId(), numbered, total, fee, economy.most());
+        EconomyResult result = book.issueCash(player.getUniqueId(), numbered, coins, total, fee, economy.most());
         if (!result.succeeded()) {
             Outcomes.tell(messages, effects, player, EconomyResult.failed(result.outcome(), total.plus(fee),
                     result.balance()), currency, "");
@@ -282,7 +287,7 @@ public final class CashService implements IEconomyService {
         deposit(player, slots);
     }
 
-    /** What the cash in these slots would pay in, and which of it is counterfeit. */
+    /** Pays in the cash in these slots — what is genuine of it; forgeries are confiscated. */
     private void deposit(Player player, List<Integer> slots) {
         EconomySettings live = settings;
         Currency currency = live.currency();
@@ -291,69 +296,88 @@ public final class CashService implements IEconomyService {
             return;
         }
         PlayerInventory inventory = player.getInventory();
-        List<Integer> good = new ArrayList<>();
-        List<String> serials = new ArrayList<>();
-        Money total = Money.ZERO;
-        int counterfeit = 0;
+        Map<Integer, CashPiece> pieces = new LinkedHashMap<>();
+        Map<Integer, Material> materials = new LinkedHashMap<>();
         for (int slot : slots) {
             ItemStack stack = inventory.getItem(slot);
-            CashPiece piece = CashTags.read(stack).orElse(null);
-            if (piece == null) {
-                continue;
-            }
-            if (piece.numbered()) {
-                java.util.Optional<Money> registered = book.noteValue(piece.serial());
-                if (registered.isEmpty() || !registered.get().equals(piece.each()) || serials.contains(piece.serial())) {
-                    counterfeit++;
-                    confiscate(player, slot, piece);
-                    continue;
-                }
-                serials.add(piece.serial());
-            }
-            try {
-                total = total.plus(piece.total());
-            } catch (ArithmeticException overflow) {
-                break;
-            }
-            good.add(slot);
+            CashTags.read(stack).ifPresent(piece -> {
+                pieces.put(slot, piece);
+                materials.put(slot, stack.getType());
+            });
         }
-        if (counterfeit > 0) {
-            refuse(player, "economy.cash.counterfeit", "count", String.valueOf(counterfeit));
-        }
-        if (good.isEmpty()) {
-            if (counterfeit == 0) {
-                refuse(player, "economy.cash.none");
-            }
+        if (pieces.isEmpty()) {
+            refuse(player, "economy.cash.none");
             return;
         }
-        EconomyResult result = book.redeemCash(player.getUniqueId(), serials, total, economy.most());
+        CashCheck check;
+        try {
+            check = this.check.check(pieces, materials, denominations, book::noteValue, book::coinsOut);
+        } catch (ArithmeticException absurd) {
+            refuse(player, "economy.not-an-amount");
+            return;
+        }
+        if (!check.confiscated().isEmpty()) {
+            check.confiscated().forEach((slot, count) -> take(inventory, slot, count));
+            confiscate(player, pieces, check);
+        }
+        if (check.overTheFloat() > 0) {
+            refuse(player, "economy.cash.over-circulation", "count", String.valueOf(check.overTheFloat()));
+            alertStaff("economy.cash.over-circulation-alert", "player", player.getName(),
+                    "count", String.valueOf(check.overTheFloat()));
+        }
+        if (!check.total().isPositive()) {
+            return;
+        }
+        EconomyResult result = book.redeemCash(player.getUniqueId(), check.serials(), check.coins(), check.total(),
+                economy.most());
         if (!result.succeeded()) {
             Outcomes.tell(messages, effects, player, result, currency, "");
             return;
         }
-        for (int slot : good) {
-            inventory.setItem(slot, null);
-        }
-        economy.tell(player.getUniqueId(), total, result.balance(), TransactionKind.DEPOSIT);
+        check.taken().forEach((slot, count) -> take(inventory, slot, count - check.confiscated().getOrDefault(slot, 0)));
+        economy.tell(player.getUniqueId(), check.total(), result.balance(), TransactionKind.DEPOSIT);
         effects.play(player.getUniqueId(), Cues.EARNED);
-        messages.send(player, "economy.cash.deposited", "amount", currency.render(total),
+        messages.send(player, "economy.cash.deposited", "amount", currency.render(check.total()),
                 "balance", currency.render(result.balance()));
     }
 
-    private void confiscate(Player player, int slot, CashPiece piece) {
-        player.getInventory().setItem(slot, null);
+    /** Takes this many items out of one slot. */
+    private static void take(PlayerInventory inventory, int slot, int count) {
+        ItemStack stack = inventory.getItem(slot);
+        if (stack == null || count <= 0) {
+            return;
+        }
+        if (stack.getAmount() <= count) {
+            inventory.setItem(slot, null);
+        } else {
+            stack.setAmount(stack.getAmount() - count);
+            inventory.setItem(slot, stack);
+        }
+    }
+
+    private void confiscate(Player player, Map<Integer, CashPiece> pieces, CashCheck check) {
         Currency currency = settings.currency();
-        audit.record(AuditEntry.of("economy", "counterfeit-note")
-                .by(player.getUniqueId(), player.getName())
-                .saying("A note that was already paid in, or never issued, was confiscated")
-                .with("serial", String.valueOf(piece.serial()))
-                .with("value", currency.format(piece.each()))
-                .with("count", piece.count())
-                .in(player.getWorld().getName()));
+        int count = check.confiscatedCount();
+        refuse(player, "economy.cash.counterfeit", "count", String.valueOf(count));
+        check.confiscated().forEach((slot, taken) -> {
+            CashPiece piece = pieces.get(slot);
+            audit.record(AuditEntry.of("economy", "counterfeit-cash")
+                    .by(player.getUniqueId(), player.getName())
+                    .saying("Cash that was already paid in, never issued, or not this server's was confiscated")
+                    .with("serial", String.valueOf(piece.serial()))
+                    .with("value", currency.format(piece.each()))
+                    .with("count", taken)
+                    .in(player.getWorld().getName()));
+            alertStaff("economy.cash.counterfeit-alert", "player", player.getName(),
+                    "serial", piece.numbered() ? piece.serial() : "(coin)", "amount", currency.render(piece.each()),
+                    "count", String.valueOf(taken));
+        });
+    }
+
+    private void alertStaff(String key, Object... values) {
         for (Player staff : server.getOnlinePlayers()) {
             if (staff.hasPermission(PermissionNodes.ALERTS)) {
-                messages.send(staff, "economy.cash.counterfeit-alert", "player", player.getName(),
-                        "serial", String.valueOf(piece.serial()), "amount", currency.render(piece.each()));
+                messages.send(staff, key, values);
             }
         }
     }

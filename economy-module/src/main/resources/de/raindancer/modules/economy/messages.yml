@@ -73,8 +73,10 @@ economy:
     fee: "<gray>The bank kept <fee><gray> as a fee."
     deposited: "<green>You paid in <amount><green>. Your account holds <balance><green>."
     none: "<red>You are not carrying any cash."
-    counterfeit: "<red><count> note(s) had already been paid in or were never issued, and were taken. Staff have been told."
-    counterfeit-alert: "<red>[Economy] <white><player></white> tried to pay in note No. <white><serial></white> (<amount><red>), which was already paid in or never issued. It was confiscated."
+    counterfeit: "<red><count> piece(s) had already been paid in, were never issued or are not this server's money, and were taken. Staff have been told."
+    counterfeit-alert: "<red>[Economy] <white><player></white> tried to pay in <count> forged piece(s) — No. <white><serial></white>, worth <amount><red> each. Confiscated."
+    over-circulation: "<red><count> coin(s) were not paid in: more coins of that value were offered than are in circulation. Staff have been told."
+    over-circulation-alert: "<red>[Economy] <white><player></white> offered <count> more coin(s) than are in circulation — somebody may be duplicating coins."
 
   shop:
     off: "<red>The shop is switched off on this server."

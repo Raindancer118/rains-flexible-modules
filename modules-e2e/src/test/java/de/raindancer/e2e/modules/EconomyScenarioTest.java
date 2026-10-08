@@ -86,6 +86,18 @@ class EconomyScenarioTest {
             ada.run("balance");
             Await.until("nothing was credited for it", WAIT, () -> said(ada, "You have ⛃75"));
 
+            // ---- a coin claiming to be worth a million — what a hacked creative client could send — is not
+            server.console("give Ada minecraft:gold_ingot[minecraft:custom_data={PublicBukkitValues:{"
+                    + "\"rainseconomy:value\":100000000L,\"rainseconomy:form\":\"COIN\"}}] 3");
+            Await.until("the forged coins arrive", WAIT, () -> cashPieces(ada) == 3);
+            ada.forgetChat();
+            ada.run("deposit all");
+            Await.until("they are confiscated", WAIT, () -> cashPieces(ada) == 0);
+            Await.until("as forgeries", WAIT, () -> said(ada, "not this server's money"));
+            ada.forgetChat();
+            ada.run("balance");
+            Await.until("and are worth nothing", WAIT, () -> said(ada, "You have ⛃75"));
+
             // ---- the shop: drawers like the creative inventory, then one item
             ada.run("shop");
             ada.awaitWindow("Shop");

@@ -77,7 +77,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.1.1")
             .describedAs("A bank, paying, coins and banknotes, a creative-style shop priced from recipes, "
                     + "ways to earn, and a casino — every part switchable.")
             .by("Raindancer118");
