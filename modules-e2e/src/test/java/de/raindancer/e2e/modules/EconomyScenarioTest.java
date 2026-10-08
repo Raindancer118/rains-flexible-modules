@@ -470,6 +470,49 @@ class EconomyScenarioTest {
             Await.until("Bo is paid, less the fee", WAIT, () -> said(bo, "sold for ⛃100") && said(bo, "⛃95"));
             Await.until("the bar is gone", WAIT, () -> ada.bossBars().stream().noneMatch(bar -> bar.contains("Auction")));
 
+            // ---- a raffle: started from the hand, tickets bought by command and by chat button, drawn
+            server.console("settings set economy:raffle.min-minutes 1");
+            server.console("item replace entity Bo weapon.mainhand with minecraft:golden_apple 2");
+            Await.ticks(10);
+            ada.forgetChat();
+            bo.forgetChat();
+            cy.forgetChat();
+            bo.run("raffle start 10 1m");
+            Await.until("everybody hears of it", WAIT, () -> said(ada, "raffles off") && said(cy, "raffles off"));
+            Await.until("starting it was free", WAIT, () -> said(bo, "Fee: ⛃0"));
+            assertThat(bo.carrying(item -> item.is("golden_apple"))).as("the raffle holds the apples").isEmpty();
+            bo.run("raffle buy 1 1");
+            Await.until("no tickets for your own raffle", WAIT, () -> said(bo, "your own raffle"));
+            ada.run("raffle buy 1 3");
+            Await.until("Ada holds three", WAIT, () -> said(ada, "You bought 3 ticket(s) for raffle #1"));
+            cy.clickButtonOn("raffles off", 0);
+            Await.until("Cy holds one, bought from chat", WAIT, () -> said(cy, "You bought 1 ticket(s) for raffle #1"));
+            cy.run("raffle");
+            cy.awaitWindow("Raffles");
+            assertThat(cy.window().orElseThrow().top().values()).as("the prize in the window")
+                    .anyMatch(item -> item.is("golden_apple"));
+            cy.closeWindow();
+
+            // ---- staff raffle off server money from the console; a player raffles off their own money
+            server.console("eco raffle 500 5 1m");
+            Await.until("the server's raffle is announced", WAIT, () -> said(ada, "The server raffles off"));
+            cy.run("raffle money 100 5 1m");
+            Await.until("Cy's money raffle is announced", WAIT, () -> said(ada, "Cy raffles off"));
+            ada.run("raffle buy 2 1");
+            Await.until("Ada is the only one in the server's raffle", WAIT, () -> said(ada, "for raffle #2"));
+            bo.run("raffle buy 3 2");
+            Await.until("Bo is the only one in Cy's raffle", WAIT, () -> said(bo, "for raffle #3"));
+            assertThat(server.console("raffle info")).as("the console sees the raffles").contains("#2");
+
+            Await.until("the drumroll", Duration.ofSeconds(90), () -> said(ada, "The draw for"));
+            Await.until("and the winner", WAIT, () -> said(ada, "[Raffle #1]") && said(ada, " wins "));
+            Await.until("the winner has the apples", WAIT, () -> ada.carrying(item -> item.is("golden_apple")).isPresent()
+                    || cy.carrying(item -> item.is("golden_apple")).isPresent());
+            Await.until("Bo is paid the tickets less the fee", WAIT, () -> said(bo, "sold 4 ticket(s)") && said(bo, "⛃38"));
+            Await.until("Ada wins the server's money", WAIT, () -> said(ada, "[Raffle #2] Ada wins ⛃500"));
+            Await.until("Bo wins Cy's money", WAIT, () -> said(bo, "[Raffle #3] Bo wins ⛃100"));
+            Await.until("Cy is paid for the tickets", WAIT, () -> said(cy, "Your raffle #3 sold 2 ticket(s)"));
+
             // ---- bets offered from what you have, not from a fixed ladder
             ada.run("eco set Ada 10000000");
             ada.run("casino");

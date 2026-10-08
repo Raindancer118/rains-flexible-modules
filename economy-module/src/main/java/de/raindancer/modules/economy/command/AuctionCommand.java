@@ -44,10 +44,11 @@ public final class AuctionCommand extends EconomyCommand {
                 case "sell" -> sell(live, player, args);
                 case "bid" -> {
                     if (args.length < 2) {
-                        live.auctions().bid(player, null);
+                        live.auctions().bid(player, null, null);
                         return;
                     }
-                    amount(live, sender, args[1]).ifPresent(amount -> live.auctions().bid(player, amount));
+                    String meant = args.length > 2 ? args[2] : null;
+                    amount(live, sender, args[1]).ifPresent(amount -> live.auctions().bid(player, amount, meant));
                 }
                 case "cancel" -> {
                     Optional<Auction> latest = live.auctions().auctions().stream()

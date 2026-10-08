@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class EcoCommand extends EconomyCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("give", "take", "set", "reset", "freeze", "unfreeze",
-            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction");
+            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle");
 
     public EcoCommand(Supplier<EconomyServices> services) {
         super(services);
@@ -104,6 +104,20 @@ public final class EcoCommand extends EconomyCommand {
                     return;
                 }
                 live.messages().send(sender, "economy.auction.stopped");
+            }
+            case "raffle" -> {
+                if (args.length > 2 && args[1].equalsIgnoreCase("cancel")) {
+                    RaffleCommand.whole(args, 2).ifPresent(number -> live.raffles().cancel(sender, number, true));
+                    return;
+                }
+                if (args.length < 3) {
+                    live.messages().send(sender, "economy.usage.eco");
+                    return;
+                }
+                int minutes = args.length > 3 ? de.raindancer.core.world.time.Times.parse(args[3])
+                        .map(length -> (int) Math.max(1, length.toMinutes())).orElse(0) : 0;
+                amount(live, sender, args[1]).ifPresent(prize -> amount(live, sender, args[2]).ifPresent(price ->
+                        live.raffles().startServer(sender, prize, price, minutes)));
             }
             case "calm" -> {
                 live.market().calm();
@@ -208,6 +222,9 @@ public final class EcoCommand extends EconomyCommand {
         if (args.length == 3 && args[0].equalsIgnoreCase("dealer")) {
             return starting(args[2], java.util.Arrays.stream(de.raindancer.modules.economy.model.DealerGame.values())
                     .map(game -> game.name().toLowerCase(Locale.ROOT)).toList());
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("raffle")) {
+            return starting(args[1], List.of("cancel", "10000"));
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("auction")) {
             return starting(args[1], List.of("stop", "clear"));

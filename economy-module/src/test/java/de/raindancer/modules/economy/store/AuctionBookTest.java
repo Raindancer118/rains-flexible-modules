@@ -75,7 +75,7 @@ class AuctionBookTest {
     }
 
     private AuctionBid bid(Auction auction, UUID who, String name, long amount) {
-        return book.bid(auction.id(), who, name, Money.of(amount), minimum, end -> end, most);
+        return book.bid(auction.id(), who, name, Money.of(amount), minimum, end -> end, clock.get(), most);
     }
 
     private Money escrow() {
@@ -158,8 +158,25 @@ class AuctionBookTest {
     void extended() {
         Auction auction = listed(100, 0);
         book.startNextAuction(0);
-        AuctionBid placed = book.bid(auction.id(), ada, "Ada", Money.of(100), minimum, end -> end + 15_000, most);
+        AuctionBid placed = book.bid(auction.id(), ada, "Ada", Money.of(100), minimum, end -> end + 15_000, 0, most);
         assertThat(placed.auction().endsAt()).isEqualTo(135_000);
+    }
+
+    @Test
+    @DisplayName("the clock is the ledger's: no bid after the end, and no end before it — whatever a caller saw")
+    void onTime() {
+        Auction auction = listed(100, 0);
+        book.startNextAuction(clock.get());
+        long end = book.liveAuction().orElseThrow().endsAt();
+        assertThat(book.endAuction(auction.id(), price -> Money.ZERO, end - 1)).as("still running").isEmpty();
+        assertThat(book.bid(auction.id(), ada, "Ada", Money.of(100), minimum, at -> at, end, most).kind())
+                .as("a bid at the end is too late").isEqualTo(AuctionBid.Kind.GONE);
+        assertThat(book.balance(ada)).isEqualTo(Money.of(1_000));
+        AuctionBid late = book.bid(auction.id(), bo, "Bo", Money.of(100), minimum, at -> at + 10_000, end - 1, most);
+        assertThat(late.placed()).isTrue();
+        assertThat(book.endAuction(auction.id(), price -> Money.ZERO, end)).as("the bid moved the end").isEmpty();
+        assertThat(book.endAuction(auction.id(), price -> Money.of(price.minor() / 10), end + 10_000))
+                .map(AuctionEnd::fee).as("the fee is taken from the final price").contains(Money.of(10));
     }
 
     @Test
@@ -169,7 +186,7 @@ class AuctionBookTest {
         book.startNextAuction(clock.get());
         bid(auction, ada, "Ada", 100);
         bid(auction, bo, "Bo", 400);
-        AuctionEnd end = book.endAuction(auction.id(), Money.of(20)).orElseThrow();
+        AuctionEnd end = book.endAuction(auction.id(), price -> Money.of(20), Long.MAX_VALUE).orElseThrow();
         assertThat(end.sold()).isTrue();
         assertThat(end.paid()).isEqualTo(Money.of(380));
         assertThat(book.balance(seller)).isEqualTo(Money.of(1_380));
@@ -179,7 +196,7 @@ class AuctionBookTest {
         assertThat(end.claim().reason()).isEqualTo(AuctionClaim.Reason.WON);
         assertThat(book.claimsOf(bo)).hasSize(1);
         assertThat(book.auctions()).isEmpty();
-        assertThat(book.endAuction(auction.id(), Money.ZERO)).as("only once").isEmpty();
+        assertThat(book.endAuction(auction.id(), price -> Money.ZERO, Long.MAX_VALUE)).as("only once").isEmpty();
     }
 
     @Test
@@ -187,7 +204,7 @@ class AuctionBookTest {
     void unsoldAndCancelled() {
         Auction nobody = listed(100, 0);
         book.startNextAuction(clock.get());
-        AuctionEnd unsold = book.endAuction(nobody.id(), Money.of(20)).orElseThrow();
+        AuctionEnd unsold = book.endAuction(nobody.id(), price -> Money.of(20), Long.MAX_VALUE).orElseThrow();
         assertThat(unsold.sold()).isFalse();
         assertThat(unsold.claim().player()).isEqualTo(seller);
         assertThat(unsold.claim().reason()).isEqualTo(AuctionClaim.Reason.UNSOLD);

@@ -18,7 +18,7 @@ public final class AccountListener implements IEconomyListener {
 
     private static final EnumSet<TransactionKind> AWAY = EnumSet.of(TransactionKind.PAY, TransactionKind.BILL,
             TransactionKind.PLUGIN, TransactionKind.ADMIN, TransactionKind.LOTTERY, TransactionKind.GAMBLE, TransactionKind.WAGE,
-            TransactionKind.AUCTION);
+            TransactionKind.AUCTION, TransactionKind.RAFFLE);
 
     private final EconomyServices services;
 

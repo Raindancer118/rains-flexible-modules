@@ -97,6 +97,9 @@ public final class AuctionMenu extends Menu implements IEconomyScreen {
                     auctions.deliver(viewer);
                     refresh();
                 });
+        set(5 * 9 + 7, Icons.of(Material.NAME_TAG, "<light_purple>Raffles",
+                "<gray>" + services.raffles().raffles().size() + " running", "<yellow>Click<gray> to see them"),
+                click -> RaffleMenu.open(services, viewer, this));
         boolean listening = AuctionService.NEWS.isOn(viewer);
         set(5 * 9 + 5, Icons.of(listening ? Material.BELL : Material.GRAY_DYE,
                 listening ? "<green>Announcements: on" : "<gray>Announcements: off",
@@ -142,13 +145,13 @@ public final class AuctionMenu extends Menu implements IEconomyScreen {
         String why = own ? "This is your own auction." : top ? "You are the highest bidder." : "";
         toolbar(2, !own && !top, Icons.of(Material.LIME_CONCRETE, "<green>Bid " + Mini.of(currency.render(next)),
                 "<gray>The smallest bid accepted now"), why, click -> {
-            auctions.bid(viewer, next);
+            auctions.bid(viewer, next, auction.id().toString());
             refresh();
         });
         toolbar(4, !own && !top, Icons.of(Material.NAME_TAG, "<yellow>Type a bid",
                 "<gray>At least " + Mini.of(currency.render(next))), why, click -> MoneyPrompt.ask(viewer, "Bid how much?",
                 currency, amount -> {
-                    auctions.bid(viewer, amount);
+                    auctions.bid(viewer, amount, auction.id().toString());
                     open(services, viewer, back);
                 }, () -> open(services, viewer, back)));
         if (auction.hasBuyout()) {
@@ -156,7 +159,7 @@ public final class AuctionMenu extends Menu implements IEconomyScreen {
                     "<gray>" + Mini.of(currency.render(auction.buyout())) + " <gray>ends it at once"), why, click ->
                     new ConfirmScreen(viewer, services.brand(), this, "Buy it now?",
                             List.of("You pay " + currency.format(auction.buyout()) + " and the auction ends at once."),
-                            () -> auctions.bid(viewer, auction.buyout())).open());
+                            () -> auctions.bid(viewer, auction.buyout(), auction.id().toString())).open());
         }
     }
 

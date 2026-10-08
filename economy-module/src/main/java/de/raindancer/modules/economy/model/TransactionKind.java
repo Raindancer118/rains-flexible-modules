@@ -21,6 +21,7 @@ public enum TransactionKind {
     GAMBLE("Game of chance", Material.GOLD_BLOCK),
     LOTTERY("Lottery", Material.FILLED_MAP),
     AUCTION("Auction", Material.BELL),
+    RAFFLE("Raffle", Material.NAME_TAG),
     ADMIN("Staff adjustment", Material.COMMAND_BLOCK),
     PLUGIN("Another plugin", Material.REPEATER);
 

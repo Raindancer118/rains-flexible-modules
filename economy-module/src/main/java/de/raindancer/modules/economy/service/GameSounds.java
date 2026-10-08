@@ -36,6 +36,8 @@ public final class GameSounds {
     public static final String BID = "economy:bid";
     public static final String OUTBID = "economy:outbid";
     public static final String SOLD = "economy:sold";
+    public static final String RAFFLE = "economy:raffle";
+    public static final String DRUMROLL = "economy:drumroll";
 
     /** A win at least this many times the stake is a jackpot, and sounds like one. */
     public static final long JACKPOT_TIMES = 10;
@@ -66,6 +68,11 @@ public final class GameSounds {
         DEFAULTS.put(OUTBID, "BLOCK_NOTE_BLOCK_BASS~1.0;BLOCK_NOTE_BLOCK_BASS~0.8>150");
         DEFAULTS.put(SOLD, "BLOCK_ANVIL_LAND@0.5~1.4;BLOCK_ANVIL_LAND@0.5~1.4>350;"
                 + "UI_TOAST_CHALLENGE_COMPLETE@0.8>600");
+        DEFAULTS.put(RAFFLE, "BLOCK_AMETHYST_BLOCK_CHIME@0.9~0.9;BLOCK_AMETHYST_BLOCK_CHIME@0.9~1.2>200;"
+                + "BLOCK_NOTE_BLOCK_CHIME@0.7~1.5>400");
+        DEFAULTS.put(DRUMROLL, "BLOCK_NOTE_BLOCK_SNARE@0.5~0.9;BLOCK_NOTE_BLOCK_SNARE@0.5~1.0>150;"
+                + "BLOCK_NOTE_BLOCK_SNARE@0.6~1.1>300;BLOCK_NOTE_BLOCK_SNARE@0.7~1.2>450;BLOCK_NOTE_BLOCK_SNARE@0.8~1.3>600;"
+                + "BLOCK_NOTE_BLOCK_SNARE@0.9~1.4>750;BLOCK_NOTE_BLOCK_SNARE@1.0~1.5>900");
         DEFAULTS.put(CASH, "ENTITY_ITEM_PICKUP@0.7~1.4;BLOCK_CHAIN_PLACE@0.4~1.8>60");
     }
 

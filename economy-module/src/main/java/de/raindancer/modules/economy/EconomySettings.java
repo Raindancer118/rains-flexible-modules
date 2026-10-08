@@ -37,6 +37,7 @@ import java.util.List;
         @Topic(path = "economy/interest", title = "Interest", icon = Material.CLOCK),
         @Topic(path = "economy/gambling", title = "Gambling", icon = Material.GOLD_BLOCK),
         @Topic(path = "economy/auctions", title = "Auctions", icon = Material.BELL),
+        @Topic(path = "economy/raffles", title = "Raffles", icon = Material.NAME_TAG),
         @Topic(path = "economy/display", title = "Sidebar and leaderboards", icon = Material.OAK_SIGN),
 })
 public record EconomySettings(
@@ -478,6 +479,40 @@ public record EconomySettings(
         @Describe("The item, the highest bid and the time left, for everybody who has not muted auctions.")
         @Key("auction.bossbar") boolean auctionBossBar,
 
+        // ------------------------------------------------------------------ raffles
+        @In("economy/raffles") @Title("Raffles")
+        @Describe("A player raffles off an item from their hand: tickets sold for a while, then one drawn. Several "
+                + "can run at once. Staff raffle off money with /eco raffle.")
+        @Key("features.raffles") boolean rafflesEnabled,
+
+        @In("economy/raffles") @Title("Starting a raffle costs")
+        @Describe("Paid by the player who starts it; the money leaves the economy.")
+        @Key("raffle.listing-fee") String raffleListingFee,
+
+        @In("economy/raffles") @Title("The house keeps, percent")
+        @Describe("Of the tickets' money, before the rest goes to the player who raffled. 0 to 50.")
+        @Key("raffle.fee-percent") double raffleFeePercent,
+
+        @In("economy/raffles") @Title("A raffle runs, unless its host says otherwise") @Range(min = 1, max = 10080)
+        @Describe("Minutes.")
+        @Key("raffle.default-minutes") int raffleDefaultMinutes,
+
+        @In("economy/raffles") @Title("Shortest a host may choose") @Range(min = 1, max = 10080)
+        @Describe("Minutes.")
+        @Key("raffle.min-minutes") int raffleMinMinutes,
+
+        @In("economy/raffles") @Title("Longest a host may choose") @Range(min = 1, max = 10080)
+        @Describe("Minutes.")
+        @Key("raffle.max-minutes") int raffleMaxMinutes,
+
+        @In("economy/raffles") @Title("Raffles running at once, at most") @Range(min = 1, max = 100)
+        @Key("raffle.most-running") int raffleMostRunning,
+
+        @In("economy/raffles") @Title("Raffles one player may host at once") @Range(min = 1, max = 20)
+        @Key("raffle.per-host") int rafflesPerHost,
+
+        @In("economy/raffles") @Title("Cheapest ticket") @Key("raffle.smallest-ticket") String raffleSmallestTicket,
+
         // ------------------------------------------------------------------ display
         @In("economy/display") @Title("Balance in the sidebar")
         @Describe("Every player's balance, rank and the richest players on the right of the screen. Each player "
@@ -529,6 +564,8 @@ public record EconomySettings(
             true, true, true, true, true, true, true, 6, "50", 10, 45, "",
             // auctions
             true, 120, 60, 600, "10", "10", 5.0, 20, 15, "1000", 5.0, 10, 2, true, true,
+            // raffles
+            true, "0", 5.0, 30, 5, 1440, 5, 1, "1",
             // display
             true, 3, true, 10, List.of(),
             // general
@@ -637,6 +674,14 @@ public record EconomySettings(
     /** The sale fee as a percentage, 0 to 50. */
     public double auctionFee() {
         return Math.max(0, Math.min(50, auctionFeePercent));
+    }
+
+    public Money raffleListingFeeMoney() {
+        return money(raffleListingFee, DEFAULTS.raffleListingFee);
+    }
+
+    public Money raffleSmallestTicketMoney() {
+        return money(raffleSmallestTicket, DEFAULTS.raffleSmallestTicket);
     }
 
     public Money ticketPriceMoney() {

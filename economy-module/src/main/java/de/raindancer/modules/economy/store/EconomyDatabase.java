@@ -33,7 +33,14 @@ public final class EconomyDatabase {
                     + "bid INTEGER NOT NULL, bidder TEXT, bidder_name TEXT NOT NULL, bids INTEGER NOT NULL, "
                     + "seconds INTEGER NOT NULL, listed_at INTEGER NOT NULL, ends_at INTEGER NOT NULL)",
             "CREATE TABLE auction_claim (id TEXT PRIMARY KEY, player TEXT NOT NULL, item BLOB NOT NULL, "
-                    + "item_name TEXT NOT NULL, reason TEXT NOT NULL, at INTEGER NOT NULL)");
+                    + "item_name TEXT NOT NULL, reason TEXT NOT NULL, at INTEGER NOT NULL)",
+            "CREATE TABLE raffle (id TEXT PRIMARY KEY, number INTEGER NOT NULL, host TEXT, host_name TEXT NOT NULL, "
+                    + "item BLOB, prize_name TEXT NOT NULL, prize INTEGER NOT NULL, ticket_price INTEGER NOT NULL, "
+                    + "most_tickets INTEGER NOT NULL, per_player INTEGER NOT NULL, started_at INTEGER NOT NULL, "
+                    + "ends_at INTEGER NOT NULL)",
+            "CREATE TABLE raffle_ticket (raffle TEXT NOT NULL, player TEXT NOT NULL, tickets INTEGER NOT NULL, "
+                    + "seq INTEGER NOT NULL, PRIMARY KEY (raffle, player))",
+            "CREATE TABLE raffle_counter (id INTEGER PRIMARY KEY CHECK (id = 1), next INTEGER NOT NULL)");
 
     private EconomyDatabase() {
     }

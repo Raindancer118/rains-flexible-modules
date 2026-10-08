@@ -138,6 +138,16 @@ public class EconomySettingsTest {
         assertThat(d.auctionAnnounceBids()).isTrue();
         assertThat(d.auctionBossBar()).isTrue();
 
+        assertThat(d.rafflesEnabled()).isTrue();
+        assertThat(d.raffleListingFeeMoney()).as("starting a raffle is free").isEqualTo(Money.ZERO);
+        assertThat(d.raffleFeePercent()).isEqualTo(5.0);
+        assertThat(d.raffleDefaultMinutes()).isEqualTo(30);
+        assertThat(d.raffleMinMinutes()).isEqualTo(5);
+        assertThat(d.raffleMaxMinutes()).isEqualTo(1440);
+        assertThat(d.raffleMostRunning()).isEqualTo(5);
+        assertThat(d.rafflesPerHost()).isEqualTo(1);
+        assertThat(d.raffleSmallestTicketMoney()).isEqualTo(Money.of(1));
+
         assertThat(d.sidebarEnabled()).as("the balance is in the sidebar from the start").isTrue();
         assertThat(d.baltopEnabled()).isTrue();
     }

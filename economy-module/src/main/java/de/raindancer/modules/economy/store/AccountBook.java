@@ -9,6 +9,10 @@ import de.raindancer.modules.economy.model.Auction;
 import de.raindancer.modules.economy.model.AuctionBid;
 import de.raindancer.modules.economy.model.AuctionClaim;
 import de.raindancer.modules.economy.model.AuctionEnd;
+import de.raindancer.modules.economy.model.Raffle;
+import de.raindancer.modules.economy.model.RaffleBuy;
+import de.raindancer.modules.economy.model.RaffleDraw;
+import de.raindancer.modules.economy.rules.RaffleRule;
 import de.raindancer.modules.economy.model.BalanceChange;
 import de.raindancer.modules.economy.model.Contract;
 import de.raindancer.modules.economy.model.LotteryTicket;
@@ -80,6 +84,13 @@ public final class AccountBook {
     private final Set<UUID> dirtyAuctions = new LinkedHashSet<>();
     private final Map<UUID, AuctionClaim> claims = new LinkedHashMap<>();
     private final Set<UUID> dirtyClaims = new LinkedHashSet<>();
+    /** Where raffle tickets' money waits for the draw. */
+    public static final UUID RAFFLE_POT = new UUID(0L, 0x4AFF1EL);
+    private static final RaffleRule RAFFLES = new RaffleRule();
+    private final Map<UUID, Raffle> raffles = new LinkedHashMap<>();
+    private final Set<UUID> dirtyRaffles = new LinkedHashSet<>();
+    private int nextRaffle = 1;
+    private boolean raffleCounterDirty;
     private static final Money SYSTEM_MOST = Money.of(Long.MAX_VALUE / 4);
     /** Scratch tickets share the cheque register; this keeps a ticket from ever passing for a cheque. */
     private static final String TICKET = "ticket:";
@@ -185,7 +196,40 @@ public final class AccountBook {
                             rows.getLong(6)));
                 }
             }
+            Map<UUID, Map<UUID, Integer>> raffleTickets = new HashMap<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT raffle, player, tickets FROM raffle_ticket ORDER BY raffle, seq");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    raffleTickets.computeIfAbsent(UUID.fromString(rows.getString(1)), id -> new LinkedHashMap<>())
+                            .put(UUID.fromString(rows.getString(2)), rows.getInt(3));
+                }
+            }
+            List<Raffle> running = new ArrayList<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT id, number, host, host_name, item, prize_name, prize, ticket_price, most_tickets, per_player, "
+                            + "started_at, ends_at FROM raffle ORDER BY number");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    UUID id = UUID.fromString(rows.getString(1));
+                    String hostId = rows.getString(3);
+                    running.add(new Raffle(id, rows.getInt(2), hostId == null ? null : UUID.fromString(hostId),
+                            rows.getString(4), rows.getBytes(5), rows.getString(6), Money.of(rows.getLong(7)),
+                            Money.of(rows.getLong(8)), rows.getInt(9), rows.getInt(10), rows.getLong(11),
+                            rows.getLong(12), raffleTickets.getOrDefault(id, Map.of())));
+                }
+            }
+            int counter = 1;
+            try (PreparedStatement select = connection.prepareStatement("SELECT next FROM raffle_counter WHERE id = 1");
+                 ResultSet rows = select.executeQuery()) {
+                if (rows.next()) {
+                    counter = rows.getInt(1);
+                }
+            }
+            int counted = counter;
             synchronized (lock) {
+                running.forEach(raffle -> raffles.put(raffle.id(), raffle));
+                nextRaffle = Math.max(counted, running.stream().mapToInt(Raffle::number).max().orElse(0) + 1);
                 listed.forEach(auction -> auctions.put(auction.id(), auction));
                 owed.forEach(claim -> claims.put(claim.id(), claim));
                 accounts.putAll(found);
@@ -202,6 +246,7 @@ public final class AccountBook {
         if (loaded) {
             open(LOTTERY_POT, "Lottery pot", Money.ZERO);
             open(AUCTION_ESCROW, "Auction escrow", Money.ZERO);
+            open(RAFFLE_POT, "Raffle pot", Money.ZERO);
         }
         return loaded;
     }
@@ -871,12 +916,13 @@ public final class AccountBook {
      *
      * @param minimum the smallest bid accepted, asked of the auction as it is at this moment
      * @param end     the auction's end after this bid, from its end before
+     * @param now     a bid at or after the end is too late — decided here, under the lock, not by a caller's picture
      */
     public AuctionBid bid(UUID auctionId, UUID bidder, String name, Money amount, Function<Auction, Money> minimum,
-                          LongUnaryOperator end, Money most) {
+                          LongUnaryOperator end, long now, Money most) {
         synchronized (lock) {
             Auction auction = auctions.get(auctionId);
-            if (auction == null || !auction.live()) {
+            if (auction == null || !auction.live() || auction.endsAt() <= now) {
                 return new AuctionBid(AuctionBid.Kind.GONE, auction, null, Money.ZERO, null);
             }
             if (auction.seller().equals(bidder)) {
@@ -900,7 +946,7 @@ public final class AccountBook {
             }
             commit(account, leaving.after(), amount.negate(), TransactionKind.AUCTION, "Bid: " + auction.itemName(),
                     AUCTION_ESCROW);
-            credit(AUCTION_ESCROW, amount, "Bid by " + name + ": " + auction.itemName(), bidder);
+            credit(AUCTION_ESCROW, amount, TransactionKind.AUCTION, "Bid by " + name + ": " + auction.itemName(), bidder);
             UUID outbid = auction.bidder();
             Money refunded = Money.ZERO;
             if (outbid != null) {
@@ -918,26 +964,26 @@ public final class AccountBook {
      * Ends an auction: sold, the seller is paid the bid less the fee (which leaves the economy) and the item
      * is owed to the winner; unsold, the item is owed back to the seller.
      */
-    public Optional<AuctionEnd> endAuction(UUID id, Money fee) {
+    public Optional<AuctionEnd> endAuction(UUID id, Function<Money, Money> fee, long now) {
         synchronized (lock) {
-            Auction auction = auctions.remove(id);
-            if (auction == null) {
+            Auction auction = auctions.get(id);
+            // A bid may have moved the end since the caller looked.
+            if (auction == null || !auction.live() || auction.endsAt() > now) {
                 return Optional.empty();
             }
+            auctions.remove(id);
             dirtyAuctions.add(id);
             if (!auction.hasBid()) {
                 return Optional.of(new AuctionEnd(auction, owe(auction, auction.seller(), AuctionClaim.Reason.UNSOLD),
                         false, Money.ZERO, Money.ZERO));
             }
-            Money kept = fee.min(auction.bid()).max(Money.ZERO);
+            Money kept = fee.apply(auction.bid()).min(auction.bid()).max(Money.ZERO);
             Money paid = auction.bid().minus(kept);
             if (paid.isPositive()) {
                 release(auction.seller(), paid, "Sold: " + auction.itemName());
             }
             if (kept.isPositive()) {
-                Account escrow = accounts.get(AUCTION_ESCROW);
-                commit(escrow, escrow.balance().minus(kept), kept.negate(), TransactionKind.FEE,
-                        "Auction fee: " + auction.itemName(), auction.seller());
+                destroy(AUCTION_ESCROW, kept, "Auction fee: " + auction.itemName(), auction.seller());
             }
             return Optional.of(new AuctionEnd(auction, owe(auction, auction.bidder(), AuctionClaim.Reason.WON),
                     true, paid, kept));
@@ -961,8 +1007,11 @@ public final class AccountBook {
     }
 
     private AuctionClaim owe(Auction auction, UUID to, AuctionClaim.Reason reason) {
-        AuctionClaim claim = new AuctionClaim(UUID.randomUUID(), to, auction.item(), auction.itemName(), reason,
-                clock.getAsLong());
+        return owe(auction.item(), auction.itemName(), to, reason);
+    }
+
+    private AuctionClaim owe(byte[] item, String name, UUID to, AuctionClaim.Reason reason) {
+        AuctionClaim claim = new AuctionClaim(UUID.randomUUID(), to, item, name, reason, clock.getAsLong());
         claims.put(claim.id(), claim);
         dirtyClaims.add(claim.id());
         return claim;
@@ -987,18 +1036,213 @@ public final class AccountBook {
 
     // Escrow moves skip the balance rule: the money already belonged to whoever it goes back to, so neither a
     // freeze nor the balance cap may strand it.
-    private void credit(UUID to, Money amount, String reason, UUID other) {
+    private void credit(UUID to, Money amount, TransactionKind kind, String reason, UUID other) {
         Account account = accounts.get(to);
         if (account == null) {
             account = new Account(to, "", Money.ZERO, false, clock.getAsLong(), -1, 0);
         }
-        commit(account, account.balance().plus(amount), amount, TransactionKind.AUCTION, reason, other);
+        commit(account, account.balance().plus(amount), amount, kind, reason, other);
     }
 
     private void release(UUID to, Money amount, String reason) {
-        Account escrow = accounts.get(AUCTION_ESCROW);
-        commit(escrow, escrow.balance().minus(amount), amount.negate(), TransactionKind.AUCTION, reason, to);
-        credit(to, amount, reason, AUCTION_ESCROW);
+        release(AUCTION_ESCROW, to, amount, TransactionKind.AUCTION, reason);
+    }
+
+    private void release(UUID from, UUID to, Money amount, TransactionKind kind, String reason) {
+        Account held = accounts.get(from);
+        commit(held, held.balance().minus(amount), amount.negate(), kind, reason, to);
+        credit(to, amount, kind, reason, from);
+    }
+
+    /** Money a system account holds that leaves the economy — a fee, a server raffle's tickets. */
+    private void destroy(UUID from, Money amount, String reason, UUID other) {
+        Account held = accounts.get(from);
+        commit(held, held.balance().minus(amount), amount.negate(), TransactionKind.FEE, reason, other);
+    }
+
+    // ---------------------------------------------------------------------------- raffles
+
+    /** The number the next raffle gets. Never handed out twice, also across restarts. */
+    public int nextRaffleNumber() {
+        synchronized (lock) {
+            return nextRaffle;
+        }
+    }
+
+    /** Starts a raffle; a player hosting it pays the fee (which leaves the economy) in the same change. */
+    public EconomyResult startRaffle(Raffle raffle, Money fee, Money most) {
+        synchronized (lock) {
+            if (!loaded) {
+                return EconomyResult.failed(Outcome.UNAVAILABLE, fee, Money.ZERO);
+            }
+            EconomyResult result = EconomyResult.done(Money.ZERO, Money.ZERO);
+            if (raffle.host() != null) {
+                Account host = accounts.get(raffle.host());
+                if (host == null) {
+                    return EconomyResult.failed(Outcome.NO_ACCOUNT, fee, Money.ZERO);
+                }
+                if (host.frozen()) {
+                    return EconomyResult.failed(Outcome.FROZEN, fee, host.balance());
+                }
+                Money staked = raffle.moneyPrize() ? raffle.prize() : Money.ZERO;
+                Money taken = fee.max(Money.ZERO).plus(staked);
+                result = EconomyResult.done(taken, host.balance());
+                if (taken.isPositive()) {
+                    // Fee and prize together or neither: a host who can pay one but not both starts nothing.
+                    BalanceChange leaving = rule.apply(host.balance(), taken.negate(), most, false);
+                    if (!leaving.allowed()) {
+                        return EconomyResult.failed(leaving.outcome(), taken, host.balance());
+                    }
+                    if (fee.isPositive()) {
+                        commit(host, host.balance().minus(fee), fee.negate(), TransactionKind.RAFFLE,
+                                "Raffle fee: #" + raffle.number(), null);
+                    }
+                    if (staked.isPositive()) {
+                        Account paying = accounts.get(raffle.host());
+                        commit(paying, paying.balance().minus(staked), staked.negate(), TransactionKind.RAFFLE,
+                                "Raffle #" + raffle.number() + ": the prize", RAFFLE_POT);
+                        credit(RAFFLE_POT, staked, TransactionKind.RAFFLE, "Raffle #" + raffle.number() + ": the prize",
+                                raffle.host());
+                    }
+                    result = EconomyResult.done(taken, leaving.after());
+                }
+            }
+            raffles.put(raffle.id(), raffle);
+            dirtyRaffles.add(raffle.id());
+            nextRaffle = Math.max(nextRaffle, raffle.number() + 1);
+            raffleCounterDirty = true;
+            return result;
+        }
+    }
+
+    public List<Raffle> raffles() {
+        synchronized (lock) {
+            return List.copyOf(raffles.values());
+        }
+    }
+
+    public Optional<Raffle> raffle(UUID id) {
+        synchronized (lock) {
+            return Optional.ofNullable(raffles.get(id));
+        }
+    }
+
+    public Optional<Raffle> raffleNumber(int number) {
+        synchronized (lock) {
+            return raffles.values().stream().filter(raffle -> raffle.number() == number).findFirst();
+        }
+    }
+
+    /** Tickets, as many of {@code wanted} as the limits allow, paid into the raffle pot. */
+    public RaffleBuy buyRaffleTickets(UUID id, UUID player, String name, int wanted, long now, Money most) {
+        synchronized (lock) {
+            Raffle raffle = raffles.get(id);
+            if (raffle == null || raffle.over(now)) {
+                return new RaffleBuy(RaffleBuy.Kind.GONE, raffle, 0, null);
+            }
+            if (player.equals(raffle.host())) {
+                return new RaffleBuy(RaffleBuy.Kind.OWN, raffle, 0, null);
+            }
+            int count = RAFFLES.allowed(wanted, raffle.ticketsOf(player), raffle.perPlayer(), raffle.sold(),
+                    raffle.mostTickets());
+            if (count == 0) {
+                boolean soldOut = raffle.mostTickets() > 0 && raffle.sold() >= raffle.mostTickets();
+                return new RaffleBuy(soldOut ? RaffleBuy.Kind.SOLD_OUT : RaffleBuy.Kind.LIMIT, raffle, 0, null);
+            }
+            Money cost = raffle.ticketPrice().times(count);
+            Optional<EconomyResult> refused = refuseEarly(player, cost);
+            if (refused.isPresent()) {
+                return new RaffleBuy(RaffleBuy.Kind.REFUSED, raffle, 0, refused.get());
+            }
+            Account account = accounts.get(player);
+            BalanceChange leaving = rule.apply(account.balance(), cost.negate(), most, account.frozen());
+            if (!leaving.allowed()) {
+                return new RaffleBuy(RaffleBuy.Kind.REFUSED, raffle, 0,
+                        EconomyResult.failed(leaving.outcome(), cost, account.balance()));
+            }
+            String reason = "Raffle #" + raffle.number() + ": " + count + " ticket(s)";
+            commit(account, leaving.after(), cost.negate(), TransactionKind.RAFFLE, reason, RAFFLE_POT);
+            credit(RAFFLE_POT, cost, TransactionKind.RAFFLE, reason + " by " + name, player);
+            Raffle after = raffle.withTickets(player, count);
+            raffles.put(id, after);
+            dirtyRaffles.add(id);
+            return new RaffleBuy(RaffleBuy.Kind.BOUGHT, after, count, EconomyResult.done(cost, leaving.after()));
+        }
+    }
+
+    /**
+     * Draws a raffle: the winner gets the prize — the item owed to them, or a server raffle's money — and the
+     * host the pot less the fee. A server raffle's tickets leave the economy. Nobody bought: the item goes back.
+     *
+     * @param pick who wins, from the tickets
+     * @param fee  the house's share, from the pot
+     */
+    public Optional<RaffleDraw> drawRaffle(UUID id, Function<Map<UUID, Integer>, UUID> pick, Function<Money, Money> fee,
+                                           long now) {
+        synchronized (lock) {
+            Raffle raffle = raffles.get(id);
+            if (raffle == null || !raffle.over(now)) {
+                return Optional.empty();
+            }
+            raffles.remove(id);
+            dirtyRaffles.add(id);
+            UUID winner = raffle.sold() > 0 ? pick.apply(raffle.tickets()) : null;
+            String label = "Raffle #" + raffle.number();
+            if (winner == null) {
+                return Optional.of(new RaffleDraw(raffle, null, giveBack(raffle, AuctionClaim.Reason.UNSOLD),
+                        Money.ZERO, Money.ZERO));
+            }
+            AuctionClaim prize = null;
+            if (!raffle.moneyPrize()) {
+                prize = owe(raffle.item(), raffle.prizeName(), winner, AuctionClaim.Reason.RAFFLE);
+            } else if (raffle.serverRaffle()) {
+                credit(winner, raffle.prize(), TransactionKind.RAFFLE, label + " won", null);
+            } else {
+                release(RAFFLE_POT, winner, raffle.prize(), TransactionKind.RAFFLE, label + " won");
+            }
+            Money pot = raffle.pot();
+            if (raffle.serverRaffle()) {
+                destroy(RAFFLE_POT, pot, label + ": tickets", winner);
+                return Optional.of(new RaffleDraw(raffle, winner, prize, Money.ZERO, pot));
+            }
+            Money kept = fee.apply(pot).min(pot).max(Money.ZERO);
+            Money paid = pot.minus(kept);
+            if (paid.isPositive()) {
+                release(RAFFLE_POT, raffle.host(), paid, TransactionKind.RAFFLE, label + ": tickets sold");
+            }
+            if (kept.isPositive()) {
+                destroy(RAFFLE_POT, kept, label + ": fee", raffle.host());
+            }
+            return Optional.of(new RaffleDraw(raffle, winner, prize, paid, kept));
+        }
+    }
+
+    /** Calls a raffle off: every ticket is paid back and the item goes back to the host. */
+    public Optional<RaffleDraw> cancelRaffle(UUID id) {
+        synchronized (lock) {
+            Raffle raffle = raffles.remove(id);
+            if (raffle == null) {
+                return Optional.empty();
+            }
+            dirtyRaffles.add(id);
+            raffle.tickets().forEach((holder, count) -> release(RAFFLE_POT, holder, raffle.ticketPrice().times(count),
+                    TransactionKind.RAFFLE, "Raffle #" + raffle.number() + " called off"));
+            return Optional.of(new RaffleDraw(raffle, null, giveBack(raffle, AuctionClaim.Reason.CANCELLED),
+                    Money.ZERO, Money.ZERO));
+        }
+    }
+
+    /** The prize back to whoever put it up: an item owed, a player's money paid back; the server's, nothing. */
+    private AuctionClaim giveBack(Raffle raffle, AuctionClaim.Reason reason) {
+        if (raffle.serverRaffle()) {
+            return null;
+        }
+        if (raffle.moneyPrize()) {
+            release(RAFFLE_POT, raffle.host(), raffle.prize(), TransactionKind.RAFFLE,
+                    "Raffle #" + raffle.number() + ": the prize back");
+            return null;
+        }
+        return owe(raffle.item(), raffle.prizeName(), raffle.host(), reason);
     }
 
     // ---------------------------------------------------------------------------- writing
@@ -1007,7 +1251,7 @@ public final class AccountBook {
     public boolean isDirty() {
         synchronized (lock) {
             return !dirty.isEmpty() || !journal.isEmpty() || !notes.isEmpty() || !dirtyAuctions.isEmpty()
-                    || !dirtyClaims.isEmpty();
+                    || !dirtyClaims.isEmpty() || !dirtyRaffles.isEmpty() || raffleCounterDirty;
         }
     }
 
@@ -1027,6 +1271,9 @@ public final class AccountBook {
             Map<UUID, Contract> contractWrites = new LinkedHashMap<>();
             Map<UUID, Auction> auctionWrites = new LinkedHashMap<>();
             Map<UUID, AuctionClaim> claimWrites = new LinkedHashMap<>();
+            Map<UUID, Raffle> raffleWrites = new LinkedHashMap<>();
+            boolean writeCounter;
+            int counterNow;
             boolean writeLottery;
             long drawNow;
             long nextNow;
@@ -1034,9 +1281,16 @@ public final class AccountBook {
             synchronized (lock) {
                 if (dirty.isEmpty() && journal.isEmpty() && notes.isEmpty() && !lotteryDirty && newTickets.isEmpty()
                         && dirtyCoins.isEmpty() && dirtyContracts.isEmpty() && dirtyAuctions.isEmpty()
-                        && dirtyClaims.isEmpty()) {
+                        && dirtyClaims.isEmpty() && dirtyRaffles.isEmpty() && !raffleCounterDirty) {
                     return 0;
                 }
+                for (UUID id : dirtyRaffles) {
+                    raffleWrites.put(id, raffles.get(id));
+                }
+                dirtyRaffles.clear();
+                writeCounter = raffleCounterDirty;
+                counterNow = nextRaffle;
+                raffleCounterDirty = false;
                 for (UUID id : dirtyAuctions) {
                     auctionWrites.put(id, auctions.get(id));
                 }
@@ -1181,6 +1435,55 @@ public final class AccountBook {
                         insert.executeUpdate();
                     }
                 }
+                try (PreparedStatement upsert = connection.prepareStatement(
+                        "INSERT INTO raffle (id, number, host, host_name, item, prize_name, prize, ticket_price, most_tickets, "
+                                + "per_player, started_at, ends_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                                + "ON CONFLICT(id) DO NOTHING");
+                     PreparedStatement delete = connection.prepareStatement("DELETE FROM raffle WHERE id = ?");
+                     PreparedStatement clear = connection.prepareStatement("DELETE FROM raffle_ticket WHERE raffle = ?");
+                     PreparedStatement ticket = connection.prepareStatement(
+                             "INSERT INTO raffle_ticket (raffle, player, tickets, seq) VALUES (?, ?, ?, ?)")) {
+                    for (Map.Entry<UUID, Raffle> each : raffleWrites.entrySet()) {
+                        String key = each.getKey().toString();
+                        clear.setString(1, key);
+                        clear.executeUpdate();
+                        Raffle raffle = each.getValue();
+                        if (raffle == null) {
+                            delete.setString(1, key);
+                            delete.executeUpdate();
+                            continue;
+                        }
+                        upsert.setString(1, key);
+                        upsert.setInt(2, raffle.number());
+                        upsert.setString(3, raffle.host() == null ? null : raffle.host().toString());
+                        upsert.setString(4, raffle.hostName());
+                        upsert.setBytes(5, raffle.item());
+                        upsert.setString(6, raffle.prizeName());
+                        upsert.setLong(7, raffle.prize().minor());
+                        upsert.setLong(8, raffle.ticketPrice().minor());
+                        upsert.setInt(9, raffle.mostTickets());
+                        upsert.setInt(10, raffle.perPlayer());
+                        upsert.setLong(11, raffle.startedAt());
+                        upsert.setLong(12, raffle.endsAt());
+                        upsert.executeUpdate();
+                        int seq = 0;
+                        for (Map.Entry<UUID, Integer> held : raffle.tickets().entrySet()) {
+                            ticket.setString(1, key);
+                            ticket.setString(2, held.getKey().toString());
+                            ticket.setInt(3, held.getValue());
+                            ticket.setInt(4, seq++);
+                            ticket.addBatch();
+                        }
+                        ticket.executeBatch();
+                    }
+                }
+                if (writeCounter) {
+                    try (PreparedStatement counter = connection.prepareStatement(
+                            "INSERT INTO raffle_counter (id, next) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET next = excluded.next")) {
+                        counter.setInt(1, counterNow);
+                        counter.executeUpdate();
+                    }
+                }
                 try (PreparedStatement coins = connection.prepareStatement(
                         "INSERT INTO coin_float (value, outstanding) VALUES (?, ?) ON CONFLICT(value) "
                                 + "DO UPDATE SET outstanding = excluded.outstanding")) {
@@ -1247,6 +1550,8 @@ public final class AccountBook {
                     dirtyContracts.addAll(contractWrites.keySet());
                     dirtyAuctions.addAll(auctionWrites.keySet());
                     dirtyClaims.addAll(claimWrites.keySet());
+                    dirtyRaffles.addAll(raffleWrites.keySet());
+                    raffleCounterDirty |= writeCounter;
                     lotteryDirty |= writeLottery;
                     if (cleared >= 0 && clearedDraw < 0) {
                         clearedDraw = cleared;

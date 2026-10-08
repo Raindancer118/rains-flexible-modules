@@ -46,4 +46,6 @@ public interface IEconomyScreensOpener {
     void roulette(Player viewer, de.raindancer.core.social.economy.Money stake);
 
     void auctions(Player viewer);
+
+    void raffles(Player viewer);
 }

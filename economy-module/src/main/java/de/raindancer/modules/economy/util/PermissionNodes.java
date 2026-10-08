@@ -47,7 +47,8 @@ public final class PermissionNodes {
                 new Permission(DAILY, "Claim the daily reward", PermissionDefault.TRUE),
                 new Permission(EARN, "Be paid passive income and for advancements", PermissionDefault.TRUE),
                 new Permission(GAMBLE, "Play the games of chance", PermissionDefault.TRUE),
-                new Permission(AUCTION, "Put items up for auction and bid on them", PermissionDefault.TRUE),
+                new Permission(AUCTION, "Put items up for auction and bid on them; raffle items off and buy tickets",
+                        PermissionDefault.TRUE),
                 new Permission(HISTORY_OTHERS, "Read somebody else's statement", PermissionDefault.OP),
                 new Permission(ADMIN, "Give, take, set and freeze money; change the economy", PermissionDefault.OP),
                 new Permission(ALERTS, "Be told about counterfeit notes", PermissionDefault.OP));

@@ -224,8 +224,13 @@ public final class AuctionService implements IEconomyService {
 
     // ---------------------------------------------------------------------------- bidding
 
-    /** A bid on the live auction; without an amount, the smallest one accepted. */
-    public boolean bid(Player bidder, Money wanted) {
+    /**
+     * A bid on the live auction; without an amount, the smallest one accepted.
+     *
+     * @param meant the start of the id of the auction the bidder was looking at — a chat button or a window
+     *              from before must not bid on the auction that came after; null for whatever is running
+     */
+    public boolean bid(Player bidder, Money wanted, String meant) {
         EconomySettings live = settings;
         Currency currency = live.currency();
         if (!open(bidder)) {
@@ -237,13 +242,17 @@ public final class AuctionService implements IEconomyService {
             return false;
         }
         Auction auction = running.get();
+        if (meant != null && !auction.id().toString().startsWith(meant)) {
+            refuse(bidder, "economy.auction.over");
+            return false;
+        }
         Money amount = rule.capped(auction, wanted == null ? nextMinimum(auction) : wanted);
         boolean buyout = auction.hasBuyout() && amount.isAtLeast(auction.buyout());
         long now = clock.getAsLong();
         economy.open(bidder.getUniqueId(), bidder.getName());
         AuctionBid result = book.bid(auction.id(), bidder.getUniqueId(), bidder.getName(), amount,
                 this::nextMinimum, end -> buyout ? now : rule.endAfterBid(end, now, live.auctionSnipeSeconds()),
-                economy.most());
+                now, economy.most());
         switch (result.kind()) {
             case GONE -> refuse(bidder, "economy.auction.none");
             case OWN -> refuse(bidder, "economy.auction.own");
@@ -270,7 +279,7 @@ public final class AuctionService implements IEconomyService {
                 messages.send(outbid, "economy.auction.outbid", "item", shown(after),
                         "player", bidder.getName(), "amount", currency.render(after.bid()),
                         "refunded", currency.render(result.refunded()),
-                        "buttons", buttons.row(bidButton(next)));
+                        "buttons", buttons.row(bidButton(after, next)));
                 sounds.play(outbid.getUniqueId(), GameSounds.OUTBID);
             }
         }
@@ -278,7 +287,7 @@ public final class AuctionService implements IEconomyService {
             return;
         }
         if (settings.auctionAnnounceBids()) {
-            Component row = buttons.row(bidButton(nextMinimum(after)));
+            Component row = buttons.row(bidButton(after, nextMinimum(after)));
             for (Player listener : audience()) {
                 messages.send(listener, "economy.auction.bid", "player", bidder.getName(), "item", shown(after),
                         "amount", currency.render(after.bid()), "buttons", listener.equals(bidder) ? Component.empty() : row);
@@ -290,11 +299,16 @@ public final class AuctionService implements IEconomyService {
         }
     }
 
-    private de.raindancer.core.ui.chat.ChatButton bidButton(Money amount) {
+    /** The short id chat buttons carry, so a click lands on the auction it was shown for. */
+    public static String shortId(Auction auction) {
+        return auction.id().toString().substring(0, 8);
+    }
+
+    private de.raindancer.core.ui.chat.ChatButton bidButton(Auction auction, Money amount) {
         return buttons.label("<green>[Bid " + de.raindancer.modules.economy.util.Mini.of(settings.currency()
                         .render(amount)) + "<green>]")
                 .tooltip("<gray>Bid the smallest amount accepted now")
-                .runs("/auction bid " + amount.minor());
+                .runs("/auction bid " + amount.minor() + " " + shortId(auction));
     }
 
     // ---------------------------------------------------------------------------- calling off
@@ -383,7 +397,7 @@ public final class AuctionService implements IEconomyService {
 
     private void announceStart(Auction auction) {
         Currency currency = settings.currency();
-        Component row = buttons.row(bidButton(auction.start()),
+        Component row = buttons.row(bidButton(auction, auction.start()),
                 buttons.label("<yellow>[Look at it]").tooltip("<gray>Open the auction").runs("/auction"));
         String terms = auction.hasBuyout() ? "economy.auction.terms-buyout" : "economy.auction.terms";
         for (Player listener : audience()) {
@@ -400,12 +414,13 @@ public final class AuctionService implements IEconomyService {
     private void finish(Auction auction) {
         Currency currency = settings.currency();
         long now = clock.getAsLong();
-        Optional<AuctionEnd> ended = book.endAuction(auction.id(), fee(auction.bid()));
-        clearBar();
-        nextStartAt = now + settings.auctionGapSeconds() * 1000L;
+        Optional<AuctionEnd> ended = book.endAuction(auction.id(), this::fee, now);
         if (ended.isEmpty()) {
+            // A last bid moved the end after this tick looked; the next tick sees it.
             return;
         }
+        clearBar();
+        nextStartAt = now + settings.auctionGapSeconds() * 1000L;
         AuctionEnd end = ended.get();
         Scheduling.async(plugin, book::flush);
         if (!end.sold()) {
