@@ -97,6 +97,17 @@ class BanhammerRuleTest {
     }
 
     @Test
+    @DisplayName("sneaking and right-clicking with an empty hand draws the hammer back out of the vault")
+    void drawing() {
+        assertThat(rule.draws(true, true, true, true, true)).isTrue();
+        assertThat(rule.draws(false, true, true, true, true)).as("not sneaking").isFalse();
+        assertThat(rule.draws(true, false, true, true, true)).as("the off hand").isFalse();
+        assertThat(rule.draws(true, true, false, true, true)).as("something in hand").isFalse();
+        assertThat(rule.draws(true, true, true, false, true)).as("no vault").isFalse();
+        assertThat(rule.draws(true, true, true, true, false)).as("no hammer in the vault").isFalse();
+    }
+
+    @Test
     @DisplayName("only a real swing counts — thorns on the op's armour must never ban whoever hit them")
     void onlyASwing() {
         assertThat(BanhammerRule.isSwing("minecraft:player_attack")).isTrue();

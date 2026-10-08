@@ -4,9 +4,10 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.moderation.ModerationServices;
-import de.raindancer.modules.moderation.model.ArmourPiece;
+import de.raindancer.core.data.stash.ArmourPiece;
 import de.raindancer.modules.moderation.command.VaultCommand;
-import de.raindancer.modules.moderation.model.Vault;
+import de.raindancer.modules.moderation.service.VaultService;
+import de.raindancer.core.data.stash.Stash;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -40,7 +41,7 @@ public final class VaultMenu extends ModerationScreen {
         super(services, viewer, parent);
     }
 
-    private Vault vault() {
+    private Stash vault() {
         return services().vaults().of(viewer.getUniqueId());
     }
 
@@ -55,15 +56,15 @@ public final class VaultMenu extends ModerationScreen {
     }
 
     private int pages() {
-        return Math.max(1, Math.min(Vault.PAGES, MenuLayout.pageCount(vault().size() + 1, Vault.PER_PAGE)));
+        return Math.max(1, Math.min(VaultService.PAGES, MenuLayout.pageCount(vault().size() + 1, VaultService.PER_PAGE)));
     }
 
     @Override
     protected void render() {
         List<ItemStack> items = vault().items();
         page = MenuLayout.clampPage(page, pages());
-        int from = page * Vault.PER_PAGE;
-        for (int slot = 0; slot < Vault.PER_PAGE && from + slot < items.size(); slot++) {
+        int from = page * VaultService.PER_PAGE;
+        for (int slot = 0; slot < VaultService.PER_PAGE && from + slot < items.size(); slot++) {
             int index = from + slot;
             ItemStack shown = items.get(index);
             set(slot, shown, event -> {
@@ -78,8 +79,8 @@ public final class VaultMenu extends ModerationScreen {
 
     @Override
     protected void decorate() {
-        Vault vault = vault();
-        int from = page * Vault.PER_PAGE;
+        Stash vault = vault();
+        int from = page * VaultService.PER_PAGE;
 
         toolbar(1, vault.size() > 0,
                 Icons.of(Material.HOPPER, "<green>Take all",
@@ -92,9 +93,9 @@ public final class VaultMenu extends ModerationScreen {
                         return;
                     }
                     if (event.isShiftClick()) {
-                        services().vaults().takeAll(viewer, 0, Vault.CAPACITY);
+                        services().vaults().takeAll(viewer, 0, VaultService.CAPACITY);
                     } else {
-                        services().vaults().takeAll(viewer, from, from + Vault.PER_PAGE);
+                        services().vaults().takeAll(viewer, from, from + VaultService.PER_PAGE);
                     }
                     changed();
                 });
@@ -138,7 +139,7 @@ public final class VaultMenu extends ModerationScreen {
         fillRow(MenuLayout.TOOLBAR_ROW, Material.BLACK_STAINED_GLASS_PANE);
     }
 
-    private static ItemStack stand(Vault vault, ArmourPiece piece) {
+    private static ItemStack stand(Stash vault, ArmourPiece piece) {
         return vault.armour(piece).orElseGet(() -> Icons.of(Material.LIGHT_GRAY_STAINED_GLASS_PANE,
                 "<gray>" + piece.label() + " stand <dark_gray>— empty",
                 "<dark_gray>Click with a " + piece.label().toLowerCase() + " on the cursor,",
@@ -170,8 +171,9 @@ public final class VaultMenu extends ModerationScreen {
                 "<gray>Click a stack to take it out.",
                 "<gray>Armour goes onto its stand first.",
                 "<gray>Sneak and right-click with the Banhammer",
-                "<gray>anywhere to put it in here.",
-                "<dark_gray>" + Vault.PAGES + " pages, " + Vault.CAPACITY + " stacks.");
+                "<gray>to put it in here; with an empty hand",
+                "<gray>to take it back out.",
+                "<dark_gray>" + VaultService.PAGES + " pages, " + VaultService.CAPACITY + " stacks.");
     }
 
     /** A click with something on the cursor, anywhere on the pages, puts it in. */
@@ -179,7 +181,7 @@ public final class VaultMenu extends ModerationScreen {
     public void handleClick(InventoryClickEvent event) {
         int slot = event.getRawSlot();
         ItemStack cursor = event.getCursor();
-        if (slot >= 0 && slot < Vault.PER_PAGE && !cursor.isEmpty()) {
+        if (slot >= 0 && slot < VaultService.PER_PAGE && !cursor.isEmpty()) {
             event.setCancelled(true);
             if (!stillTheirs()) {
                 return;

@@ -143,6 +143,7 @@ class ReuseTest {
         expected.put("ui.menu.Menu", "the screens");
         expected.put("ui.prompt.ChatPrompts", "asking somebody to type a reason");
         expected.put("world.time.Times", "how long a punishment is for, in words");
+        expected.put("data.stash.Stash", "the vault's stacks and armour stands");
 
         List<String> unused = new ArrayList<>();
         expected.forEach((type, what) -> {

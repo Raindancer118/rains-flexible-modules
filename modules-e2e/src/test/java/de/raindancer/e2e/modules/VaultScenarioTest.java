@@ -104,6 +104,36 @@ class VaultScenarioTest {
             Await.until("they are still there on reopening", Duration.ofSeconds(10), () -> topHas(ada, "emerald"));
             ada.closeWindow();
 
+            // Away again, then back out with an empty hand. On a block: a real client sends nothing for an
+            // empty hand clicking into the air.
+            server.console("clear Ada minecraft:mace");
+            server.console("item replace entity Ada hotbar.5 with " + BANHAMMER);
+            ada.hold(5);
+            Await.ticks(5);
+            ada.sneak(true);
+            ada.useHeld();
+            Await.until("the hammer is put away", Duration.ofSeconds(10), () -> ada.hotbar().get(5) == null);
+            assertThat(server.console("clear Ada minecraft:mace 0")).as("none left on Ada").contains("No items");
+            ada.forgetChat();
+            var feet = ada.position();
+            ada.useOn((int) Math.floor(feet.getX()), (int) Math.floor(feet.getY()) - 1, (int) Math.floor(feet.getZ()));
+            Await.until("the hammer is drawn into the empty hand", Duration.ofSeconds(10),
+                    () -> ada.hotbar().get(5) != null && ada.hotbar().get(5).is("mace"));
+            ada.sneak(false);
+            assertThat(ada.chatText()).anyMatch(line -> line.contains("out of your vault"));
+            // Asked of the server, not the bot's picture of it: exactly one hammer, never a copy.
+            assertThat(server.console("clear Ada minecraft:mace 0")).contains("Found 1 ");
+
+            // Nothing in the vault to draw: an empty-handed sneak-click is an ordinary click.
+            ada.forgetChat();
+            ada.hold(4);
+            ada.sneak(true);
+            ada.useOn((int) Math.floor(feet.getX()), (int) Math.floor(feet.getY()) - 1, (int) Math.floor(feet.getZ()));
+            Await.ticks(20);
+            ada.sneak(false);
+            assertThat(ada.hotbar().get(4)).isNull();
+            assertThat(ada.chatText()).noneMatch(line -> line.contains("out of your vault"));
+
             assertThat(server.paper.errorsFrom("RainsCore", "RainsModeration")).isEmpty();
         }
     }

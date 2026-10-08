@@ -68,7 +68,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.26.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.27.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -217,7 +217,7 @@ public final class ModerationModule implements FlexModule {
         banhammer = new de.raindancer.modules.moderation.service.BanhammerService(punishmentService,
                 staffRule, context.core().messages(), settings.current());
         vaults = new de.raindancer.modules.moderation.service.VaultService(context.plugin(),
-                new de.raindancer.modules.moderation.store.VaultStorage(context.dataFolder(),
+                new de.raindancer.core.data.stash.StashStore(context.dataFolder().resolve("vaults"),
                         de.raindancer.core.data.nbt.ItemText.ofTheServer()),
                 context.core().messages(), settings.current());
 

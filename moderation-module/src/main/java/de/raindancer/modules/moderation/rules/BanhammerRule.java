@@ -87,6 +87,12 @@ public final class BanhammerRule implements IModerationRule {
         return sneaking && mainHand && hasVault && isBanhammer(held, heldName);
     }
 
+    /** The way back out: the same gesture with an empty main hand, when the vault holds a hammer. */
+    public boolean draws(boolean sneaking, boolean mainHand, boolean handEmpty, boolean hasVault,
+                         boolean hammerInVault) {
+        return sneaking && mainHand && handEmpty && hasVault && hammerInVault;
+    }
+
     /**
      * Whether a hit of this damage type is somebody swinging what they hold. Thorns, for one, is booked
      * to the player wearing the armour — so without this, hitting an op who held the Banhammer while

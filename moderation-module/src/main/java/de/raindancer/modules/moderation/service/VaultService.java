@@ -3,11 +3,11 @@ package de.raindancer.modules.moderation.service;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.moderation.ModerationSettings;
-import de.raindancer.modules.moderation.model.ArmourPiece;
+import de.raindancer.core.data.stash.ArmourPiece;
 import de.raindancer.modules.moderation.command.VaultCommand;
-import de.raindancer.modules.moderation.model.Vault;
+import de.raindancer.core.data.stash.Stash;
 import de.raindancer.modules.moderation.rules.BanhammerRule;
-import de.raindancer.modules.moderation.store.VaultStorage;
+import de.raindancer.core.data.stash.StashStore;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.GameMode;
 import org.bukkit.enchantments.Enchantment;
@@ -31,13 +31,18 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class VaultService implements IModerationService {
 
+    /** One page of the screen. */
+    public static final int PER_PAGE = 36;
+    public static final int PAGES = 6;
+    public static final int CAPACITY = PER_PAGE * PAGES;
+
     private final Plugin plugin;
-    private final VaultStorage storage;
+    private final StashStore storage;
     private final Messages messages;
     private final BanhammerRule banhammer = new BanhammerRule();
-    private final Map<UUID, Vault> open = new ConcurrentHashMap<>();
+    private final Map<UUID, Stash> open = new ConcurrentHashMap<>();
 
-    public VaultService(Plugin plugin, VaultStorage storage, Messages messages, ModerationSettings settings) {
+    public VaultService(Plugin plugin, StashStore storage, Messages messages, ModerationSettings settings) {
         this.plugin = plugin;
         this.storage = storage;
         this.messages = messages;
@@ -53,8 +58,8 @@ public final class VaultService implements IModerationService {
         return player.hasPermission(VaultCommand.USE);
     }
 
-    public Vault of(UUID owner) {
-        return open.computeIfAbsent(owner, id -> storage.load(id, Vault.CAPACITY));
+    public Stash of(UUID owner) {
+        return open.computeIfAbsent(owner, id -> storage.load(id, CAPACITY));
     }
 
     /**
@@ -74,6 +79,35 @@ public final class VaultService implements IModerationService {
         return true;
     }
 
+    /**
+     * Sneak-right-click with an empty hand: the first Banhammer in the vault comes out into it.
+     *
+     * @return whether a hammer was drawn, so the listener knows to swallow the click
+     */
+    public boolean drawHammer(Player player, boolean sneaking, boolean mainHand) {
+        boolean handEmpty = player.getInventory().getItemInMainHand().isEmpty();
+        // Cheap checks first: the vault is only loaded for somebody who could be drawing.
+        if (!banhammer.draws(sneaking, mainHand, handEmpty, has(player), true)) {
+            return false;
+        }
+        Stash vault = of(player.getUniqueId());
+        if (!banhammer.draws(sneaking, mainHand, handEmpty, true, vault.contains(this::isHammer))) {
+            return false;
+        }
+        ItemStack hammer = vault.takeFirst(this::isHammer);
+        if (hammer == null) {
+            return false;
+        }
+        player.getInventory().setItemInMainHand(hammer);
+        save(player.getUniqueId());
+        messages.send(player, "moderation.vault.drawn");
+        return true;
+    }
+
+    private boolean isHammer(ItemStack item) {
+        return banhammer.isBanhammer(item.getType(), plainName(item));
+    }
+
     /** @return how many of this went in; the caller takes exactly that many away */
     public int deposit(Player owner, ItemStack item) {
         int accepted = of(owner.getUniqueId()).deposit(item);
@@ -85,7 +119,7 @@ public final class VaultService implements IModerationService {
 
     /** Takes one entry out into the owner's inventory; what does not fit stays in the vault. */
     public void take(Player owner, int index, ItemStack shown) {
-        Vault vault = of(owner.getUniqueId());
+        Stash vault = of(owner.getUniqueId());
         ItemStack taken = vault.take(index, shown);
         if (taken == null) {
             return;
@@ -98,7 +132,7 @@ public final class VaultService implements IModerationService {
 
     /** Takes every entry from {@code from} (inclusive) to {@code to} (exclusive) that fits. */
     public void takeAll(Player owner, int from, int to) {
-        Vault vault = of(owner.getUniqueId());
+        Stash vault = of(owner.getUniqueId());
         List<ItemStack> shown = vault.items();
         int moved = 0;
         boolean full = false;
@@ -122,7 +156,7 @@ public final class VaultService implements IModerationService {
     }
 
     public void takeArmour(Player owner, ArmourPiece piece) {
-        Vault vault = of(owner.getUniqueId());
+        Stash vault = of(owner.getUniqueId());
         ItemStack taken = vault.takeArmour(piece);
         if (taken == null) {
             return;
@@ -139,7 +173,7 @@ public final class VaultService implements IModerationService {
      * @return what the cursor holds now
      */
     public ItemStack swapOnStand(Player owner, ArmourPiece piece, ItemStack cursor) {
-        Vault vault = of(owner.getUniqueId());
+        Stash vault = of(owner.getUniqueId());
         if (cursor != null && !cursor.isEmpty() && ArmourPiece.of(cursor.getType()).orElse(null) != piece) {
             messages.send(owner, "moderation.vault.not-that-piece", "piece", piece.label().toLowerCase());
             return cursor;
@@ -157,7 +191,7 @@ public final class VaultService implements IModerationService {
      * so pressing it twice changes back.
      */
     public void equipAll(Player owner) {
-        Vault vault = of(owner.getUniqueId());
+        Stash vault = of(owner.getUniqueId());
         EntityEquipment worn = owner.getEquipment();
         int changed = 0;
         for (ArmourPiece piece : ArmourPiece.values()) {
@@ -193,7 +227,7 @@ public final class VaultService implements IModerationService {
 
     /** Takes off what is worn: onto its empty stand, otherwise into the vault, otherwise it stays on. */
     public void storeWorn(Player owner) {
-        Vault vault = of(owner.getUniqueId());
+        Stash vault = of(owner.getUniqueId());
         EntityEquipment worn = owner.getEquipment();
         int stored = 0;
         for (ArmourPiece piece : ArmourPiece.values()) {
@@ -232,14 +266,14 @@ public final class VaultService implements IModerationService {
     /** Writes every vault now, on this thread — for the shutdown, which has no later. */
     public boolean flushNow() {
         boolean all = true;
-        for (Map.Entry<UUID, Vault> vault : open.entrySet()) {
+        for (Map.Entry<UUID, Stash> vault : open.entrySet()) {
             all &= storage.save(vault.getKey(), vault.getValue().contents());
         }
         return all;
     }
 
     private void save(UUID owner) {
-        Vault vault = open.get(owner);
+        Stash vault = open.get(owner);
         if (vault != null) {
             Scheduling.async(plugin, () -> storage.save(owner, vault.contents()));
         }
@@ -250,7 +284,7 @@ public final class VaultService implements IModerationService {
      *
      * @return whether all of it fitted
      */
-    private static boolean hand(Player owner, Vault vault, ItemStack item) {
+    private static boolean hand(Player owner, Stash vault, ItemStack item) {
         PlayerInventory inventory = owner.getInventory();
         Map<Integer, ItemStack> leftOver = inventory.addItem(item);
         for (ItemStack spare : leftOver.values()) {

@@ -48,18 +48,23 @@ public final class BanhammerListener implements IModerationListener {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
-        Player player = event.getPlayer();
-        if (services.vaults().stashHeld(player, player.isSneaking(), event.getHand() == EquipmentSlot.HAND)) {
+        if (stashOrDraw(event.getPlayer(), event.getHand())) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onRightClickEntity(PlayerInteractEntityEvent event) {
-        Player player = event.getPlayer();
-        if (services.vaults().stashHeld(player, player.isSneaking(), event.getHand() == EquipmentSlot.HAND)) {
+        if (stashOrDraw(event.getPlayer(), event.getHand())) {
             event.setCancelled(true);
         }
+    }
+
+    /** Puts the hammer away when it is held, or draws it when the hand is empty. */
+    private boolean stashOrDraw(Player player, EquipmentSlot hand) {
+        boolean mainHand = hand == EquipmentSlot.HAND;
+        return services.vaults().stashHeld(player, player.isSneaking(), mainHand)
+                || services.vaults().drawHammer(player, player.isSneaking(), mainHand);
     }
 
     @Override

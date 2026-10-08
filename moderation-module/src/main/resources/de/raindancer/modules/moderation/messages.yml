@@ -76,9 +76,10 @@ moderation:
     self: "<gray>The Banhammer does not work on its owner."
     already-banned: "<gray>That player is already banned."
 
-  # /vault — an operator's own stash. Sneak-right-click with the Banhammer puts it in.
+  # /vault — an operator's own stash. Sneak-right-click with the Banhammer puts it in, with an empty hand takes it out.
   vault:
     stashed: "<gold>The Banhammer is in your vault. <gray>Get it back with <white>/vault</white>."
+    drawn: "<gold>The Banhammer, out of your vault."
     no-room-for-hammer: "<red>Your vault is full, so the Banhammer stays in your hand."
     full: "<red>Your vault is full — the rest stayed with you."
     inventory-full: "<yellow>Your inventory is full; what did not fit stayed in the vault."
