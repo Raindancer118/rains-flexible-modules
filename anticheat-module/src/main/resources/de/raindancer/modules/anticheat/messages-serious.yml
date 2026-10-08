@@ -13,3 +13,5 @@ anticheat:
   log-empty: "<green>No evidence against <white><player></white>."
   reset: "<green><white><player></white>'s violation levels are cleared."
   replay-none: "<gray>No replays of <white><player></white>. Replays are kept when a check alerts."
+  check-now-on: "<green><white><check></white> is on."
+  check-now-off: "<gray><white><check></white> is off."

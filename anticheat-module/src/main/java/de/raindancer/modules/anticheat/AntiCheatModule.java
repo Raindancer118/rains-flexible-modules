@@ -38,7 +38,7 @@ import java.util.List;
  */
 public final class AntiCheatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.3.0")
             .describedAs("Server-side anti-cheat: movement, combat, world, inventory and packet checks")
             .by("Raindancer118");
 
@@ -88,7 +88,7 @@ public final class AntiCheatModule implements FlexModule {
         settings.onChange(fresh -> all.forEach(service -> service.settings(fresh)));
 
         AntiCheatServices services = new AntiCheatServices(context.plugin(), context.plugin().getServer(), context.core(),
-                context.log(), messages, context.chat(), settings::current, tracks, violations, alerts, punishments,
+                context.log(), messages, context.chat(), settings::current, settings, tracks, violations, alerts, punishments,
                 evidence, replays, engine, combat, world, clicks, tap, shield);
 
         List<IAntiCheatListener> listeners = new ArrayList<>();

@@ -37,6 +37,7 @@ public final class CombatService implements IAntiCheatService {
     private final ViolationService violations;
     private final CombatRule rule = new CombatRule();
     private final MotionRule motion = new MotionRule();
+    private final de.raindancer.modules.anticheat.rules.DampenRule dampen = new de.raindancer.modules.anticheat.rules.DampenRule();
     private volatile AntiCheatSettings settings = AntiCheatSettings.DEFAULTS;
 
     public CombatService(Tracks tracks, ViolationService violations) {
@@ -146,6 +147,16 @@ public final class CombatService implements IAntiCheatService {
         }
         track.buffer(CheckType.CRITICALS, 1, 0.2).pass();
         return false;
+    }
+
+    /** How much of a hit a suspected attacker still deals; 1 for everybody else. */
+    public double dampening(Player attacker) {
+        if (!settings.dampenSuspects()) {
+            return 1.0;
+        }
+        return tracks.find(attacker.getUniqueId())
+                .map(track -> dampen.multiplier(track.violations().snapshot(), settings.dampenPercent()))
+                .orElse(1.0);
     }
 
     private static String invalidAttack(Player attacker) {

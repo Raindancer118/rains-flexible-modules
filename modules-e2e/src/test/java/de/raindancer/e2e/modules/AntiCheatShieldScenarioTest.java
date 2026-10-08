@@ -62,14 +62,18 @@ class AntiCheatShieldScenarioTest {
             Bot taker = server.player("Taker");
             Bot seer = server.player("Seer");
             Bot hider = server.player("Hider");
+            Bot clicker = server.player("Clicker");
+            Bot dummy = server.player("Dummy");
             server.console("tp Ada -20.5 101 -20.5");
             server.console("tp Stiff -10.5 101 10.5");
             server.console("tp Taker 10.5 101 10.5");
             server.console("tp Seer 0.5 101 -8.5");
             server.console("tp Hider 0.5 101 8.5");
+            server.console("tp Clicker 15.5 101 -15.5 0 0");
+            server.console("tp Dummy 15.5 101 -14 180 0");
             Await.ticks(80);
             ada.forgetChat();
-            for (Bot bot : List.of(stiff, taker, seer, hider)) {
+            for (Bot bot : List.of(stiff, taker, seer, hider, clicker, dummy)) {
                 for (int t = 0; t < 5; t++) {
                     bot.tickEnd();
                     sleep(50);
@@ -104,6 +108,26 @@ class AntiCheatShieldScenarioTest {
             server.console("fill -6 101 0 6 106 0 minecraft:air");
             Await.until("Hider is back once the wall is gone", Duration.ofSeconds(10), () -> seer.sees(hider.id()));
             assertThat(server.console("settings set anti-esp false")).contains("is now");
+
+            // Dampening: an autoclicker past twice its alert level hits for half.
+            assertThat(server.console("settings set dampen-suspects true")).contains("is now");
+            for (int burst = 0; burst < 4; burst++) {
+                for (int click = 0; click < 30; click++) {
+                    clicker.swing();
+                    if (click % 2 == 1) {
+                        clicker.tickEnd();
+                    }
+                    sleep(25);
+                }
+                sleep(300);
+            }
+            Await.until("Clicker is an autoclicker suspect", Duration.ofSeconds(10), () ->
+                    server.console("anticheat info Clicker").contains("AutoClicker"));
+            sleep(1500);
+            float before = dummy.health();
+            clicker.attack(dummy.id()).swing().tickEnd();
+            Await.until("the hit lands", Duration.ofSeconds(5), () -> dummy.health() < before);
+            assertThat(before - dummy.health()).as("a bare-fisted hit of 1, halved").isBetween(0.45f, 0.55f);
 
             assertThat(server.paper.errorsFrom("RainsCore", "RainsAntiCheat")).isEmpty();
         }

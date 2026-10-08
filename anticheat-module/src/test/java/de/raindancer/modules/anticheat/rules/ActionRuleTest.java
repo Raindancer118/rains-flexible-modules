@@ -20,7 +20,7 @@ class ActionRuleTest {
                 d.alerts(), d.setbacks(), d.cancel(), d.autoKick(), autoBan, d.banLength(), scale, d.evidence(),
                 d.evidencePerPlayer(), disabled, silent, d.experimentalChecks(), d.reachLeniency(), d.timerLeniency(),
                 d.maxCps(), d.blockedBrands(), d.blockedChannels(), d.kickBlockedClients(), d.announceBrands(), d.antiEsp(),
-                d.antiEspRange());
+                d.antiEspRange(), d.dampenSuspects(), d.dampenPercent());
     }
 
     @Test

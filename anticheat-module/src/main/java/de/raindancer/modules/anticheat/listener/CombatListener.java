@@ -32,12 +32,15 @@ public final class CombatListener implements IAntiCheatListener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDamage(EntityDamageByEntityEvent event) {
-        if (!(event.getDamager() instanceof Player attacker) || event.getCause() != EntityDamageEvent.DamageCause.ENTITY_ATTACK
-                || !event.isCritical()) {
+        if (!(event.getDamager() instanceof Player attacker) || event.getCause() != EntityDamageEvent.DamageCause.ENTITY_ATTACK) {
             return;
         }
-        if (services.combat().critical(attacker)) {
+        if (event.isCritical() && services.combat().critical(attacker)) {
             event.setDamage(event.getDamage() / 1.5);
+        }
+        double keep = services.combat().dampening(attacker);
+        if (keep < 1.0) {
+            event.setDamage(event.getDamage() * keep);
         }
     }
 

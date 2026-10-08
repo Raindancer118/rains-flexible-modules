@@ -175,7 +175,19 @@ public record AntiCheatSettings(
         @In("anticheat") @Title("Hide behind walls within") @Range(min = 16, max = 128)
         @Describe("Players further apart than this many blocks are left to the server's own tracking.")
         @Key("anti-esp-range")
-        int antiEspRange) {
+        int antiEspRange,
+
+        @In("anticheat/actions") @Title("Dampen suspects' hits")
+        @Describe("While somebody is clearly suspected in combat — a combat check at twice its alert level, or "
+                + "Improbable — their melee hits do less damage, without telling them. A cheat stops winning "
+                + "fights while a human looks into it.")
+        @Key("dampen-suspects")
+        boolean dampenSuspects,
+
+        @In("anticheat/actions") @Title("Suspects' damage, in percent") @Range(min = 0, max = 100)
+        @Describe("How much of their damage a dampened suspect still deals.")
+        @Key("dampen-percent")
+        int dampenPercent) {
 
     public static final AntiCheatSettings DEFAULTS = new AntiCheatSettings(
             true, true, 17.0, 600, true,
@@ -184,7 +196,7 @@ public record AntiCheatSettings(
             List.of("wurst", "meteor", "liquidbounce", "aristois", "rusherhack", "konas", "bleachhack",
                     "inertia", "novoline", "tenacity"),
             List.of("wurst", "meteor-client", "liquidbounce", "aristois", "bleachhack"),
-            true, false, false, 64);
+            true, false, false, 64, false, 50);
 
     public boolean disabled(String checkKey) {
         return contains(disabledChecks, checkKey);

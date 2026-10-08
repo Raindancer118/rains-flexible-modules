@@ -29,6 +29,7 @@ public record AntiCheatServices(
         Messages messages,
         Chat chat,
         Supplier<AntiCheatSettings> settings,
+        de.raindancer.core.data.settings.SettingsStore<AntiCheatSettings> store,
         Tracks tracks,
         ViolationService violations,
         AlertService alerts,

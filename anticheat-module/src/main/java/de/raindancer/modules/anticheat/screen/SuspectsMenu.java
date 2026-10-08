@@ -84,6 +84,8 @@ public final class SuspectsMenu extends PaginatedMenu<PlayerTrack> implements IA
     @Override
     protected void render() {
         super.render();
+        toolbar(2, Icons.of(Material.COMPARATOR, "<yellow>Checks", "<gray>Every check, and whether it is on,",
+                "<gray>only watching, or off.", "<dark_gray>Click to see them all."), click -> new ChecksMenu(services, viewer, this).open());
         toolbar(4, Icons.of(Material.BELL, "<yellow>Alerts", "<gray>Switch whether you are told when somebody fails a check.",
                 "<dark_gray>Click to switch."), click -> {
             boolean on = services.alerts().toggle(viewer);
