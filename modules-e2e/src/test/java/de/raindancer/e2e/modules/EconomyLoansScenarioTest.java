@@ -83,15 +83,37 @@ class EconomyLoansScenarioTest {
                     () -> said(bo, "You bought 1 × Pig Spawn Egg"));
             bo.closeWindow();
 
-            // ---- paying back what he has: 1,000 of 2,200
+            // ---- a shop egg never sets a spawner: refused on one, the spawner stays empty; it still sells back
+            Await.until("the egg carries the mark", WAIT, () -> bo.carrying(item -> item.is("pig_spawn_egg")
+                    && item.tag("not-for-spawners").isPresent()).isPresent());
+            int x = (int) Math.floor(bo.position().getX()) + 2;
+            int y = (int) Math.floor(bo.position().getY());
+            int z = (int) Math.floor(bo.position().getZ());
+            server.console("setblock " + x + " " + y + " " + z + " minecraft:spawner");
+            Await.ticks(10);
+            bo.hold(bo.hotbarSlotOf(item -> item.is("pig_spawn_egg")));
+            bo.forgetChat();
+            bo.useOn(x, y, z);
+            Await.until(() -> "the spawner refuses it (Bo heard " + bo.chatText() + ")", WAIT,
+                    () -> said(bo, "don't set spawners"));
+            assertThat(server.console("data get block " + x + " " + y + " " + z + " SpawnData"))
+                    .as("the spawner holds no pig").doesNotContain("pig");
+            assertThat(bo.carrying(item -> item.is("pig_spawn_egg"))).as("and the egg is not used up").isPresent();
+            bo.forgetChat();
+            bo.run("sell hand");
+            Await.until(() -> "the shop's egg sells back (Bo heard " + bo.chatText() + ")", WAIT,
+                    () -> said(bo, "You sold"));
+            bo.closeWindow();
+
+            // ---- paying back what he has: 1,800 of 2,200 (1,000 left after the egg, 800 for selling it back)
             bo.forgetChat();
             bo.run("loan repay");
-            Await.until("part is paid back", WAIT, () -> said(bo, "You paid back ⛃1,000") && said(bo, "⛃1,200"));
+            Await.until("part is paid back", WAIT, () -> said(bo, "You paid back ⛃1,800") && said(bo, "⛃400"));
 
             // ---- staff see it and forgive the rest
             ada.forgetChat();
             ada.run("eco loan Bo");
-            Await.until("Ada sees the loan", WAIT, () -> said(ada, "owes ⛃1,200"));
+            Await.until("Ada sees the loan", WAIT, () -> said(ada, "owes ⛃400"));
             bo.forgetChat();
             ada.run("eco loan Bo forgive");
             Await.until("the loan is forgiven", WAIT, () -> said(ada, "is forgiven") && said(bo, "forgave your loan"));

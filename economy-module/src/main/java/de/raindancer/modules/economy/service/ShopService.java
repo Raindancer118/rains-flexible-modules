@@ -1,5 +1,6 @@
 package de.raindancer.modules.economy.service;
 
+import de.raindancer.core.content.items.NotForSpawners;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.EconomyResult;
@@ -117,7 +118,7 @@ public final class ShopService implements IEconomyService {
             refuse(player, "economy.not-an-amount");
             return;
         }
-        List<ItemStack> stacks = stacksOf(material, amount);
+        List<ItemStack> stacks = sold(stacksOf(material, amount));
         if (!CashService.fits(player.getInventory(), stacks)) {
             refuse(player, "economy.shop.no-room");
             return;
@@ -202,6 +203,16 @@ public final class ShopService implements IEconomyService {
                 "amount", currency.render(offer.price()));
     }
 
+    /** What the shop hands over: a spawn egg it sold hatches a mob but never sets a spawner. */
+    private static List<ItemStack> sold(List<ItemStack> stacks) {
+        stacks.forEach(stack -> {
+            if (stack.getType().name().endsWith("_SPAWN_EGG")) {
+                NotForSpawners.mark(stack);
+            }
+        });
+        return stacks;
+    }
+
     private static List<ItemStack> stacksOf(Material material, int amount) {
         List<ItemStack> stacks = new ArrayList<>();
         int max = Math.max(1, material.getMaxStackSize());
@@ -229,7 +240,8 @@ public final class ShopService implements IEconomyService {
 
     static boolean sellableStack(ItemStack stack, Material material) {
         return stack != null && stack.getType() == material && !CashTags.isCash(stack)
-                && stack.isSimilar(new ItemStack(material));
+                && (stack.isSimilar(new ItemStack(material))
+                || stack.isSimilar(NotForSpawners.mark(new ItemStack(material))));
     }
 
     /** Sells up to {@code quantity}; fewer if fewer are carried. */
