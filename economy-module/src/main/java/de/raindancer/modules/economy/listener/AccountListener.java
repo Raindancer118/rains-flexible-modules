@@ -53,6 +53,7 @@ public final class AccountListener implements IEconomyListener {
         services.bills().forget(player);
         services.gambling().forget(player);
         services.income().forget(player);
+        services.sidebar().forget(player);
         services.core().actionBars().forget(player);
     }
 

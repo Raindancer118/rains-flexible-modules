@@ -82,7 +82,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.3.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -158,18 +158,22 @@ public final class EconomyModule implements FlexModule {
         InterestService interest = new InterestService(economy, messages, System::currentTimeMillis, now);
         DailyService daily = new DailyService(economy, messages, effects, Clock.systemDefaultZone(), now);
         LeaderboardService leaderboard = new LeaderboardService(book, System::currentTimeMillis);
+        var sidebar = new de.raindancer.modules.economy.service.SidebarService(economy, leaderboard,
+                context.core().scoreboards(), now);
+        var displays = new de.raindancer.modules.economy.service.LeaderboardDisplayService(context.plugin(), server,
+                leaderboard, settings, now);
         GamblingService gambling = new GamblingService(context.plugin(), server, economy, messages, effects, buttons,
                 Clock.systemDefaultZone(), sounds, now);
         LotteryService lottery = new LotteryService(server, economy, messages, effects, System::currentTimeMillis, now);
 
         for (var service : List.of(economy, notifier, payments, bills, cash, shop, rewards, income, hire, statements,
-                interest, daily, gambling, lottery)) {
+                interest, daily, gambling, lottery, sidebar, displays)) {
             settings.onChange(service::settings);
         }
 
         services = new EconomyServices(context.plugin(), server, log, messages, context.chat().brand(), context.core(),
                 settings::current, settings, economy, market, payments, bills, cash, shop, rewards, income, hire,
-                statements, interest, daily, leaderboard, gambling, lottery, new LiveScreens());
+                statements, interest, daily, leaderboard, sidebar, displays, gambling, lottery, new LiveScreens());
 
         int recipes = shop.reprice();
 
@@ -204,6 +208,15 @@ public final class EconomyModule implements FlexModule {
         if (minutes != null) {
             context.closeWith(minutes::cancel);
         }
+        var sidebars = Scheduling.globalTimer(context.plugin(), 40L, 40L, task -> sidebar.refresh(server.getOnlinePlayers()));
+        if (sidebars != null) {
+            context.closeWith(sidebars::cancel);
+        }
+        var boards = Scheduling.globalTimer(context.plugin(), 100L, 600L, task -> displays.refresh());
+        if (boards != null) {
+            context.closeWith(boards::cancel);
+        }
+        context.closeWith(() -> server.getOnlinePlayers().forEach(player -> sidebar.forget(player.getUniqueId())));
         var pruning = Scheduling.asyncTimer(context.plugin(), 60, 6 * 3600, task -> {
             long cutoff = System.currentTimeMillis() - settings.current().historyDays() * 86_400_000L;
             int forgotten = book.forgetHistoryBefore(cutoff);

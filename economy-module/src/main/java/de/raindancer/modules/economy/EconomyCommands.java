@@ -35,7 +35,8 @@ public final class EconomyCommands {
                         new de.raindancer.modules.economy.command.HireCommand(EconomyCommands::require))
                         .aliased("jobs").taking("<player> <wage> <every> [job]", "list", "fire|quit <player>"),
                 ModuleCommand.of("bank", "Open the bank",
-                        new BankCommand(EconomyCommands::require, BankCommand.Door.BANK)).aliased("economy"),
+                        new BankCommand(EconomyCommands::require, BankCommand.Door.BANK)).aliased("economy")
+                        .taking("[sidebar]"),
                 ModuleCommand.of("withdraw", "Take money out as coins, notes or a cheque",
                         new CashCommand(EconomyCommands::require, true)).taking("[amount] [cheque]"),
                 ModuleCommand.of("deposit", "Pay cash back in",
@@ -66,7 +67,7 @@ public final class EconomyCommands {
                         .taking("[buy <tickets>]"),
                 ModuleCommand.of("eco", "Staff: run the economy", new EcoCommand(EconomyCommands::require))
                         .taking("give|take|set <player> <amount> [reason]", "reset|freeze|unfreeze|history <player>",
-                                "menu|reprice|draw|calm|coin")
+                                "menu|reprice|draw|calm|coin", "leaderboard place|remove")
                         .auditUsage());
     }
 

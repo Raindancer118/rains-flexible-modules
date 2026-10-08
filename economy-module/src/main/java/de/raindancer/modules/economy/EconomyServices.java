@@ -52,6 +52,8 @@ public record EconomyServices(
         InterestService interest,
         DailyService daily,
         LeaderboardService leaderboard,
+        de.raindancer.modules.economy.service.SidebarService sidebar,
+        de.raindancer.modules.economy.service.LeaderboardDisplayService displays,
         GamblingService gambling,
         LotteryService lottery,
         IEconomyScreensOpener screens) {

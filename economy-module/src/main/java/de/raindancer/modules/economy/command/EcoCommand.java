@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class EcoCommand extends EconomyCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("give", "take", "set", "reset", "freeze", "unfreeze",
-            "history", "menu", "reprice", "draw", "calm", "coin");
+            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard");
 
     public EcoCommand(Supplier<EconomyServices> services) {
         super(services);
@@ -67,6 +67,18 @@ public final class EcoCommand extends EconomyCommand {
                 audit(live, sender, "coin", player, held.getType().name());
                 live.messages().send(player, "economy.admin.coin", "item",
                         held.getType().name().toLowerCase(Locale.ROOT).replace('_', ' '));
+            });
+            case "leaderboard" -> player(live, sender).ifPresent(player -> {
+                boolean removing = args.length > 1 && args[1].equalsIgnoreCase("remove");
+                if (removing) {
+                    live.messages().send(player, live.displays().remove(player)
+                            ? "economy.admin.leaderboard-removed" : "economy.admin.leaderboard-none");
+                } else if (!live.config().leaderboardsEnabled()) {
+                    live.messages().send(player, "economy.admin.leaderboards-off");
+                } else {
+                    live.displays().place(player);
+                    live.messages().send(player, "economy.admin.leaderboard-placed");
+                }
             });
             case "calm" -> {
                 live.market().calm();
@@ -164,6 +176,9 @@ public final class EcoCommand extends EconomyCommand {
         }
         if (args.length <= 1) {
             return starting(args.length == 0 ? "" : args[0], SUBCOMMANDS);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("leaderboard")) {
+            return starting(args[1], List.of("place", "remove"));
         }
         return args.length == 2 ? players(source, args[1]) : List.of();
     }

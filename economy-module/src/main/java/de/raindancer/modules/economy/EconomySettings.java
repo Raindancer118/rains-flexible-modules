@@ -36,6 +36,7 @@ import java.util.List;
         @Topic(path = "economy/earn", title = "Earning", icon = Material.DIAMOND_PICKAXE),
         @Topic(path = "economy/interest", title = "Interest", icon = Material.CLOCK),
         @Topic(path = "economy/gambling", title = "Gambling", icon = Material.GOLD_BLOCK),
+        @Topic(path = "economy/display", title = "Sidebar and leaderboards", icon = Material.OAK_SIGN),
 })
 public record EconomySettings(
 
@@ -370,6 +371,27 @@ public record EconomySettings(
         @Describe("Of the pot, at every draw — destroyed, a money sink. 0 to 50.")
         @Key("lottery.cut-percent") double lotteryCutPercent,
 
+        // ------------------------------------------------------------------ display
+        @In("economy/display") @Title("Balance in the sidebar")
+        @Describe("Every player's balance, rank and the richest players on the right of the screen. Each player "
+                + "can hide it with /bank sidebar. A minigame's sidebar still wins while it runs.")
+        @Key("features.sidebar") boolean sidebarEnabled,
+
+        @In("economy/display") @Title("Richest players in the sidebar") @Range(min = 0, max = 10)
+        @Key("sidebar.richest") int sidebarRichest,
+
+        @In("economy/display") @Title("Leaderboards in the world")
+        @Describe("Floating lists of the richest players, put down with /eco leaderboard place.")
+        @Key("features.leaderboards") boolean leaderboardsEnabled,
+
+        @In("economy/display") @Title("A leaderboard shows") @Range(min = 1, max = 20)
+        @Describe("Players.")
+        @Key("leaderboard.size") int leaderboardSize,
+
+        @In("economy/display") @Title("Leaderboard places")
+        @Describe("'<world> <x> <y> <z>', comma separated. Written by /eco leaderboard place and remove.")
+        @Key("leaderboard.spots") List<String> leaderboardSpots,
+
         // ------------------------------------------------------------------ general
         @In("economy") @Title("Richest players list") @Describe("/baltop.")
         @Key("features.baltop") boolean baltopEnabled) {
@@ -397,6 +419,8 @@ public record EconomySettings(
             true, 0.25, 60, "250",
             // gambling
             true, true, true, true, true, true, "1", "100000", 3.0, "0", 1, 60, "100", 24, 100, 10.0,
+            // display
+            true, 3, true, 10, List.of(),
             // general
             true);
 

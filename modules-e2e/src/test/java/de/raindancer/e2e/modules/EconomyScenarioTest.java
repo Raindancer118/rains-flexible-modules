@@ -298,6 +298,22 @@ class EconomyScenarioTest {
             Await.until("three emerald coins", WAIT, () -> ada.items().stream()
                     .anyMatch(item -> item.is("emerald") && item.tag("rainseconomy:value").isPresent() && item.amount() == 3));
 
+            // ---- a coin of ender pearls still stacks to 64
+            server.console("item replace entity Ada weapon.mainhand with minecraft:ender_pearl");
+            Await.ticks(5);
+            ada.run("eco coin");
+            Await.until("coins are ender pearls", WAIT, () -> said(ada, "Coins are now made of ender pearl"));
+            ada.run("withdraw 64");
+            Await.until("one stack of sixty-four pearl coins", WAIT, () -> ada.items().stream()
+                    .anyMatch(item -> item.is("ender_pearl") && item.amount() == 64));
+
+            // ---- a leaderboard of the richest players, put down in the world
+            ada.forgetChat();
+            ada.run("eco leaderboard place");
+            Await.until("it is placed", WAIT, () -> said(ada, "leaderboard of the richest players floats here"));
+            Await.until("and a display stands there", WAIT, () -> server.console(
+                    "execute if entity @e[type=minecraft:text_display]").contains("passed"));
+
             assertThat(server.paper.logLines(line -> line.contains("Exception"))).as("nothing threw").isEmpty();
         }
     }

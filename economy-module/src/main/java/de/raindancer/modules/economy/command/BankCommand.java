@@ -23,9 +23,15 @@ public final class BankCommand extends EconomyCommand {
         player(live, sender).ifPresent(player -> {
             switch (door) {
                 case BANK -> {
-                    if (allowed(live, sender, PermissionNodes.BALANCE)) {
-                        live.screens().bank(player);
+                    if (!allowed(live, sender, PermissionNodes.BALANCE)) {
+                        return;
                     }
+                    if (args.length > 0 && args[0].equalsIgnoreCase("sidebar")) {
+                        live.messages().send(player, live.sidebar().toggle(player)
+                                ? "economy.sidebar.on" : "economy.sidebar.off");
+                        return;
+                    }
+                    live.screens().bank(player);
                 }
                 case CASINO, SLOTS -> {
                     if (!allowed(live, sender, PermissionNodes.GAMBLE)) {

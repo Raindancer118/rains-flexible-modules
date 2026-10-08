@@ -108,6 +108,10 @@ public final class HireService implements IEconomyService {
             refuse(employee, "economy.hire.off");
             return;
         }
+        if (book.employing(employer).size() >= settings.hireMostContracts()) {
+            refuse(employee, "economy.hire.full", "player", employerName);
+            return;
+        }
         economy.open(employee.getUniqueId(), employee.getName());
         long now = clock.getAsLong();
         Contract contract = new Contract(UUID.randomUUID(), employer, employerName, employee.getUniqueId(),

@@ -41,6 +41,8 @@ public final class AdminMenu extends Menu implements IEconomyScreen {
             new Switch("features.advancement-rewards", "Advancement rewards", Material.KNOWLEDGE_BOOK),
             new Switch("features.interest", "Interest", Material.EXPERIENCE_BOTTLE),
             new Switch("features.baltop", "Richest players", Material.GOLDEN_HELMET),
+            new Switch("features.sidebar", "Sidebar", Material.OAK_SIGN),
+            new Switch("features.leaderboards", "World leaderboards", Material.ITEM_FRAME),
             new Switch("accounts.action-bar", "Changes above hotbar", Material.OAK_SIGN),
             new Switch("features.gambling", "Gambling", Material.GOLD_BLOCK),
             new Switch("features.coinflip", "Coin flips", Material.SUNFLOWER),

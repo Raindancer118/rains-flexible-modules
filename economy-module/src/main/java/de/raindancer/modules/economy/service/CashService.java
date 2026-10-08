@@ -129,6 +129,10 @@ public final class CashService implements IEconomyService {
             meta.setEnchantmentGlintOverride(true);
         }
         stack.setItemMeta(meta);
+        if (!cheque && stack.getMaxStackSize() != 64) {
+            // Coins always stack to 64, whatever they are made of — ender pearls, saddles, anything.
+            stack.setData(io.papermc.paper.datacomponent.DataComponentTypes.MAX_STACK_SIZE, 64);
+        }
         String model = settings.coinModel();
         if (!cheque && model != null && !model.isBlank()) {
             try {

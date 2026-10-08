@@ -135,6 +135,10 @@ economy:
     drawn: "<gold>Lottery: <white><player></white> won <amount><gold> with <tickets> of <total> tickets!"
     no-tickets: "<gray>Nobody had bought a ticket, so the pot carries over."
 
+  sidebar:
+    on: "<green>Your balance is in the sidebar again. <gray>/bank sidebar hides it."
+    off: "<gray>The sidebar is hidden. /bank sidebar brings it back."
+
   statement:
     printed: "<green>Your statement is being printed — it lands in your inventory in a moment."
 
@@ -150,6 +154,7 @@ economy:
     started: "<green>You work for <white><player></white> now: <amount><green> every <every>."
     accepted: "<green><white><player></white> took the job: <amount><green> every <every>, from your account."
     not-yours: "<red>There is no such job of yours."
+    full: "<red><player> already employs as many people as anybody may."
     you-fired: "<gray>You let <white><player></white> go. No more wages are paid."
     you-quit: "<gray>You quit working for <white><player></white>."
     fired: "<red><player> let you go."
@@ -162,6 +167,10 @@ economy:
 
   admin:
     coin: "<green>Coins are now made of <white><item></white>. Coins already out keep working."
+    leaderboard-placed: "<green>A leaderboard of the richest players floats here now. <gray>/eco leaderboard remove takes it away."
+    leaderboard-removed: "<green>The nearest leaderboard is gone."
+    leaderboard-none: "<red>There is no leaderboard within five blocks of you."
+    leaderboards-off: "<red>World leaderboards are switched off. /eco menu switches them on."
     coin-hold: "<red>Hold the item coins should be made of — anything but money."
     done: "<green>Done. <white><player></white> now has <balance><green>."
     refused: "<red>Refused for <player>: <reason>."

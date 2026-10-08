@@ -119,6 +119,15 @@ public final class BankMenu extends Menu implements IEconomyScreen {
                 Icons.of(Material.GOLD_BLOCK, "<gold>Casino", "<gray>Coin flips, dice, slots, roulette, the lottery."),
                 live.gamblingEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().casino(viewer));
 
+        boolean shown = de.raindancer.modules.economy.service.SidebarService.SHOWN.isOn(viewer);
+        toolbar(2, live.sidebarEnabled(), Icons.of(shown ? Material.OAK_SIGN : Material.BIRCH_SIGN,
+                shown ? "<white>Sidebar: <green>shown" : "<white>Sidebar: <gray>hidden",
+                "<gray>Your balance and the richest players", "<gray>on the right of the screen.",
+                "<yellow>Click<gray> to " + (shown ? "hide" : "show") + " it"), OFF, click -> {
+            services.sidebar().toggle(viewer);
+            services.sidebar().refresh(java.util.List.of(viewer));
+            refresh();
+        });
         if (viewer.hasPermission(PermissionNodes.ADMIN)) {
             toolbar(4, Icons.of(Material.COMMAND_BLOCK, "<red>Run the economy",
                     "<gray>Switch features, close shop categories,", "<gray>paint the currency."),
