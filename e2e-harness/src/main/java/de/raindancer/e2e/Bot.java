@@ -30,6 +30,11 @@ import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.ScoreboardPositi
 import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.TeamAction;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundAddEntityPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundBlockUpdatePacket;
+import org.geysermc.mcprotocollib.protocol.packet.common.clientbound.ClientboundPingPacket;
+import org.geysermc.mcprotocollib.protocol.packet.common.serverbound.ServerboundPongPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundPlayerInfoRemovePacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundRemoveEntitiesPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundSetEntityMotionPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerActionPacket;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.player.PlayerAction;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.object.Direction;
@@ -191,6 +196,14 @@ public final class Bot {
     private final Map<String, String> objectiveTitles = new ConcurrentHashMap<>();
     private volatile String sidebarObjective = "";
     private final List<Window> windowsSeen = new CopyOnWriteArrayList<>();
+    /** This client's own entity id, from the login. */
+    private volatile int ownEntityId = Integer.MIN_VALUE;
+    /** Knockback the server sent this client itself, in order: {vx, vy, vz}. */
+    private final List<double[]> pushes = new CopyOnWriteArrayList<>();
+    /** Players taken off this client's tab list. */
+    private final List<UUID> unlisted = new CopyOnWriteArrayList<>();
+    /** Whether it answers the server's ping packets, as every vanilla client does. */
+    private volatile boolean answersPings = true;
     /** Single-block updates the server sent, in order: {x, y, z, block state id}. */
     private final List<int[]> blockUpdates = new CopyOnWriteArrayList<>();
     /** Entity ids the server gave the things it showed this client, by their UUID. */
@@ -331,6 +344,7 @@ public final class Bot {
         }
         switch (packet) {
             case ClientboundLoginPacket login -> {
+                ownEntityId = login.getEntityId();
                 spawnInfo(login.getCommonPlayerSpawnInfo());
                 joined = true;
             }
@@ -353,6 +367,22 @@ public final class Bot {
                 loaded = true;
             }
             case ClientboundAddEntityPacket added -> entityIds.put(added.getUuid(), added.getEntityId());
+            case ClientboundRemoveEntitiesPacket removed -> {
+                for (int id : removed.getEntityIds()) {
+                    entityIds.values().removeIf(known -> known == id);
+                }
+            }
+            case ClientboundPlayerInfoRemovePacket gone -> unlisted.addAll(gone.getProfileIds());
+            case ClientboundSetEntityMotionPacket motion -> {
+                if (motion.getEntityId() == ownEntityId) {
+                    pushes.add(new double[]{motion.getMovement().getX(), motion.getMovement().getY(), motion.getMovement().getZ()});
+                }
+            }
+            case ClientboundPingPacket ping -> {
+                if (answersPings) {
+                    from.send(new ServerboundPongPacket(ping.getId()));
+                }
+            }
             case ClientboundBlockUpdatePacket update -> {
                 Vector3i at = update.getEntry().getPosition();
                 blockUpdates.add(new int[]{at.getX(), at.getY(), at.getZ(), update.getEntry().getBlock()});
@@ -781,6 +811,27 @@ public final class Bot {
     public Bot dig(int x, int y, int z) {
         session.send(new ServerboundPlayerActionPacket(PlayerAction.START_DIGGING, Vector3i.from(x, y, z), Direction.UP,
                 sequence.incrementAndGet()));
+        return this;
+    }
+
+    /** Whether this client is currently shown something with this UUID. */
+    public boolean sees(UUID entity) {
+        return entityIds.containsKey(entity);
+    }
+
+    /** Players this client was told to take off its tab list, oldest first. */
+    public List<UUID> unlisted() {
+        return List.copyOf(unlisted);
+    }
+
+    /** Knockback sent to this client itself, oldest first: {vx, vy, vz}. */
+    public List<double[]> pushes() {
+        return List.copyOf(pushes);
+    }
+
+    /** Stops answering the server's pings — what a client faking lag does. */
+    public Bot answerPings(boolean answer) {
+        answersPings = answer;
         return this;
     }
 

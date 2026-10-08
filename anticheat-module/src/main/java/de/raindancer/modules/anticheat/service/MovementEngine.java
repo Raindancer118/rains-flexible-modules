@@ -58,6 +58,9 @@ public final class MovementEngine implements IAntiCheatService {
     private final MotionRule motion = new MotionRule();
     private final CombatRule combat = new CombatRule();
     private final AimRule aim = new AimRule();
+    private final de.raindancer.modules.anticheat.rules.AirControlRule airControl = new de.raindancer.modules.anticheat.rules.AirControlRule();
+    private final de.raindancer.modules.anticheat.rules.PingRule pings = new de.raindancer.modules.anticheat.rules.PingRule();
+    private volatile PacketTap tap;
     private volatile AntiCheatSettings settings = AntiCheatSettings.DEFAULTS;
 
     public MovementEngine(Plugin plugin, de.raindancer.core.platform.log.LogChannel log, Tracks tracks, ViolationService violations) {
@@ -65,6 +68,11 @@ public final class MovementEngine implements IAntiCheatService {
         this.log = log;
         this.tracks = tracks;
         this.violations = violations;
+    }
+
+    /** The tap that measures each player's real round trip; without it, the server's keep-alive ping is used. */
+    public void probesWith(PacketTap tap) {
+        this.tap = tap;
     }
 
     /** Starts the tick for one player; re-arms itself if the server retires their entity. */
@@ -90,12 +98,12 @@ public final class MovementEngine implements IAntiCheatService {
     void tick(Player player) {
         PlayerTrack track = tracks.of(player);
         long now = track.now();
-        track.ping = player.getPing();
         PlayerTrack.Movement m = track.movement;
         synchronized (track) {
             m.ticks++;
             if (m.ticks % 20 == 1) {
                 refreshPermissions(player, track);
+                measurePing(player, track);
             }
             recordPosition(player, track, now);
         }
@@ -152,6 +160,27 @@ public final class MovementEngine implements IAntiCheatService {
         }
     }
 
+    /**
+     * The ping lag compensation uses: the median round trip of our own pings when there are enough,
+     * the keep-alive ping otherwise — and whether the two disagree the way a held-back keep-alive does.
+     */
+    private void measurePing(Player player, PlayerTrack track) {
+        PacketTap probe = tap;
+        if (probe != null) {
+            probe.probe(player);
+        }
+        double[] trips = track.packets.roundTrips.toArray();
+        int keepAlive = player.getPing();
+        track.ping = trips.length >= de.raindancer.modules.anticheat.rules.PingRule.FEWEST
+                ? (int) Math.round(pings.median(trips)) : keepAlive;
+        Judgement spoof = pings.spoofed(keepAlive, trips);
+        if (spoof.failed() && run(track, CheckType.PING_SPOOF)) {
+            report(player, track, CheckType.PING_SPOOF, 1, 4, 0.5, spoof.reason());
+        } else {
+            track.buffer(CheckType.PING_SPOOF, 4, 0.5).pass();
+        }
+    }
+
     /** The packet thread fed the balance; whether it is past the line is decided here. */
     public void judgeTimer(Player player, PlayerTrack track, int leniency) {
         double balance = track.timer.balance();
@@ -170,6 +199,9 @@ public final class MovementEngine implements IAntiCheatService {
     private void moved(Player player, PlayerTrack track, MoveSample sample, boolean paused) {
         PlayerTrack.Movement m = track.movement;
         long now = track.now();
+        track.recorder.record(new de.raindancer.modules.anticheat.model.ReplayFrame(now, player.getWorld().getName(),
+                sample.x(), sample.y(), sample.z(), sample.hasRotation() ? sample.yaw() : m.yaw,
+                sample.hasRotation() ? sample.pitch() : m.pitch, sample.onGround()));
         if (m.teleportTarget != null) {
             Location target = m.teleportTarget;
             boolean arrived = target.getWorld() != null && target.getWorld().equals(player.getWorld())
@@ -266,6 +298,25 @@ public final class MovementEngine implements IAntiCheatService {
 
         if (!gliding && !specialNow && !here.web() && run(track, CheckType.SPEED)) {
             failed |= judgeHorizontal(player, track, sample, hd, dy, ticks, here, velocityH);
+        }
+
+        // Air control: two ticks fully airborne, nothing to bump into, nothing pushing.
+        if (!gliding && !specialNow && !m.onGround && !m.onGroundBefore && !here.ground() && Double.isNaN(velocityH)
+                && !Double.isNaN(m.lastDx) && !sample.horizontalCollision() && !m.lastCollided && run(track, CheckType.STRAFE)) {
+            Judgement steered = airControl.judge(m.lastDx, m.lastDz, dx, dz, ticks);
+            if (steered.failed() && !nearWall(world, sample, player) && Surroundings.pushers(world, sample.x(), sample.y(), sample.z(), player) == 0) {
+                failed |= report(player, track, CheckType.STRAFE, 1, 2, 0.04, steered.reason());
+            } else if (steered.passed()) {
+                track.buffer(CheckType.STRAFE, 2, 0.04).pass();
+            }
+        }
+
+        // Ladders: no faster than vanilla climbs, unless something launched them.
+        if (here.climbable() && m.special && dy > 0 && Double.isNaN(velocityY) && !levitating && run(track, CheckType.FLY)) {
+            Judgement climbed = airControl.climb(dy / ticks);
+            if (climbed.failed()) {
+                failed |= report(player, track, CheckType.FLY, 1, 2, 0.05, climbed.reason());
+            }
         }
 
         // Knockback is judged on the rise it caused.
@@ -365,6 +416,9 @@ public final class MovementEngine implements IAntiCheatService {
 
     private void remember(World world, PlayerTrack.Movement m, MoveSample sample, double dy, double hd, Surroundings here, boolean exempt) {
         boolean wasGround = m.onGround;
+        m.lastDx = exempt ? Double.NaN : sample.x() - m.x;
+        m.lastDz = exempt ? Double.NaN : sample.z() - m.z;
+        m.lastCollided = sample.horizontalCollision();
         m.x = sample.x();
         m.y = sample.y();
         m.z = sample.z();
@@ -493,7 +547,9 @@ public final class MovementEngine implements IAntiCheatService {
         long window = Math.min(1500, track.compensated(settings.maxPing()) * 2L + 500);
         for (Iterator<double[]> it = m.velocities.iterator(); it.hasNext(); ) {
             double[] v = it.next();
-            if (now - (long) v[3] < window) {
+            // Confirmed by the client's pong: the push is applied by now, so a few ticks settle it.
+            boolean confirmed = v.length > 7 && v[7] > 0;
+            if (confirmed ? now - (long) v[7] < 250 : now - (long) v[3] < window) {
                 continue;
             }
             it.remove();
@@ -576,6 +632,13 @@ public final class MovementEngine implements IAntiCheatService {
     }
 
     // -------------------------------------------------------------------------- helpers
+
+    /** Whether a wall stands within a hair of their box — bumping into it changes course legitimately. */
+    private static boolean nearWall(World world, MoveSample sample, Player player) {
+        double half = player.getWidth() / 2 + 0.05;
+        return world.hasCollisionsIn(new BoundingBox(sample.x() - half, sample.y() + 0.01, sample.z() - half,
+                sample.x() + half, sample.y() + player.getHeight(), sample.z() + half));
+    }
 
     private void recordPosition(Player player, PlayerTrack track, long now) {
         Location at = player.getLocation();

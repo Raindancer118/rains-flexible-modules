@@ -12,3 +12,4 @@ anticheat:
   info-clean: "<green> No failed checks."
   log-empty: "<green>No evidence against <white><player></white>."
   reset: "<green><white><player></white>'s violation levels are cleared."
+  replay-none: "<gray>No replays of <white><player></white>. Replays are kept when a check alerts."

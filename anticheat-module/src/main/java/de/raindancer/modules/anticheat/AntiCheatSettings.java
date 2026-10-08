@@ -163,7 +163,19 @@ public record AntiCheatSettings(
         @In("anticheat/clients") @Title("Announce every client")
         @Describe("Tell staff which client brand every player joins with.")
         @Key("announce-brands")
-        boolean announceBrands) {
+        boolean announceBrands,
+
+        @In("anticheat") @Title("Hide players behind walls")
+        @Describe("Anti-ESP: a player nobody could see — solid blocks in every line between them — is not sent "
+                + "to the other's client at all, so wallhacks and tracers have nothing to draw. They stay in the "
+                + "tab list. Costs a few ray traces per pair of nearby players, five times a second. Not on Folia.")
+        @Key("anti-esp")
+        boolean antiEsp,
+
+        @In("anticheat") @Title("Hide behind walls within") @Range(min = 16, max = 128)
+        @Describe("Players further apart than this many blocks are left to the server's own tracking.")
+        @Key("anti-esp-range")
+        int antiEspRange) {
 
     public static final AntiCheatSettings DEFAULTS = new AntiCheatSettings(
             true, true, 17.0, 600, true,
@@ -172,7 +184,7 @@ public record AntiCheatSettings(
             List.of("wurst", "meteor", "liquidbounce", "aristois", "rusherhack", "konas", "bleachhack",
                     "inertia", "novoline", "tenacity"),
             List.of("wurst", "meteor-client", "liquidbounce", "aristois", "bleachhack"),
-            true, false);
+            true, false, false, 64);
 
     public boolean disabled(String checkKey) {
         return contains(disabledChecks, checkKey);

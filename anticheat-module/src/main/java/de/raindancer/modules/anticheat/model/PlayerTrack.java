@@ -42,6 +42,8 @@ public final class PlayerTrack {
     public final World world = new World();
     public final Packets packets = new Packets();
     public final TimerBalance timer = new TimerBalance(1000);
+    /** The last five seconds of movement, frozen into a replay whenever a check alerts. */
+    public final ReplayRecorder recorder = new ReplayRecorder(100);
 
     /** Refreshed once a second on the player's own thread, so packet threads never ask permissions. */
     public volatile boolean bypassAll;
@@ -49,6 +51,7 @@ public final class PlayerTrack {
     public volatile boolean bedrock;
     public volatile boolean kicking;
     public volatile int ping;
+    public volatile int entityId = Integer.MIN_VALUE;
 
     /**
      * The ping lag compensation may assume, capped: a client can fake any ping by holding back its
@@ -133,6 +136,9 @@ public final class PlayerTrack {
         public float pitch;
         public double lastDy = Double.NaN;
         public double lastHd = Double.NaN;
+        public double lastDx = Double.NaN;
+        public double lastDz = Double.NaN;
+        public boolean lastCollided;
         public boolean onGround;
         public boolean onGroundBefore;
         public double friction = 0.6;
@@ -159,7 +165,10 @@ public final class PlayerTrack {
         public int jesusTicks;
         public int glideClimbTicks;
         public int vehicleClimbTicks;
-        /** Pending knockback: vx, vy, vz, sentAtMillis, highestRiseSince, blocked (1 when a ceiling, liquid or web could explain it). */
+        /**
+         * Pending knockback: vx, vy, vz, sentAtMillis, highestRiseSince, blocked (1 when a ceiling, liquid
+         * or web could explain it), transaction id (0 none), millis the client confirmed it (0 not yet).
+         */
         public final Deque<double[]> velocities = new ArrayDeque<>();
         public boolean sprintHitThisTick;
         public long sprintHitMillis;
@@ -178,6 +187,8 @@ public final class PlayerTrack {
             known = false;
             lastDy = Double.NaN;
             lastHd = Double.NaN;
+            lastDx = Double.NaN;
+            lastDz = Double.NaN;
             airTicks = 0;
             highestY = Double.NaN;
             rises.clear();
@@ -262,5 +273,9 @@ public final class PlayerTrack {
         public boolean digging;
         public int attacksAwaitingSwing;
         public int startsThisTick;
+        /** Our own ping packets in flight: id → nanos sent. */
+        public final java.util.Map<Integer, Long> transactions = new java.util.HashMap<>();
+        public final Samples roundTrips = new Samples(16);
+        public int nextTransaction;
     }
 }

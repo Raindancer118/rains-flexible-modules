@@ -22,7 +22,12 @@ public final class ViolationService implements IAntiCheatService {
     private final AlertService alerts;
     private final PunishService punishments;
     private final EvidenceLog evidence;
+    private final de.raindancer.modules.anticheat.rules.ImprobableRule improbable = new de.raindancer.modules.anticheat.rules.ImprobableRule();
+    private final java.util.Map<java.util.UUID, Long> lastImprobable = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile AntiCheatSettings settings = AntiCheatSettings.DEFAULTS;
+
+    private volatile de.raindancer.modules.anticheat.store.ReplayStore replays;
+    private final java.util.Map<String, Long> lastReplay = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ViolationService(ActionRule rule, AlertService alerts, PunishService punishments, EvidenceLog evidence) {
         this.rule = rule;
@@ -57,6 +62,7 @@ public final class ViolationService implements IAntiCheatService {
         alerts.verbose(player, check, level, flag.detail());
         if (decision.alert()) {
             alerts.alert(player, check, level, flag.detail(), track.ping);
+            freeze(track, check, flag.detail());
         }
         if (decision.ban()) {
             punishments.ban(player, track, check, level);
@@ -65,7 +71,50 @@ public final class ViolationService implements IAntiCheatService {
             punishments.kick(player, track, check, level);
             track.violations().scale(check, 0.5);
         }
+        if (check != CheckType.IMPROBABLE) {
+            judgeImprobable(player, track);
+        }
         return decision;
+    }
+
+    private void judgeImprobable(Player player, PlayerTrack track) {
+        long now = track.now();
+        Long last = lastImprobable.get(track.id());
+        if (last != null && now - last < 60_000) {
+            return;
+        }
+        de.raindancer.modules.anticheat.rules.Judgement judged = improbable.judge(track.violations().snapshot());
+        if (judged.failed()) {
+            lastImprobable.put(track.id(), now);
+            flag(player, track, Flag.of(CheckType.IMPROBABLE, judged.reason()));
+        }
+    }
+
+    public void forget(java.util.UUID player) {
+        lastImprobable.remove(player);
+        lastReplay.keySet().removeIf(key -> key.startsWith(player.toString()));
+    }
+
+    /** Where frozen replays go; without one, alerts keep no replay. */
+    public void replaysTo(de.raindancer.modules.anticheat.store.ReplayStore store) {
+        this.replays = store;
+    }
+
+    /** The movement leading up to an alert, kept at most once per check every ten seconds. */
+    private void freeze(PlayerTrack track, CheckType check, String detail) {
+        de.raindancer.modules.anticheat.store.ReplayStore store = replays;
+        if (store == null) {
+            return;
+        }
+        long now = track.now();
+        String key = track.id() + ":" + check.key();
+        Long last = lastReplay.get(key);
+        if (last != null && now - last < 10_000) {
+            return;
+        }
+        lastReplay.put(key, now);
+        store.add(track.id(), new de.raindancer.modules.anticheat.model.Replays.Replay(System.currentTimeMillis(), check.key(),
+                detail, track.recorder.frames()));
     }
 
     public AntiCheatSettings settings() {

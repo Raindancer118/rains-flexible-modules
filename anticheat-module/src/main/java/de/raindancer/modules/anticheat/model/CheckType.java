@@ -17,6 +17,8 @@ public enum CheckType {
             false, Action.SETBACK, 3, 40, 80, 6),
     SPEED("speed", Category.MOVEMENT, "Speed", "Horizontal movement faster than friction and acceleration allow.",
             false, Action.SETBACK, 3, 40, 80, 6),
+    STRAFE("strafe", Category.MOVEMENT, "Strafe", "Changing course in mid-air faster than air control allows.",
+            false, Action.SETBACK, 3, 40, 0, 6),
     NO_SLOW("noslow", Category.MOVEMENT, "NoSlow", "Moving at full speed while eating, blocking, drawing a bow or sneaking.",
             false, Action.SETBACK, 3, 40, 0, 6),
     NO_FALL("nofall", Category.MOVEMENT, "NoFall", "Claiming to stand on ground that is not there, to skip fall damage.",
@@ -81,8 +83,13 @@ public enum CheckType {
 
     BAD_PACKETS("badpackets", Category.PACKETS, "BadPackets", "Packets the game never sends: impossible pitch, repeated rotations or slots, self-interaction.",
             false, Action.NONE, 1, 20, 40, 4),
+    PING_SPOOF("pingspoof", Category.PACKETS, "PingSpoof", "Holding back keep-alive answers to fake a bad connection and buy lag compensation.",
+            false, Action.NONE, 3, 0, 0, 3),
     POST("post", Category.PACKETS, "Post", "Actions sent after the tick's movement, the way a killaura sends them.",
             true, Action.NONE, 8, 0, 0, 3),
+
+    IMPROBABLE("improbable", Category.OVERALL, "Improbable", "Many checks failing a little at the same time — the shape of a full cheat client.",
+            false, Action.NONE, 1, 0, 0, 2),
 
     CLIENT("client", Category.CLIENT, "Client", "A client brand or channel this server does not allow.",
             false, Action.NONE, 1, 0, 0, 0);

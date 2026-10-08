@@ -10,7 +10,8 @@ public enum Category {
     WORLD("World", Material.GRASS_BLOCK),
     INVENTORY("Inventory", Material.CHEST),
     PACKETS("Packets", Material.REPEATER),
-    CLIENT("Client", Material.NAME_TAG);
+    CLIENT("Client", Material.NAME_TAG),
+    OVERALL("Overall", Material.NETHER_STAR);
 
     private final String title;
     private final Material icon;

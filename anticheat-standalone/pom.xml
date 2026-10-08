@@ -23,8 +23,8 @@
         <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsAntiCheat</plugin.name>
-        <!-- 0.1.1: ping never switches a check off; escaped evidence in menus. -->
-        <plugin.version>0.1.1</plugin.version>
+        <!-- 0.2.0: transactions (ping-confirmed knockback, measured ping, PingSpoof), Improbable, replays, anti-ESP. -->
+        <plugin.version>0.2.0</plugin.version>
     </properties>
 
     <dependencies>

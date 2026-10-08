@@ -19,7 +19,8 @@ class ActionRuleTest {
         return new AntiCheatSettings(d.enabled(), d.packetTap(), d.minTps(), d.maxPing(), d.exemptBedrock(),
                 d.alerts(), d.setbacks(), d.cancel(), d.autoKick(), autoBan, d.banLength(), scale, d.evidence(),
                 d.evidencePerPlayer(), disabled, silent, d.experimentalChecks(), d.reachLeniency(), d.timerLeniency(),
-                d.maxCps(), d.blockedBrands(), d.blockedChannels(), d.kickBlockedClients(), d.announceBrands());
+                d.maxCps(), d.blockedBrands(), d.blockedChannels(), d.kickBlockedClients(), d.announceBrands(), d.antiEsp(),
+                d.antiEspRange());
     }
 
     @Test

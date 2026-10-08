@@ -29,7 +29,7 @@ import java.util.function.Supplier;
 public final class AntiCheatCommand implements BasicCommand {
 
     private static final int LOG_PAGE = 10;
-    private static final List<String> SUBCOMMANDS = List.of("alerts", "verbose", "info", "log", "exempt", "unexempt",
+    private static final List<String> SUBCOMMANDS = List.of("alerts", "verbose", "info", "log", "replay", "exempt", "unexempt",
             "reset", "checks", "status");
 
     private final Supplier<AntiCheatServices> services;
@@ -67,6 +67,7 @@ public final class AntiCheatCommand implements BasicCommand {
             }
             case "info" -> withPlayer(live, sender, args, target -> info(live, sender, target));
             case "log" -> log(live, sender, args);
+            case "replay" -> replay(live, sender, args);
             case "exempt" -> {
                 if (!manage(live, sender)) {
                     return;
@@ -150,6 +151,51 @@ public final class AntiCheatCommand implements BasicCommand {
                     "check", title, "level", String.format(Locale.ROOT, "%.1f", entry.level()), "detail", entry.detail(),
                     "where", entry.world() + " " + entry.x() + " " + entry.y() + " " + entry.z(), "ping", entry.ping(),
                     "tps", String.format(Locale.ROOT, "%.1f", entry.tps()));
+        }
+    }
+
+    /** Draws a frozen replay around the staff member, taking them there first if it happened elsewhere. */
+    private void replay(AntiCheatServices live, CommandSender sender, String[] args) {
+        if (!(sender instanceof Player viewer)) {
+            live.messages().send(sender, "anticheat.only-a-player");
+            return;
+        }
+        if (args.length < 2) {
+            live.messages().send(sender, "anticheat.usage");
+            return;
+        }
+        UUID who = resolve(live, args[1]);
+        List<de.raindancer.modules.anticheat.model.Replays.Replay> all = who == null ? List.of() : live.replays().replays().of(who);
+        if (all.isEmpty()) {
+            live.messages().send(sender, "anticheat.replay-none", "player", args[1]);
+            return;
+        }
+        int index = Math.max(1, Math.min(all.size(), args.length >= 3 ? parse(args[2], 1) : 1));
+        de.raindancer.modules.anticheat.model.Replays.Replay chosen = all.get(index - 1);
+        var frames = chosen.frames();
+        if (frames.isEmpty()) {
+            live.messages().send(sender, "anticheat.replay-none", "player", args[1]);
+            return;
+        }
+        var first = frames.getFirst();
+        org.bukkit.World world = live.server().getWorld(first.world());
+        if (world == null) {
+            live.messages().send(sender, "anticheat.replay-none", "player", args[1]);
+            return;
+        }
+        org.bukkit.Location start = new org.bukkit.Location(world, first.x(), first.y(), first.z());
+        Runnable draw = () -> {
+            de.raindancer.modules.anticheat.visual.ReplayView.show(live.plugin(), viewer, chosen);
+            String title = CheckType.find(chosen.check()).map(CheckType::title).orElse(chosen.check());
+            live.messages().send(viewer, "anticheat.replay-shown", "player", args[1], "check", title, "detail", chosen.detail(),
+                    "index", index, "count", all.size());
+        };
+        if (!viewer.getWorld().equals(world) || viewer.getLocation().distanceSquared(start) > 48 * 48) {
+            org.bukkit.Location there = start.clone().add(4, 2, 4);
+            there.setDirection(start.toVector().subtract(there.toVector()));
+            viewer.teleportAsync(there).thenRun(() -> de.raindancer.core.platform.util.Scheduling.entity(live.plugin(), viewer, draw));
+        } else {
+            draw.run();
         }
     }
 

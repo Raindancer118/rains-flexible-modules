@@ -7,6 +7,7 @@ import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.anticheat.service.AlertService;
 import de.raindancer.modules.anticheat.service.ClickService;
 import de.raindancer.modules.anticheat.service.CombatService;
+import de.raindancer.modules.anticheat.service.EspShield;
 import de.raindancer.modules.anticheat.service.MovementEngine;
 import de.raindancer.modules.anticheat.service.PacketTap;
 import de.raindancer.modules.anticheat.service.PunishService;
@@ -33,11 +34,13 @@ public record AntiCheatServices(
         AlertService alerts,
         PunishService punishments,
         EvidenceLog evidence,
+        de.raindancer.modules.anticheat.store.ReplayStore replays,
         MovementEngine engine,
         CombatService combat,
         WorldService world,
         ClickService clicks,
-        PacketTap tap) {
+        PacketTap tap,
+        EspShield shield) {
 
     public AntiCheatSettings config() {
         return settings.get();

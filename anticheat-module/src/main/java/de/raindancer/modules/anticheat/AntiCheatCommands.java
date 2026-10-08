@@ -19,7 +19,7 @@ public final class AntiCheatCommands {
                         new AntiCheatCommand(AntiCheatCommands::require))
                 .aliased("ac", "rac")
                 .taking("(nothing) — the suspects screen", "alerts | verbose", "info <player>",
-                        "log <player> [page]", "exempt <player> <seconds> | unexempt <player>",
+                        "log <player> [page]", "replay <player> [n]", "exempt <player> <seconds> | unexempt <player>",
                         "reset <player>", "checks", "status")
                 .needing(PermissionNodes.COMMAND));
     }

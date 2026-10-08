@@ -30,7 +30,7 @@
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
         <!-- The end-to-end harness and its headless client: one timestamped 26.2 build, never the moving SNAPSHOT. -->
-        <e2e-harness.version>0.3.0</e2e-harness.version>
+        <e2e-harness.version>0.4.0</e2e-harness.version>
         <mcprotocollib.version>26.2-20260907.143312-19</mcprotocollib.version>
         <!-- Which tests run: everything but the e2e ones, unless -Pe2e turns it round. -->
         <e2e.excluded>e2e,screenshots</e2e.excluded>
@@ -63,7 +63,7 @@
         <invsnap-module.version>1.2.1</invsnap-module.version>
         <xpbottle-module.version>1.1.1</xpbottle-module.version>
         <veintoggle-module.version>0.1.0</veintoggle-module.version>
-        <anticheat-module.version>0.1.1</anticheat-module.version>
+        <anticheat-module.version>0.2.0</anticheat-module.version>
         <playerutils-module.version>0.2.1</playerutils-module.version>
         <xaeromap-module.version>1.1.1</xaeromap-module.version>
         <wallsroads-module.version>1.1.1</wallsroads-module.version>

@@ -56,6 +56,15 @@ public final class PacketTap implements IAntiCheatService {
         try {
             Channel channel = channelOf(player);
             PlayerTrack track = tracks.of(player);
+            if (newPing == null) {
+                Object handle = player.getClass().getMethod("getHandle").invoke(player);
+                Class<?> ping = Class.forName("net.minecraft.network.protocol.common.ClientboundPingPacket", true,
+                        handle.getClass().getClassLoader());
+                newPing = LOOKUP.findConstructor(ping, MethodType.methodType(void.class, int.class));
+                Class<?> unlist = Class.forName("net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket", true,
+                        handle.getClass().getClassLoader());
+                newUnlist = LOOKUP.findConstructor(unlist, MethodType.methodType(void.class, java.util.List.class));
+            }
             channel.eventLoop().execute(() -> {
                 try {
                     if (channel.pipeline().get(HANDLER) != null) {
@@ -98,6 +107,48 @@ public final class PacketTap implements IAntiCheatService {
         return broken;
     }
 
+    /** Takes one player off another's tab list, for the one case Bukkit no longer will. */
+    public void unlist(Player viewer, java.util.UUID target) {
+        MethodHandle make = newUnlist;
+        if (broken || make == null) {
+            return;
+        }
+        try {
+            Channel channel = channelOf(viewer);
+            Object packet = make.invoke(java.util.List.of(target));
+            channel.eventLoop().execute(() -> channel.writeAndFlush(packet, channel.voidPromise()));
+        } catch (Throwable unexpected) {
+            // At worst a stale tab entry until they relog.
+        }
+    }
+
+    /** Sends one of our pings to measure the real round trip. Safe from any thread. */
+    public void probe(Player player) {
+        PlayerTrack track = tracks.of(player);
+        MethodHandle ping = newPing;
+        if (broken || ping == null || !track.packets.tapped) {
+            return;
+        }
+        try {
+            Channel channel = channelOf(player);
+            Object packet = ping.invoke(nextTransaction(track));
+            channel.eventLoop().execute(() -> channel.writeAndFlush(packet, channel.voidPromise()));
+        } catch (Throwable unexpected) {
+            // The next probe tries again.
+        }
+    }
+
+    private static int nextTransaction(PlayerTrack track) {
+        synchronized (track) {
+            int id = TRANSACTION_BASE - (track.packets.nextTransaction++ & 0xFFFFF);
+            track.packets.transactions.put(id, System.nanoTime());
+            if (track.packets.transactions.size() > 64) {
+                track.packets.transactions.clear();
+            }
+            return id;
+        }
+    }
+
     private static Channel channelOf(Player player) throws ReflectiveOperationException {
         Object handle = player.getClass().getMethod("getHandle").invoke(player);
         Object listener = handle.getClass().getField("connection").get(handle);
@@ -107,7 +158,18 @@ public final class PacketTap implements IAntiCheatService {
 
     // ------------------------------------------------------------------------------ reading
 
-    private enum Kind { MOVE, TICK_END, ATTACK, SWING, ACTION, COMMAND, USE, INTERACT, CARRIED, HELD_SLOT_OUT, OTHER }
+    private enum Kind { MOVE, TICK_END, ATTACK, SWING, ACTION, COMMAND, USE, INTERACT, CARRIED, HELD_SLOT_OUT, MOTION_OUT, PONG, UNLIST_OUT, OTHER }
+
+    private volatile EspShield shield;
+    private volatile MethodHandle newUnlist;
+
+    public void shieldWith(EspShield shield) {
+        this.shield = shield;
+    }
+
+    /** Our own ping ids live far below anything vanilla or another plugin is likely to use. */
+    private static final int TRANSACTION_BASE = -1_430_000_000;
+    private volatile MethodHandle newPing;
 
     /** Accessors for one packet class, found once. */
     private record Reader(Kind kind, MethodHandle[] getters) {
@@ -148,6 +210,21 @@ public final class PacketTap implements IAntiCheatService {
                         LOOKUP.findVirtual(type, "getSlot", MethodType.methodType(int.class))});
                 case "net.minecraft.network.protocol.game.ClientboundSetHeldSlotPacket" -> new Reader(Kind.HELD_SLOT_OUT, new MethodHandle[]{
                         LOOKUP.findVirtual(type, "slot", MethodType.methodType(int.class))});
+                case "net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket" -> {
+                    if (newPing == null) {
+                        Class<?> ping = Class.forName("net.minecraft.network.protocol.common.ClientboundPingPacket", true, type.getClassLoader());
+                        newPing = LOOKUP.findConstructor(ping, MethodType.methodType(void.class, int.class));
+                    }
+                    yield new Reader(Kind.MOTION_OUT, new MethodHandle[]{
+                            LOOKUP.findVirtual(type, "id", MethodType.methodType(int.class))});
+                }
+                case "net.minecraft.network.protocol.common.ServerboundPongPacket" -> new Reader(Kind.PONG, new MethodHandle[]{
+                        LOOKUP.findVirtual(type, "getId", MethodType.methodType(int.class))});
+                case "net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket" -> {
+                    newUnlist = LOOKUP.findConstructor(type, MethodType.methodType(void.class, java.util.List.class));
+                    yield new Reader(Kind.UNLIST_OUT, new MethodHandle[]{
+                            LOOKUP.findVirtual(type, "profileIds", MethodType.methodType(java.util.List.class))});
+                }
                 default -> new Reader(Kind.OTHER, new MethodHandle[0]);
             };
         } catch (ReflectiveOperationException | RuntimeException mismatch) {
@@ -176,18 +253,40 @@ public final class PacketTap implements IAntiCheatService {
 
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            Object follow = null;
             try {
                 Reader reader = reader(msg.getClass());
+                if (reader.kind() == Kind.UNLIST_OUT && droppedByShield(reader, msg)) {
+                    promise.setSuccess();
+                    return;
+                }
                 if (reader.kind() == Kind.HELD_SLOT_OUT) {
                     int slot = (int) reader.getters()[0].invoke(msg);
                     synchronized (track) {
                         track.packets.lastSlot = slot;
+                    }
+                } else if (reader.kind() == Kind.MOTION_OUT && (int) reader.getters()[0].invoke(msg) == track.entityId) {
+                    // Knockback for this very player: the ping right behind it is answered the moment
+                    // the client has applied it, which pins down when the push really happened.
+                    int id = nextTransaction(track);
+                    follow = newPing.invoke(id);
+                    synchronized (track) {
+                        for (var it = track.movement.velocities.descendingIterator(); it.hasNext(); ) {
+                            double[] velocity = it.next();
+                            if (velocity[6] == 0) {
+                                velocity[6] = id;
+                                break;
+                            }
+                        }
                     }
                 }
             } catch (Throwable unexpected) {
                 // As above.
             }
             super.write(ctx, msg, promise);
+            if (follow != null) {
+                ctx.write(follow, ctx.voidPromise());
+            }
         }
 
         private void read(Object msg) throws Throwable {
@@ -303,6 +402,18 @@ public final class PacketTap implements IAntiCheatService {
                         p.usedThisTick = true;
                     }
                     case INTERACT -> post("an interaction");
+                    case PONG -> {
+                        int id = (int) g[0].invoke(msg);
+                        Long sent = p.transactions.remove(id);
+                        if (sent != null) {
+                            p.roundTrips.add((nanos - sent) / 1_000_000.0);
+                            for (double[] velocity : track.movement.velocities) {
+                                if (velocity[6] == id) {
+                                    velocity[7] = millis;
+                                }
+                            }
+                        }
+                    }
                     case CARRIED -> {
                         int slot = (int) g[0].invoke(msg);
                         if (slot == p.lastSlot) {
@@ -314,6 +425,24 @@ public final class PacketTap implements IAntiCheatService {
                     }
                 }
             }
+        }
+
+        /** A tab-list removal caused only by the anti-ESP shield hiding these players: the client keeps them listed. */
+        private boolean droppedByShield(Reader reader, Object msg) throws Throwable {
+            EspShield current = shield;
+            if (current == null) {
+                return false;
+            }
+            java.util.List<?> ids = (java.util.List<?>) reader.getters()[0].invoke(msg);
+            if (ids.isEmpty()) {
+                return false;
+            }
+            for (Object id : ids) {
+                if (!(id instanceof java.util.UUID uuid) || !current.hides(track.id(), uuid)) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /** Vanilla sends actions before the tick's movement; a killaura often sends them after. */

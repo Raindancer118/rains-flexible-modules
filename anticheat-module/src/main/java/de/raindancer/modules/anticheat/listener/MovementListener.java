@@ -84,7 +84,7 @@ public final class MovementListener implements IAntiCheatListener {
         PlayerTrack track = services.tracks().of(event.getPlayer());
         Vector v = event.getVelocity();
         synchronized (track) {
-            track.movement.velocities.addLast(new double[]{v.getX(), v.getY(), v.getZ(), track.now(), -100, 0});
+            track.movement.velocities.addLast(new double[]{v.getX(), v.getY(), v.getZ(), track.now(), -100, 0, 0, 0});
             while (track.movement.velocities.size() > 6) {
                 track.movement.velocities.removeFirst();
             }

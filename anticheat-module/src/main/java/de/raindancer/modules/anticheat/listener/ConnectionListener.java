@@ -35,6 +35,7 @@ public final class ConnectionListener implements IAntiCheatListener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         PlayerTrack track = services.tracks().of(player);
+        track.entityId = player.getEntityId();
         track.exempt(PlayerTrack.Exemption.JOINED, 3000);
         services.alerts().joined(player);
         services.tap().inject(player);
@@ -86,6 +87,8 @@ public final class ConnectionListener implements IAntiCheatListener {
             listener.forget(id);
         }
         services.alerts().forget(id);
+        services.violations().forget(id);
+        services.shield().forget(id);
         services.tracks().forget(id);
     }
 
@@ -104,6 +107,7 @@ public final class ConnectionListener implements IAntiCheatListener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onRespawn(PlayerRespawnEvent event) {
         PlayerTrack track = services.tracks().of(event.getPlayer());
+        track.entityId = event.getPlayer().getEntityId();
         synchronized (track) {
             track.movement.forget();
             track.movement.known = false;

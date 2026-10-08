@@ -60,6 +60,7 @@ class AntiCheatScenarioTest {
             Bot faller = server.player("Faller");
             Bot weird = server.player("Weird");
             Bot multi = server.player("Multi");
+            Bot strafer = server.player("Strafer");
 
             place(server, "Ada", -8.5, -8.5);
             place(server, "Legit", -6.5, 6.5);
@@ -70,6 +71,7 @@ class AntiCheatScenarioTest {
             server.console("tp Faller 9.5 111 9.5 0 0");
             place(server, "Weird", -3.5, -3.5);
             place(server, "Multi", 1.2, 1.2);
+            place(server, "Strafer", -9.5, 9.5);
             Await.ticks(80);   // past the join and teleport grace
             ada.forgetChat();
 
@@ -130,6 +132,33 @@ class AntiCheatScenarioTest {
                 tick(faller, () -> faller.moveTo(9.5, FLOOR, 9.5, true));
             }
 
+            // Jumping east, then turning a right angle in mid-air at full speed, again and again.
+            for (int hop = 0; hop < 8; hop++) {
+                double sx = strafer.position().getX();
+                double sz = strafer.position().getZ();
+                double sy = FLOOR;
+                double up = 0.42;
+                tick(strafer, () -> { });
+                for (int t = 0; t < 10; t++) {
+                    sy += up;
+                    up = (up - 0.08) * 0.98;
+                    if (t < 2) {
+                        sx += 0.28;
+                    } else {
+                        sz -= 0.28;
+                    }
+                    boolean landed = sy <= FLOOR;
+                    double ax = sx;
+                    double ay = landed ? FLOOR : sy;
+                    double az = sz;
+                    tick(strafer, () -> strafer.moveTo(ax, ay, az, landed));
+                    if (landed) {
+                        break;
+                    }
+                }
+                sleep(300);
+            }
+
             // Looking further down than straight down.
             tick(weird, () -> weird.look(0, 95));
 
@@ -141,7 +170,7 @@ class AntiCheatScenarioTest {
 
             Await.until("staff hear about every cheater", Duration.ofSeconds(20), () -> {
                 List<String> chat = ada.chatText();
-                return List.of("Hover", "Speedy", "Far", "Faller", "Weird", "Multi").stream()
+                return List.of("Hover", "Speedy", "Far", "Faller", "Weird", "Multi", "Strafer").stream()
                         .allMatch(name -> chat.stream().anyMatch(line -> line.contains(name) && line.contains("failed")));
             });
             List<String> chat = ada.chatText();
@@ -151,12 +180,14 @@ class AntiCheatScenarioTest {
             assertThat(chat).anyMatch(line -> line.contains("Faller") && line.contains("NoFall"));
             assertThat(chat).anyMatch(line -> line.contains("Weird") && line.contains("BadPackets"));
             assertThat(chat).anyMatch(line -> line.contains("Multi") && line.contains("MultiAura"));
+            assertThat(chat).anyMatch(line -> line.contains("Strafer") && line.contains("Strafe"));
             assertThat(faller.health()).as("NoFall still costs the fall damage").isLessThan(20);
 
             String legitRecord = server.console("anticheat info Legit");
             assertThat(legitRecord).as("vanilla walking and jumping is clean").contains("Squeaky clean");
             assertThat(chat).noneMatch(line -> line.contains("Legit"));
             assertThat(server.console("anticheat log Far")).contains("Reach");
+            ada.runAndExpect("anticheat replay Hover", "Replay 1/");
             assertThat(server.paper.errorsFrom("RainsCore", "RainsAntiCheat")).isEmpty();
         }
     }
