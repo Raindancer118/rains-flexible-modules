@@ -211,6 +211,35 @@ public final class XrayEvidenceService implements IModerationService {
         return ledgers.everybody();
     }
 
+    /** Out of a hundred, how sure the evidence is — for ranking and a quick read, never a verdict on its own. */
+    public int probabilityFor(UUID player) {
+        return player == null ? 0 : verdictFor(player).percent();
+    }
+
+    /** One thing their digging turned up: a new ore vein (its kind), or a bait ore (kind null). */
+    public record Find(String world, int x, int y, int z, OreKind kind) {
+    }
+
+    /** Veins revealed and baits reached, newest first. */
+    public java.util.List<Find> findsFor(UUID player) {
+        MiningLedger ledger = ledgers.find(player);
+        if (ledger == null) {
+            return java.util.List.of();
+        }
+        java.util.List<Find> finds = new java.util.ArrayList<>();
+        String world = ledger.trailWorld();
+        OreKind[] kinds = OreKind.values();
+        for (int[] step : ledger.trail()) {
+            if (step[3] == -2) {
+                finds.add(new Find(world, step[0], step[1], step[2], null));
+            } else if (step[3] >= 0 && step[3] < kinds.length) {
+                finds.add(new Find(world, step[0], step[1], step[2], kinds[step[3]]));
+            }
+        }
+        java.util.Collections.reverse(finds);
+        return finds;
+    }
+
     public String nameOf(UUID player) {
         return ledgers.nameOf(player);
     }

@@ -122,8 +122,12 @@
           one probability with its reasons on the review screen, and a particle replay of the tunnels.
           2.24.1: bait is never piled onto the bottom layers (a spot outside the world is a miss, not
           clamped), the enclosed-rock estimate is taken afresh around the miner each cycle, and a bait
-          in another Folia region is reverted to its real block. -->
-        <plugin.version>2.24.1</plugin.version>
+          in another Folia region is reverted to its real block.
+          2.25.0: the first-generation x-ray detection is gone — ratio window, threshold, learnt
+          baseline, approach directness and their settings and files (xray-findings.yml,
+          xray-suspicion.yml are left on disk, unread). The review screen lists the veins and bait
+          ores the evidence recorded. -->
+        <plugin.version>2.25.0</plugin.version>
     </properties>
 
     <dependencies>

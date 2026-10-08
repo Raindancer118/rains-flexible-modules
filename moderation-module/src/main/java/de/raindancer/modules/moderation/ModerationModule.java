@@ -18,14 +18,12 @@ import de.raindancer.modules.moderation.rules.EscalationRule;
 import de.raindancer.modules.moderation.rules.ReportRule;
 import de.raindancer.modules.moderation.rules.StaffRule;
 import de.raindancer.modules.moderation.rules.SuspiciousCommandRule;
-import de.raindancer.modules.moderation.rules.XrayRule;
 import de.raindancer.modules.moderation.service.NoteService;
 import de.raindancer.modules.moderation.service.PunishmentService;
 import de.raindancer.modules.moderation.service.ReportService;
 import de.raindancer.modules.moderation.service.StaffChatService;
 import de.raindancer.modules.moderation.service.StaffService;
 import de.raindancer.modules.moderation.service.SuspiciousCommandService;
-import de.raindancer.modules.moderation.service.XrayDetectionService;
 import de.raindancer.modules.moderation.service.WorldToolsService;
 import de.raindancer.modules.moderation.store.NoteRegistry;
 import de.raindancer.modules.moderation.store.NoteStorage;
@@ -33,8 +31,6 @@ import de.raindancer.modules.moderation.store.Reasons;
 import de.raindancer.modules.moderation.store.ReportRegistry;
 import de.raindancer.modules.moderation.store.ImmuneStaff;
 import de.raindancer.modules.moderation.store.PendingNotices;
-import de.raindancer.modules.moderation.store.PersistedFindings;
-import de.raindancer.modules.moderation.store.PlayerMiningProfiles;
 import de.raindancer.modules.moderation.store.ReportStorage;
 import de.raindancer.modules.moderation.store.StaffRoster;
 import de.raindancer.modules.moderation.util.PermissionNodes;
@@ -72,7 +68,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.24.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.25.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -87,8 +83,6 @@ public final class ModerationModule implements FlexModule {
     private NoteStorage noteStorage;
     private ImmuneStaff immune;
     private PendingNotices pending;
-    private PlayerMiningProfiles miningProfiles;
-    private PersistedFindings miningFindings;
 
     private StaffRule staffRule;
     private EscalationRule escalation;
@@ -97,7 +91,6 @@ public final class ModerationModule implements FlexModule {
     private PunishmentService punishmentService;
     private ReportService reportService;
     private SuspiciousCommandService suspiciousCommands;
-    private XrayDetectionService xrayDetection;
     private de.raindancer.modules.moderation.service.HoneypotService honeypots;
     private de.raindancer.modules.moderation.service.OreDensitySampler densitySampler;
     private de.raindancer.modules.moderation.service.XrayEvidenceService xrayEvidence;
@@ -155,8 +148,6 @@ public final class ModerationModule implements FlexModule {
         immune.load();
         pending = new PendingNotices(context.dataFolder());
         pending.load();
-        miningProfiles = new PlayerMiningProfiles(context.dataFolder());
-        miningFindings = new PersistedFindings(context.dataFolder());
 
         // ── the rules ─────────────────────────────────────────────────────────────────────────
         // The permission lookup goes through a Player rather than an OfflinePlayer, and that is
@@ -207,9 +198,6 @@ public final class ModerationModule implements FlexModule {
                 this::filingRule, settings.current());
         suspiciousCommands = new SuspiciousCommandService(reportService, new SuspiciousCommandRule(),
                 settings.current());
-        xrayDetection = new XrayDetectionService(reportService, new XrayRule(), miningProfiles,
-                miningFindings, settings.current());
-        xrayDetection.load();
         de.raindancer.modules.moderation.model.OreDensity oreDensity = new de.raindancer.modules.moderation.model.OreDensity();
         honeypots = new de.raindancer.modules.moderation.service.HoneypotService(context.plugin(), settings.current());
         densitySampler = new de.raindancer.modules.moderation.service.OreDensitySampler(context.plugin(), oreDensity);
@@ -219,7 +207,6 @@ public final class ModerationModule implements FlexModule {
                 new de.raindancer.modules.moderation.store.OreDensityStore(context.dataFolder(), oreDensity),
                 honeypots, System::currentTimeMillis, settings.current());
         xrayEvidence.load();
-        xrayDetection.attach(xrayEvidence);
         noteService = new NoteService(context.plugin(), notes, noteStorage, context.core().audit(),
                 settings.current());
         staffChat = new StaffChatService(settings.current());
@@ -261,7 +248,7 @@ public final class ModerationModule implements FlexModule {
                 context.core().audit(), context.core().grants(), () -> directoryOf(server),
                 reasons, reports, notes, staffRule, escalation, announcements, this::standingRule,
                 this::banLimitRule, this::promotionRule, this::filingRule,
-                punishmentService, reportService, suspiciousCommands, xrayDetection, noteService, staffChat, roster, immune,
+                punishmentService, reportService, suspiciousCommands, xrayEvidence, noteService, staffChat, roster, immune,
                 staffService, worldTools, banhammer,
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
@@ -279,7 +266,6 @@ public final class ModerationModule implements FlexModule {
             punishmentService.settings(fresh);
             reportService.settings(fresh);
             suspiciousCommands.settings(fresh);
-            xrayDetection.settings(fresh);
             honeypots.settings(fresh);
             densitySampler.settings(fresh);
             xrayEvidence.settings(fresh);
@@ -314,7 +300,7 @@ public final class ModerationModule implements FlexModule {
             var writing = Scheduling.asyncTimer(context.plugin(), every, every, task -> {
                 reportService.flush();
                 noteService.flush();
-                xrayDetection.flush();
+                xrayEvidence.flush();
             });
             context.closeWith(writing::cancel);
         }
@@ -520,8 +506,8 @@ public final class ModerationModule implements FlexModule {
         if (immune != null && !immune.flush()) {
             log.error("The list of protected accounts could not be written on shutdown.");
         }
-        if (xrayDetection != null && !xrayDetection.flush()) {
-            log.error("The x-ray suspicion profiles could not be written on shutdown.");
+        if (xrayEvidence != null && !xrayEvidence.flush()) {
+            log.error("The x-ray evidence could not be written on shutdown.");
         }
         // What nobody has been told yet. Losing these on a restart is the whole thing PendingNotices
         // exists to stop, and a shutdown is when it would happen.

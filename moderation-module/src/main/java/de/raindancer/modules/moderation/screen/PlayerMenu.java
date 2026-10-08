@@ -118,10 +118,10 @@ public final class PlayerMenu extends ModerationScreen {
                 click -> new AuditMenu(services(), viewer, this, subject, subjectName).open());
 
         band(MenuLayout.LAND, 5, may(ModerationPermission.REPORTS),
-                Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Mining history",
-                        "<gray>" + services().xrayDetection().approachesFor(subject).size()
-                                + " watched ore block(s) remembered.",
-                        "<dark_gray>Where each one came from, and how directly."),
+                Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Mining evidence",
+                        "<gray>" + services().xrayDetection().findsFor(subject).size()
+                                + " vein(s) and bait ore(s) on record.",
+                        "<dark_gray>The x-ray tests, and where each find was."),
                 "For whoever may read reports",
                 click -> new XrayReviewMenu(services(), viewer, this, subject, subjectName).open());
 

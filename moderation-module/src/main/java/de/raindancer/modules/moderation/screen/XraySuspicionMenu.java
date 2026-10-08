@@ -44,7 +44,7 @@ public final class XraySuspicionMenu extends ModerationList<UUID> {
         // Ranked once, on open, rather than recomputed on every render: a moderator paging through
         // this should see one consistent order throughout, not one that reshuffles under them as
         // people keep mining while the page is open.
-        this.ranked = new ArrayList<>(services.xrayDetection().everybodyWorthReviewing());
+        this.ranked = new ArrayList<>(services.xrayDetection().everybody());
         ranked.sort(Comparator.comparingInt(services.xrayDetection()::probabilityFor).reversed());
     }
 
@@ -74,14 +74,14 @@ public final class XraySuspicionMenu extends ModerationList<UUID> {
         OfflinePlayer player = services().server().getOfflinePlayer(who);
         String name = player.getName() == null ? "somebody who has left" : player.getName();
         int probability = services().xrayDetection().probabilityFor(who);
-        int observed = services().xrayDetection().approachesFor(who).size();
+        int observed = services().xrayDetection().findsFor(who).size();
 
         List<String> lore = new ArrayList<>();
         // Inlined rather than a helper of its own — see XrayReviewMenu's own note on why
         // WordingTest forbids a method that returns a literal String of markup.
         String colour = probability >= 80 ? "<red>" : probability >= 50 ? "<yellow>" : "<green>";
         lore.add("<gray>Probability: " + colour + probability + "%");
-        lore.add("<dark_gray>" + observed + " ore block(s) currently remembered in detail.");
+        lore.add("<dark_gray>" + observed + " vein(s) and bait ore(s) on record.");
         lore.add("");
         lore.add("<dark_gray>Click to see where each one came from.");
 

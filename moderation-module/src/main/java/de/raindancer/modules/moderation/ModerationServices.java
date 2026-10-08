@@ -25,7 +25,7 @@ import de.raindancer.modules.moderation.service.PunishmentService;
 import de.raindancer.modules.moderation.service.ReportService;
 import de.raindancer.modules.moderation.service.StaffChatService;
 import de.raindancer.modules.moderation.service.SuspiciousCommandService;
-import de.raindancer.modules.moderation.service.XrayDetectionService;
+import de.raindancer.modules.moderation.service.XrayEvidenceService;
 import de.raindancer.modules.moderation.store.NoteRegistry;
 import de.raindancer.modules.moderation.store.Reasons;
 import de.raindancer.core.platform.permission.Grants;
@@ -97,7 +97,7 @@ public record ModerationServices(
         PunishmentService punishmentService,
         ReportService reportService,
         SuspiciousCommandService suspiciousCommands,
-        XrayDetectionService xrayDetection,
+        XrayEvidenceService xrayDetection,
         NoteService noteService,
         StaffChatService staffChat,
         StaffRoster roster,

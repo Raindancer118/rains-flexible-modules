@@ -223,61 +223,11 @@ public record ModerationSettings(
         @Key("xray.ores")
         List<String> xrayOres,
 
-        @In("moderation/xray") @Title("How many recent blocks to judge by") @Range(min = 20, max = 2000)
-        @Describe("The ratio is taken over this many of the player's most recent mined blocks, not "
-                + "their whole time on the server — a lucky vein an hour ago should not keep somebody "
-                + "flagged for ever, and a window is what lets the number recover.")
-        @Key("xray.window-blocks")
-        int xrayWindowBlocks,
-
-        @In("moderation/xray") @Title("Ore needed before the ratio means anything") @Range(min = 1, max = 50)
-        @Describe("Below this many valuable blocks in the window, the ratio is not judged at all — "
-                + "three diamonds in the first ten blocks of a fresh vein is a real ratio and not a "
-                + "pattern.")
-        @Key("xray.minimum-ore")
-        int xrayMinimumOre,
-
-        @In("moderation/xray") @Title("Ore share that counts as a pattern") @Range(min = 1, max = 100)
-        @Describe("Percent of the window. Ordinary survival mining is nowhere near this even with a "
-                + "good vein; x-ray digs almost nothing else. Set it too low and a lucky player is "
-                + "reported; set it too high and nothing ever is — this is the one setting worth "
-                + "watching the report queue for after changing.")
-        @Key("xray.threshold-percent")
-        int xrayThresholdPercent,
-
         @In("moderation/xray") @Title("Wait before flagging the same player again") @Range(min = 0, max = 86400)
         @Describe("Seconds. A player whose ratio stays high should file one report and then be left "
                 + "to actually be looked at, not a fresh one on every ore block afterwards.")
         @Key("xray.cooldown-seconds")
         int xrayCooldownSeconds,
-
-        @In("moderation/xray") @Title("Learn what is normal here, over time")
-        @Describe("On, the threshold above can only be raised, never lowered, by what this server's "
-                + "own players actually mine — a badlands or ancient-debris-rich seed has more "
-                + "valuable ore per block of stone than an ordinary one, purely from terrain, and a "
-                + "fixed percentage tuned for one is wrong for the other. Off uses the threshold "
-                + "exactly as set.")
-        @Key("xray.learn-from-server")
-        boolean xrayLearningEnabled,
-
-        @In("moderation/xray") @Title("How far above normal counts as suspicious") @Range(min = 2, max = 20)
-        @Describe("A multiple of whatever this server's own players have actually been mining "
-                + "lately. 5 means somebody has to be finding ore at five times the server's own "
-                + "average rate before this counts towards flagging them. Only used when learning is "
-                + "on, and only ever raises the threshold above — it can never excuse x-ray as normal "
-                + "just because enough players are already doing it.")
-        @Key("xray.learned-multiplier")
-        int xrayLearnedMultiplier,
-
-        @In("moderation/xray") @Title("VeinMiner installed")
-        @Describe("On, only the first ore block of a chain a vein-mining plugin breaks in one go "
-                + "counts towards the ratio or the review screen — the rest were never individually "
-                + "found, they came along for free the moment the first one broke, and counting all "
-                + "of them is how a lucky vein exposed in a lush cave or a ravine reads as a pattern "
-                + "that was never there. Off treats every block VeinMiner breaks as its own find, "
-                + "which is right for a server that does not run one at all.")
-        @Key("xray.veinminer-mode")
-        boolean xrayVeinminerModeEnabled,
 
         // ───────────────────────────────────────────────────────────── staff
 
@@ -416,7 +366,7 @@ public record ModerationSettings(
             true, List.of("seed", "seedcracker"), 600,
             true, List.of("DIAMOND_ORE", "DEEPSLATE_DIAMOND_ORE", "ANCIENT_DEBRIS",
                     "EMERALD_ORE", "DEEPSLATE_EMERALD_ORE"),
-            200, 3, 8, 900, true, 5, false,
+            900,
             true, true, "<dark_aqua>[Staff]</dark_aqua>", false, true, true, false, true,
             true, 0, 300, false, true,
             true, 24, 20, 6, 14);
@@ -471,8 +421,7 @@ public record ModerationSettings(
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
@@ -488,8 +437,7 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
@@ -504,8 +452,7 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
@@ -519,8 +466,7 @@ public record ModerationSettings(
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
@@ -535,8 +481,7 @@ public record ModerationSettings(
                 reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
@@ -551,8 +496,7 @@ public record ModerationSettings(
                 reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
@@ -568,8 +512,7 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, opped,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
@@ -583,8 +526,7 @@ public record ModerationSettings(
                 reportsEnabled, reportCooldownSeconds, mostOpenReportsPerPlayer, shortestReport,
                 tellReporterWhenClosed, notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
@@ -600,8 +542,7 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, allowed, mayDemoteBelow, adminsAreOp, flightWhileVanished,
                 auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
@@ -616,8 +557,7 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, allowed, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
@@ -632,8 +572,7 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, enabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
@@ -648,8 +587,7 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, suspiciousCommandsEnabled, commands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
@@ -664,8 +602,7 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 seconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
@@ -680,8 +617,7 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                enabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                enabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
@@ -696,60 +632,14 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, ores, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
+                xrayDetectionEnabled, ores, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
     }
 
-    public ModerationSettings withXrayWindowBlocks(int blocks) {
-        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
-                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
-                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
-                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
-                importVanillaBans, reportsEnabled, reportCooldownSeconds,
-                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
-                suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, blocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
-                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
-                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
-    }
 
-    public ModerationSettings withXrayMinimumOre(int minimum) {
-        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
-                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
-                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
-                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
-                importVanillaBans, reportsEnabled, reportCooldownSeconds,
-                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
-                suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, minimum, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
-                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
-                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
-    }
 
-    public ModerationSettings withXrayThresholdPercent(int percent) {
-        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
-                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
-                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
-                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
-                importVanillaBans, reportsEnabled, reportCooldownSeconds,
-                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
-                suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, percent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
-                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
-                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
-    }
 
     public ModerationSettings withXrayCooldownSeconds(int seconds) {
         return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
@@ -760,64 +650,15 @@ public record ModerationSettings(
                 mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
                 notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
                 suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                seconds, xrayLearningEnabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
+                xrayDetectionEnabled, xrayOres, seconds, openReportsOnJoin,
                 notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
     }
 
-    public ModerationSettings withXrayLearningEnabled(boolean enabled) {
-        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
-                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
-                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
-                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
-                importVanillaBans, reportsEnabled, reportCooldownSeconds,
-                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
-                suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, enabled, xrayLearnedMultiplier, xrayVeinminerModeEnabled, openReportsOnJoin,
-                notesShownOnJoin, staffChatPrefix,
-                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
-                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
-    }
 
-    public ModerationSettings withXrayLearnedMultiplier(int multiplier) {
-        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
-                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
-                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
-                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
-                importVanillaBans, reportsEnabled, reportCooldownSeconds,
-                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
-                suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, multiplier, xrayVeinminerModeEnabled,
-                openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
-                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
-                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
-    }
 
-    public ModerationSettings withXrayVeinminerModeEnabled(boolean enabled) {
-        return new ModerationSettings(announceToEveryone, announceLifts, announceKicks, announceWarnings,
-                showModeratorName, appealMessage, defaultBanLength, defaultMuteLength,
-                defaultFreezeLength, useEscalation, warnsBeforeBan, warnWindowDays,
-                warnBanLength, modTempBanMax, kickOnBan, mirrorToVanillaBanList,
-                importVanillaBans, reportsEnabled, reportCooldownSeconds,
-                mostOpenReportsPerPlayer, shortestReport, tellReporterWhenClosed,
-                notifyStaffOnReport, suspiciousCommandsEnabled, suspiciousCommands,
-                suspiciousCooldownSeconds,
-                xrayDetectionEnabled, xrayOres, xrayWindowBlocks, xrayMinimumOre, xrayThresholdPercent,
-                xrayCooldownSeconds, xrayLearningEnabled, xrayLearnedMultiplier, enabled,
-                openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
-                vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
-                flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
-    }
 
     /** The wait before flagging the same player again, as the service wants it. */
     public java.time.Duration xrayCooldown() {

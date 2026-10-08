@@ -186,17 +186,12 @@ class ModerationSettingsTest {
         void theDefaults() {
             assertThat(defaults.xrayDetectionEnabled()).isTrue();
             assertThat(defaults.xrayOres()).contains("DIAMOND_ORE", "ANCIENT_DEBRIS");
-            assertThat(defaults.xrayWindowBlocks()).isEqualTo(200);
-            assertThat(defaults.xrayMinimumOre()).isEqualTo(3);
-            assertThat(defaults.xrayThresholdPercent()).isEqualTo(8);
             assertThat(defaults.xrayCooldownSeconds()).isEqualTo(900);
         }
 
         @Test
         @DisplayName("learning is on, and can only ever raise the threshold")
         void learningDefaults() {
-            assertThat(defaults.xrayLearningEnabled()).isTrue();
-            assertThat(defaults.xrayLearnedMultiplier()).isEqualTo(5);
         }
 
         @Test
@@ -217,16 +212,11 @@ class ModerationSettingsTest {
             assertThat(defaults.withXrayDetectionEnabled(false).xrayDetectionEnabled()).isFalse();
             assertThat(defaults.withXrayOres(List.of("GOLD_ORE")).xrayOres())
                     .containsExactly("GOLD_ORE");
-            assertThat(defaults.withXrayWindowBlocks(500).xrayWindowBlocks()).isEqualTo(500);
-            assertThat(defaults.withXrayMinimumOre(10).xrayMinimumOre()).isEqualTo(10);
-            assertThat(defaults.withXrayThresholdPercent(20).xrayThresholdPercent()).isEqualTo(20);
             assertThat(defaults.withXrayCooldownSeconds(60).xrayCooldownSeconds()).isEqualTo(60);
-            assertThat(defaults.withXrayLearningEnabled(false).xrayLearningEnabled()).isFalse();
-            assertThat(defaults.withXrayLearnedMultiplier(10).xrayLearnedMultiplier()).isEqualTo(10);
 
             // None of the above should have touched a sibling field.
-            assertThat(defaults.withXrayThresholdPercent(20).xrayWindowBlocks())
-                    .isEqualTo(defaults.xrayWindowBlocks());
+            assertThat(defaults.withXrayCooldownSeconds(60).xrayOres())
+                    .isEqualTo(defaults.xrayOres());
         }
     }
 

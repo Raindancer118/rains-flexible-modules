@@ -2,276 +2,93 @@ package de.raindancer.modules.moderation.listener;
 
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.ModerationSettings;
-import de.raindancer.modules.moderation.model.MinedBlock;
-import de.raindancer.modules.moderation.service.XrayDetectionService;
+import de.raindancer.modules.moderation.service.XrayEvidenceService;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * What gets past the listener before {@code XrayDetectionService} ever sees it.
- *
- * <h2>Both exemptions tested here are about the same thing</h2>
- * Neither an ore block sitting in the open nor the second block of one veinminer click is a
- * <em>find</em> in the sense the ratio and the review screen care about — the first was never hidden,
- * and the second was never individually chosen. Both are excluded before {@link XrayDetectionService}
- * is even asked, rather than taught to it, because the service's whole job is judging finds and
- * neither of these is one.
- */
+/** The listener only hands digging over; what a dig reveals is the evidence service's business. */
 class XrayWatchListenerTest {
 
-    private static final UUID MOD = UUID.randomUUID();
     private static final World WORLD = mock(World.class);
-    private static final BlockFace[] SIDES = {
-            BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST,
-            BlockFace.WEST,
-    };
 
-    /** A block with every neighbour solid — a fresh face broken straight out of untouched stone. */
-    private static Block fullyEnclosedOre(Material material) {
-        Block block = blockAt(material, false, 0, 64, 0);
-        for (BlockFace side : SIDES) {
-            Block neighbour = blockAt(Material.STONE, false, coord(side));
-            when(block.getRelative(side)).thenReturn(neighbour);
-        }
-        return block;
+    static {
+        when(WORLD.getUID()).thenReturn(UUID.randomUUID());
     }
 
-    /**
-     * An ore block whose {@code openSides} first faces are already open — pre-existing air, never
-     * broken by anybody in this test — the shape a cave-wall find actually has.
-     */
-    private static Block partlyExposedOre(Material material, int openSides) {
-        Block block = blockAt(material, false, 0, 64, 0);
-        for (int index = 0; index < SIDES.length; index++) {
-            BlockFace side = SIDES[index];
-            Block neighbour = index < openSides
-                    ? blockAt(Material.CAVE_AIR, true, coord(side))
-                    : blockAt(Material.STONE, false, coord(side));
-            when(block.getRelative(side)).thenReturn(neighbour);
-        }
-        return block;
-    }
-
-    private static int[] coord(BlockFace side) {
-        return new int[] {side.getModX(), 64 + side.getModY(), side.getModZ()};
-    }
-
-    private static Block blockAt(Material material, boolean passable, int[] xyz) {
-        return blockAt(material, passable, xyz[0], xyz[1], xyz[2]);
-    }
-
-    private static Block blockAt(Material material, boolean passable, int x, int y, int z) {
+    private static Block block(Material material, int x, int y, int z) {
         Block block = mock(Block.class);
         when(block.getType()).thenReturn(material);
-        when(block.isPassable()).thenReturn(passable);
-        when(block.getWorld()).thenReturn(WORLD);
-        when(block.getX()).thenReturn(x);
-        when(block.getY()).thenReturn(y);
-        when(block.getZ()).thenReturn(z);
         when(block.getLocation()).thenReturn(new Location(WORLD, x, y, z));
+        when(block.getWorld()).thenReturn(WORLD);
         return block;
     }
 
-    private static Player playerWithId(UUID id) {
+    private static Player player(boolean bypass) {
         Player player = mock(Player.class);
-        when(player.getUniqueId()).thenReturn(id);
-        when(player.getName()).thenReturn("Mod");
-        when(player.hasPermission(SuspiciousCommandListener.BYPASS)).thenReturn(false);
+        when(player.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(player.hasPermission(SuspiciousCommandListener.BYPASS)).thenReturn(bypass);
         return player;
     }
 
-    private static ModerationServices servicesWith(ModerationSettings settings,
-                                                    XrayDetectionService xrayDetection) {
+    private static XrayWatchListener listener(XrayEvidenceService evidence) {
         ModerationServices services = mock(ModerationServices.class);
-        when(services.config()).thenReturn(settings);
-        when(services.xrayDetection()).thenReturn(xrayDetection);
-        return services;
+        when(services.config()).thenReturn(ModerationSettings.DEFAULTS);
+        when(services.xrayDetection()).thenReturn(evidence);
+        return new XrayWatchListener(services);
     }
 
-    private static BlockBreakEvent eventFor(Player player, Block block) {
-        return new BlockBreakEvent(block, player);
+    @Test
+    @DisplayName("every block a player digs goes to the evidence")
+    void digsAreHandedOver() {
+        XrayEvidenceService evidence = mock(XrayEvidenceService.class);
+        Player miner = player(false);
+        Block diamond = block(Material.DIAMOND_ORE, 1, 2, 3);
+
+        listener(evidence).onBreak(new BlockBreakEvent(diamond, miner));
+
+        verify(evidence, times(1)).dug(miner, diamond);
     }
 
-    @Nested
-    @DisplayName("ore already sitting in the open")
-    class AlreadyExposed {
+    @Test
+    @DisplayName("ore somebody placed and broke again is not mining")
+    void placedOreIsSkipped() {
+        XrayEvidenceService evidence = mock(XrayEvidenceService.class);
+        XrayWatchListener listener = listener(evidence);
+        Player builder = player(false);
+        Block diamond = block(Material.DIAMOND_ORE, 4, 5, 6);
+        BlockPlaceEvent placed = mock(BlockPlaceEvent.class);
+        when(placed.getBlock()).thenReturn(diamond);
 
-        @Test
-        @DisplayName("a diamond dug straight out of solid stone is reported as a find")
-        void fullyEnclosedIsCounted() {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            XrayWatchListener listener = new XrayWatchListener(
-                    servicesWith(ModerationSettings.DEFAULTS, xray));
-            Player player = playerWithId(MOD);
+        listener.onPlace(placed);
+        listener.onBreak(new BlockBreakEvent(diamond, builder));
 
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-
-            verify(xray).mined(eq(MOD), eq("Mod"), any(MinedBlock.class));
-        }
-
-        @Test
-        @DisplayName("one face open before the player arrived, a cave wall's own shape, is exempt")
-        void onePreExistingOpenFaceIsExempt() {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            XrayWatchListener listener = new XrayWatchListener(
-                    servicesWith(ModerationSettings.DEFAULTS, xray));
-            Player player = playerWithId(MOD);
-
-            listener.onBreak(eventFor(player, partlyExposedOre(Material.DIAMOND_ORE, 1)));
-
-            verify(xray, never()).mined(any(), any(), any());
-        }
-
-        @Test
-        @DisplayName("several pre-existing open faces, an ordinary cavern, are exempt too")
-        void severalPreExistingOpenFacesAreExempt() {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            XrayWatchListener listener = new XrayWatchListener(
-                    servicesWith(ModerationSettings.DEFAULTS, xray));
-            Player player = playerWithId(MOD);
-
-            listener.onBreak(eventFor(player, partlyExposedOre(Material.DIAMOND_ORE, 4)));
-
-            verify(xray, never()).mined(any(), any(), any());
-        }
-
-        @Test
-        @DisplayName("the one open face a straight tunnel just dug through still counts")
-        void aFaceThePlayerJustDugThemselvesStillCounts() {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            XrayWatchListener listener = new XrayWatchListener(
-                    servicesWith(ModerationSettings.DEFAULTS, xray));
-            Player player = playerWithId(MOD);
-            int[] northOfOre = coord(BlockFace.NORTH);
-
-            // The block the player tunnels through, broken a moment before reaching the ore.
-            listener.onBreak(eventFor(player, blockAt(Material.STONE, false, northOfOre)));
-
-            Block ore = blockAt(Material.DIAMOND_ORE, false, 0, 64, 0);
-            for (BlockFace side : SIDES) {
-                Block neighbour = side == BlockFace.NORTH
-                        // Now open — the player just broke it — but at this exact spot.
-                        ? blockAt(Material.CAVE_AIR, true, northOfOre)
-                        : blockAt(Material.STONE, false, coord(side));
-                when(ore.getRelative(side)).thenReturn(neighbour);
-            }
-            listener.onBreak(eventFor(player, ore));
-
-            verify(xray, times(2)).mined(eq(MOD), eq("Mod"), any(MinedBlock.class));
-        }
-
-        @Test
-        @DisplayName("an ordinary stone block is never exempted by this check, however open it is")
-        void onlyOreIsEverExempted() {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            XrayWatchListener listener = new XrayWatchListener(
-                    servicesWith(ModerationSettings.DEFAULTS, xray));
-            Player player = playerWithId(MOD);
-
-            listener.onBreak(eventFor(player, partlyExposedOre(Material.STONE, 4)));
-
-            verify(xray).mined(eq(MOD), eq("Mod"), any(MinedBlock.class));
-        }
+        verify(evidence, never()).dug(builder, diamond);
     }
 
-    @Nested
-    @DisplayName("veinminer mode")
-    class Veinminer {
+    @Test
+    @DisplayName("staff with the bypass are never watched")
+    void bypass() {
+        XrayEvidenceService evidence = mock(XrayEvidenceService.class);
+        Player staff = player(true);
+        Block stone = block(Material.STONE, 7, 8, 9);
 
-        @Test
-        @DisplayName("off by default, every block of a chain counts on its own")
-        void offByDefaultCountsEveryBlock() {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            ModerationSettings settings = ModerationSettings.DEFAULTS
-                    .withXrayVeinminerModeEnabled(false);
-            XrayWatchListener listener = new XrayWatchListener(servicesWith(settings, xray));
-            Player player = playerWithId(MOD);
+        listener(evidence).onBreak(new BlockBreakEvent(stone, staff));
 
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-
-            verify(xray, times(2)).mined(eq(MOD), eq("Mod"), any(MinedBlock.class));
-        }
-
-        @Test
-        @DisplayName("on, a second same-material break right after the first is swallowed")
-        void onSwallowsTheChain() {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            ModerationSettings settings = ModerationSettings.DEFAULTS
-                    .withXrayVeinminerModeEnabled(true);
-            XrayWatchListener listener = new XrayWatchListener(servicesWith(settings, xray));
-            Player player = playerWithId(MOD);
-
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-
-            verify(xray, times(1)).mined(eq(MOD), eq("Mod"), any(MinedBlock.class));
-        }
-
-        @Test
-        @DisplayName("on, a different material right after is its own find, not the same chain")
-        void onDoesNotSwallowADifferentMaterial() {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            ModerationSettings settings = ModerationSettings.DEFAULTS
-                    .withXrayVeinminerModeEnabled(true);
-            XrayWatchListener listener = new XrayWatchListener(servicesWith(settings, xray));
-            Player player = playerWithId(MOD);
-
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.EMERALD_ORE)));
-
-            verify(xray, times(2)).mined(eq(MOD), eq("Mod"), any(MinedBlock.class));
-        }
-
-        @Test
-        @DisplayName("on, the same material well after the window has passed is a fresh find again")
-        void onCreditsAgainAfterTheWindow() throws InterruptedException {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            ModerationSettings settings = ModerationSettings.DEFAULTS
-                    .withXrayVeinminerModeEnabled(true);
-            XrayWatchListener listener = new XrayWatchListener(servicesWith(settings, xray));
-            Player player = playerWithId(MOD);
-
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-            Thread.sleep(300);
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-
-            verify(xray, times(2)).mined(eq(MOD), eq("Mod"), any(MinedBlock.class));
-        }
-
-        @Test
-        @DisplayName("forgetting a player who left clears the chain, so nothing carries into their next session")
-        void forgettingClearsTheChain() {
-            XrayDetectionService xray = mock(XrayDetectionService.class);
-            ModerationSettings settings = ModerationSettings.DEFAULTS
-                    .withXrayVeinminerModeEnabled(true);
-            XrayWatchListener listener = new XrayWatchListener(servicesWith(settings, xray));
-            Player player = playerWithId(MOD);
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-
-            listener.forget(MOD);
-            listener.onBreak(eventFor(player, fullyEnclosedOre(Material.DIAMOND_ORE)));
-
-            verify(xray, times(2)).mined(eq(MOD), eq("Mod"), any(MinedBlock.class));
-        }
+        verify(evidence, never()).dug(staff, stone);
     }
 }
