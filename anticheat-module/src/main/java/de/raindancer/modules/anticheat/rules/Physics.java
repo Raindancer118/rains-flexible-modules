@@ -23,6 +23,14 @@ public final class Physics {
     private Physics() {
     }
 
+    /**
+     * Vanilla only lands a player whose move ended against something below while not going up — a jump
+     * passing a block top on the way up is still in the air. A step up keeps them on the ground.
+     */
+    public static boolean standing(boolean collisionBelow, double dy, boolean wasStanding, double stepHeight) {
+        return collisionBelow && (dy <= NEGLIGIBLE || wasStanding && dy <= stepHeight + NEGLIGIBLE);
+    }
+
     /** One tick of vertical motion in air: gravity, then drag. */
     public static double nextVertical(double velocity, double gravity) {
         return (velocity - gravity) * VERTICAL_DRAG;

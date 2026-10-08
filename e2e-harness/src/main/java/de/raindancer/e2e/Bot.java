@@ -206,6 +206,8 @@ public final class Bot {
     private final List<UUID> unlisted = new CopyOnWriteArrayList<>();
     /** Whether it answers the server's ping packets, as every vanilla client does. */
     private volatile boolean answersPings = true;
+    /** Pings that came in while it held back its answers, oldest first. */
+    private final java.util.Queue<Integer> heldPings = new java.util.concurrent.ConcurrentLinkedQueue<>();
     /** Single-block updates the server sent, in order: {x, y, z, block state id}. */
     private final List<int[]> blockUpdates = new CopyOnWriteArrayList<>();
     /** Entity ids the server gave the things it showed this client, by their UUID. */
@@ -386,6 +388,8 @@ public final class Bot {
             case ClientboundPingPacket ping -> {
                 if (answersPings) {
                     from.send(new ServerboundPongPacket(ping.getId()));
+                } else {
+                    heldPings.add(ping.getId());
                 }
             }
             case ClientboundBlockUpdatePacket update -> {
@@ -837,9 +841,17 @@ public final class Bot {
         return List.copyOf(pushes);
     }
 
-    /** Stops answering the server's pings — what a client faking lag does. */
+    /**
+     * Holds back the answers to the server's pings, as a lagging client (or one faking lag) does; turning
+     * answers back on sends the held ones, in order.
+     */
     public Bot answerPings(boolean answer) {
         answersPings = answer;
+        if (answer) {
+            for (Integer id; (id = heldPings.poll()) != null; ) {
+                session.send(new ServerboundPongPacket(id));
+            }
+        }
         return this;
     }
 

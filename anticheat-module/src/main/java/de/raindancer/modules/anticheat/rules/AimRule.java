@@ -13,31 +13,78 @@ public final class AimRule implements IAntiCheatRule {
     public static final double SMALLEST_STEP = Math.pow(0.2, 3) * 8 * 0.15;
     private static final double EPSILON = 1e-4;
 
-    /** The greatest common step of a run of angle changes, tolerant of float rounding. */
+    /**
+     * How far one reported pitch change can be off an exact multiple of the step: the client keeps pitch
+     * as a float and adds every frame's turn to it, each addition rounding by up to half an ulp of 90°.
+     */
+    static final double DELTA_ERROR = 6e-5;
+
+    /**
+     * The largest step every change is a whole multiple of, or 0 if there is none worth the name.
+     *
+     * <p>Euclid does not survive float noise: the error of a large turn divided by a small one passes
+     * for a step of a ten-thousandth of a degree. So candidates come from the smallest change — it is
+     * some small count of steps — and each is fitted to all changes and kept only if every one of them
+     * lands within rounding of a multiple. Random aim fits a 0.01° grid by chance with odds of about
+     * 1 in 125 per change, which over a window of changes is never.
+     */
     public double commonStep(double[] deltas) {
-        double gcd = 0;
+        double smallest = Double.MAX_VALUE;
+        int moving = 0;
         for (double delta : deltas) {
             double value = Math.abs(delta);
-            if (value < EPSILON) {
-                continue;
+            if (value >= EPSILON) {
+                smallest = Math.min(smallest, value);
+                moving++;
             }
-            gcd = gcd == 0 ? value : gcd(gcd, value);
         }
-        return gcd;
+        if (moving == 0) {
+            return 0;
+        }
+        double[] sorted = new double[moving];
+        int at = 0;
+        for (double delta : deltas) {
+            if (Math.abs(delta) >= EPSILON) {
+                sorted[at++] = Math.abs(delta);
+            }
+        }
+        java.util.Arrays.sort(sorted);
+        int most = (int) Math.floor(smallest / (SMALLEST_STEP * 0.9));
+        for (int counts = 1; counts <= most; counts++) {
+            double step = fit(sorted, smallest / counts);
+            if (step > 0) {
+                return step;
+            }
+        }
+        return 0;
     }
 
-    private static double gcd(double a, double b) {
-        if (a < b) {
-            double swap = a;
-            a = b;
-            b = swap;
+    /**
+     * Fits a candidate step to the changes, smallest first, refining it by least squares as the counts
+     * grow — a big flick is a thousand steps, where a candidate off by a hair would miscount it. 0 if
+     * some change is not a multiple.
+     */
+    private static double fit(double[] sorted, double candidate) {
+        double step = candidate;
+        double weighted = 0;
+        double squares = 0;
+        double mostCounts = 1;
+        for (double value : sorted) {
+            double counts = Math.rint(value / step);
+            if (counts < 1 || Math.abs(value - counts * step) > DELTA_ERROR * (1 + counts / mostCounts)) {
+                return 0;
+            }
+            weighted += counts * value;
+            squares += counts * counts;
+            step = weighted / squares;
+            mostCounts = Math.max(mostCounts, counts);
         }
-        while (b > EPSILON) {
-            double rest = a % b;
-            a = b;
-            b = rest;
+        for (double value : sorted) {
+            if (Math.abs(value - Math.rint(value / step) * step) > DELTA_ERROR * 1.5) {
+                return 0;
+            }
         }
-        return a;
+        return step;
     }
 
     /** @param pitchDeltas recent pitch changes in degrees, from turns of a decent size */

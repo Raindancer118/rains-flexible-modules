@@ -23,8 +23,8 @@
         <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsAntiCheat</plugin.name>
-        <!-- 0.3.1: the packet thread never waits on the movement engine (own lock, lock-free shared queues). -->
-        <plugin.version>0.3.1</plugin.version>
+        <!-- 0.4.0: blocks the client has not been told about yet count as still there; real-player false positives fixed. -->
+        <plugin.version>0.4.0</plugin.version>
     </properties>
 
     <dependencies>

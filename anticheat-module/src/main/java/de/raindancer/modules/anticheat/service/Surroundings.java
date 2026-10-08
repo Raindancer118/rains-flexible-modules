@@ -81,6 +81,11 @@ public record Surroundings(boolean ground, boolean ceiling, boolean inside, bool
                 overLiquid, special, bouncy, below, Physics.friction(below), Physics.jumpFactor(below));
     }
 
+    public Surroundings withGround(boolean ground) {
+        return new Surroundings(ground, ceiling, inside, liquid, climbable, web, powderSnow, bubble, honey,
+                overLiquid, special, bouncy, below, friction, jumpFactor);
+    }
+
     /** Boats, shulkers, minecarts and happy ghasts can be stood on, and they move under the player. */
     public static boolean nearRideableGround(World world, double x, double y, double z) {
         BoundingBox around = new BoundingBox(x - 2, y - 2.5, z - 2, x + 2, y + 1, z + 2);

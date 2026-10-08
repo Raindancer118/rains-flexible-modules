@@ -71,4 +71,14 @@ class PhysicsTest {
         double second = Physics.nextVertical(first, Physics.GRAVITY);
         assertThat(Physics.travelled(first, 2, Physics.GRAVITY)).isCloseTo(first + second, within(1e-12));
     }
+
+    @Test
+    @DisplayName("feet passing a block top while still rising are not standing on it; a step up is")
+    void groundOnlyWhenNotRising() {
+        assertThat(Physics.standing(true, 0.248, false, Physics.STEP_HEIGHT)).isFalse();
+        assertThat(Physics.standing(true, 0.0, true, Physics.STEP_HEIGHT)).isTrue();
+        assertThat(Physics.standing(true, -0.3, false, Physics.STEP_HEIGHT)).isTrue();
+        assertThat(Physics.standing(true, 0.5, true, Physics.STEP_HEIGHT)).isTrue();
+        assertThat(Physics.standing(false, -0.1, true, Physics.STEP_HEIGHT)).isFalse();
+    }
 }

@@ -149,4 +149,58 @@ class SmallRulesTest {
         assertThat(rule.critical(true, 0.42, 0.0, 0.08).passed()).as("stepping off a slab").isTrue();
         assertThat(rule.critical(false, 0.0, 0.0, 0.0).passed()).isTrue();
     }
+
+    @Test
+    @DisplayName("aim: real mice at every sensitivity, with the client's float maths and several frames a tick, never fail")
+    void sensitivityWithFloatNoise() {
+        AimRule rule = new AimRule();
+        Random random = new Random(11);
+        for (int trial = 0; trial < 2000; trial++) {
+            double sensitivity = random.nextDouble();
+            double d = sensitivity * 0.6 + 0.2;
+            double f = d * d * d * 8.0;
+            float pitch = (float) (random.nextDouble() * 170 - 85);
+            double[] deltas = new double[40];
+            int filled = 0;
+            while (filled < deltas.length) {
+                float before = pitch;
+                boolean clamped = false;
+                int frames = 1 + random.nextInt(4);
+                int scale = random.nextInt(3) == 0 ? 300 : 25;
+                for (int frame = 0; frame < frames; frame++) {
+                    int counts = random.nextInt(2 * scale + 1) - scale;
+                    float raw = pitch + (float) (counts * f) * 0.15F;
+                    clamped |= Math.abs(raw) > 90;
+                    pitch = Math.clamp(raw, -90f, 90f);
+                }
+                double delta = pitch - before;
+                if (!clamped && Math.abs(delta) > 1e-4 && Math.abs(delta) < 10) {
+                    deltas[filled++] = delta;
+                }
+            }
+            assertThat(rule.noSensitivityStep(deltas).passed())
+                    .as("trial %d, sensitivity %.3f: step %.6f", trial, sensitivity, rule.commonStep(deltas)).isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("aim: aim made of arbitrary floats fails nearly always")
+    void arbitraryAimFails() {
+        AimRule rule = new AimRule();
+        Random random = new Random(5);
+        int failed = 0;
+        for (int trial = 0; trial < 500; trial++) {
+            double[] deltas = new double[40];
+            float pitch = 0;
+            for (int i = 0; i < deltas.length; i++) {
+                float next = pitch + (float) (random.nextGaussian() * 2);
+                deltas[i] = next - pitch;
+                pitch = next;
+            }
+            if (rule.noSensitivityStep(deltas).failed()) {
+                failed++;
+            }
+        }
+        assertThat(failed).isGreaterThan(475);
+    }
 }

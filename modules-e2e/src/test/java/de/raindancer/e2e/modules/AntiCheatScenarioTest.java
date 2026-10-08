@@ -61,6 +61,10 @@ class AntiCheatScenarioTest {
             Bot weird = server.player("Weird");
             Bot multi = server.player("Multi");
             Bot strafer = server.player("Strafer");
+            Bot miner = server.player("Miner");
+            Bot climber = server.player("Climber");
+            server.console("setblock -11 99 -1 minecraft:stone");
+            server.console("fill 7 101 5 9 101 5 minecraft:stone");
 
             place(server, "Ada", -8.5, -8.5);
             place(server, "Legit", -6.5, 6.5);
@@ -72,6 +76,8 @@ class AntiCheatScenarioTest {
             place(server, "Weird", -3.5, -3.5);
             place(server, "Multi", 1.2, 1.2);
             place(server, "Strafer", -9.5, 9.5);
+            place(server, "Miner", -10.5, -0.5);
+            place(server, "Climber", 6.0, 5.5);
             Await.ticks(80);   // past the join and teleport grace
             ada.forgetChat();
 
@@ -98,6 +104,69 @@ class AntiCheatScenarioTest {
                 tick(legit, () -> legit.moveTo(atX, atY, 6.5, landed));
                 if (landed) {
                     break;
+                }
+            }
+
+            // The ground mined away under a lagging client: it stands on until the change reaches it, then falls.
+            for (int t = 0; t < 5; t++) {
+                tick(miner, () -> miner.moveTo(-10.5, FLOOR, -0.5, true));
+            }
+            miner.answerPings(false);
+            server.console("setblock -11 100 -1 minecraft:air");
+            for (int t = 0; t < 40 && miner.blockUpdates().stream().noneMatch(b -> b[0] == -11 && b[1] == 100 && b[2] == -1); t++) {
+                tick(miner, () -> miner.moveTo(-10.5, FLOOR, -0.5, true));
+            }
+            // The update is in, the answer held back: a quarter of a second of lag, as from a far-away player.
+            for (int t = 0; t < 5; t++) {
+                tick(miner, () -> miner.moveTo(-10.5, FLOOR, -0.5, true));
+            }
+            miner.answerPings(true);
+            double my = FLOOR;
+            double mv = 0;
+            while (my > FLOOR - 1) {
+                mv = (mv - 0.08) * 0.98;
+                my = Math.max(FLOOR - 1, my + mv);
+                double at = my;
+                boolean down = my <= FLOOR - 1;
+                tick(miner, () -> miner.moveTo(-10.5, at, -0.5, down));
+            }
+            for (int t = 0; t < 5; t++) {
+                tick(miner, () -> miner.moveTo(-10.5, FLOOR - 1, -0.5, true));
+            }
+
+            // Sprint-jumping up a step: the feet pass the step's top on the way up, still in the air.
+            for (int climb = 0; climb < 10; climb++) {
+                server.console("tp Climber 6.0 " + FLOOR + " 5.5 0 0");
+                sleep(600);
+                for (int t = 0; t < 3; t++) {
+                    tick(climber, () -> climber.moveTo(6.0, FLOOR, 5.5, true));
+                }
+                double cx = 6.0;
+                double cy = FLOOR;
+                double up = 0.42;
+                double h = 0.33;
+                boolean firstAir = true;
+                boolean rising = true;
+                while (true) {
+                    cx += h;
+                    cy += up;
+                    h = h * (firstAir ? 0.546 : 0.91) + 0.026;
+                    firstAir = false;
+                    rising = up > 0;
+                    up = (up - 0.08) * 0.98;
+                    boolean landed = !rising && cy <= FLOOR + 1;
+                    double ax = cx;
+                    double ay = landed ? FLOOR + 1 : cy;
+                    tick(climber, () -> climber.moveTo(ax, ay, 5.5, landed));
+                    if (landed) {
+                        break;
+                    }
+                }
+                for (int t = 0; t < 3; t++) {
+                    h *= 0.546;
+                    cx += h;
+                    double ax = cx;
+                    tick(climber, () -> climber.moveTo(ax, FLOOR + 1, 5.5, true));
                 }
             }
 
@@ -183,6 +252,8 @@ class AntiCheatScenarioTest {
             assertThat(chat).anyMatch(line -> line.contains("Strafer") && line.contains("Strafe"));
             assertThat(faller.health()).as("NoFall still costs the fall damage").isLessThan(20);
 
+            assertThat(server.console("anticheat info Miner")).as("standing on ground mined away a ping ago").contains("Squeaky clean");
+            assertThat(server.console("anticheat info Climber")).as("jumping up a step").contains("Squeaky clean");
             String legitRecord = server.console("anticheat info Legit");
             assertThat(legitRecord).as("vanilla walking and jumping is clean").contains("Squeaky clean");
             assertThat(chat).noneMatch(line -> line.contains("Legit"));

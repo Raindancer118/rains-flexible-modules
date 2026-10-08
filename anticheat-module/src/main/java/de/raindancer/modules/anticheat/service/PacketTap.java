@@ -142,8 +142,9 @@ public final class PacketTap implements IAntiCheatService {
         synchronized (track.wire) {
             int id = TRANSACTION_BASE - (track.packets.nextTransaction++ & 0xFFFFF);
             track.packets.transactions.put(id, System.nanoTime());
-            if (track.packets.transactions.size() > 64) {
-                track.packets.transactions.clear();
+            // Pings that never came back; block changes alone can send a few hundred a minute.
+            while (track.packets.transactions.size() > 512) {
+                track.packets.transactions.pollFirstEntry();
             }
             return id;
         }
@@ -158,7 +159,7 @@ public final class PacketTap implements IAntiCheatService {
 
     // ------------------------------------------------------------------------------ reading
 
-    private enum Kind { MOVE, TICK_END, ATTACK, SWING, ACTION, COMMAND, USE, INTERACT, CARRIED, HELD_SLOT_OUT, MOTION_OUT, PONG, UNLIST_OUT, OTHER }
+    private enum Kind { MOVE, TICK_END, ATTACK, SWING, ACTION, COMMAND, USE, INTERACT, CARRIED, HELD_SLOT_OUT, MOTION_OUT, BLOCK_OUT, BLOCKS_OUT, PONG, UNLIST_OUT, OTHER }
 
     private volatile EspShield shield;
     private volatile MethodHandle newUnlist;
@@ -218,6 +219,17 @@ public final class PacketTap implements IAntiCheatService {
                     yield new Reader(Kind.MOTION_OUT, new MethodHandle[]{
                             LOOKUP.findVirtual(type, "id", MethodType.methodType(int.class))});
                 }
+                case "net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket" -> {
+                    pingsFrom(type);
+                    Class<?> pos = type.getMethod("getPos").getReturnType();
+                    yield new Reader(Kind.BLOCK_OUT, withCoordinates(LOOKUP.findVirtual(type, "getPos", MethodType.methodType(pos)), pos));
+                }
+                case "net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket" -> {
+                    pingsFrom(type);
+                    Class<?> pos = Class.forName("net.minecraft.core.BlockPos", true, type.getClassLoader());
+                    yield new Reader(Kind.BLOCKS_OUT, withCoordinates(LOOKUP.findVirtual(type, "runUpdates",
+                            MethodType.methodType(void.class, java.util.function.BiConsumer.class)), pos));
+                }
                 case "net.minecraft.network.protocol.common.ServerboundPongPacket" -> new Reader(Kind.PONG, new MethodHandle[]{
                         LOOKUP.findVirtual(type, "getId", MethodType.methodType(int.class))});
                 case "net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket" -> {
@@ -231,6 +243,62 @@ public final class PacketTap implements IAntiCheatService {
             log.warn("Cannot read {} on this server version; that packet is ignored.", name);
             return new Reader(Kind.OTHER, new MethodHandle[0]);
         }
+    }
+
+    private void pingsFrom(Class<?> packet) throws ReflectiveOperationException {
+        if (newPing == null) {
+            Class<?> ping = Class.forName("net.minecraft.network.protocol.common.ClientboundPingPacket", true, packet.getClassLoader());
+            newPing = LOOKUP.findConstructor(ping, MethodType.methodType(void.class, int.class));
+        }
+    }
+
+    private static MethodHandle[] withCoordinates(MethodHandle first, Class<?> blockPos) throws ReflectiveOperationException {
+        return new MethodHandle[]{first,
+                LOOKUP.findVirtual(blockPos, "getX", MethodType.methodType(int.class)),
+                LOOKUP.findVirtual(blockPos, "getY", MethodType.methodType(int.class)),
+                LOOKUP.findVirtual(blockPos, "getZ", MethodType.methodType(int.class))};
+    }
+
+    /** How far from the player a changed block can still matter to their next moves. */
+    private static final int BLOCK_REACH = 3;
+
+    /**
+     * Notes the block changes of one packet that lie near the player and returns the ping to send
+     * right behind it, or null when none of them are near.
+     */
+    private Object blockChange(PlayerTrack track, Reader reader, Object msg) throws Throwable {
+        MethodHandle[] g = reader.getters();
+        PlayerTrack.Movement m = track.movement;
+        int px = (int) Math.floor(m.x);
+        int py = (int) Math.floor(m.y);
+        int pz = (int) Math.floor(m.z);
+        java.util.List<int[]> near = new java.util.ArrayList<>(4);
+        java.util.function.Consumer<Object> consider = pos -> {
+            try {
+                int x = (int) g[1].invoke(pos);
+                int y = (int) g[2].invoke(pos);
+                int z = (int) g[3].invoke(pos);
+                if (Math.abs(x - px) <= BLOCK_REACH && Math.abs(z - pz) <= BLOCK_REACH && y >= py - BLOCK_REACH && y <= py + BLOCK_REACH + 1) {
+                    near.add(new int[]{x, y, z});
+                }
+            } catch (Throwable unreadable) {
+                // Nothing to note.
+            }
+        };
+        if (reader.kind() == Kind.BLOCK_OUT) {
+            consider.accept(g[0].invoke(msg));
+        } else {
+            g[0].invoke(msg, (java.util.function.BiConsumer<Object, Object>) (pos, state) -> consider.accept(pos));
+        }
+        if (near.isEmpty() || newPing == null) {
+            return null;
+        }
+        int id = nextTransaction(track);
+        long now = track.now();
+        for (int[] block : near) {
+            track.packets.blocks.sent(block[0], block[1], block[2], id, now);
+        }
+        return newPing.invoke(id);
     }
 
     private final class Handler extends ChannelDuplexHandler {
@@ -265,6 +333,8 @@ public final class PacketTap implements IAntiCheatService {
                     synchronized (track.wire) {
                         track.packets.lastSlot = slot;
                     }
+                } else if (reader.kind() == Kind.BLOCK_OUT || reader.kind() == Kind.BLOCKS_OUT) {
+                    follow = blockChange(track, reader, msg);
                 } else if (reader.kind() == Kind.MOTION_OUT && (int) reader.getters()[0].invoke(msg) == track.entityId) {
                     // Knockback for this very player: the ping right behind it is answered the moment
                     // the client has applied it, which pins down when the push really happened.
@@ -407,6 +477,7 @@ public final class PacketTap implements IAntiCheatService {
                         Long sent = p.transactions.remove(id);
                         if (sent != null) {
                             p.roundTrips.add((nanos - sent) / 1_000_000.0);
+                            p.blocks.confirmed(id, millis);
                             for (double[] velocity : track.movement.velocities) {
                                 if (velocity[6] == id) {
                                     velocity[7] = millis;

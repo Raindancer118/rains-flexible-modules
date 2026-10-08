@@ -94,14 +94,14 @@ public final class WorldService implements IAntiCheatService {
                 w.lastBreakMillis = now;
             }
         }
-        if (!digged) {
-            // A second block from the same swing is some plugin's chain (vein mining, tree felling).
-            return false;
-        }
         Location feet = player.getLocation();
         if (block.getY() < feet.getY() && block.getY() >= feet.getY() - 1.5
                 && Math.abs(block.getX() + 0.5 - feet.getX()) < 1.3 && Math.abs(block.getZ() + 0.5 - feet.getZ()) < 1.3) {
             track.exempt(PlayerTrack.Exemption.BLOCK_UNDERFOOT, 600);
+        }
+        if (!digged) {
+            // A second block from the same swing is some plugin's chain (vein mining, tree felling).
+            return false;
         }
         boolean paused = Bukkit.getTPS()[0] < settings.minTps();
         if (player.getGameMode() != GameMode.CREATIVE && !paused && violations.runs(track, CheckType.FAST_BREAK)) {

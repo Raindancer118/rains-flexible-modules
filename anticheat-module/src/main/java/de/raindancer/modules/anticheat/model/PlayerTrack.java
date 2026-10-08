@@ -278,7 +278,9 @@ public final class PlayerTrack {
         public int attacksAwaitingSwing;
         public int startsThisTick;
         /** Our own ping packets in flight: id → nanos sent. */
-        public final java.util.Map<Integer, Long> transactions = new java.util.HashMap<>();
+        public final java.util.LinkedHashMap<Integer, Long> transactions = new java.util.LinkedHashMap<>();
+        /** Block changes sent near the player and not yet answered. */
+        public final PendingBlocks blocks = new PendingBlocks();
         public final Samples roundTrips = new Samples(16);
         public int nextTransaction;
     }

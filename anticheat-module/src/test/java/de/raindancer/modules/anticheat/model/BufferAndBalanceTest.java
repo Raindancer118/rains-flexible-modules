@@ -93,4 +93,22 @@ class BufferAndBalanceTest {
         assertThat(samples.last()).isEqualTo(5);
         assertThat(samples.full()).isTrue();
     }
+
+    @Test
+    @DisplayName("the burst of ticks queued up while a join or teleport loads is not a fast clock")
+    void burstAfterReset() {
+        TimerBalance balance = new TimerBalance(1000);
+        balance.reset();
+        long t = 0;
+        for (int i = 0; i < 6; i++) {
+            balance.tick(t);
+            t += 1 * MS;
+        }
+        assertThat(balance.balance()).isLessThan(0);
+        for (int i = 0; i < 400; i++) {
+            t += 33 * MS;
+            balance.tick(t);
+        }
+        assertThat(balance.balance()).as("a really fast clock still climbs").isGreaterThan(1000);
+    }
 }

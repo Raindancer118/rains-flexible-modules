@@ -37,10 +37,13 @@ public final class TimerBalance {
         balance = Math.min(balance, 0);
     }
 
-    /** Forgets the clock entirely — after a teleport, a world change, a respawn. */
+    /**
+     * Forgets the clock — after a join, a teleport, a world change, a respawn. Starts with the full lag
+     * credit: the ticks a client queued up while the server was busy loading arrive as one burst.
+     */
     public synchronized void reset() {
         lastNanos = Long.MIN_VALUE;
-        balance = 0;
+        balance = -lagCreditMillis;
     }
 
     public synchronized double balance() {

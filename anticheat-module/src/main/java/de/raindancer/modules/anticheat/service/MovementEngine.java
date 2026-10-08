@@ -231,6 +231,16 @@ public final class MovementEngine implements IAntiCheatService {
         double hd = Math.hypot(dx, dz);
         int ticks = Math.max(1, sample.ticks());
         Surroundings here = Surroundings.at(world, sample.x(), sample.y(), sample.z(), player.getWidth(), player.getHeight());
+        // A block the client has not been told about yet is still there for it — mined away under its
+        // feet by a vein miner, another player, an explosion. Its own word is all there is until then.
+        boolean blocksInFlux = !Double.isNaN(m.x) && blocksInFlux(track, m, sample, player.getWidth(), player.getHeight(),
+                2L * track.compensated(settings.maxPing()) + 500);
+        if (blocksInFlux) {
+            here = here.withGround(sample.onGround());
+        } else {
+            here = here.withGround(Physics.standing(here.ground(), dy, m.onGround,
+                    attribute(player, Attribute.STEP_HEIGHT, Physics.STEP_HEIGHT)));
+        }
 
         boolean free = freelyMoving(player, track) || paused;
         PlayerTrack.Exemption exemption = track.exemption();
@@ -243,7 +253,7 @@ public final class MovementEngine implements IAntiCheatService {
         boolean nearRideable = false;
 
         // Phase: walking into solid blocks from outside them.
-        if (here.inside() && !m.inside && run(track, CheckType.PHASE)) {
+        if (here.inside() && !m.inside && !blocksInFlux && run(track, CheckType.PHASE)) {
             failed |= report(player, track, CheckType.PHASE, 1, 1, 0.1, String.format(Locale.ROOT,
                     "moved %.2f blocks into a solid block", Math.sqrt(hd * hd + dy * dy)));
         }
@@ -332,6 +342,16 @@ public final class MovementEngine implements IAntiCheatService {
             return;
         }
         remember(world, m, sample, dy, hd, here, false);
+    }
+
+    private static boolean blocksInFlux(PlayerTrack track, PlayerTrack.Movement m, MoveSample sample, double width, double height,
+                                        long patienceMillis) {
+        double half = width / 2 + 0.1;
+        return track.packets.blocks.uncertain(
+                (int) Math.floor(Math.min(m.x, sample.x()) - half), (int) Math.floor(Math.min(m.y, sample.y()) - 1),
+                (int) Math.floor(Math.min(m.z, sample.z()) - half), (int) Math.floor(Math.max(m.x, sample.x()) + half),
+                (int) Math.floor(Math.max(m.y, sample.y()) + height), (int) Math.floor(Math.max(m.z, sample.z()) + half),
+                track.now(), patienceMillis);
     }
 
     private boolean judgeHorizontal(Player player, PlayerTrack track, MoveSample sample, double hd, double dy,
@@ -527,7 +547,7 @@ public final class MovementEngine implements IAntiCheatService {
         track.movement.pitch = sample.pitch();
         double pitchDelta = sample.pitch() - previousPitch;
         boolean spyglass = player.isHandRaised() && player.getActiveItem().getType() == Material.SPYGLASS;
-        if (Math.abs(pitchDelta) > 1e-4 && Math.abs(pitchDelta) < 10 && Math.abs(sample.pitch()) < 89 && !spyglass
+        if (Math.abs(pitchDelta) > 1e-4 && Math.abs(pitchDelta) < 10 && Math.abs(sample.pitch()) < 89 && Math.abs(previousPitch) < 89 && !spyglass
                 && !player.isInsideVehicle()) {
             c.pitchDeltas.add(pitchDelta);
             if (c.pitchDeltas.full()) {

@@ -36,6 +36,7 @@ public final class ConnectionListener implements IAntiCheatListener {
         Player player = event.getPlayer();
         PlayerTrack track = services.tracks().of(player);
         track.entityId = player.getEntityId();
+        track.timer.reset();
         track.exempt(PlayerTrack.Exemption.JOINED, 3000);
         services.alerts().joined(player);
         services.tap().inject(player);
