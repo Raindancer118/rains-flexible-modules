@@ -50,6 +50,7 @@ public final class TradeMenu extends Menu implements IEconomyScreen {
         set(MenuLayout.HEADER_SUBJECT, Icons.of(material, "<white>" + Catalogue.readable(material.name()),
                 tag.buyable() ? "<gray>Buy one: " + Mini.of(currency.render(tag.buy())) : "<dark_gray>Not sold",
                 tag.sellable() ? "<gray>Sell one: " + Mini.of(currency.render(tag.sell())) : "<dark_gray>Not bought",
+                ShopItemsMenu.trend(services.shop().prices().multiplier(material.name())),
                 "<dark_gray>Priced from: " + tag.source().name().toLowerCase()));
         set(MenuLayout.HEADER_RIGHT, Icons.of(Material.CHEST, "<white>You carry " + carrying));
 

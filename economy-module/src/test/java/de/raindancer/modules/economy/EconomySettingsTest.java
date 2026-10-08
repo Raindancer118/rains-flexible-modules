@@ -88,7 +88,8 @@ public class EconomySettingsTest {
         assertThat(d.craftMarkupClamped()).isEqualTo(0.1);
         assertThat(d.smeltMarkupClamped()).isEqualTo(0.15);
         assertThat(d.dynamicPrices()).isTrue();
-        assertThat(d.priceSwingClamped()).isEqualTo(0.5);
+        assertThat(d.lowestMultiplier()).as("selling can halve a price").isEqualTo(0.5);
+        assertThat(d.highestMultiplier()).as("buying can double it").isEqualTo(2.0);
         assertThat(d.pressurePerStackClamped()).isEqualTo(0.02);
         assertThat(d.recoveryHoursClamped()).isEqualTo(12.0);
         assertThat(d.enchantedSelling()).isTrue();
@@ -188,7 +189,8 @@ public class EconomySettingsTest {
     void sellBelowBuy() {
         assertThat(with("shop.sell-ratio", "3").sellRatioClamped()).isEqualTo(0.95);
         assertThat(with("pay.tax-percent", "90").payTax()).isEqualTo(0.5);
-        assertThat(with("shop.price-swing", "5").priceSwingClamped()).isEqualTo(0.95);
+        assertThat(with("shop.lowest-multiplier", "-1").lowestMultiplier()).isEqualTo(0.05);
+        assertThat(with("shop.highest-multiplier", "50").highestMultiplier()).isEqualTo(10.0);
     }
 
     @Test

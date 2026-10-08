@@ -125,9 +125,7 @@ public final class PriceBook {
             return PriceTag.unpriced(name);
         }
 
-        double multiplier = settings.dynamicPrices()
-                ? market.multiplier(pressure.applyAsDouble(name), settings.priceSwingClamped())
-                : 1.0;
+        double multiplier = multiplier(name);
         Money buy = customBuy.orElseGet(() -> value == null ? null
                 : trade.unitBuy(value, multiplier, settings.buyMarkupClamped()));
         Money sell;
@@ -152,6 +150,20 @@ public final class PriceBook {
                 : shipped.containsKey(name) ? PriceTag.Source.BASE : PriceTag.Source.RECIPE;
         return new PriceTag(name, value == null ? Money.ZERO : value, buy == null ? Money.ZERO : buy,
                 sell == null ? Money.ZERO : sell, buyable, sellable, source);
+    }
+
+    /**
+     * What supply and demand does to an item's price right now: below 1 when it has been sold a lot, above
+     * when bought a lot. Always 1 with supply and demand off, and for an item the owner priced by hand.
+     */
+    public double multiplier(String material) {
+        String name = material.toUpperCase(Locale.ROOT);
+        Snapshot now = snapshot;
+        EconomySettings settings = now.settings();
+        if (!settings.dynamicPrices() || now.buyPrices().of(name).isPresent() || now.sellPrices().of(name).isPresent()) {
+            return 1.0;
+        }
+        return market.multiplier(pressure.applyAsDouble(name), settings.lowestMultiplier(), settings.highestMultiplier());
     }
 
     /** Every item in a category the shop will buy or sell, alphabetically. */

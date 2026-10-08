@@ -21,8 +21,15 @@ public final class MarketRule implements IEconomyRule {
         return pressure * Math.pow(0.5, halfLives);
     }
 
-    public double multiplier(double pressure, double swing) {
-        return 1.0 + Math.max(0, Math.min(0.95, swing)) * Math.tanh(pressure);
+    /**
+     * @param lowest  what an item sold off is worth at most, as a multiple of normal — kept within 0.05 and 1
+     * @param highest what an item bought up costs at most — kept within 1 and 10
+     */
+    public double multiplier(double pressure, double lowest, double highest) {
+        double floor = Math.max(0.05, Math.min(1, lowest));
+        double ceiling = Math.max(1, Math.min(10, highest));
+        double pull = Math.tanh(pressure);
+        return pull >= 0 ? 1 + (ceiling - 1) * pull : 1 + (1 - floor) * pull;
     }
 
     @Override

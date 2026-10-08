@@ -69,17 +69,18 @@ class EconomyLoansScenarioTest {
             assertThat(bo.window().orElseThrow().slotNamed("Allay Spawn Egg")).as("an allay's egg is for sale").isPresent();
             assertThat(bo.window().orElseThrow().slotNamed("Ender Dragon Spawn Egg")).as("a boss's is not").isEmpty();
             bo.closeWindow();
-            bo.run("shop pig_spawn_egg");
-            bo.awaitWindow("Pig Spawn Egg");
-            Await.ticks(10);
+            // The harness now and then loses every click into a window it has only just been sent; when no egg
+            // came, the window is opened afresh and the click made again — never once one has arrived.
             bo.forgetChat();
-            // The harness now and then loses a click on a window it has only just been sent; a click that
-            // bought nothing is simply made again, and never more than once an egg has arrived.
             for (int attempt = 0; attempt < 3 && !said(bo, "You bought"); attempt++) {
+                bo.run("shop pig_spawn_egg");
+                bo.awaitWindow("Pig Spawn Egg");
+                Await.ticks(10);
                 clickExact(bo, "Buy 1");
                 Await.ticks(40);
             }
-            Await.until(() -> "the egg is bought (Bo heard " + bo.chatText() + ")", WAIT,
+            Await.until(() -> "the egg is bought (Bo heard " + bo.chatText() + ", sees " + bo.window()
+                            .map(window -> window.title() + " " + window.top()).orElse("no window") + ")", WAIT,
                     () -> said(bo, "You bought 1 × Pig Spawn Egg"));
             bo.closeWindow();
 
@@ -202,10 +203,23 @@ class EconomyLoansScenarioTest {
             Await.until(() -> "the diamonds go up (Bo heard " + bo.chatText() + ")", WAIT,
                     () -> bo.carrying(item -> item.is("diamond")).isEmpty());
 
+            // ---- supply and demand: ten stacks of logs sold, and the shop says logs are cheaper now
+            server.console("give Bo minecraft:oak_log 640");
+            Await.ticks(10);
+            bo.forgetChat();
+            bo.run("sell all");
+            Await.until(() -> "the logs are sold (Bo heard " + bo.chatText() + ")", WAIT, () -> said(bo, "You sold"));
+            bo.run("shop oak_log");
+            bo.awaitWindow("Oak Log");
+            Await.until("the price shows it fell", WAIT, () -> bo.window().map(window -> window.top().values().stream()
+                    .anyMatch(item -> item.lore().stream().anyMatch(line -> line.contains("▼")
+                            && line.contains("sold a lot")))).orElse(false));
+            bo.closeWindow();
+
             // ---- a dealer wears the suit: its profile carries the shipped, signed suit texture
             ada.run("eco dealer place blackjack");
             Await.ticks(10);
-            String profile = server.console("data get entity @e[type=minecraft:mannequin,limit=1] profile");
+            String profile = server.console("data get entity @e[type=minecraft:mannequin,limit=1] profile.properties[0].value");
             assertThat(profile).as("the dealer's profile").contains("ewogICJ0aW1lc3RhbXAiIDogMTcwMTE5MTAzMjkx");
 
             assertThat(server.paper.logLines(line -> line.contains("Exception"))).as("nothing threw").isEmpty();

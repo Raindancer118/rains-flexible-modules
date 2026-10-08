@@ -94,6 +94,10 @@ public final class ShopItemsMenu extends PaginatedMenu<Material> implements IEco
         List<String> lore = new ArrayList<>();
         lore.add(tag.buyable() ? "<gray>Buy: " + Mini.of(services.currency().render(tag.buy())) : "<dark_gray>Not sold");
         lore.add(tag.sellable() ? "<gray>Sell: " + Mini.of(services.currency().render(tag.sell())) : "<dark_gray>Not bought");
+        String trend = trend(services.shop().prices().multiplier(material.name()));
+        if (!trend.isEmpty()) {
+            lore.add(trend);
+        }
         lore.add("");
         lore.add("<yellow>Click<gray> to trade");
         if (viewer.hasPermission(PermissionNodes.ADMIN)) {
@@ -109,6 +113,17 @@ public final class ShopItemsMenu extends PaginatedMenu<Material> implements IEco
         } else {
             new TradeMenu(services, viewer, this, material).open();
         }
+    }
+
+    /** How far supply and demand has moved a price, in words; empty while it has hardly moved. */
+    static String trend(double multiplier) {
+        long percent = Math.round((multiplier - 1) * 100);
+        if (percent == 0) {
+            return "";
+        }
+        return percent > 0
+                ? "<red>▲ " + percent + "%<gray> — bought a lot lately"
+                : "<green>▼ " + -percent + "%<gray> — sold a lot lately";
     }
 
     @Override

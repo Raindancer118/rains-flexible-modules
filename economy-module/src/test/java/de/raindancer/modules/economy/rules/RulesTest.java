@@ -174,12 +174,24 @@ class RulesTest {
         }
 
         @Test
-        @DisplayName("the price moves smoothly and never past the swing")
+        @DisplayName("the price moves smoothly, falls no lower than the lowest and rises no higher than the highest")
         void multiplier() {
-            assertThat(rule.multiplier(0, 0.5)).isEqualTo(1.0);
-            assertThat(rule.multiplier(1000, 0.5)).isLessThanOrEqualTo(1.5).isGreaterThan(1.49);
-            assertThat(rule.multiplier(-1000, 0.5)).isGreaterThanOrEqualTo(0.5).isLessThan(0.51);
-            assertThat(rule.multiplier(0.1, 0.5)).isGreaterThan(1.0);
+            assertThat(rule.multiplier(0, 0.5, 2.0)).isEqualTo(1.0);
+            assertThat(rule.multiplier(1000, 0.5, 2.0)).isLessThanOrEqualTo(2.0).isGreaterThan(1.99);
+            assertThat(rule.multiplier(-1000, 0.5, 2.0)).isGreaterThanOrEqualTo(0.5).isLessThan(0.51);
+            assertThat(rule.multiplier(0.1, 0.5, 2.0)).isGreaterThan(1.0);
+            assertThat(rule.multiplier(-0.1, 0.5, 2.0)).isLessThan(1.0);
+            assertThat(rule.multiplier(-1000, 0.2, 3.0)).as("each way its own limit").isLessThan(0.21);
+            assertThat(rule.multiplier(1000, 0.2, 3.0)).isGreaterThan(2.99);
+        }
+
+        @Test
+        @DisplayName("limits that make no sense are kept sensible: never free, never a hundredfold")
+        void sensibleLimits() {
+            assertThat(rule.multiplier(-1000, 0, 2.0)).isGreaterThanOrEqualTo(0.05);
+            assertThat(rule.multiplier(-1000, 3.0, 2.0)).as("a lowest above 1 does not raise a sold-off price")
+                    .isEqualTo(1.0);
+            assertThat(rule.multiplier(1000, 0.5, 500)).isLessThanOrEqualTo(10.0);
         }
     }
 

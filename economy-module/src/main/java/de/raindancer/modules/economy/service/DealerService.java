@@ -69,7 +69,9 @@ public final class DealerService implements IEconomyService {
         if (skin != null && !skin.isBlank()) {
             profile.name(skin.strip());
         } else {
-            profile.name("Dealer").addProperty(new ProfileProperty("textures", DealerSuit.VALUE, DealerSuit.SIGNATURE));
+            // Id, name and skin all given, the profile is complete — otherwise the server asks Mojang who "Dealer" is.
+            profile.uuid(DealerSuit.ID).name("Dealer")
+                    .addProperty(new ProfileProperty("textures", DealerSuit.VALUE, DealerSuit.SIGNATURE));
         }
         dealer.setProfile(profile.build());
         ItemStack chest = dealer.getEquipment().getChestplate();

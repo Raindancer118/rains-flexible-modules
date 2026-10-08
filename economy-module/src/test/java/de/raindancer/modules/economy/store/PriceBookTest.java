@@ -201,4 +201,22 @@ class PriceBookTest {
         assertThat(book.tag("STRIPPED_OAK_LOG").value()).as("stripping is free").isEqualTo(book.tag("OAK_LOG").value());
         assertThat(book.tag("OAK_HANGING_SIGN").buyable()).isTrue();
     }
+
+    @Test
+    @DisplayName("supply and demand: sold off it is worth less, bought up it costs more, each up to its limit")
+    void supplyAndDemand() {
+        PriceBook book = book(EconomySettingsTest.with("shop.buy-prices", "raw_iron 500"), PLANKS);
+        pressure.put("DIAMOND", -1000.0);
+        assertThat(book.multiplier("DIAMOND")).isCloseTo(0.5, org.assertj.core.data.Offset.offset(0.01));
+        assertThat(book.tag("DIAMOND").buy()).isEqualTo(Money.of(5_000));
+        assertThat(book.tag("DIAMOND").sell()).isEqualTo(Money.of(2_000));
+        pressure.put("DIAMOND", 1000.0);
+        assertThat(book.tag("DIAMOND").buy()).isEqualTo(Money.of(20_000));
+        assertThat(book.tag("DIAMOND").sell()).isEqualTo(Money.of(8_000));
+        pressure.put("RAW_IRON", 1000.0);
+        assertThat(book.multiplier("RAW_IRON")).as("an owner's own price does not move").isEqualTo(1.0);
+        assertThat(book.tag("RAW_IRON").buy()).isEqualTo(Money.of(500));
+        assertThat(book(EconomySettingsTest.with("features.dynamic-prices", "false"), PLANKS).multiplier("DIAMOND"))
+                .as("switched off").isEqualTo(1.0);
+    }
 }

@@ -6,6 +6,10 @@ package de.raindancer.modules.economy.model;
  */
 public final class DealerSuit {
 
+    /** A made-up id for the dealer's profile, the same every time. */
+    public static final java.util.UUID ID = java.util.UUID.nameUUIDFromBytes(
+            "rainseconomy:dealer".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
     public static final String VALUE = "ewogICJ0aW1lc3RhbXAiIDogMTcwMTE5MTAzMjkxMSwKICAicHJvZmlsZUlkIiA6ICJjYjYxY2U5ODc4ZWI0NDljODA5MzliNWYx"
             + "NTkwMzE1MiIsCiAgInByb2ZpbGVOYW1lIiA6ICJWb2lkZWRUcmFzaDUxODUiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVl"
             + "LAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQu"
