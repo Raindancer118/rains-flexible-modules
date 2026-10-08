@@ -1,5 +1,6 @@
 package de.raindancer.modules.veintoggle.rules;
 
+import org.bukkit.event.Event;
 import org.bukkit.event.block.BlockBreakEvent;
 
 /**
@@ -17,6 +18,12 @@ public final class VeinRule {
     /** Veinminer's event for each extra block of a vein. */
     public static final String VEIN_EVENT = "de.miraculixx.veinminer.VeinMinerEvent$VeinminerEvent";
 
+    /**
+     * Veinminer's event with the items it is about to drop for one of those blocks. It extends
+     * BlockExpEvent, whose handler list BlockBreakEvent shares.
+     */
+    public static final String VEIN_DROP_EVENT = "de.miraculixx.veinminer.VeinMinerEvent$VeinminerDropEvent";
+
     /** Whether this break is one Veinminer added, rather than the block somebody broke themselves. */
     public boolean isVeinBlock(BlockBreakEvent event) {
         return event != null && event.getClass() != BlockBreakEvent.class
@@ -29,5 +36,10 @@ public final class VeinRule {
      */
     public boolean refuse(boolean veinBlock, boolean wantsVeins) {
         return veinBlock && !wantsVeins;
+    }
+
+    /** Whether this is Veinminer saying what one of its blocks drops. */
+    public boolean isVeinDrop(Event event) {
+        return event != null && VEIN_DROP_EVENT.equals(event.getClass().getName());
     }
 }

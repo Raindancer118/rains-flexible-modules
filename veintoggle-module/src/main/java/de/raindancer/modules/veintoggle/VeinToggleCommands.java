@@ -22,7 +22,7 @@ public final class VeinToggleCommands {
                 ModuleCommand.of("vein", "Switches Veinminer on or off for you",
                                 new VeinCommand(VeinToggleCommands::require))
                         .aliased("veintoggle")
-                        .taking("(nothing) — switch it", "on | off | status", "<player> [on|off] — for staff")
+                        .taking("(nothing) — switch it", "on | off | status", "undo — put your last vein back", "<player> [on|off] — for staff")
                         .needing("rainsveintoggle.use"));
     }
 

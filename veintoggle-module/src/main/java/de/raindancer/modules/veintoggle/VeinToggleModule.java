@@ -6,8 +6,15 @@ import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.veintoggle.listener.VeinListener;
+import de.raindancer.modules.veintoggle.listener.VeinUndoListener;
+import de.raindancer.modules.veintoggle.rules.UndoRule;
 import de.raindancer.modules.veintoggle.rules.VeinRule;
+import de.raindancer.modules.veintoggle.service.VeinUndoService;
+import de.raindancer.modules.veintoggle.store.RestoredBlocks;
+import de.raindancer.modules.veintoggle.store.VeinHistory;
 import de.raindancer.modules.veintoggle.util.PermissionNodes;
+
+import org.bukkit.Server;
 
 import java.util.List;
 
@@ -18,8 +25,8 @@ import java.util.List;
  */
 public final class VeinToggleModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.1.0")
-            .describedAs("Switch Veinminer on or off for yourself with /vein")
+    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.2.0")
+            .describedAs("Switch Veinminer on or off for yourself with /vein, and undo a vein with /vein undo")
             .by("Raindancer118");
 
     @Override
@@ -39,8 +46,12 @@ public final class VeinToggleModule implements FlexModule {
             context.log().info("{} permission(s) registered.", registered);
         }
 
-        VeinToggleServices services = new VeinToggleServices(context.plugin().getServer(), context.core(),
-                context.log(), context.core().messages(), settings::current);
+        Server server = context.plugin().getServer();
+        VeinHistory history = new VeinHistory();
+        RestoredBlocks restored = new RestoredBlocks();
+        VeinToggleServices services = new VeinToggleServices(context.plugin(), server, context.core(),
+                context.log(), context.core().messages(), settings::current, history,
+                new VeinUndoService(server, new UndoRule(), history, restored));
         context.listener(new VeinListener(new VeinRule(), services::wantsVeins,
                 player -> {
                     if (settings.current().sayWhenHeldBack()) {
@@ -48,6 +59,7 @@ public final class VeinToggleModule implements FlexModule {
                     }
                 },
                 System::currentTimeMillis));
+        context.listener(new VeinUndoListener(new VeinRule(), history, restored, System::currentTimeMillis));
         VeinToggleCommands.ready(services);
 
         if (services.veinminerInstalled()) {

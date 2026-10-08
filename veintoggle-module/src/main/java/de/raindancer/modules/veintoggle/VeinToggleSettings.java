@@ -3,6 +3,7 @@ package de.raindancer.modules.veintoggle;
 import de.raindancer.core.data.settings.Describe;
 import de.raindancer.core.data.settings.In;
 import de.raindancer.core.data.settings.Key;
+import de.raindancer.core.data.settings.Range;
 import de.raindancer.core.data.settings.Settings;
 import de.raindancer.core.data.settings.Title;
 import de.raindancer.core.data.settings.Topic;
@@ -26,7 +27,14 @@ public record VeinToggleSettings(
                 + "once every few seconds, that only the one block broke. Off, it is simply ordinary "
                 + "mining.")
         @Key("say-when-held-back")
-        boolean sayWhenHeldBack) {
+        boolean sayWhenHeldBack,
 
-    public static final VeinToggleSettings DEFAULTS = new VeinToggleSettings(true, true);
+        @In("veintoggle") @Title("Undo a vein within") @Range(min = 0, max = 3600)
+        @Describe("Seconds after a vein comes down in which /vein undo can put it back. The blocks "
+                + "go back only for the items they dropped, taken from the ground and the inventory, "
+                + "and a block put back drops the same again with no experience. Zero switches undo off.")
+        @Key("undo-within-seconds")
+        int undoWithinSeconds) {
+
+    public static final VeinToggleSettings DEFAULTS = new VeinToggleSettings(true, true, 120);
 }

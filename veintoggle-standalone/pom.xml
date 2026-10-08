@@ -23,8 +23,9 @@
         <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsVeinToggle</plugin.name>
-        <!-- 0.1.0: /vein switches Veinminer on and off for yourself; the server default is a setting. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.1.0: /vein switches Veinminer on and off for yourself; the server default is a setting.
+             0.2.0: /vein undo puts your last vein back, for exactly what it dropped. -->
+        <plugin.version>0.2.0</plugin.version>
     </properties>
 
     <dependencies>

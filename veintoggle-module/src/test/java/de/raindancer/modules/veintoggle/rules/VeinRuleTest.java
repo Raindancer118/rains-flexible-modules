@@ -1,7 +1,6 @@
-package de.raindancer.modules.veintoggle;
+package de.raindancer.modules.veintoggle.rules;
 
 import de.miraculixx.veinminer.VeinMinerEvent;
-import de.raindancer.modules.veintoggle.rules.VeinRule;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;

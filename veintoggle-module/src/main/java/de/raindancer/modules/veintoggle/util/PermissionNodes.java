@@ -12,6 +12,9 @@ public final class PermissionNodes {
     /** Switching Veinminer on and off for oneself. */
     public static final String USE = "rainsveintoggle.use";
 
+    /** Putting back the vein you just mined, for what it dropped. */
+    public static final String UNDO = "rainsveintoggle.undo";
+
     /** Switching it for somebody else. */
     public static final String OTHERS = "rainsveintoggle.others";
 
@@ -21,6 +24,7 @@ public final class PermissionNodes {
     public static List<Permission> declared() {
         return List.of(
                 new Permission(USE, "Switch Veinminer on or off for yourself with /vein", PermissionDefault.TRUE),
+                new Permission(UNDO, "Put back your last vein with /vein undo", PermissionDefault.TRUE),
                 new Permission(OTHERS, "Switch Veinminer on or off for somebody else", PermissionDefault.OP));
     }
 

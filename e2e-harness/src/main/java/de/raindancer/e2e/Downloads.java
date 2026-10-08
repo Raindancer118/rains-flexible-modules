@@ -63,6 +63,24 @@ public final class Downloads {
         return jar;
     }
 
+    /**
+     * A third-party plugin a scenario plays against, pinned by its SHA-1 — a jar that changed under the
+     * same URL is refused rather than tested.
+     */
+    public static Path pinned(String fileName, String url, String sha1) {
+        Path jar = cache().resolve("plugins").resolve(fileName);
+        if (Files.exists(jar)) {
+            return jar;
+        }
+        try {
+            Files.createDirectories(jar.getParent());
+        } catch (IOException cannot) {
+            throw new IllegalStateException("cannot create " + jar.getParent(), cannot);
+        }
+        fetch(url, jar, "SHA-1", sha1);
+        return jar;
+    }
+
     /** The vanilla server jar of {@code version} — for its data reports. */
     public static Path vanillaServer(String version) {
         return vanilla(version, "server");
