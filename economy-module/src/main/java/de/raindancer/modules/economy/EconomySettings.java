@@ -54,6 +54,7 @@ import java.util.List;
         @Topic(path = "economy/gambling/lottery", title = "Lottery", icon = Material.FILLED_MAP),
         @Topic(path = "economy/auctions", title = "Auctions", icon = Material.BELL),
         @Topic(path = "economy/raffles", title = "Raffles", icon = Material.NAME_TAG),
+        @Topic(path = "economy/loans", title = "Loans", icon = Material.GOLD_INGOT),
         @Topic(path = "economy/tax", title = "Wealth tax", icon = Material.IRON_BARS),
         @Topic(path = "economy/display", title = "Sidebar and leaderboards", icon = Material.OAK_SIGN),
 })
@@ -390,7 +391,7 @@ public record EconomySettings(
         @Key("gamble.cooldown-seconds") int gambleCooldownSeconds,
 
         @In("economy/gambling") @Title("Dealers wear the skin of")
-        @Describe("A player name. Empty: the plain mannequin look.")
+        @Describe("A player name. Empty: a black suit with a red tie.")
         @Key("casino.dealer-skin") String dealerSkin,
 
         @In("economy/gambling/coinflip") @Title("Coin flips") @Describe("/coinflip: against the house, or a duel between two players.")
@@ -724,6 +725,31 @@ public record EconomySettings(
         @Describe("Never more than it costs, whatever is written here, so buying and selling cannot make money.")
         @Key("xp.sell-per-point") String xpSell,
 
+        // ------------------------------------------------------------------ loans
+        @In("economy/loans") @Title("Loans")
+        @Describe("Players borrow from the bank in /bank → Loan or /loan: one loan at a time, interest added once, "
+                + "paid back whenever they like. Once due, the bank takes what the balance holds until it is paid.")
+        @Key("features.loans") boolean loansEnabled,
+
+        @In("economy/loans") @Title("Smallest loan") @Key("loans.least") String loanLeast,
+
+        @In("economy/loans") @Title("Largest loan") @Key("loans.most") String loanMost,
+
+        @In("economy/loans") @Title("Interest, percent")
+        @Describe("Added once when borrowing: 10 means borrowing 1,000 costs 1,100 to pay back. 0 to 100.")
+        @Key("loans.interest-percent") double loanInterestPercent,
+
+        @In("economy/loans") @Title("Due after") @Range(min = 1, max = 365)
+        @Describe("Days.")
+        @Key("loans.days") int loanDays,
+
+        @In("economy/loans") @Title("Late fee per day, percent")
+        @Describe("Added to what is still owed for every whole day past the due date. 0 to 50.")
+        @Key("loans.late-percent") double loanLatePercent,
+
+        @In("economy/loans") @Title("No gambling while a loan is overdue")
+        @Key("loans.overdue-stops-gambling") boolean overdueStopsGambling,
+
         // ------------------------------------------------------------------ wealth tax
         @In("economy/tax") @Title("Wealth tax")
         @Describe("Takes a percentage of every player's bank balance at an interval and destroys it — a money sink. "
@@ -808,6 +834,8 @@ public record EconomySettings(
             true, true, "0", 5.0, 30, 5, 1440, 5, 1, "1",
             // experience
             true, "3", "1",
+            // loans
+            true, "100", "10000", 10.0, 7, 2.0, true,
             // wealth tax
             false, 1.0, 24, "0",
             // display
@@ -955,6 +983,22 @@ public record EconomySettings(
 
     public double lotteryCut() {
         return percent(lotteryCutPercent, 50);
+    }
+
+    public Money loanLeastMoney() {
+        return money(loanLeast, DEFAULTS.loanLeast);
+    }
+
+    public Money loanMostMoney() {
+        return money(loanMost, DEFAULTS.loanMost);
+    }
+
+    public double loanInterest() {
+        return percent(loanInterestPercent, 100);
+    }
+
+    public double loanLate() {
+        return percent(loanLatePercent, 50);
     }
 
     public Money spawnEggValueMoney() {

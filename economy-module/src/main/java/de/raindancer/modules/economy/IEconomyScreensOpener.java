@@ -38,6 +38,8 @@ public interface IEconomyScreensOpener {
 
     void jobs(Player viewer);
 
+    void loan(Player viewer);
+
     /** A dealer's table, or any game by name. */
     void table(Player viewer, de.raindancer.modules.economy.model.DealerGame game);
 

@@ -43,6 +43,16 @@ public final class DealerListener implements IEconomyListener {
         }
     }
 
+    /** Dealers placed before the suit get it when their chunk loads; a changed skin setting reaches them too. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onLoad(org.bukkit.event.world.EntitiesLoadEvent event) {
+        for (org.bukkit.entity.Entity entity : event.getEntities()) {
+            if (entity instanceof org.bukkit.entity.Mannequin dealer && DealerService.gameOf(dealer).isPresent()) {
+                services.dealers().dress(dealer);
+            }
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onHurt(EntityDamageEvent event) {
         if (DealerService.gameOf(event.getEntity()).isPresent()) {

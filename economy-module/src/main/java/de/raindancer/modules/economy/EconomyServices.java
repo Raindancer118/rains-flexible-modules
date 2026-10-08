@@ -65,6 +65,7 @@ public record EconomyServices(
         de.raindancer.modules.economy.service.RaffleService raffles,
         de.raindancer.modules.economy.service.WealthTaxService tax,
         de.raindancer.modules.economy.service.ExperienceService experience,
+        de.raindancer.modules.economy.service.LoanService loans,
         IEconomyScreensOpener screens) {
 
     public EconomySettings config() {

@@ -250,4 +250,19 @@ public class EconomySettingsTest {
         assertThat(d.spawnEggValueMoney()).isEqualTo(Money.of(2_000));
         assertThat(d.spawnEggsClosed()).contains("ender_dragon", "wither");
     }
+
+    @Test
+    @DisplayName("loans: 100 to 10,000, 10 % once, due in a week, 2 % a day late; percentages kept in bounds")
+    void loans() {
+        EconomySettings d = EconomySettings.DEFAULTS;
+        assertThat(d.loansEnabled()).isTrue();
+        assertThat(d.loanLeastMoney()).isEqualTo(Money.of(100));
+        assertThat(d.loanMostMoney()).isEqualTo(Money.of(10_000));
+        assertThat(d.loanInterest()).isEqualTo(0.10);
+        assertThat(d.loanDays()).isEqualTo(7);
+        assertThat(d.loanLate()).isEqualTo(0.02);
+        assertThat(d.overdueStopsGambling()).isTrue();
+        assertThat(with("loans.interest-percent", "500").loanInterest()).isEqualTo(1.0);
+        assertThat(with("loans.late-percent", "-3").loanLate()).isZero();
+    }
 }

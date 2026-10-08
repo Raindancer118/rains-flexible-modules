@@ -18,6 +18,7 @@ public final class PermissionNodes {
     public static final String PAY = "rainseconomy.pay";
     public static final String BILL = "rainseconomy.bill";
     public static final String HIRE = "rainseconomy.hire";
+    public static final String LOAN = "rainseconomy.loan";
     public static final String CASH = "rainseconomy.cash";
     public static final String SHOP = "rainseconomy.shop";
     public static final String SELL = "rainseconomy.sell";
@@ -40,6 +41,7 @@ public final class PermissionNodes {
                 new Permission(PAY, "Pay other players", PermissionDefault.TRUE),
                 new Permission(BILL, "Ask other players to pay you", PermissionDefault.TRUE),
                 new Permission(HIRE, "Hire players for a wage, and be hired", PermissionDefault.TRUE),
+                new Permission(LOAN, "Borrow money from the bank", PermissionDefault.TRUE),
                 new Permission(CASH, "Withdraw coins, notes and cheques, and pay them in", PermissionDefault.TRUE),
                 new Permission(SHOP, "Buy from the shop", PermissionDefault.TRUE),
                 new Permission(SELL, "Sell to the shop", PermissionDefault.TRUE),

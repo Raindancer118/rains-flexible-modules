@@ -32,6 +32,7 @@ public final class AccountListener implements IEconomyListener {
         long lastSeen = player.getLastSeen();
         services.economy().open(player.getUniqueId(), player.getName());
         services.auctions().joined(player);
+        services.loans().joined(player);
         services.auctions().deliver(player);
         if (lastSeen <= 0) {
             return;

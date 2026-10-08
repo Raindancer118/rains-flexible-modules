@@ -93,15 +93,15 @@ public final class BankMenu extends Menu implements IEconomyScreen {
 
         boolean cash = live.cashEnabled() && viewer.hasPermission(PermissionNodes.CASH);
         String cashReason = live.cashEnabled() ? NOT_ALLOWED : OFF;
-        band(MenuLayout.RULES, 2, cash, Icons.of(services.cash().coinMaterial(), "<yellow>Withdraw cash",
+        band(MenuLayout.RULES, 1, cash, Icons.of(services.cash().coinMaterial(), "<yellow>Withdraw cash",
                 "<gray>Coins you can carry and trade."), cashReason,
                 click -> services.screens().withdraw(viewer));
-        band(MenuLayout.RULES, 4, cash, Icons.of(Material.HOPPER, "<yellow>Pay in all your cash",
+        band(MenuLayout.RULES, 3, cash, Icons.of(Material.HOPPER, "<yellow>Pay in all your cash",
                 "<gray>Every coin and cheque you carry."), cashReason, click -> {
             services.cash().depositAll(viewer);
             refresh();
         });
-        band(MenuLayout.RULES, 6, cash && live.chequesEnabled(), Icons.of(Material.PAPER, "<yellow>Write a cheque",
+        band(MenuLayout.RULES, 5, cash && live.chequesEnabled(), Icons.of(Material.PAPER, "<yellow>Write a cheque",
                 "<gray>One signed paper for any amount."),
                 live.chequesEnabled() ? cashReason : OFF, click -> MoneyPrompt.ask(viewer, "Cheque for how much?",
                         currency, amount -> {
@@ -109,6 +109,13 @@ public final class BankMenu extends Menu implements IEconomyScreen {
                             open();
                         }, this::open));
 
+        var loan = services.loans().loanOf(viewer.getUniqueId());
+        band(MenuLayout.RULES, 7, (live.loansEnabled() || loan.isPresent()) && viewer.hasPermission(PermissionNodes.LOAN),
+                Icons.of(Material.GOLD_INGOT, "<gold>Loan", loan.isPresent()
+                                ? "<gray>You owe " + Mini.of(currency.render(loan.get().owed()))
+                                : "<gray>Borrow from the bank.",
+                        loan.isPresent() ? "<gray>Due in " + services.loans().dueIn(loan.get()) : ""),
+                live.loansEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().loan(viewer));
         band(MenuLayout.LAND, 1, live.shopEnabled() && viewer.hasPermission(PermissionNodes.SHOP),
                 Icons.of(Material.EMERALD, "<green>Shop", "<gray>Sorted like the creative inventory."),
                 live.shopEnabled() ? NOT_ALLOWED : OFF, click -> services.screens().shop(viewer));

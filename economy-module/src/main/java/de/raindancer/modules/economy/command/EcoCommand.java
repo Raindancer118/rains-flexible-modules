@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class EcoCommand extends EconomyCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("give", "take", "set", "reset", "freeze", "unfreeze",
-            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle", "giveaway", "tax");
+            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle", "giveaway", "tax", "loan");
 
     public EcoCommand(Supplier<EconomyServices> services) {
         super(services);
@@ -145,6 +145,29 @@ public final class EcoCommand extends EconomyCommand {
                 }
                 live.tax().byHand(sender, percent, args.length > 2 && args[2].equalsIgnoreCase("confirm"));
             }
+            case "loan" -> {
+                if (args.length < 2) {
+                    live.messages().send(sender, "economy.usage.eco");
+                    return;
+                }
+                target(live, sender, args[1]).ifPresent(who -> {
+                    String name = PlayerTargets.shownName(who);
+                    if (args.length > 2 && args[2].equalsIgnoreCase("forgive")) {
+                        live.loans().forgive(who.getUniqueId()).ifPresentOrElse(loan -> {
+                            audit(live, sender, "loan-forgiven", who, live.currency().format(loan.owed()));
+                            live.messages().send(sender, "economy.loan.forgiven", "player", name,
+                                    "owed", live.currency().render(loan.owed()));
+                        }, () -> live.messages().send(sender, "economy.loan.none", "player", name));
+                        return;
+                    }
+                    live.loans().loanOf(who.getUniqueId()).ifPresentOrElse(loan ->
+                            live.messages().send(sender, "economy.loan.shows", "player", name,
+                                    "owed", live.currency().render(loan.owed()),
+                                    "borrowed", live.currency().render(loan.borrowed()),
+                                    "when", live.loans().dueIn(loan)),
+                            () -> live.messages().send(sender, "economy.loan.none", "player", name));
+                });
+            }
             case "calm" -> {
                 live.market().calm();
                 live.messages().send(sender, "economy.admin.calmed");
@@ -254,6 +277,9 @@ public final class EcoCommand extends EconomyCommand {
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("auction")) {
             return starting(args[1], List.of("stop", "clear"));
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("loan")) {
+            return starting(args[2], List.of("forgive"));
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("leaderboard")) {
             return starting(args[1], List.of("place", "remove"));

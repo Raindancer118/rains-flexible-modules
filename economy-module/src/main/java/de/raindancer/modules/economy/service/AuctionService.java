@@ -152,20 +152,35 @@ public final class AuctionService implements IEconomyService {
     // ---------------------------------------------------------------------------- listing
 
     /**
-     * Puts the item in the seller's hand up for auction.
+     * Puts the item in the seller's main hand up for auction.
      *
      * @param buyout zero for none
      * @param seconds zero for the server's default
      */
     public boolean list(Player seller, Money start, Money buyout, int seconds) {
+        return list(seller, seller.getInventory().getHeldItemSlot(), null, start, buyout, seconds);
+    }
+
+    /**
+     * Puts the item in one slot of the seller's inventory up for auction.
+     *
+     * @param picked what was in that slot when the seller chose it; null to take whatever is there now. If the
+     *               slot holds something else by the time they confirm, nothing is listed — a price typed for
+     *               one stack must not sell another.
+     */
+    public boolean list(Player seller, int slot, ItemStack picked, Money start, Money buyout, int seconds) {
         EconomySettings live = settings;
         Currency currency = live.currency();
         if (!open(seller)) {
             return false;
         }
-        ItemStack hand = seller.getInventory().getItemInMainHand();
-        if (hand.getType().isAir() || hand.getAmount() <= 0) {
-            refuse(seller, "economy.auction.empty-hand");
+        ItemStack hand = slot < 0 || slot >= seller.getInventory().getSize() ? null : seller.getInventory().getItem(slot);
+        if (hand == null || hand.getType().isAir() || hand.getAmount() <= 0) {
+            refuse(seller, picked == null ? "economy.auction.empty-hand" : "economy.auction.item-moved");
+            return false;
+        }
+        if (picked != null && (!hand.isSimilar(picked) || hand.getAmount() != picked.getAmount())) {
+            refuse(seller, "economy.auction.item-moved");
             return false;
         }
         if (CashTags.isCash(hand)) {
@@ -207,7 +222,7 @@ public final class AuctionService implements IEconomyService {
             return false;
         }
         // Listed first, taken second, on the seller's own thread: nothing can move the item in between.
-        seller.getInventory().setItemInMainHand(null);
+        seller.getInventory().setItem(slot, null);
         items.put(auction.id(), taken);
         Scheduling.async(plugin, book::flush);
         if (listingFee.isPositive()) {

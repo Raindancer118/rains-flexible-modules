@@ -2,6 +2,8 @@ package de.raindancer.modules.economy.service;
 
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.model.DealerGame;
+import com.destroystokyo.paper.profile.ProfileProperty;
+import de.raindancer.modules.economy.model.DealerSuit;
 import io.papermc.paper.datacomponent.item.ResolvableProfile;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -52,13 +54,28 @@ public final class DealerService implements IEconomyService {
             dealer.customName(Component.text("Dealer · " + game.title(), NamedTextColor.GOLD));
             dealer.setCustomNameVisible(true);
             dealer.setDescription(Component.text("Right click to play", NamedTextColor.GRAY));
-            String skin = settings.dealerSkin();
-            if (skin != null && !skin.isBlank()) {
-                dealer.setProfile(ResolvableProfile.resolvableProfile().name(skin.strip()).build());
-            }
-            dealer.getEquipment().setChestplate(new ItemStack(Material.LEATHER_CHESTPLATE));
             dealer.getPersistentDataContainer().set(GAME, PersistentDataType.STRING, game.name());
+            dress(dealer);
         });
+    }
+
+    /**
+     * The suit, or the skin of the player the owner named. Also for dealers placed before: they wore a plain
+     * leather chestplate over the default look, which would hide the suit, so that comes off.
+     */
+    public void dress(Mannequin dealer) {
+        String skin = settings.dealerSkin();
+        ResolvableProfile.Builder profile = ResolvableProfile.resolvableProfile();
+        if (skin != null && !skin.isBlank()) {
+            profile.name(skin.strip());
+        } else {
+            profile.name("Dealer").addProperty(new ProfileProperty("textures", DealerSuit.VALUE, DealerSuit.SIGNATURE));
+        }
+        dealer.setProfile(profile.build());
+        ItemStack chest = dealer.getEquipment().getChestplate();
+        if (chest != null && chest.getType() == Material.LEATHER_CHESTPLATE && !chest.hasItemMeta()) {
+            dealer.getEquipment().setChestplate(null);
+        }
     }
 
     public static Optional<DealerGame> gameOf(Entity entity) {

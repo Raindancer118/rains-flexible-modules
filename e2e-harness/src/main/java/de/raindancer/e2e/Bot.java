@@ -175,6 +175,8 @@ public final class Bot {
     private volatile float health = 20;
     private volatile int heldSlot;
     private volatile int windowState;
+    /** When the open window arrived; a click right on its heels was now and then lost. */
+    private volatile long windowOpenedAt;
     private volatile Window window;
     private volatile boolean dead;
     /** Set once the client said it has loaded the world after a respawn — until then the server keeps it invulnerable. */
@@ -439,6 +441,7 @@ public final class Bot {
             case ClientboundOpenScreenPacket open -> {
                 String type = open.getType().name();
                 window = new Window(open.getContainerId(), type, PLAIN.serialize(open.getTitle()), sizeOf(type), new ConcurrentHashMap<>());
+                windowOpenedAt = System.nanoTime();
             }
             case ClientboundContainerSetContentPacket content -> {
                 if (content.getContainerId() == PLAYER_WINDOW) {
@@ -679,8 +682,24 @@ public final class Bot {
         spamCount += 20;
     }
 
+    /**
+     * Waits until the open window is a quarter of a second old. A click sent the moment a window's items
+     * arrive was sometimes dropped by the server — seen as flaky scenarios, never as a fault in a plugin.
+     */
+    private void settle() {
+        long wait = 250_000_000L - (System.nanoTime() - windowOpenedAt);
+        if (wait > 0) {
+            try {
+                Thread.sleep(wait / 1_000_000L + 1);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
     /** Clicks {@code slot} of the open window with the left button. */
     public Bot clickSlot(int slot) {
+        settle();
         Window open = Objects.requireNonNull(window, name + " has no window open to click in");
         session.send(new ServerboundContainerClickPacket(open.id(), windowState, slot, ContainerActionType.CLICK_ITEM,
                 ClickItemAction.LEFT_CLICK, null, Map.of()));
@@ -689,6 +708,7 @@ public final class Bot {
 
     /** Right-clicks {@code slot} of the open window. */
     public Bot rightClickSlot(int slot) {
+        settle();
         Window open = Objects.requireNonNull(window, name + " has no window open to click in");
         session.send(new ServerboundContainerClickPacket(open.id(), windowState, slot, ContainerActionType.CLICK_ITEM,
                 ClickItemAction.RIGHT_CLICK, null, Map.of()));
@@ -697,6 +717,7 @@ public final class Bot {
 
     /** Shift-clicks {@code slot} of the open window — what moves an item into a chest beside it. */
     public Bot shiftClickSlot(int slot) {
+        settle();
         Window open = Objects.requireNonNull(window, name + " has no window open to click in");
         session.send(new ServerboundContainerClickPacket(open.id(), windowState, slot, ContainerActionType.SHIFT_CLICK_ITEM,
                 ShiftClickItemAction.LEFT_CLICK, null, Map.of()));

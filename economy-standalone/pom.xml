@@ -19,7 +19,7 @@
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsEconomy</plugin.name>
-        <plugin.version>0.12.0</plugin.version>
+        <plugin.version>0.13.0</plugin.version>
     </properties>
 
     <dependencies>

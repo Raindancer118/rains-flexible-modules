@@ -16,12 +16,15 @@ import de.raindancer.modules.economy.model.TaxRun;
 import de.raindancer.modules.economy.rules.RaffleRule;
 import de.raindancer.modules.economy.model.BalanceChange;
 import de.raindancer.modules.economy.model.Contract;
+import de.raindancer.modules.economy.model.Loan;
+import de.raindancer.modules.economy.model.LoanCollection;
 import de.raindancer.modules.economy.model.LotteryTicket;
 import de.raindancer.modules.economy.model.Payday;
 import de.raindancer.modules.economy.model.DailyClaim;
 import de.raindancer.modules.economy.model.Transaction;
 import de.raindancer.modules.economy.model.TransactionKind;
 import de.raindancer.modules.economy.rules.BalanceRule;
+import de.raindancer.modules.economy.rules.LoanRule;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -72,6 +75,9 @@ public final class AccountBook {
     private final Set<Money> dirtyCoins = new LinkedHashSet<>();
     private final Map<UUID, Contract> contracts = new LinkedHashMap<>();
     private final Set<UUID> dirtyContracts = new LinkedHashSet<>();
+    private static final LoanRule LOANS = new LoanRule();
+    private final Map<UUID, Loan> loans = new LinkedHashMap<>();
+    private final Set<UUID> dirtyLoans = new LinkedHashSet<>();
     private final Set<UUID> dirty = new LinkedHashSet<>();
     private final List<Transaction> journal = new ArrayList<>();
     private final List<NoteWrite> notes = new ArrayList<>();
@@ -153,6 +159,15 @@ public final class AccountBook {
                             rows.getString(3), UUID.fromString(rows.getString(4)), rows.getString(5),
                             Money.of(rows.getLong(6)), rows.getInt(7), rows.getLong(8), rows.getInt(9),
                             rows.getString(10), rows.getLong(11)));
+                }
+            }
+            List<Loan> lent = new ArrayList<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT player, name, borrowed, owed, taken_at, due_at, late_at FROM loan ORDER BY taken_at");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    lent.add(new Loan(UUID.fromString(rows.getString(1)), rows.getString(2), Money.of(rows.getLong(3)),
+                            Money.of(rows.getLong(4)), rows.getLong(5), rows.getLong(6), rows.getLong(7)));
                 }
             }
             long drawRead = 1;
@@ -248,6 +263,7 @@ public final class AccountBook {
                 outstanding.putAll(open);
                 circulation.putAll(coinsOut);
                 jobs.forEach(job -> contracts.put(job.id(), job));
+                lent.forEach(loan -> loans.put(loan.player(), loan));
                 draw = drawRead;
                 nextDrawAt = nextRead;
                 tickets.addAll(held);
@@ -850,6 +866,105 @@ public final class AccountBook {
         }
     }
 
+    // ---------------------------------------------------------------------------- loans
+
+    /** Pays a loan out and opens it, both or neither; refused while the player already owes the bank. */
+    public EconomyResult borrow(Loan loan, Money most) {
+        synchronized (lock) {
+            if (loans.containsKey(loan.player())) {
+                return EconomyResult.failed(Outcome.REFUSED, loan.borrowed(), balance(loan.player()));
+            }
+            EconomyResult paid = change(loan.player(), loan.borrowed(), TransactionKind.LOAN, "Loan", null, most);
+            if (paid.succeeded()) {
+                loans.put(loan.player(), loan);
+                dirtyLoans.add(loan.player());
+            }
+            return paid;
+        }
+    }
+
+    /** Pays back up to {@code amount} — never more than is owed; closes the loan when nothing is left. */
+    public EconomyResult repay(UUID player, Money amount) {
+        synchronized (lock) {
+            Loan loan = loans.get(player);
+            if (loan == null || !amount.isPositive()) {
+                return EconomyResult.failed(Outcome.REFUSED, amount, balance(player));
+            }
+            Money paying = amount.min(loan.owed());
+            EconomyResult paid = change(player, paying.negate(), TransactionKind.LOAN, "Loan paid back", null,
+                    SYSTEM_MOST);
+            if (paid.succeeded()) {
+                settle(loan.paid(paying));
+            }
+            return paid;
+        }
+    }
+
+    /**
+     * Every overdue loan: late fees for each new whole day, then whatever the balance holds taken toward it.
+     * Only loans where something happened are returned.
+     */
+    public List<LoanCollection> collectLoans(long now, double latePerDay, Money most) {
+        synchronized (lock) {
+            List<LoanCollection> done = new ArrayList<>();
+            for (Loan due : List.copyOf(loans.values())) {
+                if (!due.overdue(now)) {
+                    continue;
+                }
+                Loan fined = LOANS.withLateFees(due, now, latePerDay);
+                Money fee = fined.owed().minus(due.owed());
+                Money take = LOANS.collect(balance(due.player()), fined.owed());
+                Loan after = fined;
+                if (take.isPositive() && change(due.player(), take.negate(), TransactionKind.LOAN,
+                        "Overdue loan collected", null, most).succeeded()) {
+                    after = fined.paid(take);
+                } else {
+                    take = Money.ZERO;
+                }
+                if (!after.equals(due)) {
+                    settle(after);
+                }
+                if (fee.isPositive() || take.isPositive()) {
+                    done.add(new LoanCollection(after, fee, take, after.settled()));
+                }
+            }
+            return done;
+        }
+    }
+
+    private void settle(Loan loan) {
+        if (loan.settled()) {
+            loans.remove(loan.player());
+        } else {
+            loans.put(loan.player(), loan);
+        }
+        dirtyLoans.add(loan.player());
+    }
+
+    public Optional<Loan> loanOf(UUID player) {
+        synchronized (lock) {
+            return Optional.ofNullable(loans.get(player));
+        }
+    }
+
+    /** Every open loan, oldest first. */
+    public List<Loan> loans() {
+        synchronized (lock) {
+            return List.copyOf(loans.values());
+        }
+    }
+
+    /** Staff wipe a loan: nothing more is owed, nothing is paid back. */
+    public boolean forgive(UUID player) {
+        synchronized (lock) {
+            if (loans.remove(player) == null) {
+                return false;
+            }
+            dirtyLoans.add(player);
+            return true;
+        }
+    }
+
     // ---------------------------------------------------------------------------- auctions
 
     /**
@@ -1358,6 +1473,7 @@ public final class AccountBook {
             List<LotteryTicket> ticketWrites;
             Map<Money, Long> coinWrites = new HashMap<>();
             Map<UUID, Contract> contractWrites = new LinkedHashMap<>();
+            Map<UUID, Loan> loanWrites = new LinkedHashMap<>();
             Map<UUID, Auction> auctionWrites = new LinkedHashMap<>();
             Map<UUID, AuctionClaim> claimWrites = new LinkedHashMap<>();
             Map<UUID, Raffle> raffleWrites = new LinkedHashMap<>();
@@ -1371,7 +1487,7 @@ public final class AccountBook {
             long cleared;
             synchronized (lock) {
                 if (dirty.isEmpty() && journal.isEmpty() && notes.isEmpty() && !lotteryDirty && newTickets.isEmpty()
-                        && dirtyCoins.isEmpty() && dirtyContracts.isEmpty() && dirtyAuctions.isEmpty()
+                        && dirtyCoins.isEmpty() && dirtyContracts.isEmpty() && dirtyLoans.isEmpty() && dirtyAuctions.isEmpty()
                         && dirtyClaims.isEmpty() && dirtyRaffles.isEmpty() && !raffleCounterDirty && !wealthTaxDirty) {
                     return 0;
                 }
@@ -1397,6 +1513,10 @@ public final class AccountBook {
                     contractWrites.put(id, contracts.get(id));
                 }
                 dirtyContracts.clear();
+                for (UUID id : dirtyLoans) {
+                    loanWrites.put(id, loans.get(id));
+                }
+                dirtyLoans.clear();
                 for (Money value : dirtyCoins) {
                     coinWrites.put(value, circulation.getOrDefault(value, 0L));
                 }
@@ -1452,6 +1572,29 @@ public final class AccountBook {
                         insert.addBatch();
                     }
                     insert.executeBatch();
+                }
+                try (PreparedStatement upsert = connection.prepareStatement(
+                        "INSERT INTO loan (player, name, borrowed, owed, taken_at, due_at, late_at) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(player) DO UPDATE SET name = excluded.name, "
+                                + "borrowed = excluded.borrowed, owed = excluded.owed, taken_at = excluded.taken_at, "
+                                + "due_at = excluded.due_at, late_at = excluded.late_at");
+                     PreparedStatement delete = connection.prepareStatement("DELETE FROM loan WHERE player = ?")) {
+                    for (Map.Entry<UUID, Loan> each : loanWrites.entrySet()) {
+                        Loan loan = each.getValue();
+                        if (loan == null) {
+                            delete.setString(1, each.getKey().toString());
+                            delete.executeUpdate();
+                            continue;
+                        }
+                        upsert.setString(1, loan.player().toString());
+                        upsert.setString(2, loan.name());
+                        upsert.setLong(3, loan.borrowed().minor());
+                        upsert.setLong(4, loan.owed().minor());
+                        upsert.setLong(5, loan.takenAt());
+                        upsert.setLong(6, loan.dueAt());
+                        upsert.setLong(7, loan.lateAt());
+                        upsert.executeUpdate();
+                    }
                 }
                 try (PreparedStatement upsert = connection.prepareStatement(
                         "INSERT INTO contract (id, employer, employer_name, employee, employee_name, wage, every, next_at, "
@@ -1649,6 +1792,7 @@ public final class AccountBook {
                     newTickets.addAll(0, ticketWrites);
                     dirtyCoins.addAll(coinWrites.keySet());
                     dirtyContracts.addAll(contractWrites.keySet());
+                    dirtyLoans.addAll(loanWrites.keySet());
                     dirtyAuctions.addAll(auctionWrites.keySet());
                     dirtyClaims.addAll(claimWrites.keySet());
                     dirtyRaffles.addAll(raffleWrites.keySet());

@@ -41,7 +41,9 @@ public final class EconomyDatabase {
             "CREATE TABLE raffle_ticket (raffle TEXT NOT NULL, player TEXT NOT NULL, tickets INTEGER NOT NULL, "
                     + "seq INTEGER NOT NULL, PRIMARY KEY (raffle, player))",
             "CREATE TABLE raffle_counter (id INTEGER PRIMARY KEY CHECK (id = 1), next INTEGER NOT NULL)",
-            "CREATE TABLE wealth_tax (id INTEGER PRIMARY KEY CHECK (id = 1), last_at INTEGER NOT NULL)");
+            "CREATE TABLE wealth_tax (id INTEGER PRIMARY KEY CHECK (id = 1), last_at INTEGER NOT NULL)",
+            "CREATE TABLE loan (player TEXT PRIMARY KEY, name TEXT NOT NULL, borrowed INTEGER NOT NULL, "
+                    + "owed INTEGER NOT NULL, taken_at INTEGER NOT NULL, due_at INTEGER NOT NULL, late_at INTEGER NOT NULL)");
 
     private EconomyDatabase() {
     }

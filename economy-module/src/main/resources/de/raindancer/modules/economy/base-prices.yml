@@ -177,3 +177,6 @@ name_tag: 300
 sponge: 500
 trident: 2000
 enchanted_golden_apple: 15000
+# Bastion loot; its own copying recipe needs one already, so nothing can price it from a recipe. With it,
+# smithing prices every netherite tool and armour piece.
+netherite_upgrade_smithing_template: 5000

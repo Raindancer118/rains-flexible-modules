@@ -7,6 +7,7 @@ import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.RecipeChoice;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
+import net.kyori.adventure.key.Key;
 import org.bukkit.inventory.SmithingTransformRecipe;
 import org.bukkit.inventory.StonecuttingRecipe;
 import org.bukkit.inventory.TransmuteRecipe;
@@ -114,6 +115,34 @@ public final class RecipeReader {
             slots.add(names);
             return true;
         }
+        // Paper hands smithing ingredients over as item types, not as materials.
+        if (choice instanceof RecipeChoice.ItemTypeChoice types) {
+            List<String> names;
+            try {
+                // Resolved rather than read: netherite's ingot slot is a tag (#netherite_tool_materials), whose
+                // members only the registry knows.
+                names = materialNames(types.itemTypes().resolve(org.bukkit.Registry.ITEM).stream()
+                        .map(org.bukkit.Keyed::getKey).toList());
+            } catch (RuntimeException unreadable) {
+                return false;
+            }
+            if (names.isEmpty()) {
+                return false;
+            }
+            slots.add(names);
+            return true;
+        }
         return false;
+    }
+
+    /** Vanilla item keys as material names; anything from another namespace is left out. */
+    static List<String> materialNames(Iterable<? extends Key> keys) {
+        List<String> names = new ArrayList<>();
+        for (Key key : keys) {
+            if (key.namespace().equals(Key.MINECRAFT_NAMESPACE)) {
+                names.add(key.value().toUpperCase(java.util.Locale.ROOT));
+            }
+        }
+        return names;
     }
 }

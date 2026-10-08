@@ -33,7 +33,8 @@ economy:
     bill: "<gray>/bill <player> <amount> [what for]"
     dice: "<gray>/dice <amount> <over|under> <number from 1 to 100>"
     lottery: "<gray>/lottery  ·  /lottery buy [tickets]  ·  /lottery buy <your numbers>  ·  /lottery info"
-    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm|coin  ·  /eco auction stop|clear  ·  /eco raffle <prize> <ticket price> [length] | cancel <number>  ·  /eco giveaway <prize> [length] | cancel <number>  ·  /eco tax <percent> [confirm]"
+    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm|coin  ·  /eco auction stop|clear  ·  /eco raffle <prize> <ticket price> [length] | cancel <number>  ·  /eco giveaway <prize> [length] | cancel <number>  ·  /eco tax <percent> [confirm]  ·  /eco loan <player> [forgive]"
+    loan: "<gray>/loan  ·  /loan take <amount>  ·  /loan repay [amount|all]"
     hire: "<gray>/hire <player> <wage> <every, like 1h or 30m> [job]  ·  /hire list  ·  /hire fire|quit <player>"
     raffle: "<gray>/raffle  ·  /raffle start <ticket price> [length, like 30m] [most tickets] [per player]  ·  /raffle money <prize> <ticket price> [length] [most tickets] [per player]  ·  /raffle buy <number> [tickets]  ·  /raffle cancel <number>  ·  /raffle info"
     giveaway: "<gray>/giveaway  ·  /giveaway start [length, like 30m]  ·  /giveaway money <amount> [length]  ·  /giveaway join <number>  ·  /giveaway cancel <number>"
@@ -109,6 +110,7 @@ economy:
   gamble:
     off: "<red>That game is switched off on this server."
     not-allowed: "<red>You may not gamble."
+    loan-overdue: "<red>Gambling with the bank's money while your loan is overdue? Bold. Pay it back first: <white>/loan</white>"
     too-little: "<red>The smallest bet is <amount><red>."
     too-much: "<red>The largest bet is <amount><red>."
     loss-limit: "<red>That would take you past the most anybody may lose in a day (<amount><red>). Come back tomorrow."
@@ -172,6 +174,8 @@ economy:
     off: "<red>Auctions are switched off on this server."
     not-allowed: "<red>You may not take part in auctions."
     empty-hand: "<red>Hold the item you want to auction in your main hand."
+    pick-an-item: "<gray>Click the item you want to auction in your inventory below."
+    item-moved: "<red>That item is not where it was any more. Pick it again."
     money: "<red>Money is not auctioned — pay it in with /deposit."
     start-too-low: "<red>An auction starts at <amount><red> at least."
     buyout-below: "<red>The buy-it-now price cannot be below the starting price."
@@ -303,6 +307,26 @@ economy:
 
   statement:
     printed: "<green>Your statement is being printed — it lands in your inventory in a moment."
+
+  loan:
+    off: "<red>The bank has stopped lending. Shocking, I know."
+    has-loan: "<red>You already owe the bank. One loan at a time — pay it back first with <white>/loan repay</white>."
+    too-little: "<red>The bank does not get out of bed for less than <amount><red>."
+    too-much: "<red>The bank lends <amount><red> at most. Ambitious, though."
+    taken: "<green>You borrowed <amount><green>. Pay back <owed><green> within <days> day(s) — <white>/loan repay</white>."
+    nothing-owed: "<gray>You owe the bank nothing. Enjoy it."
+    cannot-pay: "<red>You have nothing to pay with. You still owe <owed><red>."
+    repaid: "<green>You paid back <amount><green>. Still owed: <owed><green>."
+    cleared: "<green>You paid back <amount><green> — your loan is paid off."
+    reminder: "<gray>You owe the bank <owed><gray>, due in <when>. <white>/loan</white>"
+    reminder-overdue: "<red>Your loan is overdue: you owe <owed><red>. The bank is taking it from your balance. <white>/loan</white>"
+    late-fee: "<red>Your loan is still overdue: <fee><red> in late fees added, <owed><red> owed."
+    collected: "<yellow>The bank took <amount><yellow> toward your overdue loan. Still owed: <owed><yellow>."
+    collected-cleared: "<green>The bank took the last <amount><green> of your loan. It is paid off."
+    forgiven-you: "<green>The bank forgave your loan of <owed><green>. Lucky you."
+    forgiven: "<green><player>'s loan of <owed><green> is forgiven."
+    none: "<gray><player> owes the bank nothing."
+    shows: "<gray><white><player></white> owes <owed><gray> (borrowed <borrowed><gray>), due in <when>."
 
   hire:
     off: "<red>Hiring is switched off on this server."

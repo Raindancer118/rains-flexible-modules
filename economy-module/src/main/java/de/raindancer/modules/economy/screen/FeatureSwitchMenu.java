@@ -25,6 +25,7 @@ public final class FeatureSwitchMenu extends PaginatedMenu<FeatureSwitchMenu.Swi
             new Switch("features.pay", "Paying", Material.WRITABLE_BOOK),
             new Switch("features.bills", "Bills", Material.PAPER),
             new Switch("features.hire", "Hiring", Material.IRON_PICKAXE),
+            new Switch("features.loans", "Loans", Material.GOLD_INGOT),
             new Switch("features.cash", "Coins", Material.GOLD_NUGGET),
             new Switch("features.cheques", "Cheques", Material.FILLED_MAP),
             new Switch("cash.right-click", "Right click pays in", Material.HOPPER),

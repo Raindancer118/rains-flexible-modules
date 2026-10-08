@@ -75,6 +75,9 @@ public final class ScratchService implements IEconomyService {
             gambling.tell(player, "economy.gamble.off");
             return;
         }
+        if (gambling.loanBlocks(player)) {
+            return;
+        }
         Money price = live.scratchPriceMoney();
         int bought = 0;
         for (int i = 0; i < Math.max(1, Math.min(64, count)); i++) {

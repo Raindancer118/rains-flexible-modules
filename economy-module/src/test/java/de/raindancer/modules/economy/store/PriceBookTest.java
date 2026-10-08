@@ -163,4 +163,28 @@ class PriceBookTest {
         assertThat(book.tag("PIG_SPAWN_EGG").buyable()).isFalse();
         assertThat(book.tradableEggs()).isEmpty();
     }
+
+    @Test
+    @DisplayName("netherite: the shipped list prices the upgrade template, so smithing prices every netherite piece")
+    void netherite() {
+        var shipped = BasePrices.parse(EconomySettings.class.getResourceAsStream("base-prices.yml"),
+                EconomySettings.DEFAULTS.currency());
+        assertThat(shipped).containsKeys("NETHERITE_SCRAP", "NETHERITE_UPGRADE_SMITHING_TEMPLATE");
+        List<RecipeShape> recipes = List.of(
+                new RecipeShape("NETHERITE_INGOT", 1, List.of(List.of("NETHERITE_SCRAP"), List.of("NETHERITE_SCRAP"),
+                        List.of("NETHERITE_SCRAP"), List.of("NETHERITE_SCRAP"), List.of("GOLD_INGOT"),
+                        List.of("GOLD_INGOT"), List.of("GOLD_INGOT"), List.of("GOLD_INGOT")), RecipeShape.Process.CRAFT),
+                new RecipeShape("GOLD_INGOT", 1, List.of(List.of("RAW_GOLD")), RecipeShape.Process.SMELT),
+                new RecipeShape("DIAMOND_SWORD", 1, List.of(List.of("DIAMOND"), List.of("DIAMOND"), List.of("STICK")),
+                        RecipeShape.Process.CRAFT),
+                new RecipeShape("STICK", 4, List.of(List.of("OAK_PLANKS"), List.of("OAK_PLANKS")), RecipeShape.Process.CRAFT),
+                new RecipeShape("OAK_PLANKS", 4, List.of(List.of("OAK_LOG")), RecipeShape.Process.CRAFT),
+                new RecipeShape("NETHERITE_SWORD", 1, List.of(List.of("NETHERITE_UPGRADE_SMITHING_TEMPLATE"),
+                        List.of("DIAMOND_SWORD"), List.of("NETHERITE_INGOT")), RecipeShape.Process.SMITH));
+        PriceBook book = new PriceBook(currency -> shipped, material -> 0.0, material -> 64);
+        book.recompute(EconomySettings.DEFAULTS, recipes);
+        assertThat(book.tag("NETHERITE_INGOT").buyable()).isTrue();
+        assertThat(book.tag("NETHERITE_SWORD").buyable()).as("netherite gear is for sale").isTrue();
+        assertThat(book.tag("NETHERITE_SWORD").buy()).isGreaterThan(book.tag("NETHERITE_INGOT").buy());
+    }
 }

@@ -76,8 +76,22 @@ public final class AdminMenu extends Menu implements IEconomyScreen {
                 "features.interest", "<gray>" + CasinoMenu.percent(live.interestRate()) + "% every "
                         + live.interestMinutes() + " minutes",
                 "<gray>At most " + Mini.of(currency.render(live.interestCapMoney())) + " a payout");
-        door(MenuLayout.RULES, 2, Material.DIAMOND_PICKAXE, "Earning", "economy/earn", true, null,
+        door(MenuLayout.RULES, 2, Material.GOLD_INGOT, "Loans", "economy/loans", live.loansEnabled(),
+                "features.loans", "<gray>" + Mini.of(currency.render(live.loanLeastMoney())) + "<gray> to "
+                        + Mini.of(currency.render(live.loanMostMoney())) + "<gray>, "
+                        + CasinoMenu.percent(live.loanInterest()) + "% interest,",
+                "<gray>due in " + live.loanDays() + " day(s), " + CasinoMenu.percent(live.loanLate()) + "% a day late.",
+                "<dark_gray>/eco loan <player> [forgive]");
+        door(MenuLayout.LAND, 2, Material.DIAMOND_PICKAXE, "Earning", "economy/earn", true, null,
                 "<gray>Daily reward, passive income,", "<gray>advancements, the hourly cap.");
+        door(MenuLayout.LAND, 3, Material.NAME_TAG, "Raffles and giveaways", "economy/raffles", live.rafflesEnabled(),
+                "features.raffles", "<gray>Fees, lengths, how many at once.");
+        door(MenuLayout.LAND, 4, Material.EXPERIENCE_BOTTLE, "Experience", "economy/experience", live.xpTradeEnabled(),
+                "features.xp-trade", "<gray>What a point costs and pays.");
+        door(MenuLayout.LAND, 5, Material.OAK_SIGN, "Sidebar and leaderboards", "economy/display", live.sidebarEnabled(),
+                "features.sidebar", "<gray>The balance on screen, boards in the world.");
+        door(MenuLayout.LAND, 6, Material.ENDER_CHEST, "Accounts", "economy/accounts", true, null,
+                "<gray>Starting balance, the most an account holds,", "<gray>how long statements are kept.");
         door(MenuLayout.RULES, 3, Material.WRITABLE_BOOK, "Paying and bills", "economy/pay", live.payEnabled(),
                 "features.pay", "<gray>Tax, minimum, hiring.");
         door(MenuLayout.RULES, 4, Material.PAPER, "Coins and notes", "economy/cash", live.cashEnabled(),

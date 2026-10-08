@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The auction house: the item up right now with its bid and clock, ticking live, buttons to bid, and the
- * way to put up what you hold, see the queue and pick up what you won.
+ * The auction house: the item up right now with its bid and clock, ticking live, buttons to bid; a click on
+ * anything in your own inventory puts it up; the queue and what you won.
  */
 public final class AuctionMenu extends Menu implements IEconomyScreen {
 
@@ -71,42 +71,57 @@ public final class AuctionMenu extends Menu implements IEconomyScreen {
         if (running.isEmpty()) {
             set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.BELL, "<gold>Auction house"));
             set(2 * 9 + 4, Icons.of(Material.BARRIER, "<gray>No auction running",
-                    waiting > 0 ? "<gray>The next one starts in a moment" : "<gray>Put something up — below"));
+                    waiting > 0 ? "<gray>The next one starts in a moment"
+                            : "<gray>Click an item in your inventory to put it up"));
         } else {
             showLive(running.get(), currency, auctions);
         }
 
-        set(5 * 9 + 1, Icons.of(Material.CHEST, "<green>Auction what you hold",
-                "<gray>Puts the item in your main hand up.", "<gray>You choose the starting price;",
-                "<gray>for a buy-it-now price and the length:", "<white>/auction sell <start> [buy it now] [5m]"),
-                click -> {
-                    if (viewer.getInventory().getItemInMainHand().getType().isAir()) {
-                        services.messages().send(viewer, "economy.auction.empty-hand");
-                        return;
-                    }
-                    MoneyPrompt.ask(viewer, "Starting price?", currency, start -> {
-                        services.auctions().list(viewer, start, Money.ZERO, 0);
-                        open(services, viewer, back);
-                    }, () -> open(services, viewer, back));
-                });
+        band(MenuLayout.LAND, 1, Icons.of(Material.CHEST, "<green>Put something up",
+                "<gray>Click any item in your inventory", "<gray>below to auction it.",
+                "<dark_gray>or /auction sell <start> [buy it now] [5m]"), click -> {
+            int held = viewer.getInventory().getHeldItemSlot();
+            ItemStack hand = viewer.getInventory().getItem(held);
+            if (hand == null || hand.getType().isAir()) {
+                services.messages().send(viewer, "economy.auction.pick-an-item");
+                return;
+            }
+            new AuctionSellMenu(services, viewer, this, held, hand).open();
+        });
         int owed = auctions.claimsOf(viewer.getUniqueId()).size();
-        set(5 * 9 + 3, Icons.of(owed > 0 ? Material.ENDER_CHEST : Material.CHEST_MINECART,
+        band(MenuLayout.LAND, 3, Icons.of(owed > 0 ? Material.ENDER_CHEST : Material.CHEST_MINECART,
                 (owed > 0 ? "<yellow>" : "<gray>") + "Waiting for you: " + owed,
                 owed > 0 ? "<yellow>Click<gray> to put it in your inventory" : "<gray>Won and returned items land here"),
                 click -> {
                     auctions.deliver(viewer);
                     refresh();
                 });
-        set(5 * 9 + 7, Icons.of(Material.NAME_TAG, "<light_purple>Raffles",
-                "<gray>" + services.raffles().raffles().size() + " running", "<yellow>Click<gray> to see them"),
-                click -> RaffleMenu.open(services, viewer, this));
         boolean listening = AuctionService.NEWS.isOn(viewer);
-        set(5 * 9 + 5, Icons.of(listening ? Material.BELL : Material.GRAY_DYE,
+        band(MenuLayout.LAND, 5, Icons.of(listening ? Material.BELL : Material.GRAY_DYE,
                 listening ? "<green>Announcements: on" : "<gray>Announcements: off",
                 "<gray>Auctions in chat and on the boss bar", "<yellow>Click<gray> to switch"), click -> {
             auctions.toggleNews(viewer);
             refresh();
         });
+        band(MenuLayout.LAND, 7, Icons.of(Material.NAME_TAG, "<light_purple>Raffles",
+                "<gray>" + services.raffles().raffles().size() + " running", "<yellow>Click<gray> to see them"),
+                click -> RaffleMenu.open(services, viewer, this));
+    }
+
+    /** An item clicked in the player's own inventory is the one they want to auction; nothing moves yet. */
+    @Override
+    public boolean allowBottomInventoryInteraction() {
+        return true;
+    }
+
+    @Override
+    public void handleBottomClick(org.bukkit.event.inventory.InventoryClickEvent event) {
+        event.setCancelled(true);
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType().isAir()) {
+            return;
+        }
+        new AuctionSellMenu(services, viewer, this, event.getSlot(), clicked).open();
     }
 
     private void showLive(Auction auction, Currency currency, AuctionService auctions) {

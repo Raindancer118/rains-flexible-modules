@@ -50,6 +50,7 @@ public final class LotteryService implements IEconomyService {
     private final LotteryRule rule = new LotteryRule();
     private final SecureRandom random = new SecureRandom();
     private volatile EconomySettings settings;
+    private volatile java.util.function.Predicate<java.util.UUID> overdue = player -> false;
     private volatile List<Integer> lastDraw = List.of();
     private volatile boolean drawing;
 
@@ -111,6 +112,11 @@ public final class LotteryService implements IEconomyService {
      *
      * @return whether anything was bought
      */
+    /** Who has an overdue loan, handed over by the module. */
+    public void overdue(java.util.function.Predicate<java.util.UUID> overdue) {
+        this.overdue = overdue == null ? player -> false : overdue;
+    }
+
     public boolean buy(Player player, List<Integer> numbers, int wanted) {
         EconomySettings live = settings;
         Currency currency = live.currency();
@@ -120,6 +126,10 @@ public final class LotteryService implements IEconomyService {
         }
         if (!player.hasPermission(PermissionNodes.GAMBLE)) {
             refuse(player, "economy.gamble.not-allowed");
+            return false;
+        }
+        if (overdue.test(player.getUniqueId()) && live.overdueStopsGambling()) {
+            refuse(player, "economy.gamble.loan-overdue");
             return false;
         }
         if (drawing) {

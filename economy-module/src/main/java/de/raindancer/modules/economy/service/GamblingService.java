@@ -93,6 +93,7 @@ public final class GamblingService implements IEconomyService {
     private final Map<UUID, Challenge> challenges = new ConcurrentHashMap<>();
     private final Map<UUID, DayLoss> losses = new ConcurrentHashMap<>();
     private volatile EconomySettings settings;
+    private volatile java.util.function.Predicate<UUID> overdue = player -> false;
 
     public GamblingService(Plugin plugin, Server server, RainEconomy economy, Messages messages, Effects effects,
                            ChatButtons buttons, Clock clock, GameSounds sounds, EconomySettings settings) {
@@ -118,7 +119,21 @@ public final class GamblingService implements IEconomyService {
         return settings;
     }
 
+    /** Who has an overdue loan — handed over by the module, so gambling needs no reference to loans. */
+    public void overdue(java.util.function.Predicate<UUID> overdue) {
+        this.overdue = overdue == null ? player -> false : overdue;
+    }
+
     // ---------------------------------------------------------------------------- the checks every game shares
+
+    /** Whether an overdue loan keeps this player from gambling; says so when it does. */
+    public boolean loanBlocks(Player player) {
+        if (settings.overdueStopsGambling() && overdue.test(player.getUniqueId())) {
+            refuse(player, "economy.gamble.loan-overdue");
+            return true;
+        }
+        return false;
+    }
 
     public boolean mayBet(Player player, Money stake, Game game) {
         EconomySettings live = settings;
@@ -129,6 +144,9 @@ public final class GamblingService implements IEconomyService {
         }
         if (!player.hasPermission(PermissionNodes.GAMBLE)) {
             refuse(player, "economy.gamble.not-allowed");
+            return false;
+        }
+        if (loanBlocks(player)) {
             return false;
         }
         if (!stake.isPositive()) {
