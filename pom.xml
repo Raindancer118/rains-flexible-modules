@@ -30,7 +30,7 @@
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
         <!-- The end-to-end harness and its headless client: one timestamped 26.2 build, never the moving SNAPSHOT. -->
-        <e2e-harness.version>0.4.0</e2e-harness.version>
+        <e2e-harness.version>0.4.1</e2e-harness.version>
         <mcprotocollib.version>26.2-20260907.143312-19</mcprotocollib.version>
         <!-- Which tests run: everything but the e2e ones, unless -Pe2e turns it round. -->
         <e2e.excluded>e2e,screenshots</e2e.excluded>

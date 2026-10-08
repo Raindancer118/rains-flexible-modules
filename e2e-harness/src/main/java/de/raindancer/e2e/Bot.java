@@ -196,6 +196,8 @@ public final class Bot {
     private final Map<String, String> objectiveTitles = new ConcurrentHashMap<>();
     private volatile String sidebarObjective = "";
     private final List<Window> windowsSeen = new CopyOnWriteArrayList<>();
+    /** Whether the server has sent this client its own inventory yet. */
+    private volatile boolean inventorySynced;
     /** This client's own entity id, from the login. */
     private volatile int ownEntityId = Integer.MIN_VALUE;
     /** Knockback the server sent this client itself, in order: {vx, vy, vz}. */
@@ -240,7 +242,9 @@ public final class Bot {
                     if (!disconnectReason.isEmpty()) {
                         throw new IllegalStateException(name + " was disconnected: " + disconnectReason);
                     }
-                    return joined && !world.isEmpty();
+                    // A client has joined once the server sent it its own inventory; before that, anything given
+                    // to it can be wiped by that first full inventory arriving late.
+                    return joined && !world.isEmpty() && inventorySynced;
                 });
                 return this;
             } catch (AssertionError | IllegalStateException failed) {
@@ -295,6 +299,7 @@ public final class Bot {
 
     private void reset() {
         joined = false;
+        inventorySynced = false;
         disconnectReason = "";
         world = "";
         window = null;
@@ -432,6 +437,9 @@ public final class Bot {
                 window = new Window(open.getContainerId(), type, PLAIN.serialize(open.getTitle()), sizeOf(type), new ConcurrentHashMap<>());
             }
             case ClientboundContainerSetContentPacket content -> {
+                if (content.getContainerId() == PLAYER_WINDOW) {
+                    inventorySynced = true;
+                }
                 windowState = content.getStateId();
                 Map<Integer, Item> target = itemsOf(content.getContainerId());
                 if (target == null) {
