@@ -80,6 +80,8 @@ class MenuScenarioTest {
             assertAllAnswered(ready);
             ada.runAndOpen("speedrun menu", "Speedrun");
             ada.answer(() -> ada.click("Setup assistant"), answer -> answer.opened("Setup"));
+            // Opened from the hub, the assistant has a way back to it; from the command it does not.
+            ada.answer(() -> ada.clickSlot(45), answer -> answer.opened("Speedrun"));
             ada.closeWindow();
             MenuCrawler assistant = crawler(game, ada).between(putBack);
             assistant.crawl(Route.command("speedrun setup"));
