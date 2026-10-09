@@ -123,7 +123,6 @@ public class EconomySettingsTest {
         assertThat(d.gamblingEnabled()).isTrue();
         assertThat(d.rouletteEnabled()).isTrue();
         assertThat(d.minBetMoney()).isEqualTo(Money.of(1));
-        assertThat(d.maxBetMoney()).as("no largest bet unless an owner sets one").isEqualTo(Money.ZERO);
         assertThat(d.gambleCooldownSeconds()).as("no wait between games").isZero();
         assertThat(d.mostTickets()).as("no cap on lottery tickets").isZero();
         assertThat(d.houseEdge()).isEqualTo(0.03);
@@ -214,7 +213,6 @@ public class EconomySettingsTest {
         EconomySettings d = EconomySettings.DEFAULTS;
         for (de.raindancer.modules.economy.model.Game game : de.raindancer.modules.economy.model.Game.values()) {
             assertThat(d.minBet(game)).as(game.key()).isEqualTo(d.minBetMoney());
-            assertThat(d.maxBet(game)).as(game.key()).isEqualTo(d.maxBetMoney());
             assertThat(d.edge(game)).as(game.key()).isEqualTo(d.houseEdge());
             assertThat(d.gameOn(game)).as(game.key()).isTrue();
         }
@@ -230,18 +228,28 @@ public class EconomySettingsTest {
     void gamesOwnSettings() {
         var slots = de.raindancer.modules.economy.model.Game.SLOTS;
         var dice = de.raindancer.modules.economy.model.Game.DICE;
-        EconomySettings s = with("gamble.max-bet", "1000", "slots.max-bet", "50", "slots.min-bet", "5",
-                "slots.house-edge-percent", "8", "dice.house-edge-percent", "nonsense", "dice.max-bet", "0",
+        EconomySettings s = with("slots.min-bet", "5",
+                "slots.house-edge-percent", "8", "dice.house-edge-percent", "nonsense",
                 "roulette.house-edge-percent", "90");
-        assertThat(s.maxBet(slots)).isEqualTo(Money.of(50));
         assertThat(s.minBet(slots)).isEqualTo(Money.of(5));
         assertThat(s.edge(slots)).isEqualTo(0.08);
         assertThat(s.edge(dice)).as("unreadable: the casino's").isEqualTo(s.houseEdge());
-        assertThat(s.maxBet(dice)).as("0: no limit for this game").isEqualTo(Money.ZERO);
-        assertThat(s.maxBet(de.raindancer.modules.economy.model.Game.MINES)).isEqualTo(Money.of(1000));
         assertThat(s.edge(de.raindancer.modules.economy.model.Game.ROULETTE)).as("at most 50 %").isEqualTo(0.5);
         assertThat(with("features.gambling", "false").gameOn(slots)).as("gambling off closes every game").isFalse();
         assertThat(with("features.slots", "false").gameOn(slots)).isFalse();
+    }
+
+    @Test
+    @DisplayName("a largest bet left in an old settings file caps nothing: there is no largest bet any more")
+    void noLargestBet() {
+        assertThat(java.util.Arrays.stream(EconomySettings.class.getRecordComponents())
+                .map(java.lang.reflect.RecordComponent::getName))
+                .noneMatch(name -> name.toLowerCase(java.util.Locale.ROOT).contains("maxbet"));
+        SettingsStore<EconomySettings> store = new SettingsStore<>(
+                SettingsSchema.of(EconomySettings.class, EconomySettings.DEFAULTS),
+                Path.of("target", "no-such-economy-settings.yml"));
+        assertThat(store.set("gamble.max-bet", "200")).as("not a setting any more").isFalse();
+        assertThat(store.set("crash.max-bet", "200")).isFalse();
     }
 
     @Test

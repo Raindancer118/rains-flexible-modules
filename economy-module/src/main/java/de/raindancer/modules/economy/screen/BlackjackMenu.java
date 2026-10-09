@@ -73,15 +73,8 @@ public final class BlackjackMenu extends Menu implements IEconomyScreen {
                 Mini.of(currency.render(services.economy().balance(viewer.getUniqueId())))));
         set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.PLAYER_HEAD, "<gold>Dealer",
                 "<white>\"" + current.map(game -> dealing ? "…" : game.says).orElse("Place your bet.") + "\""));
-        set(MenuLayout.HEADER_RIGHT, Icons.of(Material.PAPER, "<white>Bet: " + Mini.of(currency.render(bet.amount())),
-                playing ? "<dark_gray>In play" : "<yellow>Click<gray> to type a bet"), click -> {
-            if (!playing && !dealing) {
-                MoneyPrompt.ask(viewer, "Bet how much?", currency, value -> {
-                    bet.set(value);
-                    open();
-                }, this::open);
-            }
-        });
+        set(MenuLayout.HEADER_RIGHT, bet.slip(!playing), click -> bet.onSlip(click, !playing && !dealing, this::open,
+                this::refresh));
 
         current.ifPresent(game -> {
             boolean hidden = !game.finished || dealing && shownDealer < game.dealer.size();

@@ -98,7 +98,7 @@ public final class DiceMenu extends Menu implements IEconomyScreen, Bet.BetMenu 
                 refresh();
             }
         });
-        set(MenuLayout.HEADER_RIGHT, Icons.of(Material.PAPER, "<white>Bet: " + Mini.of(currency.render(bet.amount()))));
+        set(MenuLayout.HEADER_RIGHT, bet.slip(true), click -> bet.onSlip(click, true, this::open, this::refresh));
 
         int[] steps = {-10, -1, 1, 10};
         int[] columns = {1, 2, 6, 7};

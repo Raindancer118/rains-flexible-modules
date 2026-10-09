@@ -697,6 +697,19 @@ public final class Bot {
         }
     }
 
+    /**
+     * Types into an open anvil prompt and takes the result — what a player does with Core's AnvilInput.
+     * The result slot is filled by the server once it has the text, so this waits for it before clicking.
+     */
+    public Bot typeInAnvil(String text) {
+        Await.until(name + " sees an anvil", Duration.ofSeconds(15),
+                () -> window != null && window.type().toUpperCase(java.util.Locale.ROOT).contains("ANVIL"));
+        session.send(new org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.inventory
+                .ServerboundRenameItemPacket(text));
+        Await.ticks(5);
+        return clickSlot(2);
+    }
+
     /** Clicks {@code slot} of the open window with the left button. */
     public Bot clickSlot(int slot) {
         settle();

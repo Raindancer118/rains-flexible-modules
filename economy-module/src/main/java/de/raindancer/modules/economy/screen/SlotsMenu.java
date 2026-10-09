@@ -111,12 +111,13 @@ public final class SlotsMenu extends Menu implements IEconomyScreen, Bet.BetMenu
         toolbar(4, !spinning, Icons.of(Material.LEVER, "<green>Spin",
                 "<gray>For " + Mini.of(currency.render(bet.amount()))), "The reels are still turning.",
                 click -> spin());
+        toolbar(7, bet.slip(!spinning), click -> bet.onSlip(click, !spinning, this::open, this::refresh));
         toolbar(6, Icons.of(Material.LIME_STAINED_GLASS_PANE, "<green>Double the bet"), click -> {
             if (!spinning) {
                 try {
                     bet.set(bet.amount().times(2));
                 } catch (ArithmeticException tooBig) {
-                    // Held at the maximum bet.
+                    // As large as a number can be; it stays where it is.
                 }
                 refresh();
             }

@@ -36,9 +36,13 @@ public final class RaceMenu extends Menu implements IEconomyScreen {
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
-        RaceMenu menu = new RaceMenu(services, viewer, parent, new Bet(services, viewer));
-        menu.open();
-        MenuAnimation.loop(services.plugin(), menu, 8L, menu::refresh, () -> { });
+        new RaceMenu(services, viewer, parent, new Bet(services, viewer)).show();
+    }
+
+    /** Opens this very menu, bet and all, with its animation running. */
+    private void show() {
+        open();
+        MenuAnimation.loop(services.plugin(), this, 8L, this::refresh, () -> { });
     }
 
     @Override
@@ -62,12 +66,7 @@ public final class RaceMenu extends Menu implements IEconomyScreen {
             lane(horse, horse, at, winner, phase, currency);
         }
         if (phase == RaceService.Phase.BETTING) {
-            toolbar(1, Icons.of(Material.PAPER, "<white>Bet: " + Mini.of(currency.render(bet.amount())),
-                    "<yellow>Click<gray> to type a bet"), click -> MoneyPrompt.ask(viewer, "Bet how much?", currency,
-                    value -> {
-                        bet.set(value);
-                        open(services, viewer, null);
-                    }, () -> open(services, viewer, null)));
+            toolbar(1, bet.slip(true), click -> bet.onSlip(click, true, this::show, this::refresh));
             toolbar(4, Icons.of(Material.CLOCK, "<yellow>Gate opens in " + race.secondsToStart() + " s",
                     "<gray>Click a horse to bet on it."), click -> { });
         } else {

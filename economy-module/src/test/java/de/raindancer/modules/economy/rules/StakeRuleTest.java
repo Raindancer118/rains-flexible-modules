@@ -11,7 +11,6 @@ class StakeRuleTest {
 
     private final StakeRule rule = new StakeRule();
     private final Money least = Money.of(1);
-    private final Money noLimit = Money.ZERO;
 
     @Test
     @DisplayName("an amount is rounded down to 1, 2 or 5 of its size, so the buttons show round bets")
@@ -25,24 +24,30 @@ class StakeRuleTest {
     }
 
     @Test
-    @DisplayName("a share of the balance, within the smallest and largest bet")
+    @DisplayName("a share of the balance, never below the smallest bet and never capped above")
     void share() {
-        assertThat(rule.share(Money.of(10_000_000), 0.10, least, noLimit)).isEqualTo(Money.of(1_000_000));
-        assertThat(rule.share(Money.of(10_000_000), 0.25, least, Money.of(100_000)))
-                .as("never above the largest bet").isEqualTo(Money.of(100_000));
-        assertThat(rule.share(Money.of(50), 0.10, Money.of(10), noLimit)).as("never below the smallest")
+        assertThat(rule.share(Money.of(10_000_000), 0.10, least)).isEqualTo(Money.of(1_000_000));
+        assertThat(rule.share(Money.of(50), 0.10, Money.of(10))).as("never below the smallest")
                 .isEqualTo(Money.of(10));
-        assertThat(rule.share(Money.of(7_777), 1.0, least, noLimit)).as("all in is everything, not a round number")
+        assertThat(rule.share(Money.of(7_777), 1.0, least)).as("all in is everything, not a round number")
                 .isEqualTo(Money.of(7_777));
+        assertThat(rule.share(Money.of(9_000_000_000L), 1.0, least)).as("however much that is")
+                .isEqualTo(Money.of(9_000_000_000L));
+    }
+
+    @Test
+    @DisplayName("a typed bet is kept as typed, however large")
+    void typedIsKept() {
+        assertThat(rule.clamp(Money.of(1_000_000), least)).isEqualTo(Money.of(1_000_000));
+        assertThat(rule.clamp(Money.ZERO, Money.of(5))).isEqualTo(Money.of(5));
     }
 
     @Test
     @DisplayName("the bet a game opens with is about a hundredth of the balance")
     void opening() {
-        assertThat(rule.opening(Money.of(1_000), least, Money.of(100_000))).isEqualTo(Money.of(10));
-        assertThat(rule.opening(Money.of(10_000_000), least, noLimit)).isEqualTo(Money.of(100_000));
-        assertThat(rule.opening(Money.of(10_000_000), least, Money.of(50_000))).isEqualTo(Money.of(50_000));
-        assertThat(rule.opening(Money.ZERO, Money.of(5), noLimit)).as("nothing to bet: the smallest bet")
+        assertThat(rule.opening(Money.of(1_000), least)).isEqualTo(Money.of(10));
+        assertThat(rule.opening(Money.of(10_000_000), least)).isEqualTo(Money.of(100_000));
+        assertThat(rule.opening(Money.ZERO, Money.of(5))).as("nothing to bet: the smallest bet")
                 .isEqualTo(Money.of(5));
     }
 }

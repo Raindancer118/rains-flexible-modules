@@ -23,7 +23,7 @@ final class Bet {
     Bet(EconomyServices services, Player viewer) {
         this.services = services;
         this.viewer = viewer;
-        this.amount = STAKES.opening(balance(), least(), most());
+        this.amount = STAKES.opening(balance(), least());
     }
 
     /** The same stake, now at this game and inside its limits; null for the lobby. */
@@ -37,16 +37,50 @@ final class Bet {
         return game == null ? services.config().minBetMoney() : services.config().minBet(game);
     }
 
-    private Money most() {
-        return game == null ? services.config().maxBetMoney() : services.config().maxBet(game);
-    }
-
     Money amount() {
         return amount;
     }
 
     void set(Money value) {
-        this.amount = STAKES.clamp(value, least(), most());
+        this.amount = STAKES.clamp(value, least());
+    }
+
+    /** Everything the player has, however much that is. */
+    void allIn() {
+        set(balance());
+    }
+
+    /** The bet slip every game shows: click to type a bet, right click to go all in. */
+    org.bukkit.inventory.ItemStack slip(boolean open) {
+        java.util.List<String> lore = new java.util.ArrayList<>();
+        lore.add("<gray>You have " + Mini.of(services.currency().render(balance())));
+        if (open) {
+            lore.add("<yellow>Click<gray> to type a bet");
+            lore.add("<yellow>Right click<gray> to go all in");
+        } else {
+            lore.add("<dark_gray>In play");
+        }
+        return Icons.of(Material.PAPER, "<white>Bet: " + Mini.of(services.currency().render(amount)), lore);
+    }
+
+    /**
+     * @param reopen opens the same menu again after typing — never a new one, which would start from a new
+     *               bet and throw the typed one away
+     * @param redraw redraws in place, after going all in
+     */
+    void onSlip(org.bukkit.event.inventory.InventoryClickEvent click, boolean open, Runnable reopen, Runnable redraw) {
+        if (!open) {
+            return;
+        }
+        if (click.isRightClick()) {
+            allIn();
+            redraw.run();
+            return;
+        }
+        MoneyPrompt.ask(viewer, "Bet how much?", services.currency(), value -> {
+            set(value);
+            reopen.run();
+        }, reopen);
     }
 
     private Money balance() {
@@ -55,33 +89,25 @@ final class Bet {
 
     /**
      * One band of bet buttons, sized from what the player has: halve, a tenth, a quarter, the bet itself (click to
-     * type one), half, all in, double. Each stays within the server's smallest and largest bet.
+     * type one), half, all in, double. None goes below the smallest bet, and nothing caps them above.
      */
     void buttons(BetMenu menu, int band, Player viewer) {
         Money least = least();
-        Money most = most();
         Money balance = balance();
         menu.placeBand(band, 1, Icons.of(Material.RED_STAINED_GLASS_PANE, "<red>Halve the bet"), click -> {
             set(Money.of(Math.max(1, amount.minor() / 2)));
             menu.refresh();
         });
-        share(menu, band, 2, Material.IRON_NUGGET, "A tenth", STAKES.share(balance, 0.10, least, most));
-        share(menu, band, 3, Material.IRON_INGOT, "A quarter", STAKES.share(balance, 0.25, least, most));
-        menu.placeBand(band, 4, Icons.of(Material.PAPER, "<white>Bet: " + Mini.of(services.currency().render(amount)),
-                "<gray>You have " + Mini.of(services.currency().render(balance)),
-                most.isPositive() ? "<dark_gray>Largest bet here: " + Mini.of(services.currency().render(most)) : "",
-                "<yellow>Click<gray> to type a bet"), click -> MoneyPrompt.ask(viewer, "Bet how much?",
-                services.currency(), value -> {
-                    set(value);
-                    menu.reopenAfterPrompt();
-                }, menu::reopenAfterPrompt));
-        share(menu, band, 5, Material.GOLD_INGOT, "Half", STAKES.share(balance, 0.5, least, most));
-        share(menu, band, 6, Material.GOLD_BLOCK, "All in", STAKES.share(balance, 1.0, least, most));
+        share(menu, band, 2, Material.IRON_NUGGET, "A tenth", STAKES.share(balance, 0.10, least));
+        share(menu, band, 3, Material.IRON_INGOT, "A quarter", STAKES.share(balance, 0.25, least));
+        menu.placeBand(band, 4, slip(true), click -> onSlip(click, true, menu::reopenAfterPrompt, menu::refresh));
+        share(menu, band, 5, Material.GOLD_INGOT, "Half", STAKES.share(balance, 0.5, least));
+        share(menu, band, 6, Material.GOLD_BLOCK, "All in", STAKES.share(balance, 1.0, least));
         menu.placeBand(band, 7, Icons.of(Material.LIME_STAINED_GLASS_PANE, "<green>Double the bet"), click -> {
             try {
                 set(amount.times(2));
             } catch (ArithmeticException tooBig) {
-                // Already as large as anything can be; the maximum bet keeps it there.
+                // Already as large as a number can be; it stays where it is.
             }
             menu.refresh();
         });

@@ -57,15 +57,7 @@ public final class BaccaratMenu extends Menu implements IEconomyScreen {
                 : coup.winner() == BaccaratRule.Side.TIE ? "A tie." : (coup.winner() == BaccaratRule.Side.PLAYER
                 ? "Player" : "Banker") + " wins, " + rule.points(coup.player()) + " to " + rule.points(coup.banker()) + ".";
         set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.PLAYER_HEAD, "<gold>Dealer", "<white>\"" + says + "\""));
-        set(MenuLayout.HEADER_RIGHT, Icons.of(Material.PAPER, "<white>Bet: " + Mini.of(currency.render(bet.amount())),
-                "<yellow>Click<gray> to type a bet"), click -> {
-            if (!dealing) {
-                MoneyPrompt.ask(viewer, "Bet how much?", currency, value -> {
-                    bet.set(value);
-                    open();
-                }, this::open);
-            }
-        });
+        set(MenuLayout.HEADER_RIGHT, bet.slip(true), click -> bet.onSlip(click, !dealing, this::open, this::refresh));
 
         if (coup != null) {
             // Dealt in order: player, banker, player, banker, then any third cards.

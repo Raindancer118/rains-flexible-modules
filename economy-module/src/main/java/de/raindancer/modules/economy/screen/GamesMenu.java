@@ -61,7 +61,7 @@ public final class GamesMenu extends Menu implements IEconomyScreen {
         Money loss = live.dailyLossLimitMoney();
         set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.GOLD_BLOCK, "<gold>The whole casino",
                 "<gray>The house keeps <white>" + CasinoMenu.percent(live.houseEdge()) + "%",
-                "<gray>Bets: " + bets(currency, live.minBetMoney(), live.maxBetMoney()),
+                "<gray>Bets: " + bets(currency, live.minBetMoney()),
                 "<gray>Most lost a day: " + (loss.isPositive() ? Mini.of(currency.render(loss)) : "<white>no limit"),
                 "<dark_gray>A game's own settings win over these.",
                 "", "<yellow>Click<gray> to change"),
@@ -95,7 +95,7 @@ public final class GamesMenu extends Menu implements IEconomyScreen {
                     + (live.edge(game) == live.houseEdge() ? " <dark_gray>(the casino's)" : ""));
         }
         if (game.bets()) {
-            lore.add("<gray>Bets: " + bets(currency, live.minBet(game), live.maxBet(game)));
+            lore.add("<gray>Bets: " + bets(currency, live.minBet(game)));
         }
         switch (game) {
             case BLACKJACK -> {
@@ -121,9 +121,8 @@ public final class GamesMenu extends Menu implements IEconomyScreen {
         return Icons.of(open ? game.icon() : Material.GRAY_DYE, (open ? "<yellow>" : "<gray>") + game.title(), lore);
     }
 
-    private static String bets(Currency currency, Money least, Money most) {
-        return Mini.of(currency.render(least)) + "<gray> to "
-                + (most.isPositive() ? Mini.of(currency.render(most)) : "<white>any amount");
+    private static String bets(Currency currency, Money least) {
+        return Mini.of(currency.render(least)) + "<gray> to <white>any amount";
     }
 
     private static String naturalPays(NaturalPay pays) {

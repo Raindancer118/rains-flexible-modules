@@ -37,9 +37,13 @@ public final class CrashMenu extends Menu implements IEconomyScreen {
     }
 
     public static void open(EconomyServices services, Player viewer, Menu parent) {
-        CrashMenu menu = new CrashMenu(services, viewer, parent, new Bet(services, viewer));
-        menu.open();
-        MenuAnimation.loop(services.plugin(), menu, 4L, menu::frame, () -> { });
+        new CrashMenu(services, viewer, parent, new Bet(services, viewer)).show();
+    }
+
+    /** Opens this very menu, bet and all, with its animation running. */
+    private void show() {
+        open();
+        MenuAnimation.loop(services.plugin(), this, 4L, this::frame, () -> { });
     }
 
     private void frame() {
@@ -105,12 +109,7 @@ public final class CrashMenu extends Menu implements IEconomyScreen {
         }
 
         if (phase == CrashService.Phase.BETTING && mine == null) {
-            set(1 * 9 + 1, Icons.of(Material.PAPER, "<white>Bet: " + Mini.of(currency.render(bet.amount())),
-                    "<yellow>Click<gray> to type a bet"), click -> MoneyPrompt.ask(viewer, "Bet how much?", currency,
-                    value -> {
-                        bet.set(value);
-                        open(services, viewer, null);
-                    }, () -> open(services, viewer, null)));
+            set(1 * 9 + 1, bet.slip(true), click -> bet.onSlip(click, true, this::show, this::refresh));
             set(2 * 9 + 1, Icons.of(Material.REPEATER, "<white>Cash out by itself at: "
                             + (autoCashOut > 1 ? String.format("%.2f×", autoCashOut) : "never"),
                     "<yellow>Click<gray> for higher, <yellow>right click<gray> to switch off"), click -> {

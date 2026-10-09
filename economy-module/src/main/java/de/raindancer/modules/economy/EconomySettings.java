@@ -380,10 +380,6 @@ public record EconomySettings(
         @In("economy/gambling") @Title("Smallest bet") @Describe("At any game without one of its own.")
         @Key("gamble.min-bet") String minBet,
 
-        @In("economy/gambling") @Title("Largest bet")
-        @Describe("For one bet at any game without one of its own. 0 for no limit.")
-        @Key("gamble.max-bet") String maxBet,
-
         @In("economy/gambling") @Title("House edge, percent")
         @Describe("What the casino keeps on average, 0 to 50, at every game without an edge of its own. The "
                 + "payouts are worked out from it exactly, so this is the real edge, not a guess.")
@@ -408,10 +404,6 @@ public record EconomySettings(
         @Describe("Empty: the casino's smallest bet.")
         @Key("coinflip.min-bet") String coinflipMinBet,
 
-        @In("economy/gambling/coinflip") @Title("Largest bet")
-        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
-        @Key("coinflip.max-bet") String coinflipMaxBet,
-
         @In("economy/gambling/coinflip") @Title("The house keeps, percent")
         @Describe("What a coin flip keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
                 + "Empty: the casino's house edge.")
@@ -428,10 +420,6 @@ public record EconomySettings(
         @Describe("Empty: the casino's smallest bet.")
         @Key("dice.min-bet") String diceMinBet,
 
-        @In("economy/gambling/dice") @Title("Largest bet")
-        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
-        @Key("dice.max-bet") String diceMaxBet,
-
         @In("economy/gambling/dice") @Title("The house keeps, percent")
         @Describe("What dice keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
                 + "Empty: the casino's house edge.")
@@ -443,10 +431,6 @@ public record EconomySettings(
         @In("economy/gambling/slots") @Title("Smallest bet")
         @Describe("Empty: the casino's smallest bet.")
         @Key("slots.min-bet") String slotsMinBet,
-
-        @In("economy/gambling/slots") @Title("Largest bet")
-        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
-        @Key("slots.max-bet") String slotsMaxBet,
 
         @In("economy/gambling/slots") @Title("The house keeps, percent")
         @Describe("What the slot machine keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
@@ -460,10 +444,6 @@ public record EconomySettings(
         @Describe("Empty: the casino's smallest bet.")
         @Key("roulette.min-bet") String rouletteMinBet,
 
-        @In("economy/gambling/roulette") @Title("Largest bet")
-        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
-        @Key("roulette.max-bet") String rouletteMaxBet,
-
         @In("economy/gambling/roulette") @Title("The house keeps, percent")
         @Describe("What roulette keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
                 + "Empty: the casino's house edge.")
@@ -475,10 +455,6 @@ public record EconomySettings(
         @In("economy/gambling/blackjack") @Title("Smallest bet")
         @Describe("Empty: the casino's smallest bet.")
         @Key("blackjack.min-bet") String blackjackMinBet,
-
-        @In("economy/gambling/blackjack") @Title("Largest bet")
-        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
-        @Key("blackjack.max-bet") String blackjackMaxBet,
 
         @In("economy/gambling/blackjack") @Title("A natural pays")
         @Describe("Three to two is the fair table, about half a percent to the house. Six to five takes about 1.4 "
@@ -500,10 +476,6 @@ public record EconomySettings(
         @Describe("Empty: the casino's smallest bet.")
         @Key("baccarat.min-bet") String baccaratMinBet,
 
-        @In("economy/gambling/baccarat") @Title("Largest bet")
-        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
-        @Key("baccarat.max-bet") String baccaratMaxBet,
-
         @In("economy/gambling/baccarat") @Title("A tie pays, to one") @Range(min = 5, max = 9)
         @Describe("8 is the usual table (about 14 percent to the house on a tie bet), 9 the generous one.")
         @Key("baccarat.tie-pays") int baccaratTiePays,
@@ -519,10 +491,6 @@ public record EconomySettings(
         @Describe("Empty: the casino's smallest bet.")
         @Key("hilo.min-bet") String hiloMinBet,
 
-        @In("economy/gambling/hilo") @Title("Largest bet")
-        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
-        @Key("hilo.max-bet") String hiloMaxBet,
-
         @In("economy/gambling/hilo") @Title("The house keeps, percent")
         @Describe("What Hi-Lo keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
                 + "Empty: the casino's house edge.")
@@ -535,10 +503,6 @@ public record EconomySettings(
         @Describe("Empty: the casino's smallest bet.")
         @Key("mines.min-bet") String minesMinBet,
 
-        @In("economy/gambling/mines") @Title("Largest bet")
-        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
-        @Key("mines.max-bet") String minesMaxBet,
-
         @In("economy/gambling/mines") @Title("The house keeps, percent")
         @Describe("What mines keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
                 + "Empty: the casino's house edge.")
@@ -550,10 +514,6 @@ public record EconomySettings(
         @In("economy/gambling/crash") @Title("Smallest bet")
         @Describe("Empty: the casino's smallest bet.")
         @Key("crash.min-bet") String crashMinBet,
-
-        @In("economy/gambling/crash") @Title("Largest bet")
-        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
-        @Key("crash.max-bet") String crashMaxBet,
 
         @In("economy/gambling/crash") @Title("The house keeps, percent")
         @Describe("What crash keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
@@ -574,10 +534,6 @@ public record EconomySettings(
         @In("economy/gambling/race") @Title("Smallest bet")
         @Describe("Empty: the casino's smallest bet.")
         @Key("race.min-bet") String raceMinBet,
-
-        @In("economy/gambling/race") @Title("Largest bet")
-        @Describe("Empty: the casino's largest bet. 0: no limit at this game.")
-        @Key("race.max-bet") String raceMaxBet,
 
         @In("economy/gambling/race") @Title("The house keeps, percent")
         @Describe("What a horse race keeps on average, 0 to 50 — the payouts are worked out from it exactly. "
@@ -822,17 +778,17 @@ public record EconomySettings(
             // interest
             true, 0.25, 60, "250",
             // gambling
-            true, "1", "0", 3.0, "0", 0, "",
-            true, "", "", "", 60,
-            true, "", "", "",
-            true, "", "", "",
-            true, "", "", "",
-            true, "", "", NaturalPay.THREE_TO_TWO, false, 6,
-            true, "", "", 8, 5.0,
-            true, "", "", "",
-            true, "", "", "",
-            true, "", "", "", 10, 1000,
-            true, "", "", "", 45,
+            true, "1", 3.0, "0", 0, "",
+            true, "", "", 60,
+            true, "", "",
+            true, "", "",
+            true, "", "",
+            true, "", NaturalPay.THREE_TO_TWO, false, 6,
+            true, "", 8, 5.0,
+            true, "", "",
+            true, "", "",
+            true, "", "", 10, 1000,
+            true, "", "", 45,
             true, "50", "",
             true, "100", 24, 0, 4, 20, 10.0,
             // auctions
@@ -926,9 +882,6 @@ public record EconomySettings(
         return money(minBet, DEFAULTS.minBet);
     }
 
-    public Money maxBetMoney() {
-        return money(maxBet, DEFAULTS.maxBet);
-    }
 
     public Money dailyLossLimitMoney() {
         return settingOrZero(dailyLossLimit);
@@ -1047,22 +1000,6 @@ public record EconomySettings(
         }).orElseGet(this::minBetMoney);
     }
 
-    /** A game's largest bet: its own, else the casino's; zero for no limit. */
-    public Money maxBet(Game game) {
-        return ownMoney(switch (game) {
-            case COINFLIP -> coinflipMaxBet;
-            case DICE -> diceMaxBet;
-            case SLOTS -> slotsMaxBet;
-            case ROULETTE -> rouletteMaxBet;
-            case BLACKJACK -> blackjackMaxBet;
-            case BACCARAT -> baccaratMaxBet;
-            case HILO -> hiloMaxBet;
-            case MINES -> minesMaxBet;
-            case CRASH -> crashMaxBet;
-            case RACE -> raceMaxBet;
-            case SCRATCH, LOTTERY -> "";
-        }).orElseGet(this::maxBetMoney);
-    }
 
     /** A game's house edge as a fraction: its own, else the casino's. */
     public double edge(Game game) {

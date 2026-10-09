@@ -153,12 +153,11 @@ public final class GamblingService implements IEconomyService {
             refuse(player, "economy.not-an-amount");
             return false;
         }
-        Optional<BetRefusal> refusal = rule.refusal(stake, live.minBet(game), live.maxBet(game),
+        Optional<BetRefusal> refusal = rule.refusal(stake, live.minBet(game),
                 lostToday(player.getUniqueId()), live.dailyLossLimitMoney());
         if (refusal.isPresent()) {
             switch (refusal.get()) {
                 case BELOW_MINIMUM -> refuse(player, "economy.gamble.too-little", "amount", currency.render(live.minBet(game)));
-                case ABOVE_MAXIMUM -> refuse(player, "economy.gamble.too-much", "amount", currency.render(live.maxBet(game)));
                 case LOSS_LIMIT -> refuse(player, "economy.gamble.loss-limit", "amount",
                         currency.render(live.dailyLossLimitMoney()));
             }

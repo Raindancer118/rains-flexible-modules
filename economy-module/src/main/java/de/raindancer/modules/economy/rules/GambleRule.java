@@ -16,12 +16,10 @@ public final class GambleRule implements IEconomyRule {
     public static final double LEAST_CHANCE = 0.01;
     public static final double MOST_CHANCE = 0.95;
 
-    public Optional<BetRefusal> refusal(Money stake, Money least, Money most, Money lostToday, Money lossLimit) {
+    /** No bet is too large: going all in is always allowed, at any game. */
+    public Optional<BetRefusal> refusal(Money stake, Money least, Money lostToday, Money lossLimit) {
         if (least.isPositive() && !stake.isAtLeast(least)) {
             return Optional.of(BetRefusal.BELOW_MINIMUM);
-        }
-        if (most.isPositive() && stake.isMoreThan(most)) {
-            return Optional.of(BetRefusal.ABOVE_MAXIMUM);
         }
         if (lossLimit.isPositive() && lostToday.plus(stake).isMoreThan(lossLimit)) {
             return Optional.of(BetRefusal.LOSS_LIMIT);

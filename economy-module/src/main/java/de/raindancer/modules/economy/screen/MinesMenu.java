@@ -78,15 +78,7 @@ public final class MinesMenu extends Menu implements IEconomyScreen {
 
         set(0, Icons.of(Material.GOLD_INGOT, "<white>Balance",
                 Mini.of(currency.render(services.economy().balance(viewer.getUniqueId())))));
-        set(9, Icons.of(Material.PAPER, "<white>Bet: " + Mini.of(currency.render(bet.amount())),
-                playing ? "<dark_gray>In play" : "<yellow>Click<gray> to type a bet"), click -> {
-            if (!playing) {
-                MoneyPrompt.ask(viewer, "Bet how much?", currency, value -> {
-                    bet.set(value);
-                    open();
-                }, this::open);
-            }
-        });
+        set(9, bet.slip(!playing), click -> bet.onSlip(click, !playing, this::open, this::refresh));
         set(18, Icons.of(Material.TNT, "<white>Mines: " + mineCount, playing ? "<dark_gray>In play"
                 : "<yellow>Click<gray> for more, <yellow>right click<gray> for fewer"), click -> {
             if (!playing) {

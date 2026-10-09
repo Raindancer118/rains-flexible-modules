@@ -19,25 +19,20 @@ public final class StakeRule implements IEconomyRule {
         return Money.of((lead >= 5 ? 5 : lead >= 2 ? 2 : 1) * power);
     }
 
-    /**
-     * That share of the balance, rounded unless it is all of it.
-     *
-     * @param most the largest bet; zero for none
-     */
-    public Money share(Money balance, double fraction, Money least, Money most) {
+    /** That share of the balance, rounded unless it is all of it. */
+    public Money share(Money balance, double fraction, Money least) {
         Money part = fraction >= 1 ? balance : nice(balance.share(fraction));
-        return clamp(part, least, most);
+        return clamp(part, least);
     }
 
     /** What a game starts with: about a hundredth of the balance. */
-    public Money opening(Money balance, Money least, Money most) {
-        return clamp(nice(balance.share(0.01)), least, most);
+    public Money opening(Money balance, Money least) {
+        return clamp(nice(balance.share(0.01)), least);
     }
 
-    public Money clamp(Money amount, Money least, Money most) {
-        Money floor = least.isPositive() ? least : Money.of(1);
-        Money at = amount.max(floor);
-        return most.isPositive() ? at.min(most) : at;
+    /** Never below the smallest bet; never capped above — all in is always all in. */
+    public Money clamp(Money amount, Money least) {
+        return amount.max(least.isPositive() ? least : Money.of(1));
     }
 
     @Override

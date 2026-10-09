@@ -27,13 +27,13 @@ class GamblingRulesTest {
     }
 
     @Test
-    @DisplayName("bets outside the limits, or past the day's loss limit, are refused")
+    @DisplayName("bets below the smallest, or past the day's loss limit, are refused; nothing is too large")
     void limits() {
-        assertThat(gamble.refusal(m(50), m(100), m(1000), Money.ZERO, Money.ZERO)).contains(BetRefusal.BELOW_MINIMUM);
-        assertThat(gamble.refusal(m(1001), m(100), m(1000), Money.ZERO, Money.ZERO)).contains(BetRefusal.ABOVE_MAXIMUM);
-        assertThat(gamble.refusal(m(500), m(100), m(1000), m(600), m(1000))).contains(BetRefusal.LOSS_LIMIT);
-        assertThat(gamble.refusal(m(400), m(100), m(1000), m(600), m(1000))).isEmpty();
-        assertThat(gamble.refusal(m(500), m(100), m(1000), m(99999), Money.ZERO)).as("no limit").isEmpty();
+        assertThat(gamble.refusal(m(50), m(100), Money.ZERO, Money.ZERO)).contains(BetRefusal.BELOW_MINIMUM);
+        assertThat(gamble.refusal(m(9_000_000_000L), m(100), Money.ZERO, Money.ZERO)).as("all in, any size").isEmpty();
+        assertThat(gamble.refusal(m(500), m(100), m(600), m(1000))).contains(BetRefusal.LOSS_LIMIT);
+        assertThat(gamble.refusal(m(400), m(100), m(600), m(1000))).isEmpty();
+        assertThat(gamble.refusal(m(500), m(100), m(99999), Money.ZERO)).as("no limit").isEmpty();
     }
 
     @Test

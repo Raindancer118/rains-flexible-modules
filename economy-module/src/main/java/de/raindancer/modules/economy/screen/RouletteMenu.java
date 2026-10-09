@@ -74,15 +74,7 @@ public final class RouletteMenu extends Menu implements IEconomyScreen, Bet.BetM
         set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.POINTED_DRIPSTONE, "<white>▼",
                 spinning ? "<gray>The ball is rolling…" : last == null ? "<gray>Place a bet and spin."
                         : "<gray>Landed on <white>" + last.pocket()));
-        set(MenuLayout.HEADER_RIGHT, Icons.of(Material.PAPER, "<white>Bet: " + Mini.of(currency.render(bet.amount())),
-                "<yellow>Click<gray> to type a bet"), click -> {
-            if (!spinning) {
-                MoneyPrompt.ask(viewer, "Bet how much?", currency, value -> {
-                    bet.set(value);
-                    open();
-                }, this::open);
-            }
-        });
+        set(MenuLayout.HEADER_RIGHT, bet.slip(true), click -> bet.onSlip(click, !spinning, this::open, this::refresh));
 
         for (int column = 0; column < 9; column++) {
             int index = Math.floorMod(at + column - 4, RouletteRule.WHEEL.size());

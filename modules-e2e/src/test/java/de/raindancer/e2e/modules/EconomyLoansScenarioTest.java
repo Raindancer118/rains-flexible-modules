@@ -122,17 +122,15 @@ class EconomyLoansScenarioTest {
             bo.run("loan repay");
             Await.until("nothing is owed now", WAIT, () -> said(bo, "You owe the bank nothing"));
 
-            // ---- a game's own largest bet wins over the casino's (which has none)
-            server.console("settings set economy:dice.max-bet 5");
+            // ---- there is no largest bet: the whole 50 is played (lost: 450; won at 3 % edge: 547)
             server.console("settings set economy:slots.house-edge-percent 8");
             Await.ticks(10);
             ada.run("eco give Bo 500");
             Await.ticks(10);
             bo.forgetChat();
             bo.run("dice 50 over 50");
-            // The bet is held to the table's limit: 50 becomes 5, so the balance moves by 5 or a win on 5.
-            Await.until(() -> "the dice table's own limit (Bo heard " + bo.chatText() + ")", WAIT,
-                    () -> said(bo, "Balance: ⛃495") || said(bo, "Balance: ⛃504"));
+            Await.until(() -> "the whole bet is played (Bo heard " + bo.chatText() + ")", WAIT,
+                    () -> said(bo, "Balance: ⛃450") || said(bo, "Balance: ⛃547"));
 
             // ---- /eco: the casino page shows each game's own edge; a door opens a settings page at its topic
             ada.run("eco");

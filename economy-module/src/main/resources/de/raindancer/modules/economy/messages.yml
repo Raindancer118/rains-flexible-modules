@@ -112,7 +112,6 @@ economy:
     not-allowed: "<red>You may not gamble."
     loan-overdue: "<red>Gambling with the bank's money while your loan is overdue? Bold. Pay it back first: <white>/loan</white>"
     too-little: "<red>The smallest bet is <amount><red>."
-    too-much: "<red>The largest bet is <amount><red>."
     loss-limit: "<red>That would take you past the most anybody may lose in a day (<amount><red>). Come back tomorrow."
     wait: "<red>Not so fast."
     flip-won: "<green>It landed <white><side></white>! You won <amount><green>. Balance: <balance><green>."
