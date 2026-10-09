@@ -128,7 +128,7 @@
           by operating on Block#getState(false), the real block entity Paper itself documents as "to
           operate on real block data" — the same live path every other container interaction takes.
         -->
-        <plugin.version>1.8.0</plugin.version>
+        <plugin.version>1.9.0</plugin.version>
     </properties>
 
     <dependencies>

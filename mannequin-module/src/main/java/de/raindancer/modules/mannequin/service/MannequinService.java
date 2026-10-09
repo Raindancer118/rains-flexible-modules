@@ -111,7 +111,13 @@ public final class MannequinService implements IMannequinService {
                 anchor.getBlockX(), anchor.getBlockY(), anchor.getBlockZ(), kind, anchor.getYaw());
         registry.put(mannequin);
         store.save(mannequin);
-        spawn(mannequin);
+        try {
+            spawn(mannequin);
+        } catch (RuntimeException failed) {
+            // A mannequin that never stood up must not come back at the next restart.
+            remove(id);
+            throw failed;
+        }
         return mannequin;
     }
 

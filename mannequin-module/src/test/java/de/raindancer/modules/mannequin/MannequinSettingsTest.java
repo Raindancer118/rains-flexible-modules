@@ -34,6 +34,8 @@ class MannequinSettingsTest {
                     .as("max health matches a normal player's own 20")
                     .isEqualTo(20.0);
             assertThat(defaults.respawnDelaySeconds()).as("respawn delay").isEqualTo(1);
+            assertThat(defaults.price()).as("creating one is free").isEqualTo("0");
+            assertThat(defaults.refundPercentOnRemove()).as("nothing back on removal").isZero();
         }
     }
 

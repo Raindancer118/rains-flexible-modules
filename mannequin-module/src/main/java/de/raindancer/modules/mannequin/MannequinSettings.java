@@ -77,10 +77,22 @@ public record MannequinSettings(
         @Describe("Seconds after a mannequin dies before an identical replacement — same block, "
                 + "same loadout, same skin — takes its place.")
         @Key("respawn-delay-seconds")
-        int respawnDelaySeconds) {
+        int respawnDelaySeconds,
+
+        @In("mannequin/access") @Title("Price of a mannequin")
+        @Describe("Money taken when somebody creates one, such as 50 or 1.5k. 0 for free. Needs an "
+                + "economy plugin once set; refunded if the mannequin could not be placed.")
+        @Key("price")
+        String price,
+
+        @In("mannequin/access") @Title("Refund when removed, percent") @Range(min = 0, max = 100)
+        @Describe("Share of the price given back to the owner when a mannequin is removed. 0 for "
+                + "nothing, 100 for all of it.")
+        @Key("refund-percent-on-remove")
+        double refundPercentOnRemove) {
 
     public static final MannequinSettings DEFAULTS =
-            new MannequinSettings(true, 2000, true, 4, 20, 20, 20.0, 1);
+            new MannequinSettings(true, 2000, true, 4, 20, 20, 20.0, 1, "0", 0);
 
     // ------------------------------------------------------------------ read back safely
 
@@ -116,41 +128,53 @@ public record MannequinSettings(
 
     public MannequinSettings withOpenCreation(boolean open) {
         return new MannequinSettings(open, comboWindowMillis, blockingEnabled, shieldRangeBlocks,
-                oneShotThreshold, redstonePulseTicks, maxHealth, respawnDelaySeconds);
+                oneShotThreshold, redstonePulseTicks, maxHealth, respawnDelaySeconds, price, refundPercentOnRemove);
     }
 
     public MannequinSettings withComboWindowMillis(int millis) {
         return new MannequinSettings(openCreation, millis, blockingEnabled, shieldRangeBlocks,
-                oneShotThreshold, redstonePulseTicks, maxHealth, respawnDelaySeconds);
+                oneShotThreshold, redstonePulseTicks, maxHealth, respawnDelaySeconds, price, refundPercentOnRemove);
     }
 
     public MannequinSettings withBlockingEnabled(boolean enabled) {
         return new MannequinSettings(openCreation, comboWindowMillis, enabled, shieldRangeBlocks,
-                oneShotThreshold, redstonePulseTicks, maxHealth, respawnDelaySeconds);
+                oneShotThreshold, redstonePulseTicks, maxHealth, respawnDelaySeconds, price, refundPercentOnRemove);
     }
 
     public MannequinSettings withShieldRangeBlocks(int blocks) {
         return new MannequinSettings(openCreation, comboWindowMillis, blockingEnabled, blocks,
-                oneShotThreshold, redstonePulseTicks, maxHealth, respawnDelaySeconds);
+                oneShotThreshold, redstonePulseTicks, maxHealth, respawnDelaySeconds, price, refundPercentOnRemove);
     }
 
     public MannequinSettings withOneShotThreshold(int threshold) {
         return new MannequinSettings(openCreation, comboWindowMillis, blockingEnabled,
-                shieldRangeBlocks, threshold, redstonePulseTicks, maxHealth, respawnDelaySeconds);
+                shieldRangeBlocks, threshold, redstonePulseTicks, maxHealth, respawnDelaySeconds, price, refundPercentOnRemove);
     }
 
     public MannequinSettings withRedstonePulseTicks(int ticks) {
         return new MannequinSettings(openCreation, comboWindowMillis, blockingEnabled,
-                shieldRangeBlocks, oneShotThreshold, ticks, maxHealth, respawnDelaySeconds);
+                shieldRangeBlocks, oneShotThreshold, ticks, maxHealth, respawnDelaySeconds, price, refundPercentOnRemove);
     }
 
     public MannequinSettings withMaxHealth(double health) {
         return new MannequinSettings(openCreation, comboWindowMillis, blockingEnabled,
-                shieldRangeBlocks, oneShotThreshold, redstonePulseTicks, health, respawnDelaySeconds);
+                shieldRangeBlocks, oneShotThreshold, redstonePulseTicks, health, respawnDelaySeconds, price, refundPercentOnRemove);
     }
 
     public MannequinSettings withRespawnDelaySeconds(int seconds) {
         return new MannequinSettings(openCreation, comboWindowMillis, blockingEnabled,
-                shieldRangeBlocks, oneShotThreshold, redstonePulseTicks, maxHealth, seconds);
+                shieldRangeBlocks, oneShotThreshold, redstonePulseTicks, maxHealth, seconds, price, refundPercentOnRemove);
+    }
+
+    public MannequinSettings withPrice(String value) {
+        return new MannequinSettings(openCreation, comboWindowMillis, blockingEnabled,
+                shieldRangeBlocks, oneShotThreshold, redstonePulseTicks, maxHealth,
+                respawnDelaySeconds, value, refundPercentOnRemove);
+    }
+
+    public MannequinSettings withRefundPercentOnRemove(double percent) {
+        return new MannequinSettings(openCreation, comboWindowMillis, blockingEnabled,
+                shieldRangeBlocks, oneShotThreshold, redstonePulseTicks, maxHealth,
+                respawnDelaySeconds, price, percent);
     }
 }

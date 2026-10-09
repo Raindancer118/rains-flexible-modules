@@ -1,6 +1,9 @@
 package de.raindancer.modules.xpbottle.service;
 
 import de.raindancer.core.platform.util.Cooldowns;
+import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
@@ -35,8 +38,30 @@ import java.util.UUID;
  */
 public final class BottlingService implements IXpBottleService {
 
+    public static final String SOURCE = "xpbottle.fee";
+
+    /** Takes and gives back the fee; the live one is {@link Fees}. */
+    public interface FeeBank {
+        EconomyResult charge(UUID payer, Money fee, String reason);
+
+        void refund(UUID payer, Money taken, String reason);
+    }
+
+    private static final FeeBank LIVE = new FeeBank() {
+        @Override
+        public EconomyResult charge(UUID payer, Money fee, String reason) {
+            return Fees.charge(payer, fee, reason, SOURCE);
+        }
+
+        @Override
+        public void refund(UUID payer, Money taken, String reason) {
+            Fees.refund(payer, taken, reason, SOURCE);
+        }
+    };
+
     private final Messages messages;
     private final Effects effects;
+    private final FeeBank bank;
     private final FillAmountRule fill;
     private final BottleForge forge;
     private final Cooldowns<UUID> between = new Cooldowns<>();
@@ -45,6 +70,12 @@ public final class BottlingService implements IXpBottleService {
 
     public BottlingService(Messages messages, Effects effects, FillAmountRule fill,
                            BottleForge forge, XpBottleSettings settings) {
+        this(messages, effects, fill, forge, settings, LIVE);
+    }
+
+    public BottlingService(Messages messages, Effects effects, FillAmountRule fill,
+                           BottleForge forge, XpBottleSettings settings, FeeBank bank) {
+        this.bank = bank;
         this.messages = messages;
         this.effects = effects;
         this.fill = fill;
@@ -105,12 +136,22 @@ public final class BottlingService implements IXpBottleService {
             return Bottling.nothingToTake(bottle);
         }
 
+        EconomyResult paid = bank.charge(player.getUniqueId(), Fees.amount(live.fee()), "XP bottle");
+        if (!paid.succeeded()) {
+            messages.send(player, paid.outcome() == EconomyResult.Outcome.NOT_ENOUGH
+                    ? "xpbottle.fee-not-enough" : "xpbottle.fee-refused",
+                    "price", Fees.format(paid.amount()));
+            effects.play(player.getUniqueId(), Cues.NO);
+            return Bottling.nothingToTake(bottle);
+        }
+
         // The bottle exists before anything is taken, and what is taken is what the bottle was
         // told it holds — never the amount that was asked for. A player whose experience changed
         // between the two (a mob died, an anvil was used) loses what went in and no more.
         ItemStack filled = forge.stackFor(filling.bottle());
         int taken = takeFrom(player, filling.moved());
         if (taken <= 0) {
+            bank.refund(player.getUniqueId(), paid.amount(), "XP bottle not filled");
             return Bottling.nothingToTake(bottle);
         }
         if (taken < filling.moved()) {
@@ -121,6 +162,9 @@ public final class BottlingService implements IXpBottleService {
         between.start(player.getUniqueId());
         effects.play(player.getUniqueId(), Cues.MAGIC);
         messages.send(player, "xpbottle.filled", "points", String.valueOf(taken));
+        if (paid.amount().isPositive()) {
+            messages.send(player, "xpbottle.fee-paid", "price", Fees.format(paid.amount()));
+        }
         return Bottling.of(taken, bottle.plus(taken));
     }
 

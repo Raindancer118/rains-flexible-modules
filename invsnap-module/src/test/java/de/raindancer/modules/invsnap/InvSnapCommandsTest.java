@@ -19,12 +19,12 @@ class InvSnapCommandsTest {
     class Declaring {
 
         @Test
-        @DisplayName("there is exactly one command, and it is /invsnap")
-        void oneCommand() {
+        @DisplayName("there are two commands: /invsnap and /insurance")
+        void twoCommands() {
             List<ModuleCommand> declared = InvSnapCommands.declared();
 
-            assertThat(declared).hasSize(1);
-            assertThat(declared.getFirst().name()).isEqualTo("invsnap");
+            assertThat(declared).extracting(ModuleCommand::name).containsExactly("invsnap", "insurance");
+            assertThat(declared.get(1).permission()).isEqualTo(PermissionNodes.INSURE);
         }
 
         @Test

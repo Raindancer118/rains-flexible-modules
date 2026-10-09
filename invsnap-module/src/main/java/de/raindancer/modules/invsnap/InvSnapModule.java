@@ -7,6 +7,7 @@ import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
+import de.raindancer.modules.invsnap.listener.PlayerDeathInsuranceListener;
 import de.raindancer.modules.invsnap.listener.PlayerDeathSnapshotListener;
 import de.raindancer.modules.invsnap.listener.PlayerQuitSnapshotListener;
 import de.raindancer.modules.invsnap.rules.RetentionRule;
@@ -14,7 +15,9 @@ import de.raindancer.modules.invsnap.rules.SnapshotDueRule;
 import de.raindancer.modules.invsnap.screen.InvSnapRootMenu;
 import de.raindancer.modules.invsnap.screen.SnapshotHistoryMenu;
 import de.raindancer.modules.invsnap.service.AutoSnapshotService;
+import de.raindancer.modules.invsnap.service.InsuranceService;
 import de.raindancer.modules.invsnap.service.SnapshotService;
+import de.raindancer.modules.invsnap.store.InsuredStore;
 import de.raindancer.modules.invsnap.store.SnapshotStore;
 import de.raindancer.modules.invsnap.util.PermissionNodes;
 import org.bukkit.Server;
@@ -35,7 +38,7 @@ import java.util.UUID;
  */
 public final class InvSnapModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.2.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.3.0")
             .describedAs("Periodic inventory snapshots for every online player, with an admin "
                     + "screen to browse a player's history and restore one.")
             .by("Raindancer118");
@@ -79,12 +82,17 @@ public final class InvSnapModule implements FlexModule {
         settings.onChange(snapshotService::settings);
         settings.onChange(autoSnapshotService::settings);
 
+        InsuranceService insurance = InsuranceService.live(new InsuredStore(context.dataFolder()),
+                settings.current());
+        settings.onChange(insurance::settings);
+
+        context.listener(new PlayerDeathInsuranceListener(insurance, context.core().messages()));
         context.listener(new PlayerQuitSnapshotListener(snapshotService, autoSnapshotService));
         context.listener(new PlayerDeathSnapshotListener(snapshotService));
 
         services = new InvSnapServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core(), settings::current, settings,
-                snapshotService, new LiveScreens());
+                snapshotService, insurance, new LiveScreens());
 
         InvSnapCommands.ready(services);
 

@@ -1,5 +1,6 @@
 package de.raindancer.modules.mannequin.screen;
 
+import java.util.Optional;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -81,7 +82,12 @@ public final class CreateMannequinScreen extends Menu implements IMannequinScree
                         "", "<gray>Click to create one.")
                 : java.util.List.of("<gray>Real health and everything else a", "<gray>dummy has — no loadout for this one.",
                         "", "<gray>Click to create one.");
-        return Icons.of(icon, "<white>" + kind.displayName(), lore.toArray(new String[0]));
+        java.util.List<String> shown = new java.util.ArrayList<>(lore);
+        de.raindancer.core.social.economy.Money price = services.purchases().priceNow();
+        if (price.isPositive()) {
+            shown.add("<gold>Costs " + de.raindancer.core.social.economy.Fees.format(price));
+        }
+        return Icons.of(icon, "<white>" + kind.displayName(), shown.toArray(new String[0]));
     }
 
     private void create(MannequinKind kind, boolean mayCreate) {
@@ -90,9 +96,12 @@ public final class CreateMannequinScreen extends Menu implements IMannequinScree
         }
         // The full location, not block-snapped: MannequinService#create reads its yaw before
         // deriving the block coordinates, so the dummy faces the way the player was looking.
-        Mannequin created = services.mannequins().create(viewer.getUniqueId(), kind, viewer.getLocation());
-        services.messages().send(viewer, "mannequin.create.done", "id", created.id());
-        new MannequinEditMenu(services, viewer, created, parent()).open();
+        Optional<Mannequin> created = services.purchases().buy(viewer, kind);
+        if (created.isEmpty()) {
+            return;
+        }
+        services.messages().send(viewer, "mannequin.create.done", "id", created.get().id());
+        new MannequinEditMenu(services, viewer, created.get(), parent()).open();
     }
 
     @Override

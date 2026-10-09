@@ -83,4 +83,11 @@ class XpBottleSettingsTest {
         assertThat(defaults.withFillCooldownSeconds(30).siphonPointsPerSecond())
                 .isEqualTo(defaults.siphonPointsPerSecond());
     }
+
+    @Test
+    @DisplayName("bottling is free by default, so no economy is needed")
+    void feeDefaultsToNothing() {
+        assertThat(defaults.fee()).isEqualTo("0");
+        assertThat(defaults.withFee("5").fee()).isEqualTo("5");
+    }
 }

@@ -87,13 +87,20 @@ public record XpBottleSettings(
                 + "experience. Zero switches the wait off. The siphon is not covered by this — it "
                 + "is already limited by how fast it draws.")
         @Key("fill-cooldown-seconds")
-        int fillCooldownSeconds) {
+        int fillCooldownSeconds,
+
+        @In("xpbottle") @Title("Fee per bottle filled")
+        @Describe("Money taken each time a player fills a plain glass bottle from their own "
+                + "experience, such as 5 or 1.5k. 0 for free. Needs an economy plugin once set. "
+                + "Siphon bottles are not charged: they draw loose orbs, not the holder's levels.")
+        @Key("fee")
+        String fee) {
 
     /** The reach nothing may exceed, whatever the base and the step add up to. */
     public static final int MOST_REACH = 32;
 
     public static final XpBottleSettings DEFAULTS =
-            new XpBottleSettings(true, 100, 500, 500, 4, 2, 3, 200, 0);
+            new XpBottleSettings(true, 100, 500, 500, 4, 2, 3, 200, 0, "0");
 
     /** Tiers that exist, clamped into what the schema allows. */
     public int highestTierClamped() {
@@ -143,54 +150,60 @@ public record XpBottleSettings(
     public XpBottleSettings withPlainBottlesWork(boolean value) {
         return new XpBottleSettings(value, plainCapacity, siphonCapacityBase, siphonCapacityPerTier,
                 siphonReachBase, siphonReachPerTier, highestTier, siphonPointsPerSecond,
-                fillCooldownSeconds);
+                fillCooldownSeconds, fee);
     }
 
     public XpBottleSettings withPlainCapacity(int value) {
         return new XpBottleSettings(plainBottlesWork, value, siphonCapacityBase,
                 siphonCapacityPerTier, siphonReachBase, siphonReachPerTier, highestTier,
-                siphonPointsPerSecond, fillCooldownSeconds);
+                siphonPointsPerSecond, fillCooldownSeconds, fee);
     }
 
     public XpBottleSettings withSiphonCapacityBase(int value) {
         return new XpBottleSettings(plainBottlesWork, plainCapacity, value, siphonCapacityPerTier,
                 siphonReachBase, siphonReachPerTier, highestTier, siphonPointsPerSecond,
-                fillCooldownSeconds);
+                fillCooldownSeconds, fee);
     }
 
     public XpBottleSettings withSiphonCapacityPerTier(int value) {
         return new XpBottleSettings(plainBottlesWork, plainCapacity, siphonCapacityBase, value,
                 siphonReachBase, siphonReachPerTier, highestTier, siphonPointsPerSecond,
-                fillCooldownSeconds);
+                fillCooldownSeconds, fee);
     }
 
     public XpBottleSettings withSiphonReachBase(int value) {
         return new XpBottleSettings(plainBottlesWork, plainCapacity, siphonCapacityBase,
                 siphonCapacityPerTier, value, siphonReachPerTier, highestTier,
-                siphonPointsPerSecond, fillCooldownSeconds);
+                siphonPointsPerSecond, fillCooldownSeconds, fee);
     }
 
     public XpBottleSettings withSiphonReachPerTier(int value) {
         return new XpBottleSettings(plainBottlesWork, plainCapacity, siphonCapacityBase,
                 siphonCapacityPerTier, siphonReachBase, value, highestTier, siphonPointsPerSecond,
-                fillCooldownSeconds);
+                fillCooldownSeconds, fee);
     }
 
     public XpBottleSettings withHighestTier(int value) {
         return new XpBottleSettings(plainBottlesWork, plainCapacity, siphonCapacityBase,
                 siphonCapacityPerTier, siphonReachBase, siphonReachPerTier, value,
-                siphonPointsPerSecond, fillCooldownSeconds);
+                siphonPointsPerSecond, fillCooldownSeconds, fee);
     }
 
     public XpBottleSettings withSiphonPointsPerSecond(int value) {
         return new XpBottleSettings(plainBottlesWork, plainCapacity, siphonCapacityBase,
                 siphonCapacityPerTier, siphonReachBase, siphonReachPerTier, highestTier, value,
-                fillCooldownSeconds);
+                fillCooldownSeconds, fee);
     }
 
     public XpBottleSettings withFillCooldownSeconds(int value) {
         return new XpBottleSettings(plainBottlesWork, plainCapacity, siphonCapacityBase,
                 siphonCapacityPerTier, siphonReachBase, siphonReachPerTier, highestTier,
-                siphonPointsPerSecond, value);
+                siphonPointsPerSecond, value, fee);
+    }
+
+    public XpBottleSettings withFee(String value) {
+        return new XpBottleSettings(plainBottlesWork, plainCapacity, siphonCapacityBase,
+                siphonCapacityPerTier, siphonReachBase, siphonReachPerTier, highestTier,
+                siphonPointsPerSecond, fillCooldownSeconds, value);
     }
 }

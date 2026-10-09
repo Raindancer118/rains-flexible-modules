@@ -10,6 +10,7 @@ import de.raindancer.modules.mannequin.claims.ClaimLink;
 import de.raindancer.modules.mannequin.service.MannequinCombatService;
 import de.raindancer.modules.mannequin.service.MannequinEquipService;
 import de.raindancer.modules.mannequin.service.MannequinPotionService;
+import de.raindancer.modules.mannequin.service.MannequinPurchase;
 import de.raindancer.modules.mannequin.service.MannequinRedstoneService;
 import de.raindancer.modules.mannequin.service.MannequinService;
 import de.raindancer.modules.mannequin.store.MannequinRegistry;
@@ -36,6 +37,7 @@ public record MannequinServices(
 
         MannequinRegistry registry,
         MannequinService mannequins,
+        MannequinPurchase purchases,
         MannequinEquipService equip,
         MannequinRedstoneService redstone,
         MannequinPotionService potion,

@@ -49,4 +49,29 @@ class InvSnapSettingsTest {
             assertThat(defaults.withRetentionCount(50).retentionCountClamped()).isEqualTo(50);
         }
     }
+
+    @Nested
+    @DisplayName("death insurance")
+    class Insurance {
+
+        @Test
+        @DisplayName("ships off and free, so a server without an economy behaves as before")
+        void defaultsChangeNothing() {
+            assertThat(defaults.insuranceEnabled()).isFalse();
+            assertThat(defaults.insurancePricePercent()).isZero();
+            assertThat(defaults.insurancePriceFlat()).isEqualTo("0");
+            assertThat(defaults.insuranceMost()).isEqualTo("0");
+            assertThat(defaults.insuranceKeepXp()).isFalse();
+            assertThat(defaults.insuranceWorlds()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("an empty world list means every world, otherwise only the listed ones")
+        void worlds() {
+            assertThat(defaults.insuresWorld("anything")).isTrue();
+            InvSnapSettings listed = defaults.withInsuranceWorlds(java.util.List.of("Survival"));
+            assertThat(listed.insuresWorld("survival")).isTrue();
+            assertThat(listed.insuresWorld("hungergames")).isFalse();
+        }
+    }
 }

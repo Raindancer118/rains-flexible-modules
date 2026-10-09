@@ -185,4 +185,78 @@ class BottlingServiceTest {
         assertThat(service.pour(player, held, new Bottle(1, 0, 500))).isZero();
         verify(player, never()).giveExp(org.mockito.ArgumentMatchers.anyInt());
     }
+
+    private final java.util.List<String> bank = new java.util.ArrayList<>();
+
+    private BottlingService feeCharging(de.raindancer.core.social.economy.EconomyResult outcome) {
+        return new BottlingService(messages, effects, new FillAmountRule(), forge,
+                XpBottleSettings.DEFAULTS.withFee("2"),
+                new BottlingService.FeeBank() {
+                    @Override
+                    public de.raindancer.core.social.economy.EconomyResult charge(UUID payer,
+                            de.raindancer.core.social.economy.Money fee, String reason) {
+                        bank.add("charge " + fee.minor());
+                        return outcome;
+                    }
+
+                    @Override
+                    public void refund(UUID payer, de.raindancer.core.social.economy.Money taken, String reason) {
+                        bank.add("refund " + taken.minor());
+                    }
+                });
+    }
+
+    @Test
+    @DisplayName("with a fee set, the fee is charged and the bottle is made")
+    void feeIsCharged() {
+        when(player.calculateTotalExperiencePoints()).thenReturn(70);
+
+        Bottling filling = feeCharging(de.raindancer.core.social.economy.EconomyResult.done(
+                de.raindancer.core.social.economy.Money.of(200), de.raindancer.core.social.economy.Money.ZERO))
+                .fillPlain(player, held);
+
+        assertThat(filling.moved()).isEqualTo(70);
+        assertThat(bank).containsExactly("charge 200");
+    }
+
+    @Test
+    @DisplayName("a player who cannot pay loses no experience and gets no bottle")
+    void unpaidFeeTakesNothing() {
+        when(player.calculateTotalExperiencePoints()).thenReturn(70);
+
+        Bottling filling = feeCharging(de.raindancer.core.social.economy.EconomyResult.failed(
+                de.raindancer.core.social.economy.EconomyResult.Outcome.NOT_ENOUGH,
+                de.raindancer.core.social.economy.Money.of(200), de.raindancer.core.social.economy.Money.ZERO))
+                .fillPlain(player, held);
+
+        assertThat(filling.happened()).isFalse();
+        verify(player, never()).setExperienceLevelAndProgress(org.mockito.ArgumentMatchers.anyInt());
+        verify(inventory, never()).addItem(any(ItemStack.class));
+    }
+
+    @Test
+    @DisplayName("no fee is asked when there is nothing to bottle")
+    void noFeeForNothing() {
+        when(player.calculateTotalExperiencePoints()).thenReturn(0);
+
+        feeCharging(de.raindancer.core.social.economy.EconomyResult.done(
+                de.raindancer.core.social.economy.Money.of(200), de.raindancer.core.social.economy.Money.ZERO))
+                .fillPlain(player, held);
+
+        assertThat(bank).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a fee taken for a bottle that could not be filled is given back")
+    void feeRefundedWhenNothingCameOut() {
+        // experience reads 70 when judged and 0 when taken: somebody spent it in between
+        when(player.calculateTotalExperiencePoints()).thenReturn(70, 0);
+
+        Bottling filling = feeCharging(de.raindancer.core.social.economy.EconomyResult.done(
+                de.raindancer.core.social.economy.Money.of(200), de.raindancer.core.social.economy.Money.ZERO))
+                .fillPlain(player, held);
+
+        assertThat(filling.happened()).isFalse();
+        assertThat(bank).containsExactly("charge 200", "refund 200");
+    }
 }

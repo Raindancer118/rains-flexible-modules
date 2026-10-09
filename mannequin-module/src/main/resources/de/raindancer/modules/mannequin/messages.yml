@@ -32,6 +32,12 @@ mannequin:
     done: "<green>Created mannequin <white><id></white>. It stands very still."
     unknown-kind: "<red>There is no mannequin kind called <white><kind></white>. Try player, zombie, skeleton, wither or iron_golem."
 
+  price:
+    paid: "<gray>That cost <white><price></white>."
+    not-enough: "<red>A mannequin costs <white><price></white>, and you cannot afford it."
+    refused: "<red>The price of <white><price></white> could not be taken, so no mannequin was made."
+    placement-failed: "<red>The mannequin could not be placed, so you were not charged."
+
   remove:
     no-permission: "<red>That is not your mannequin to remove. Ask its owner."
     are-you-sure: "<yellow>This removes <white><id></white> for good. Type /mannequin remove <id> confirm to do it."

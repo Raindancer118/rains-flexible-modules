@@ -179,7 +179,7 @@ public final class MannequinEditMenu extends Menu implements IMannequinScreen {
                                 "<gray>its training tally — goes with it. You can",
                                 "<gray>make another, but not this one back."),
                         () -> {
-                            services.mannequins().remove(id);
+                            services.registry().get(id).ifPresent(services.purchases()::retire);
                             // Back to the list: the page this came from is about a mannequin that
                             // is now gone.
                             if (parent() != null) {

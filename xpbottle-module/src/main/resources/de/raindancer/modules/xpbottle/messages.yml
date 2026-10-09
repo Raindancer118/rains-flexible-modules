@@ -12,6 +12,9 @@ xpbottle:
   bottle-full: "<red>That bottle will not hold any more. It is full."
   already-empty: "<red>There is nothing in that bottle."
   no-experience: "<red>You have no experience to bottle."
+  fee-not-enough: "<red>Bottling costs <white><price></white>, and you cannot afford it."
+  fee-paid: "<gray>That cost <white><price></white>."
+  fee-refused: "<red>The fee of <white><price></white> could not be taken, so nothing was bottled."
   wait: "<red>You may bottle again in <white><seconds></white> second(s)."
 
   menu:

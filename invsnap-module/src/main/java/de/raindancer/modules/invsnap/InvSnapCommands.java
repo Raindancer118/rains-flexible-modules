@@ -1,6 +1,7 @@
 package de.raindancer.modules.invsnap;
 
 import de.raindancer.modules.api.ModuleCommand;
+import de.raindancer.modules.invsnap.command.InsuranceCommand;
 import de.raindancer.modules.invsnap.command.InvSnapCommand;
 import de.raindancer.modules.invsnap.util.PermissionNodes;
 
@@ -24,7 +25,11 @@ public final class InvSnapCommands {
                                 new InvSnapCommand(InvSnapCommands::require))
                         .needing(PermissionNodes.BROWSE)
                         .taking("[player]")
-                        .auditUsage());
+                        .auditUsage(),
+                ModuleCommand.of("insurance", "Insure your inventory against death",
+                                new InsuranceCommand(InvSnapCommands::require))
+                        .needing(PermissionNodes.INSURE)
+                        .taking("[on|off]"));
     }
 
     static void ready(InvSnapServices live) {

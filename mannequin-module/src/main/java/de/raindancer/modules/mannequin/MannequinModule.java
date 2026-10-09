@@ -26,6 +26,7 @@ import de.raindancer.modules.mannequin.service.MannequinCombatService;
 import de.raindancer.modules.mannequin.service.MannequinEquipService;
 import de.raindancer.modules.mannequin.service.MannequinPotionService;
 import de.raindancer.modules.mannequin.service.MannequinRedstoneService;
+import de.raindancer.modules.mannequin.service.MannequinPurchase;
 import de.raindancer.modules.mannequin.service.MannequinService;
 import de.raindancer.modules.mannequin.store.MannequinRegistry;
 import de.raindancer.modules.mannequin.store.MannequinStore;
@@ -47,7 +48,7 @@ import java.util.List;
  */
 public final class MannequinModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("mannequin", "Mannequin", "1.8.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("mannequin", "Mannequin", "1.9.0")
             .describedAs("Training dummies an owner spawns and dresses: real health that can be "
                     + "brought down and respawns identically afterwards, every hit tracked, "
                     + "blocking with a shield, and never leaving anything obtainable behind.")
@@ -113,6 +114,9 @@ public final class MannequinModule implements FlexModule {
         mannequins = new MannequinService(context.plugin(), log, registry, store, equip,
                 delayedScheduler, settings.current());
 
+        MannequinPurchase purchases = new MannequinPurchase(context.core().messages(),
+                mannequins::create, mannequins::remove, MannequinPurchase.LIVE, settings.current());
+        settings.onChange(purchases::settings);
         settings.onChange(equip::settings);
         settings.onChange(redstone::settings);
         settings.onChange(potions::settings);
@@ -141,7 +145,7 @@ public final class MannequinModule implements FlexModule {
         services = new MannequinServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core().actionBars(), context.core(),
                 settings::current, settings,
-                registry, mannequins, equip, redstone, potions, combat, new LiveScreens(), claimLink);
+                registry, mannequins, purchases, equip, redstone, potions, combat, new LiveScreens(), claimLink);
 
         // The "Mannequins" button on ClaimMenu, only if claims is actually there to show it on.
         AutoCloseable unregisterClaimMenuButton =

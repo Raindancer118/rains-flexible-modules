@@ -102,8 +102,11 @@ public final class MannequinCommand implements IMannequinCommand {
         }
         // The full location, not block-snapped: MannequinService#create reads its yaw before
         // deriving the block coordinates, so the dummy faces the way the player was looking.
-        Mannequin created = live.mannequins().create(player.getUniqueId(), kind, player.getLocation());
-        live.messages().send(sender, "mannequin.create.done", "id", created.id());
+        Optional<Mannequin> created = live.purchases().buy(player, kind);
+        if (created.isEmpty()) {
+            return;
+        }
+        live.messages().send(sender, "mannequin.create.done", "id", created.get().id());
     }
 
     private void remove(MannequinServices live, Player player, Mannequin mannequin, String[] args) {
@@ -120,7 +123,7 @@ public final class MannequinCommand implements IMannequinCommand {
             live.messages().send(player, "mannequin.remove.are-you-sure", "id", mannequin.id());
             return;
         }
-        live.mannequins().remove(mannequin.id());
+        live.purchases().retire(mannequin);
         live.messages().send(player, "mannequin.remove.done", "id", mannequin.id());
     }
 

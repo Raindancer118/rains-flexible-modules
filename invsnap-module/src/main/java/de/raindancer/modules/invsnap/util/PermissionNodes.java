@@ -26,6 +26,9 @@ public final class PermissionNodes {
     /** Restoring a snapshot into a live inventory. */
     public static final String RESTORE = "rainsinvsnap.invsnap.restore";
 
+    /** Insuring one's own inventory against death — for everybody, unlike the admin nodes. */
+    public static final String INSURE = "rainsinvsnap.insurance.use";
+
     private PermissionNodes() {
     }
 
@@ -34,7 +37,9 @@ public final class PermissionNodes {
                 new Permission(BROWSE, "Browse a player's inventory snapshot history",
                         PermissionDefault.OP),
                 new Permission(RESTORE, "Restore a player's inventory from a snapshot",
-                        PermissionDefault.OP));
+                        PermissionDefault.OP),
+                new Permission(INSURE, "Opt in to death insurance with /insurance",
+                        PermissionDefault.TRUE));
     }
 
     /**

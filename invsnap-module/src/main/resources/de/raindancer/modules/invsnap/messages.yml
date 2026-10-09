@@ -15,3 +15,17 @@ invsnap:
   restore:
     no-permission: "<red>You may browse this, but not restore from it."
     offline: "<red><player> is not online right now — a restore is written into a live inventory. Try again once they are back."
+
+  insurance:
+    disabled: "<yellow>Death insurance is not offered on this server."
+    usage: "<gray>/insurance [on|off]"
+    now-on: "<green>You are insured. If you die you pay the premium and keep your inventory — about <white><price></white> for what you carry right now."
+    now-off: "<yellow>You are no longer insured. A death drops your things as usual."
+    status-on: "<green>You are insured. Dying now would cost about <white><price></white>."
+    status-off: "<gray>You are not insured. <white>/insurance on</white> insures you; dying now would cost about <white><price></white>."
+    paid: "<green>Your insurance paid out: you kept your inventory for <white><price></white>."
+    free: "<green>Your insurance paid out: you kept your inventory at no charge."
+    unpaid:
+      not-enough: "<red>You could not afford the premium of <white><price></white>, so this death was uninsured."
+      no-economy: "<red>The premium of <white><price></white> could not be taken, so this death was uninsured."
+      refused: "<red>The premium of <white><price></white> was refused, so this death was uninsured."
