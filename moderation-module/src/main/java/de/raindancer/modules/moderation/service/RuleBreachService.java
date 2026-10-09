@@ -2,9 +2,12 @@ package de.raindancer.modules.moderation.service;
 
 import de.raindancer.core.moderation.punishment.Punishment;
 import de.raindancer.core.moderation.punishment.PunishmentKind;
+import de.raindancer.core.moderation.rules.RulePenalty;
 import de.raindancer.core.moderation.rules.ServerRule;
 import de.raindancer.core.moderation.rules.ServerRules;
 import de.raindancer.core.platform.rule.Verdict;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.moderation.ModerationSettings;
 import de.raindancer.modules.moderation.model.Sentence;
@@ -31,15 +34,17 @@ public final class RuleBreachService implements IModerationService {
     private final StaffRule staff;
     private final Supplier<BanLimitRule> banLimit;
     private final Messages messages;
+    private final FineService fines;
     private final RuleBreachRule rule = new RuleBreachRule();
 
     public RuleBreachService(PunishmentService punishments, RuleOffences offences, StaffRule staff,
-                             Supplier<BanLimitRule> banLimit, Messages messages) {
+                             Supplier<BanLimitRule> banLimit, Messages messages, FineService fines) {
         this.punishments = punishments;
         this.offences = offences;
         this.staff = staff;
         this.banLimit = banLimit;
         this.messages = messages;
+        this.fines = fines;
     }
 
     @Override
@@ -89,12 +94,35 @@ public final class RuleBreachService implements IModerationService {
             messages.send(by, allowed.reason(), "detail", allowed.detail() == null ? "" : allowed.detail());
             return Optional.empty();
         }
-        Punishment given = punishments.punish(actor, actorName, subject, subjectName, breach.penalty().kind(),
-                sentenceOf(breach), breach.reason());
+        RulePenalty penalty = breach.penalty();
+        Money fine = penalty.fine() > 0 ? Fees.amount(String.valueOf(penalty.fine())) : Money.ZERO;
+        boolean fineOnly = penalty.kind() == PunishmentKind.FINE;
+
+        Punishment given = null;
+        if (!fineOnly) {
+            given = punishments.punish(actor, actorName, subject, subjectName, penalty.kind(),
+                    sentenceOf(breach), breach.reason());
+        }
+        if (fine.isPositive()) {
+            FineService.Result fined = fines.fine(actor, actorName, subject, subjectName, fine, breach.reason(),
+                    null, FineService.Kind.RULE);
+            if (fined.done()) {
+                given = given == null ? fined.punishment() : given;
+            } else {
+                messages.send(by, fined.status() == FineService.Status.NO_ECONOMY
+                        ? "moderation.fine.no-economy" : "moderation.fine.cannot-pay", "player", subjectName);
+                if (fineOnly) {
+                    return Optional.empty();
+                }
+            }
+        }
+        if (given == null) {
+            return Optional.empty();
+        }
         offences.add(subject, broken.id());
         messages.send(by, "moderation.rules.punished", "player", subjectName, "number", broken.number(),
                 "title", broken.title(), "penalty", breach.penalty().describe(),
-                "offence", de.raindancer.core.moderation.rules.RulePenalty.ordinal(breach.offence()));
+                "offence", RulePenalty.ordinal(breach.offence()));
         return Optional.of(given);
     }
 

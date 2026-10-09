@@ -32,6 +32,14 @@ class AnnouncementRuleTest {
     }
 
     @Test
+    @DisplayName("a fine is announced exactly like a warning")
+    void finesAreAnnouncedLikeWarnings() {
+        assertThat(rule.forPunishment(PunishmentKind.FINE, ModerationSettings.DEFAULTS)).isEqualTo(Audience.STAFF);
+        assertThat(rule.forPunishment(PunishmentKind.FINE, ModerationSettings.DEFAULTS.withAnnounceWarnings(true)))
+                .isEqualTo(Audience.EVERYBODY);
+    }
+
+    @Test
     @DisplayName("a freeze is staff business, whatever the public setting says")
     void freezingIsQuiet() {
         // Freezing somebody is what a moderator does while they walk over to talk to them. Announcing

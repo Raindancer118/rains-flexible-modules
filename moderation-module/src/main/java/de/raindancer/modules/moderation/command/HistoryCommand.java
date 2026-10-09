@@ -82,7 +82,7 @@ public final class HistoryCommand extends StaffCommand {
                     Chat.arg("what", past.kind().past()),
                     Chat.arg("reason", past.reason()),
                     Chat.arg("when", Times.describe(Duration.between(past.givenAt(), now)) + " ago"),
-                    Chat.arg("length", past.length()),
+                    Chat.arg("length", moderation.fines().amountOn(past)),
                     // formatted, not arg. The state is wording *this plugin* wrote and it carries a
                     // colour; arg() escapes what it is given — always, and rightly, because most of
                     // what goes through it is text a player typed. Passed through arg() this line

@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -65,6 +66,7 @@ public final class PunishmentService implements IModerationService {
     private final EscalationRule escalation;
 
     private volatile ModerationSettings settings;
+    private volatile FineService fines;
 
     public PunishmentService(Plugin plugin, Server server, Punishments punishments,
                              PunishmentGuard guard, VanillaBanBridge bridge, Audit audit,
@@ -83,6 +85,11 @@ public final class PunishmentService implements IModerationService {
         this.announcements = announcements;
         this.escalation = escalation;
         settings(settings);
+    }
+
+    /** Lets a warning cost money; without it warnings never do. Set once by the module, before anything is handed out. */
+    public void fines(FineService fines) {
+        this.fines = fines;
     }
 
     /**
@@ -115,21 +122,41 @@ public final class PunishmentService implements IModerationService {
      */
     public Punishment punish(UUID actor, String actorName, UUID subject, String subjectName,
                              PunishmentKind kind, Sentence sentence, String reason) {
+        return punish(actor, actorName, subject, subjectName, kind, sentence, reason, null);
+    }
+
+    /**
+     * Hands one out, saying {@code detail} where a length would go — what a fine was for how much.
+     *
+     * <p>A warning in a server where warnings cost money is charged first, counting this one among the
+     * warnings inside the window, and is told what it cost in the same breath.
+     */
+    public Punishment punish(UUID actor, String actorName, UUID subject, String subjectName,
+                             PunishmentKind kind, Sentence sentence, String reason, String detail) {
         Sentence howLong = sentence == null ? Sentence.forEver() : sentence;
+        FineService money = fines;
+        Optional<FineService.Warned> warnFine = kind == PunishmentKind.WARNING && money != null
+                ? money.chargeForWarning(subject, new StandingRule(settings.warnWindow())
+                        .recentWarnings(punishments.history(subject), Instant.now()) + 1)
+                : Optional.empty();
+
         Punishment given = punishments.punish(subject, kind, actor, reason,
                 kind.isLasting() ? howLong.orNull() : null);
+        warnFine.ifPresent(charged -> money.attach(charged, given, subjectName));
+        String shown = kind.isLasting() ? howLong.describe()
+                : warnFine.map(FineService.Warned::detail).orElse(detail);
 
         if (kind == PunishmentKind.BAN && settings.mirrorToVanillaBanList()) {
             // So vanilla /banlist still agrees, and so the ban survives this plugin being removed.
             bridge.mirrorBan(subject, given.reason(), given.endsAt());
         }
         removeThemIfNeeded(kind, subject, given);
-        tellThem(kind, subject, given);
+        tellThem(kind, subject, given, shown);
 
         record(kind.name().toLowerCase(Locale.ROOT), actor, actorName, subject, subjectName,
-                given.reason(), howLong.describe());
+                given.reason(), kind.isLasting() || shown == null ? howLong.describe() : shown);
         announce(announcements.forPunishment(kind, settings), kind, actorName, subjectName,
-                given.reason(), kind.isLasting() ? howLong.describe() : null, false);
+                given.reason(), shown, false);
 
         if (kind == PunishmentKind.WARNING) {
             banIfTheyHaveCollectedEnough(subject, subjectName);
@@ -238,20 +265,31 @@ public final class PunishmentService implements IModerationService {
      * which is most of what a support channel gets asked about. Being offline is not a reason to say
      * nothing; it is a reason to say it later. See {@link PendingNotices}.
      */
-    private void tellThem(PunishmentKind kind, UUID subject, Punishment given) {
+    private void tellThem(PunishmentKind kind, UUID subject, Punishment given, String shown) {
         if (kind == PunishmentKind.BAN || kind == PunishmentKind.KICK) {
             return;     // they are on their way out; the kick screen carries the reason
         }
         String key = "moderation.you-were-" + kind.name().toLowerCase(Locale.ROOT);
         Player here = server.getPlayer(subject);
         if (here != null) {
-            messages.send(here, key, "reason", given.reason(), "length", given.length());
+            messages.send(here, key, "reason", given.reason(), "length", lengthOf(given, shown));
+            if (kind == PunishmentKind.WARNING && shown != null) {
+                messages.send(here, "moderation.fine.warning-cost", "amount", shown);
+            }
             return;
         }
         // Not dropped. Somebody muted for spam very often logs off in a huff, and the version that
         // gave up here is the version where they come back, cannot talk, and conclude the server is
         // broken — which is what a support channel spends its evenings on.
-        pending.keep(subject, key, Map.of("reason", given.reason(), "length", given.length()));
+        pending.keep(subject, key, Map.of("reason", given.reason(), "length", lengthOf(given, shown)));
+        if (kind == PunishmentKind.WARNING && shown != null) {
+            pending.keep(subject, "moderation.fine.warning-cost", Map.of("amount", shown));
+        }
+    }
+
+    /** What stands where a length would: a fine's amount, or the length itself. */
+    private static String lengthOf(Punishment given, String shown) {
+        return given.kind().isLasting() || shown == null ? given.length() : shown;
     }
 
     /** Writes the line an appeal is answered from. */
@@ -278,7 +316,8 @@ public final class PunishmentService implements IModerationService {
         boolean named = announcements.namesTheModerator(audience, settings);
         String what = lifted ? "no longer " + kind.past() : kind.past();
         String line = "<white><subject></white> is <yellow>" + what + "</yellow>"
-                + (length == null ? "" : " <gray>(<length>)</gray>")
+                + (length == null ? "" : kind == PunishmentKind.WARNING ? " <gray>(fined <length>)</gray>"
+                : " <gray>(<length>)</gray>")
                 + (named ? " <gray>— by <white><moderator></white></gray>" : "")
                 + "<gray>: <reason>";
 

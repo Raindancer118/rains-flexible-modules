@@ -34,6 +34,7 @@ public final class RuleBreachRule implements IModerationRule {
             case KICK -> ModerationPermission.KICK;
             case MUTE -> ModerationPermission.MUTE;
             case FREEZE -> ModerationPermission.FREEZE;
+            case FINE -> ModerationPermission.FINE;
             case BAN -> ModerationPermission.TEMPBAN;
         };
     }

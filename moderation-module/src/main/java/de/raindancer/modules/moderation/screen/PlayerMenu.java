@@ -97,6 +97,7 @@ public final class PlayerMenu extends ModerationScreen {
         category(3, PunishmentKind.MUTE, ModerationPermission.MUTE);
         category(4, PunishmentKind.FREEZE, ModerationPermission.FREEZE);
         category(5, PunishmentKind.BAN, ModerationPermission.BAN);
+        fineDoor();
 
         // ── the practical ─────────────────────────────────────────────────────────────────────
         band(MenuLayout.LAND, 2, may(ModerationPermission.INVSEE),
@@ -125,6 +126,14 @@ public final class PlayerMenu extends ModerationScreen {
                     "For whoever may hand out punishments",
                     click -> new RuleBreachMenu(services(), viewer, this, subject, subjectName).open());
         }
+
+        band(MenuLayout.LAND, 1, may(ModerationPermission.HISTORY),
+                Icons.of(Material.GOLD_NUGGET, "<yellow>Their fines",
+                        "<gray>Owes <white>" + de.raindancer.core.social.economy.Fees.format(
+                                services().fines().owed(subject)) + "</white>.",
+                        "<dark_gray>Revoke one, or forgive their debt."),
+                "For whoever may read a record",
+                click -> new FinesMenu(services(), viewer, this, subject, subjectName).open());
 
         band(MenuLayout.LAND, 3, may(ModerationPermission.HISTORY),
                 Icons.of(Material.OAK_SIGN, "<yellow>Audit trail",
@@ -261,6 +270,20 @@ public final class PlayerMenu extends ModerationScreen {
                 Icons.of(CategoryMenu.icon(kind), "<yellow>" + CategoryMenu.title(kind), lore),
                 "You may not " + CategoryMenu.verb(kind).toLowerCase(java.util.Locale.ROOT),
                 click -> new CategoryMenu(services(), viewer, this, subject, subjectName, kind).open());
+    }
+
+    /** Fining them: you type the amount and why. Greyed with the reason when there is nothing to charge or no right to. */
+    private void fineDoor() {
+        boolean economy = services().fines().hasEconomy();
+        List<String> lore = new ArrayList<>();
+        lore.add("<gray>Takes money from their balance, offline or not.");
+        services().fines().limitFor(viewer.getUniqueId()).ifPresent(most -> lore.add("<gray>You may fine up to <white>"
+                + de.raindancer.core.social.economy.Fees.format(most) + "</white>."));
+        lore.add("<dark_gray>You type the amount, then why. Asks first.");
+        band(MenuLayout.RULES, 6, may(ModerationPermission.FINE) && economy,
+                Icons.of(Material.GOLD_INGOT, "<yellow>Fine", lore),
+                economy ? "You may not fine" : "This server has no economy",
+                click -> FinesMenu.askForAFine(viewer, this, services(), subject, subjectName));
     }
 
     /**

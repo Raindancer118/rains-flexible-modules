@@ -148,7 +148,7 @@ public final class LiftMenu extends ModerationList<Punishment> {
             case BAN -> "join";
             case MUTE -> "talk";
             case FREEZE -> "move";
-            case KICK, WARNING -> "carry on";
+            case KICK, WARNING, FINE -> "carry on";
         };
     }
 

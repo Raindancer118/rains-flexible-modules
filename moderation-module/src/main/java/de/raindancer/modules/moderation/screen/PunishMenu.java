@@ -198,6 +198,7 @@ public final class PunishMenu extends ModerationList<Reason> {
             case KICK -> ModerationPermission.KICK;
             case WARNING -> ModerationPermission.WARN;
             case FREEZE -> ModerationPermission.FREEZE;
+            case FINE -> ModerationPermission.FINE;
         };
     }
 

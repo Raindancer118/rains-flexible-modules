@@ -196,6 +196,7 @@ public final class CategoryMenu extends ModerationScreen {
             case KICK -> ModerationPermission.KICK;
             case WARNING -> ModerationPermission.WARN;
             case FREEZE -> ModerationPermission.FREEZE;
+            case FINE -> ModerationPermission.FINE;
         };
     }
 
@@ -206,6 +207,7 @@ public final class CategoryMenu extends ModerationScreen {
             case KICK -> "Kicks";
             case WARNING -> "Warnings";
             case FREEZE -> "Freezes";
+            case FINE -> "Fines";
         };
     }
 
@@ -216,6 +218,7 @@ public final class CategoryMenu extends ModerationScreen {
             case KICK -> "Kick";
             case WARNING -> "Warn";
             case FREEZE -> "Freeze";
+            case FINE -> "Fine";
         };
     }
 
@@ -244,6 +247,7 @@ public final class CategoryMenu extends ModerationScreen {
             case KICK -> Material.LEATHER_BOOTS;
             case WARNING -> Material.YELLOW_BANNER;
             case FREEZE -> Material.PACKED_ICE;
+            case FINE -> Material.GOLD_NUGGET;
         };
     }
 

@@ -110,6 +110,18 @@ public final class ModerationCommands {
                         .aliased("rulebreak")
                         .taking("<player> — pick the rule", "<player> <rule number> [what happened]")
                         .needing(ModerationPermission.WARN.node()),
+                ModuleCommand.of("fine", "Fines somebody, or forgives or revokes what they were fined",
+                                new de.raindancer.modules.moderation.command.FineCommand(ModerationCommands::require))
+                        .taking("<player> <amount> <reason> [victim:<name>]", "forgive <player>", "revoke <player>")
+                        .needing(ModerationPermission.FINE.node()),
+                ModuleCommand.of("debt", "What you owe from fines, and paying it",
+                                new de.raindancer.modules.moderation.command.DebtCommand(ModerationCommands::require))
+                        .taking("— what you owe", "pay [amount|all]")
+                        .needing(de.raindancer.modules.moderation.command.DebtCommand.USE),
+                ModuleCommand.of("buyoff", "Ends your temporary mute early, for a price",
+                                new de.raindancer.modules.moderation.command.BuyoffCommand(ModerationCommands::require))
+                        .taking("— the price", "confirm — pay it")
+                        .needing(de.raindancer.modules.moderation.command.BuyoffCommand.USE),
                 ModuleCommand.of("warn", "Puts a warning on somebody's record",
                                 new WarnCommand(ModerationCommands::require))
                         .taking("<player> [reason]")

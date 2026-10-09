@@ -1,6 +1,7 @@
 package de.raindancer.modules.moderation.screen;
 
 import de.raindancer.core.moderation.punishment.Punishment;
+import de.raindancer.core.moderation.punishment.PunishmentKind;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.world.time.Times;
@@ -111,7 +112,21 @@ public final class HistoryMenu extends ModerationList<RecordEntry> {
         List<String> lore = new ArrayList<>();
         lore.add("<gray>" + past.reason());
         lore.add("<dark_gray>" + Times.describe(Duration.between(past.givenAt(), now)) + " ago");
-        lore.add("<dark_gray>for " + past.length());
+        if (past.kind() == PunishmentKind.FINE) {
+            lore.add("<gold>" + services().fines().amountOn(past));
+        } else {
+            lore.add("<dark_gray>for " + past.length());
+        }
+        for (var fine : services().fines().finesOn(past.id())) {
+            if (past.kind() != PunishmentKind.FINE) {
+                lore.add("<gold>Fined " + de.raindancer.core.social.economy.Fees.format(
+                        de.raindancer.core.social.economy.Money.of(fine.charged())) + (fine.revoked() ? " (revoked)" : ""));
+            }
+            if (fine.debt() > 0) {
+                lore.add("<red>" + de.raindancer.core.social.economy.Fees.format(
+                        de.raindancer.core.social.economy.Money.of(fine.debt())) + " still owed");
+            }
+        }
         // Who did it. The record showed what happened and never by whom, which is the first thing
         // anybody asks when they disagree with an entry — and the answer was already stored.
         lore.add("<dark_gray>by <gray>" + nameOf(past.moderator(), null));
@@ -143,6 +158,7 @@ public final class HistoryMenu extends ModerationList<RecordEntry> {
             case KICK -> Material.LEATHER_BOOTS;
             case WARNING -> Material.YELLOW_BANNER;
             case FREEZE -> Material.PACKED_ICE;
+            case FINE -> Material.GOLD_NUGGET;
         };
     }
 
@@ -177,7 +193,7 @@ public final class HistoryMenu extends ModerationList<RecordEntry> {
             case RecordEntry.Punished punished -> tell("moderation.record-entry",
                     "what", punished.punishment().kind().past(),
                     "reason", punished.punishment().reason(),
-                    "length", punished.punishment().length(),
+                    "length", services().fines().amountOn(punished.punishment()),
                     "by", nameOf(punished.punishment().moderator(), null));
             case RecordEntry.Reported reported -> tell("moderation.record-report",
                     "text", reported.report().text(),

@@ -33,7 +33,7 @@ public final class AnnouncementRule implements IModerationRule {
         return switch (kind) {
             case BAN, MUTE -> Audience.EVERYBODY;
             case KICK -> settings.announceKicks() ? Audience.EVERYBODY : Audience.STAFF;
-            case WARNING -> settings.announceWarnings() ? Audience.EVERYBODY : Audience.STAFF;
+            case WARNING, FINE -> settings.announceWarnings() ? Audience.EVERYBODY : Audience.STAFF;
             // See the class note: never public, whatever the file says.
             case FREEZE -> Audience.STAFF;
         };

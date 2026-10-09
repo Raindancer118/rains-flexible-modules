@@ -40,6 +40,7 @@ import java.util.List;
         @Topic(path = "moderation/suspicious", title = "Suspicious commands", icon = Material.SPYGLASS),
         @Topic(path = "moderation/xray", title = "X-ray detection", icon = Material.DIAMOND_ORE),
         @Topic(path = "moderation/staff", title = "Staff", icon = Material.PLAYER_HEAD),
+        @Topic(path = "moderation/fines", title = "Fines", icon = Material.GOLD_NUGGET),
         @Topic(path = "moderation/records", title = "Records", icon = Material.BOOKSHELF),
 })
 public record ModerationSettings(
@@ -344,7 +345,61 @@ public record ModerationSettings(
         @Describe("Old mining counts for less and less: after this many days, half. A player is "
                 + "judged on how they mine lately, and an old suspicion wears off.")
         @Key("xray.half-life-days")
-        int xrayHalfLifeDays) {
+        int xrayHalfLifeDays,
+
+        // ───────────────────────────────────────────────────────────── fines
+
+        @In("moderation/fines") @Title("A warning costs, per warning")
+        @Describe("Amounts, comma separated, for the first, second, third warning inside the warning window; "
+                + "the last one repeats. Empty: warnings cost nothing. Needs an economy.")
+        @Key("punishments.warn-fine")
+        String warnFine,
+
+        @In("moderation/fines") @Title("A warning costs, share of balance") @Range(min = 0, max = 100)
+        @Describe("Percent of the player's balance, instead of or besides the amounts above — the larger "
+                + "of the two is charged. 0: off.")
+        @Key("punishments.warn-fine-percent")
+        int warnFinePercent,
+
+        @In("moderation/fines") @Title("Share of balance, at least")
+        @Describe("The least that share comes to. 0: no lower bound.")
+        @Key("punishments.warn-fine-least")
+        String warnFineLeast,
+
+        @In("moderation/fines") @Title("Share of balance, at most")
+        @Describe("The most that share comes to. 0: no upper bound.")
+        @Key("punishments.warn-fine-most")
+        String warnFineMost,
+
+        @In("moderation/fines") @Title("Most a moderator may fine")
+        @Describe("Moderators holding rains.moderation.fine may fine up to this; admins (fine.unlimited) "
+                + "any amount. 0: no limit.")
+        @Key("punishments.mod-fine-max")
+        String modFineMax,
+
+        @In("moderation/fines") @Title("Unpaid fines become debt")
+        @Describe("On: what the balance cannot cover is taken as far as it goes and the rest is owed — "
+                + "/debt shows it, and the economy collects it from future income. Off: a fine somebody "
+                + "cannot pay is refused.")
+        @Key("fines.unpaid-becomes-debt")
+        boolean unpaidFinesBecomeDebt,
+
+        @In("moderation/fines") @Title("Victim's share of a fine") @Range(min = 0, max = 100)
+        @Describe("Percent of a fine given with victim:<name> that goes to the victim, from the fined "
+                + "player; the rest is a normal fee. 0: off.")
+        @Key("fines.victim-share-percent")
+        int victimSharePercent,
+
+        @In("moderation/fines") @Title("Buying off a mute, per hour left")
+        @Describe("A muted player may /buyoff a temporary mute, paying this for every started hour left. "
+                + "0: off. Permanent mutes and bans can never be bought off.")
+        @Key("punishments.mute-buyoff-per-hour")
+        String muteBuyoffPerHour,
+
+        @In("moderation/fines") @Title("Longest mute that can be bought off") @Range(min = 1, max = 8760)
+        @Describe("Hours. A mute given for longer than this cannot be bought off.")
+        @Key("punishments.mute-buyoff-longest-hours")
+        int muteBuyoffLongestHours) {
 
     public ModerationSettings {
         suspiciousCommands = suspiciousCommands == null ? List.of() : List.copyOf(suspiciousCommands);
@@ -369,7 +424,8 @@ public record ModerationSettings(
             900,
             true, true, "<dark_aqua>[Staff]</dark_aqua>", false, true, true, false, true,
             true, 0, 300, false, true,
-            true, 24, 20, 6, 14);
+            true, 24, 20, 6, 14,
+            "", 0, "0", "0", "0", true, 0, "0", 24);
 
     /** The report cooldown as the rule wants it. */
     public Duration reportCooldown() {
@@ -425,7 +481,8 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withAnnounceLifts(boolean announce) {
@@ -440,7 +497,8 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withAnnounceKicks(boolean announce) {
@@ -455,7 +513,8 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withAnnounceWarnings(boolean announce) {
@@ -470,7 +529,8 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withShowModeratorName(boolean named) {
@@ -485,7 +545,8 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withWarnsBeforeBan(int howMany) {
@@ -500,7 +561,8 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withAdminsAreOp(boolean opped) {
@@ -515,7 +577,8 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, opped,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withModTempBanMax(String longest) {
@@ -530,7 +593,8 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withMayPromoteBelow(boolean allowed) {
@@ -545,7 +609,8 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, allowed, mayDemoteBelow, adminsAreOp, flightWhileVanished,
                 auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withMayDemoteBelow(boolean allowed) {
@@ -560,7 +625,8 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, allowed, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withSuspiciousCommandsEnabled(boolean enabled) {
@@ -575,7 +641,8 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withSuspiciousCommands(List<String> commands) {
@@ -590,7 +657,8 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withSuspiciousCooldownSeconds(int seconds) {
@@ -605,7 +673,8 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withXrayDetectionEnabled(boolean enabled) {
@@ -620,7 +689,8 @@ public record ModerationSettings(
                 enabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
     public ModerationSettings withXrayOres(List<String> ores) {
@@ -635,7 +705,8 @@ public record ModerationSettings(
                 xrayDetectionEnabled, ores, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
 
@@ -654,11 +725,64 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays);
+                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours);
     }
 
 
 
+
+    public ModerationSettings withWarnFine(String amounts) {
+        return with("warnFine", amounts);
+    }
+
+    public ModerationSettings withWarnFinePercent(int percent) {
+        return with("warnFinePercent", percent);
+    }
+
+    public ModerationSettings withWarnFineLeast(String least) {
+        return with("warnFineLeast", least);
+    }
+
+    public ModerationSettings withWarnFineMost(String most) {
+        return with("warnFineMost", most);
+    }
+
+    public ModerationSettings withModFineMax(String most) {
+        return with("modFineMax", most);
+    }
+
+    public ModerationSettings withUnpaidFinesBecomeDebt(boolean becomes) {
+        return with("unpaidFinesBecomeDebt", becomes);
+    }
+
+    public ModerationSettings withVictimSharePercent(int percent) {
+        return with("victimSharePercent", percent);
+    }
+
+    public ModerationSettings withMuteBuyoffPerHour(String perHour) {
+        return with("muteBuyoffPerHour", perHour);
+    }
+
+    public ModerationSettings withMuteBuyoffLongestHours(int hours) {
+        return with("muteBuyoffLongestHours", hours);
+    }
+
+    /** This record with one component replaced — for the fine settings, which would otherwise each need a fifty-argument copy. */
+    private ModerationSettings with(String component, Object value) {
+        try {
+            var components = ModerationSettings.class.getRecordComponents();
+            Object[] values = new Object[components.length];
+            Class<?>[] types = new Class<?>[components.length];
+            for (int at = 0; at < components.length; at++) {
+                types[at] = components[at].getType();
+                values[at] = components[at].getName().equals(component) ? value : components[at].getAccessor().invoke(this);
+            }
+            return ModerationSettings.class.getDeclaredConstructor(types).newInstance(values);
+        } catch (ReflectiveOperationException impossible) {
+            throw new IllegalStateException("no setting called " + component, impossible);
+        }
+    }
 
     /** The wait before flagging the same player again, as the service wants it. */
     public java.time.Duration xrayCooldown() {

@@ -109,6 +109,45 @@ class ModerationSettingsTest {
     }
 
     @Nested
+    @DisplayName("fines")
+    class Fines {
+
+        @Test
+        @DisplayName("everything about money is off, so a server behaves as before and needs no economy")
+        void offByDefault() {
+            assertThat(defaults.warnFine()).isBlank();
+            assertThat(defaults.warnFinePercent()).isZero();
+            assertThat(defaults.warnFineLeast()).isEqualTo("0");
+            assertThat(defaults.warnFineMost()).isEqualTo("0");
+            assertThat(defaults.modFineMax()).isEqualTo("0");
+            assertThat(defaults.victimSharePercent()).isZero();
+            assertThat(defaults.muteBuyoffPerHour()).isEqualTo("0");
+        }
+
+        @Test
+        @DisplayName("unpaid fines become debt, and a mute up to a day can be bought off once priced")
+        void theSwitchesThatOnlyMatterOnceFinesAreUsed() {
+            assertThat(defaults.unpaidFinesBecomeDebt()).isTrue();
+            assertThat(defaults.muteBuyoffLongestHours()).isEqualTo(24);
+        }
+
+        @Test
+        @DisplayName("each fine setting is stored under the key the owner will look for")
+        void keys() {
+            assertThat(defaults.withWarnFine("5").warnFine()).isEqualTo("5");
+            assertThat(defaults.withWarnFinePercent(7).warnFinePercent()).isEqualTo(7);
+            assertThat(defaults.withWarnFineLeast("1").warnFineLeast()).isEqualTo("1");
+            assertThat(defaults.withWarnFineMost("9").warnFineMost()).isEqualTo("9");
+            assertThat(defaults.withModFineMax("3").modFineMax()).isEqualTo("3");
+            assertThat(defaults.withUnpaidFinesBecomeDebt(false).unpaidFinesBecomeDebt()).isFalse();
+            assertThat(defaults.withVictimSharePercent(25).victimSharePercent()).isEqualTo(25);
+            assertThat(defaults.withMuteBuyoffPerHour("4").muteBuyoffPerHour()).isEqualTo("4");
+            assertThat(defaults.withMuteBuyoffLongestHours(6).muteBuyoffLongestHours()).isEqualTo(6);
+            assertThat(defaults.withWarnFine("5").autoSaveSeconds()).isEqualTo(defaults.autoSaveSeconds());
+        }
+    }
+
+    @Nested
     @DisplayName("reports")
     class Reports {
 

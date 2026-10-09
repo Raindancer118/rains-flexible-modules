@@ -107,6 +107,8 @@ public record ModerationServices(
         de.raindancer.modules.moderation.service.BanhammerService banhammer,
         de.raindancer.modules.moderation.service.VaultService vaults,
         de.raindancer.modules.moderation.service.RuleBreachService ruleBreaches,
+        de.raindancer.modules.moderation.service.FineService fines,
+        de.raindancer.modules.moderation.service.BuyoffService buyoffs,
         Supplier<de.raindancer.modules.moderation.listener.StaffChatListener> staffChatSpeaker,
 
         Supplier<ModerationSettings> settings,

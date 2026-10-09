@@ -56,5 +56,7 @@ class RuleBreachRuleTest {
                 .isEqualTo(ModerationPermission.FREEZE);
         assertThat(RuleBreachRule.permissionFor(new RulePenalty(PunishmentKind.BAN, Duration.ofDays(1))))
                 .as("the ban limit then decides the length").isEqualTo(ModerationPermission.TEMPBAN);
+        assertThat(RuleBreachRule.permissionFor(new RulePenalty(PunishmentKind.FINE, null, 100)))
+                .isEqualTo(ModerationPermission.FINE);
     }
 }

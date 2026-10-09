@@ -1,5 +1,7 @@
 package de.raindancer.modules.moderation.util;
 
+import de.raindancer.modules.moderation.command.BuyoffCommand;
+import de.raindancer.modules.moderation.command.DebtCommand;
 import de.raindancer.modules.moderation.command.PromoteCommand;
 import de.raindancer.modules.moderation.command.ReportCommand;
 import de.raindancer.modules.moderation.command.VaultCommand;
@@ -88,6 +90,11 @@ public final class PermissionNodes {
         wanted.add(new Permission(ReportCommand.USE,
                 "File a report about another player", PermissionDefault.TRUE));
 
+        // Everybody, like reporting: paying one's own debt or buying off one's own mute is nobody's privilege.
+        wanted.add(new Permission(DebtCommand.USE, "See and pay what you owe from fines", PermissionDefault.TRUE));
+        wanted.add(new Permission(BuyoffCommand.USE, "Buy off a temporary mute, where the server allows it",
+                PermissionDefault.TRUE));
+
         // OP, not a rank preset: exempting staff from being auto-reported for testing the feature, or
         // for typing /seed to help somebody, is not a working power the way MUTE or KICK are.
         wanted.add(new Permission(SuspiciousCommandListener.BYPASS,
@@ -150,6 +157,8 @@ public final class PermissionNodes {
         nodes.add(PromoteCommand.USE);
         nodes.add(VaultCommand.USE);
         nodes.add(ReportCommand.USE);
+        nodes.add(DebtCommand.USE);
+        nodes.add(BuyoffCommand.USE);
         nodes.add(SuspiciousCommandListener.BYPASS);
         for (String granted : StaffRank.everyGrantableNode()) {
             if (!nodes.contains(granted)) {

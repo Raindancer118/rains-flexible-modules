@@ -181,6 +181,7 @@ public final class DurationMenu extends ModerationScreen {
             case KICK -> ModerationPermission.KICK;
             case WARNING -> ModerationPermission.WARN;
             case FREEZE -> ModerationPermission.FREEZE;
+            case FINE -> ModerationPermission.FINE;
         };
     }
 

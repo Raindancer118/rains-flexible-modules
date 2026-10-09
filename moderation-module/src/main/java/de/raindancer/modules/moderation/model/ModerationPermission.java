@@ -34,6 +34,8 @@ public enum ModerationPermission {
     TEMPBAN("tempban", "Ban somebody for a limited time, up to the configured maximum",
             Material.IRON_DOOR, 2, false),
     FREEZE("freeze", "Stop somebody building while you talk to them", Material.PACKED_ICE, 2, false),
+    FINE("fine", "Fine somebody, up to the configured maximum, and forgive or revoke fines",
+            Material.GOLD_NUGGET, 2, false),
     NOTES("notes", "Read and write the staff notes about somebody", Material.WRITABLE_BOOK, 2, true),
     VANISH("vanish", "Go invisible, and see who else is", Material.GLASS, 2, true),
     INVSEE_EDIT("invsee.edit", "Change what is in it", Material.HOPPER, 2, true),
@@ -52,6 +54,8 @@ public enum ModerationPermission {
     // having looked, is not.
     BAN("ban", "Ban somebody for any length, permanently included, and lift any ban",
             Material.BARRIER, 3, false),
+    FINE_UNLIMITED("fine.unlimited", "Fine any amount, whatever the moderators' maximum is",
+            Material.GOLD_INGOT, 3, false),
     BANHAMMER("banhammer", "Ban somebody for ever by killing them with a mace named Banhammer",
             Material.MACE, 3, false),
     CONFIG("config", "Change how moderation itself behaves", Material.COMPARATOR, 3, true),

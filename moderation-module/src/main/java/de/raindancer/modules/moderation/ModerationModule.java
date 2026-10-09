@@ -68,7 +68,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.29.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.30.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -89,6 +89,8 @@ public final class ModerationModule implements FlexModule {
     private AnnouncementRule announcements;
 
     private PunishmentService punishmentService;
+    private de.raindancer.modules.moderation.service.FineService fineService;
+    private de.raindancer.modules.moderation.service.BuyoffService buyoffService;
 
     /** How often everybody broke each of the server's rules — see {@code RuleOffences}. */
     private static de.raindancer.modules.moderation.store.RuleOffences ruleOffences(
@@ -193,6 +195,39 @@ public final class ModerationModule implements FlexModule {
                 context.core().banBridge(), context.core().audit(), context.core().messages(),
                 context.chat(), pending, announcements, escalation, settings.current());
 
+        de.raindancer.modules.moderation.store.FineLedger fineLedger =
+                new de.raindancer.modules.moderation.store.FineLedger(context.dataFolder().resolve("fines.yml"));
+        fineLedger.load();
+        fineService = new de.raindancer.modules.moderation.service.FineService(
+                (actor, actorName, target, targetName, kind, why, detail) -> punishmentService.punish(actor,
+                        actorName, target, targetName, kind, de.raindancer.modules.moderation.model.Sentence.forEver(),
+                        why, detail),
+                fineLedger, staffRule,
+                (who, key, values) -> {
+                    Object[] arguments = new Object[values.size() * 2];
+                    int at = 0;
+                    for (var each : values.entrySet()) {
+                        arguments[at++] = each.getKey();
+                        arguments[at++] = each.getValue();
+                    }
+                    Player here = server.getPlayer(who);
+                    if (here != null) {
+                        context.core().messages().send(here, key, arguments);
+                    } else {
+                        pending.keep(who, key, values);
+                    }
+                },
+                context.core().audit(), log, settings.current());
+        punishmentService.fines(fineService);
+        buyoffService = new de.raindancer.modules.moderation.service.BuyoffService(
+                who -> context.core().punishments().active(who, de.raindancer.core.moderation.punishment.PunishmentKind.MUTE),
+                (who, name, why) -> punishmentService.lift(who, name, who, name,
+                        de.raindancer.core.moderation.punishment.PunishmentKind.MUTE, why),
+                settings.current());
+        // What is owed from fines, for the economy to collect from future income.
+        de.raindancer.core.social.economy.Debts.provide(context.plugin(), fineService);
+        context.closeWith(() -> de.raindancer.core.social.economy.Debts.retract(fineService));
+
         // Bukkit's own ServicesManager, not a static field: the one lookup that works whether an
         // outside module is hosted in this same plugin or in a separate one entirely. This module
         // never learns who, if anybody, looks it up — essentials-module's blocked-nickname handling
@@ -265,7 +300,8 @@ public final class ModerationModule implements FlexModule {
                 punishmentService, reportService, suspiciousCommands, xrayEvidence, noteService, staffChat, roster, immune,
                 staffService, worldTools, banhammer, vaults,
                 new de.raindancer.modules.moderation.service.RuleBreachService(punishmentService,
-                        ruleOffences(context), staffRule, this::banLimitRule, context.core().messages()),
+                        ruleOffences(context), staffRule, this::banLimitRule, context.core().messages(), fineService),
+                fineService, buyoffService,
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
 
@@ -291,6 +327,8 @@ public final class ModerationModule implements FlexModule {
             worldTools.settings(fresh);
             banhammer.settings(fresh);
             vaults.settings(fresh);
+            fineService.settings(fresh);
+            buyoffService.settings(fresh);
             context.core().punishmentGuard().appealMessage(fresh.appealMessage());
         });
 
