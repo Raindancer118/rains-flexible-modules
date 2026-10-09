@@ -74,6 +74,10 @@ class XrayScenarioTest {
         return live;
     }
 
+    private static boolean xrayReported(Bot staff) {
+        return staff.chatText().stream().anyMatch(line -> line.contains("Xray") && line.contains("x-ray"));
+    }
+
     @Test
     @DisplayName("tunnelling straight to bait ores files an x-ray report; an honest tunnel does not")
     void baitCatchesXray() {
@@ -108,7 +112,9 @@ class XrayScenarioTest {
             int[] at = {20, FLOOR, 20};
             int reached = 0;
             java.util.Set<String> givenUp = new java.util.HashSet<>();
-            for (int round = 0; round < 60 && reached < 10; round++) {
+            // Until staff hear of it, not a fixed number of baits: on a loaded machine some moves are refused,
+            // so the same number of baits can carry less evidence. The honest bot is still checked below.
+            for (int round = 0; round < 60 && (reached < 10 || !xrayReported(ada)); round++) {
                 Map<String, int[]> seen = baitSeen(xray);
                 seen.keySet().removeAll(givenUp);
                 if (seen.isEmpty()) {
