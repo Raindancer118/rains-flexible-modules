@@ -289,7 +289,7 @@ public final class ModerationModule implements FlexModule {
         context.core().punishmentGuard().appealMessage(settings.current().appealMessage());
         // Whoever may vanish counts as staff to Core, so with "staff see staff" on (the default) a vanished
         // admin is in the other admins' tablist and their joins and leaves reach them.
-        String vanishNode = ModerationPermission.VANISH.node();
+        String vanishNode = de.raindancer.modules.moderation.model.ModerationPermission.VANISH.node();
         context.core().vanish().countAsStaff(vanishNode);
         for (org.bukkit.entity.Player online : server.getOnlinePlayers()) {
             if (context.core().vanish().isStaffSeeStaff() && online.hasPermission(vanishNode)) {
