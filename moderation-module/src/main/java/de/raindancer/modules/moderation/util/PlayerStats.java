@@ -67,8 +67,8 @@ public final class PlayerStats {
                 && de.raindancer.core.RainsCore.get().playtime().isKnown(player.getUniqueId())) {
             de.raindancer.core.social.presence.Playtime counted = de.raindancer.core.RainsCore.get().playtime();
             return List.of("<gray>Played for <white>" + Times.describe(counted.played(player.getUniqueId())) + "</white>.",
-                    "<gray>Not away for <white>" + Times.describe(counted.playedActively(player.getUniqueId()))
-                            + "</white> of it.");
+                    "<gray>Active <white>" + Times.describe(counted.playedActively(player.getUniqueId())) + "</white>.",
+                    "<gray>AFK <white>" + Times.describe(counted.playedAway(player.getUniqueId())) + "</white>.");
         }
         Duration playtime = Duration.ofSeconds(player.getStatistic(Statistic.PLAY_ONE_MINUTE) / 20L);
         return List.of("<gray>Played for <white>" + Times.describe(playtime) + "</white>.");

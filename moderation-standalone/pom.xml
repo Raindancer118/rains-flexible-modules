@@ -131,7 +131,7 @@
           all and put away what you wear; sneak-right-click with the Banhammer puts it in.
           2.27.0: sneak-right-click with an empty hand takes the Banhammer back out of the vault; the
           vault's model and file are RainsCore's Stash (1.66.0) — same files, same format. -->
-        <plugin.version>2.28.0</plugin.version>
+        <plugin.version>2.28.1</plugin.version>
     </properties>
 
     <dependencies>
