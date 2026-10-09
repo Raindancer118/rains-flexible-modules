@@ -20,4 +20,13 @@ public interface IHomeScreensOpener {
 
     /** The icon picker for one home. */
     void icon(Player viewer, Home home);
+
+    /**
+     * Offers to buy another home slot, and on yes sets the home the player was trying to set.
+     *
+     * @param thenSet  whether to set a home once the slot is bought: true from {@code /sethome}, false
+     *                 from the menu, where there is nothing to set afterwards
+     * @param homeName what they typed to {@code /sethome}, null for the default name
+     */
+    void offerSlot(Player viewer, boolean thenSet, String homeName);
 }

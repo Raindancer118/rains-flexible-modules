@@ -9,6 +9,7 @@ import de.raindancer.core.world.teleport.Travel;
 import de.raindancer.modules.homes.rules.HomeLimitRule;
 import de.raindancer.modules.homes.rules.HomeNameRule;
 import de.raindancer.modules.homes.service.HomeKeepingService;
+import de.raindancer.modules.homes.service.HomeSlotService;
 import de.raindancer.modules.homes.service.HomeTravelService;
 import de.raindancer.modules.homes.store.HomeCatalogue;
 import org.bukkit.Server;
@@ -48,6 +49,7 @@ public record HomeServices(
         Travel travel,
         HomeTravelService travelling,
         HomeKeepingService keeping,
+        HomeSlotService slots,
 
         IHomeScreensOpener screens) {
 

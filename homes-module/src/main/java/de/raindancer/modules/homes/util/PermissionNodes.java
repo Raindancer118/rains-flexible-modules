@@ -40,6 +40,9 @@ public final class PermissionNodes {
     /** Skipping the wait between teleports. */
     public static final String BYPASS_COOLDOWN = "homes.bypass.cooldown";
 
+    /** Going home without paying the price, when there is one. */
+    public static final String BYPASS_FEE = "homes.bypass.fee";
+
     /**
      * The prefix of a numbered node: {@code homes.limit.10} means ten.
      *
@@ -72,6 +75,9 @@ public final class PermissionNodes {
                         PermissionDefault.FALSE),
                 new Permission(BYPASS_COOLDOWN,
                         "Go home again without waiting",
+                        PermissionDefault.FALSE),
+                new Permission(BYPASS_FEE,
+                        "Go home without paying, when going home costs money",
                         PermissionDefault.FALSE));
     }
 

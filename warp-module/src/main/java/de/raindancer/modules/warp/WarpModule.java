@@ -10,6 +10,8 @@ import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.warp.listener.WarpSessionListener;
 import de.raindancer.modules.warp.rules.WarpAccessRule;
+import de.raindancer.modules.warp.rules.WarpFeeRule;
+import de.raindancer.modules.warp.rules.WarpRentRule;
 import de.raindancer.modules.warp.screen.AdminWarpMenu;
 import de.raindancer.modules.warp.screen.WarpCategoryMenu;
 import de.raindancer.modules.warp.screen.WarpConfigMenu;
@@ -17,6 +19,8 @@ import de.raindancer.modules.warp.screen.WarpEditMenu;
 import de.raindancer.modules.warp.screen.WarpListMenu;
 import de.raindancer.modules.warp.service.TravelService;
 import de.raindancer.modules.warp.service.WarpAdminService;
+import de.raindancer.modules.warp.service.WarpRentService;
+import de.raindancer.modules.warp.service.WarpVisitFees;
 import de.raindancer.modules.warp.store.WarpCatalogue;
 import de.raindancer.modules.warp.util.PermissionNodes;
 import org.bukkit.Server;
@@ -54,7 +58,7 @@ import java.util.List;
  */
 public final class WarpModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.5.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.6.0")
             .describedAs("Named places anybody can be sent to, with a menu to pick one from — and "
                     + "warps only the staff, or one permission, can reach")
             .by("Raindancer118");
@@ -67,6 +71,9 @@ public final class WarpModule implements FlexModule {
     private Travel travel;
     private TravelService travelling;
     private WarpAdminService admin;
+    private de.raindancer.modules.warp.service.WarpVisitFees visits;
+    private WarpRentService rent;
+    private io.papermc.paper.threadedregions.scheduler.ScheduledTask rentSweep;
     private de.raindancer.modules.warp.service.WarpTokens tokens;
 
     private WarpServices services;
@@ -116,10 +123,13 @@ public final class WarpModule implements FlexModule {
         catalogue = new WarpCatalogue(registry, () -> de.raindancer.core.platform.util.Scheduling.async(
                 context.plugin(), context.core().places()::flush));
         travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
+        rent = new WarpRentService(catalogue, new WarpRentRule(), context.core().messages(),
+                settings.current(), System::currentTimeMillis, server::getPlayer);
+        visits = new WarpVisitFees(context.core().messages(), new WarpFeeRule(), settings.current());
         travelling = new TravelService(catalogue, registry, travel, access,
-                context.core().messages(), settings.current());
+                context.core().messages(), settings.current(), visits, rent);
         admin = new WarpAdminService(catalogue, access, context.core().messages(),
-                settings.current());
+                settings.current(), rent);
         // The token is Core's kind of item: Core draws it, dispatches the click and keeps it out of
         // crafting grids. What redeeming one means is this module's.
         tokens = new de.raindancer.modules.warp.service.WarpTokens(admin, context.core().itemFactory(),
@@ -138,6 +148,7 @@ public final class WarpModule implements FlexModule {
                 catalogue, access, travel, travelling, admin, tokens,
                 new de.raindancer.modules.warp.service.ClaimWarpDirectory(context.core().claimWarps(),
                         id -> context.core().identities().nameOf(id).orElse(null)),
+                visits, rent,
                 new LiveScreens());
 
         // Every setting is a snapshot, so a reload hands each service a fresh one. Missing one of
@@ -146,6 +157,8 @@ public final class WarpModule implements FlexModule {
         settings.onChange(fresh -> {
             travelling.settings(fresh);
             admin.settings(fresh);
+            visits.settings(fresh);
+            rent.settings(fresh);
             // Pushed here too, not only at startup — otherwise a changed cooldown reads correctly in
             // every screen and command but goes on enforcing whatever the file said when the module
             // started, until the next restart.
@@ -157,6 +170,11 @@ public final class WarpModule implements FlexModule {
         // mobs at spawn and a five-second warm-up otherwise has a warp nobody can complete.
         context.listener(new TravelListener(travel, settings.current().hurtCancelsWarmup()));
         context.listener(new WarpSessionListener(services));
+
+        // Rent falls due at a time of day, not at a click, so something has to look. Cheap and silent
+        // when rent is off, which is the default.
+        rentSweep = de.raindancer.core.platform.util.Scheduling.globalTimer(context.plugin(),
+                20L * 30, 20L * 60 * 5, task -> rent.sweep());
 
         // The command was registered during bootstrap, long before any of this existed, and has been
         // answering "not started yet" until now. See WarpCommands.
@@ -231,6 +249,14 @@ public final class WarpModule implements FlexModule {
         // Somebody mid-warm-up when the module stops must not be left standing still for a teleport
         // that will never come, and the countdown tasks must not outlive the plugin that scheduled
         // them. Nothing else has to be written: the warps are places, and Core owns those.
+        if (rentSweep != null) {
+            rentSweep.cancel();
+            rentSweep = null;
+        }
+        if (visits != null) {
+            // Before the warm-ups are dropped: somebody mid-wait has paid for a visit that will not come.
+            visits.refundAll();
+        }
         if (travel != null) {
             travel.clear();
         }

@@ -210,6 +210,22 @@ public final class WarpRegistry {
     }
 
     /** What it is filed under, for a menu that groups them. Null takes it out of any category. */
+    /** What its owner charges to visit it; zero or null takes the fee off. */
+    public boolean setVisitFee(String name, de.raindancer.core.social.economy.Money fee) {
+        return retag(name, Warp.TAG_VISIT_FEE,
+                fee == null || !fee.isPositive() ? null : String.valueOf(fee.minor()));
+    }
+
+    /** Its rent: paid until when, and whether it is closed for not being paid. A null time takes it off rent. */
+    public boolean setRent(String name, Long paidUntil, boolean closed) {
+        return byName(name).map(warp -> {
+            places.save(warp.poi()
+                    .withTag(Warp.TAG_RENT_UNTIL, paidUntil == null ? null : String.valueOf(paidUntil))
+                    .withTag(Warp.TAG_RENT_CLOSED, closed ? "1" : null));
+            return true;
+        }).orElse(false);
+    }
+
     public boolean setCategory(String name, String category) {
         return retag(name, Warp.TAG_CATEGORY, category);
     }

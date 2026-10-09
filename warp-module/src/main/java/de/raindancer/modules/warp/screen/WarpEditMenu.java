@@ -1,5 +1,7 @@
 package de.raindancer.modules.warp.screen;
 
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.choose.ItemChooser;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.choose.PlayerChooser;
@@ -140,6 +142,38 @@ public final class WarpEditMenu extends Menu implements IWarpScreen {
                         "<gray>Click to add or remove people."),
                 "Only a private warp has a list — anybody may use this one",
                 click -> new WarpMembersMenu(services, viewer, this, name).open());
+
+        Money cap = services.visits().cap();
+        if (cap.isPositive()) {
+            Money fee = services.visits().feeOf(warp);
+            band(MenuLayout.RULES, 1, Icons.of(Material.GOLD_INGOT, "<white>What a visit costs",
+                            fee.isPositive()
+                                    ? "<gray>Visitors pay <white>" + Fees.format(fee) + "<gray>."
+                                    : "<gray>Free to visit.",
+                            "<dark_gray>You may ask up to " + Fees.format(cap) + ", and the server keeps "
+                                    + services.config().visitCutPercent() + "% of it.",
+                            "<dark_gray>You never pay for your own warp.",
+                            "",
+                            "<gray>Click to type a fee, or off to make it free."),
+                    click -> ask("warps.ask-visit-fee",
+                            answer -> services.admin().setVisitFee(viewer, name, answer)));
+        }
+        if (services.rent().isOn() && warp.rentPaidUntil().isPresent()) {
+            boolean closed = services.rent().isClosed(warp);
+            band(MenuLayout.RULES, 7, closed, Icons.of(Material.CLOCK, "<white>Rent",
+                            "<gray>" + services.rent().describeRent() + " a week.",
+                            "<red>Unpaid, so the warp is closed to everybody else.",
+                            "",
+                            "<gray>Click to pay it and open the warp again."),
+                    "Paid until " + services.rent().paidUntilText(warp) + " — nothing to pay yet",
+                    click -> new ConfirmScreen(services, viewer, this,
+                            "<dark_gray>Pay the rent for " + warp.label() + "?",
+                            List.of("<gray>Takes <white>" + services.rent().describeRent() + "<gray> now",
+                                    "<gray>and covers the next week."),
+                            () -> {
+                                services.rent().pay(viewer, name);
+                            }).open());
+        }
 
         if (staff) {
             band(MenuLayout.RULES, 5, Icons.of(Material.NAME_TAG, "<white>Give it to a player",

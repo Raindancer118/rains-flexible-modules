@@ -1,5 +1,6 @@
 package de.raindancer.modules.warp.screen;
 
+import de.raindancer.core.social.economy.Fees;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -193,6 +194,62 @@ public final class WarpConfigMenu extends Menu implements IWarpScreen {
                                 "",
                                 "<gray>Click to add one. Right click to take one away.")),
                 click -> step("most-own-warps", now.mostOwnWarps(), click, 0, 100));
+
+        // ------------------------------------------------------------ what it all costs
+        toolbar(1, Icons.of(Material.GOLD_NUGGET, "<white>Price of making a warp",
+                        lore(moneyText(now.createPrice()),
+                                "<gray>Taken when a player makes a warp. Moving one,",
+                                "<gray>a warp token and staff are free.",
+                                "<dark_gray>0 makes it free and needs no economy plugin.",
+                                "",
+                                "<gray>Click to type an amount.")),
+                click -> askMoney(answer -> write("create-price", answer)));
+        toolbar(3, Icons.of(Material.CLOCK, "<white>Rent per week",
+                        lore(moneyText(now.rentPerWeek()),
+                                "<gray>Every player-owned warp costs this each week.",
+                                "<gray>Unpaid, it is closed until the owner pays;",
+                                "<gray>nothing is ever deleted for it.",
+                                "<dark_gray>0 switches rent off.",
+                                "",
+                                "<gray>Click to type an amount.")),
+                click -> askMoney(answer -> write("rent-per-week", answer)));
+        toolbar(5, Icons.of(Material.GOLD_INGOT, "<white>Most an owner may charge to visit",
+                        lore(moneyText(now.mostVisitFee()),
+                                "<gray>Owners may put a visit fee on their own warp",
+                                "<gray>up to this much.",
+                                "<dark_gray>0 means owners may not charge.",
+                                "",
+                                "<gray>Click to type an amount.")),
+                click -> askMoney(answer -> write("most-visit-fee", answer)));
+        toolbar(7, Icons.of(Material.HOPPER, "<white>Server's cut of a visit fee",
+                        lore(now.visitCutPercent() + " percent",
+                                "<gray>How much of each visit fee the server keeps;",
+                                "<gray>the owner receives the rest.",
+                                "",
+                                "<gray>Click to add five. Right click to take five away.")),
+                click -> step("visit-fee-server-cut-percent", now.visitFeeServerCutPercent(), click, 0, 100, 5));
+    }
+
+    private static String moneyText(String written) {
+        return Fees.amount(written).isPositive() ? Fees.format(Fees.amount(written)) : "free (0)";
+    }
+
+    /** Asks for an amount in chat, which is the one thing a menu cannot enumerate. */
+    private void askMoney(java.util.function.Consumer<String> withTheAnswer) {
+        viewer.closeInventory();
+        boolean asking = services.core().prompts().ask(viewer.getUniqueId(), "warps",
+                java.time.Duration.ofSeconds(60),
+                answer -> {
+                    withTheAnswer.accept(answer);
+                    open();
+                },
+                this::open);
+        if (!asking) {
+            services.messages().send(viewer, "warps.busy");
+            open();
+            return;
+        }
+        services.messages().send(viewer, "warps.config.ask-money");
     }
 
     // ------------------------------------------------------------------------ the two kinds of button

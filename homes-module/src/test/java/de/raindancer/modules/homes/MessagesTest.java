@@ -6,6 +6,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import de.raindancer.core.data.settings.Key;
+import de.raindancer.modules.homes.service.HomeSlotService;
+import de.raindancer.modules.homes.service.HomeTravelService;
 import de.raindancer.modules.homes.store.LegacyHomesFile;
 import de.raindancer.modules.homes.util.PermissionNodes;
 
@@ -97,6 +99,10 @@ class MessagesTest {
         keys.add(PermissionNodes.UNLIMITED);
         keys.add(PermissionNodes.BYPASS_WARMUP);
         keys.add(PermissionNodes.BYPASS_COOLDOWN);
+        keys.add(PermissionNodes.BYPASS_FEE);
+        // Economy source keys: what the money is reported as, not what a player is told.
+        keys.add(HomeSlotService.SOURCE);
+        keys.add(HomeTravelService.SOURCE);
         // The old file the migration reads. A filename, not a key, and the one literal here that is
         // neither a setting nor a node.
         keys.add(LegacyHomesFile.FILE_NAME);

@@ -198,6 +198,16 @@ public final class WarpCatalogue {
         return written(warps.delete(name));
     }
 
+    /** What the owner charges to visit it. */
+    public boolean setVisitFee(String name, de.raindancer.core.social.economy.Money fee) {
+        return written(warps.setVisitFee(name, fee));
+    }
+
+    /** Its rent state; see {@link WarpRegistry#setRent}. */
+    public boolean setRent(String name, Long paidUntil, boolean closed) {
+        return written(warps.setRent(name, paidUntil, closed));
+    }
+
     /** Who a warp is for. */
     public boolean setAccess(String name, WarpAccess access) {
         if (access == null) {

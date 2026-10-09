@@ -1,6 +1,8 @@
 package de.raindancer.modules.warp.service;
 
 import de.raindancer.core.moderation.punishment.Durations;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.teleport.Travel;
 import de.raindancer.core.world.teleport.TravelReason;
@@ -40,10 +42,23 @@ public final class TravelService implements IWarpService {
     private final WarpAccessRule access;
     private final Messages messages;
 
+    /** Visit fees; null for a host that charges none. */
+    private final WarpVisitFees visits;
+    /** Rent, which is what closes a warp; null for a host that charges none. */
+    private final WarpRentService rent;
+
     private volatile WarpSettings settings;
 
     public TravelService(WarpCatalogue catalogue, WarpRegistry warps, Travel travel,
                          WarpAccessRule access, Messages messages, WarpSettings settings) {
+        this(catalogue, warps, travel, access, messages, settings, null, null);
+    }
+
+    public TravelService(WarpCatalogue catalogue, WarpRegistry warps, Travel travel,
+                         WarpAccessRule access, Messages messages, WarpSettings settings,
+                         WarpVisitFees visits, WarpRentService rent) {
+        this.visits = visits;
+        this.rent = rent;
         this.catalogue = catalogue;
         this.warps = warps;
         this.travel = travel;
@@ -90,14 +105,37 @@ public final class TravelService implements IWarpService {
             return;
         }
 
-        // Asked, not spent. Charging up front would mean giving it back whenever a warm-up is
-        // interrupted, and giving it back means clearing the wait — which wipes whatever else was on
-        // it. So the wait is started when they actually arrive; see the watcher below.
+        // A warp closed for unpaid rent is shut to everybody but its owner and staff. Asked after
+        // the permission, so somebody who may not use the warp is still told there is none.
+        if (rent != null && rent.isClosed(warp) && !access.mayChange(traveller::hasPermission,
+                traveller.getUniqueId(), warp.owner().orElse(null))) {
+            messages.send(traveller, "warps.closed", "name", warp.label());
+            return;
+        }
+
+        // Asked, not spent. The wait is started when they actually arrive; see the watcher below.
         if (!warps.isReadyToWarp(traveller.getUniqueId())) {
             messages.send(traveller, "warps.on-cooldown", "time", waitLeft(traveller.getUniqueId()));
             return;
         }
+        boolean paying = visits != null;
+        if (paying && travel.isTravelling(traveller.getUniqueId())) {
+            // Before charging: Core refuses a second trip, and that refusal must not be what hands
+            // back the money of the first.
+            messages.send(traveller, "warps.already-travelling");
+            return;
+        }
+        if (paying && !visits.charge(traveller, warp)) {
+            return;
+        }
         depart(traveller, warp.label(), warp.poi());
+    }
+
+    /** Lets go of a player who has left, paying back a visit that never finished. */
+    public void leaves(UUID who) {
+        if (visits != null) {
+            visits.refund(who);
+        }
     }
 
     /**
@@ -178,6 +216,9 @@ public final class TravelService implements IWarpService {
          */
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
+            if (visits != null) {
+                visits.settle(traveller.getUniqueId());
+            }
             warps.recordUse(traveller.getUniqueId());
             messages.send(traveller, "warps.arrived", "name", label);
         }
@@ -185,11 +226,23 @@ public final class TravelService implements IWarpService {
         @Override
         public void cancelled(Player traveller, TravelReason why, Trip trip) {
             messages.send(traveller, keyFor(why), "name", label);
+            paidBack(traveller);
         }
 
         @Override
         public void refused(Player traveller, TravelReason why, Trip trip) {
             messages.send(traveller, keyFor(why), "name", label);
+            paidBack(traveller);
+        }
+
+        private void paidBack(Player traveller) {
+            if (visits == null) {
+                return;
+            }
+            Money back = visits.refund(traveller.getUniqueId());
+            if (back.isPositive()) {
+                messages.send(traveller, "warps.visit.refunded", "price", Fees.format(back));
+            }
         }
     }
 

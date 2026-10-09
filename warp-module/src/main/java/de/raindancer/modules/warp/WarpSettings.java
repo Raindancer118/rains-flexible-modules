@@ -111,10 +111,40 @@ public record WarpSettings(
                 + "token is one more on top, whatever this says, and staff have no limit. Zero lets "
                 + "only tokens and staff make warps.")
         @Key("most-own-warps")
-        int mostOwnWarps) {
+        int mostOwnWarps,
+
+        @In("warps/making") @Title("Price of making a warp")
+        @Describe("Money, written like 25 or 1.5k, taken when a player makes a warp. Moving or re-making "
+                + "one they already have is free, as is a warp made with a warp token, and staff with "
+                + "rainswarps.warp.manage or rainswarps.bypass.fees pay nothing. 0 makes it free, which is "
+                + "the default and needs no economy plugin.")
+        @Key("create-price")
+        String createPrice,
+
+        @In("warps/making") @Title("Rent per week")
+        @Describe("Money a player-owned warp costs every week, taken from its owner when it falls due; "
+                + "the first week is included. Unpaid, the warp is closed to everybody but its owner and "
+                + "staff until the owner pays with /warp rent pay. Nothing is ever deleted for not "
+                + "paying. Only warps made while rent is on are charged, and never staff's. 0 switches "
+                + "rent off, which is the default.")
+        @Key("rent-per-week")
+        String rentPerWeek,
+
+        @In("warps/making") @Title("Most an owner may charge to visit")
+        @Describe("Money. Owners may set a visit fee on their own warp up to this much (/warp fee). "
+                + "0 means owners may not charge, which is the default.")
+        @Key("most-visit-fee")
+        String mostVisitFee,
+
+        @In("warps/making") @Title("Server's cut of a visit fee (percent)") @Range(min = 0, max = 100)
+        @Describe("How much of every visit fee goes to the server instead of the owner. The visitor "
+                + "pays the fee; the owner receives it minus this share.")
+        @Key("visit-fee-server-cut-percent")
+        int visitFeeServerCutPercent) {
 
     public static final WarpSettings DEFAULTS = new WarpSettings(
-            3, 15, true, true, 8, 200, 24, true, false, 8, 10, true, 3);
+            3, 15, true, true, 8, 200, 24, true, false, 8, 10, true, 3,
+            "0", "0", "0", 0);
 
     // ------------------------------------------------------------------ read back safely
 
@@ -146,7 +176,7 @@ public record WarpSettings(
     }
 
     public WarpSettings withMostOwnWarps(int most) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, most);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, most, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public int warpLimit() {
@@ -174,50 +204,71 @@ public record WarpSettings(
     // ------------------------------------------------------------------ one component at a time
 
     public WarpSettings withWarmupSeconds(int seconds) {
-        return new WarpSettings(seconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
+        return new WarpSettings(seconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withCooldownSeconds(int seconds) {
-        return new WarpSettings(warmupSeconds, seconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, seconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withHurtCancelsWarmup(boolean cancels) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, cancels, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, cancels, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withSafeArrival(boolean safe) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safe, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safe, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withSafeArrivalRadius(int radius) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, radius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, radius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withMostWarps(int most) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, most, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, most, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withLongestName(int longest) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longest, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longest, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withBringWhatYouLead(boolean bring) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bring, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bring, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withBringNearbyPets(boolean bring) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bring, bringRadius, bringAtMost, useCategories, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bring, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withBringRadius(int radius) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, radius, bringAtMost, useCategories, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, radius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withBringAtMost(int most) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, most, useCategories, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, most, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
     }
 
     public WarpSettings withUseCategories(boolean use) {
-        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, use, mostOwnWarps);
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, use, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
+    }
+
+    public WarpSettings withCreatePrice(String price) {
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, price, rentPerWeek, mostVisitFee, visitFeeServerCutPercent);
+    }
+
+    public WarpSettings withRentPerWeek(String rent) {
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rent, mostVisitFee, visitFeeServerCutPercent);
+    }
+
+    public WarpSettings withMostVisitFee(String most) {
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, most, visitFeeServerCutPercent);
+    }
+
+    public WarpSettings withVisitFeeServerCutPercent(int percent) {
+        return new WarpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrival, safeArrivalRadius, mostWarps, longestName, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, useCategories, mostOwnWarps, createPrice, rentPerWeek, mostVisitFee, percent);
+    }
+
+    /** The cut, clamped: a percentage outside 0 to 100 would pay the owner a negative amount. */
+    public int visitCutPercent() {
+        return Math.max(0, Math.min(100, visitFeeServerCutPercent));
     }
 }

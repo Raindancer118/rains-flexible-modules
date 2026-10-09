@@ -155,4 +155,41 @@ class HomeLimitRuleTest {
             assertThat(rule.mayReplace(2, granted(), false, false, 0)).isTrue();
         }
     }
+
+    @Nested
+    @DisplayName("bought slots")
+    class Bought {
+
+        @Test
+        @DisplayName("are added on top of the configured number")
+        void onTopOfConfigured() {
+            assertThat(rule.limitFor(granted(), false, false, 3, 2)).isEqualTo(5);
+        }
+
+        @Test
+        @DisplayName("are added on top of what a numbered node granted")
+        void onTopOfAPermission() {
+            assertThat(rule.limitFor(granted("homes.limit.10"), false, false, 3, 2)).isEqualTo(12);
+        }
+
+        @Test
+        @DisplayName("make room where there was none")
+        void makeRoom() {
+            assertThat(rule.isRoomFor(3, granted(), false, false, 3, 0)).isFalse();
+            assertThat(rule.isRoomFor(3, granted(), false, false, 3, 1)).isTrue();
+        }
+
+        @Test
+        @DisplayName("change nothing for somebody with no limit")
+        void unlimitedStaysUnlimited() {
+            assertThat(rule.limitFor(granted("homes.unlimited"), false, false, 3, 5))
+                    .isEqualTo(Integer.MAX_VALUE);
+        }
+
+        @Test
+        @DisplayName("the old signature still means none bought")
+        void oldSignature() {
+            assertThat(rule.limitFor(granted(), false, false, 3)).isEqualTo(3);
+        }
+    }
 }

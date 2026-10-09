@@ -35,16 +35,28 @@ public final class HomeLimitRule implements IHomeRule {
     /** How many they may have, given what the config says. */
     public int limitFor(Set<String> granted, boolean isOperator, boolean operatorsBypass,
                         int configured) {
+        return limitFor(granted, isOperator, operatorsBypass, configured, 0);
+    }
+
+    /** The same, with the slots they bought on top of what a permission or the config gives. */
+    public int limitFor(Set<String> granted, boolean isOperator, boolean operatorsBypass,
+                        int configured, int bought) {
         if (isUnlimited(granted, isOperator, operatorsBypass)) {
             return Integer.MAX_VALUE;
         }
-        return NumberedLimit.reading(PermissionNodes.LIMIT_PREFIX, granted).highestOf(configured);
+        return NumberedLimit.reading(PermissionNodes.LIMIT_PREFIX, granted).highestOf(configured)
+                + Math.max(0, bought);
     }
 
     /** Whether there is room for one more. */
     public boolean isRoomFor(int howManyTheyHave, Set<String> granted, boolean isOperator,
                              boolean operatorsBypass, int configured) {
-        return howManyTheyHave < limitFor(granted, isOperator, operatorsBypass, configured);
+        return isRoomFor(howManyTheyHave, granted, isOperator, operatorsBypass, configured, 0);
+    }
+
+    public boolean isRoomFor(int howManyTheyHave, Set<String> granted, boolean isOperator,
+                             boolean operatorsBypass, int configured, int bought) {
+        return howManyTheyHave < limitFor(granted, isOperator, operatorsBypass, configured, bought);
     }
 
     /**
@@ -67,10 +79,15 @@ public final class HomeLimitRule implements IHomeRule {
      */
     public String describeLimit(Set<String> granted, boolean isOperator, boolean operatorsBypass,
                                 int configured) {
+        return describeLimit(granted, isOperator, operatorsBypass, configured, 0);
+    }
+
+    public String describeLimit(Set<String> granted, boolean isOperator, boolean operatorsBypass,
+                                int configured, int bought) {
         if (isUnlimited(granted, isOperator, operatorsBypass)) {
             return NumberedLimit.NO_LIMIT;
         }
-        return String.valueOf(limitFor(granted, isOperator, operatorsBypass, configured));
+        return String.valueOf(limitFor(granted, isOperator, operatorsBypass, configured, bought));
     }
 
     /**

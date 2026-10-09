@@ -58,6 +58,23 @@ homes:
   busy: "<yellow>Something else is already waiting for an answer from you."
   only-a-player: "<red>A home belongs to a player, so this has to be run in game."
 
+  # ---------------------------------------------------------------- paying for it
+  #
+  # Only said when an owner has put a price on slots or on going home. Both default to free.
+  slot:
+    full: "<yellow>You already have <white><limit></white> home(s). Another slot costs <white><price></white>."
+    bought: "<green>Bought an extra home slot for <white><price></white>. <dark_gray>(<count> bought so far)"
+    cannot-afford: "<red>An extra home slot costs <white><price></white>, which you do not have."
+    no-economy: "<red>Extra home slots cost money, and there is no economy on this server to pay with."
+    maxed: "<red>You have bought the most home slots you can: <white><most></white>."
+    not-saved: "<red>The slot could not be saved, so you have not been charged."
+    refused: "<red>The payment for the slot was refused, so you have not been charged."
+  teleport:
+    cannot-afford: "<red>Going home costs <white><price></white>, which you do not have."
+    no-economy: "<red>Going home costs money, and there is no economy on this server to pay with."
+    not-paid: "<red>The payment for going home was refused, so you are staying put."
+    refunded: "<gray><white><price></white> paid back."
+
   # ---------------------------------------------------------------- the book on the list page
   #
   # Deliberately no placeholder-shaped words in the instructions: MessagesTest cannot tell "<name>"

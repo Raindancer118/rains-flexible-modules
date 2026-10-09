@@ -2,6 +2,7 @@ package de.raindancer.modules.homes.service;
 
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.homes.HomeSettings;
+import de.raindancer.modules.homes.IHomeScreensOpener;
 import de.raindancer.modules.homes.model.Home;
 import de.raindancer.modules.homes.rules.HomeLimitRule;
 import de.raindancer.modules.homes.rules.HomeNameRule;
@@ -32,15 +33,24 @@ public final class HomeKeepingService implements IHomeService {
     private final HomeNameRule names;
     private final Messages messages;
 
+    private final HomeSlotService slots;
+
     private volatile HomeSettings settings;
+    /** Where a full player is offered another slot; set once the screens exist. */
+    private volatile IHomeScreensOpener screens;
 
     public HomeKeepingService(HomeCatalogue homes, HomeLimitRule limits, HomeNameRule names,
-                              Messages messages, HomeSettings settings) {
+                              Messages messages, HomeSlotService slots, HomeSettings settings) {
         this.homes = homes;
         this.limits = limits;
         this.names = names;
         this.messages = messages;
+        this.slots = slots;
         this.settings = settings;
+    }
+
+    public void offerSlotsThrough(IHomeScreensOpener opener) {
+        this.screens = opener;
     }
 
     @Override
@@ -53,13 +63,13 @@ public final class HomeKeepingService implements IHomeService {
     /** How many this player may have, as a number. */
     public int limitFor(Player who) {
         return limits.limitFor(HomeLimitRule.grantsOf(who), who.isOp(),
-                settings.operatorsBypass(), settings.homeLimit());
+                settings.operatorsBypass(), settings.homeLimit(), slots.bought(who.getUniqueId()));
     }
 
     /** The same, as a player should read it — {@code ∞} rather than two billion. */
     public String describeLimitFor(Player who) {
         return limits.describeLimit(HomeLimitRule.grantsOf(who), who.isOp(),
-                settings.operatorsBypass(), settings.homeLimit());
+                settings.operatorsBypass(), settings.homeLimit(), slots.bought(who.getUniqueId()));
     }
 
     // ------------------------------------------------------------------------ setting one
@@ -81,7 +91,13 @@ public final class HomeKeepingService implements IHomeService {
             Set<String> granted = HomeLimitRule.grantsOf(owner);
             int have = homes.count(owner.getUniqueId());
             if (!limits.isRoomFor(have, granted, owner.isOp(), settings.operatorsBypass(),
-                    settings.homeLimit())) {
+                    settings.homeLimit(), slots.bought(owner.getUniqueId()))) {
+                if (slots.canOffer(owner.getUniqueId()) && screens != null) {
+                    messages.send(owner, "homes.slot.full", "limit", limitFor(owner),
+                            "price", slots.describeNextPrice(owner.getUniqueId()));
+                    screens.offerSlot(owner, true, typedName);
+                    return Optional.empty();
+                }
                 // A limit of zero is a different sentence: "you already have 0 homes" reads as a bug,
                 // and the answer to it is not /delhome.
                 if (limitFor(owner) == 0) {

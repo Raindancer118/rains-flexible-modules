@@ -93,7 +93,32 @@ public record HomeSettings(
         @Describe("Whether a trip home has the sounds and waiting particles every other teleport has — "
                 + "Core's teleport cues, or what the traveller picked in /cosmetics. Off: home trips are quiet.")
         @Key("homes.play-sound")
-        boolean playSound) {
+        boolean playSound,
+
+        @In("homes/keeping") @Title("Price of an extra home slot")
+        @Describe("Money, written like 12.50 or 1.5k. Players may buy slots on top of their limit "
+                + "for this much; each is added for good. 0 switches buying off, which is the default "
+                + "and needs no economy plugin.")
+        @Key("homes.slot-price")
+        String slotPrice,
+
+        @In("homes/keeping") @Title("Each further slot costs more (percent)") @Range(min = 0, max = 1000)
+        @Describe("How much more every slot a player buys costs than the one before. 0 keeps the "
+                + "price flat; 50 makes the second slot cost half as much again as the first.")
+        @Key("homes.slot-price-growth-percent")
+        int slotPriceGrowthPercent,
+
+        @In("homes/keeping") @Title("Most slots one player may buy") @Range(min = 0, max = 100)
+        @Describe("A ceiling on bought slots per player. 0 means no ceiling.")
+        @Key("homes.most-bought-slots")
+        int mostBoughtSlots,
+
+        @In("homes/travelling") @Title("Price of going home")
+        @Describe("Money, written like 2 or 1.5k, taken when somebody starts a trip home and paid "
+                + "back if it never happens. 0 makes it free, which is the default and needs no "
+                + "economy plugin.")
+        @Key("homes.teleport-price")
+        String teleportPrice) {
 
     /**
      * What the old plugin shipped, plus the three that are new.
@@ -104,7 +129,8 @@ public record HomeSettings(
      * none of them existed to be configured, and all three are what somebody would expect if asked.
      */
     public static final HomeSettings DEFAULTS =
-            new HomeSettings(3, true, 3, true, true, 0, false, true, true, true);
+            new HomeSettings(3, true, 3, true, true, 0, false, true, true, true,
+                    "0", 0, 0, "0");
 
     // ------------------------------------------------------------------ read back safely
 
@@ -131,51 +157,75 @@ public record HomeSettings(
 
     public HomeSettings withMax(int homes) {
         return new HomeSettings(homes, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withAllowCrossWorld(boolean allow) {
         return new HomeSettings(max, allow, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withWarmupSeconds(int seconds) {
         return new HomeSettings(max, allowCrossWorld, seconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withCancelOnMove(boolean cancels) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancels, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withCancelOnDamage(boolean cancels) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancels,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withCooldownSeconds(int seconds) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                seconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound);
+                seconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withOperatorsBypass(boolean bypass) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, bypass, safeArrival, bringWhatYouLead, playSound);
+                cooldownSeconds, bypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withSafeArrival(boolean safe) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safe, bringWhatYouLead, playSound);
+                cooldownSeconds, operatorsBypass, safe, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withBringWhatYouLead(boolean bring) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bring, playSound);
+                cooldownSeconds, operatorsBypass, safeArrival, bring, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withPlaySound(boolean play) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, play);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, play, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+    }
+
+    public HomeSettings withSlotPrice(String price) {
+        return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound,
+                price, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+    }
+
+    public HomeSettings withSlotPriceGrowthPercent(int percent) {
+        return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound,
+                slotPrice, percent, mostBoughtSlots, teleportPrice);
+    }
+
+    public HomeSettings withMostBoughtSlots(int most) {
+        return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound,
+                slotPrice, slotPriceGrowthPercent, most, teleportPrice);
+    }
+
+    public HomeSettings withTeleportPrice(String price) {
+        return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound,
+                slotPrice, slotPriceGrowthPercent, mostBoughtSlots, price);
     }
 }

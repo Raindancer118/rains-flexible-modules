@@ -28,7 +28,7 @@ public final class WarpNameRule implements IWarpRule {
     public static final List<String> RESERVED = List.of(
             "list", "admin", "config", "settings", "set", "setwarp", "delete", "remove", "delwarp",
             "move", "category", "permission", "access", "icon", "label", "help", "reload",
-            "owner", "give", "member", "members", "mine", "token", "tokens");
+            "owner", "give", "member", "members", "mine", "token", "tokens", "fee", "rent");
 
     /**
      * Words {@code /warp} reads as an instruction only when something follows them — {@code /warp home

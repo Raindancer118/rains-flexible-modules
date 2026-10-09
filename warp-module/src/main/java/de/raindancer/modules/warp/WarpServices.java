@@ -49,6 +49,8 @@ public record WarpServices(
         WarpAdminService admin,
         de.raindancer.modules.warp.service.WarpTokens tokens,
         de.raindancer.modules.warp.service.ClaimWarpDirectory claimWarps,
+        de.raindancer.modules.warp.service.WarpVisitFees visits,
+        de.raindancer.modules.warp.service.WarpRentService rent,
 
         IWarpScreensOpener screens) {
 

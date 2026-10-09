@@ -12,10 +12,14 @@ import de.raindancer.modules.homes.listener.HomeSessionListener;
 import de.raindancer.modules.homes.model.Home;
 import de.raindancer.modules.homes.rules.HomeLimitRule;
 import de.raindancer.modules.homes.rules.HomeNameRule;
+import de.raindancer.modules.homes.rules.HomeSlotRule;
 import de.raindancer.modules.homes.screen.HomeEditMenu;
 import de.raindancer.modules.homes.screen.HomeListMenu;
+import de.raindancer.modules.homes.screen.SlotOfferScreen;
 import de.raindancer.modules.homes.service.HomeKeepingService;
+import de.raindancer.modules.homes.service.HomeSlotService;
 import de.raindancer.modules.homes.service.HomeTravelService;
+import de.raindancer.modules.homes.store.BoughtSlots;
 import de.raindancer.modules.homes.store.HomeCatalogue;
 import de.raindancer.modules.homes.store.LegacyHomesFile;
 import de.raindancer.modules.homes.store.SetHomeConfigFile;
@@ -57,7 +61,7 @@ import java.util.Optional;
  */
 public final class HomeModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.4.3")
+    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.5.0")
             .describedAs("Somewhere of your own to come back to: name it, set it, go to it, and pick "
                     + "from a menu of them")
             .by("Raindancer118");
@@ -69,6 +73,8 @@ public final class HomeModule implements FlexModule {
     private Travel travel;
     private HomeTravelService travelling;
     private HomeKeepingService keeping;
+    private BoughtSlots boughtSlots;
+    private HomeSlotService slots;
 
     private HomeServices services;
 
@@ -164,14 +170,19 @@ public final class HomeModule implements FlexModule {
         travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         travelling = new HomeTravelService(travel, context.core().messages(), context.core().effects(),
                 settings.current());
-        keeping = new HomeKeepingService(homes, limits, names, context.core().messages(),
+        boughtSlots = new BoughtSlots(context.dataFolder().resolve("bought-slots.yml"));
+        boughtSlots.load();
+        slots = new HomeSlotService(boughtSlots, new HomeSlotRule(), context.core().messages(),
+                settings.current());
+        keeping = new HomeKeepingService(homes, limits, names, context.core().messages(), slots,
                 settings.current());
 
         services = new HomeServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current,
-                homes, names, limits, travel, travelling, keeping,
+                homes, names, limits, travel, travelling, keeping, slots,
                 new LiveScreens());
+        keeping.offerSlotsThrough(services.screens());
 
         // Every setting is a snapshot, so a reload hands each service a fresh one. Missing one of these
         // is a subsystem that keeps yesterday's numbers until the next restart, which is the sort of
@@ -179,6 +190,7 @@ public final class HomeModule implements FlexModule {
         settings.onChange(fresh -> {
             travelling.settings(fresh);
             keeping.settings(fresh);
+            slots.settings(fresh);
         });
 
         // Core's, not a fourth copy of "stand still or it is cancelled". Whether being hurt counts is
@@ -215,6 +227,11 @@ public final class HomeModule implements FlexModule {
         }
 
         @Override
+        public void offerSlot(Player viewer, boolean thenSet, String homeName) {
+            new SlotOfferScreen(services, viewer, null, thenSet, homeName).open();
+        }
+
+        @Override
         public void icon(Player viewer, Home home) {
             new de.raindancer.core.ui.choose.ItemChooser(viewer, services.brand(), null,
                     "A block for " + home.name(),
@@ -238,6 +255,10 @@ public final class HomeModule implements FlexModule {
         // Somebody mid-wait when the module stops must not be left standing still for a teleport that
         // will never come, and the countdown tasks must not outlive the plugin that scheduled them.
         // Nothing else has to be written: the homes are places, and Core owns those.
+        if (travelling != null) {
+            // Before the waits are dropped: somebody mid-wait has paid for a trip that will not come.
+            travelling.refundAll();
+        }
         if (travel != null) {
             travel.clear();
         }

@@ -1,5 +1,7 @@
 package de.raindancer.modules.warp.screen;
 
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
@@ -118,6 +120,9 @@ public final class AdminWarpMenu extends PaginatedMenu<Warp> implements IWarpScr
             // maintenance, and the warp works again when the world comes back.
             lore.add("<red>Its world is not loaded right now.");
         }
+        if (services.rent().isClosed(warp)) {
+            lore.add("<red>Closed: its rent is unpaid.");
+        }
         lore.add("");
         lore.add("<gray>Click to change it.");
 
@@ -143,9 +148,14 @@ public final class AdminWarpMenu extends PaginatedMenu<Warp> implements IWarpScr
     protected void decorate() {
         super.decorate();
         if (mayMake()) {
+            Money price = services.admin().createPriceFor(viewer);
             toolbar(2, Icons.of(Material.LODESTONE, "<white>Make a warp here",
-                            "<gray>Where you are standing, facing the way you are.",
-                            "<dark_gray>You will be asked what to call it."),
+                            price.isPositive()
+                                    ? List.of("<gray>Where you are standing, facing the way you are.",
+                                            "<gray>Costs <white>" + Fees.format(price) + "<gray>.",
+                                            "<dark_gray>You will be asked what to call it.")
+                                    : List.of("<gray>Where you are standing, facing the way you are.",
+                                            "<dark_gray>You will be asked what to call it.")),
                     click -> askForANameAndMakeItHere());
         }
         if (own || !services.access().mayManage(viewer::hasPermission)) {
@@ -185,6 +195,10 @@ public final class AdminWarpMenu extends PaginatedMenu<Warp> implements IWarpScr
             return;
         }
         services.messages().send(viewer, "warps.ask-name");
+        Money price = services.admin().createPriceFor(viewer);
+        if (price.isPositive()) {
+            services.messages().send(viewer, "warps.create.costs", "price", Fees.format(price));
+        }
     }
 
     /** Whether this viewer may set a new warp from here — the node or staff; a token is used by clicking it. */

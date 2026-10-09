@@ -1,5 +1,7 @@
 package de.raindancer.modules.warp.screen;
 
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
@@ -137,6 +139,18 @@ public final class WarpListMenu extends PaginatedMenu<Warp> implements IWarpScre
             // Shown to the few who can see it at all, so they know it is not on everybody's list.
             lore.add("<gray>" + services.catalogue().accessOf(warp).describe());
         }
+        boolean closed = services.rent().isClosed(warp);
+        boolean mayStillGo = services.access().mayChange(viewer::hasPermission, viewer.getUniqueId(),
+                warp.owner().orElse(null));
+        Money cost = services.visits().costFor(viewer, warp);
+        if (cost.isPositive()) {
+            lore.add("<gray>Visiting costs <white>" + Fees.format(cost) + "<gray>, paid back if you do not arrive.");
+        }
+        if (closed) {
+            lore.add(mayStillGo
+                    ? "<red>Closed to everybody else: its rent is unpaid."
+                    : "<red>Closed: its owner has not paid the rent.");
+        }
         lore.add("");
         if (!warp.isReachable()) {
             lore.add("<red>Its world is not loaded right now.");
@@ -153,7 +167,8 @@ public final class WarpListMenu extends PaginatedMenu<Warp> implements IWarpScre
         if (material == null || !material.isItem()) {
             material = Material.LODESTONE;
         }
-        return Icons.of(material, "<white>" + warp.label(), lore);
+        ItemStack shown = Icons.of(material, "<white>" + warp.label(), lore);
+        return closed && !mayStillGo ? Icons.locked(shown, "Closed: its owner has not paid the rent") : shown;
     }
 
     @Override

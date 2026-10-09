@@ -46,4 +46,28 @@ class HomeSettingsTest {
 
         assertThat(changed.playSound()).isEqualTo(HomeSettings.DEFAULTS.playSound());
     }
+
+    @Test
+    @DisplayName("every money setting defaults to nothing, so a server needs no economy")
+    void moneyIsOffByDefault() {
+        HomeSettings defaults = HomeSettings.DEFAULTS;
+        assertThat(defaults.slotPrice()).isEqualTo("0");
+        assertThat(defaults.slotPriceGrowthPercent()).isZero();
+        assertThat(defaults.mostBoughtSlots()).isZero();
+        assertThat(defaults.teleportPrice()).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("the money withers change only their own field")
+    void moneyWithers() {
+        HomeSettings changed = HomeSettings.DEFAULTS.withSlotPrice("5").withSlotPriceGrowthPercent(10)
+                .withMostBoughtSlots(4).withTeleportPrice("2");
+        assertThat(changed.slotPrice()).isEqualTo("5");
+        assertThat(changed.slotPriceGrowthPercent()).isEqualTo(10);
+        assertThat(changed.mostBoughtSlots()).isEqualTo(4);
+        assertThat(changed.teleportPrice()).isEqualTo("2");
+        assertThat(changed.max()).isEqualTo(HomeSettings.DEFAULTS.max());
+        assertThat(changed.withMax(9).slotPrice()).isEqualTo("5");
+        assertThat(changed.withPlaySound(false).teleportPrice()).isEqualTo("2");
+    }
 }

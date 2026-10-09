@@ -73,6 +73,8 @@ public final class WarpCommand implements IWarpCommand {
             case "owner", "give" -> owner(live, sender, args);
             case "member", "members" -> member(live, sender, args);
             case "mine" -> mine(live, sender);
+            case "fee" -> fee(live, sender, args);
+            case "rent" -> rent(live, sender, args);
             case "token", "tokens" -> token(live, sender, args);
             // With nothing after them these are still a warp of that name, if the server has one: a
             // warp called "home" was reachable as /warp home before claims had homes, and stays so.
@@ -311,6 +313,28 @@ public final class WarpCommand implements IWarpCommand {
     }
 
     /** {@code /warp mine}: the warps this player owns, as a page they can change them from. */
+    private void fee(WarpServices live, CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            live.messages().send(sender, "warps.usage.fee");
+            return;
+        }
+        live.admin().setVisitFee(sender, args[1], args[2]);
+    }
+
+    private void rent(WarpServices live, CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "warps.only-a-player");
+            return;
+        }
+        if (args.length == 1) {
+            live.rent().statusTo(player);
+        } else if (args.length >= 3 && args[1].equalsIgnoreCase("pay")) {
+            live.rent().pay(player, args[2]);
+        } else {
+            live.messages().send(sender, "warps.usage.rent");
+        }
+    }
+
     private void mine(WarpServices live, CommandSender sender) {
         if (!(sender instanceof Player player)) {
             live.messages().send(sender, "warps.only-a-player");
@@ -424,6 +448,12 @@ public final class WarpCommand implements IWarpCommand {
             options.addAll(List.of("list", "help", "mine", "claim", "home"));
             if (owner) {
                 options.addAll(List.of("set", "move", "delete", "label", "icon", "access", "member"));
+                if (live.visits().cap().isPositive()) {
+                    options.add("fee");
+                }
+                if (live.rent().isOn()) {
+                    options.add("rent");
+                }
             }
             if (admin) {
                 options.addAll(List.of("admin", "config", "category", "owner", "token"));
@@ -444,6 +474,15 @@ public final class WarpCommand implements IWarpCommand {
         }
         if (args.length == 2 && owner && (sub.equals("member") || sub.equals("members"))) {
             return startingWith(List.of("add", "remove"), typed);
+        }
+        if (args.length == 2 && sub.equals("rent")) {
+            return startingWith(List.of("pay"), typed);
+        }
+        if (args.length == 3 && sub.equals("rent")) {
+            return startingWith(live.catalogue().ownedBy(id).stream().map(Warp::name).toList(), typed);
+        }
+        if (args.length == 3 && owner && sub.equals("fee")) {
+            return startingWith(List.of("off"), typed);
         }
         if (args.length == 2 && owner) {
             // Every other subcommand takes a warp name second.

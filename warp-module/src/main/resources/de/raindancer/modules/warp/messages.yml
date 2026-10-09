@@ -57,6 +57,7 @@ warps:
   ask-name: "<gray>Type what to call this warp, or <white>cancel</white>."
   ask-category: "<gray>Type what to file it under, or <white>cancel</white>."
   ask-label: "<gray>Type what the menu should show for it, or <white>cancel</white>."
+  ask-visit-fee: "<gray>Type what a visit should cost, like <white>5</white> or <white>1.5k</white>, <white>off</white> for free, or <white>cancel</white>."
   ask-permission: "<gray>Type the permission it should need, or <white>cancel</white>."
 
   # A name is refused for four different reasons and each says which, because "that name will not do"
@@ -101,6 +102,7 @@ warps:
   config:
     at-the-limit: "<yellow>That is as far as it goes: between <white><least></white> and <white><most></white>."
     refused: "<red><white><setting></white> would not take that value."
+    ask-money: "<gray>Type the new amount, like <white>25</white> or <white>1.5k</white>, <white>0</white> for none, or <white>cancel</white>."
 
   # ---------------------------------------------------------------- usage
   usage:
@@ -115,6 +117,8 @@ warps:
     owner: "<gray>/warp owner <which warp> <whose it becomes>"
     member: "<gray>/warp member add|remove <which warp> <which player>"
     token: "<gray>/warp token [who] [how many]"
+    fee: "<gray>/warp fee <which warp> <what a visit costs | off>"
+    rent: "<gray>/warp rent <dark_gray>— what your warps owe, or <gray>/warp rent pay <which warp>"
 
   # ---------------------------------------------------------------- help
   #
@@ -127,11 +131,49 @@ warps:
     - "<gray>/warp list <dark_gray>— the same list, as text you can paste"
     - "<gray>/warp claim <dark_gray>— players' claims you may warp into"
     - "<gray>/warp home somebody <dark_gray>— the claim they call home"
+  # ---------------------------------------------------------------- paying for it
+  #
+  # Only said when an owner has put a price on something. Every price defaults to nothing.
+  create:
+    cannot-afford: "<red>Making a warp costs <white><price></white>, which you do not have."
+    no-economy: "<red>Making a warp costs money, and there is no economy on this server to pay with."
+    refused: "<red>The payment for the warp was refused, so it has not been made."
+    paid: "<gray><white><price></white> paid for the warp."
+    costs: "<gray>Making a warp costs <white><price></white>, taken when it is set."
+  fee:
+    disabled: "<red>Owners may not charge to visit their warps on this server."
+    cleared: "<green><white><name></white> is free to visit."
+    bad-amount: "<red><white><amount></white> is not an amount. Try <white>5</white> or <white>1.5k</white>, or <white>off</white>."
+    too-high: "<red>A visit may cost at most <white><max></white>."
+    set: "<green>Visiting <white><name></white> now costs <white><price></white>. <dark_gray>The server keeps <cut>% of it."
+  closed: "<red><white><name></white> is closed: its owner has not paid the rent."
+  visit:
+    cannot-afford: "<red>Visiting that warp costs <white><price></white>, which you do not have."
+    no-economy: "<red>Visiting that warp costs money, and there is no economy on this server to pay with."
+    refused: "<red>The payment for the visit was refused, so you are staying put."
+    charged: "<gray>Paid <white><price></white> to visit <white><name></white>."
+    refunded: "<gray><white><price></white> paid back."
+  rent:
+    collected: "<gray>Rent of <white><price></white> paid for <white><name></white>, which is covered until <white><until></white>."
+    closed: "<red><white><name></white> is closed: its rent of <white><price></white> a week is unpaid. Pay with <white>/warp rent pay</white> and its name, or in <white>/warp mine</white>. Nothing is deleted."
+    disabled: "<gray>There is no rent on warps here."
+    not-charged: "<gray><white><name></white> pays no rent."
+    nothing-owed: "<gray>Nothing to pay: <white><name></white> is covered until <white><until></white>."
+    cannot-afford: "<red>The rent is <white><price></white>, which you do not have."
+    no-economy: "<red>Rent is paid in money, and there is no economy on this server."
+    refused: "<red>The payment was refused, so the warp stays closed."
+    paid: "<green>Paid <white><price></white>. <white><name></white> is open again and covered until <white><until></white>."
+    status-open: "<gray><white><name></white> <dark_gray>— covered until <until> (<price> a week)"
+    status-closed: "<red><white><name></white> <dark_gray>— closed, rent unpaid (<price> a week)"
+    none: "<gray>None of your warps pays rent. Rent is <white><price></white> a week on warps made while it is on."
+
   help-own:
     - "<gray>/warp mine <dark_gray>— your own warps, and the page to change them"
     - "<gray>/warp set somewhere <dark_gray>— a warp of your own, right here"
     - "<gray>/warp access somewhere private <dark_gray>— only you and the people you add"
     - "<gray>/warp member add somewhere somebody <dark_gray>— let somebody in"
+    - "<gray>/warp fee somewhere 5 <dark_gray>— charge visitors, where the server allows it"
+    - "<gray>/warp rent <dark_gray>— what your warps owe, where the server charges rent"
   help-admin:
     - "<gray>/warp admin <dark_gray>— every warp there is, and what can be changed"
     - "<gray>/warp set, move, delete <dark_gray>— by hand, without the menu"

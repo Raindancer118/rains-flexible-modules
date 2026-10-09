@@ -3,6 +3,7 @@ package de.raindancer.modules.warp.listener;
 import de.raindancer.modules.warp.WarpServices;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.UUID;
@@ -41,9 +42,17 @@ public final class WarpSessionListener implements IWarpListener {
         forget(event.getPlayer().getUniqueId());
     }
 
+    /** Somebody whose warp was closed while they were away is told when they are back. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent event) {
+        services.rent().remind(event.getPlayer());
+    }
+
     @Override
     public void forget(UUID player) {
         services.catalogue().leaves(player);
+        // A visit paid for and not finished is paid back: they cannot be told, and it will not happen.
+        services.travelling().leaves(player);
     }
 
     @Override

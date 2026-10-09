@@ -1,10 +1,14 @@
 package de.raindancer.modules.warp.service;
 
+import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.warp.model.Warp;
 import de.raindancer.modules.warp.WarpSettings;
 import de.raindancer.modules.warp.model.WarpAccess;
 import de.raindancer.modules.warp.rules.WarpAccessRule;
+import de.raindancer.modules.warp.rules.WarpFeeRule;
 import de.raindancer.modules.warp.rules.WarpNameRule;
 import de.raindancer.modules.warp.store.WarpCatalogue;
 import org.bukkit.Material;
@@ -28,18 +32,31 @@ import java.util.Optional;
  */
 public final class WarpAdminService implements IWarpService {
 
+    /** The economy source of making a warp. */
+    public static final String SOURCE = "warp.create";
+
     private final WarpCatalogue catalogue;
     private final WarpAccessRule access;
     private final Messages messages;
+
+    private final WarpFeeRule fees = new WarpFeeRule();
+    /** Puts new warps on rent; null for a host that does not charge any. */
+    private final WarpRentService rent;
 
     private volatile WarpSettings settings;
     private volatile WarpNameRule names;
 
     public WarpAdminService(WarpCatalogue catalogue, WarpAccessRule access, Messages messages,
                             WarpSettings settings) {
+        this(catalogue, access, messages, settings, null);
+    }
+
+    public WarpAdminService(WarpCatalogue catalogue, WarpAccessRule access, Messages messages,
+                            WarpSettings settings, WarpRentService rent) {
         this.catalogue = catalogue;
         this.access = access;
         this.messages = messages;
+        this.rent = rent;
         settings(settings);
     }
 
@@ -49,6 +66,12 @@ public final class WarpAdminService implements IWarpService {
         // Rebuilt rather than told, because the name limit is the only thing the rule holds and a
         // rule you can change is one two callers can see differently.
         this.names = new WarpNameRule(fresh.nameLimit());
+    }
+
+    /** What making a warp would cost this player now: zero for staff and when it is free. */
+    public Money createPriceFor(Player maker) {
+        return fees.bypasses(maker::hasPermission) ? Money.ZERO
+                : Fees.quote(SOURCE, Fees.amount(settings.createPrice()));
     }
 
     /** The name rule as it is now, for a screen that wants to refuse before asking. */
@@ -102,12 +125,38 @@ public final class WarpAdminService implements IWarpService {
             return Optional.empty();
         }
 
+        // Charged before it is made, and never for replacing one: that is how a badly placed warp is
+        // corrected. A token is the payment for its warp, and staff skip every warp fee.
+        Money taken = Money.ZERO;
+        if (!replacing && !withAToken && !fees.bypasses(maker::hasPermission)) {
+            Money written = Fees.amount(settings.createPrice());
+            EconomyResult paid = Fees.charge(maker.getUniqueId(), written, "Making warp " + name, SOURCE);
+            if (!paid.succeeded()) {
+                switch (paid.outcome()) {
+                    case NOT_ENOUGH -> messages.send(maker, "warps.create.cannot-afford",
+                            "price", Fees.format(paid.amount()));
+                    case UNAVAILABLE -> messages.send(maker, "warps.create.no-economy");
+                    default -> messages.send(maker, "warps.create.refused");
+                }
+                return Optional.empty();
+            }
+            taken = paid.amount();
+        }
+        final Money charged = taken;
+
         // Replacing keeps whose it is, who it is for and who was let in: a moved-by-recreating warp must not
         // quietly open a private one to the whole server.
         WarpAccess keptAccess = existing.map(catalogue::accessOf).orElse(null);
         java.util.Set<java.util.UUID> keptMembers = existing.map(Warp::members).orElse(java.util.Set.of());
         java.util.UUID keptOwner = existing.flatMap(Warp::owner).orElse(null);
+        // The money side goes with it too: re-making a warp must not wipe its fee or hand back its rent.
+        Money keptFee = existing.map(Warp::visitFee).orElse(Money.ZERO);
+        java.util.OptionalLong keptRent = existing.map(Warp::rentPaidUntil).orElse(java.util.OptionalLong.empty());
+        boolean keptClosed = existing.map(Warp::isClosedForRent).orElse(false);
         Optional<Warp> made = catalogue.create(name, maker.getLocation(), maker.getUniqueId());
+        if (made.isEmpty() && charged.isPositive()) {
+            Fees.refund(maker.getUniqueId(), charged, "Warp " + name + " was not made", SOURCE);
+        }
         made.ifPresentOrElse(
                 warp -> {
                     if (keptAccess != null) {
@@ -117,13 +166,61 @@ public final class WarpAdminService implements IWarpService {
                     if (keptOwner != null) {
                         catalogue.setOwner(warp.name(), keptOwner);
                     }
+                    if (keptFee.isPositive()) {
+                        catalogue.setVisitFee(warp.name(), keptFee);
+                    }
+                    if (keptRent.isPresent()) {
+                        catalogue.setRent(warp.name(), keptRent.getAsLong(), keptClosed);
+                    } else if (!replacing && rent != null) {
+                        rent.enroll(warp, fees.bypasses(maker::hasPermission));
+                    }
                     messages.send(maker, replacing ? "warps.replaced" : "warps.created", "name", warp.name());
+                    if (charged.isPositive()) {
+                        messages.send(maker, "warps.create.paid", "price", Fees.format(charged));
+                    }
                 },
                 // No <name> given: the line is "a warp needs a name", so there is no name to put in
                 // it. A value supplied to a message with nowhere to put it is usually the same typo
                 // seen from the other side, which is why MessagesTest checks both directions.
                 () -> messages.send(maker, "warps.name.empty"));
         return made.flatMap(warp -> catalogue.byName(warp.name()));
+    }
+
+    /**
+     * What visiting this warp costs, as its owner writes it: an amount, or {@code off}.
+     *
+     * <p>Read against the server's cap every time it is used, so lowering the cap needs no rewriting
+     * of the warps.
+     */
+    public boolean setVisitFee(CommandSender changer, String name, String written) {
+        Optional<Warp> warp = changeable(changer, name);
+        if (warp.isEmpty()) {
+            return false;
+        }
+        Money cap = Fees.amount(settings.mostVisitFee());
+        if (!cap.isPositive()) {
+            messages.send(changer, "warps.fee.disabled");
+            return false;
+        }
+        String typed = written == null ? "off" : written.strip();
+        if (typed.equalsIgnoreCase("off") || typed.equalsIgnoreCase("none") || typed.equals("0")) {
+            catalogue.setVisitFee(warp.get().name(), Money.ZERO);
+            messages.send(changer, "warps.fee.cleared", "name", warp.get().label());
+            return true;
+        }
+        Money fee = Fees.amount(typed);
+        if (!fee.isPositive()) {
+            messages.send(changer, "warps.fee.bad-amount", "amount", typed);
+            return false;
+        }
+        if (fee.isMoreThan(cap)) {
+            messages.send(changer, "warps.fee.too-high", "max", Fees.format(cap));
+            return false;
+        }
+        catalogue.setVisitFee(warp.get().name(), fee);
+        messages.send(changer, "warps.fee.set", "name", warp.get().label(), "price", Fees.format(fee),
+                "cut", settings.visitCutPercent());
+        return true;
     }
 
     /** Moves an existing warp to where this player is standing, keeping everything about it. */

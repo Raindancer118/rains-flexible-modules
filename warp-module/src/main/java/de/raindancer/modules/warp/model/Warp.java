@@ -1,9 +1,11 @@
 package de.raindancer.modules.warp.model;
 
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.world.poi.Poi;
 
 import java.util.LinkedHashSet;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,6 +33,12 @@ public record Warp(Poi poi) {
     public static final String TAG_CATEGORY = "category";
     /** The people its owner added to a private warp, as comma-separated UUIDs. */
     public static final String TAG_MEMBERS = "members";
+    /** What its owner charges to visit it, in minor units of the currency. */
+    public static final String TAG_VISIT_FEE = "visit-fee";
+    /** Until when its rent is paid, as epoch milliseconds. Absent for a warp that pays no rent. */
+    public static final String TAG_RENT_UNTIL = "rent-until";
+    /** Present while the warp is closed because its rent was not paid. */
+    public static final String TAG_RENT_CLOSED = "rent-closed";
 
     public String name() {
         return poi.name();
@@ -74,6 +82,33 @@ public record Warp(Poi poi) {
             }
         }
         return Set.copyOf(members);
+    }
+
+    /** What its owner asks for a visit, as written down; zero when nothing is set or the value is nonsense. */
+    public Money visitFee() {
+        return poi.tag(TAG_VISIT_FEE).map(written -> {
+            try {
+                return Money.of(Math.max(0, Long.parseLong(written.trim())));
+            } catch (NumberFormatException handEdited) {
+                return Money.ZERO;
+            }
+        }).orElse(Money.ZERO);
+    }
+
+    /** Until when its rent is paid; empty for a warp that is not charged rent. */
+    public OptionalLong rentPaidUntil() {
+        return poi.tag(TAG_RENT_UNTIL).map(written -> {
+            try {
+                return OptionalLong.of(Long.parseLong(written.trim()));
+            } catch (NumberFormatException handEdited) {
+                return OptionalLong.empty();
+            }
+        }).orElse(OptionalLong.empty());
+    }
+
+    /** Whether its rent went unpaid. Whether that closes it also depends on rent still being on. */
+    public boolean isClosedForRent() {
+        return poi.tag(TAG_RENT_CLOSED).isPresent();
     }
 
     /** Whether the world it is in is loaded right now. */

@@ -1,6 +1,9 @@
 package de.raindancer.modules.homes.service;
 
 import de.raindancer.core.moderation.punishment.Durations;
+import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.core.ui.effect.Effects;
@@ -17,6 +20,8 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.LongSupplier;
 
@@ -51,6 +56,18 @@ public final class HomeTravelService implements IHomeService {
      * check-then-record version this plugin had could let two clicks in one millisecond both through.
      */
     private final Cooldowns<UUID> waits;
+
+    /** The economy source of what going home costs. */
+    public static final String SOURCE = "homes.teleport";
+
+    /**
+     * What each player has paid for a trip that has not finished yet.
+     *
+     * <p>Charged when the trip starts, because Core's {@code Travel} has no hook between the wait and
+     * the teleport; it is handed back from here when the trip is cancelled, refused or cut off by a
+     * logout. Removed under the lock, so however many of those arrive the money goes back once.
+     */
+    private final Map<UUID, Money> paid = new HashMap<>();
 
     private volatile HomeSettings settings;
 
@@ -116,6 +133,10 @@ public final class HomeTravelService implements IHomeService {
             return;
         }
 
+        if (!charge(traveller, home, now)) {
+            return;
+        }
+
         int warmup = bypasses(traveller, PermissionNodes.BYPASS_WARMUP) ? 0 : now.warmup();
         Trip trip = Trip.to(home.name())
                 .after(warmup)
@@ -129,6 +150,65 @@ public final class HomeTravelService implements IHomeService {
             trip = trip.quiet();
         }
         travel.go(traveller, destination, trip, new Arriving(home));
+    }
+
+    /** Takes the price of the trip. @return whether the trip may go on; a refusal has been said */
+    private boolean charge(Player traveller, Home home, HomeSettings now) {
+        Money written = Fees.amount(now.teleportPrice());
+        if (!written.isPositive() || bypasses(traveller, PermissionNodes.BYPASS_FEE)) {
+            return true;
+        }
+        UUID who = traveller.getUniqueId();
+        if (travel.isTravelling(who)) {
+            // Asked before charging: Core refuses a second trip, and that refusal must not be what
+            // hands back the money of the first.
+            messages.send(traveller, "homes.already-travelling");
+            return false;
+        }
+        EconomyResult result = Fees.charge(who, written, "Trip to home " + home.name(), SOURCE);
+        if (!result.succeeded()) {
+            switch (result.outcome()) {
+                case NOT_ENOUGH -> messages.send(traveller, "homes.teleport.cannot-afford",
+                        "price", Fees.format(result.amount()));
+                case UNAVAILABLE -> messages.send(traveller, "homes.teleport.no-economy");
+                default -> messages.send(traveller, "homes.teleport.not-paid");
+            }
+            return false;
+        }
+        if (result.amount().isPositive()) {
+            synchronized (paid) {
+                paid.put(who, result.amount());
+            }
+        }
+        return true;
+    }
+
+    /** Hands back what this player paid for a trip that did not happen. @return what, or zero */
+    private Money refund(UUID who) {
+        Money taken;
+        synchronized (paid) {
+            taken = paid.remove(who);
+        }
+        if (taken == null) {
+            return Money.ZERO;
+        }
+        Fees.refund(who, taken, "Trip home did not happen", SOURCE);
+        return taken;
+    }
+
+    private void settle(UUID who) {
+        synchronized (paid) {
+            paid.remove(who);
+        }
+    }
+
+    /** Hands back everything still waiting on a trip, for a module being stopped. */
+    public void refundAll() {
+        java.util.List<UUID> owing;
+        synchronized (paid) {
+            owing = java.util.List.copyOf(paid.keySet());
+        }
+        owing.forEach(this::refund);
     }
 
     /**
@@ -175,6 +255,7 @@ public final class HomeTravelService implements IHomeService {
          */
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
+            settle(traveller.getUniqueId());
             waits.start(traveller.getUniqueId());
             messages.send(traveller, "homes.arrived", "name", home.name());
             // The arrival sound is Core's now (Travel plays it, in the traveller's own choice if they
@@ -184,11 +265,19 @@ public final class HomeTravelService implements IHomeService {
         @Override
         public void cancelled(Player traveller, TravelReason why, Trip trip) {
             messages.send(traveller, keyFor(why), "name", home.name());
+            told(traveller, refund(traveller.getUniqueId()));
         }
 
         @Override
         public void refused(Player traveller, TravelReason why, Trip trip) {
             messages.send(traveller, keyFor(why), "name", home.name());
+            told(traveller, refund(traveller.getUniqueId()));
+        }
+
+        private void told(Player traveller, Money back) {
+            if (back.isPositive()) {
+                messages.send(traveller, "homes.teleport.refunded", "price", Fees.format(back));
+            }
         }
     }
 
@@ -226,6 +315,7 @@ public final class HomeTravelService implements IHomeService {
      *            the map, and one player leaving is only when it is worth doing
      */
     public void leaves(UUID who) {
+        refund(who);
         waits.sweep();
     }
 

@@ -26,6 +26,12 @@ public final class PermissionNodes {
     /** Making, moving, retagging and deleting warps. */
     public static final String MANAGE = "rainswarps.warp.manage";
 
+    /**
+     * Skipping every warp fee: making one, its rent, and visiting other people's. Staff with
+     * {@link #MANAGE} skip them already; this is for somebody who is not staff.
+     */
+    public static final String BYPASS_FEES = "rainswarps.bypass.fees";
+
     private PermissionNodes() {
     }
 
@@ -40,6 +46,9 @@ public final class PermissionNodes {
                 new Permission(MANAGE,
                         "Make, move, retag and delete warps, and reach every one of them",
                         PermissionDefault.OP),
+                new Permission(BYPASS_FEES,
+                        "Make warps, keep them and visit other people's without paying",
+                        PermissionDefault.FALSE),
                 // Declared so it shows up in a permissions plugin's list of known nodes. Without
                 // that an admin has to know the string from the documentation to grant it, and the
                 // staff warps are the ones somebody most needs to grant on the first day.

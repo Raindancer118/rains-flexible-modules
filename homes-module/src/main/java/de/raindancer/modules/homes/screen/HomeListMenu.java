@@ -1,10 +1,13 @@
 package de.raindancer.modules.homes.screen;
 
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.modules.homes.HomeServices;
 import de.raindancer.modules.homes.model.Home;
+import de.raindancer.modules.homes.service.HomeTravelService;
 import de.raindancer.modules.homes.util.HomeIcons;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -15,6 +18,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Every home this player has: what bare {@code /home} opens.
@@ -90,6 +94,10 @@ public final class HomeListMenu extends PaginatedMenu<Home> implements IHomeScre
         } else {
             lore.add("<gray>Click to go.");
         }
+        Money price = Fees.quote(HomeTravelService.SOURCE, Fees.amount(services.config().teleportPrice()));
+        if (price.isPositive()) {
+            lore.add("<gray>Costs <white>" + Fees.format(price) + "<gray>, paid back if you do not get there.");
+        }
         lore.add("<gray>Right click to rename it, change its");
         lore.add("<gray>block, or delete it.");
 
@@ -126,6 +134,15 @@ public final class HomeListMenu extends PaginatedMenu<Home> implements IHomeScre
                         "<dark_gray>A permission can raise that; nothing lowers it."),
                 click -> {
                 });
+        if (services.slots().isOn()) {
+            UUID who = viewer.getUniqueId();
+            toolbar(5, !services.slots().isMaxed(who), Icons.of(Material.EMERALD, "<white>Buy a home slot",
+                            "<gray>One more home for <white>" + services.slots().describeNextPrice(who)
+                                    + "<gray>.",
+                            "<gray>You have bought <white>" + services.slots().bought(who) + "<gray> so far."),
+                    "You cannot buy any more slots.",
+                    click -> new SlotOfferScreen(services, viewer, this, false, null).open());
+        }
     }
 
     @Override

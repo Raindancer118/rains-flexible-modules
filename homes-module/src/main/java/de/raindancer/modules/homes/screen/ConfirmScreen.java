@@ -29,6 +29,12 @@ public final class ConfirmScreen extends ConfirmMenu implements IHomeScreen {
         super(viewer, services.brand(), parent, question, consequences, onYes);
     }
 
+    /** The same with a closing line of its own, for a question that is not about something permanent. */
+    public ConfirmScreen(HomeServices services, Player viewer, Menu parent, String question,
+                         List<String> consequences, String closingLine, Runnable onYes) {
+        super(viewer, services.brand(), parent, question, consequences, closingLine, onYes);
+    }
+
     @Override
     public String describe() {
         return "asking before something that cannot be undone";
