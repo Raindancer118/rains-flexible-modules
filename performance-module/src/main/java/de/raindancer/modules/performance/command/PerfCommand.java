@@ -151,6 +151,10 @@ public final class PerfCommand implements BasicCommand {
             live.messages().send(sender, "performance.only-a-player");
             return;
         }
+        if (!sender.hasPermission(PermissionNodes.TELEPORT)) {
+            live.messages().send(sender, "performance.not-allowed");
+            return;
+        }
         withReport(live, sender, args, 1, report -> {
             Optional<Finding> finding = parse(args.length >= 3 ? args[2] : "").flatMap(report::finding);
             World world = finding.map(found -> live.diagnosis().worldOf(found.where().world())).orElse(null);

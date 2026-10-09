@@ -15,6 +15,9 @@ public final class PermissionNodes {
     /** Applying a report's fixes — removing entities, changing the simulation distance. */
     public static final String FIX = "rainsperformance.fix";
 
+    /** Teleporting to a report's place — more than looking, so not part of {@link #INSPECT}. */
+    public static final String TELEPORT = "rainsperformance.teleport";
+
     /** Being told about lag in chat as it happens. */
     public static final String NOTIFY = "rainsperformance.notify";
 
@@ -25,6 +28,7 @@ public final class PermissionNodes {
         return List.of(
                 new Permission(INSPECT, "See /perf, reports, and the most crowded chunks with /farms", PermissionDefault.OP),
                 new Permission(FIX, "Apply a report's fixes", PermissionDefault.OP),
+                new Permission(TELEPORT, "Teleport to a report's finding with /perf tp", PermissionDefault.OP),
                 new Permission(NOTIFY, "Be told about lag in chat", PermissionDefault.OP));
     }
 
