@@ -902,7 +902,8 @@ public final class AccountBook {
 
     /** Accounts that belong to the server rather than a player — kept off leaderboards. */
     public static boolean isSystem(UUID id) {
-        return id.getMostSignificantBits() == 0L;
+        // By name, not by "top half zero": Floodgate gives every Bedrock player such an id.
+        return LOTTERY_POT.equals(id) || AUCTION_ESCROW.equals(id) || RAFFLE_POT.equals(id);
     }
 
     /**

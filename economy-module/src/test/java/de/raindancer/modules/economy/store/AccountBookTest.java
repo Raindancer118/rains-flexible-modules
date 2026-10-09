@@ -370,4 +370,25 @@ class AccountBookTest {
         assertThat(fresh.all()).allMatch(account -> !account.balance().isNegative());
         assertThat(fresh.all()).anyMatch(account -> AccountBook.isSystem(account.id()));
     }
+
+    /** What Floodgate hands a Bedrock player: zero on top, the Xbox id below. */
+    private static final UUID BEDROCK = UUID.fromString("00000000-0000-0000-0009-01f2c3d4e5f6");
+
+    @Test
+    @DisplayName("a Bedrock player is a player, not one of the server's own accounts")
+    void bedrockIsNotSystem() {
+        assertThat(AccountBook.isSystem(BEDROCK)).isFalse();
+        assertThat(AccountBook.isSystem(alice)).isFalse();
+        assertThat(AccountBook.isSystem(AccountBook.LOTTERY_POT)).isTrue();
+        assertThat(AccountBook.isSystem(AccountBook.AUCTION_ESCROW)).isTrue();
+        assertThat(AccountBook.isSystem(AccountBook.RAFFLE_POT)).isTrue();
+    }
+
+    @Test
+    @DisplayName("a wealth tax reaches Bedrock players too")
+    void bedrockPaysWealthTax() {
+        book.open(BEDROCK, ".Bedrock", Money.of(10_000));
+        book.wealthTax(balance -> Money.of(balance.minor() / 10), "wealth tax", clock.get());
+        assertThat(book.balance(BEDROCK)).isEqualTo(Money.of(9_000));
+    }
 }
