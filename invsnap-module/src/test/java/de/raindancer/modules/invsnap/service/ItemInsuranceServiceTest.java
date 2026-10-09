@@ -184,6 +184,20 @@ class ItemInsuranceServiceTest {
         }
 
         @Test
+        @DisplayName("one policy, one item: a copy in the drops while the item already waits is removed, not stored again")
+        void copyOnDeathIsNotStoredTwice() {
+            policyFor(owner, "p1");
+            Player dier = player(owner, 3);
+            service.onDestroyed(UUID.randomUUID(), sword("p1"));
+            PlayerDeathEvent event = death(dier, false, sword("p1"));
+
+            service.onDeath(event);
+
+            assertThat(event.getDrops()).isEmpty();
+            assertThat(store.returnsOf(owner)).hasSize(1);
+        }
+
+        @Test
         @DisplayName("an item is never both stored and dropped")
         void neverBoth() {
             policyFor(owner, "p1");
@@ -330,6 +344,32 @@ class ItemInsuranceServiceTest {
             assertThat(service.onDestroyed(UUID.randomUUID(), sword("p1")))
                     .isEqualTo(ItemInsuranceService.Placed.LIST);
             assertThat(store.returnsOf(owner)).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("one policy, one item: a second copy destroyed while the first waits is not returned again")
+        void secondCopyIsNotReturned() {
+            policyFor(owner, "p1");
+
+            assertThat(service.onDestroyed(UUID.randomUUID(), sword("p1"))).isEqualTo(ItemInsuranceService.Placed.LIST);
+            assertThat(service.onDestroyed(UUID.randomUUID(), sword("p1")))
+                    .isEqualTo(ItemInsuranceService.Placed.ALREADY);
+
+            assertThat(store.returnsOf(owner)).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("one policy, one item: a copy destroyed while the owner holds the item is not returned")
+        void copyWhileOwnerHoldsIt() {
+            policyFor(owner, "p1");
+            Player ownerPlayer = player(owner, 3);
+            ItemStack held = sword("p1");
+            when(ownerPlayer.getInventory().getContents()).thenReturn(new ItemStack[]{held});
+
+            assertThat(service.onDestroyed(UUID.randomUUID(), sword("p1")))
+                    .isEqualTo(ItemInsuranceService.Placed.ALREADY);
+            verify(ownerPlayer.getInventory(), never()).addItem(any(ItemStack.class));
+            assertThat(store.returnsOf(owner)).isEmpty();
         }
 
         @Test

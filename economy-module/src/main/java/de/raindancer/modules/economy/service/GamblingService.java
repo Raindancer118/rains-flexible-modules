@@ -96,8 +96,22 @@ public final class GamblingService implements IEconomyService {
 
     private volatile SupplyService supply;
     private final java.util.Set<UUID> insured = java.util.concurrent.ConcurrentHashMap.newKeySet();
-    /** Stakes of multi-step games that were insured when taken, until the game pays out. */
-    private final java.util.Map<UUID, Money> insuredStakes = new java.util.concurrent.ConcurrentHashMap<>();
+    /**
+     * Insured stakes of multi-step games, per player and game, until that game pays out — so a crash round and a
+     * horse race running at once never pay back against each other's stake.
+     */
+    private final java.util.Map<String, Money> insuredStakes = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** "Blackjack, doubled" and "Blackjack" are one game: the part before the first comma or dash-free word. */
+    static String insuredKey(UUID player, String game) {
+        String label = game == null ? "" : game;
+        int comma = label.indexOf(',');
+        String family = (comma < 0 ? label : label.substring(0, comma)).strip().toLowerCase(java.util.Locale.ROOT);
+        if (family.startsWith("horse race")) {
+            family = "horse race";
+        }
+        return player + "|" + family;
+    }
     private final de.raindancer.modules.economy.rules.GambleInsuranceRule insurance =
             new de.raindancer.modules.economy.rules.GambleInsuranceRule();
     private volatile de.raindancer.modules.economy.store.SupplyBook insuranceStore;
@@ -540,7 +554,7 @@ public final class GamblingService implements IEconomyService {
             return false;
         }
         if (premium.isPositive()) {
-            insuredStakes.put(player.getUniqueId(), stake);
+            insuredStakes.merge(insuredKey(player.getUniqueId(), game), stake, Money::plus);
         }
         economy.tell(player.getUniqueId(), stake.negate(), result.balance(), TransactionKind.GAMBLE);
         return true;
@@ -549,8 +563,11 @@ public final class GamblingService implements IEconomyService {
     /** Pays what a multi-step game returned, stake included, and counts the day's loss. */
     public void payOut(UUID player, Money stake, Money payout, String game) {
         count(player, stake, payout);
-        if (insuredStakes.remove(player) != null) {
-            payBack(player, stake, payout);
+        Money insuredStake = insuredStakes.remove(insuredKey(player, game));
+        if (insuredStake != null) {
+            // Only the insured part of what was lost is paid back against: never more than was insured.
+            Money lost = stake.minus(payout.min(stake)).min(insuredStake);
+            payBack(player, lost, Money.ZERO);
         }
         if (payout.isPositive()) {
             EconomyResult result = economy.move(player, payout, TransactionKind.GAMBLE, game + " — won");

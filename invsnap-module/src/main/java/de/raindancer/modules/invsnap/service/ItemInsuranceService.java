@@ -409,6 +409,11 @@ public final class ItemInsuranceService implements IInvSnapService {
                 continue;
             }
             UUID owner = policy.get().owner();
+            if (alreadyHome(owner, policy.get().id())) {
+                // One policy, one item: a second copy is not insured, and is not dropped either.
+                drops.remove();
+                continue;
+            }
             String text = codec.encode(stack);
             if (text == null || !store.addReturn(owner, text)) {
                 continue;
@@ -448,6 +453,13 @@ public final class ItemInsuranceService implements IInvSnapService {
             }
         }
         UUID owner = policy.get().owner();
+        if (alreadyHome(owner, policy.get().id())) {
+            // One policy, one item: the owner has it, or it waits for them — this is a copy, and goes.
+            synchronized (returnedEntities) {
+                returnedEntities.put(entity, Boolean.TRUE);
+            }
+            return Placed.ALREADY;
+        }
         Placed placed = Placed.NOT_SECURED;
         Player player = online.apply(owner);
         if (player != null && !player.isDead() && hasRoom(player) && player.getInventory().addItem(stack).isEmpty()) {
@@ -464,6 +476,31 @@ public final class ItemInsuranceService implements IInvSnapService {
             }
         }
         return placed;
+    }
+
+    /**
+     * Whether the item of this policy is already with its owner — in their inventory, or waiting on their list.
+     * One policy covers one item: anything returned beyond that would be a copy made out of thin air.
+     */
+    private boolean alreadyHome(UUID owner, String policyId) {
+        Player player = online.apply(owner);
+        if (player != null) {
+            ItemStack[] contents = player.getInventory().getContents();
+            if (contents != null) {
+                for (ItemStack each : contents) {
+                    if (each != null && marks.policy(each).filter(policyId::equals).isPresent()) {
+                        return true;
+                    }
+                }
+            }
+        }
+        for (String text : store.returnsOf(owner)) {
+            ItemStack waiting = codec.decode(text);
+            if (waiting != null && marks.policy(waiting).filter(policyId::equals).isPresent()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------ the "to collect" list
