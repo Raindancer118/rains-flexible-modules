@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.3.build.169-beta</paper.api.version>
-        <rainscore.version>1.91.0</rainscore.version>
+        <rainscore.version>1.91.1</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -45,7 +45,7 @@
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
         <claims-module.version>2.9.0</claims-module.version>
-        <moderation-module.version>2.31.0</moderation-module.version>
+        <moderation-module.version>2.32.0</moderation-module.version>
         <names-module.version>2.3.0</names-module.version>
         <cosmetics-module.version>0.14.0</cosmetics-module.version>
         <warp-module.version>1.7.0</warp-module.version>

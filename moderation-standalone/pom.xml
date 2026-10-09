@@ -132,7 +132,7 @@
           2.27.0: sneak-right-click with an empty hand takes the Banhammer back out of the vault; the
           vault's model and file are RainsCore's Stash (1.66.0) — same files, same format.
              2.31.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
-        <plugin.version>2.31.0</plugin.version>
+        <plugin.version>2.32.0</plugin.version>
     </properties>
 
     <dependencies>

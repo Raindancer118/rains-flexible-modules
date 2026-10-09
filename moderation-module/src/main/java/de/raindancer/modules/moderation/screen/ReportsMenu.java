@@ -73,6 +73,9 @@ public final class ReportsMenu extends ModerationList<Report> {
                 + (report.handlerId().isPresent() ? " by " + report.handlerName() : ""));
         lore.add("");
         lore.add("<dark_gray>Click to open it.");
+        if (!report.isClosed()) {
+            lore.add("<yellow>right click <dark_gray>dismiss it");
+        }
 
         return Icons.head(report.subject(), "<yellow>" + report.subjectName()
                 + " <dark_gray>(" + report.id() + ")", lore);
@@ -82,6 +85,14 @@ public final class ReportsMenu extends ModerationList<Report> {
     protected void onClick(Report report, InventoryClickEvent event) {
         if (!may(ModerationPermission.REPORTS)) {
             tell("moderation.no-permission");
+            return;
+        }
+        if (event.isRightClick()) {
+            // The quick way through a queue of nonsense: closed as "nothing in it", and the reporter is told.
+            boolean closed = services().reportService().reject(report.id(), viewer.getUniqueId(),
+                    viewer.getName(), "Dismissed.");
+            tell(closed ? "moderation.report.dismissed" : "moderation.report.already-closed", "id", report.id());
+            refresh();
             return;
         }
         new ReportMenu(services(), viewer, this, report.id()).open();

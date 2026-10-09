@@ -258,6 +258,7 @@ moderation:
     type-what-you-did: "<gray>Type what you did about <white><id></white>. <dark_gray>Whoever reported it is told."
     type-why-not: "<gray>Type why there was nothing in <white><id></white>. <dark_gray>Whoever reported it is told."
     closed: "<green><white><id></white> is closed."
+    dismissed: "<green><white><id></white> dismissed. <dark_gray>Whoever reported it is told."
     already-closed: "<gray><id> had already been closed by somebody else."
     was-dealt-with: "<green>Your report <white><id></white> was dealt with: <gray><outcome>"
     was-rejected: "<gray>Your report <white><id></white> was looked at: <gray><outcome>"
