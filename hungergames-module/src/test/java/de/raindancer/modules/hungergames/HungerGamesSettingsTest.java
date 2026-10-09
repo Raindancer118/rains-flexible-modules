@@ -442,7 +442,7 @@ class HungerGamesSettingsTest {
         }
 
         @Test
-        void hasOneHundredAndNinetySixComponents() {
+        void hasOneHundredAndNinetyNineComponents() {
             // 193 of the old plugin's 272 keys. The rest is wording, cues and stored data -- see
             // HungerGamesSettingsMigrationTest for where each of the others went.
             //
@@ -468,7 +468,7 @@ class HungerGamesSettingsTest {
             // use in the source, and a cooldown on top of that is a different item; Hermes' boots stopped
             // being an ability-triggered, consumed item at all, becoming worn equipment with a flight
             // budget for the round instead, which has no "wait before using it again" to configure.
-            assertThat(HungerGamesSettings.class.getRecordComponents()).hasSize(196);
+            assertThat(HungerGamesSettings.class.getRecordComponents()).hasSize(199);
         }
 
         @Test

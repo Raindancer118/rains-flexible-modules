@@ -22,6 +22,8 @@ speedrun:
     not-allowed: "<yellow>Only staff can start a run here."
     # The world speedrun.yml points at is not currently loaded.
     world-missing: "<red>The lobby world is not loaded. Somebody should look at speedrun.yml."
+    # Somebody here cannot pay the entry fee; they were told, and nobody was charged.
+    entry-refused: "<yellow>Somebody here cannot pay the entry fee, so no run starts. They were told; staff can see who in the log."
   explosives:
     # A bed or a respawn anchor clicked in a dimension where this server's ruleset says it does not
     # go off. Said out loud rather than swallowed: a click that silently does nothing reads as lag.
@@ -126,6 +128,14 @@ speedrun:
     joined: "<gray><white><player></white> joined the run at <white><time></white>."
     watching: "<gray>A run is under way — you are watching. <white>You can play once it is over."
     next-start: "<green>A run is about to start — you race in it."
+    cannot-pay: "<yellow>You cannot pay the entry fee, so you only look on."
+  # The entry fee and the prize pot — see economy.entry-fee.
+  entry:
+    cannot-pay: "<yellow>The entry fee of <white><amount></white> cannot be paid."
+    paid: "<gray>Entry fee of <white><amount></white> paid. <gray>The pot is <white><pot></white>."
+    refunded: "<green>Your entry fee of <white><amount></white> was returned."
+    prize: "<gold>Your prize: <white><amount></white>."
+    prize-refused: "<yellow>Your prize of <white><amount></white> could not be paid out right now. Staff have it in the log."
   # What a racer is told once a run is over and kept.
   result:
     record: "<gold>New server record: <white><time></white> in <category>!"

@@ -43,6 +43,10 @@ public interface GameEvents {
 
     void winnerDeclared(Winner winner);
 
+    /** A tribute added by name before they ever joined has now joined, and carries their real account. */
+    default void identityClaimed(UUID placeholder, UUID real) {
+    }
+
     /** What caused a team membership change, mirrored into the Bukkit event. */
     enum MembershipCause {
         API,

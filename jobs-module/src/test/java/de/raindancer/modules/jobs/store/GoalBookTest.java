@@ -75,4 +75,23 @@ class GoalBookTest {
         assertThat(book.learn("cod", 5)).isFalse();
         assertThat(Files.readString(file)).contains("broken");
     }
+
+    @Test
+    @DisplayName("what is owed to a player survives a restart and adds up until it is paid")
+    void owed(@TempDir Path folder) {
+        UUID ana = UUID.randomUUID();
+        Path file = folder.resolve("goals.yml");
+        GoalBook book = new GoalBook(new YamlStore(file));
+        book.load();
+        assertThat(book.owe(ana, de.raindancer.core.social.economy.Money.of(300))).isTrue();
+        assertThat(book.owe(ana, de.raindancer.core.social.economy.Money.of(200))).isTrue();
+
+        GoalBook again = new GoalBook(new YamlStore(file));
+        again.load();
+        assertThat(again.owed()).containsEntry(ana, de.raindancer.core.social.economy.Money.of(500));
+        assertThat(again.settle(ana)).isTrue();
+        GoalBook paid = new GoalBook(new YamlStore(file));
+        paid.load();
+        assertThat(paid.owed()).isEmpty();
+    }
 }

@@ -63,4 +63,14 @@ class RewardRuleTest {
         assertThat(rule.pool(Money.of(10), 100, Money.of(100), Money.ZERO)).isEqualTo(Money.of(100));
         assertThat(rule.pool(Money.of(90_000), 100, Money.of(100), Money.of(50_000))).isEqualTo(Money.of(50_000));
     }
+
+    @Test
+    @DisplayName("the pay scale shrinks or grows a reward, rounded down; 100 leaves it alone")
+    void scaled() {
+        assertThat(rule.scaled(Money.of(2_001), 100)).isEqualTo(Money.of(2_001));
+        assertThat(rule.scaled(Money.of(2_001), 50)).isEqualTo(Money.of(1_000));
+        assertThat(rule.scaled(Money.of(2_000), 150)).isEqualTo(Money.of(3_000));
+        assertThat(rule.scaled(Money.of(2_000), 0)).isEqualTo(Money.ZERO);
+        assertThat(rule.scaled(Money.of(2_000), -5)).isEqualTo(Money.ZERO);
+    }
 }

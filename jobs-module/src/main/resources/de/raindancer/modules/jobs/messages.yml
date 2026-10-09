@@ -5,6 +5,8 @@ jobs:
   missed: "<gray>Time is up for <white><goal></white>: <white><progress></white> of <white><amount></white>. Those who helped are paid for the part reached."
   paid: "<green>Your share of <white><goal></white>: <white><percent>%</white> — <amount><green>."
   paid-part: "<green>For your part in <white><goal></white> (<white><percent>%</white> of what was reached): <amount><green>."
+  owed: "<yellow>Your share of <white><goal></white> (<amount><yellow>) could not be paid right now. <gray>It is kept for you and paid as soon as it can be."
+  paid-late: "<green>The goal reward that was held back is paid: <amount><green>."
   delivered: "<green>Handed in <white><count></white> for <white><goal></white>. <gray>Now <white><progress></white>/<amount>."
   caught: "<aqua>+ <goal>: <white><progress></white>/<amount>"
   none-carried: "<red>You carry nothing for <white><goal></white>. <gray>It wants: <white><what></white> — plain, not renamed."

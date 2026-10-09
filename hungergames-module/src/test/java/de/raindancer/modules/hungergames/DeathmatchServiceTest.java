@@ -205,6 +205,7 @@ class DeathmatchServiceTest {
                 s.exmatrikulatorInterval(), s.exmatrikulatorDamage(), s.exmatrikulatorMaxTargets(),
                 s.exmatrikulatorFireTicks(), s.exmatrikulatorModules(), s.exmatrikulatorDeathMessages(),
                 s.exmatrikulatorRecipe(), s.stupidnessHealHearts(), s.stupidnessRegenSeconds(),
-                s.stupidnessFireResistSeconds(), s.stupidnessShoveRadius(), s.stupidnessShoveStrength());
+                s.stupidnessFireResistSeconds(), s.stupidnessShoveRadius(), s.stupidnessShoveStrength(),
+                s.entryFee(), s.houseCutPercent(), s.prizeSplit());
     }
 }

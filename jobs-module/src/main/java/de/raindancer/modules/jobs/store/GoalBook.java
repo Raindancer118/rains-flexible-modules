@@ -1,6 +1,7 @@
 package de.raindancer.modules.jobs.store;
 
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.choose.ItemSelection;
 import de.raindancer.modules.jobs.model.Goal;
 import de.raindancer.modules.jobs.model.GoalKind;
@@ -25,6 +26,7 @@ public final class GoalBook {
     private final YamlStore store;
     private final Map<Long, Goal> active = new LinkedHashMap<>();
     private final Map<String, Integer> learned = new HashMap<>();
+    private final Map<UUID, Money> owed = new LinkedHashMap<>();
     private long next = 1;
     private volatile boolean readable = true;
     private boolean dirty;
@@ -36,12 +38,23 @@ public final class GoalBook {
     public synchronized void load() {
         active.clear();
         learned.clear();
+        owed.clear();
         YamlConfiguration yaml = store.read();
         readable = store.problems().isEmpty();
         next = Math.max(1, yaml.getLong("next-number", 1));
         ConfigurationSection learnt = yaml.getConfigurationSection("learned");
         if (learnt != null) {
             learnt.getKeys(false).forEach(key -> learned.put(key, Math.max(1, learnt.getInt(key))));
+        }
+        ConfigurationSection debts = yaml.getConfigurationSection("owed");
+        if (debts != null) {
+            for (String id : debts.getKeys(false)) {
+                try {
+                    owed.put(UUID.fromString(id), Money.of(Math.max(0, debts.getLong(id))));
+                } catch (IllegalArgumentException unreadable) {
+                    // an unreadable line is left out; the others are still owed
+                }
+            }
         }
         ConfigurationSection goals = yaml.getConfigurationSection("goals");
         if (goals == null) {
@@ -169,6 +182,42 @@ public final class GoalBook {
         return false;
     }
 
+    /** What the treasury refused to pay out, per player, still to be paid. */
+    public synchronized Map<UUID, Money> owed() {
+        return Map.copyOf(owed);
+    }
+
+    /** Adds to what a player is owed. @return false, and nothing changed, when it could not be saved */
+    public synchronized boolean owe(UUID player, Money amount) {
+        if (!readable) {
+            return false;
+        }
+        Money before = owed.get(player);
+        owed.put(player, before == null ? amount : before.plus(amount));
+        if (save()) {
+            return true;
+        }
+        if (before == null) {
+            owed.remove(player);
+        } else {
+            owed.put(player, before);
+        }
+        return false;
+    }
+
+    /** Strikes what a player was owed, once it is paid. */
+    public synchronized boolean settle(UUID player) {
+        Money before = owed.remove(player);
+        if (before == null) {
+            return true;
+        }
+        if (save()) {
+            return true;
+        }
+        owed.put(player, before);
+        return false;
+    }
+
     /** Writes what was counted since the last write. */
     public synchronized void flush() {
         if (dirty && readable) {
@@ -179,10 +228,12 @@ public final class GoalBook {
     private boolean save() {
         Map<Long, Goal> goals = Map.copyOf(active);
         Map<String, Integer> sizes = Map.copyOf(learned);
+        Map<UUID, Money> debts = Map.copyOf(owed);
         long number = next;
         boolean written = store.write(yaml -> {
             yaml.set("next-number", number);
             sizes.forEach((template, amount) -> yaml.set("learned." + template, amount));
+            debts.forEach((player, money) -> yaml.set("owed." + player, money.minor()));
             goals.values().forEach(goal -> {
                 String path = "goals." + goal.number();
                 yaml.set(path + ".template", goal.template());

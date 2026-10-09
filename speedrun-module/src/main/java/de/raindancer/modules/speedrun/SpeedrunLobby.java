@@ -82,7 +82,9 @@ public final class SpeedrunLobby {
         /** The chosen game mode refused this start; {@link #refusalFor} says why, in words. */
         REFUSED_BY_MODE,
         /** The chosen game mode threw while starting, and nothing was left running. */
-        MODE_FAILED
+        MODE_FAILED,
+        /** Somebody cannot pay the entry fee, or it could not be taken; nobody was charged. */
+        ENTRY_FEE_REFUSED
     }
 
     /**
@@ -146,6 +148,7 @@ public final class SpeedrunLobby {
             case WORLD_MISSING -> "speedrun.start.world-missing";
             case MODE_MISSING -> "speedrun.start.mode-missing";
             case MODE_FAILED -> "speedrun.start.mode-failed";
+            case ENTRY_FEE_REFUSED -> "speedrun.start.entry-refused";
             case REFUSED_BY_MODE -> refusalFor(participants).orElse("speedrun.start.not-ready");
         };
     }
@@ -191,6 +194,9 @@ public final class SpeedrunLobby {
     private final SpeedrunTimerDisplay timerDisplay;
     /** {@code null} for a lobby built without a {@link PlayerAdmin} — nothing is reset before a run starts. */
     private final SpeedrunPreparation preparation;
+    /** {@code null} for a lobby with no entry fee wired — nothing is charged, paid or refunded. */
+    private volatile SpeedrunEntryFees fees;
+    private final SpeedrunPrizeRules prizes = new SpeedrunPrizeRules();
 
     /** Volatile, as is {@link #countingDown}: written on whichever thread starts or resets a run, and
      *  read through {@link #state} by every region's move, damage and quit handlers under Folia. */
@@ -307,6 +313,11 @@ public final class SpeedrunLobby {
         this.later = (ticks, task) -> Scheduling.globalLater(plugin, ticks, task);
     }
 
+    /** Hands the lobby its entry fee and prize pot — called once by the module. Without it a run is free. */
+    public void useEntryFees(SpeedrunEntryFees entryFees) {
+        this.fees = entryFees;
+    }
+
     /**
      * Hands the lobby its history, HUD and chat buttons — called once by the module. Without it a
      * run is still a run; it is just not recorded, split on screen, or offered buttons.
@@ -357,7 +368,19 @@ public final class SpeedrunLobby {
     private void race(Player player) {
         SpeedrunSession now = session;
         UUID id = player.getUniqueId();
-        if (now == null || !now.addParticipant(id)) {
+        if (now == null) {
+            return;
+        }
+        SpeedrunEntryFees entry = fees;
+        boolean wasCharged = entry != null && entry.active() && !now.participants().contains(id);
+        if (wasCharged && entry.chargeOne(id).isPresent()) {
+            say(player, "speedrun.late-join.cannot-pay");
+            return;
+        }
+        if (!now.addParticipant(id)) {
+            if (wasCharged) {
+                entry.refundOne(id);
+            }
             return;
         }
         SpeedrunSettings current = config();
@@ -920,6 +943,10 @@ public final class SpeedrunLobby {
             // bound to it, so forgetting it here also defuses that.
             disarmSession();
         }
+        SpeedrunEntryFees entry = fees;
+        if (entry != null && entry.charge(participants).isPresent()) {
+            return StartOutcome.ENTRY_FEE_REFUSED;
+        }
         SpeedrunSettings current = config();
         SpeedrunMode chosen = mode().orElse(null);
         SpeedrunSession fresh = new SpeedrunSession(Set.copyOf(participants));
@@ -983,6 +1010,7 @@ public final class SpeedrunLobby {
         fresh.onFinish(outcome -> announceFinish(fresh, outcome));
         fresh.onFinish(outcome -> standWatchersUp());
         fresh.onFinish(outcome -> restartAfterFinish(fresh));
+        fresh.onFinish(outcome -> settleEntryFees(fresh, outcome, chosen));
         if (kit != null) {
             SpeedrunRunRecorder recorder = new SpeedrunRunRecorder(this, kit);
             fresh.onFinish(outcome -> lastRun = recorder.record(fresh, tracker, outcome, category, seed, startedAt,
@@ -1041,6 +1069,32 @@ public final class SpeedrunLobby {
         }
         fresh.start(already);
         return StartOutcome.STARTED;
+    }
+
+    /** Pays the pot to whoever won, or gives it back when nobody did. */
+    private void settleEntryFees(SpeedrunSession finished, SpeedrunOutcome outcome, SpeedrunMode chosen) {
+        SpeedrunEntryFees entry = fees;
+        if (entry == null) {
+            return;
+        }
+        Set<UUID> racers = finished.participants();
+        Optional<Set<UUID>> byMode = Optional.empty();
+        if (chosen != null) {
+            try {
+                byMode = chosen.results(finished, outcome).map(results -> results.players().stream()
+                        .filter(player -> player.won()).map(player -> player.id())
+                        .collect(Collectors.toUnmodifiableSet()));
+            } catch (RuntimeException broken) {
+                log.error(broken, "The game mode '{}' failed to say who won; the entry fees are refunded.",
+                        chosen.id());
+            }
+        }
+        Set<UUID> winners = prizes.winners(racers, chosen == null, byMode, outcome.reason());
+        if (winners.isEmpty()) {
+            entry.refundAll("nobody won");
+        } else {
+            entry.payOut(prizes.places(racers, winners));
+        }
     }
 
     /**
@@ -1132,6 +1186,10 @@ public final class SpeedrunLobby {
         if (chosen != null && chosen.refuseStart(current, Set.copyOf(participants)).isPresent()) {
             return StartOutcome.REFUSED_BY_MODE;
         }
+        SpeedrunEntryFees entry = fees;
+        if (entry != null && !entry.unaffordable(participants).isEmpty()) {
+            return StartOutcome.ENTRY_FEE_REFUSED;
+        }
         return null;
     }
 
@@ -1201,6 +1259,11 @@ public final class SpeedrunLobby {
         runWorldName = null;
         arrivals.clear();
         standWatchersUp();
+        // A pot still here belongs to a run that never got a result: cancelled, reset, or stopped with the plugin.
+        SpeedrunEntryFees entry = fees;
+        if (entry != null) {
+            entry.refundAll("the run was cancelled");
+        }
     }
 
     /**

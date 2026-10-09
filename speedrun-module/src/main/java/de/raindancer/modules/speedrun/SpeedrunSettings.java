@@ -2,6 +2,7 @@ package de.raindancer.modules.speedrun;
 
 import de.raindancer.core.data.settings.Describe;
 import de.raindancer.core.data.settings.In;
+import de.raindancer.core.data.settings.Key;
 import de.raindancer.core.data.settings.Range;
 import de.raindancer.core.data.settings.Settings;
 import de.raindancer.core.data.settings.Title;
@@ -48,6 +49,8 @@ import org.bukkit.Material;
         @Topic(path = "speedrun/splits", title = "Splits and records", icon = Material.CLOCK,
                 description = "The milestones a run is split at, how they are shown, and which runs "
                         + "count toward personal bests and records."),
+        @Topic(path = "speedrun/economy", title = "Entry fee and prizes", icon = Material.GOLD_INGOT,
+                description = "What a run costs to enter, and how the fees are paid out to the winners."),
         @Topic(path = "speedrun/practice", title = "Practice", icon = Material.TARGET,
                 description = "Start a run with a kit to practise one part of it. Practice runs are "
                         + "kept, and ranked on their own."),
@@ -291,9 +294,58 @@ public record SpeedrunSettings(
                 + "for their side), a safe spot near the start, the clock and the sidebar. A late racer's "
                 + "own result never ranks. Somebody who was racing in this run and comes back is never a "
                 + "latecomer. While a hunt keeps the server's whitelist closed, nobody new gets in at all.")
-        SpeedrunLateJoin lateJoin
+        SpeedrunLateJoin lateJoin,
+
+        @In("speedrun/economy") @Title("Entry fee")
+        @Describe("What every racer pays when a run starts, written like 12.50 or 1.5k. 0 is free, and then "
+                + "no economy plugin is needed at all. The fees of a run form its prize pot.")
+        @Key("economy.entry-fee")
+        String entryFee,
+
+        @In("speedrun/economy") @Title("House cut (percent)") @Range(min = 0, max = 100)
+        @Describe("The part of the pot that is not paid out. It stays with the server.")
+        @Key("economy.house-cut-percent")
+        int houseCutPercent,
+
+        @In("speedrun/economy") @Title("Prize split")
+        @Describe("How the rest of the pot is shared by place, as weights: 100 is winner takes all, 60,30,10 "
+                + "gives first, second and third place that share. A winning side or team shares its place "
+                + "evenly. With fewer places than weights the unused weights are dropped.")
+        @Key("economy.prize-split")
+        String prizeSplit
 
 ) {
+
+    /** The settings as they stood before entry fees existed — {@code economy.*} at its defaults. */
+    public SpeedrunSettings(String gameMode, String worldName, String advancementKey,
+                            boolean clearAdvancementsOnStart, SpeedrunDeathPolicy deathPolicy,
+                            boolean requireExitPortalAfterDragon, int creeperSpawnChanceOnBreakPercent,
+                            int chargedCreeperChanceOnBreakPercent, int creeperSpawnChanceOnContainerPercent,
+                            int chargedCreeperChanceOnContainerPercent, boolean startPointSet, double startX,
+                            double startY, double startZ, double startYaw, double startPitch,
+                            boolean startBlockStaffOnly, boolean lobbyProtected, boolean lobbyExplosionsBlocked,
+                            boolean showTimerToOnlookers, boolean restartWhenRunEnds, int restartAfterSeconds,
+                            boolean setTimeOnStart, int startTimeTicks, boolean bedExplosionsInNether,
+                            boolean bedExplosionsInTheEnd, boolean anchorExplosionsInOverworld,
+                            boolean anchorExplosionsInTheEnd, boolean tntInOverworld, boolean tntInNether,
+                            boolean tntInTheEnd, boolean endCrystalsInOverworld, boolean endCrystalsInNether,
+                            boolean endCrystalsInTheEnd, boolean breakingBlocksBeforeRuns,
+                            boolean monstersHuntBeforeRuns, SpeedrunSeedMode seedMode, String seed, String seedPool,
+                            int pearlTarget, SpeedrunHudMode hudDefault, boolean splitAnnouncements,
+                            boolean goldSplitCelebration, boolean rankEditedRuns, SpeedrunPracticeKit practiceKit,
+                            boolean setupDone, SpeedrunLateJoin lateJoin) {
+        this(gameMode, worldName, advancementKey, clearAdvancementsOnStart, deathPolicy,
+                requireExitPortalAfterDragon, creeperSpawnChanceOnBreakPercent,
+                chargedCreeperChanceOnBreakPercent, creeperSpawnChanceOnContainerPercent,
+                chargedCreeperChanceOnContainerPercent, startPointSet, startX, startY, startZ, startYaw,
+                startPitch, startBlockStaffOnly, lobbyProtected, lobbyExplosionsBlocked,
+                showTimerToOnlookers, restartWhenRunEnds, restartAfterSeconds, setTimeOnStart,
+                startTimeTicks, bedExplosionsInNether, bedExplosionsInTheEnd, anchorExplosionsInOverworld,
+                anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
+                endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns,
+                seedMode, seed, seedPool, pearlTarget, hudDefault, splitAnnouncements, goldSplitCelebration,
+                rankEditedRuns, practiceKit, setupDone, lateJoin, "0", 0, "100");
+    }
 
     /** The settings as they stood before late joining existed — {@code late-join} OFF. */
     public SpeedrunSettings(String gameMode, String worldName, String advancementKey,
@@ -323,7 +375,7 @@ public record SpeedrunSettings(
                 anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
                 endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns,
                 seedMode, seed, seedPool, pearlTarget, hudDefault, splitAnnouncements, goldSplitCelebration,
-                rankEditedRuns, practiceKit, setupDone, SpeedrunLateJoin.OFF);
+                rankEditedRuns, practiceKit, setupDone, SpeedrunLateJoin.OFF, "0", 0, "100");
     }
 
     /** The settings as they stood before seeds, splits and practice existed — every new one at its default. */
@@ -351,7 +403,7 @@ public record SpeedrunSettings(
                 anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
                 endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns,
                 SpeedrunSeedMode.RANDOM, "", "", 12, SpeedrunHudMode.SIDEBAR, true, true, false,
-                SpeedrunPracticeKit.NONE, false, SpeedrunLateJoin.OFF);
+                SpeedrunPracticeKit.NONE, false, SpeedrunLateJoin.OFF, "0", 0, "100");
     }
 
     /** The advancement key {@link #requireExitPortalAfterDragon} looks for — vanilla's own dragon kill. */
@@ -391,7 +443,7 @@ public record SpeedrunSettings(
             true, true, true, true, true, true, true, true, true, true,
             false, false,
             SpeedrunSeedMode.RANDOM, "", "", 12, SpeedrunHudMode.SIDEBAR, true, true, false,
-            SpeedrunPracticeKit.NONE, false, SpeedrunLateJoin.OFF);
+            SpeedrunPracticeKit.NONE, false, SpeedrunLateJoin.OFF, "0", 0, "100");
 
     /** Whether a game mode is chosen at all — an empty id is the plain race. */
     /** The same settings in {@code name} — how a run keeps its world while {@code world-name} changes. */
@@ -406,7 +458,22 @@ public record SpeedrunSettings(
                 anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
                 endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns,
                 seedMode, seed, seedPool, pearlTarget, hudDefault, splitAnnouncements, goldSplitCelebration,
-                rankEditedRuns, practiceKit, setupDone, lateJoin);
+                rankEditedRuns, practiceKit, setupDone, lateJoin, entryFee, houseCutPercent, prizeSplit);
+    }
+
+    /** The same settings with the entry fee, the house cut and the prize split changed. */
+    public SpeedrunSettings withEconomy(String fee, int cutPercent, String split) {
+        return new SpeedrunSettings(gameMode, worldName, advancementKey, clearAdvancementsOnStart, deathPolicy,
+                requireExitPortalAfterDragon, creeperSpawnChanceOnBreakPercent,
+                chargedCreeperChanceOnBreakPercent, creeperSpawnChanceOnContainerPercent,
+                chargedCreeperChanceOnContainerPercent, startPointSet, startX, startY, startZ, startYaw,
+                startPitch, startBlockStaffOnly, lobbyProtected, lobbyExplosionsBlocked,
+                showTimerToOnlookers, restartWhenRunEnds, restartAfterSeconds, setTimeOnStart,
+                startTimeTicks, bedExplosionsInNether, bedExplosionsInTheEnd, anchorExplosionsInOverworld,
+                anchorExplosionsInTheEnd, tntInOverworld, tntInNether, tntInTheEnd, endCrystalsInOverworld,
+                endCrystalsInNether, endCrystalsInTheEnd, breakingBlocksBeforeRuns, monstersHuntBeforeRuns,
+                seedMode, seed, seedPool, pearlTarget, hudDefault, splitAnnouncements, goldSplitCelebration,
+                rankEditedRuns, practiceKit, setupDone, lateJoin, fee, cutPercent, split);
     }
 
     public boolean hasGameMode() {

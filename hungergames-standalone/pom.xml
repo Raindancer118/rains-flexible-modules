@@ -49,7 +49,7 @@
           shaping it" rather than naming /init, the command that opens the arena and the one a
           tribute reading a kick screen has no use for.
         -->
-        <plugin.version>2.8.3</plugin.version>
+        <plugin.version>2.9.0</plugin.version>
     </properties>
 
     <dependencies>

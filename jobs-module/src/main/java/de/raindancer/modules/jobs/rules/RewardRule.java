@@ -42,6 +42,16 @@ public final class RewardRule implements IJobsRule {
         return most.isPositive() ? floor.min(most) : floor;
     }
 
+    /** A reward moved by the owner's pay scale, rounded down; 100 leaves it as it is. */
+    public Money scaled(Money reward, int percent) {
+        if (percent == 100) {
+            return reward;
+        }
+        BigInteger scaled = BigInteger.valueOf(reward.minor()).multiply(BigInteger.valueOf(Math.max(0, percent)))
+                .divide(BigInteger.valueOf(100));
+        return Money.of(scaled.longValueExact());
+    }
+
     /** Who is paid what for a goal that asked for {@code amount}. Rounded down; nobody is paid for nothing. */
     public Map<UUID, Money> payouts(Map<UUID, Integer> given, int amount, Money pool) {
         long total = given.values().stream().mapToLong(each -> Math.max(0, each)).sum();

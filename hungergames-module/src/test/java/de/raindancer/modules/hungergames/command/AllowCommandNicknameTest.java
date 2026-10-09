@@ -52,6 +52,9 @@ class AllowCommandNicknameTest {
         doReturn(List.of(lilly, admin)).when(server).getOnlinePlayers();
         nicknames.remember(lilly.getUniqueId(), "Lilly Pad");
         when(services.server()).thenReturn(server);
+        when(services.session().register(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new de.raindancer.modules.hungergames.store.GameSession.Registration(
+                        de.raindancer.modules.hungergames.store.GameSession.Outcome.ADDED, null));
         command = new AllowCommand(() -> services);
     }
 
@@ -86,7 +89,7 @@ class AllowCommandNicknameTest {
 
         command.execute(source(), new String[]{"Lilly_Pad"});
 
-        verify(services.session()).whitelistAdd(lilly.getUniqueId(), "lillyyxoxo");
+        verify(services.session()).register(lilly.getUniqueId(), "lillyyxoxo");
     }
 
     @Test
@@ -131,7 +134,7 @@ class AllowCommandNicknameTest {
 
         command.execute(source(), new String[]{"Zed"});
 
-        verify(services.session()).whitelistAdd(zed.getUniqueId(), "Zed");
+        verify(services.session()).register(zed.getUniqueId(), "Zed");
     }
 
     @Test
@@ -144,8 +147,8 @@ class AllowCommandNicknameTest {
 
         command.execute(source(), new String[]{"Zeddy"});
 
-        verify(services.session()).whitelistAdd(zed.getUniqueId(), "Zed");
-        verify(services.session(), never()).whitelistAdd(any(), eq("Zeddy"));
+        verify(services.session()).register(zed.getUniqueId(), "Zed");
+        verify(services.session(), never()).register(any(), eq("Zeddy"));
     }
 
     @Test
@@ -157,8 +160,8 @@ class AllowCommandNicknameTest {
 
         command.execute(source(), new String[]{"Zed"});
 
-        verify(services.session()).whitelistAdd(zed.getUniqueId(), "Zed");
-        verify(services.session(), never()).whitelistAdd(eq(lilly.getUniqueId()), any());
+        verify(services.session()).register(zed.getUniqueId(), "Zed");
+        verify(services.session(), never()).register(eq(lilly.getUniqueId()), any());
     }
 
     @Test
@@ -168,7 +171,7 @@ class AllowCommandNicknameTest {
 
         command.execute(source(), new String[]{"Newcomer"});
 
-        verify(services.session()).whitelistAdd(AccountNames.derivedId("Newcomer"), "Newcomer");
+        verify(services.session()).register(AccountNames.derivedId("Newcomer"), "Newcomer");
     }
 
     @Test
@@ -180,9 +183,9 @@ class AllowCommandNicknameTest {
 
         command.execute(source(), new String[]{"@a", "@r"});
 
-        verify(services.session()).whitelistAdd(lilly.getUniqueId(), "lillyyxoxo");
-        verify(services.session()).whitelistAdd(admin.getUniqueId(), "Admin");
-        verify(services.session(), never()).whitelistAdd(any(), eq("@r"));
+        verify(services.session()).register(lilly.getUniqueId(), "lillyyxoxo");
+        verify(services.session()).register(admin.getUniqueId(), "Admin");
+        verify(services.session(), never()).register(any(), eq("@r"));
         verify(services.messages()).send(eq(admin), eq("hungergames.allow-selector-empty"), any(Object[].class));
     }
 
@@ -194,7 +197,7 @@ class AllowCommandNicknameTest {
 
         command.execute(source(), new String[]{"@a"});
 
-        verify(services.session(), never()).whitelistAdd(any(), any());
+        verify(services.session(), never()).register(any(), any());
         verify(services.messages()).send(eq(admin), eq("hungergames.allow-selector-refused"), any(Object[].class));
     }
 }

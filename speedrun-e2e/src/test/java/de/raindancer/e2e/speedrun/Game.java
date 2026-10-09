@@ -35,6 +35,12 @@ final class Game implements AutoCloseable {
 
     /** A server for {@code scenario}, the lobby's own settings and any other files written first. */
     static Game start(String scenario, Map<String, String> settings, Map<String, String> files) {
+        return start(scenario, settings, files, java.util.List.of());
+    }
+
+    /** {@link #start}, with other plugins of this reactor beside it — {@code economy-standalone:RainsEconomy-.*}. */
+    static Game start(String scenario, Map<String, String> settings, Map<String, String> files,
+                      java.util.List<String> others) {
         StringBuilder config = new StringBuilder();
         Map<String, String> all = new LinkedHashMap<>();
         // The lobby's world is made from seed 1, every run: the same map, the same spawn, the same answers.
@@ -49,6 +55,10 @@ final class Game implements AutoCloseable {
                 .plugin(pluginJar())
                 .file(DATA + "config.yml", config.toString());
         files.forEach(builder::file);
+        for (String other : others) {
+            String[] parts = other.split(":", 2);
+            builder.plugin(reactorJar(parts[0], parts[1]));
+        }
         PaperServer server = builder.build();
         Game game = new Game(scenario, server);
         try {
@@ -67,6 +77,19 @@ final class Game implements AutoCloseable {
 
     static Game start(String scenario, Map<String, String> settings) {
         return start(scenario, settings, Map.of());
+    }
+
+    private static Path reactorJar(String module, String pattern) {
+        Path folder = Path.of(System.getProperty("e2e.plugin.dir")).toAbsolutePath().getParent().getParent()
+                .resolve(module).resolve("target");
+        try (Stream<Path> jars = Files.list(folder)) {
+            return jars.filter(path -> path.getFileName().toString().matches(pattern + "\\.jar"))
+                    .filter(path -> !path.getFileName().toString().startsWith("original-"))
+                    .findFirst().orElseThrow(() -> new IllegalStateException("no " + pattern + " in " + folder
+                            + " — build " + module + " first"));
+        } catch (IOException failed) {
+            throw new UncheckedIOException(failed);
+        }
     }
 
     private static Path pluginJar() {

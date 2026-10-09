@@ -3,6 +3,8 @@ package de.raindancer.modules.jobs.service;
 import de.raindancer.core.content.items.NonIngredients;
 import de.raindancer.core.social.economy.Economies;
 import de.raindancer.core.social.economy.Economy;
+import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Fees;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.social.economy.SaleStop;
 import de.raindancer.core.ui.choose.Catalogue;
@@ -55,6 +57,7 @@ public final class GoalService implements IJobsService, SaleStop {
     /** The kinds that ended last, newest first — not put straight back up, so the board changes. */
     private final java.util.Deque<String> recent = new java.util.concurrent.ConcurrentLinkedDeque<>();
     private static final int REMEMBERED = 3;
+    private static final String SOURCE = "jobs.goal";
     private volatile long poolAt;
 
     public GoalService(Server server, TemplateCatalogue templates, GoalBook book, Messages messages, LogChannel log,
@@ -112,6 +115,7 @@ public final class GoalService implements IJobsService, SaleStop {
             }
         }
         fill();
+        payOwed();
         book.flush();
     }
 
@@ -189,18 +193,19 @@ public final class GoalService implements IJobsService, SaleStop {
         }
         int progress = goal.progress();
         paid.forEach((player, money) -> {
-            economy.ifPresent(bank -> {
-                var result = bank.deposit(player, money, "Server goal: " + goal.title());
-                if (!result.succeeded()) {
-                    log.warn("{} could not be paid for goal {}: {}", player, goal.title(), result.outcome());
-                }
-            });
+            if (economy.isEmpty()) {
+                return;
+            }
+            var result = Fees.pay(player, money, "Server goal: " + goal.title(), SOURCE);
             Player online = server.getPlayer(player);
-            if (online != null) {
-                int percent = (int) Math.round(goal.givenBy(player) * 100.0 / Math.max(1, progress));
-                messages.send(online, reached ? "jobs.paid" : "jobs.paid-part", "goal", goal.title(),
-                        "percent", String.valueOf(percent),
-                        "amount", economy.map(bank -> (Object) bank.currency().render(money)).orElse(String.valueOf(money.minor())));
+            if (result.succeeded()) {
+                if (online != null) {
+                    int percent = (int) Math.round(goal.givenBy(player) * 100.0 / Math.max(1, progress));
+                    messages.send(online, reached ? "jobs.paid" : "jobs.paid-part", "goal", goal.title(),
+                            "percent", String.valueOf(percent), "amount", Fees.format(result.amount()));
+                }
+            } else if (owe(player, money, result, goal.title()) && online != null) {
+                messages.send(online, "jobs.owed", "goal", goal.title(), "amount", Fees.format(money));
             }
         });
         if (settings.announce()) {
@@ -208,6 +213,36 @@ public final class GoalService implements IJobsService, SaleStop {
                     "goal", goal.title(), "progress", String.valueOf(Math.min(progress, goal.amount())),
                     "amount", String.valueOf(goal.amount()), "players", String.valueOf(paid.size())));
         }
+    }
+
+    /** Keeps a refused payout as owed when it can be paid later; logs it either way. */
+    private boolean owe(UUID player, Money money, EconomyResult result, String title) {
+        boolean later = result.outcome() == EconomyResult.Outcome.TREASURY_EMPTY
+                || result.outcome() == EconomyResult.Outcome.UNAVAILABLE;
+        log.warn("{} could not be paid for goal {}: {}{}", player, title, result.outcome(),
+                later ? " — kept as owed, retried every minute" : "");
+        if (!later) {
+            return false;
+        }
+        if (!book.owe(player, money)) {
+            log.error("{} is owed {} for goal {} but goals.yml cannot be written, so it will be lost on restart.",
+                    player, money, title);
+        }
+        return true;
+    }
+
+    /** Tries again what the treasury refused earlier. */
+    private void payOwed() {
+        book.owed().forEach((player, money) -> {
+            var result = Fees.pay(player, money, "Server goal (owed)", SOURCE);
+            if (!result.succeeded() || !book.settle(player)) {
+                return;
+            }
+            Player online = server.getPlayer(player);
+            if (online != null) {
+                messages.send(online, "jobs.paid-late", "amount", Fees.format(result.amount()));
+            }
+        });
     }
 
     // ---------------------------------------------------------------------------- the reward
@@ -233,7 +268,8 @@ public final class GoalService implements IJobsService, SaleStop {
         Money least = economy.get().currency().parse(live.leastReward()).orElse(Money.ZERO);
         Money most = live.mostReward() == null || live.mostReward().isBlank() ? Money.ZERO
                 : economy.get().currency().parse(live.mostReward()).orElse(Money.ZERO);
-        pool = Optional.of(rewards.pool(rewards.median(balances), live.rewardPercent(), least, most));
+        pool = Optional.of(rewards.scaled(
+                rewards.pool(rewards.median(balances), live.rewardPercent(), least, most), live.payScalePercent()));
         poolAt = now;
         return pool;
     }

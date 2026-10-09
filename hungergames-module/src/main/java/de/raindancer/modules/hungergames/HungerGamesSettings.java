@@ -75,6 +75,7 @@ import java.util.List;
         @Topic(path = "hungergames/announcements", title = "Announcements", icon = Material.BELL),
         @Topic(path = "hungergames/api", title = "HTTP API", icon = Material.REDSTONE_TORCH),
         @Topic(path = "hungergames/items", title = "Items", icon = Material.NETHER_STAR),
+        @Topic(path = "hungergames/economy", title = "Entry fee and prizes", icon = Material.GOLD_INGOT),
 })
 public record HungerGamesSettings(
 
@@ -1298,7 +1299,27 @@ public record HungerGamesSettings(
                 + "value of 12 here is a strength of 1.2 — the same reason as every other ×0.1 setting on "
                 + "this page.")
         @Key("items.stupidness-protector.shove-strength")
-        int stupidnessShoveStrength
+        int stupidnessShoveStrength,
+
+        // ───────────────────────────────────────────────────────────── economy
+
+        @In("hungergames/economy") @Title("Entry fee")
+        @Describe("What registering as a tribute costs, written like 12.50 or 1.5k. 0 is free, and then no "
+                + "economy plugin is needed at all. The fees of a round form its prize pot.")
+        @Key("economy.entry-fee")
+        String entryFee,
+
+        @In("hungergames/economy") @Title("House cut (percent)") @Range(min = 0, max = 100)
+        @Describe("The part of the pot that is not paid out. It stays with the server.")
+        @Key("economy.house-cut-percent")
+        int houseCutPercent,
+
+        @In("hungergames/economy") @Title("Prize split")
+        @Describe("How the rest of the pot is shared by place, as weights: 100 is winner takes all, 60,30,10 "
+                + "gives first, second and third place that share. A team's place is shared evenly inside "
+                + "the team. With fewer places than weights the unused weights are dropped.")
+        @Key("economy.prize-split")
+        String prizeSplit
 
 ) {
 
@@ -1445,7 +1466,8 @@ public record HungerGamesSettings(
             List.of("LIGHTNING_ROD DIAMOND_BLOCK LIGHTNING_ROD",
                     "NETHERITE_INGOT DIAMOND_BLOCK NETHERITE_INGOT",
                     "LIGHTNING_ROD DIAMOND_BLOCK LIGHTNING_ROD"),
-            8, 8, 10, 5, 12);
+            8, 8, 10, 5, 12,
+            "0", 0, "100");
 
     // ------------------------------------------------------------------ read back safely
 
@@ -1648,7 +1670,8 @@ public record HungerGamesSettings(
                 exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
                 exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
                 exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,
-                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength);
+                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength,
+                entryFee, houseCutPercent, prizeSplit);
     }
 
     /** The same, for the countdown — the value a host is likeliest to want to shorten for a rehearsal. */
@@ -1706,7 +1729,8 @@ public record HungerGamesSettings(
                 exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
                 exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
                 exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,
-                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength);
+                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength,
+                entryFee, houseCutPercent, prizeSplit);
     }
 
     /** The same, for how a tribute's elimination is handled. */
@@ -1764,7 +1788,8 @@ public record HungerGamesSettings(
                 exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
                 exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
                 exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,
-                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength);
+                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength,
+                entryFee, houseCutPercent, prizeSplit);
     }
 
     /** The same, for the border's fairness ceiling. */
@@ -1822,7 +1847,8 @@ public record HungerGamesSettings(
                 exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
                 exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
                 exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,
-                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength);
+                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength,
+                entryFee, houseCutPercent, prizeSplit);
     }
 
     /** The same, for whether the deathmatch feature runs at all this round. */
@@ -1880,6 +1906,66 @@ public record HungerGamesSettings(
                 exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
                 exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
                 exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,
-                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength);
+                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength,
+                entryFee, houseCutPercent, prizeSplit);
+    }
+
+    /** The same, with the entry fee, the house cut and the prize split changed. */
+    public HungerGamesSettings withEconomy(String fee, int cutPercent, String split) {
+        return new HungerGamesSettings(
+                preInitAdmins, gameDurationMinutes, gracePeriodSeconds, countdownSeconds, prepTimePercent,
+                gameDifficulty, preflightDifficulty, deathAction, disconnectEliminationMinutes,
+                offlineTimePolicy, adminDeopOnStart, adminReopOnElimination, adminReopOnFinish,
+                adminCreativeOnElimination, adminTeleportCenterOnElimination, adminCenterYOffset,
+                roundLogEnabled, roundLogFilePerRound, roundLogIncludeCoordinates, platformMinGap,
+                platformWidth, undergroundRoomHeight, undergroundRoomExtraRadius, tubeDepth,
+                blockNetherPortals, netherAllowRadius, blockEndPortals, startupLampDelay,
+                startupLevitationStartDelay, startupPlayerLevitationDelay, startupLevitationAmplifier,
+                lobbyHeightOffset, lobbyWidth, lobbyDepth, lobbyHeight, lobbyBlockType, borderInitialSize,
+                borderMinimumSize, borderMaxEdgeSpeed, borderScaleNether, borderPrepWarnings,
+                borderShrinkWarning, deathmatchEnabled, deathmatchManualOnly, deathmatchTargetBorderSize,
+                deathmatchWarningSeconds, deathmatchTeleportToCenter, deathmatchTeleportYOffset,
+                deathmatchGraceAfterTeleportSeconds, deathmatchRequireConfirmation,
+                deathmatchAllowedPhases, deathmatchBroadcastEnabled, deathmatchSoundEnabled,
+                supplyDropsEnabled, supplyDropWarningSeconds, supplyDropCount, supplyDropRadiusMin,
+                supplyDropRadiusMax, supplyDropOnlyOverworld, supplyDropAnnounceCoordinates,
+                supplyDropCoordinateFuzz, supplyDropBeaconEnabled, supplyDropBaseMaterial,
+                supplyDropProtected, supplyDropFireworkEnabled, supplyDropParticlesEnabled,
+                monsterWaveDefaultMob, monsterWaveCountPerWave, monsterWaveWaveCount,
+                monsterWaveIntervalSeconds, monsterWaveSpread, gamemasterEnabled, gamemasterDefaultMode,
+                gamemasterKeepOp, gamemasterAllowTeleportMenu, gamemasterHideFromPlayerCount,
+                gamemasterPermissionMode, teamMaxSize, teamMaxTeams, teamAllowSwitching,
+                teamCaptainEnabled, teamPlayersCanCreate, teamPlayersChooseColour, teamLockPhase,
+                sponsorsEnabled, sponsorTokensEnabled, sponsorTokenMaterial, sponsorTokenName,
+                sponsorTokenLore, sponsorTokenIntervalMinutes, sponsorTokenAmountPerInterval,
+                sponsorTokenFirstAfterMinutes, sponsorTokenMaxPerPlayer, sponsorTokenOnlyAlive,
+                sponsorTokenAnnouncePersonal, sponsorTokenBroadcastMilestones, sponsorTokenDropOnDeath,
+                sponsorTokenClearOnElimination, sponsorTokenClearOnRoundReset, sponsorBeaconsEnabled,
+                sponsorBeaconSpawnMode, sponsorBeaconCentreOnStart, sponsorBeaconMaterial,
+                sponsorBeaconBaseMaterial, sponsorBeaconProtected, sponsorBeaconRadiusMin,
+                sponsorBeaconRadiusMax, sponsorBeaconSchedule, sponsorBeaconMaxActive,
+                sponsorBeaconAnnounceSpawn, sponsorBeaconAnnounceCoordinates, sponsorBeaconCoordinateFuzz,
+                sponsorBeaconParticles, sponsorBeaconSound, sponsorShopEnabled, sponsorShopItems,
+                lootScanRadius, lootScanYRange, lootEditorEnabled, lootEditorAllowRuntimeEdits,
+                lootEditorBackupBeforeSave, lootEditorMaxTestRolls, lootEditorAllowTestGive,
+                lootEditorAllowTestChest, cornucopiaRadius, protectCornucopiaBeforeRunning,
+                protectCornucopiaDuringRunning, protectCornucopiaAfterGame, protectionBypassPermission,
+                announcementsEnabled, announceUseChat, announceUseTitle, announceUseActionbar,
+                announceKillfeedEnabled, announceRemainingPlayersEnabled,
+                announceRemainingPlayersThresholds, apiEnabled, apiBindAddress, apiPort, apiKey,
+                apiReadOnly, fiendfinderGlowDuration, fiendfinderSearchRadius, smokeBombRadius,
+                smokeBombEnemyDuration, smokeBombInvisSeconds, medikitRegenSeconds, medikitRegenLevel,
+                medikitAbsorptionSeconds, medikitAbsorptionLevel, medikitCountdownSeconds, lightningRange,
+                lightningBoltCount, lightningSpread, lightningBonusDamage, lightningDamageRadius,
+                lightningFireTicks, lightningBoltDelay, lightningKnockup, hermesFlightSeconds,
+                hermesWarningSeconds, krueckauRadius, krueckauNauseaSeconds, krueckauBlindnessSeconds,
+                auraDurationSeconds, auraRadius, auraDamage, auraInterval, auraKnockback, auraAffectMobs,
+                grapplingRange, grapplingPower, grapplingCooldownSeconds, repulseRadius, repulseStrength, repulseSlowSeconds,
+                repulseAffectMobs, repulseCooldownSeconds, feastGoldenApples, warKitMaterial, leapPower, leapCooldownSeconds, exmatrikulatorDuration,
+                exmatrikulatorRadius, exmatrikulatorInterval, exmatrikulatorDamage, exmatrikulatorMaxTargets,
+                exmatrikulatorFireTicks, exmatrikulatorModules, exmatrikulatorDeathMessages,
+                exmatrikulatorRecipe, stupidnessHealHearts, stupidnessRegenSeconds,
+                stupidnessFireResistSeconds, stupidnessShoveRadius, stupidnessShoveStrength,
+                fee, cutPercent, split);
     }
 }

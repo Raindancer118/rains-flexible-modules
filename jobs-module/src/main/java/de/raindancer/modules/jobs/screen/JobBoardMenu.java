@@ -66,7 +66,9 @@ public final class JobBoardMenu extends PaginatedMenu<Goal> implements IJobsScre
                 "<gray>pays for the part that was reached.",
                 ""));
         services.goals().poolNow().ifPresentOrElse(
-                reward -> lore.add("<gray>A goal pays <white>" + money(reward) + " <dark_gray>(the median balance)"),
+                reward -> lore.add("<gray>A goal pays <white>" + money(reward) + " <dark_gray>(the median balance"
+                        + (services.settings().get().payScalePercent() == 100 ? ""
+                        : ", at " + services.settings().get().payScalePercent() + "%") + ")"),
                 () -> lore.add("<dark_gray>No economy: goals pay nothing."));
         toolbar(4, Icons.of(Material.LECTERN, "<white>How it works", lore), click -> { });
     }

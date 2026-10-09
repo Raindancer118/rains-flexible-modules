@@ -58,6 +58,7 @@ public final class GameSession {
     private final GameClock clock;
     private final Random random;
 
+    private volatile EntryGate gate = EntryGate.OPEN;
     private GamePhase phase = GamePhase.NOT_INITIALIZED;
     private Winner winner;
     private Long runningSinceMillis;
@@ -158,6 +159,33 @@ public final class GameSession {
 
     // ==================== whitelist / tributes ====================
 
+    /** What came of {@link #register}. */
+    public enum Outcome { ADDED, ALREADY, REFUSED }
+
+    /** @param reason why it was refused, or null */
+    public record Registration(Outcome outcome, String reason) {
+    }
+
+    /** Whose permission is needed before a tribute may register — the entry fee. Open until set. */
+    public void gate(EntryGate entryGate) {
+        this.gate = entryGate == null ? EntryGate.OPEN : entryGate;
+    }
+
+    /**
+     * Registers a real tribute: asks the {@link EntryGate} first (which takes any entry fee), then adds them.
+     * Simulated tributes and tests use {@link #whitelistAdd}, which asks nobody.
+     */
+    public Registration register(UUID uuid, String name) {
+        if (participants.contains(uuid)) {
+            return new Registration(Outcome.ALREADY, null);
+        }
+        Optional<String> refusal = gate.admit(uuid, name);
+        if (refusal.isPresent()) {
+            return new Registration(Outcome.REFUSED, refusal.get());
+        }
+        return new Registration(whitelistAdd(uuid, name) ? Outcome.ADDED : Outcome.ALREADY, null);
+    }
+
     public boolean whitelistAdd(UUID uuid, String name) {
         if (!participants.add(uuid, name)) {
             return false;
@@ -215,6 +243,7 @@ public final class GameSession {
         participants.updateName(real, name);
         teams.reassign(placeholder, real);
         persist();
+        events.identityClaimed(placeholder, real);
         return true;
     }
 

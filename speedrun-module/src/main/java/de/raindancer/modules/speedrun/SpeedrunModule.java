@@ -33,7 +33,7 @@ import java.util.Locale;
  */
 public final class SpeedrunModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.31.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("speedrun", "Speedrun", "1.32.0")
             .describedAs("A speedrun lobby: pick a game, an advancement goal and a death policy "
                     + "from the compass's menu, then press the green block to race. A countdown "
                     + "freezes everyone first, and the lobby world resets once the last racer has "
@@ -70,6 +70,18 @@ public final class SpeedrunModule implements FlexModule {
         lobby = new SpeedrunLobby(context.plugin(), settings, context.core().bossBars(),
                 context.core().effects(), context.core().messages(), context.core().actionBars(),
                 context.core().players());
+        // The entry fee: a pot left on disk belongs to a run the server did not outlive, so it is refunded
+        // before anything can start another.
+        SpeedrunEntryLedger entryLedger = new SpeedrunEntryLedger(context.dataFolder().resolve("entries.yml"));
+        entryLedger.load();
+        SpeedrunEntryFees entryFees = new SpeedrunEntryFees(entryLedger, (player, key, pairs) -> {
+            Player online = Bukkit.getPlayer(player);
+            if (online != null) {
+                context.core().messages().send(online, key, pairs);
+            }
+        }, message -> context.log().warn(message), lobby::config);
+        entryFees.refundAll("the server restarted during the run");
+        lobby.useEntryFees(entryFees);
         // Main thread only, same as everything else here in enable() — creating a world is a
         // main-thread operation in Paper, and nobody is on yet for it to visibly stall.
         lobby.ensureWorldExists();

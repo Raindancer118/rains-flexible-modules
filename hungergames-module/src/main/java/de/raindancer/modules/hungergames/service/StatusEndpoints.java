@@ -1,5 +1,6 @@
 package de.raindancer.modules.hungergames.service;
 
+import de.raindancer.modules.hungergames.store.GameSession;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
@@ -109,7 +110,11 @@ final class StatusEndpoints implements ApiRouter.Module, IHungerGamesService {
         String requestedName = request.optString("name", "");
         String name = !requestedName.isEmpty() ? requestedName
                 : Objects.requireNonNullElse(onlineNameOf(uuid), uuid.toString().substring(0, 8));
-        if (!support.session().whitelistAdd(uuid, name)) {
+        GameSession.Registration result = support.session().register(uuid, name);
+        if (result.outcome() == GameSession.Outcome.REFUSED) {
+            return ApiResponse.conflict("Not registered: " + result.reason());
+        }
+        if (result.outcome() == GameSession.Outcome.ALREADY) {
             return ApiResponse.conflict("Already registered as a tribute");
         }
         support.log(name + " (" + uuid + ") registered via the HTTP API");

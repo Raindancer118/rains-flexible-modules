@@ -4,6 +4,7 @@ import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.hungergames.HungerGamesServices;
 import de.raindancer.modules.hungergames.service.AccountNames;
+import de.raindancer.modules.hungergames.store.GameSession;
 import de.raindancer.modules.hungergames.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.OfflinePlayer;
@@ -91,7 +92,7 @@ public final class AllowCommand implements IHungerGamesCommand {
             if (found.isEmpty()) {
                 // Somebody not seen on this server yet, named as given — see the class note.
                 // Not a Mojang lookup: run before an event, in bulk, possibly offline, that would freeze the server.
-                record(hg, AccountNames.derivedId(typed), typed, added, already);
+                record(hg, sender, AccountNames.derivedId(typed), typed, added, already);
                 continue;
             }
             // Whoever the text meant — by selector, name or nickname, here or not — goes on the list as
@@ -100,7 +101,7 @@ public final class AllowCommand implements IHungerGamesCommand {
             for (OfflinePlayer who : found.matches()) {
                 String real = who.getName() != null ? who.getName()
                         : found.kind() == PlayerLookup.Kind.NAME ? typed : who.getUniqueId().toString();
-                record(hg, who.getUniqueId(), real, added, already);
+                record(hg, sender, who.getUniqueId(), real, added, already);
             }
         }
 
@@ -119,12 +120,14 @@ public final class AllowCommand implements IHungerGamesCommand {
         }
     }
 
-    private static void record(HungerGamesServices hg, UUID uuid, String name, List<String> added,
-                               List<String> already) {
-        if (hg.session().whitelistAdd(uuid, name)) {
-            added.add(name);
-        } else {
-            already.add(name);
+    private static void record(HungerGamesServices hg, CommandSender sender, UUID uuid, String name,
+                               List<String> added, List<String> already) {
+        GameSession.Registration result = hg.session().register(uuid, name);
+        switch (result.outcome()) {
+            case ADDED -> added.add(name);
+            case ALREADY -> already.add(name);
+            case REFUSED -> hg.messages().send(sender, "hungergames.entry-refused", "who", name,
+                    "reason", result.reason());
         }
     }
 

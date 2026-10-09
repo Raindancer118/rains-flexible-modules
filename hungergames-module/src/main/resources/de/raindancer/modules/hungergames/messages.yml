@@ -156,6 +156,11 @@ hungergames:
   allow-usage: "<red>/allow <player> [player…] — several at once, online or not.</red>"
   allowed: "<green>✔ Now a tribute: <white><players></white></green> <gray>(<total> in total)</gray>"
   allowed-already: "<yellow>Already a tribute: <white><players></white></yellow>"
+  entry-refused: "<red>✘ <white><who></white> is not registered: <reason>.</red>"
+  entry-refused-joined: "<red>You were taken off the tribute list: <reason>.</red>"
+  entry-refunded: "<green>Your entry fee of <white><amount></white> was returned.</green>"
+  prize-won: "<gold>★ The Capitol pays your prize: <white><amount></white>.</gold>"
+  prize-refused: "<yellow>Your prize of <white><amount></white> could not be paid out right now. Tell the Gamemakers - it is written in the log.</yellow>"
   allow-selector-refused: "<red>Selectors like <white><who></white> are not yours to use here - or they are not written right. Type names instead. The Capitol has no wildcards.</red>"
   allow-selector-empty: "<yellow><white><who></white> matches nobody who is online right now - nobody was added for it. An empty crowd makes a poor tribute.</yellow>"
 

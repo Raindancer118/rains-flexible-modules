@@ -188,7 +188,13 @@ public final class TributesMenu extends PaginatedMenu<Participant> implements IH
             tell("<red>" + name + " is not a Minecraft name.");
             return;
         }
-        boolean added = session.whitelistAdd(TributeRoster.derivedIdFor(name), name.strip());
+        GameSession.Registration result = session.register(TributeRoster.derivedIdFor(name), name.strip());
+        if (result.outcome() == GameSession.Outcome.REFUSED) {
+            tell("<red>✘ " + name.strip() + " is not registered: " + result.reason() + ".");
+            open();
+            return;
+        }
+        boolean added = result.outcome() == GameSession.Outcome.ADDED;
         if (added && roster != null) {
             // Written to the sheet as well, so the file and the register do not drift apart the first time
             // somebody uses both.
@@ -234,8 +240,11 @@ public final class TributesMenu extends PaginatedMenu<Participant> implements IH
 
         int added = 0;
         for (TributeRoster.Entry entry : report.found()) {
-            if (session.whitelistAdd(entry.derivedId(), entry.name())) {
+            GameSession.Registration result = session.register(entry.derivedId(), entry.name());
+            if (result.outcome() == GameSession.Outcome.ADDED) {
                 added++;
+            } else if (result.outcome() == GameSession.Outcome.REFUSED) {
+                tell("<red>✘ " + entry.name() + " is not registered: " + result.reason() + ".");
             }
         }
         if (report.found().isEmpty() && report.problems().isEmpty()) {

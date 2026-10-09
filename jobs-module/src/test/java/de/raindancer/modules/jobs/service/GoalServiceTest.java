@@ -59,6 +59,7 @@ class GoalServiceTest {
     /** An economy in a map. */
     private static final class Bank implements Economy {
         final Map<UUID, Money> balances = new HashMap<>();
+        boolean treasuryEmpty;
 
         public String name() {
             return "bank";
@@ -77,6 +78,9 @@ class GoalServiceTest {
         }
 
         public EconomyResult deposit(UUID player, Money amount, String reason) {
+            if (treasuryEmpty && amount.isPositive()) {
+                return EconomyResult.failed(EconomyResult.Outcome.TREASURY_EMPTY, amount, balance(player));
+            }
             balances.merge(player, amount, Money::plus);
             return EconomyResult.done(amount, balances.get(player));
         }
@@ -139,7 +143,7 @@ class GoalServiceTest {
         book = new GoalBook(new YamlStore(folder.resolve("goals.yml")));
         book.load();
         service = new GoalService(server, templates, book, messages, Log.of("jobs"), now::get, new Random(7),
-                new JobsSettings(3, 100, 30, "0", "", true, true));
+                new JobsSettings(3, 100, 30, "0", "", true, true, 100));
     }
 
     @AfterEach
@@ -225,7 +229,7 @@ class GoalServiceTest {
         String collected = delivered.getFirst().replace("*", "OAK");
         assertThat(service.reason(collected)).isPresent();
         assertThat(service.reason("SALMON")).as("only caught, never handed in").isEmpty();
-        service.settings(new JobsSettings(3, 100, 30, "0", "", false, true));
+        service.settings(new JobsSettings(3, 100, 30, "0", "", false, true, 100));
         assertThat(service.reason(collected)).isEmpty();
     }
 
@@ -244,12 +248,43 @@ class GoalServiceTest {
     @Test
     @DisplayName("a kind that just ended is not put straight back up while another is free")
     void variety() {
-        service.settings(new JobsSettings(1, 100, 30, "0", "", true, true));
+        service.settings(new JobsSettings(1, 100, 30, "0", "", true, true, 100));
         service.tick();
         for (int round = 0; round < 10; round++) {
             Goal goal = service.goals().getFirst();
             service.end(goal.number());
             assertThat(service.goals().getFirst().template()).isNotEqualTo(goal.template());
         }
+    }
+
+    @Test
+    @DisplayName("goals.pay-scale-percent scales the reward before it is paid and before the board shows it")
+    void payScale() {
+        service.settings(new JobsSettings(3, 100, 30, "0", "", true, true, 50));
+        assertThat(service.poolNow()).contains(Money.of(1_000));
+        service.tick();
+        Goal goal = service.goals().getFirst();
+        book.add(goal.number(), ana, goal.amount());
+        service.end(goal.number());
+        assertThat(bank.balance(ana)).isEqualTo(Money.of(1_000 + 1_000));
+    }
+
+    @Test
+    @DisplayName("a payout the treasury refuses stays owed, and is paid on a later tick once it can")
+    void treasuryEmpty() {
+        service.tick();
+        Goal goal = service.goals().getFirst();
+        book.add(goal.number(), ana, goal.amount());
+        bank.treasuryEmpty = true;
+        service.end(goal.number());
+        assertThat(bank.balance(ana)).isEqualTo(Money.of(1_000));
+        assertThat(book.owed()).containsEntry(ana, Money.of(2_000));
+        service.tick();
+        assertThat(bank.balance(ana)).as("still refused, still owed").isEqualTo(Money.of(1_000));
+        assertThat(book.owed()).containsEntry(ana, Money.of(2_000));
+        bank.treasuryEmpty = false;
+        service.tick();
+        assertThat(bank.balance(ana)).isEqualTo(Money.of(3_000));
+        assertThat(book.owed()).isEmpty();
     }
 }

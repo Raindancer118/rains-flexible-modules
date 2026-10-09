@@ -63,6 +63,7 @@ import de.raindancer.modules.hungergames.service.VirtualTime;
 import de.raindancer.modules.hungergames.store.AllGameEvents;
 import de.raindancer.modules.hungergames.store.ArenaStore;
 import de.raindancer.modules.hungergames.store.BorderPhaseStore;
+import de.raindancer.modules.hungergames.store.EntryLedger;
 import de.raindancer.modules.hungergames.store.GameSession;
 import de.raindancer.modules.hungergames.store.GamemasterStore;
 import de.raindancer.modules.hungergames.store.LootCatalogue;
@@ -164,6 +165,7 @@ public final class HungerGamesWiring {
     private final AllGameEvents events;
     private final GameSession session;
     private final RoundLogService roundLog;
+    private final de.raindancer.modules.hungergames.service.EntryFeeService entryFees;
     private final java.util.concurrent.ExecutorService roundLogWriter;
     private final VirtualTime virtualTime;
 
@@ -282,6 +284,14 @@ public final class HungerGamesWiring {
         this.session = new GameSession(() -> TeamRules.from(settings()), events,
                 new YamlSessionStore(data.resolve("session.yml")), GameClock.system(), new Random());
         this.virtualTime = new VirtualTime();
+        EntryLedger entryLedger = new EntryLedger(data.resolve("entries.yml"));
+        entryLedger.load();
+        this.entryFees = new de.raindancer.modules.hungergames.service.EntryFeeService(entryLedger, session,
+                this::tell, message -> {
+                    log.warn(message);
+                    roundLog.log("ECONOMY", message);
+                }, settings());
+        session.gate(entryFees);
 
         // ---- the arena, which almost everything else asks about
         this.arena = new ArenaBuildService(plugin, session, new Schematics(data, log), arenaStore,
@@ -384,6 +394,7 @@ public final class HungerGamesWiring {
         // once: the op tracker restores operator status on the phase change that the announcer describes,
         // and an announcement naming somebody as a plain player before their OP came back reads as a lie.
         events.also(roundLog)
+                .also(entryFees)
                 .also(new AnnouncementListener(this::broadcast, this::nameOf, settings()))
                 .also(phaseWatcher())
                 .also(new WinnerFinishListener(
@@ -2452,6 +2463,7 @@ public final class HungerGamesWiring {
      */
     private void settingsChanged(HungerGamesSettings now) {
         arena.settings(now);
+        entryFees.settings(now);
         border.settings(now);
         deathmatch.settings(now);
         opTracker.settings(now);

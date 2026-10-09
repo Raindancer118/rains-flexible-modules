@@ -131,4 +131,9 @@ public final class AllGameEvents implements GameEvents {
     public void winnerDeclared(Winner winner) {
         each("a winner", one -> one.winnerDeclared(winner));
     }
+
+    @Override
+    public void identityClaimed(UUID placeholder, UUID real) {
+        each("a first join", one -> one.identityClaimed(placeholder, real));
+    }
 }

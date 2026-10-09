@@ -240,9 +240,9 @@ class HungerGamesSettingsMigrationTest {
         // The Fiendfinder got the same treatment in that earlier pass and does not get it here: it is
         // single use in the source, consumed the instant it fires, and a cooldown on top of that is a
         // different item rather than a configurable version of the same one — see ArenaItemServiceTest.
-        assertThat(schemaKeys).hasSize(196);
+        assertThat(schemaKeys).hasSize(199);
         assertThat(MOVED).hasSize(79);
-        assertThat(schemaKeys.size() + MOVED.size()).isEqualTo(275);
+        assertThat(schemaKeys.size() + MOVED.size()).isEqualTo(278);
     }
 
     @Test

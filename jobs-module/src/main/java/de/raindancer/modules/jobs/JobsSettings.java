@@ -43,7 +43,12 @@ public record JobsSettings(
 
         @In("jobs") @Title("Tell everybody about goals")
         @Describe("A line in chat when a goal goes up, is reached or runs out.")
-        @Key("announce") boolean announce) {
+        @Key("announce") boolean announce,
 
-    public static final JobsSettings DEFAULTS = new JobsSettings(3, 100, 30, "100", "", true, true);
+        @In("jobs") @Title("Reward scale (percent)") @Range(min = 0, max = 1000)
+        @Describe("Applied to every goal reward before it is paid and shown on the board. 100 leaves it as it "
+                + "is; lower it to put less money into the economy, 0 pays nothing.")
+        @Key("goals.pay-scale-percent") int payScalePercent) {
+
+    public static final JobsSettings DEFAULTS = new JobsSettings(3, 100, 30, "100", "", true, true, 100);
 }
