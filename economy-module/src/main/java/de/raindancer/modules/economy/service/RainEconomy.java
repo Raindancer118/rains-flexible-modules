@@ -34,6 +34,12 @@ public final class RainEconomy implements Economy, IEconomyService {
     private final List<BalanceWatcher> watchers = new CopyOnWriteArrayList<>();
     private volatile EconomySettings settings;
     private volatile Currency currency;
+    private volatile SupplyService supply;
+
+    /** Payouts that print money: a share of each goes toward a debt the player owes the server. */
+    private static final java.util.Set<TransactionKind> INCOME = java.util.EnumSet.of(TransactionKind.REWARD,
+            TransactionKind.INCOME, TransactionKind.INTEREST, TransactionKind.SELL, TransactionKind.DAILY,
+            TransactionKind.PLUGIN);
 
     /** @param names a player's name by id, or null for nobody the server has seen */
     public RainEconomy(AccountBook book, Function<UUID, String> names, EconomySettings settings) {
@@ -46,6 +52,17 @@ public final class RainEconomy implements Economy, IEconomyService {
     public void settings(EconomySettings updated) {
         this.settings = updated == null ? EconomySettings.DEFAULTS : updated;
         this.currency = this.settings.currency();
+    }
+
+    /** The money supply's settings and snapshot; until wired, the economy behaves as it always did. */
+    public void supply(SupplyService service) {
+        this.supply = service;
+    }
+
+    @Override
+    public java.util.Optional<de.raindancer.core.social.economy.MoneySupply> supply() {
+        SupplyService service = supply;
+        return service == null ? java.util.Optional.of(book.supply(0)) : java.util.Optional.of(service.snapshot());
     }
 
     public void watch(BalanceWatcher watcher) {
@@ -112,6 +129,49 @@ public final class RainEconomy implements Economy, IEconomyService {
     }
 
     @Override
+    public EconomyResult deposit(UUID player, Money amount, String reason, String source) {
+        if (amount.isZero()) {
+            return EconomyResult.done(amount, balance(player));
+        }
+        ensure(player);
+        return move(player, amount, TransactionKind.PLUGIN, reason, source);
+    }
+
+    @Override
+    public EconomyResult refund(UUID player, Money amount, String reason, String source) {
+        if (amount.isZero()) {
+            return EconomyResult.done(amount, balance(player));
+        }
+        ensure(player);
+        EconomyResult result = book.restore(player, amount, TransactionKind.PLUGIN, reason, source);
+        if (result.succeeded()) {
+            tell(player, amount, result.balance(), TransactionKind.PLUGIN);
+        }
+        return result;
+    }
+
+    /** Pays a win as far as the treasury can; the result's amount is what was paid. */
+    public EconomyResult moveUpTo(UUID player, Money amount, TransactionKind kind, String reason) {
+        EconomyResult result = book.changeUpTo(player, amount, kind, reason, settings.most());
+        if (result.succeeded()) {
+            tell(player, result.amount(), result.balance(), kind);
+        }
+        return result;
+    }
+
+    @Override
+    public EconomyResult withdraw(UUID player, Money amount, String reason, String source) {
+        if (amount.isZero()) {
+            return EconomyResult.done(amount, balance(player));
+        }
+        if (amount.isNegative()) {
+            return EconomyResult.failed(EconomyResult.Outcome.INVALID_AMOUNT, amount, balance(player));
+        }
+        ensure(player);
+        return move(player, amount.negate(), TransactionKind.PLUGIN, reason, source);
+    }
+
+    @Override
     public EconomyResult withdraw(UUID player, Money amount, String reason) {
         if (amount.isZero()) {
             return EconomyResult.done(amount, balance(player));
@@ -132,14 +192,51 @@ public final class RainEconomy implements Economy, IEconomyService {
 
     /** Money arriving (positive) or leaving (negative), for a reason the statement can name. */
     public EconomyResult move(UUID player, Money delta, TransactionKind kind, String reason) {
+        return move(player, delta, kind, reason, "");
+    }
+
+    /**
+     * {@link #move}, saying where the money came from or went. A payout to somebody who owes the server has the
+     * owner's share taken toward the debt straight after — the result still says what was paid.
+     */
+    public EconomyResult move(UUID player, Money delta, TransactionKind kind, String reason, String source) {
         if (delta.isZero()) {
             return EconomyResult.failed(EconomyResult.Outcome.INVALID_AMOUNT, delta, balance(player));
         }
-        EconomyResult result = book.change(player, delta, kind, reason, null, settings.most());
+        EconomyResult result = book.change(player, delta, kind, reason, null, settings.most(), source);
         if (result.succeeded()) {
             tell(player, delta, result.balance(), kind);
+            if (delta.isPositive() && INCOME.contains(kind)) {
+                collectDebt(player, delta);
+            }
         }
         return result;
+    }
+
+    /** Takes the owner's share of a payout toward what the player owes, and hands it to whoever keeps the debt. */
+    void collectDebt(UUID player, Money paid) {
+        SupplyService service = supply;
+        int percent = service == null ? de.raindancer.modules.economy.SupplySettings.DEFAULTS.debtSharePercent()
+                : service.current().debtSharePercent();
+        if (percent <= 0 || !de.raindancer.core.social.economy.Debts.inDebt(player)) {
+            return;
+        }
+        Money share = paid.share(Math.min(100, percent) / 100.0)
+                .min(de.raindancer.core.social.economy.Debts.owed(player));
+        if (!share.isPositive()) {
+            return;
+        }
+        EconomyResult taken = book.change(player, share.negate(), TransactionKind.DEBT, "", null, settings.most());
+        if (!taken.succeeded()) {
+            return;
+        }
+        Money settled = de.raindancer.core.social.economy.Debts.collected(player, share);
+        Money unused = share.minus(settled);
+        if (unused.isPositive()) {
+            // A keeper that settled less than offered: what it did not take goes back, exactly.
+            book.restore(player, unused, TransactionKind.DEBT, "Not needed for the debt", "");
+        }
+        tell(player, settled.negate(), book.balance(player), TransactionKind.DEBT);
     }
 
     public EconomyResult transfer(UUID from, UUID to, Money amount, Money tax, TransactionKind kind, String reason) {

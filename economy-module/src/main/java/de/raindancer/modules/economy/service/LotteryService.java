@@ -50,6 +50,17 @@ public final class LotteryService implements IEconomyService {
     private final LotteryRule rule = new LotteryRule();
     private final SecureRandom random = new SecureRandom();
     private volatile EconomySettings settings;
+
+    private volatile SupplyService supply;
+
+    /** The money supply's settings; the shipped ones, which change nothing, until wired. */
+    public void supply(SupplyService service) {
+        this.supply = service;
+    }
+
+    private de.raindancer.modules.economy.SupplySettings supplied() {
+        return SupplyService.settingsOf(supply);
+    }
     private volatile java.util.function.Predicate<java.util.UUID> overdue = player -> false;
     private volatile List<Integer> lastDraw = List.of();
     private volatile boolean drawing;
@@ -126,6 +137,11 @@ public final class LotteryService implements IEconomyService {
         }
         if (!player.hasPermission(PermissionNodes.GAMBLE)) {
             refuse(player, "economy.gamble.not-allowed");
+            return false;
+        }
+        if (supplied().debtStopsGambling() && de.raindancer.core.social.economy.Debts.inDebt(player.getUniqueId())) {
+            refuse(player, "economy.gamble.in-debt", "amount",
+                    live.currency().render(de.raindancer.core.social.economy.Debts.owed(player.getUniqueId())));
             return false;
         }
         if (overdue.test(player.getUniqueId()) && live.overdueStopsGambling()) {

@@ -71,7 +71,13 @@ public final class DailyService implements IEconomyService {
             refuse(player, "economy.daily.already", "hours", String.valueOf(hoursLeft()));
             return;
         }
-        Money amount = rule.amount(live.dailyMoney(), live.dailyBonusMoney(), claim.streak());
+        Money amount = de.raindancer.core.social.economy.EconomyLevers.faucet(de.raindancer.modules.economy.model.Sources.DAILY,
+                rule.amount(live.dailyMoney(), live.dailyBonusMoney(), claim.streak()));
+        if (!amount.isPositive()) {
+            Outcomes.tell(messages, effects, player, EconomyResult.failed(EconomyResult.Outcome.TREASURY_EMPTY,
+                    amount, economy.balance(player.getUniqueId())), currency, "");
+            return;
+        }
         EconomyResult result = economy.book().claimDaily(player.getUniqueId(), claim, amount, economy.most());
         if (!result.succeeded()) {
             if (result.outcome() == EconomyResult.Outcome.REFUSED) {
@@ -82,6 +88,7 @@ public final class DailyService implements IEconomyService {
             return;
         }
         economy.tell(player.getUniqueId(), amount, result.balance(), TransactionKind.DAILY);
+        economy.collectDebt(player.getUniqueId(), amount);
         effects.play(player.getUniqueId(), Cues.REWARD);
         messages.send(player, "economy.daily.claimed", "amount", currency.render(amount),
                 "streak", String.valueOf(claim.streak()));

@@ -72,6 +72,10 @@ public final class AdminMenu extends Menu implements IEconomyScreen {
                 "<gray>what anything costs or pays.",
                 "<yellow>Click<gray> to open"), click -> new ShopEditorMenu(services, viewer, this).open());
 
+        band(MenuLayout.WHO, 8, Icons.of(Material.BEACON, "<aqua>Money supply",
+                "<gray>A hard cap and the treasury, the price", "<gray>index, the stabiliser, and every brake",
+                "<gray>against inflation.", "<yellow>Click<gray> to open"),
+                click -> settings(services, viewer, this, "supply"));
         door(MenuLayout.RULES, 1, Material.CLOCK, "Interest", "economy/interest", live.interestEnabled(),
                 "features.interest", "<gray>" + CasinoMenu.percent(live.interestRate()) + "% every "
                         + live.interestMinutes() + " minutes",

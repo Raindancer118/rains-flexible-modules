@@ -46,6 +46,7 @@ public final class InterestService implements IEconomyService {
         for (Player player : online) {
             Money interest = rule.interest(economy.balance(player.getUniqueId()), live.interestRate(),
                     live.interestCapMoney(), live.most());
+            interest = de.raindancer.core.social.economy.EconomyLevers.faucet(de.raindancer.modules.economy.model.Sources.INTEREST, interest);
             if (!interest.isPositive()) {
                 continue;
             }

@@ -72,6 +72,8 @@ public final class AccountBook {
     private final Object lock = new Object();
     private final Map<UUID, Account> accounts = new HashMap<>();
     private final Map<String, Money> outstanding = new HashMap<>();
+    /** When each outstanding note was issued — an old one may be worth less when it comes back. */
+    private final Map<String, Long> issuedAt = new HashMap<>();
     /** Coins in circulation, by value: issued and not yet paid back in. More cannot be paid in. */
     private final Map<Money, Long> circulation = new HashMap<>();
     private final Set<Money> dirtyCoins = new LinkedHashSet<>();
@@ -95,6 +97,8 @@ public final class AccountBook {
     public static final int HOURS_KEPT = 168;
     private final List<NoteWrite> notes = new ArrayList<>();
     private volatile boolean loaded;
+    /** A hard cap on money: nothing is printed past it, payouts come out of what nobody holds. Null for none. */
+    private Money cap;
 
     /** The lottery's pot is an account of its own, so tickets bought and the pot are one ledger. */
     public static final UUID LOTTERY_POT = new UUID(0L, 0x1077E7L);
@@ -139,20 +143,22 @@ public final class AccountBook {
         Optional<Boolean> read = database.read(connection -> {
             Map<UUID, Account> found = new HashMap<>();
             try (PreparedStatement select = connection.prepareStatement(
-                    "SELECT id, name, balance, frozen, created, daily_day, daily_streak FROM account");
+                    "SELECT id, name, balance, frozen, created, daily_day, daily_streak, last_spent FROM account");
                  ResultSet rows = select.executeQuery()) {
                 while (rows.next()) {
                     UUID id = UUID.fromString(rows.getString(1));
                     found.put(id, new Account(id, rows.getString(2), Money.of(rows.getLong(3)),
-                            rows.getInt(4) != 0, rows.getLong(5), rows.getLong(6), rows.getInt(7)));
+                            rows.getInt(4) != 0, rows.getLong(5), rows.getLong(6), rows.getInt(7), rows.getLong(8)));
                 }
             }
             Map<String, Money> open = new HashMap<>();
+            Map<String, Long> issued = new HashMap<>();
             try (PreparedStatement select = connection.prepareStatement(
-                    "SELECT serial, value FROM note WHERE redeemed_at IS NULL");
+                    "SELECT serial, value, issued_at FROM note WHERE redeemed_at IS NULL");
                  ResultSet rows = select.executeQuery()) {
                 while (rows.next()) {
                     open.put(rows.getString(1), Money.of(rows.getLong(2)));
+                    issued.put(rows.getString(1), rows.getLong(3));
                 }
             }
             Map<Money, Long> coinsOut = new HashMap<>();
@@ -297,7 +303,31 @@ public final class AccountBook {
                 }
             }
             long lastTaxed = taxedAt;
+            long dayStart = java.time.LocalDate.ofEpochDay(dayOf(clock.getAsLong())).atStartOfDay(zone).toInstant()
+                    .toEpochMilli();
+            Map<UUID, Map<String, Long>> todays = new HashMap<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT account, kind, source, SUM(delta) FROM ledger WHERE at >= ? AND delta > 0 "
+                            + "GROUP BY account, kind, source")) {
+                select.setLong(1, dayStart);
+                try (ResultSet rows = select.executeQuery()) {
+                    while (rows.next()) {
+                        Map<String, Long> keys = todays.computeIfAbsent(UUID.fromString(rows.getString(1)),
+                                id -> new HashMap<>());
+                        keys.merge(TransactionKind.read(rows.getString(2)).name(), rows.getLong(4), Long::sum);
+                        String source = rows.getString(3);
+                        if (source != null && !source.isBlank()) {
+                            keys.merge(source, rows.getLong(4), Long::sum);
+                        }
+                    }
+                }
+            }
             synchronized (lock) {
+                rollDay(clock.getAsLong());
+                todays.forEach((id, keys) -> keys.forEach((key, minor) -> {
+                    earnedToday.computeIfAbsent(id, ignored -> new HashMap<>()).merge(key, minor, Long::sum);
+                    earnedTodayByAll.merge(key, minor, Long::sum);
+                }));
                 lastWealthTax = lastTaxed;
                 running.forEach(raffle -> raffles.put(raffle.id(), raffle));
                 nextRaffle = Math.max(counted, running.stream().mapToInt(Raffle::number).max().orElse(0) + 1);
@@ -305,6 +335,7 @@ public final class AccountBook {
                 owed.forEach(claim -> claims.put(claim.id(), claim));
                 accounts.putAll(found);
                 outstanding.putAll(open);
+                issuedAt.putAll(issued);
                 circulation.putAll(coinsOut);
                 jobs.forEach(job -> contracts.put(job.id(), job));
                 lent.forEach(loan -> loans.put(loan.player(), loan));
@@ -406,6 +437,9 @@ public final class AccountBook {
             }
             long now = clock.getAsLong();
             Money opening = starting.isNegative() ? Money.ZERO : starting;
+            if (!isSystem(id)) {
+                opening = opening.min(room());
+            }
             account = Account.opened(id, name, opening, now);
             accounts.put(id, account);
             dirty.add(id);
@@ -435,6 +469,12 @@ public final class AccountBook {
      * @param other the account on the other side, for the statement; may be null
      */
     public EconomyResult change(UUID id, Money delta, TransactionKind kind, String reason, UUID other, Money most) {
+        return change(id, delta, kind, reason, other, most, "");
+    }
+
+    /** {@link #change}, saying where the money came from or went — another plugin's {@code claims.upkeep}. */
+    public EconomyResult change(UUID id, Money delta, TransactionKind kind, String reason, UUID other, Money most,
+                                String source) {
         synchronized (lock) {
             Optional<EconomyResult> refused = refuseEarly(id, delta.isNegative() ? delta.negate() : delta);
             if (refused.isPresent()) {
@@ -445,8 +485,42 @@ public final class AccountBook {
             if (!change.allowed()) {
                 return EconomyResult.failed(change.outcome(), abs(delta), account.balance());
             }
-            commit(account, change.after(), delta, kind, reason, other);
+            if (delta.isPositive() && !hasRoom(delta)) {
+                return EconomyResult.failed(Outcome.TREASURY_EMPTY, delta, account.balance());
+            }
+            commit(account, change.after(), delta, kind, reason, other, source);
             return EconomyResult.done(abs(delta), change.after());
+        }
+    }
+
+    /**
+     * Gives back what a fee just took. Never refused for the cap: the fee made the room, and somebody using it
+     * in between must not leave a player charged for a teleport that never happened.
+     */
+    public EconomyResult restore(UUID id, Money amount, TransactionKind kind, String reason, String source) {
+        synchronized (lock) {
+            Optional<EconomyResult> refused = refuseEarly(id, amount);
+            if (refused.isPresent()) {
+                return refused.get();
+            }
+            Account account = accounts.get(id);
+            commit(account, account.balance().plus(amount), amount, kind, reason, null, source);
+            return EconomyResult.done(amount, account.balance().plus(amount));
+        }
+    }
+
+    /**
+     * Pays as much of {@code amount} as the treasury can — a win already earned must not vanish because the
+     * treasury ran low between the stake and the end of the game. Refused only when nothing at all can be paid.
+     * The result's amount is what was paid.
+     */
+    public EconomyResult changeUpTo(UUID id, Money amount, TransactionKind kind, String reason, Money most) {
+        synchronized (lock) {
+            Money paying = amount.min(room());
+            if (!paying.isPositive()) {
+                return EconomyResult.failed(Outcome.TREASURY_EMPTY, amount, balance(id));
+            }
+            return change(id, paying, kind, reason, null, most);
         }
     }
 
@@ -510,6 +584,9 @@ public final class AccountBook {
                 return EconomyResult.failed(Outcome.INVALID_AMOUNT, value, account.balance());
             }
             Money delta = value.minus(account.balance());
+            if (delta.isPositive() && !hasRoom(delta)) {
+                return EconomyResult.failed(Outcome.TREASURY_EMPTY, delta, account.balance());
+            }
             if (!delta.isZero()) {
                 commit(account, value, delta, TransactionKind.ADMIN, reason, null);
             }
@@ -557,6 +634,7 @@ public final class AccountBook {
             dirty.add(id);
             notes.forEach((serial, value) -> {
                 outstanding.put(serial, value);
+                issuedAt.put(serial, now);
                 this.notes.add(new NoteWrite(serial, value, id, now, null, 0));
             });
             coins.forEach((value, count) -> {
@@ -575,6 +653,17 @@ public final class AccountBook {
      * @param total what the pieces are worth together, coins included
      */
     public EconomyResult redeemCash(UUID id, List<String> serials, Map<Money, Integer> coins, Money total, Money most) {
+        return redeemCash(id, serials, coins, total, most, (face, issued) -> face);
+    }
+
+    /**
+     * {@link #redeemCash}, with what each note is worth now — an expired one may pay only part of its face. The
+     * part it does not pay is destroyed with the note; the result's amount is what was credited.
+     *
+     * @param worth a note's face value and when it was issued, to what it pays now
+     */
+    public EconomyResult redeemCash(UUID id, List<String> serials, Map<Money, Integer> coins, Money total, Money most,
+                                    java.util.function.BiFunction<Money, Long, Money> worth) {
         synchronized (lock) {
             Optional<EconomyResult> refused = refuseEarly(id, total);
             if (refused.isPresent()) {
@@ -594,21 +683,35 @@ public final class AccountBook {
                     return EconomyResult.failed(Outcome.REFUSED, total, account.balance());
                 }
             }
-            BalanceChange change = rule.apply(account.balance(), total, most, account.frozen());
-            if (!change.allowed()) {
+            Money credited = total;
+            for (String serial : new LinkedHashSet<>(serials)) {
+                Money face = outstanding.get(serial);
+                Money now = worth.apply(face, issuedAt.getOrDefault(serial, 0L));
+                if (now != null && face.isMoreThan(now)) {
+                    credited = credited.minus(face.minus(now.max(Money.ZERO)));
+                }
+            }
+            credited = credited.max(Money.ZERO);
+            BalanceChange change = rule.apply(account.balance(), credited, most, account.frozen());
+            if (credited.isPositive() && !change.allowed()) {
                 return EconomyResult.failed(change.outcome(), total, account.balance());
             }
             long now = clock.getAsLong();
             for (String serial : serials) {
                 Money value = outstanding.remove(serial);
+                issuedAt.remove(serial);
                 notes.add(new NoteWrite(serial, value, null, 0, id, now));
             }
             coins.forEach((value, count) -> {
                 circulation.merge(value, (long) -count, Long::sum);
                 dirtyCoins.add(value);
             });
-            commit(account, change.after(), total, TransactionKind.DEPOSIT, "", null);
-            return EconomyResult.done(total, change.after());
+            if (!credited.isPositive()) {
+                return EconomyResult.done(Money.ZERO, account.balance());
+            }
+            commit(account, change.after(), credited, TransactionKind.DEPOSIT,
+                    credited.equals(total) ? "" : "Expired notes paid in part", null);
+            return EconomyResult.done(credited, change.after());
         }
     }
 
@@ -629,6 +732,9 @@ public final class AccountBook {
             BalanceChange change = rule.apply(account.balance(), amount, most, account.frozen());
             if (!change.allowed()) {
                 return EconomyResult.failed(change.outcome(), amount, account.balance());
+            }
+            if (!hasRoom(amount)) {
+                return EconomyResult.failed(Outcome.TREASURY_EMPTY, amount, account.balance());
             }
             Account claimed = account.withDaily(claim.day(), claim.streak());
             commit(claimed, change.after(), amount, TransactionKind.DAILY, "Day " + claim.streak(), null);
@@ -651,13 +757,145 @@ public final class AccountBook {
     }
 
     private void commit(Account account, Money after, Money delta, TransactionKind kind, String reason, UUID other) {
-        accounts.put(account.id(), account.withBalance(after));
+        commit(account, after, delta, kind, reason, other, "");
+    }
+
+    private void commit(Account account, Money after, Money delta, TransactionKind kind, String reason, UUID other,
+                        String source) {
+        long now = clock.getAsLong();
+        Account changed = account.withBalance(after);
+        if (delta.isNegative() && kind != TransactionKind.TAX && kind != TransactionKind.DEBT) {
+            changed = changed.withLastSpent(now);
+        }
+        accounts.put(account.id(), changed);
         dirty.add(account.id());
-        journal.add(new Transaction(clock.getAsLong(), account.id(), other, delta, after, kind, reason));
+        journal.add(new Transaction(now, account.id(), other, delta, after, kind, reason, source));
+        if (delta.isPositive()) {
+            tally(account.id(), kind.name(), delta, now);
+            if (source != null && !source.isBlank()) {
+                tally(account.id(), source, delta, now);
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------- today's earnings
+
+    /** The epoch day the tallies below are for; they start again when it changes. */
+    private long tallyDay = Long.MIN_VALUE;
+    /** Keyed by a kind's name, and by the source as well when a line has one. */
+    private final Map<UUID, Map<String, Long>> earnedToday = new HashMap<>();
+    private final Map<String, Long> earnedTodayByAll = new HashMap<>();
+    private volatile java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+
+    /** The time zone "today" is counted in; the server's own unless a test says otherwise. */
+    public void zone(java.time.ZoneId value) {
+        synchronized (lock) {
+            zone = value == null ? java.time.ZoneId.systemDefault() : value;
+            tallyDay = Long.MIN_VALUE;
+        }
+    }
+
+    private long dayOf(long at) {
+        return java.time.Instant.ofEpochMilli(at).atZone(zone).toLocalDate().toEpochDay();
+    }
+
+    private void rollDay(long now) {
+        long day = dayOf(now);
+        if (day != tallyDay) {
+            tallyDay = day;
+            earnedToday.clear();
+            earnedTodayByAll.clear();
+        }
+    }
+
+    private void tally(UUID id, String key, Money amount, long now) {
+        rollDay(now);
+        earnedToday.computeIfAbsent(id, ignored -> new HashMap<>()).merge(key, amount.minor(), Long::sum);
+        earnedTodayByAll.merge(key, amount.minor(), Long::sum);
+    }
+
+    /** What arrived in one account today as {@code kind} — what the shop paid for items, what XP sold for. */
+    public Money today(UUID id, TransactionKind kind) {
+        return today(id, kind.name());
+    }
+
+    /** What arrived in one account today from {@code source} (or a kind's name). */
+    public Money today(UUID id, String key) {
+        synchronized (lock) {
+            rollDay(clock.getAsLong());
+            return Money.of(earnedToday.getOrDefault(id, Map.of()).getOrDefault(key, 0L));
+        }
+    }
+
+    /** What arrived in every account together today as {@code kind}. */
+    public Money todayByAll(TransactionKind kind) {
+        return todayByAll(kind.name());
+    }
+
+    /** What arrived in every account together today from {@code source} (or a kind's name). */
+    public Money todayByAll(String key) {
+        synchronized (lock) {
+            rollDay(clock.getAsLong());
+            return Money.of(earnedTodayByAll.getOrDefault(key, 0L));
+        }
+    }
+
+    /** The midnight "today" starts at, in milliseconds. */
+    public long startOfToday() {
+        return java.time.LocalDate.ofEpochDay(dayOf(clock.getAsLong())).atStartOfDay(zone).toInstant().toEpochMilli();
     }
 
     private static Money abs(Money money) {
         return money.isNegative() ? money.negate() : money;
+    }
+
+    // ---------------------------------------------------------------------------- the money supply
+
+    /**
+     * Puts a hard cap on money, or lifts it. Under a cap nothing is printed: a payout needs room between what
+     * is out there and the cap — the treasury — and every fee, tax and loss makes room again. There is no
+     * treasury account to keep in step; it is whatever of the cap nobody holds, so it cannot drift.
+     */
+    public void limitSupply(boolean capped, Money limit) {
+        synchronized (lock) {
+            cap = capped && limit != null && !limit.isNegative() ? limit : null;
+        }
+    }
+
+    /** Every balance, pot and escrow, every banknote and coin out there. Not scratch tickets: they are receipts. */
+    public Money circulating() {
+        synchronized (lock) {
+            long total = 0;
+            for (Account account : accounts.values()) {
+                total = Math.addExact(total, account.balance().minor());
+            }
+            for (Map.Entry<String, Money> note : outstanding.entrySet()) {
+                if (!note.getKey().startsWith(TICKET)) {
+                    total = Math.addExact(total, note.getValue().minor());
+                }
+            }
+            for (Map.Entry<Money, Long> coin : circulation.entrySet()) {
+                total = Math.addExact(total, Math.multiplyExact(coin.getKey().minor(), Math.max(0, coin.getValue())));
+            }
+            return Money.of(total);
+        }
+    }
+
+    public de.raindancer.core.social.economy.MoneySupply supply(int activePlayers) {
+        synchronized (lock) {
+            Money out = circulating();
+            return cap == null ? de.raindancer.core.social.economy.MoneySupply.open(out, activePlayers)
+                    : de.raindancer.core.social.economy.MoneySupply.capped(cap, out, activePlayers);
+        }
+    }
+
+    /** What may still be paid out: everything in an open economy. Called under the lock. */
+    private Money room() {
+        return cap == null ? SYSTEM_MOST : cap.minus(circulating()).max(Money.ZERO);
+    }
+
+    private boolean hasRoom(Money amount) {
+        return cap == null || room().isAtLeast(amount);
     }
 
     // ---------------------------------------------------------------------------- games of chance
@@ -687,6 +925,9 @@ public final class AccountBook {
                 BalanceChange winning = rule.apply(after, payout, most, false);
                 if (!winning.allowed()) {
                     return EconomyResult.failed(winning.outcome(), stake, account.balance());
+                }
+                if (payout.isMoreThan(stake) && !hasRoom(payout.minus(stake))) {
+                    return EconomyResult.failed(Outcome.TREASURY_EMPTY, stake, account.balance());
                 }
                 after = winning.after();
             }
@@ -1160,6 +1401,36 @@ public final class AccountBook {
     }
 
     /** Starts the oldest queued auction, unless one is already running. */
+    /**
+     * Moves a waiting auction to the front of the queue for a price, which is destroyed. Refused for anybody but
+     * its seller, for a live auction, and for one already next.
+     */
+    public EconomyResult jumpQueue(UUID auctionId, UUID seller, Money price, Money most) {
+        synchronized (lock) {
+            Auction auction = auctions.get(auctionId);
+            Optional<Auction> next = auctions.values().stream().filter(listed -> !listed.live()).findFirst();
+            if (auction == null || auction.live() || !auction.seller().equals(seller) || next.isEmpty()
+                    || next.get().id().equals(auctionId)) {
+                return EconomyResult.failed(Outcome.REFUSED, price, balance(seller));
+            }
+            EconomyResult paid = change(seller, price.negate(), TransactionKind.FEE, "Auction queue: "
+                    + auction.itemName(), null, most, de.raindancer.modules.economy.model.Sources.AUCTION_JUMP);
+            if (!paid.succeeded()) {
+                return paid;
+            }
+            Auction moved = auction.listedAt(next.get().listedAt() - 1);
+            Map<UUID, Auction> reordered = new LinkedHashMap<>();
+            auctions.values().stream().filter(Auction::live).forEach(live -> reordered.put(live.id(), live));
+            reordered.put(moved.id(), moved);
+            auctions.values().stream().filter(listed -> !listed.live() && !listed.id().equals(auctionId))
+                    .forEach(waiting -> reordered.put(waiting.id(), waiting));
+            auctions.clear();
+            auctions.putAll(reordered);
+            dirtyAuctions.add(auctionId);
+            return paid;
+        }
+    }
+
     public Optional<Auction> startNextAuction(long now) {
         synchronized (lock) {
             if (auctions.values().stream().anyMatch(Auction::live)) {
@@ -1487,14 +1758,20 @@ public final class AccountBook {
             AuctionClaim prize = null;
             if (!raffle.moneyPrize()) {
                 prize = owe(raffle.item(), raffle.prizeName(), winner, AuctionClaim.Reason.RAFFLE);
-            } else if (raffle.serverRaffle()) {
-                credit(winner, raffle.prize(), TransactionKind.RAFFLE, label + " won", null);
-            } else {
+            } else if (!raffle.serverRaffle()) {
                 release(RAFFLE_POT, winner, raffle.prize(), TransactionKind.RAFFLE, label + " won");
             }
             Money pot = raffle.pot();
             if (raffle.serverRaffle()) {
                 destroy(RAFFLE_POT, pot, label + ": tickets", winner);
+                if (raffle.moneyPrize()) {
+                    // The server's own prize is printed money: on a capped server only what the treasury holds.
+                    Money paying = raffle.prize().min(room());
+                    if (paying.isPositive()) {
+                        credit(winner, paying, TransactionKind.RAFFLE, paying.equals(raffle.prize()) ? label + " won"
+                                : label + " won (the treasury paid what it could)", null);
+                    }
+                }
                 return Optional.of(new RaffleDraw(raffle, winner, prize, Money.ZERO, pot));
             }
             Money kept = fee.apply(pot).min(pot).max(Money.ZERO);
@@ -1537,6 +1814,42 @@ public final class AccountBook {
         return owe(raffle.item(), raffle.prizeName(), raffle.host(), reason);
     }
 
+    // ---------------------------------------------------------------------------- seasons
+
+    /**
+     * Ends a season: every player's balance becomes what {@code next} makes of it, as one change under one lock.
+     * The server's own accounts are left alone. On a capped server the whole change must fit under the cap.
+     *
+     * @return what each player had before, for working out their points; empty when the cap refused it
+     */
+    public Map<UUID, Money> endSeason(Function<Money, Money> next, String reason) {
+        synchronized (lock) {
+            Map<UUID, Money> had = new LinkedHashMap<>();
+            Map<UUID, Money> becomes = new LinkedHashMap<>();
+            long added = 0;
+            for (Account account : accounts.values()) {
+                if (isSystem(account.id())) {
+                    continue;
+                }
+                Money after = next.apply(account.balance()).max(Money.ZERO);
+                had.put(account.id(), account.balance());
+                becomes.put(account.id(), after);
+                added = Math.addExact(added, after.minor() - account.balance().minor());
+            }
+            if (cap != null && added > 0 && !hasRoom(Money.of(added))) {
+                return Map.of();
+            }
+            for (Map.Entry<UUID, Money> each : becomes.entrySet()) {
+                Account account = accounts.get(each.getKey());
+                Money delta = each.getValue().minus(account.balance());
+                if (!delta.isZero()) {
+                    commit(account, each.getValue(), delta, TransactionKind.SEASON, reason, null);
+                }
+            }
+            return had;
+        }
+    }
+
     // ---------------------------------------------------------------------------- wealth tax
 
     /**
@@ -1546,6 +1859,11 @@ public final class AccountBook {
      * @param owed what one balance owes
      */
     public TaxRun wealthTax(Function<Money, Money> owed, String reason, long now) {
+        return wealthTaxOn(account -> owed.apply(account.balance()), reason, now);
+    }
+
+    /** {@link #wealthTax}, with the whole account to judge by — so money lying idle can be taxed and spent money not. */
+    public TaxRun wealthTaxOn(Function<Account, Money> owed, String reason, long now) {
         synchronized (lock) {
             int paid = 0;
             Money total = Money.ZERO;
@@ -1553,7 +1871,7 @@ public final class AccountBook {
                 if (isSystem(account.id()) || !account.balance().isPositive()) {
                     continue;
                 }
-                Money due = owed.apply(account.balance()).min(account.balance());
+                Money due = owed.apply(account).min(account.balance());
                 if (!due.isPositive()) {
                     continue;
                 }
@@ -1695,10 +2013,11 @@ public final class AccountBook {
             }
             boolean written = database.write(connection -> {
                 try (PreparedStatement upsert = connection.prepareStatement(
-                        "INSERT INTO account (id, name, balance, frozen, created, daily_day, daily_streak) "
-                                + "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, "
+                        "INSERT INTO account (id, name, balance, frozen, created, daily_day, daily_streak, last_spent) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, "
                                 + "balance = excluded.balance, frozen = excluded.frozen, "
-                                + "daily_day = excluded.daily_day, daily_streak = excluded.daily_streak")) {
+                                + "daily_day = excluded.daily_day, daily_streak = excluded.daily_streak, "
+                                + "last_spent = excluded.last_spent")) {
                     for (Account account : changed) {
                         upsert.setString(1, account.id().toString());
                         upsert.setString(2, account.name());
@@ -1707,12 +2026,14 @@ public final class AccountBook {
                         upsert.setLong(5, account.created());
                         upsert.setLong(6, account.dailyDay());
                         upsert.setInt(7, account.dailyStreak());
+                        upsert.setLong(8, account.lastSpent());
                         upsert.addBatch();
                     }
                     upsert.executeBatch();
                 }
                 try (PreparedStatement insert = connection.prepareStatement(
-                        "INSERT INTO ledger (at, account, other, delta, balance, kind, reason) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                        "INSERT INTO ledger (at, account, other, delta, balance, kind, reason, source) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
                     for (Transaction line : lines) {
                         insert.setLong(1, line.at());
                         insert.setString(2, line.account().toString());
@@ -1721,6 +2042,7 @@ public final class AccountBook {
                         insert.setLong(5, line.balance().minor());
                         insert.setString(6, line.kind().name());
                         insert.setString(7, line.reason());
+                        insert.setString(8, line.source());
                         insert.addBatch();
                     }
                     insert.executeBatch();
@@ -2025,7 +2347,7 @@ public final class AccountBook {
         return database.read(connection -> {
             List<Transaction> lines = new ArrayList<>();
             try (PreparedStatement select = connection.prepareStatement(
-                    "SELECT at, other, delta, balance, kind, reason FROM ledger WHERE account = ? "
+                    "SELECT at, other, delta, balance, kind, reason, source FROM ledger WHERE account = ? "
                             + "ORDER BY id DESC LIMIT ? OFFSET ?")) {
                 select.setString(1, id.toString());
                 select.setInt(2, Math.max(1, limit));
@@ -2035,7 +2357,7 @@ public final class AccountBook {
                         String other = rows.getString(2);
                         lines.add(new Transaction(rows.getLong(1), id, other == null ? null : UUID.fromString(other),
                                 Money.of(rows.getLong(3)), Money.of(rows.getLong(4)),
-                                TransactionKind.read(rows.getString(5)), rows.getString(6)));
+                                TransactionKind.read(rows.getString(5)), rows.getString(6), rows.getString(7)));
                     }
                 }
             }
@@ -2062,6 +2384,44 @@ public final class AccountBook {
             }
             return Money.of(total);
         }).orElse(Money.ZERO);
+    }
+
+    /**
+     * Where money came from and went since a moment, by kind and source: what was printed and what was
+     * destroyed. Money only moving between players, into cash or through a pot is left out. Off the server's
+     * threads.
+     */
+    public de.raindancer.modules.economy.model.Flows flows(long since) {
+        flush();
+        de.raindancer.modules.economy.rules.FlowRule rule = new de.raindancer.modules.economy.rules.FlowRule();
+        return database.read(connection -> {
+            Map<String, Long> created = new java.util.TreeMap<>();
+            Map<String, Long> destroyed = new java.util.TreeMap<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT account, other IS NOT NULL, kind, source, SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END), "
+                            + "SUM(CASE WHEN delta < 0 THEN delta ELSE 0 END) FROM ledger WHERE at > ? "
+                            + "GROUP BY account, other IS NOT NULL, kind, source")) {
+                select.setLong(1, since);
+                try (ResultSet rows = select.executeQuery()) {
+                    while (rows.next()) {
+                        boolean system = isSystem(UUID.fromString(rows.getString(1)));
+                        boolean other = rows.getInt(2) != 0;
+                        TransactionKind kind = TransactionKind.read(rows.getString(3));
+                        String source = rows.getString(4);
+                        String label = source == null || source.isBlank() ? kind.label() : source;
+                        for (long delta : new long[]{rows.getLong(5), rows.getLong(6)}) {
+                            switch (rule.classify(system, other, kind, delta)) {
+                                case CREATED -> created.merge(label, delta, Long::sum);
+                                case DESTROYED -> destroyed.merge(label, -delta, Long::sum);
+                                case MOVED -> {
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return new de.raindancer.modules.economy.model.Flows(created, destroyed);
+        }).orElse(de.raindancer.modules.economy.model.Flows.NONE);
     }
 
     /** Deletes statement lines older than a moment. Off the server's threads. */

@@ -32,6 +32,18 @@ public final class ExperienceService implements IEconomyService {
     private final ExperienceRule rule = new ExperienceRule();
     private volatile EconomySettings settings;
 
+    private volatile SupplyService supply;
+    static final String XP_SOURCE = de.raindancer.modules.economy.model.Sources.XP;
+
+    /** The money supply's settings; the shipped ones, which change nothing, until wired. */
+    public void supply(SupplyService service) {
+        this.supply = service;
+    }
+
+    private de.raindancer.modules.economy.SupplySettings supplied() {
+        return SupplyService.settingsOf(supply);
+    }
+
     public ExperienceService(RainEconomy economy, Messages messages, Effects effects, EconomySettings settings) {
         this.economy = economy;
         this.messages = messages;
@@ -97,16 +109,26 @@ public final class ExperienceService implements IEconomyService {
             refuse(player, "economy.xp.nothing");
             return false;
         }
-        Money pay = settings.xpSellMoney().times(points);
+        Money pay = de.raindancer.core.social.economy.EconomyLevers.faucet(XP_SOURCE,
+                settings.xpSellMoney().times(points));
         if (!pay.isPositive()) {
             refuse(player, "economy.xp.worthless");
             return false;
+        }
+        Money most = de.raindancer.modules.economy.SupplySettings.money(supplied().xpSellDailyMost(), currency);
+        if (most.isPositive()) {
+            Money left = most.minus(economy.book().today(player.getUniqueId(), XP_SOURCE)).max(Money.ZERO);
+            if (pay.isMoreThan(left)) {
+                refuse(player, "economy.xp.daily-limit", "amount", currency.render(most),
+                        "left", currency.render(left));
+                return false;
+            }
         }
         economy.open(player.getUniqueId(), player.getName());
         // Taken first, paid second, and given back if the bank would not take the money.
         player.setExperienceLevelAndProgress(had - points);
         EconomyResult paid = economy.move(player.getUniqueId(), pay, TransactionKind.SELL,
-                "Experience: " + (rule.levelOf(had) - player.getLevel()) + " level(s)");
+                "Experience: " + (rule.levelOf(had) - player.getLevel()) + " level(s)", XP_SOURCE);
         if (!paid.succeeded()) {
             player.setExperienceLevelAndProgress(had);
             Outcomes.tell(messages, effects, player, paid, currency, "");
@@ -130,8 +152,8 @@ public final class ExperienceService implements IEconomyService {
         return true;
     }
 
-    private void refuse(Player player, String key) {
-        messages.send(player, key);
+    private void refuse(Player player, String key, Object... values) {
+        messages.send(player, key, values);
         effects.play(player.getUniqueId(), Cues.NO);
     }
 }

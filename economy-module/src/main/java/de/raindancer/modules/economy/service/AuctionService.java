@@ -68,6 +68,17 @@ public final class AuctionService implements IEconomyService {
     private final AuctionRule rule = new AuctionRule();
     private final Map<UUID, ItemStack> items = new ConcurrentHashMap<>();
     private volatile EconomySettings settings;
+
+    private volatile SupplyService supply;
+
+    /** The money supply's settings; the shipped ones, which change nothing, until wired. */
+    public void supply(SupplyService service) {
+        this.supply = service;
+    }
+
+    private de.raindancer.modules.economy.SupplySettings supplied() {
+        return SupplyService.settingsOf(supply);
+    }
     private volatile long nextStartAt;
     private volatile boolean barShown;
 
@@ -98,6 +109,43 @@ public final class AuctionService implements IEconomyService {
 
     public List<Auction> auctions() {
         return book.auctions();
+    }
+
+    /**
+     * Moves the player's waiting auction to the front of the queue for the owner's price, which leaves the
+     * economy. Without {@code confirmed}, says the price with a button first.
+     */
+    public void jump(Player player, boolean confirmed) {
+        Currency currency = settings.currency();
+        Money price = de.raindancer.core.social.economy.EconomyLevers.sink(de.raindancer.modules.economy.model.Sources.AUCTION_JUMP,
+                de.raindancer.modules.economy.SupplySettings.money(supplied().auctionJumpPrice(), currency));
+        if (!price.isPositive()) {
+            messages.send(player, "economy.auction.jump-off");
+            return;
+        }
+        List<Auction> waiting = book.auctions().stream().filter(auction -> !auction.live()).toList();
+        Optional<Auction> mine = waiting.stream().skip(1)
+                .filter(auction -> auction.seller().equals(player.getUniqueId())).findFirst();
+        if (mine.isEmpty()) {
+            messages.send(player, "economy.auction.jump-none");
+            return;
+        }
+        if (!confirmed) {
+            messages.send(player, "economy.auction.jump-price", "amount", currency.render(price),
+                    "button", buttons.label("<green>[Go next]</green>").tooltip("<gray>Pay and go next")
+                            .forOnly(player.getUniqueId()).expiringIn(java.time.Duration.ofSeconds(30))
+                            .does(clicker -> de.raindancer.core.platform.util.Scheduling.entity(plugin, player,
+                                    () -> jump(player, true))).render());
+            return;
+        }
+        de.raindancer.core.social.economy.EconomyResult paid = book.jumpQueue(mine.get().id(), player.getUniqueId(),
+                price, economy.most());
+        if (!paid.succeeded()) {
+            Outcomes.tell(messages, effects, player, paid, currency, "");
+            return;
+        }
+        economy.tell(player.getUniqueId(), price.negate(), paid.balance(), de.raindancer.modules.economy.model.TransactionKind.FEE);
+        messages.send(player, "economy.auction.jumped", "item", mine.get().itemName(), "amount", currency.render(price));
     }
 
     public Optional<Auction> live() {

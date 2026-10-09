@@ -65,6 +65,17 @@ public final class CashService implements IEconomyService {
     private final SecureRandom random = new SecureRandom();
     private volatile EconomySettings settings;
 
+    private volatile SupplyService supply;
+
+    /** The money supply's settings; the shipped ones, which change nothing, until wired. */
+    public void supply(SupplyService service) {
+        this.supply = service;
+    }
+
+    private de.raindancer.modules.economy.SupplySettings supplied() {
+        return SupplyService.settingsOf(supply);
+    }
+
     public CashService(Server server, RainEconomy economy, Messages messages, Effects effects, Audit audit,
                        CashSeal seal, EconomySettings settings) {
         this.server = server;
@@ -181,6 +192,13 @@ public final class CashService implements IEconomyService {
         }
         if (!amount.isPositive()) {
             refuse(player, "economy.not-an-amount");
+            return;
+        }
+        long wait = new de.raindancer.modules.economy.rules.VestingRule().hoursLeft(
+                book.find(player.getUniqueId()).map(de.raindancer.modules.economy.model.Account::created).orElse(0L),
+                System.currentTimeMillis(), supplied().newAccountHours());
+        if (wait > 0) {
+            refuse(player, "economy.pay.too-new", "hours", String.valueOf(wait));
             return;
         }
         List<ItemStack> items = new ArrayList<>();
@@ -327,17 +345,25 @@ public final class CashService implements IEconomyService {
         if (!check.total().isPositive()) {
             return;
         }
+        de.raindancer.modules.economy.SupplySettings aging = supplied();
+        de.raindancer.modules.economy.rules.NoteExpiryRule expiry = new de.raindancer.modules.economy.rules.NoteExpiryRule();
+        long now = System.currentTimeMillis();
         EconomyResult result = book.redeemCash(player.getUniqueId(), check.serials(), check.coins(), check.total(),
-                economy.most());
+                economy.most(), (face, issuedAt) -> expiry.worth(face, issuedAt, now, aging.noteExpiryDays(),
+                        aging.expiredNotePercent()));
         if (!result.succeeded()) {
             Outcomes.tell(messages, effects, player, result, currency, "");
             return;
         }
         check.taken().forEach((slot, count) -> take(inventory, slot, count - check.confiscated().getOrDefault(slot, 0)));
-        economy.tell(player.getUniqueId(), check.total(), result.balance(), TransactionKind.DEPOSIT);
+        economy.tell(player.getUniqueId(), result.amount(), result.balance(), TransactionKind.DEPOSIT);
         effects.play(player.getUniqueId(), Cues.EARNED);
-        messages.send(player, "economy.cash.deposited", "amount", currency.render(check.total()),
+        messages.send(player, "economy.cash.deposited", "amount", currency.render(result.amount()),
                 "balance", currency.render(result.balance()));
+        if (check.total().isMoreThan(result.amount())) {
+            messages.send(player, "economy.cash.expired", "lost", currency.render(check.total().minus(result.amount())),
+                    "days", String.valueOf(aging.noteExpiryDays()));
+        }
     }
 
     /** Takes this many items out of one slot. */

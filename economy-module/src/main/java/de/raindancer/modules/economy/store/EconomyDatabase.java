@@ -59,10 +59,25 @@ public final class EconomyDatabase {
             "ALTER TABLE credit_hour ADD COLUMN received INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE credit_hour ADD COLUMN paid INTEGER NOT NULL DEFAULT 0",
             // A contract is a job or a service (rent); every one from before is a job.
-            "ALTER TABLE contract ADD COLUMN kind TEXT NOT NULL DEFAULT 'JOB'");
+            "ALTER TABLE contract ADD COLUMN kind TEXT NOT NULL DEFAULT 'JOB'",
+            // Where money came from or went, for another plugin's payments: 'claims.upkeep', 'jobs.goal'.
+            "ALTER TABLE ledger ADD COLUMN source TEXT NOT NULL DEFAULT ''",
+            "CREATE INDEX ledger_at ON ledger (at)",
+            // When an account last sent or spent money — the wealth tax may tax only money lying idle.
+            "ALTER TABLE account ADD COLUMN last_spent INTEGER NOT NULL DEFAULT 0",
+            // One row a day: how much money there was, the cap, and what the basket of goods cost.
+            "CREATE TABLE supply_day (day INTEGER PRIMARY KEY, circulating INTEGER NOT NULL, cap INTEGER NOT NULL, "
+                    + "basket INTEGER NOT NULL)",
+            "CREATE TABLE stabilizer (id INTEGER PRIMARY KEY CHECK (id = 1), faucet INTEGER NOT NULL, "
+                    + "sink INTEGER NOT NULL, day INTEGER NOT NULL)",
+            "CREATE TABLE fund (id TEXT PRIMARY KEY, name TEXT NOT NULL, target INTEGER NOT NULL, raised INTEGER NOT NULL, "
+                    + "effect TEXT NOT NULL, created INTEGER NOT NULL, done_at INTEGER NOT NULL DEFAULT 0)",
+            "CREATE TABLE season_points (account TEXT NOT NULL, season INTEGER NOT NULL, points INTEGER NOT NULL, "
+                    + "PRIMARY KEY (account, season))",
+            "CREATE TABLE season (id INTEGER PRIMARY KEY CHECK (id = 1), number INTEGER NOT NULL)");
 
     /** The first step of the lifetime totals — the steps before it are what a server had until then. */
-    public static final int FIRST_CREDIT_STEP = SCHEMA.size() - 8;
+    public static final int FIRST_CREDIT_STEP = 16;
 
     private EconomyDatabase() {
     }

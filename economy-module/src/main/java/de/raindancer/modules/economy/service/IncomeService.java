@@ -79,7 +79,7 @@ public final class IncomeService implements IEconomyService {
                         TransactionKind.INCOME);
                 if (paid.succeeded()) {
                     messages.send(player, away ? "economy.earn.income-away" : "economy.earn.income",
-                            "amount", live.currency().render(amount), "minutes", String.valueOf(live.incomeMinutes()));
+                            "amount", live.currency().render(paid.amount()), "minutes", String.valueOf(live.incomeMinutes()));
                 }
             }
         }

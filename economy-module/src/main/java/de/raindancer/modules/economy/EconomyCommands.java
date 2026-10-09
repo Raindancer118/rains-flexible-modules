@@ -101,6 +101,15 @@ public final class EconomyCommands {
                         new de.raindancer.modules.economy.command.GiveawayCommand(EconomyCommands::require))
                         .aliased("giveaways")
                         .taking("[start [length] | money <amount> [length] | join <number> | cancel <number>]"),
+                ModuleCommand.of("treasury", "How much money there is, and what the treasury holds",
+                        new de.raindancer.modules.economy.command.TreasuryCommand(EconomyCommands::require)),
+                ModuleCommand.of("fund", "Community funds: give toward a goal everybody shares",
+                        new de.raindancer.modules.economy.command.FundCommand(EconomyCommands::require))
+                        .taking("[name] [amount]"),
+                ModuleCommand.of("repair", "Repair the item in your hand for money",
+                        new de.raindancer.modules.economy.command.RepairCommand(EconomyCommands::require)),
+                ModuleCommand.of("season", "Your season points",
+                        new de.raindancer.modules.economy.command.SeasonCommand(EconomyCommands::require)),
                 ModuleCommand.of("eco", "Staff: run the economy", new EcoCommand(EconomyCommands::require))
                         .taking("give|take|set <player> <amount> [reason]", "reset|freeze|unfreeze|history <player>",
                                 "menu|reprice|draw|calm|coin", "leaderboard place|remove", "dealer place <game>|remove",

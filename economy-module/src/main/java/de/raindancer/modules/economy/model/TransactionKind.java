@@ -25,7 +25,12 @@ public enum TransactionKind {
     RAFFLE("Raffle", Material.NAME_TAG),
     LOAN("Loan", Material.GOLD_INGOT),
     ADMIN("Staff adjustment", Material.COMMAND_BLOCK),
-    PLUGIN("Another plugin", Material.REPEATER);
+    PLUGIN("Another plugin", Material.REPEATER),
+    DEBT("Toward a debt", Material.LEAD),
+    FUND("Donated", Material.BEACON),
+    REPAIR("Repair", Material.ANVIL),
+    DEATH("Lost on death", Material.SKELETON_SKULL),
+    SEASON("Season ended", Material.NETHER_STAR);
 
     private final String label;
     private final Material icon;

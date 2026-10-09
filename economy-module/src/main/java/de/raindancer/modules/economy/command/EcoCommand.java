@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class EcoCommand extends EconomyCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("give", "take", "set", "reset", "freeze", "unfreeze",
-            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle", "giveaway", "tax", "loan", "packs");
+            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle", "giveaway", "tax", "loan", "packs", "health", "fund", "season");
 
     public EcoCommand(Supplier<EconomyServices> services) {
         super(services);
@@ -131,6 +131,43 @@ public final class EcoCommand extends EconomyCommand {
                 }
                 amount(live, sender, args[1]).ifPresent(prize ->
                         live.raffles().giveServer(sender, prize, GiveawayCommand.minutes(args, 2)));
+            }
+            case "health" -> Scheduling.async(live.plugin(), () -> {
+                var health = live.supply().health();
+                Scheduling.global(live.plugin(), () -> SupplyReport.send(live, sender, health));
+            });
+            case "fund" -> fund(live, sender, args);
+            case "season" -> {
+                if (!live.supply().current().seasons()) {
+                    live.messages().send(sender, "economy.season.off");
+                    return;
+                }
+                if (args.length < 2 || !args[1].equalsIgnoreCase("end")) {
+                    live.messages().send(sender, "economy.usage.eco-supply");
+                    return;
+                }
+                if (args.length < 3 || !args[2].equalsIgnoreCase("confirm")) {
+                    live.messages().send(sender, "economy.season.confirm");
+                    return;
+                }
+                Scheduling.async(live.plugin(), () -> {
+                    var ended = live.seasons().end();
+                    Scheduling.global(live.plugin(), () -> {
+                        if (ended.isEmpty()) {
+                            live.messages().send(sender, "economy.season.refused");
+                            return;
+                        }
+                        audit(live, sender, "season", null, "season " + ended.get().season() + " ended");
+                        for (org.bukkit.entity.Player online : live.server().getOnlinePlayers()) {
+                            live.messages().send(online, "economy.season.ended", "season",
+                                    String.valueOf(ended.get().season()), "count", String.valueOf(ended.get().accounts()),
+                                    "points", String.valueOf(ended.get().points()));
+                        }
+                        live.messages().send(sender, "economy.season.ended", "season",
+                                String.valueOf(ended.get().season()), "count", String.valueOf(ended.get().accounts()),
+                                "points", String.valueOf(ended.get().points()));
+                    });
+                });
             }
             case "tax" -> {
                 if (args.length < 2) {
@@ -250,12 +287,51 @@ public final class EcoCommand extends EconomyCommand {
 
     private static void audit(EconomyServices live, CommandSender sender, String action, OfflinePlayer who,
                               String detail) {
-        AuditEntry.Builder entry = AuditEntry.of("economy", action).to(who.getUniqueId(), PlayerTargets.shownName(who))
-                .saying(detail);
+        AuditEntry.Builder entry = AuditEntry.of("economy", action);
+        if (who != null) {
+            entry = entry.to(who.getUniqueId(), PlayerTargets.shownName(who));
+        }
+        entry = entry.saying(detail);
         if (sender instanceof Player player) {
             entry.by(player.getUniqueId(), player.getName());
         }
         live.core().audit().record(entry);
+    }
+
+    /** {@code fund start <name> <target> [effect…]}, {@code fund remove <name>}, {@code fund} alone lists them. */
+    private static void fund(EconomyServices live, CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            FundCommand.list(live, sender);
+            return;
+        }
+        String verb = args[1].toLowerCase(Locale.ROOT);
+        if (verb.equals("remove") && args.length > 2) {
+            String name = String.join(" ", List.of(args).subList(2, args.length));
+            Scheduling.async(live.plugin(), () -> {
+                boolean removed = live.funds().remove(name);
+                Scheduling.global(live.plugin(), () -> live.messages().send(sender, removed
+                        ? "economy.fund.removed" : "economy.fund.no-such", "name", name));
+            });
+            return;
+        }
+        if (!verb.equals("start") || args.length < 4) {
+            live.messages().send(sender, "economy.usage.eco-supply");
+            return;
+        }
+        String name = args[2];
+        String effect = args.length > 4 ? String.join(" ", List.of(args).subList(4, args.length)) : "";
+        amount(live, sender, args[3]).ifPresent(target -> Scheduling.async(live.plugin(), () -> {
+            var refused = live.funds().create(name, target, effect);
+            Scheduling.global(live.plugin(), () -> {
+                if (refused.isPresent()) {
+                    live.messages().send(sender, refused.get());
+                    return;
+                }
+                audit(live, sender, "fund", null, name + " " + live.currency().format(target) + " " + effect);
+                live.messages().send(sender, "economy.fund.started", "name", name, "target",
+                        live.currency().render(target));
+            });
+        }));
     }
 
     @Override

@@ -41,6 +41,17 @@ public final class BillService implements IEconomyService {
     private final Map<String, Bill> open = new ConcurrentHashMap<>();
     private volatile EconomySettings settings;
 
+    private volatile SupplyService supply;
+
+    /** The money supply's settings; the shipped ones, which change nothing, until wired. */
+    public void supply(SupplyService service) {
+        this.supply = service;
+    }
+
+    private de.raindancer.modules.economy.SupplySettings supplied() {
+        return SupplyService.settingsOf(supply);
+    }
+
     public BillService(Plugin plugin, Server server, RainEconomy economy, Messages messages, Effects effects,
                        ChatButtons buttons, LongSupplier clock, EconomySettings settings) {
         this.plugin = plugin;
@@ -108,6 +119,15 @@ public final class BillService implements IEconomyService {
         }
         Currency currency = settings.currency();
         Player payer = server.getPlayer(bill.to());
+        long wait = new de.raindancer.modules.economy.rules.VestingRule().hoursLeft(
+                economy.book().find(bill.to()).map(de.raindancer.modules.economy.model.Account::created).orElse(0L),
+                clock.getAsLong(), supplied().newAccountHours());
+        if (wait > 0) {
+            if (payer != null) {
+                refuse(payer, "economy.pay.too-new", "hours", String.valueOf(wait));
+            }
+            return;
+        }
         EconomyResult result = economy.transfer(bill.to(), bill.from(), bill.amount(), Money.ZERO, TransactionKind.BILL,
                 bill.reason());
         Player biller = server.getPlayer(bill.from());

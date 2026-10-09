@@ -48,10 +48,23 @@ public final class RewardService implements IEconomyService {
         if (!allowed.isPositive()) {
             return EconomyResult.failed(EconomyResult.Outcome.REFUSED, amount, economy.balance(player.getUniqueId()));
         }
-        EconomyResult result = economy.move(player.getUniqueId(), allowed, kind, reason);
+        // The levers (a low treasury, the stabiliser, a rich server) may pay less; the cap only counts what is paid.
+        Money paying = de.raindancer.core.social.economy.EconomyLevers.faucet(sourceOf(kind), allowed);
+        if (allowed.isMoreThan(paying)) {
+            window.refund(player.getUniqueId(), allowed.minus(paying));
+        }
+        if (!paying.isPositive()) {
+            return EconomyResult.failed(EconomyResult.Outcome.TREASURY_EMPTY, amount,
+                    economy.balance(player.getUniqueId()));
+        }
+        EconomyResult result = economy.move(player.getUniqueId(), paying, kind, reason);
         if (!result.succeeded()) {
-            window.refund(player.getUniqueId(), allowed);
+            window.refund(player.getUniqueId(), paying);
         }
         return result;
+    }
+
+    static String sourceOf(TransactionKind kind) {
+        return kind == TransactionKind.INCOME ? de.raindancer.modules.economy.model.Sources.INCOME : de.raindancer.modules.economy.model.Sources.REWARD;
     }
 }

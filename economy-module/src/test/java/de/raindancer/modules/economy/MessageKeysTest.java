@@ -43,6 +43,7 @@ class MessageKeysTest {
                 }
             }
         }
+        used.removeAll(de.raindancer.modules.economy.model.Sources.ALL);
         for (String base : BUILT) {
             used.remove(base);
             used.add(base + "-won");

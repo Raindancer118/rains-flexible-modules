@@ -67,7 +67,13 @@ public record EconomyServices(
         de.raindancer.modules.economy.service.ExperienceService experience,
         de.raindancer.modules.economy.service.LoanService loans,
         de.raindancer.modules.economy.service.PackService packs,
-        IEconomyScreensOpener screens) {
+        IEconomyScreensOpener screens,
+        de.raindancer.modules.economy.service.SupplyService supply,
+        SettingsStore<SupplySettings> supplyStore,
+        de.raindancer.modules.economy.service.FundService funds,
+        de.raindancer.modules.economy.service.RepairService repair,
+        de.raindancer.modules.economy.service.DeathService death,
+        de.raindancer.modules.economy.service.SeasonService seasons) {
 
     public EconomySettings config() {
         return settings.get();

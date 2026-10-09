@@ -30,6 +30,10 @@ public final class PermissionNodes {
     public static final String HISTORY_OTHERS = "rainseconomy.history.others";
     public static final String ADMIN = "rainseconomy.admin";
     public static final String ALERTS = "rainseconomy.alerts";
+    public static final String FUND = "rainseconomy.fund";
+    public static final String REPAIR = "rainseconomy.repair";
+    public static final String TREASURY = "rainseconomy.treasury";
+    public static final String SEASON = "rainseconomy.season";
 
     private PermissionNodes() {
     }
@@ -53,7 +57,13 @@ public final class PermissionNodes {
                         PermissionDefault.TRUE),
                 new Permission(HISTORY_OTHERS, "Read somebody else's statement", PermissionDefault.OP),
                 new Permission(ADMIN, "Give, take, set and freeze money; change the economy", PermissionDefault.OP),
-                new Permission(ALERTS, "Be told about counterfeit notes", PermissionDefault.OP));
+                new Permission(ALERTS, "Be told about counterfeit notes, money over the cap and the stabiliser",
+                        PermissionDefault.OP),
+                new Permission(FUND, "Donate to community funds", PermissionDefault.TRUE),
+                new Permission(REPAIR, "Repair the item in hand for money", PermissionDefault.TRUE),
+                new Permission(TREASURY, "See how much money there is and what the treasury holds",
+                        PermissionDefault.TRUE),
+                new Permission(SEASON, "See your season points", PermissionDefault.TRUE));
     }
 
     public static int register(Server server) {

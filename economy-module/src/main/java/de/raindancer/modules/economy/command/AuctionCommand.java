@@ -67,6 +67,7 @@ public final class AuctionCommand extends EconomyCommand {
                     }
                     live.auctions().deliver(player);
                 }
+                case "jump" -> live.auctions().jump(player, args.length > 1 && args[1].equalsIgnoreCase("confirm"));
                 case "mute" -> live.messages().send(player, live.auctions().toggleNews(player)
                         ? "economy.auction.unmuted" : "economy.auction.muted");
                 default -> live.messages().send(player, "economy.usage.auction");

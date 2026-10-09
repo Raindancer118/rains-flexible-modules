@@ -22,7 +22,7 @@
         <!-- 0.19.0: role discounts (Core PriceModifiers) in the shop, sell capped under the buyer's own buy price; packs (packs.yml, /eco packs). -->
         <!-- 0.20.0: bulk discount on building blocks and iron (shop.bulk-*, hard cap 30%), role and bulk shown on their own lines, every seed priced, more packs. -->
         <!-- 0.21.0: the shop holds back what a server goal collects (Core SaleStops), with the reason on the item. -->
-        <plugin.version>0.21.0</plugin.version>
+        <plugin.version>0.22.0</plugin.version>
     </properties>
 
     <dependencies>

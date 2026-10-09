@@ -60,6 +60,18 @@ public record YourPrice(PriceTag shop, PersonalPrice buyChange, PersonalPrice se
         }
     }
 
+    /** The same prices with the sell side turned a further {@code percent} — the economy's levers, selling again soon. */
+    public YourPrice sellingChanged(int percent, String reason) {
+        if (percent == 0) {
+            return this;
+        }
+        java.util.List<String> reasons = new java.util.ArrayList<>(sellChange.reasons());
+        reasons.add(reason);
+        int total = Math.clamp(sellChange.percent() + percent, -100, 1000);
+        return new YourPrice(shop, buyChange, new PersonalPrice(sellChange.base(),
+                scaled(sellChange.base(), 1, total, TradeSide.SELL).orElse(Money.ZERO), total, reasons), bulk);
+    }
+
     public Money buy() {
         return buyFor(1).orElse(shop.buy());
     }

@@ -34,6 +34,17 @@ public final class PaymentService implements IEconomyService {
     private final Cooldowns<UUID> between = new Cooldowns<>();
     private volatile EconomySettings settings;
 
+    private volatile SupplyService supply;
+
+    /** The money supply's settings; the shipped ones, which change nothing, until wired. */
+    public void supply(SupplyService service) {
+        this.supply = service;
+    }
+
+    private de.raindancer.modules.economy.SupplySettings supplied() {
+        return SupplyService.settingsOf(supply);
+    }
+
     public PaymentService(Plugin plugin, RainEconomy economy, Messages messages, Effects effects, ChatButtons buttons,
                           EconomySettings settings) {
         this.plugin = plugin;
@@ -85,6 +96,13 @@ public final class PaymentService implements IEconomyService {
             }
             economy.open(target.getUniqueId(), target.getName());
         }
+        long wait = new de.raindancer.modules.economy.rules.VestingRule().hoursLeft(
+                economy.book().find(payer.getUniqueId()).map(de.raindancer.modules.economy.model.Account::created)
+                        .orElse(0L), System.currentTimeMillis(), supplied().newAccountHours());
+        if (wait > 0) {
+            refuse(payer, "economy.pay.too-new", "hours", String.valueOf(wait));
+            return;
+        }
         if (!between.isReady(payer.getUniqueId())) {
             long seconds = between.remaining(payer.getUniqueId()).orElse(Duration.ZERO).toSeconds();
             refuse(payer, "economy.pay.wait", "seconds", String.valueOf(Math.max(1, seconds)));
@@ -100,7 +118,7 @@ public final class PaymentService implements IEconomyService {
             return;
         }
 
-        Money tax = rule.tax(amount, live.payTax());
+        Money tax = taxOn(amount, live);
         EconomyResult result = economy.transfer(payer.getUniqueId(), target.getUniqueId(), amount, tax,
                 TransactionKind.PAY, "");
         if (!result.succeeded()) {
@@ -120,6 +138,19 @@ public final class PaymentService implements IEconomyService {
             messages.send(online, "economy.pay.received", "amount", currency.render(amount.minus(tax)),
                     "player", payer.getName());
         }
+    }
+
+    /**
+     * The tax on a payment: by slices when the owner wrote brackets, the flat rate otherwise, then turned by the
+     * economy's levers; never more than the payment.
+     */
+    Money taxOn(Money amount, EconomySettings live) {
+        java.util.List<String> written = supplied().payTaxBrackets();
+        Money tax = written.isEmpty() ? rule.tax(amount, live.payTax())
+                : new de.raindancer.modules.economy.rules.BracketRule().parse(written, live.currency())
+                .map(brackets -> new de.raindancer.modules.economy.rules.BracketRule().tax(amount, brackets))
+                .orElseGet(() -> rule.tax(amount, live.payTax()));
+        return de.raindancer.core.social.economy.EconomyLevers.sink(de.raindancer.modules.economy.model.Sources.PAY_TAX, tax).min(amount);
     }
 
     private void refuse(Player player, String key, Object... values) {

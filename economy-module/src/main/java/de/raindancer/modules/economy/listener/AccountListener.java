@@ -54,6 +54,7 @@ public final class AccountListener implements IEconomyListener {
     @Override
     public void forget(UUID player) {
         services.payments().forget(player);
+        services.shop().forget(player);
         services.bills().forget(player);
         services.gambling().forget(player);
         services.income().forget(player);

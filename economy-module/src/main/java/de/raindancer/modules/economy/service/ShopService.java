@@ -67,6 +67,17 @@ public final class ShopService implements IEconomyService {
             new de.raindancer.modules.economy.rules.EnchantValueRule();
     private final Supplier<List<RecipeShape>> recipes;
     private volatile EconomySettings settings;
+
+    private volatile SupplyService supply;
+
+    /** The money supply's settings; the shipped ones, which change nothing, until wired. */
+    public void supply(SupplyService service) {
+        this.supply = service;
+    }
+
+    private de.raindancer.modules.economy.SupplySettings supplied() {
+        return SupplyService.settingsOf(supply);
+    }
     private volatile List<RecipeShape> knownRecipes = List.of();
 
     public ShopService(Server server, RainEconomy economy, PriceBook prices, MarketBook market, Messages messages,
@@ -130,7 +141,51 @@ public final class ShopService implements IEconomyService {
 
     /** What this player pays and is paid for one — the shop's price, changed by their role or the like. */
     public YourPrice priceFor(UUID player, Material material) {
-        return personal.forPlayer(player, tag(material), bulkFor(material.name()));
+        YourPrice price = personal.forPlayer(player, tag(material), bulkFor(material.name()));
+        int lever = de.raindancer.core.social.economy.EconomyLevers.faucetPercent(SELL_SOURCE);
+        int again = soldAgainPercent(player, material);
+        return price.sellingChanged(lever, "Economy").sellingChanged(again, "Sold lately");
+    }
+
+    static final String SELL_SOURCE = de.raindancer.modules.economy.model.Sources.SELL;
+    private final SaleMemory sold = new SaleMemory(System::currentTimeMillis);
+
+    /** How much less selling this again pays: a stack's worth sold lately is one step down. Zero when switched off. */
+    int soldAgainPercent(UUID player, Material material) {
+        de.raindancer.modules.economy.SupplySettings live = supplied();
+        if (live.diminishingPercent() <= 0) {
+            return 0;
+        }
+        int stacks = sold.soldLately(player, material.name(), live.diminishingMinutes())
+                / Math.max(1, prices.stackSizeOf(material.name()));
+        long factor = new de.raindancer.modules.economy.rules.DiminishingRule()
+                .payout(Money.of(10_000), stacks, live.diminishingPercent()).minor();
+        return (int) Math.floorDiv(factor - 10_000, 100);
+    }
+
+    /** Why the shop will not pay {@code total} more to this player today, if it will not: a message key and what is left. */
+    Optional<Map.Entry<String, Money>> overBudget(Player player, Money total) {
+        de.raindancer.modules.economy.SupplySettings live = supplied();
+        Currency currency = settings.currency();
+        Money mine = de.raindancer.modules.economy.SupplySettings.money(live.sellBudgetPerPlayer(), currency);
+        if (mine.isPositive()) {
+            Money left = mine.minus(economy.book().today(player.getUniqueId(), SELL_SOURCE)).max(Money.ZERO);
+            if (total.isMoreThan(left)) {
+                return Optional.of(Map.entry("economy.shop.budget-yours", left));
+            }
+        }
+        Money all = de.raindancer.modules.economy.SupplySettings.money(live.sellBudgetServer(), currency);
+        if (all.isPositive()) {
+            Money left = all.minus(economy.book().todayByAll(SELL_SOURCE)).max(Money.ZERO);
+            if (total.isMoreThan(left)) {
+                return Optional.of(Map.entry("economy.shop.budget-server", left));
+            }
+        }
+        return Optional.empty();
+    }
+
+    public void forget(UUID player) {
+        sold.forget(player);
     }
 
     /** How much cheaper this item gets bought in quantity, as the owner set it. */
@@ -464,10 +519,16 @@ public final class ShopService implements IEconomyService {
             refuse(player, "economy.shop.changed");
             return;
         }
+        Optional<Map.Entry<String, Money>> budget = overBudget(player, lot.total());
+        if (budget.isPresent()) {
+            refuse(player, budget.get().getKey(), "left", settings.currency().render(budget.get().getValue()));
+            return;
+        }
         ItemStack taken = there.clone();
         inventory.setItem(lot.slot(), null);
         Currency currency = settings.currency();
-        EconomyResult result = economy.move(player.getUniqueId(), lot.total(), TransactionKind.SELL, lot.label());
+        EconomyResult result = economy.move(player.getUniqueId(), lot.total(), TransactionKind.SELL, lot.label(),
+                SELL_SOURCE);
         if (!result.succeeded()) {
             inventory.addItem(taken).values()
                     .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
@@ -517,11 +578,20 @@ public final class ShopService implements IEconomyService {
         String what = taken.size() == 1
                 ? items + " × " + Catalogue.readable(taken.keySet().iterator().next().name())
                 : items + " items";
-        EconomyResult result = economy.move(player.getUniqueId(), total, TransactionKind.SELL, what);
+        Optional<Map.Entry<String, Money>> budget = overBudget(player, total);
+        if (budget.isPresent()) {
+            taken.forEach((material, count) -> giveBack(player, material, count));
+            refuse(player, budget.get().getKey(), "left", currency.render(budget.get().getValue()));
+            return;
+        }
+        EconomyResult result = economy.move(player.getUniqueId(), total, TransactionKind.SELL, what, SELL_SOURCE);
         if (!result.succeeded()) {
             taken.forEach((material, count) -> giveBack(player, material, count));
             Outcomes.tell(messages, effects, player, result, currency, "");
             return;
+        }
+        if (supplied().diminishingPercent() > 0) {
+            taken.forEach((material, count) -> sold.sold(player.getUniqueId(), material.name(), count));
         }
         if (live.dynamicPrices()) {
             taken.forEach((material, count) -> {

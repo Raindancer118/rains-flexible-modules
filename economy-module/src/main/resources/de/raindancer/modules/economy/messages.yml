@@ -30,6 +30,8 @@ economy:
     off: "<red>The richest players list is switched off on this server."
 
   usage:
+    fund: "<gray>/fund  ·  /fund <name> <amount>"
+    eco-supply: "<gray>/eco health  ·  /eco fund start <name> <target> [boost <percent> <hours> | command <a> && <b>]  ·  /eco fund remove <name>  ·  /eco season end [confirm]"
     pay: "<gray>/pay <player> <amount>"
     bill: "<gray>/bill <player> <amount> [what for]"
     contract: "<gray>/contract pay <player> <amount> <every, like 1d> <what>  ·  /contract charge <player> <amount> <every> <what>  ·  /contract list  ·  /contract end <player>"
@@ -40,9 +42,10 @@ economy:
     hire: "<gray>/hire <player> <wage> <every, like 1h or 30m> [job]  ·  /hire list  ·  /hire fire|quit <player>"
     raffle: "<gray>/raffle  ·  /raffle start <ticket price> [length, like 30m] [most tickets] [per player]  ·  /raffle money <prize> <ticket price> [length] [most tickets] [per player]  ·  /raffle buy <number> [tickets]  ·  /raffle cancel <number>  ·  /raffle info"
     giveaway: "<gray>/giveaway  ·  /giveaway start [length, like 30m]  ·  /giveaway money <amount> [length]  ·  /giveaway join <number>  ·  /giveaway cancel <number>"
-    auction: "<gray>/auction  ·  /auction sell <start> [buy it now] [length, like 5m]  ·  /auction bid [amount]  ·  /auction claim  ·  /auction mute"
+    auction: "<gray>/auction  ·  /auction sell <start> [buy it now] [length, like 5m]  ·  /auction bid [amount]  ·  /auction claim  ·  /auction jump  ·  /auction mute"
 
   pay:
+    too-new: "<red>A new account cannot send money away yet — <hours> more hour(s)."
     off: "<red>Paying each other is switched off on this server."
     yourself: "<red>You cannot pay yourself."
     too-little: "<red>The least anybody may pay is <amount>."
@@ -69,6 +72,7 @@ economy:
     you-declined: "<gray>You declined <player>'s bill."
 
   cash:
+    expired: "<yellow>Some of those notes were older than <days> days and lost <lost><yellow> of their value."
     off: "<red>Coins and notes are switched off on this server."
     cheques-off: "<red>Cheques are switched off on this server."
     too-many: "<red>That would be <pieces> coins; at most <most> come out at once. Write a cheque for more."
@@ -85,6 +89,8 @@ economy:
     over-circulation-alert: "<red>[Economy] <white><player></white> offered <count> more coin(s) than are in circulation — somebody may be duplicating coins."
 
   shop:
+    budget-yours: "<red>The shop buys at most so much from one player a day — <left><red> left today."
+    budget-server: "<red>The shop has nearly spent what it buys in a day — <left><red> left for everybody."
     off: "<red>The shop is switched off on this server."
     selling-off: "<red>Selling to the shop is switched off on this server."
     category-closed: "<red>The <category> drawer is closed on this server."
@@ -123,6 +129,8 @@ economy:
     claimed: "<green>Daily reward: <amount><green>. Day <white><streak></white> in a row."
 
   gamble:
+    treasury-short: "<yellow>You won <won><yellow>, but the server's treasury could only pay <amount><yellow> of it right now."
+    in-debt: "<red>No games of chance while you owe the server <amount><red>. Pay it with <white>/debt</white>."
     off: "<red>That game is switched off on this server."
     not-allowed: "<red>You may not gamble."
     loan-overdue: "<red>Gambling with the bank's money while your loan is overdue? Bold. Pay it back first: <white>/loan</white>"
@@ -185,6 +193,10 @@ economy:
     no-tickets: "<gray>Nobody had bought a ticket, so the pot carries over."
 
   auction:
+    jumped: "<green>Your auction of <item> is next, for <amount><green>."
+    jump-off: "<red>Jumping the queue is not offered on this server."
+    jump-none: "<red>You have no auction waiting that is not already next."
+    jump-price: "<gray>Your auction can go next for <amount><gray>: <button>"
     off: "<red>Auctions are switched off on this server."
     not-allowed: "<red>You may not take part in auctions."
     empty-hand: "<red>Hold the item you want to auction in your main hand."
@@ -308,6 +320,7 @@ economy:
     percent: "<red>The wealth tax is a percentage above 0 and at most 100, like 2 or 0.5."
 
   xp:
+    daily-limit: "<red>The bank buys at most <amount><red> of experience from you a day. <left><red> left today."
     off: "<red>Buying and selling experience is switched off on this server."
     bought: "<green>You bought <levels> level(s) for <amount><green>. You are level <level> now."
     sold: "<green>You sold <levels> level(s) for <amount><green>. You are level <level> now."
@@ -402,3 +415,57 @@ economy:
     unfrozen: "<green><player>'s account is no longer frozen."
     repriced: "<green>Repriced everything from <recipes> recipe(s)."
     calmed: "<green>Every price is back to plain."
+
+  supply:
+    alert: "<red>[Economy] <white><text>"
+  health:
+    title: "<gold>—— The money supply ——"
+    money: "<gray>Money out there: <white><amount>"
+    capped: "<gray>Cap <white><cap></white> · treasury <white><treasury></white> (<percent>%)"
+    open: "<gray>No cap: money is printed as it is paid out."
+    over-cap: "<red><amount> more than the cap allows."
+    per-player: "<gray>Per active player (<count>): <white><amount>"
+    growth: "<gray>Money out there, this week: <white><percent>%"
+    inflation: "<gray>Prices this week: <white><percent>%</white> · since measuring began ×<level>"
+    no-inflation: "<gray>Prices: not measured long enough yet."
+    taps: "<gray>Payouts now <white><faucet>%</white> · fees <white><sink>%</white> (stabiliser <white><stab-faucet>% / <stab-sink>%</white>)"
+    created: "<green>Printed this week: <white><amount>"
+    destroyed: "<red>Destroyed this week: <white><amount>"
+    line: "<dark_gray> · <gray><label>: <white><amount>"
+    none: "<dark_gray> · nothing"
+  treasury:
+    off: "<red>The treasury is not shown on this server."
+  fund:
+    off: "<red>Community funds are switched off on this server."
+    none: "<gray>No community fund is collecting right now."
+    head: "<gold>Community funds <gray>— give with /fund <name> <amount>"
+    line: "<yellow><name></yellow><gray>: <raised> of <target> <dark_gray>(<percent>%)</dark_gray> <gray><effect>"
+    boosting: "<green><name> is full: payouts are <percent>% higher for now."
+    given: "<green>You gave <amount><green> to <name>. Thank you!"
+    filled: "<gold>The <yellow><name></yellow> fund is full — thank you, everybody! <effect>"
+    effect-boost: "Everything pays <percent>% more for <hours> hour(s)."
+    bar: "<yellow><name></yellow><gray>: <raised> of <target>"
+    no-such: "<red>There is no fund collecting by that name. <white>/fund</white> lists them."
+    not-enough: "<red>You do not have that much."
+    refused: "<red>That could not be given."
+    bad-name: "<red>A fund needs a short name, 32 letters at most."
+    bad-effect: "<red>That effect cannot be read. Use 'boost <percent> <hours>' or 'command <a> && <b>', or nothing."
+    exists: "<red>A fund by that name is already collecting."
+    started: "<green>The fund <name> is collecting toward <target><green>."
+    removed: "<green>The fund <name> is gone. What was given stays given."
+  repair:
+    off: "<red>/repair is switched off on this server."
+    nothing: "<red>Hold something that is worn to repair it."
+    offer: "<gray>Repairing it costs <amount><gray>: <button>"
+    changed: "<red>That is not the same item any more — nothing was paid."
+    done: "<green>Repaired for <amount><green>. You have <balance><green> left."
+  death:
+    lost: "<red>Dying cost you <amount><red>. You have <balance><red> left."
+  season:
+    off: "<red>Seasons are switched off on this server."
+    confirm: "<yellow>This turns every balance into season points and starts everybody again. Type <white>/eco season end confirm</white> to do it."
+    ended: "<gold>Season <season> has ended: <count> player(s) scored <points> point(s). Everybody starts again."
+    refused: "<red>The season could not be ended — the points scale cannot be read, or the treasury cannot pay everybody's starting balance."
+    head: "<gold>Your season points"
+    line: "<gray>Season <season>: <white><points>"
+    none: "<gray>You have no season points yet. This is season <season>."

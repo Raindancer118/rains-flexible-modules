@@ -44,6 +44,12 @@ public record Auction(UUID id, UUID seller, String sellerName, byte[] item, Stri
                 seconds, listedAt, newEnd);
     }
 
+    /** Queued as if listed at {@code at} — the queue is ordered by when auctions were listed. */
+    public Auction listedAt(long at) {
+        return new Auction(id, seller, sellerName, item, itemName, start, buyout, bid, bidder, bidderName, bids,
+                seconds, at, endsAt);
+    }
+
     public Auction endingAt(long at) {
         return new Auction(id, seller, sellerName, item, itemName, start, buyout, bid, bidder, bidderName, bids,
                 seconds, listedAt, at);

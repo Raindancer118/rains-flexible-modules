@@ -36,6 +36,17 @@ public final class WealthTaxService implements IEconomyService {
     private final WealthTaxRule rule = new WealthTaxRule();
     private volatile EconomySettings settings;
 
+    private volatile SupplyService supply;
+
+    /** The money supply's settings; the shipped ones, which change nothing, until wired. */
+    public void supply(SupplyService service) {
+        this.supply = service;
+    }
+
+    private de.raindancer.modules.economy.SupplySettings supplied() {
+        return SupplyService.settingsOf(supply);
+    }
+
     public WealthTaxService(Plugin plugin, Server server, RainEconomy economy, Messages messages, LongSupplier clock,
                             EconomySettings settings) {
         this.plugin = plugin;
@@ -75,6 +86,28 @@ public final class WealthTaxService implements IEconomyService {
         }
     }
 
+    /**
+     * What one account owes: by slices above the allowance when the owner wrote brackets, the flat percent
+     * otherwise; nothing for an account that spent money within the idle days; then turned by the levers.
+     */
+    Money owedBy(Account account, double percent, Money allowance, long now) {
+        de.raindancer.modules.economy.SupplySettings live = supplied();
+        if (live.wealthTaxIdleDays() > 0 && now - account.idleSince() < live.wealthTaxIdleDays() * 86_400_000L) {
+            return Money.ZERO;
+        }
+        Money owed;
+        if (live.wealthTaxBrackets().isEmpty()) {
+            owed = rule.owed(account.balance(), percent, allowance);
+        } else {
+            de.raindancer.modules.economy.rules.BracketRule brackets = new de.raindancer.modules.economy.rules.BracketRule();
+            Money above = account.balance().minus(allowance.max(Money.ZERO)).max(Money.ZERO);
+            owed = brackets.parse(live.wealthTaxBrackets(), settings.currency())
+                    .map(read -> brackets.tax(above, read))
+                    .orElseGet(() -> rule.owed(account.balance(), percent, allowance));
+        }
+        return de.raindancer.core.social.economy.EconomyLevers.sink(de.raindancer.modules.economy.model.Sources.WEALTH_TAX, owed).min(account.balance());
+    }
+
     /** What a run at this percentage would take now, without taking it. */
     public TaxRun preview(double percent) {
         Money allowance = settings.wealthTaxAllowanceMoney();
@@ -84,7 +117,7 @@ public final class WealthTaxService implements IEconomyService {
             if (AccountBook.isSystem(account.id())) {
                 continue;
             }
-            Money owed = rule.owed(account.balance(), percent, allowance);
+            Money owed = owedBy(account, percent, allowance, clock.getAsLong());
             if (owed.isPositive()) {
                 count++;
                 total = total.plus(owed);
@@ -100,8 +133,9 @@ public final class WealthTaxService implements IEconomyService {
         Map<UUID, Money> before = new HashMap<>();
         server.getOnlinePlayers().forEach(player -> before.put(player.getUniqueId(), economy.balance(player.getUniqueId())));
         String share = String.format("%s", percent % 1 == 0 ? String.valueOf((long) percent) : String.valueOf(percent));
-        TaxRun ran = book.wealthTax(balance -> rule.owed(balance, percent, allowance), "Wealth tax " + share + "%",
-                clock.getAsLong());
+        long at = clock.getAsLong();
+        TaxRun ran = book.wealthTaxOn(account -> owedBy(account, percent, allowance, at), "Wealth tax " + share + "%",
+                at);
         Scheduling.async(plugin, book::flush);
         for (Player player : server.getOnlinePlayers()) {
             messages.send(player, allowance.isPositive() ? "economy.tax.ran-allowance" : "economy.tax.ran",

@@ -93,6 +93,17 @@ public final class GamblingService implements IEconomyService {
     private final Map<UUID, Challenge> challenges = new ConcurrentHashMap<>();
     private final Map<UUID, DayLoss> losses = new ConcurrentHashMap<>();
     private volatile EconomySettings settings;
+
+    private volatile SupplyService supply;
+
+    /** The money supply's settings; the shipped ones, which change nothing, until wired. */
+    public void supply(SupplyService service) {
+        this.supply = service;
+    }
+
+    private de.raindancer.modules.economy.SupplySettings supplied() {
+        return SupplyService.settingsOf(supply);
+    }
     private volatile java.util.function.Predicate<UUID> overdue = player -> false;
 
     public GamblingService(Plugin plugin, Server server, RainEconomy economy, Messages messages, Effects effects,
@@ -130,6 +141,11 @@ public final class GamblingService implements IEconomyService {
     public boolean loanBlocks(Player player) {
         if (settings.overdueStopsGambling() && overdue.test(player.getUniqueId())) {
             refuse(player, "economy.gamble.loan-overdue");
+            return true;
+        }
+        if (supplied().debtStopsGambling() && de.raindancer.core.social.economy.Debts.inDebt(player.getUniqueId())) {
+            refuse(player, "economy.gamble.in-debt", "amount",
+                    settings.currency().render(de.raindancer.core.social.economy.Debts.owed(player.getUniqueId())));
             return true;
         }
         return false;
@@ -430,7 +446,16 @@ public final class GamblingService implements IEconomyService {
         count(player, stake, payout);
         if (payout.isPositive()) {
             EconomyResult result = economy.move(player, payout, TransactionKind.GAMBLE, game + " — won");
-            if (!result.succeeded()) {
+            if (result.outcome() == EconomyResult.Outcome.TREASURY_EMPTY) {
+                // A capped server's treasury ran low after the stake was taken: pay what it can, and say so.
+                EconomyResult part = economy.moveUpTo(player, payout, TransactionKind.GAMBLE, game + " — won, in part");
+                Player online = server.getPlayer(player);
+                if (online != null) {
+                    messages.send(online, "economy.gamble.treasury-short", "amount",
+                            settings.currency().render(part.succeeded() ? part.amount() : Money.ZERO),
+                            "won", settings.currency().render(payout));
+                }
+            } else if (!result.succeeded()) {
                 // An account that cannot take its winnings (frozen, full) gets the stake back at least.
                 economy.move(player, stake, TransactionKind.GAMBLE, game + " — returned");
             }

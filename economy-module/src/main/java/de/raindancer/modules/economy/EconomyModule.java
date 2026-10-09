@@ -85,7 +85,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.21.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.22.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -199,16 +199,58 @@ public final class EconomyModule implements FlexModule {
         gambling.overdue(loans::overdue);
         lottery.overdue(loans::overdue);
 
+        // ---------------------------------------------------------------- the money supply
+        SettingsStore<SupplySettings> supplyStore = context.settings(SupplySettings.class, SupplySettings.DEFAULTS);
+        var supplyBook = new de.raindancer.modules.economy.store.SupplyBook(database);
+        var supply = new de.raindancer.modules.economy.service.SupplyService(book, supplyBook,
+                material -> prices.tag(material).buy().minor(), System::currentTimeMillis,
+                java.time.ZoneId.systemDefault(), line -> {
+                    log.warn(line);
+                    Scheduling.global(context.plugin(), () -> server.getOnlinePlayers().stream()
+                            .filter(staff -> staff.hasPermission(PermissionNodes.ALERTS))
+                            .forEach(staff -> messages.send(staff, "economy.supply.alert", "text", line)));
+                }, now);
+        offTheServerThread(() -> supply.supply(supplyStore.current()));
+        supplyStore.onChange(updated -> Scheduling.async(context.plugin(), () -> supply.supply(updated)));
+        economy.supply(supply);
+        experience.supply(supply);
+        shop.supply(supply);
+        payments.supply(supply);
+        bills.supply(supply);
+        cash.supply(supply);
+        tax.supply(supply);
+        gambling.supply(supply);
+        lottery.supply(supply);
+        auctions.supply(supply);
+        var funds = new de.raindancer.modules.economy.service.FundService(economy, supplyBook,
+                System::currentTimeMillis, () -> supply.current().funds(),
+                fund -> Scheduling.global(context.plugin(), () -> fundFilled(context, fund)));
+        offTheServerThread(funds::load);
+        var repair = new de.raindancer.modules.economy.service.RepairService(context.plugin(), economy, messages,
+                effects, buttons, supply, now);
+        var death = new de.raindancer.modules.economy.service.DeathService(economy, messages, supply, now);
+        var seasons = new de.raindancer.modules.economy.service.SeasonService(book, supplyBook, supply, now);
+        de.raindancer.core.social.economy.EconomyLevers.provide(context.plugin(), supply);
+        de.raindancer.core.social.economy.EconomyLevers.provide(context.plugin(), funds);
+        java.util.function.DoubleSupplier level = supply::priceLevel;
+        de.raindancer.core.social.economy.PriceIndex.provide(context.plugin(), level);
+        context.closeWith(() -> {
+            de.raindancer.core.social.economy.EconomyLevers.retract(supply);
+            de.raindancer.core.social.economy.EconomyLevers.retract(funds);
+            de.raindancer.core.social.economy.PriceIndex.retract(level);
+        });
+
         for (var service : List.of(economy, notifier, payments, bills, cash, shop, rewards, income, hire, statements,
                 interest, daily, gambling, lottery, sidebar, displays, tables, scratch, crash, race, dealers, auctions,
-                raffles, tax, experience, loans, packs)) {
+                raffles, tax, experience, loans, packs, supply, funds, repair, death, seasons)) {
             settings.onChange(service::settings);
         }
 
         services = new EconomyServices(context.plugin(), server, log, messages, context.chat().brand(), context.core(),
                 settings::current, settings, economy, market, payments, bills, cash, shop, rewards, income, hire,
                 statements, interest, daily, leaderboard, sidebar, displays, gambling, lottery, tables, scratch, crash,
-                race, dealers, auctions, raffles, tax, experience, loans, packs, new LiveScreens());
+                race, dealers, auctions, raffles, tax, experience, loans, packs, new LiveScreens(), supply, supplyStore,
+                funds, repair, death, seasons);
         sidebar.pot(lottery::pot);
         this.tables = tables;
         this.crash = crash;
@@ -219,6 +261,7 @@ public final class EconomyModule implements FlexModule {
         context.listener(new AccountListener(services));
         context.listener(new CashListener(services));
         context.listener(new RewardListener(services));
+        context.listener(new de.raindancer.modules.economy.listener.SupplyListener(services));
         context.listener(new de.raindancer.modules.economy.listener.DealerListener(services));
         context.listener(new de.raindancer.modules.economy.listener.PackListener(services));
         log.info("{} pack(s) for sale.", packCount);
@@ -289,6 +332,7 @@ public final class EconomyModule implements FlexModule {
         if (pruning != null) {
             context.closeWith(pruning::cancel);
         }
+        startSupplyClocks(context, supply, funds);
 
         EconomyCommands.ready(services);
         log.info("The economy is up: {} account(s), {} item(s) priced from {} recipe(s), money is {}.",
@@ -316,6 +360,110 @@ public final class EconomyModule implements FlexModule {
                 live.messages().send(viewer, "economy.pay.how", "player", subject.getName() == null ? "" : subject.getName());
             }
         });
+    }
+
+    /** Players seen within the owner's active days, for "how much does a player have"; counted on the server thread. */
+    private volatile int active;
+    private long lastAudit;
+
+    private void startSupplyClocks(ModuleContext context, de.raindancer.modules.economy.service.SupplyService supply,
+                                   de.raindancer.modules.economy.service.FundService funds) {
+        var counting = Scheduling.globalTimer(context.plugin(), 20L, 12_000L, task -> {
+            long since = System.currentTimeMillis() - supply.current().activeDays() * 86_400_000L;
+            int seen = 0;
+            for (org.bukkit.OfflinePlayer player : context.plugin().getServer().getOfflinePlayers()) {
+                if (player.isOnline() || player.getLastSeen() >= since) {
+                    seen++;
+                }
+            }
+            active = seen;
+        });
+        if (counting != null) {
+            context.closeWith(counting::cancel);
+        }
+        var supplying = Scheduling.asyncTimer(context.plugin(), 5, 30, task -> supply.refresh(active));
+        if (supplying != null) {
+            context.closeWith(supplying::cancel);
+        }
+        var daily = Scheduling.asyncTimer(context.plugin(), 60, 60, task -> {
+            supply.daily();
+            long now = System.currentTimeMillis();
+            if (now - lastAudit >= supply.current().auditMinutes() * 60_000L) {
+                lastAudit = now;
+                supply.audit().ifPresent(over -> {
+                    String text = "There is " + economyCurrency().format(over) + " more money out there than the cap "
+                            + "allows. Raise money-supply.cap, or find where it came from (/eco health).";
+                    log.warn(text);
+                    Scheduling.global(context.plugin(), () -> context.plugin().getServer().getOnlinePlayers().stream()
+                            .filter(staff -> staff.hasPermission(PermissionNodes.ALERTS))
+                            .forEach(staff -> context.core().messages().send(staff, "economy.supply.alert", "text", text)));
+                });
+            }
+        });
+        if (daily != null) {
+            context.closeWith(daily::cancel);
+        }
+        var bars = Scheduling.globalTimer(context.plugin(), 40L, 100L, task -> fundBars(funds));
+        if (bars != null) {
+            context.closeWith(bars::cancel);
+        }
+        context.closeWith(() -> context.core().bossBars().clearShared("economy-funds", "funds"));
+    }
+
+    private de.raindancer.core.social.economy.Currency economyCurrency() {
+        return services == null ? de.raindancer.core.social.economy.Currency.DEFAULT : services.currency();
+    }
+
+    /** The oldest running fund in everybody's boss bar, while funds and their bar are switched on. */
+    private void fundBars(de.raindancer.modules.economy.service.FundService funds) {
+        EconomyServices live = services;
+        if (live == null) {
+            return;
+        }
+        var bars = live.core().bossBars();
+        SupplySettings supplied = live.supply().current();
+        List<de.raindancer.modules.economy.model.Fund> running = funds.running();
+        if (!supplied.funds() || !supplied.fundsBossBar() || running.isEmpty()) {
+            bars.clearShared("economy-funds", "funds");
+            return;
+        }
+        var fund = running.getFirst();
+        var currency = live.currency();
+        net.kyori.adventure.text.Component text = live.messages().get("economy.fund.bar", "name", fund.name(),
+                "raised", currency.render(fund.raised()), "target", currency.render(fund.target()));
+        bars.showShared("economy-funds", "funds", live.server().getOnlinePlayers().stream().map(Player::getUniqueId).toList(),
+                new de.raindancer.core.ui.bossbar.BarStyle(text, (float) fund.progress(),
+                        net.kyori.adventure.bossbar.BossBar.Color.GREEN, net.kyori.adventure.bossbar.BossBar.Overlay.NOTCHED_10),
+                de.raindancer.core.ui.bossbar.BarPriority.LOW);
+    }
+
+    /** A fund filled: everybody hears it, and its commands run once, as the console. */
+    private void fundFilled(ModuleContext context, de.raindancer.modules.economy.model.Fund fund) {
+        EconomyServices live = services;
+        if (live == null) {
+            return;
+        }
+        var effect = live.funds().effectOf(fund);
+        String what = effect.map(each -> switch (each) {
+            case de.raindancer.modules.economy.rules.FundRule.Effect.Boost boost ->
+                    live.messages().raw("economy.fund.effect-boost").replace("<percent>", String.valueOf(boost.percent()))
+                            .replace("<hours>", String.valueOf(boost.hours()));
+            case de.raindancer.modules.economy.rules.FundRule.Effect.Commands ignored -> "";
+            case de.raindancer.modules.economy.rules.FundRule.Effect.Nothing ignored -> "";
+        }).orElse("");
+        for (Player online : live.server().getOnlinePlayers()) {
+            live.messages().send(online, "economy.fund.filled", "name", fund.name(), "effect", what);
+        }
+        if (effect.orElse(null) instanceof de.raindancer.modules.economy.rules.FundRule.Effect.Commands commands) {
+            for (String line : commands.lines()) {
+                try {
+                    live.server().dispatchCommand(live.server().getConsoleSender(), line.replace("{fund}", fund.name()));
+                } catch (RuntimeException broken) {
+                    log.error(broken, "Fund '{}' could not run '{}'.", fund.name(), line);
+                }
+            }
+        }
+        log.info("Fund '{}' is full.", fund.name());
     }
 
     private static byte[] read(InputStream in) {
