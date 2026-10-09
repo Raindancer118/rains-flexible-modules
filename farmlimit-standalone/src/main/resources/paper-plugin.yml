@@ -1,0 +1,24 @@
+# Same shape as every other standalone here — see rtp-standalone's copy for why each line matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Stops animal farms from growing past a limit; /farms lists the most crowded chunks.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# The spawn listener counts on the spawn's own region thread; /farms refuses on Folia.
+folia-supported: true
+
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

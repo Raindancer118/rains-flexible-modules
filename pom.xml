@@ -63,6 +63,7 @@
         <invsnap-module.version>1.4.1</invsnap-module.version>
         <xpbottle-module.version>1.2.0</xpbottle-module.version>
         <veintoggle-module.version>0.3.0</veintoggle-module.version>
+        <farmlimit-module.version>0.1.0</farmlimit-module.version>
         <economy-module.version>0.22.0</economy-module.version>
         <roles-module.version>0.3.1</roles-module.version>
         <jobs-module.version>0.2.0</jobs-module.version>
@@ -120,6 +121,8 @@
         <module>xpbottle-standalone</module>
         <module>veintoggle-module</module>
         <module>veintoggle-standalone</module>
+        <module>farmlimit-module</module>
+        <module>farmlimit-standalone</module>
         <module>economy-module</module>
         <module>economy-standalone</module>
         <module>roles-module</module>
@@ -293,6 +296,11 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>veintoggle-module</artifactId>
                 <version>${veintoggle-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>farmlimit-module</artifactId>
+                <version>${farmlimit-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
