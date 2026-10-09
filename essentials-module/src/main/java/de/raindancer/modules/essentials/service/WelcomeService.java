@@ -57,6 +57,28 @@ public final class WelcomeService implements IEssentialsService {
         reactions.broadcast(messages.prefixed(key, "player", who.getName()), who, ReactionService.HI);
     }
 
+    /**
+     * The quit line for somebody vanishing — the same line a real quit gets, to exactly these players.
+     *
+     * @return false when this module does not own the lines, so vanilla's is said instead
+     */
+    public boolean seemsToLeave(Player who, java.util.Collection<? extends Player> to) {
+        if (!settings.joinQuitEnabled()) {
+            return false;
+        }
+        chat.broadcast(to, messages.raw("essentials.welcome.quit"), Chat.arg("player", who.getName()));
+        return true;
+    }
+
+    /** The join line for somebody coming out of vanish; see {@link #seemsToLeave}. */
+    public boolean seemsToArrive(Player who, java.util.Collection<? extends Player> to) {
+        if (!settings.joinQuitEnabled()) {
+            return false;
+        }
+        chat.broadcast(to, messages.raw("essentials.welcome.joined"), Chat.arg("player", who.getName()));
+        return true;
+    }
+
     public void quit(Player who) {
         if (settings.joinQuitEnabled()) {
             chat.broadcast(messages.raw("essentials.welcome.quit"),

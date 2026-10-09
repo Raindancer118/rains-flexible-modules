@@ -37,7 +37,10 @@ public final class EssentialsSessionListener implements IEssentialsListener {
         }
         services.afk().activity(event.getPlayer());
         services.nicknames().apply(event.getPlayer());
-        services.welcome().joined(event.getPlayer(), firstJoin);
+        // A vanished player's joining is nobody's business: Core keeps them hidden, and a line here would say it.
+        if (!services.core().vanish().isVanished(event.getPlayer().getUniqueId())) {
+            services.welcome().joined(event.getPlayer(), firstJoin);
+        }
         if (firstJoin) {
             services.rules().firstJoin(event.getPlayer());
         }
@@ -48,7 +51,9 @@ public final class EssentialsSessionListener implements IEssentialsListener {
     public void onQuit(PlayerQuitEvent event) {
         if (services.welcome().ownsJoinQuitLines()) {
             event.quitMessage(null);
-            services.welcome().quit(event.getPlayer());
+            if (!services.core().vanish().isVanished(event.getPlayer().getUniqueId())) {
+                services.welcome().quit(event.getPlayer());
+            }
         }
         forget(event.getPlayer().getUniqueId());
     }

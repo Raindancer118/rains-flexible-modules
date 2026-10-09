@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.15.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.16.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, a nickname, /rules, and /admin for staff")
             .by("Raindancer118");
@@ -179,6 +179,20 @@ public final class EssentialsModule implements FlexModule {
         });
 
         context.listener(new EssentialsSessionListener(services));
+        // Vanishing and coming back read as this module's own quit and join lines, not vanilla's.
+        de.raindancer.core.social.presence.PresenceLines.Voice voice = new de.raindancer.core.social.presence.PresenceLines.Voice() {
+            @Override
+            public boolean arrived(org.bukkit.entity.Player who, java.util.Collection<? extends org.bukkit.entity.Player> to) {
+                return welcome.seemsToArrive(who, to);
+            }
+
+            @Override
+            public boolean departed(org.bukkit.entity.Player who, java.util.Collection<? extends org.bukkit.entity.Player> to) {
+                return welcome.seemsToLeave(who, to);
+            }
+        };
+        de.raindancer.core.social.presence.PresenceLines.speak(voice);
+        context.closeWith(() -> de.raindancer.core.social.presence.PresenceLines.silence(voice));
         context.listener(new de.raindancer.modules.essentials.listener.AdvancementListener(services));
         context.listener(new de.raindancer.modules.essentials.listener.AdminModeListener(services));
         // A reload while somebody is in admin mode: they are still in it.
