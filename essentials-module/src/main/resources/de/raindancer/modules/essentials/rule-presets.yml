@@ -1,0 +1,77 @@
+# Rule presets: whole sets of rules, put in place with /rules preset apply <name> or in /rules edit.
+# Add your own here or with /rules preset save <name>. A deleted file is written again on the next start.
+friendly-smp:
+  description: A survival server for building together
+  rules:
+    - title: Be kind
+      text: No insults, slurs, harassment or hate. Disagree like adults.
+      icon: poppy
+    - title: No griefing
+      text: Do not break, change or take what other people built or own, claimed or not.
+      icon: tnt
+    - title: No stealing
+      text: Chests, farms and animals that are not yours stay untouched unless the owner says otherwise.
+      icon: chest
+    - title: No cheating
+      text: No hacked clients, x-ray, duping or exploits. Found a bug? Tell staff instead of using it.
+      icon: ender_eye
+    - title: PvP only by agreement
+      text: Only fight players who agreed to it. Killing someone who did not is griefing.
+      icon: iron_sword
+    - title: Keep the server running
+      text: No lag machines or huge mob farms. Ask staff before building anything big with redstone.
+      icon: redstone
+    - title: Keep chat readable
+      text: No spam, caps floods or advertising other servers.
+      icon: writable_book
+    - title: Staff have the last word
+      text: If staff ask you to stop, stop. Disagree in private, not in chat.
+      icon: golden_helmet
+pvp:
+  description: Fighting allowed everywhere, but play fair
+  rules:
+    - title: PvP is on
+      text: Anyone can attack anyone, anywhere outside spawn. You have been warned.
+      icon: diamond_sword
+    - title: No cheating
+      text: No hacked clients, kill aura, reach, x-ray, duping or exploits.
+      icon: ender_eye
+    - title: No spawn killing
+      text: Leave freshly spawned players alone until they have left spawn.
+      icon: red_bed
+    - title: Trash talk, not hate
+      text: Banter is fine. Slurs, threats and harassment are not.
+      icon: paper
+    - title: No combat logging
+      text: Logging out during a fight counts as dying.
+      icon: barrier
+    - title: Staff have the last word
+      text: If staff ask you to stop, stop.
+      icon: golden_helmet
+creative:
+  description: A building server
+  rules:
+    - title: Be kind
+      text: No insults, harassment or hate.
+      icon: poppy
+    - title: Build on your own plot
+      text: Do not build on, change or copy someone else's plot without asking.
+      icon: grass_block
+    - title: Nothing offensive
+      text: No offensive builds, skins, signs or names.
+      icon: oak_sign
+    - title: No lag
+      text: No entity spam, huge redstone clocks or anything else that slows the server down.
+      icon: redstone
+anarchy:
+  description: No rules, except the ones that keep the server alive
+  rules:
+    - title: Anything goes
+      text: Griefing, stealing and PvP are allowed. Nothing will be rolled back.
+      icon: tnt
+    - title: Do not crash the server
+      text: Lag machines and crash exploits get you banned, so everyone else can keep playing.
+      icon: barrier
+    - title: Real-world law still applies
+      text: No doxxing, threats or illegal content. Staff will ban for that.
+      icon: iron_bars

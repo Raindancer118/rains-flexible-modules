@@ -38,6 +38,10 @@ public final class EssentialsSessionListener implements IEssentialsListener {
         services.afk().activity(event.getPlayer());
         services.nicknames().apply(event.getPlayer());
         services.welcome().joined(event.getPlayer(), firstJoin);
+        if (firstJoin) {
+            services.rules().firstJoin(event.getPlayer());
+        }
+        services.adminMode().joined(event.getPlayer());
     }
 
     @EventHandler
@@ -81,5 +85,6 @@ public final class EssentialsSessionListener implements IEssentialsListener {
     public void forget(UUID player) {
         services.afk().forget(player);
         services.messaging().forget(player);
+        services.adminMode().forget(player);
     }
 }

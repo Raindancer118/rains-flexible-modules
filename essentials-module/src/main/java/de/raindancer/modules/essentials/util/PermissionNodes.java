@@ -50,6 +50,12 @@ public final class PermissionNodes {
     /** Opening the in-game blocklist editor. */
     public static final String BLOCKLIST_MANAGE = "essentials.blocklist.manage";
 
+    public static final String RULES = "essentials.rules";
+    /** Adding, editing, removing and ordering rules, and applying, saving and deleting presets. */
+    public static final String RULES_MANAGE = "essentials.rules.manage";
+    /** Going into admin mode. Coming out never needs anything. */
+    public static final String ADMIN_MODE = "essentials.admin";
+
     private PermissionNodes() {
     }
 
@@ -89,6 +95,10 @@ public final class PermissionNodes {
                         PermissionDefault.OP),
                 new Permission(BLOCKLIST_MANAGE,
                         "Open the in-game nickname blocklist editor",
+                        PermissionDefault.OP),
+                new Permission(RULES, "Read the server's rules with /rules", PermissionDefault.TRUE),
+                new Permission(RULES_MANAGE, "Edit the server's rules and their presets", PermissionDefault.OP),
+                new Permission(ADMIN_MODE, "Switch to a separate admin inventory with /admin",
                         PermissionDefault.OP));
     }
 

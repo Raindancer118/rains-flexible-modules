@@ -153,6 +153,57 @@ essentials:
     hi-already: "<gray>You already said hi."
     quit: "<gray>- <white><player></white> left."
 
+  # ── /rules ────────────────────────────────────────────────────────────────
+  # <title> and <text> are the rule's own words, shown exactly as written.
+  rules:
+    header: "<gold>The rules. Yes, all of them."
+    line: "<gold><number>.</gold> <white><title></white> <gray>— <text>"
+    line-off: "<dark_gray><number>. <strikethrough><title></strikethrough> (switched off) — <text>"
+    none: "<gray>No rules yet. Technically, that makes this anarchy."
+    no-such: "<red>There is no rule <white><number></white>. Count again."
+    edit-button: "<gold>[Edit the rules]"
+    edit-tooltip: "<gray>Opens the rule editor"
+    type-title: "<gray>Type the rule's title in chat. <dark_gray>You have a minute."
+    type-text: "<gray>Now type what the rule says. <dark_gray>You have a minute."
+    type-preset-name: "<gray>Type a name for the preset. <dark_gray>Letters, digits and dashes; you have a minute."
+    already-asking: "<red>You are already being asked something else. Finish that conversation first."
+    blank: "<red>That is empty. Rules need words, ideally several."
+    too-long: "<red>Too long — <white><limit></white> characters at most. Brevity is a virtue, and also a limit."
+    added: "<green>Rule <white><number></white> added: <white><title></white>."
+    saved: "<green>Saved."
+    gone: "<red>That rule is gone — somebody removed it in the meantime."
+    removed: "<yellow>Removed the rule <white><title></white>."
+    icon-empty-hand: "<red>Your hand is empty. Hold the item you want as the icon, then right-click again."
+    preset:
+      header: "<gold>Rule presets:"
+      line: "<white><name></white> <gray>— <description> (<count> rules)"
+      none: "<gray>No presets. Keep the current rules as one with <white>/rules preset save [name]</white>."
+      no-such: "<red>There is no preset called <white><name></white>."
+      bad-name: "<red><white><name></white> cannot be a preset name. Letters, digits and dashes only."
+      applied: "<green>The rules are now those of <white><name></white>: <white><count></white> of them."
+      saved: "<green>The current <white><count></white> rule(s) are kept as the preset <white><name></white>."
+      replaced: "<green>The preset <white><name></white> now holds the current <white><count></white> rule(s)."
+      deleted: "<yellow>The preset <white><name></white> is deleted."
+      could-not-save: "<red>Could not write the presets file. The console says why."
+      confirm-apply: "<yellow>This replaces every rule in use with those of <white><name></white>. Click below, or type <white><command></white>."
+      confirm-delete: "<yellow>This deletes the preset <white><name></white> for good. Click below, or type <white><command></white>."
+      confirm-button: "<red>[Yes, do it]"
+
+  # ── /admin ────────────────────────────────────────────────────────────────
+  admin:
+    entered: "<green>Admin mode on. <gray>Your own things are packed away safely; <white>/admin</white> brings them back."
+    left: "<green>Admin mode off. <gray>Everything is back exactly where you left it."
+    already-in: "<gray>You are already in admin mode. Any more admin and you would be the server."
+    not-in: "<gray>You are not in admin mode."
+    still-in: "<yellow>You are still in admin mode. <gray><white>/admin</white> to leave it."
+    status-in: "<yellow>You are in admin mode."
+    status-out: "<gray>You are not in admin mode."
+    switched-off: "<red>Admin mode is switched off on this server."
+    permission-gone: "<yellow>You may no longer use admin mode, so you are back in your own inventory."
+    could-not-save: "<red>Could not write the inventory to disk, so nothing was switched. The console says why."
+    unreadable: "<red><white><count></white> item(s) there cannot be read by this server right now, so nothing was switched. Switching would lose them."
+    bar: "<red><bold>ADMIN MODE</bold></red> <gray>— /admin to leave"
+
   # ── /roast and /joke ──────────────────────────────────────────────────────
   # Said in chat as whoever asked, so they are plain text: no colours, and a mute stops them.
   # Dealt like cards: every line comes round once before any repeats. Add, remove or reword freely.

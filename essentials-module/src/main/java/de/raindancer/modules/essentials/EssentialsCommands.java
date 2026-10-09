@@ -97,7 +97,23 @@ public final class EssentialsCommands {
                                 new RoastCommand(EssentialsCommands::require))
                         .taking("(nothing) — roasts yourself", "<player> — roasts them"),
                 ModuleCommand.of("joke", "Tells a random, truly terrible joke in chat, as you",
-                        new JokeCommand(EssentialsCommands::require)));
+                        new JokeCommand(EssentialsCommands::require)),
+
+                ModuleCommand.of("rules", "Shows the server's rules; staff edit them and their presets",
+                                new de.raindancer.modules.essentials.command.RulesCommand(EssentialsCommands::require))
+                        .taking("(nothing) — every rule", "<number> — one rule",
+                                "edit — the rule editor, for staff",
+                                "add <title> | <text> — a new rule at the end",
+                                "remove <number>",
+                                "preset [list] — every preset",
+                                "preset apply <name> — replace every rule with the preset's",
+                                "preset save <name> [description] — keep the current rules as a preset",
+                                "preset delete <name>"),
+                ModuleCommand.of("admin", "Switches to your admin inventory and game mode, and back",
+                                new de.raindancer.modules.essentials.command.AdminCommand(EssentialsCommands::require))
+                        .aliased("adminmode", "staffmode")
+                        .taking("(nothing) — in or out", "on", "off", "status")
+                        .auditUsage());
     }
 
     /** Called when the module enables, after which the commands work. */

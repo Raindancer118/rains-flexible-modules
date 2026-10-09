@@ -27,6 +27,16 @@ essentials:
   welcome:
     hi-yourself: "<gray>You cannot say hi to yourself. Let the others do it."
 
+  rules:
+    header: "<gold>Server rules"
+    none: "<gray>There are no rules yet."
+    no-such: "<red>There is no rule <white><number></white>."
+    blank: "<red>That is empty."
+    too-long: "<red>Too long — <white><limit></white> characters at most."
+  admin:
+    entered: "<green>Admin mode on. <gray>Your own inventory is stored; <white>/admin</white> brings it back."
+    left: "<green>Admin mode off. <gray>Your own inventory is back."
+    already-in: "<gray>You are already in admin mode."
   fun:
     switched-off: "<red>/<command> is switched off on this server."
     cooling-down: "<yellow>You can do that again in <white><seconds>s</white>."

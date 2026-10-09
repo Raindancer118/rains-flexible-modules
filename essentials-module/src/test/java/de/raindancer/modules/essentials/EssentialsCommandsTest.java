@@ -31,4 +31,11 @@ class EssentialsCommandsTest {
         assertThat(named("roast").names()).contains("roast");
         assertThat(named("joke").names()).contains("joke");
     }
+
+    @Test
+    @DisplayName("/rules and /admin are declared; /admin answers to adminmode and staffmode")
+    void rulesAndAdmin() {
+        assertThat(named("rules").names()).contains("rules");
+        assertThat(named("admin").names()).contains("admin", "adminmode", "staffmode");
+    }
 }

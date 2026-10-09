@@ -41,9 +41,9 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.13.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.14.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
-                    + "messages, /seen, join and quit lines, and a nickname")
+                    + "messages, /seen, join and quit lines, a nickname, /rules, and /admin for staff")
             .by("Raindancer118");
 
     private LogChannel log;
@@ -132,10 +132,32 @@ public final class EssentialsModule implements FlexModule {
                         context.core().messages(), context.core().itemFactory());
         skyTokens.register(context.core().items(), context.core().itemAbilities());
 
+        de.raindancer.modules.essentials.store.RuleBook ruleBook =
+                new de.raindancer.modules.essentials.store.RuleBook(context.dataFolder().resolve("rules.yml"),
+                        context.dataFolder().resolve("rule-presets.yml"),
+                        () -> EssentialsModule.class.getResourceAsStream("rule-presets.yml"), "friendly-smp");
+        ruleBook.load();
+        de.raindancer.modules.essentials.service.RulesService rules =
+                new de.raindancer.modules.essentials.service.RulesService(ruleBook, context.core().messages(),
+                        context.core().buttons(), settings.current());
+
+        de.raindancer.modules.essentials.service.AdminModeService adminMode =
+                new de.raindancer.modules.essentials.service.AdminModeService(
+                        new de.raindancer.core.data.loadout.LoadoutStore(context.dataFolder().resolve("admin-mode")),
+                        de.raindancer.core.data.loadout.Loadouts.ofTheServer(), context.core().messages(),
+                        context.core().actionBars(), context.core().vanish(),
+                        (who, place) -> {
+                            org.bukkit.World world = server.getWorld(place.world());
+                            if (world != null) {
+                                who.teleportAsync(new org.bukkit.Location(world, place.x(), place.y(), place.z(),
+                                        place.yaw(), place.pitch()));
+                            }
+                        }, settings.current());
+
         services = new EssentialsServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, store, blocklist, spawn, afk, messaging, nicknames, welcome, reactions,
-                enchanting, repairing, fun, skyTokens);
+                enchanting, repairing, fun, skyTokens, rules, adminMode);
 
         settings.onChange(fresh -> {
             spawn.settings(fresh);
@@ -147,6 +169,8 @@ public final class EssentialsModule implements FlexModule {
             enchanting.settings(fresh);
             repairing.settings(fresh);
             fun.settings(fresh);
+            rules.settings(fresh);
+            adminMode.settings(fresh);
             // Shown everywhere or not is decided when a name is applied, so apply them again now.
             for (org.bukkit.entity.Player online : server.getOnlinePlayers()) {
                 de.raindancer.core.platform.util.Scheduling.entity(context.plugin(), online,
@@ -156,6 +180,11 @@ public final class EssentialsModule implements FlexModule {
 
         context.listener(new EssentialsSessionListener(services));
         context.listener(new de.raindancer.modules.essentials.listener.AdvancementListener(services));
+        context.listener(new de.raindancer.modules.essentials.listener.AdminModeListener(services));
+        // A reload while somebody is in admin mode: they are still in it.
+        for (org.bukkit.entity.Player online : server.getOnlinePlayers()) {
+            Scheduling.entity(context.plugin(), online, () -> adminMode.joined(online));
+        }
 
         // "Message" on Core's ProfileMenu — no ServicesManager dance needed, unlike claims/mannequin's
         // pairing: this module already depends on Core directly, so registering is a direct call.
@@ -172,9 +201,10 @@ public final class EssentialsModule implements FlexModule {
         EssentialsCommands.ready(services);
 
         log.info("Essentials are up: {}s to /spawn, AFK after {}s, {} player(s) nicknamed ({} in the "
-                        + "shared directory), {} name(s) blocklisted.",
+                        + "shared directory), {} name(s) blocklisted, {} rule(s), {} rule preset(s).",
                 settings.current().spawnWarmup(), settings.current().afkTimeout(),
-                store == null ? 0 : store.nicknameCount(), synced, blocklist.enabledNameCount());
+                store == null ? 0 : store.nicknameCount(), synced, blocklist.enabledNameCount(),
+                ruleBook.rules().size(), ruleBook.presets().size());
     }
 
     @Override
