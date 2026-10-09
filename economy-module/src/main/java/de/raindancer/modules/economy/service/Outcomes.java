@@ -23,6 +23,7 @@ public final class Outcomes {
             case FROZEN -> "economy.frozen";
             case INVALID_AMOUNT -> "economy.not-an-amount";
             case UNAVAILABLE -> "economy.unavailable";
+            case TREASURY_EMPTY -> "economy.treasury-empty";
             case REFUSED, DONE -> "economy.refused";
         };
         messages.send(player, key, "amount", currency.render(result.amount()),

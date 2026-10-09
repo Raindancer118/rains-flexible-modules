@@ -16,6 +16,7 @@ economy:
   frozen: "<red>That account is frozen. Ask staff."
   unavailable: "<red>The bank is not open right now. Nothing was taken — try again in a moment."
   refused: "<red>That was refused, and nothing moved."
+  treasury-empty: "<red>The server's treasury cannot pay <amount> right now — it fills up again as fees and taxes come in."
   away: "<green>While you were away, <amount> arrived in your account."
 
   menu:
