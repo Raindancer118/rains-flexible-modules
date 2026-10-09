@@ -275,6 +275,13 @@ upkeep:
   cannot-pay: "<gray>You cannot afford to pay any of the <white><owed></white> you owe."
   no-economy: "<gray>There is no economy to pay with right now. Try again later."
   info-line: "<gray>Upkeep: <white><bill></white> every <white><period></white> for this owner's land."
+  owner-only: "<gray>Only the owner and staff can see what this claim's upkeep is made of."
+  admin-off: "<gray>Upkeep is switched off, so nobody can be billed. <dark_gray>/claimadmin → Upkeep"
+  admin-nobody: "<gray>Nobody was billed: none of them holds land."
+  admin-holds-nothing: "<gray><white><player></white> holds no land, so there is nothing to bill."
+  admin-billed: "<green>Billed <white><count></white> owner(s): <white><paid></white> paid <white><took></white>, <white><missed></white> could not pay and now owe <white><owing></white>."
+  admin-totals: "<gold>Upkeep (<white><state></white>): <white><owners></white> owner(s), <white><bills></white> a round, <white><owed></white> unpaid."
+  admin-line: "<gray> <white><player></white> — <white><bill></white> for <chunks> chunk(s), owes <white><owed></white>, next in <white><next></white>"
 
 slot:
   offer: "<gray>You can buy one more claim for <white><price></white>: <white>/claim buyslot</white>, or the button in <white>/claim</white>."

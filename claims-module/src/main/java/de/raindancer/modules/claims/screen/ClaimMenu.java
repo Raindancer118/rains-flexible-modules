@@ -180,15 +180,23 @@ public final class ClaimMenu extends ClaimScreen {
                         "<gray>and what it costs to keep."),
                 click -> new ClaimInfoMenu(services(), viewer, claim, this).open());
 
-        if (claim.isOwner(viewer.getUniqueId()) && services().upkeep().enabled()) {
-            var owed = services().upkeep().owed(viewer.getUniqueId());
-            toolbar(6, Icons.of(owed.isPositive() ? Material.REDSTONE : Material.CLOCK, "<white>Upkeep",
-                            "<gray>Next bill, what it is made of, pay arrears.",
-                            owed.isPositive() ? "<red>You owe "
+        // Staff see it on every claim, for the claim's owner: what a player is paying is the first question
+        // when they complain about it.
+        boolean ownUpkeep = claim.isOwner(viewer.getUniqueId());
+        java.util.UUID payer = ownUpkeep ? viewer.getUniqueId() : claim.primaryOwner();
+        if (services().upkeep().enabled() && payer != null
+                && (ownUpkeep || services().rights().isServerAdmin(viewer))) {
+            var owed = services().upkeep().owed(payer);
+            String who = ownUpkeep ? "You owe " : services().names().nameOfOwner(payer) + " owes ";
+            toolbar(6, Icons.of(owed.isPositive() ? Material.REDSTONE : Material.CLOCK,
+                            ownUpkeep ? "<white>Upkeep" : "<white>Upkeep — " + services().names().nameOfOwner(payer),
+                            ownUpkeep ? "<gray>Next bill, what it is made of, pay arrears."
+                                    : "<gray>The owner's next bill, what it is made of, arrears.",
+                            owed.isPositive() ? "<red>" + who
                                     + de.raindancer.core.social.economy.Fees.format(owed)
                                     : "<dark_gray>" + de.raindancer.core.social.economy.Fees.format(
-                                    services().upkeep().quotedBillFor(viewer.getUniqueId())) + " next"),
-                    click -> new UpkeepMenu(services(), viewer, claim, this).open());
+                                    services().upkeep().quotedBillFor(payer)) + " next"),
+                    click -> new UpkeepMenu(services(), viewer, claim, this, payer).open());
         }
 
         if (services().features().isOffered(ClaimFeature.ENTRY_FEE)) {

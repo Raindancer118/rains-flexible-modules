@@ -263,6 +263,20 @@ public final class AdminClaimBrowserMenu extends PaginatedMenu<Claim> implements
                             "<gray>Checked for safety first."),
                     click -> teleportTo(claim));
 
+            if (services().upkeep().enabled() && claim.primaryOwner() != null) {
+                var payer = claim.primaryOwner();
+                var owed = services().upkeep().owed(payer);
+                band(MenuLayout.RULES, 2, Icons.of(owed.isPositive() ? Material.REDSTONE : Material.CLOCK,
+                                "<aqua>Upkeep",
+                                "<gray>" + services().names().nameOfOwner(payer) + " pays <white>"
+                                        + de.raindancer.core.social.economy.Fees.format(
+                                        services().upkeep().quotedBillFor(payer)) + "</white> a bill",
+                                owed.isPositive() ? "<red>owes " + de.raindancer.core.social.economy.Fees.format(owed)
+                                        : "<dark_gray>nothing owed",
+                                "<dark_gray>click for the breakdown, or to bill now"),
+                        click -> new UpkeepMenu(services(), viewer, claim, this, payer).open());
+            }
+
             band(MenuLayout.RULES, 4, Icons.of(Material.BEACON, "<aqua>Transfer ownership",
                             "<gray>Replaces every current owner.",
                             "<dark_gray>click to choose the new owner"),

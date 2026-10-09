@@ -22,6 +22,7 @@ import de.raindancer.modules.claims.service.EntryFeeService;
 import de.raindancer.modules.claims.service.EquipService;
 import de.raindancer.modules.claims.service.EvictionService;
 import de.raindancer.modules.claims.service.FenceService;
+import de.raindancer.modules.claims.service.UpkeepNotices;
 import de.raindancer.modules.claims.service.UpkeepService;
 import de.raindancer.modules.claims.store.UpkeepStore;
 import de.raindancer.core.social.economy.Debts;
@@ -301,26 +302,7 @@ public final class ClaimsModule implements FlexModule {
     private void startUpkeep(ModuleContext context) {
         upkeep.refreshProtection();
         var task = Scheduling.globalTimer(context.plugin(), 20L * 30, 20L * 60, handle -> {
-            for (UpkeepService.Billing billing : upkeep.settleAll()) {
-                org.bukkit.entity.Player owner = context.plugin().getServer().getPlayer(billing.owner());
-                if (owner == null) {
-                    continue;
-                }
-                boolean paid = billing.outcome() == UpkeepService.Outcome.PAID;
-                if (billing.outcome() == UpkeepService.Outcome.UNAVAILABLE) {
-                    continue;
-                }
-                Scheduling.entity(context.plugin(), owner, () -> {
-                    if (paid) {
-                        services.messages().send(owner, "upkeep.paid-bill",
-                                "amount", Fees.format(billing.amount()),
-                                "chunks", String.valueOf(upkeep.chunksHeld(billing.owner())));
-                    } else {
-                        services.messages().send(owner, "upkeep.missed",
-                                "amount", Fees.format(billing.amount()));
-                    }
-                });
-            }
+            UpkeepNotices.tellOwners(services, upkeep.settleAll());
         });
         context.closeWith(task::cancel);
     }

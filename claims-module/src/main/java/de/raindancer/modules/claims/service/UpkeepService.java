@@ -79,6 +79,14 @@ public final class UpkeepService implements IClaimService, DebtKeeper {
         }
     }
 
+    /** One owner's standing for the admin's overview; {@code bill} is after the price level. */
+    public record Standing(UUID owner, Parts parts, Money bill, Money owed, Optional<Long> nextDue, boolean lapsed) {
+    }
+
+    /** All owners together: how many, what one round of bills comes to, and what is unpaid. */
+    public record Totals(int owners, Money bills, Money owed) {
+    }
+
     private final ClaimRegistry claims;
     private final UpkeepStore store;
     private final LongSupplier clock;
@@ -183,13 +191,7 @@ public final class UpkeepService implements IClaimService, DebtKeeper {
         if (!enabled()) {
             return happened;
         }
-        Set<UUID> owners = new LinkedHashSet<>();
-        for (Claim claim : claims.all()) {
-            if (claim.primaryOwner() != null) {
-                owners.add(claim.primaryOwner());
-            }
-        }
-        for (UUID owner : owners) {
+        for (UUID owner : owners()) {
             Billing billing = settle(owner);
             if (billing.outcome() != Outcome.NOT_DUE) {
                 happened.add(billing);
@@ -197,6 +199,73 @@ public final class UpkeepService implements IClaimService, DebtKeeper {
         }
         refreshProtection();
         return happened;
+    }
+
+    /** Everyone who holds land, in no particular order; server land has no owner and is not among them. */
+    public Set<UUID> owners() {
+        Set<UUID> owners = new LinkedHashSet<>();
+        for (Claim claim : claims.all()) {
+            if (claim.primaryOwner() != null) {
+                owners.add(claim.primaryOwner());
+            }
+        }
+        return owners;
+    }
+
+    /**
+     * Bills these owners now instead of when they are due, skipping any first-sight grace; their next bill is a
+     * full period from now. Owners without land are skipped. Returns what happened to the ones billed.
+     */
+    public List<Billing> billNow(java.util.Collection<UUID> owners) {
+        List<Billing> billed = new ArrayList<>();
+        if (!enabled()) {
+            return billed;
+        }
+        Set<UUID> holding = owners();
+        for (UUID owner : new LinkedHashSet<>(owners)) {
+            if (!holding.contains(owner)) {
+                continue;
+            }
+            synchronized (lockOf(owner)) {
+                // Due now, through the same settle as the timer: the due time is written before the money is
+                // asked for, so this can no more charge twice than a regular bill can.
+                UpkeepAccount account = account(owner);
+                put(owner, new UpkeepAccount(clock.getAsLong(), account.owed(), account.since()));
+                billed.add(settle(owner));
+            }
+        }
+        refreshProtection();
+        return billed;
+    }
+
+    public List<Billing> billEveryoneNow() {
+        return billNow(owners());
+    }
+
+    // ------------------------------------------------------------ overview
+
+    /** Every owner holding land, the dearest bill first. */
+    public List<Standing> standings() {
+        List<Standing> standings = new ArrayList<>();
+        for (UUID owner : owners()) {
+            Parts parts = partsFor(owner);
+            standings.add(new Standing(owner, parts, Fees.quote(SOURCE, parts.total()), owed(owner),
+                    nextDue(owner), lapsed(owner)));
+        }
+        standings.sort(java.util.Comparator.comparing((Standing each) -> each.bill().minor()).reversed()
+                .thenComparing(each -> each.owner().toString()));
+        return standings;
+    }
+
+    public Totals totals() {
+        Money bills = Money.ZERO;
+        Money owed = Money.ZERO;
+        List<Standing> all = standings();
+        for (Standing each : all) {
+            bills = bills.plus(each.bill());
+            owed = owed.plus(each.owed());
+        }
+        return new Totals(all.size(), bills, owed);
     }
 
     public Billing settle(UUID owner) {

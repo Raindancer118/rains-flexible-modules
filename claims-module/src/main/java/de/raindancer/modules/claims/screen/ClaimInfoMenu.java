@@ -58,14 +58,23 @@ public final class ClaimInfoMenu extends ClaimScreen {
                 "<dark_gray>claimed " + Instant.ofEpochMilli(claim.createdAt())));
 
         boolean mine = services().upkeep().enabled() && claim.isOwner(viewer.getUniqueId());
+        boolean staff = services().upkeep().enabled() && claim.primaryOwner() != null
+                && services().rights().isServerAdmin(viewer);
         List<String> cost = costLines(claim);
         if (mine) {
             cost.add("");
             cost.add("<dark_gray>click for your upkeep and to pay it");
+        } else if (staff) {
+            cost.add("");
+            cost.add("<dark_gray>click for the owner's upkeep");
         }
         toolbar(4, Icons.of(costIcon(claim), "<white>What it cost", cost), click -> {
             if (mine) {
                 new UpkeepMenu(services(), viewer, claim, this).open();
+            } else if (staff) {
+                new UpkeepMenu(services(), viewer, claim, this, claim.primaryOwner()).open();
+            } else if (services().upkeep().enabled()) {
+                services().messages().send(viewer, "upkeep.owner-only");
             }
         });
     }
@@ -136,6 +145,16 @@ public final class ClaimInfoMenu extends ClaimScreen {
         }
         if (parts.discounted()) {
             lines.add("<gold>The owner pays " + (long) parts.payPercent() + "% of it");
+        }
+        if (services().rights().isServerAdmin(viewer)) {
+            var owed = upkeep.owed(owner);
+            lines.add(owed.isPositive()
+                    ? "<red>Owed: <white>" + de.raindancer.core.social.economy.Fees.format(owed)
+                    : "<gray>Owed: <white>nothing");
+            lines.add(upkeep.nextDue(owner).map(due -> "<gray>Next bill in <white>"
+                            + de.raindancer.core.moderation.punishment.Durations.describe(
+                                    Duration.ofMillis(Math.max(0L, due - System.currentTimeMillis()))) + "</white>")
+                    .orElse("<gray>Not billed yet"));
         }
         if (claim.lapsed()) {
             lines.add("<red>Unpaid for too long: not protecting right now");

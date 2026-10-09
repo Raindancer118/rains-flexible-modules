@@ -80,6 +80,7 @@ public final class ClaimAdminCommand implements IClaimCommand {
             case "stick" -> giveStick(claims, sender, args);
             case "save" -> save(claims, sender);
             case "manual", "book", "guide" -> manual(claims, sender);
+            case "upkeep", "rent" -> upkeep(claims, sender, args);
             default -> {
                 if (!MistypedCommand.subcommand(sender, "claimadmin", args, 0, suggest(source, new String[]{""}))) {
                     claims.messages().send(sender, "claim.unknown-subcommand", "word", args[0]);
@@ -148,6 +149,62 @@ public final class ClaimAdminCommand implements IClaimCommand {
                 new de.raindancer.modules.claims.util.ManualBook(claims,
                         de.raindancer.modules.claims.util.ManualBook.Edition.ADMIN);
         player.openBook(manual.asBook());
+    }
+
+    /**
+     * {@code /claimadmin upkeep} lists what every owner pays and owes; {@code upkeep billnow all} or
+     * {@code upkeep billnow <player> [player…]} charges them now instead of when they are due.
+     */
+    private void upkeep(ClaimServices claims, CommandSender sender, String[] args) {
+        if (sender instanceof Player player && !claims.rights().isServerAdmin(player)) {
+            claims.messages().send(player, "error.not-allowed");
+            return;
+        }
+        var upkeep = claims.upkeep();
+        if (args.length >= 2 && args[1].equalsIgnoreCase("billnow")) {
+            if (args.length < 3) {
+                claims.messages().send(sender, "claim.who", "usage", "/claimadmin upkeep billnow <all|player…>");
+                return;
+            }
+            List<UUID> owners = new ArrayList<>();
+            if (args[2].equalsIgnoreCase("all")) {
+                owners.addAll(upkeep.owners());
+            } else {
+                for (int at = 2; at < args.length; at++) {
+                    Optional<UUID> who = Subjects.one(claims.server(), claims.messages(), sender, args[at]);
+                    if (who.isEmpty()) {
+                        return;
+                    }
+                    if (!upkeep.owners().contains(who.get())) {
+                        claims.messages().send(sender, "upkeep.admin-holds-nothing", "player", args[at]);
+                        return;
+                    }
+                    owners.add(who.get());
+                }
+            }
+            de.raindancer.modules.claims.service.UpkeepNotices.billNowAndReport(claims, sender, owners);
+            return;
+        }
+        if (sender instanceof Player player && args.length == 1) {
+            new de.raindancer.modules.claims.screen.UpkeepLedgerMenu(claims, player, null).open();
+            return;
+        }
+        var totals = upkeep.totals();
+        claims.messages().send(sender, "upkeep.admin-totals",
+                "owners", String.valueOf(totals.owners()),
+                "bills", de.raindancer.core.social.economy.Fees.format(totals.bills()),
+                "owed", de.raindancer.core.social.economy.Fees.format(totals.owed()),
+                "state", upkeep.enabled() ? "on" : "off");
+        for (var standing : upkeep.standings()) {
+            claims.messages().sendPlain(sender, "upkeep.admin-line",
+                    "player", claims.names().nameOfOwner(standing.owner()),
+                    "bill", de.raindancer.core.social.economy.Fees.format(standing.bill()),
+                    "chunks", String.valueOf(standing.parts().chunks()),
+                    "owed", de.raindancer.core.social.economy.Fees.format(standing.owed()),
+                    "next", standing.nextDue().map(due -> de.raindancer.core.moderation.punishment.Durations
+                            .describe(java.time.Duration.ofMillis(Math.max(0L, due - System.currentTimeMillis()))))
+                            .orElse("not yet"));
+        }
     }
 
     /**
@@ -442,7 +499,7 @@ public final class ClaimAdminCommand implements IClaimCommand {
         if (args.length <= 1) {
             List<String> words = new ArrayList<>(List.of(
                     "bypass", "overview", "flags", "zone", "reload", "delete", "transfer", "why",
-                    "here", "alignvisitors", "stick", "save", "manual"));
+                    "here", "alignvisitors", "stick", "save", "manual", "upkeep"));
             if (args.length == 1) {
                 String prefix = args[0].toLowerCase(Locale.ROOT);
                 words.removeIf(word -> !word.startsWith(prefix));
@@ -454,6 +511,24 @@ public final class ClaimAdminCommand implements IClaimCommand {
             List<String> claims = new ArrayList<>(services.get().names().suggestions(null));
             claims.removeIf(claim -> !claim.toLowerCase(Locale.ROOT).startsWith(prefix));
             return claims;
+        }
+        if (args[0].equalsIgnoreCase("upkeep")) {
+            if (args.length == 2) {
+                return "billnow".startsWith(args[1].toLowerCase(Locale.ROOT)) ? List.of("billnow") : List.of();
+            }
+            if (args[1].equalsIgnoreCase("billnow")) {
+                List<String> words = new ArrayList<>();
+                if (args.length == 3) {
+                    words.add("all");
+                }
+                for (UUID owner : services.get().upkeep().owners()) {
+                    words.add(services.get().names().nameOfOwner(owner));
+                }
+                String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
+                words.removeIf(word -> word == null || !word.toLowerCase(Locale.ROOT).startsWith(prefix));
+                return words;
+            }
+            return List.of();
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("stick")
                 || args.length == 3 && args[0].equalsIgnoreCase("transfer")) {

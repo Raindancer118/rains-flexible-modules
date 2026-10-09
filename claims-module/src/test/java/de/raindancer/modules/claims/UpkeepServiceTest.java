@@ -376,4 +376,113 @@ class UpkeepServiceTest {
         service.discount(who -> true);
         assertThat(service.billFor(OWNER)).isEqualTo(Money.of(2000));
     }
+    @Test
+    @DisplayName("billing now charges an owner still in their grace period at once, and the next bill is a period later")
+    void billNowSkipsTheWait() {
+        claim(OWNER, 0, 2);
+        bank.balances.put(OWNER, 1_000_000L);
+        UpkeepService service = service(upkeep("10", 0, 0));
+        service.settle(OWNER);
+
+        List<UpkeepService.Billing> billed = service.billNow(List.of(OWNER));
+
+        assertThat(billed).extracting(UpkeepService.Billing::outcome).containsExactly(UpkeepService.Outcome.PAID);
+        assertThat(bank.calls).containsExactly("withdraw 2000 claims.upkeep DONE");
+        assertThat(service.nextDue(OWNER)).hasValue(now[0] + 24 * HOUR);
+        assertThat(service.settle(OWNER).outcome()).isEqualTo(UpkeepService.Outcome.NOT_DUE);
+    }
+
+    @Test
+    @DisplayName("billing now works on an owner never seen before, with no grace")
+    void billNowFirstSight() {
+        claim(OWNER, 0, 1);
+        bank.balances.put(OWNER, 1_000_000L);
+        UpkeepService service = service(upkeep("10", 0, 0));
+
+        assertThat(service.billNow(List.of(OWNER)).get(0).outcome()).isEqualTo(UpkeepService.Outcome.PAID);
+        assertThat(bank.calls).containsExactly("withdraw 1000 claims.upkeep DONE");
+    }
+
+    @Test
+    @DisplayName("billing one owner now leaves everybody else on their own schedule")
+    void billNowOnlyThoseNamed() {
+        UUID other = UUID.randomUUID();
+        claim(OWNER, 0, 1);
+        claim(other, 4096, 1);
+        bank.balances.put(OWNER, 1_000_000L);
+        bank.balances.put(other, 1_000_000L);
+        UpkeepService service = service(upkeep("10", 0, 0));
+        service.settleAll();
+        long otherDue = service.nextDue(other).orElseThrow();
+
+        service.billNow(List.of(OWNER));
+
+        assertThat(bank.calls).hasSize(1);
+        assertThat(bank.balances.get(other)).isEqualTo(1_000_000L);
+        assertThat(service.nextDue(other)).hasValue(otherDue);
+    }
+
+    @Test
+    @DisplayName("billing now somebody who cannot pay puts them in arrears like a regular bill")
+    void billNowArrears() {
+        claim(OWNER, 0, 2);
+        UpkeepService service = service(upkeep("10", 0, 0));
+        assertThat(service.billNow(List.of(OWNER)).get(0).outcome()).isEqualTo(UpkeepService.Outcome.ARREARS);
+        assertThat(service.owed(OWNER)).isEqualTo(Money.of(2000));
+    }
+
+    @Test
+    @DisplayName("billing now bills nobody while upkeep is off, nor an owner without land")
+    void billNowRespectsTheSwitchAndLand() {
+        claim(OWNER, 0, 2);
+        UUID landless = UUID.randomUUID();
+        bank.balances.put(OWNER, 1_000_000L);
+        assertThat(service(ClaimSettings.DEFAULTS).billNow(List.of(OWNER))).isEmpty();
+
+        UpkeepService on = service(upkeep("10", 0, 0));
+        assertThat(on.billNow(List.of(landless))).isEmpty();
+        assertThat(bank.calls).isEmpty();
+        assertThat(on.nextDue(landless)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("billing everyone now charges every owner, never server land")
+    void billEveryoneNow() {
+        UUID other = UUID.randomUUID();
+        claim(OWNER, 0, 1);
+        claim(other, 4096, 2);
+        claim(null, 8192, 3);
+        bank.balances.put(OWNER, 1_000_000L);
+        bank.balances.put(other, 1_000_000L);
+        UpkeepService service = service(upkeep("10", 0, 0));
+        service.settleAll();
+
+        assertThat(service.billEveryoneNow()).hasSize(2);
+        assertThat(bank.calls).containsExactlyInAnyOrder(
+                "withdraw 1000 claims.upkeep DONE", "withdraw 2000 claims.upkeep DONE");
+    }
+
+    @Test
+    @DisplayName("the standings list every owner with land, dearest first, with bill, debt and next due")
+    void standings() {
+        UUID other = UUID.randomUUID();
+        claim(OWNER, 0, 1);
+        claim(other, 4096, 3);
+        claim(null, 8192, 3);
+        UpkeepService service = service(upkeep("10", 0, 0));
+        service.settle(OWNER);
+        service.billNow(List.of(other));
+
+        List<UpkeepService.Standing> standings = service.standings();
+
+        assertThat(standings).extracting(UpkeepService.Standing::owner).containsExactly(other, OWNER);
+        UpkeepService.Standing dear = standings.get(0);
+        assertThat(dear.bill()).isEqualTo(Money.of(3000));
+        assertThat(dear.owed()).isEqualTo(Money.of(3000));
+        assertThat(dear.parts().chunks()).isEqualTo(3);
+        assertThat(standings.get(1).nextDue()).hasValue(now[0] + 24 * HOUR);
+        assertThat(service.totals().bills()).isEqualTo(Money.of(4000));
+        assertThat(service.totals().owed()).isEqualTo(Money.of(3000));
+        assertThat(service.totals().owners()).isEqualTo(2);
+    }
 }

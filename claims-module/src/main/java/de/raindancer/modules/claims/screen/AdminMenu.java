@@ -97,6 +97,16 @@ public final class AdminMenu extends ClaimScreen {
                         config.upkeepEnabled() ? "<green>on" : "<dark_gray>off"),
                 click -> settings("management/upkeep"));
 
+        var totals = services().upkeep().totals();
+        band(MenuLayout.RULES, 6, Icons.of(Material.CLOCK, "<gold>What everyone pays",
+                        "<gray>Every owner's upkeep, debt and next bill;",
+                        "<gray>bill everyone or only some of them now.",
+                        "<dark_gray>" + totals.owners() + " owner(s), "
+                                + de.raindancer.core.social.economy.Fees.format(totals.bills()) + " a round"
+                                + (totals.owed().isPositive() ? ", "
+                                + de.raindancer.core.social.economy.Fees.format(totals.owed()) + " unpaid" : "")),
+                click -> new UpkeepLedgerMenu(services(), viewer, this).open());
+
         band(MenuLayout.WHO, 7, Icons.of(Material.SPYGLASS,
                         services().land().isBypassing(viewer)
                                 ? "<green>Bypass is on" : "<gray>Bypass is off",
