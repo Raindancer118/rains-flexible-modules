@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.14.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.15.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, a nickname, /rules, and /admin for staff")
             .by("Raindancer118");
@@ -145,7 +145,7 @@ public final class EssentialsModule implements FlexModule {
                 new de.raindancer.modules.essentials.service.AdminModeService(
                         new de.raindancer.core.data.loadout.LoadoutStore(context.dataFolder().resolve("admin-mode")),
                         de.raindancer.core.data.loadout.Loadouts.ofTheServer(), context.core().messages(),
-                        context.core().actionBars(), context.core().vanish(),
+                        context.core().actionBars(), context.core().vanish(), context.core().powers(),
                         (who, place) -> {
                             org.bukkit.World world = server.getWorld(place.world());
                             if (world != null) {

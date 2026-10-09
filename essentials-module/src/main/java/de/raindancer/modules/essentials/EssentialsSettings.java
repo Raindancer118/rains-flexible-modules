@@ -121,8 +121,8 @@ public record EssentialsSettings(
         @Describe("Whether /admin exists at all. Off lets nobody in; anybody already in can still get out.")
         boolean adminModeEnabled,
 
-        @In("essentials/admin") @Title("Game mode the first time")
-        @Describe("What somebody's admin side starts as. After that it keeps whatever they left it in.")
+        @In("essentials/admin") @Title("Game mode in admin mode")
+        @Describe("Put on every time somebody goes in, whatever their admin side was left in.")
         GameMode adminGameMode,
 
         @In("essentials/admin") @Title("Back to where you were")
@@ -137,7 +137,15 @@ public record EssentialsSettings(
         @In("essentials/admin") @Title("Keep admin items apart")
         @Describe("In admin mode nothing can be dropped, picked up, put in a chest, traded or placed in a "
                 + "frame, pot or shelf, so admin items never reach the survival side.")
-        boolean adminKeepItemsApart
+        boolean adminKeepItemsApart,
+
+        @In("essentials/admin") @Title("Flight in admin mode")
+        @Describe("Going in lets you fly; coming out gives your own side back as it was.")
+        boolean adminFly,
+
+        @In("essentials/admin") @Title("God mode in admin mode")
+        @Describe("Nothing can hurt you while in admin mode. God mode you had before is left alone.")
+        boolean adminGod
 
 ) {
 
@@ -151,7 +159,7 @@ public record EssentialsSettings(
                             "Look at {name} go", "Absolute legend, {name}", "{name}'s mom would be proud",
                             "Someone call the news, {name} did it", "Huge W for {name}",
                             "Not bad for a beginner, {name}", "And they said {name} couldn't do it"),
-                    true, true, 20, true, true, GameMode.CREATIVE, true, false, true);
+                    true, true, 20, true, true, GameMode.SURVIVAL, true, false, true, true, true);
 
     public EssentialsSettings {
         hiGreetings = hiGreetings == null ? List.of() : List.copyOf(hiGreetings);
@@ -175,7 +183,7 @@ public record EssentialsSettings(
 
     /** Clamped, so a nickname cannot be asked to be longer than the setting that bounds it. */
     public GameMode adminStartingGameMode() {
-        return adminGameMode == null ? GameMode.CREATIVE : adminGameMode;
+        return adminGameMode == null ? GameMode.SURVIVAL : adminGameMode;
     }
 
     public int nicknameLimit() {
@@ -183,42 +191,50 @@ public record EssentialsSettings(
     }
 
     public EssentialsSettings withAfkEnabled(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, value, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart);
+        return new EssentialsSettings(spawnWarmupSeconds, value, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart, adminFly, adminGod);
     }
 
     public EssentialsSettings withNicknameMaxLength(int value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, value, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, value, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart, adminFly, adminGod);
     }
 
     public EssentialsSettings withNicknameShownEverywhere(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, value, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, value, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart, adminFly, adminGod);
     }
 
     public EssentialsSettings withSayHiButton(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, value, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, value, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart, adminFly, adminGod);
     }
 
     public EssentialsSettings withCongratsButton(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, value, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, value, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart, adminFly, adminGod);
     }
 
     public EssentialsSettings withRulesOnFirstJoin(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, value, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, value, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart, adminFly, adminGod);
     }
 
     public EssentialsSettings withAdminModeEnabled(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, value, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, value, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart, adminFly, adminGod);
     }
 
     public EssentialsSettings withAdminVanish(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, value, adminKeepItemsApart);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, value, adminKeepItemsApart, adminFly, adminGod);
     }
 
     public EssentialsSettings withAdminReturnToPlace(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, value, adminVanish, adminKeepItemsApart);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, value, adminVanish, adminKeepItemsApart, adminFly, adminGod);
     }
 
     public EssentialsSettings withAdminKeepItemsApart(boolean value) {
-        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, value);
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, value, adminFly, adminGod);
+    }
+
+    public EssentialsSettings withAdminFly(boolean value) {
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart, value, adminGod);
+    }
+
+    public EssentialsSettings withAdminGod(boolean value) {
+        return new EssentialsSettings(spawnWarmupSeconds, afkEnabled, afkTimeoutSeconds, afkBroadcast, joinQuitEnabled, welcomeFirstJoin, nicknamesEnabled, nicknameMaxLength, nicknameShownEverywhere, sayHiButton, hiGreetings, congratsButton, congratsPhrases, roastEnabled, jokeEnabled, funCooldownSeconds, rulesOnFirstJoin, adminModeEnabled, adminGameMode, adminReturnToPlace, adminVanish, adminKeepItemsApart, adminFly, value);
     }
 }

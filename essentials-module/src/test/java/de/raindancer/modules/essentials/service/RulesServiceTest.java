@@ -103,4 +103,22 @@ class RulesServiceTest {
         verify(messages, never()).send(eq(other), anyString(), any(Object[].class));
         verify(messages, never()).send(other, "essentials.rules.header");
     }
+
+    @Test
+    @DisplayName("taking one rule from a preset adds just that one, and never the same rule twice")
+    void takeFromPreset() {
+        CommandSender manager = mock(CommandSender.class);
+        book.applyPreset("base");
+        book.remove(book.rules().getLast().id());
+
+        assertThat(service.takeFromPreset(manager, "base", 2)).isTrue();
+        assertThat(book.rules()).extracting(HouseRule::title).containsExactly("One", "Two");
+        verify(messages).send(manager, "essentials.rules.preset.took", "title", "Two", "number", 2);
+
+        assertThat(service.takeFromPreset(manager, "base", 2)).as("already there").isFalse();
+        verify(messages).send(manager, "essentials.rules.preset.already-have", "title", "Two");
+        assertThat(service.takeFromPreset(manager, "base", 9)).isFalse();
+        assertThat(service.takeFromPreset(manager, "nope", 1)).isFalse();
+        assertThat(book.rules()).hasSize(2);
+    }
 }

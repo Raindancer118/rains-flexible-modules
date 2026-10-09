@@ -39,20 +39,25 @@ public final class AdminModeService implements IEssentialsService {
     private final Messages messages;
     private final ActionBars actionBars;
     private final Vanish vanish;
+    private final de.raindancer.core.moderation.players.PlayerPowers powers;
     private final BiConsumer<Player, Loadout.Place> moveTo;
     private volatile EssentialsSettings settings;
 
     private final Set<UUID> inAdminMode = ConcurrentHashMap.newKeySet();
     /** Vanished by going in, so coming out shows them again; anybody vanished before stays vanished. */
     private final Set<UUID> vanishedByUs = ConcurrentHashMap.newKeySet();
+    /** The same for god mode: only what going in switched on is switched off coming out. */
+    private final Set<UUID> godByUs = ConcurrentHashMap.newKeySet();
 
     public AdminModeService(LoadoutStore store, Loadouts loadouts, Messages messages, ActionBars actionBars,
-                            Vanish vanish, BiConsumer<Player, Loadout.Place> moveTo, EssentialsSettings settings) {
+                            Vanish vanish, de.raindancer.core.moderation.players.PlayerPowers powers,
+                            BiConsumer<Player, Loadout.Place> moveTo, EssentialsSettings settings) {
         this.store = store;
         this.loadouts = loadouts;
         this.messages = messages;
         this.actionBars = actionBars;
         this.vanish = vanish;
+        this.powers = powers;
         this.moveTo = moveTo;
         this.settings = settings;
     }
@@ -122,9 +127,7 @@ public final class AdminModeService implements IEssentialsService {
         }
         inAdminMode.add(id);
         player.saveData();
-        if (settings.adminVanish() && !vanish.isVanished(id) && vanish.vanish(id)) {
-            vanishedByUs.add(id);
-        }
+        powersOn(player);
         showBar(id);
         messages.send(player, "essentials.admin.entered");
         return true;
@@ -156,9 +159,7 @@ public final class AdminModeService implements IEssentialsService {
         store.delete(id, SURVIVAL);
         inAdminMode.remove(id);
         player.saveData();
-        if (vanishedByUs.remove(id)) {
-            vanish.reveal(id);
-        }
+        powersOff(id);
         actionBars.clear(id, BAR);
         if (settings.adminReturnToPlace() && survival.place() != null) {
             moveTo.accept(player, survival.place());
@@ -184,9 +185,7 @@ public final class AdminModeService implements IEssentialsService {
             leave(player);
             return;
         }
-        if (settings.adminVanish() && !vanish.isVanished(id) && vanish.vanish(id)) {
-            vanishedByUs.add(id);
-        }
+        powersOn(player);
         showBar(id);
         messages.send(player, "essentials.admin.still-in");
     }
@@ -194,8 +193,33 @@ public final class AdminModeService implements IEssentialsService {
     /** They stay in admin mode while away; only what is held in memory goes. */
     public void forget(UUID player) {
         inAdminMode.remove(player);
-        if (vanishedByUs.remove(player)) {
-            vanish.reveal(player);
+        powersOff(player);
+    }
+
+    /**
+     * What admin mode is on top of the admin side's own things: its game mode every time, flight, god mode and
+     * vanish as the owner set them. Flight comes back with the survival side's own loadout on the way out.
+     */
+    private void powersOn(Player player) {
+        UUID id = player.getUniqueId();
+        player.setGameMode(settings.adminStartingGameMode());
+        if (settings.adminFly()) {
+            player.setAllowFlight(true);
+        }
+        if (settings.adminGod() && !powers.isInvulnerable(id) && powers.god(id, true)) {
+            godByUs.add(id);
+        }
+        if (settings.adminVanish() && !vanish.isVanished(id) && vanish.vanish(id)) {
+            vanishedByUs.add(id);
+        }
+    }
+
+    private void powersOff(UUID id) {
+        if (godByUs.remove(id)) {
+            powers.god(id, false);
+        }
+        if (vanishedByUs.remove(id)) {
+            vanish.reveal(id);
         }
     }
 

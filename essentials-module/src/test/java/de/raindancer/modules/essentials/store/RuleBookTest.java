@@ -146,4 +146,19 @@ class RuleBookTest {
         assertThat(book.byNumber(0)).isEmpty();
         assertThat(book.byNumber(3)).isEmpty();
     }
+
+    @Test
+    @DisplayName("a single rule taken from a preset is added at the end, the other rules untouched")
+    void takeOne(@TempDir Path folder) {
+        RuleBook book = book(folder);
+        HouseRule taken = book.preset("anarchy").orElseThrow().rules().getFirst();
+
+        HouseRule added = book.addCopy(taken);
+
+        assertThat(book.rules()).extracting(HouseRule::title).containsExactly("Be kind", "No griefing", "No rules");
+        assertThat(added.id()).isNotNull().isNotEqualTo(taken.id());
+        assertThat(book(folder).rules()).hasSize(3);
+        assertThat(book.has(taken)).isTrue();
+        assertThat(book.has(book.preset("friendly-smp").orElseThrow().rules().getLast())).isTrue();
+    }
 }

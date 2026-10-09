@@ -97,6 +97,22 @@ public final class RuleBook {
         return rule;
     }
 
+    /** A copy of a rule from somewhere else — a preset — at the end, with an id of its own. */
+    public synchronized HouseRule addCopy(HouseRule from) {
+        HouseRule rule = from.withId(newId()).withEnabled(true);
+        List<HouseRule> next = new ArrayList<>(rules);
+        next.add(rule);
+        rules = List.copyOf(next);
+        saveRules();
+        return rule;
+    }
+
+    /** Whether a rule saying the same thing — same title and text, whatever the case — is already in use. */
+    public synchronized boolean has(HouseRule rule) {
+        return rules.stream().anyMatch(own -> own.title().equalsIgnoreCase(rule.title())
+                && own.text().equalsIgnoreCase(rule.text()));
+    }
+
     /** @return whether there was such a rule */
     public synchronized boolean update(String id, UnaryOperator<HouseRule> change) {
         List<HouseRule> next = new ArrayList<>(rules);

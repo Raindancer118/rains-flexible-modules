@@ -26,7 +26,7 @@ import java.util.function.Supplier;
 public final class RulesCommand implements IEssentialsCommand {
 
     static final List<String> MANAGING = List.of("edit", "add", "remove", "preset");
-    static final List<String> PRESET_WORDS = List.of("list", "apply", "save", "delete");
+    static final List<String> PRESET_WORDS = List.of("list", "show", "take", "apply", "save", "delete");
 
     private static final String ADD_USAGE = "/rules add <title> | <text>";
     private static final String CONFIRM = "confirm";
@@ -118,6 +118,15 @@ public final class RulesCommand implements IEssentialsCommand {
         String name = args[2];
         boolean confirmed = args.length > 3 && args[3].equalsIgnoreCase(CONFIRM);
         switch (what) {
+            case "show" -> live.rules().showPreset(sender, name);
+            case "take" -> {
+                Optional<Integer> which = args.length > 3 ? number(args[3]) : Optional.empty();
+                if (which.isEmpty()) {
+                    live.messages().send(sender, "essentials.usage", "usage", "/rules preset take <name> <number>");
+                } else {
+                    live.rules().takeFromPreset(sender, name, which.get());
+                }
+            }
             case "save" -> live.rules().savePreset(sender, name,
                     String.join(" ", Arrays.copyOfRange(args, 3, args.length)));
             case "apply" -> {
@@ -176,7 +185,7 @@ public final class RulesCommand implements IEssentialsCommand {
         } else if (args[0].equalsIgnoreCase("preset") && args.length == 2) {
             options.addAll(PRESET_WORDS);
         } else if (args[0].equalsIgnoreCase("preset") && args.length == 3
-                && List.of("apply", "delete", "save").contains(args[1].toLowerCase(Locale.ROOT))) {
+                && List.of("show", "take", "apply", "delete", "save").contains(args[1].toLowerCase(Locale.ROOT))) {
             services.get().rules().book().presets().stream().map(RulePreset::name).forEach(options::add);
         } else if (args[0].equalsIgnoreCase("remove") && args.length == 2) {
             for (int number = 1; number <= services.get().rules().book().rules().size(); number++) {

@@ -188,6 +188,9 @@ essentials:
       confirm-apply: "<yellow>This replaces every rule in use with those of <white><name></white>. Click below, or type <white><command></white>."
       confirm-delete: "<yellow>This deletes the preset <white><name></white> for good. Click below, or type <white><command></white>."
       confirm-button: "<red>[Yes, do it]"
+      showing: "<gold>Rules in the preset <white><name></white>:"
+      took: "<green>Added <white><title></white> as rule <white><number></white>."
+      already-have: "<gray>You already have <white><title></white>. Once is enough, even for good advice."
 
   # ── /admin ────────────────────────────────────────────────────────────────
   admin:

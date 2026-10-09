@@ -16,7 +16,7 @@ import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Every preset: click puts its rules in place of the current ones, shift-click deletes it. */
+/** Every preset: click opens it to pick single rules, right click uses all of them, shift-click deletes it. */
 public final class RulePresetsMenu extends PaginatedMenu<RulePreset> {
 
     private static final int RULES_IN_LORE = 8;
@@ -59,7 +59,8 @@ public final class RulePresetsMenu extends PaginatedMenu<RulePreset> {
             lore.add("<dark_gray>… and " + (rules.size() - RULES_IN_LORE) + " more");
         }
         lore.add("");
-        lore.add("<dark_gray>click to use these rules");
+        lore.add("<dark_gray>click to pick single rules from it");
+        lore.add("<dark_gray>right-click to use all of them");
         lore.add("<dark_gray>shift-click to delete the preset");
         return Icons.of(Material.ENCHANTED_BOOK, "<gold>" + RulesMenu.escaped(preset.name()), lore);
     }
@@ -74,6 +75,10 @@ public final class RulePresetsMenu extends PaginatedMenu<RulePreset> {
                         services.rules().deletePreset(viewer, preset.name());
                         open();
                     }).open();
+            return;
+        }
+        if (!event.isRightClick()) {
+            new RulePresetMenu(services, viewer, preset.name(), this).open();
             return;
         }
         int current = services.rules().book().rules().size();

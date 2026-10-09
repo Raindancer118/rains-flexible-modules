@@ -106,6 +106,8 @@ public final class EssentialsCommands {
                                 "add <title> | <text> — a new rule at the end",
                                 "remove <number>",
                                 "preset [list] — every preset",
+                                "preset show <name> — its rules, numbered",
+                                "preset take <name> <number> — add just that rule to yours",
                                 "preset apply <name> — replace every rule with the preset's",
                                 "preset save <name> [description] — keep the current rules as a preset",
                                 "preset delete <name>"),

@@ -38,6 +38,8 @@ class AdminModeServiceTest {
     private final Messages messages = mock(Messages.class);
     private final ActionBars actionBars = mock(ActionBars.class);
     private final Vanish vanish = mock(Vanish.class);
+    private final de.raindancer.core.moderation.players.PlayerPowers powers =
+            mock(de.raindancer.core.moderation.players.PlayerPowers.class);
     private final List<Loadout.Place> movedTo = new ArrayList<>();
     private final UUID id = UUID.randomUUID();
     private final Player player = mock(Player.class);
@@ -53,12 +55,13 @@ class AdminModeServiceTest {
     @BeforeEach
     void setUp() {
         store = new LoadoutStore(folder);
-        service = new AdminModeService(store, loadouts, messages, actionBars, vanish,
+        service = new AdminModeService(store, loadouts, messages, actionBars, vanish, powers,
                 (who, place) -> movedTo.add(place), EssentialsSettings.DEFAULTS);
         when(player.getUniqueId()).thenReturn(id);
         when(player.getName()).thenReturn("Tom");
         when(player.hasPermission(PermissionNodes.ADMIN_MODE)).thenReturn(true);
         when(loadouts.apply(any(), any())).thenReturn(true);
+        when(powers.god(id, true)).thenReturn(true);
     }
 
     @Test
@@ -70,8 +73,46 @@ class AdminModeServiceTest {
 
         assertThat(service.isInAdminMode(id)).isTrue();
         assertThat(store.load(id, AdminModeService.SURVIVAL)).contains(SURVIVAL);
-        verify(loadouts).apply(player, Loadout.empty(GameMode.CREATIVE.name()));
+        verify(loadouts).apply(player, Loadout.empty(GameMode.SURVIVAL.name()));
         verify(messages).send(player, "essentials.admin.entered");
+    }
+
+    @Test
+    @DisplayName("admin mode is survival with flight and god mode — every time, whatever the admin side was left in")
+    void survivalFlyGod() {
+        when(loadouts.capture(player)).thenReturn(SURVIVAL, ADMIN_NOW, SURVIVAL);
+        service.toggle(player);
+        verify(player).setGameMode(GameMode.SURVIVAL);
+        verify(player).setAllowFlight(true);
+        verify(powers).god(id, true);
+
+        service.toggle(player);
+        verify(powers).god(id, false);
+
+        // ADMIN_NOW was left in creative; it comes back as survival all the same.
+        org.mockito.Mockito.clearInvocations(player);
+        service.toggle(player);
+        verify(player).setGameMode(GameMode.SURVIVAL);
+    }
+
+    @Test
+    @DisplayName("god mode somebody had before going in is not taken away on the way out")
+    void godFromBefore() {
+        when(powers.isInvulnerable(id)).thenReturn(true);
+        when(loadouts.capture(player)).thenReturn(SURVIVAL, ADMIN_NOW);
+        service.toggle(player);
+        service.toggle(player);
+        verify(powers, never()).god(id, false);
+    }
+
+    @Test
+    @DisplayName("flight and god can each be switched off by the owner")
+    void ownerSwitches() {
+        service.settings(EssentialsSettings.DEFAULTS.withAdminFly(false).withAdminGod(false));
+        when(loadouts.capture(player)).thenReturn(SURVIVAL);
+        service.toggle(player);
+        verify(player, never()).setAllowFlight(true);
+        verify(powers, never()).god(any(), org.mockito.ArgumentMatchers.eq(true));
     }
 
     @Test
@@ -151,7 +192,7 @@ class AdminModeServiceTest {
         when(loadouts.capture(player)).thenReturn(SURVIVAL);
         service.toggle(player);
 
-        AdminModeService afterRestart = new AdminModeService(store, loadouts, messages, actionBars, vanish,
+        AdminModeService afterRestart = new AdminModeService(store, loadouts, messages, actionBars, vanish, powers,
                 (who, place) -> movedTo.add(place), EssentialsSettings.DEFAULTS);
         afterRestart.joined(player);
 

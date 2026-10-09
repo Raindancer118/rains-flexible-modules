@@ -161,6 +161,42 @@ public final class RulesService implements IEssentialsService {
         return true;
     }
 
+    /** @param number counting from one, as {@code /rules preset show} lists the preset's rules */
+    public boolean takeFromPreset(CommandSender by, String typedName, int number) {
+        Optional<RulePreset> preset = book.preset(HouseRuleTextRule.presetName(typedName));
+        if (preset.isEmpty()) {
+            messages.send(by, "essentials.rules.preset.no-such", "name", typedName);
+            return false;
+        }
+        List<HouseRule> offered = preset.get().rules();
+        if (number < 1 || number > offered.size()) {
+            messages.send(by, "essentials.rules.no-such", "number", number);
+            return false;
+        }
+        HouseRule wanted = offered.get(number - 1);
+        if (book.has(wanted)) {
+            messages.send(by, "essentials.rules.preset.already-have", "title", wanted.title());
+            return false;
+        }
+        HouseRule added = book.addCopy(wanted);
+        messages.send(by, "essentials.rules.preset.took", "title", added.title(), "number", book.rules().size());
+        return true;
+    }
+
+    /** One preset's rules, numbered for {@code /rules preset take}. */
+    public void showPreset(CommandSender to, String typedName) {
+        Optional<RulePreset> preset = book.preset(HouseRuleTextRule.presetName(typedName));
+        if (preset.isEmpty()) {
+            messages.send(to, "essentials.rules.preset.no-such", "name", typedName);
+            return;
+        }
+        messages.send(to, "essentials.rules.preset.showing", "name", preset.get().name());
+        List<HouseRule> rules = preset.get().rules();
+        for (int index = 0; index < rules.size(); index++) {
+            line(to, index + 1, rules.get(index));
+        }
+    }
+
     public boolean savePreset(CommandSender by, String typedName, String description) {
         String name = HouseRuleTextRule.presetName(typedName);
         if (check(by, HouseRuleTextRule.Part.PRESET, name).isRefused()) {

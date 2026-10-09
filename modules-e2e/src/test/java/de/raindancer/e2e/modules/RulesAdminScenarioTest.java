@@ -41,7 +41,18 @@ class RulesAdminScenarioTest {
             ada.runAndExpect("rules preset save e2e-set A test", "kept as the preset e2e-set");
             ada.runAndExpect("rules preset list", "e2e-set");
 
+            // Single rules from a preset, by command and by clicking one in the preset's page.
+            ada.runAndExpect("rules preset take friendly-smp 2", "Added No griefing as rule 4");
+            ada.runAndExpect("rules preset take friendly-smp 2", "You already have No griefing");
+            bo.runAndExpect("rules", "No griefing");
             ada.runAndOpen("rules edit", "Rules");
+            ada.click("Presets");
+            ada.awaitWindow("Rule presets");
+            ada.click("pvp");
+            ada.awaitWindow("Preset: pvp");
+            ada.forgetChat();
+            ada.click("No spawn killing");
+            ada.expectChat("Added No spawn killing as rule 5");
             ada.closeWindow();
 
             // Nobody else gets into admin mode.
@@ -52,7 +63,11 @@ class RulesAdminScenarioTest {
             Await.until("Ada holds diamonds", Duration.ofSeconds(5),
                     () -> ada.carrying(item -> item.is("diamond")).isPresent());
             ada.runAndExpect("admin", "Admin mode on");
-            ada.expectGameMode(GameMode.CREATIVE);
+            ada.expectGameMode(GameMode.SURVIVAL);
+            // God mode: damage does nothing.
+            server.console("damage Ada 6");
+            Await.ticks(10);
+            assertThat(ada.health()).as("god mode in admin mode").isEqualTo(20f);
             Await.until("the diamonds are put away", Duration.ofSeconds(5),
                     () -> ada.carrying(item -> item.is("diamond")).isEmpty());
             ada.expectActionBar("ADMIN MODE");
