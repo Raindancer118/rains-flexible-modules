@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.76.0</rainscore.version>
+        <rainscore.version>1.78.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -45,7 +45,7 @@
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
         <claims-module.version>2.6.0</claims-module.version>
-        <moderation-module.version>2.27.0</moderation-module.version>
+        <moderation-module.version>2.28.0</moderation-module.version>
         <names-module.version>2.2.1</names-module.version>
         <cosmetics-module.version>0.12.1</cosmetics-module.version>
         <warp-module.version>1.5.1</warp-module.version>
@@ -55,7 +55,7 @@
         <pack-module.version>1.0.0</pack-module.version>
         <chained-module.version>1.3.0</chained-module.version>
         <rtp-module.version>1.2.2</rtp-module.version>
-        <essentials-module.version>1.15.0</essentials-module.version>
+        <essentials-module.version>1.16.0</essentials-module.version>
         <worldgate-module.version>1.3.0</worldgate-module.version>
         <!-- 0.x until it is everything that was asked for; the first release of World Utils. -->
         <worldutils-module.version>0.3.0</worldutils-module.version>
@@ -63,7 +63,7 @@
         <invsnap-module.version>1.2.1</invsnap-module.version>
         <xpbottle-module.version>1.1.1</xpbottle-module.version>
         <veintoggle-module.version>0.3.0</veintoggle-module.version>
-        <economy-module.version>0.17.0</economy-module.version>
+        <economy-module.version>0.18.0</economy-module.version>
         <anticheat-module.version>0.5.0</anticheat-module.version>
         <playerutils-module.version>0.2.1</playerutils-module.version>
         <xaeromap-module.version>1.2.0</xaeromap-module.version>

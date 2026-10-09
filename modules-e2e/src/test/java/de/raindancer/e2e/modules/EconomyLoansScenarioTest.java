@@ -42,6 +42,10 @@ class EconomyLoansScenarioTest {
             Bot ada = server.admin("Ada");
             Bot bo = server.player("Bo");
 
+            // The personal limit has its own scenario (EconomyLoanLimitScenarioTest); this one borrows past it.
+            server.console("settings set economy:loans.personal-limit false");
+            Await.ticks(10);
+
             // ---- borrowing: the money arrives, the interest is added once, one loan at a time
             bo.run("loan take 2000");
             Await.until("Bo borrows", WAIT, () -> said(bo, "You borrowed ⛃2,000") && said(bo, "Pay back ⛃2,200"));

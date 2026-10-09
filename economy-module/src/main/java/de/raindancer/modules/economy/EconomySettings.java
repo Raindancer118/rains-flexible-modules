@@ -696,7 +696,20 @@ public record EconomySettings(
 
         @In("economy/loans") @Title("Smallest loan") @Key("loans.least") String loanLeast,
 
-        @In("economy/loans") @Title("Largest loan") @Key("loans.most") String loanMost,
+        @In("economy/loans") @Title("Largest loan")
+        @Describe("For anybody, however good their record. 0 for no cap.")
+        @Key("loans.most") String loanMost,
+
+        @In("economy/loans") @Title("A limit of their own")
+        @Describe("Each player can borrow up to what they have, plus a quarter of everything they ever earned — "
+                + "less the more they spend and gamble away, more for every loan paid back on time, less for every "
+                + "late one. Never past the largest loan. Off: everybody may borrow the largest loan.")
+        @Key("loans.personal-limit") boolean loanPersonalLimit,
+
+        @In("economy/loans") @Title("Lately means the last … hours of play") @Range(min = 1, max = 168)
+        @Describe("Money lost in games of chance in this much playtime (not away) cuts the limit hard, however "
+                + "much was won before. Hours played, not hours on the clock.")
+        @Key("loans.recent-hours") int loanRecentHoursSetting,
 
         @In("economy/loans") @Title("Interest, percent")
         @Describe("Added once when borrowing: 10 means borrowing 1,000 costs 1,100 to pay back. 0 to 100.")
@@ -798,7 +811,7 @@ public record EconomySettings(
             // experience
             true, "3", "1",
             // loans
-            true, "100", "10000", 10.0, 7, 2.0, true,
+            true, "100", "10000", true, 12, 10.0, 7, 2.0, true,
             // wealth tax
             false, 1.0, 24, "0",
             // display
@@ -947,6 +960,11 @@ public record EconomySettings(
 
     public Money loanLeastMoney() {
         return money(loanLeast, DEFAULTS.loanLeast);
+    }
+
+    /** Clamped to what {@code AccountBook} keeps. */
+    public int loanRecentHours() {
+        return Math.max(1, Math.min(168, loanRecentHoursSetting));
     }
 
     public Money loanMostMoney() {

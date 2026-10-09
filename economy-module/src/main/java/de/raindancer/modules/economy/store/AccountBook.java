@@ -16,6 +16,7 @@ import de.raindancer.modules.economy.model.TaxRun;
 import de.raindancer.modules.economy.rules.RaffleRule;
 import de.raindancer.modules.economy.model.BalanceChange;
 import de.raindancer.modules.economy.model.Contract;
+import de.raindancer.modules.economy.model.CreditHistory;
 import de.raindancer.modules.economy.model.Loan;
 import de.raindancer.modules.economy.model.LoanCollection;
 import de.raindancer.modules.economy.model.LotteryTicket;
@@ -30,6 +31,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -80,6 +82,17 @@ public final class AccountBook {
     private final Set<UUID> dirtyLoans = new LinkedHashSet<>();
     private final Set<UUID> dirty = new LinkedHashSet<>();
     private final List<Transaction> journal = new ArrayList<>();
+    /** Lifetime totals as written; lines still in {@link #journal} or being flushed are added when read. */
+    private final Map<UUID, CreditHistory> credit = new HashMap<>();
+    /** Lines taken out of the journal by a flush that has not finished, so reading in between misses nothing. */
+    private List<Transaction> flushingLines = List.of();
+    private final Set<UUID> dirtyCredit = new LinkedHashSet<>();
+    /** Minutes played (Core's count of minutes not away); the hour a line lands in is this divided by sixty. */
+    private volatile java.util.function.ToLongFunction<UUID> playMinutes = id -> 0L;
+    /** Per account, per hour of playtime: earned, staked, won. Only the last {@link #HOURS_KEPT} are kept. */
+    private final Map<UUID, java.util.TreeMap<Long, CreditHistory.Recent>> hours = new HashMap<>();
+    /** A week of play: more than any sensible "lately", few enough rows to rewrite whole. */
+    public static final int HOURS_KEPT = 168;
     private final List<NoteWrite> notes = new ArrayList<>();
     private volatile boolean loaded;
 
@@ -168,6 +181,35 @@ public final class AccountBook {
                 while (rows.next()) {
                     lent.add(new Loan(UUID.fromString(rows.getString(1)), rows.getString(2), Money.of(rows.getLong(3)),
                             Money.of(rows.getLong(4)), rows.getLong(5), rows.getLong(6), rows.getLong(7)));
+                }
+            }
+            Map<UUID, Map<TransactionKind, Money[]>> totals = new HashMap<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT account, kind, gained, lost FROM ledger_total");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    totals.computeIfAbsent(UUID.fromString(rows.getString(1)), id -> new EnumMap<>(TransactionKind.class))
+                            .merge(TransactionKind.read(rows.getString(2)),
+                                    new Money[]{Money.of(rows.getLong(3)), Money.of(rows.getLong(4))},
+                                    (a, b) -> new Money[]{a[0].plus(b[0]), a[1].plus(b[1])});
+                }
+            }
+            Map<UUID, int[]> records = new HashMap<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT account, on_time, late FROM credit_record");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    records.put(UUID.fromString(rows.getString(1)), new int[]{rows.getInt(2), rows.getInt(3)});
+                }
+            }
+            Map<UUID, java.util.TreeMap<Long, CreditHistory.Recent>> hoursRead = new HashMap<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT account, hour, earned, staked, won FROM credit_hour");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    hoursRead.computeIfAbsent(UUID.fromString(rows.getString(1)), id -> new java.util.TreeMap<>())
+                            .put(rows.getLong(2), new CreditHistory.Recent(Money.of(rows.getLong(3)),
+                                    Money.of(rows.getLong(4)), Money.of(rows.getLong(5))));
                 }
             }
             long drawRead = 1;
@@ -264,6 +306,19 @@ public final class AccountBook {
                 circulation.putAll(coinsOut);
                 jobs.forEach(job -> contracts.put(job.id(), job));
                 lent.forEach(loan -> loans.put(loan.player(), loan));
+                java.util.Set<UUID> known = new java.util.HashSet<>(totals.keySet());
+                known.addAll(records.keySet());
+                for (UUID id : known) {
+                    Map<TransactionKind, Money> in = new EnumMap<>(TransactionKind.class);
+                    Map<TransactionKind, Money> out = new EnumMap<>(TransactionKind.class);
+                    totals.getOrDefault(id, Map.of()).forEach((kind, pair) -> {
+                        in.put(kind, pair[0]);
+                        out.put(kind, pair[1]);
+                    });
+                    int[] record = records.getOrDefault(id, new int[2]);
+                    credit.put(id, new CreditHistory(in, out, record[0], record[1], CreditHistory.Recent.NONE));
+                }
+                hours.putAll(hoursRead);
                 draw = drawRead;
                 nextDrawAt = nextRead;
                 tickets.addAll(held);
@@ -934,11 +989,74 @@ public final class AccountBook {
 
     private void settle(Loan loan) {
         if (loan.settled()) {
+            boolean onTime = clock.getAsLong() <= loan.dueAt();
+            credit.merge(loan.player(), CreditHistory.EMPTY.withLoanEnded(onTime),
+                    (had, added) -> had.withLoanEnded(onTime));
+            dirtyCredit.add(loan.player());
             loans.remove(loan.player());
         } else {
             loans.put(loan.player(), loan);
         }
         dirtyLoans.add(loan.player());
+    }
+
+    /** Where minutes played come from — Core's playtime, wired in by the module. Zero for everybody until then. */
+    public void playtime(java.util.function.ToLongFunction<UUID> minutes) {
+        this.playMinutes = minutes == null ? id -> 0L : minutes;
+    }
+
+    /** The same as {@link #credit(UUID)}, with what happened in the last {@code hoursOfPlay} hours of playtime. */
+    public CreditHistory credit(UUID id, int hoursOfPlay) {
+        synchronized (lock) {
+            long now = playMinutes.applyAsLong(id) / 60;
+            CreditHistory.Recent recent = CreditHistory.Recent.NONE;
+            for (CreditHistory.Recent hour : hours.getOrDefault(id, new java.util.TreeMap<>())
+                    .tailMap(now - hoursOfPlay, false).values()) {
+                recent = recent.plus(hour);
+            }
+            for (Transaction line : flushingLines) {
+                if (line.account().equals(id)) {
+                    recent = recent.plus(lately(line));
+                }
+            }
+            for (Transaction line : journal) {
+                if (line.account().equals(id)) {
+                    recent = recent.plus(lately(line));
+                }
+            }
+            return credit(id).withRecent(hoursOfPlay > 0 ? recent : CreditHistory.Recent.NONE);
+        }
+    }
+
+    /** What one line adds to an hour of play. */
+    private static CreditHistory.Recent lately(Transaction line) {
+        long delta = line.delta().minor();
+        if (de.raindancer.modules.economy.rules.CreditRule.GAMBLING.contains(line.kind())) {
+            return delta < 0 ? new CreditHistory.Recent(Money.ZERO, Money.of(-delta), Money.ZERO)
+                    : new CreditHistory.Recent(Money.ZERO, Money.ZERO, Money.of(delta));
+        }
+        if (de.raindancer.modules.economy.rules.CreditRule.EARNING.contains(line.kind()) && delta > 0) {
+            return new CreditHistory.Recent(Money.of(delta), Money.ZERO, Money.ZERO);
+        }
+        return CreditHistory.Recent.NONE;
+    }
+
+    /** Everything this account ever took in and paid out, and how its loans ended — lines not yet written included. */
+    public CreditHistory credit(UUID id) {
+        synchronized (lock) {
+            CreditHistory history = credit.getOrDefault(id, CreditHistory.EMPTY);
+            for (Transaction line : flushingLines) {
+                if (line.account().equals(id)) {
+                    history = history.with(line);
+                }
+            }
+            for (Transaction line : journal) {
+                if (line.account().equals(id)) {
+                    history = history.with(line);
+                }
+            }
+            return history;
+        }
     }
 
     public Optional<Loan> loanOf(UUID player) {
@@ -1454,7 +1572,7 @@ public final class AccountBook {
     /** Whether anything is waiting to be written. */
     public boolean isDirty() {
         synchronized (lock) {
-            return !dirty.isEmpty() || !journal.isEmpty() || !notes.isEmpty() || !dirtyAuctions.isEmpty()
+            return !dirty.isEmpty() || !dirtyCredit.isEmpty() || !journal.isEmpty() || !notes.isEmpty() || !dirtyAuctions.isEmpty()
                     || !dirtyClaims.isEmpty() || !dirtyRaffles.isEmpty() || raffleCounterDirty || wealthTaxDirty;
         }
     }
@@ -1474,6 +1592,8 @@ public final class AccountBook {
             Map<Money, Long> coinWrites = new HashMap<>();
             Map<UUID, Contract> contractWrites = new LinkedHashMap<>();
             Map<UUID, Loan> loanWrites = new LinkedHashMap<>();
+            Map<UUID, int[]> creditWrites = new LinkedHashMap<>();
+            Map<UUID, java.util.TreeMap<Long, CreditHistory.Recent>> hourWrites = new LinkedHashMap<>();
             Map<UUID, Auction> auctionWrites = new LinkedHashMap<>();
             Map<UUID, AuctionClaim> claimWrites = new LinkedHashMap<>();
             Map<UUID, Raffle> raffleWrites = new LinkedHashMap<>();
@@ -1488,7 +1608,8 @@ public final class AccountBook {
             synchronized (lock) {
                 if (dirty.isEmpty() && journal.isEmpty() && notes.isEmpty() && !lotteryDirty && newTickets.isEmpty()
                         && dirtyCoins.isEmpty() && dirtyContracts.isEmpty() && dirtyLoans.isEmpty() && dirtyAuctions.isEmpty()
-                        && dirtyClaims.isEmpty() && dirtyRaffles.isEmpty() && !raffleCounterDirty && !wealthTaxDirty) {
+                        && dirtyClaims.isEmpty() && dirtyRaffles.isEmpty() && !raffleCounterDirty && !wealthTaxDirty
+                        && dirtyCredit.isEmpty()) {
                     return 0;
                 }
                 writeTax = wealthTaxDirty;
@@ -1536,6 +1657,24 @@ public final class AccountBook {
                     }
                 }
                 lines = List.copyOf(journal);
+                flushingLines = lines;
+                for (UUID id : dirtyCredit) {
+                    CreditHistory record = credit.getOrDefault(id, CreditHistory.EMPTY);
+                    creditWrites.put(id, new int[]{record.repaidOnTime(), record.repaidLate()});
+                }
+                dirtyCredit.clear();
+                for (Transaction line : lines) {
+                    CreditHistory.Recent adds = lately(line);
+                    if (!adds.equals(CreditHistory.Recent.NONE)) {
+                        UUID account = line.account();
+                        long hour = playMinutes.applyAsLong(account) / 60;
+                        hourWrites.computeIfAbsent(account, id -> new java.util.TreeMap<>(
+                                hours.getOrDefault(id, new java.util.TreeMap<>()))).merge(hour, adds,
+                                CreditHistory.Recent::plus);
+                    }
+                }
+                hourWrites.values().forEach(map -> map.headMap(map.lastKey() - HOURS_KEPT, true).clear());
+
                 noteWrites = List.copyOf(notes);
                 dirty.clear();
                 journal.clear();
@@ -1572,6 +1711,47 @@ public final class AccountBook {
                         insert.addBatch();
                     }
                     insert.executeBatch();
+                }
+                try (PreparedStatement total = connection.prepareStatement(
+                        "INSERT INTO ledger_total (account, kind, gained, lost) VALUES (?, ?, ?, ?) "
+                                + "ON CONFLICT(account, kind) DO UPDATE SET gained = gained + excluded.gained, "
+                                + "lost = lost + excluded.lost")) {
+                    for (Transaction line : lines) {
+                        total.setString(1, line.account().toString());
+                        total.setString(2, line.kind().name());
+                        total.setLong(3, Math.max(0, line.delta().minor()));
+                        total.setLong(4, Math.max(0, -line.delta().minor()));
+                        total.addBatch();
+                    }
+                    total.executeBatch();
+                }
+                try (PreparedStatement record = connection.prepareStatement(
+                        "INSERT INTO credit_record (account, on_time, late) VALUES (?, ?, ?) ON CONFLICT(account) "
+                                + "DO UPDATE SET on_time = excluded.on_time, late = excluded.late")) {
+                    for (Map.Entry<UUID, int[]> each : creditWrites.entrySet()) {
+                        record.setString(1, each.getKey().toString());
+                        record.setInt(2, each.getValue()[0]);
+                        record.setInt(3, each.getValue()[1]);
+                        record.addBatch();
+                    }
+                    record.executeBatch();
+                }
+                try (PreparedStatement clear = connection.prepareStatement("DELETE FROM credit_hour WHERE account = ?");
+                     PreparedStatement hour = connection.prepareStatement(
+                             "INSERT INTO credit_hour (account, hour, earned, staked, won) VALUES (?, ?, ?, ?, ?)")) {
+                    for (Map.Entry<UUID, java.util.TreeMap<Long, CreditHistory.Recent>> each : hourWrites.entrySet()) {
+                        clear.setString(1, each.getKey().toString());
+                        clear.executeUpdate();
+                        for (Map.Entry<Long, CreditHistory.Recent> one : each.getValue().entrySet()) {
+                            hour.setString(1, each.getKey().toString());
+                            hour.setLong(2, one.getKey());
+                            hour.setLong(3, one.getValue().earned().minor());
+                            hour.setLong(4, one.getValue().staked().minor());
+                            hour.setLong(5, one.getValue().won().minor());
+                            hour.addBatch();
+                        }
+                    }
+                    hour.executeBatch();
                 }
                 try (PreparedStatement upsert = connection.prepareStatement(
                         "INSERT INTO loan (player, name, borrowed, owed, taken_at, due_at, late_at) "
@@ -1784,8 +1964,18 @@ public final class AccountBook {
                     }
                 }
             });
+            synchronized (lock) {
+                if (written) {
+                    for (Transaction line : lines) {
+                        credit.merge(line.account(), CreditHistory.EMPTY.with(line), (had, added) -> had.with(line));
+                    }
+                    hours.putAll(hourWrites);
+                }
+                flushingLines = List.of();
+            }
             if (!written) {
                 synchronized (lock) {
+                    dirtyCredit.addAll(creditWrites.keySet());
                     changed.forEach(account -> dirty.add(account.id()));
                     journal.addAll(0, lines);
                     notes.addAll(0, noteWrites);

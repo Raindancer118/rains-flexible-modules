@@ -9,6 +9,7 @@ economy:
     off: "<red>Loans are switched off on this server."
     too-little: "<red>The smallest loan is <amount><red>."
     too-much: "<red>The largest loan is <amount><red>."
+    over-own-limit: "<red>Your loan limit is <amount><red>. <white>/loan</white> shows how it is worked out."
     nothing-owed: "<gray>You do not owe the bank anything."
     forgiven-you: "<green>The bank has forgiven your loan of <owed><green>."
   away: "<green>Received while you were offline: <amount><green>."

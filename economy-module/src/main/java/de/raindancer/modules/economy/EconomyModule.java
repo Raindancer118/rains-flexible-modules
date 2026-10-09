@@ -85,7 +85,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.17.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.18.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -122,6 +122,9 @@ public final class EconomyModule implements FlexModule {
 
         Database database = context.core().databases().of(EconomyDatabase.NAME, EconomyDatabase.SCHEMA);
         book = new AccountBook(database, new BalanceRule(), System::currentTimeMillis);
+        // "Lately" for loans is hours of play, as Core counts them: minutes online and not away.
+        de.raindancer.core.social.presence.Playtime playtime = context.core().playtime();
+        book.playtime(playtime::activeMinutes);
         market = new MarketBook(database, new MarketRule(), System::currentTimeMillis);
         offTheServerThread(() -> {
             book.load();

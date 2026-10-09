@@ -43,7 +43,20 @@ public final class EconomyDatabase {
             "CREATE TABLE raffle_counter (id INTEGER PRIMARY KEY CHECK (id = 1), next INTEGER NOT NULL)",
             "CREATE TABLE wealth_tax (id INTEGER PRIMARY KEY CHECK (id = 1), last_at INTEGER NOT NULL)",
             "CREATE TABLE loan (player TEXT PRIMARY KEY, name TEXT NOT NULL, borrowed INTEGER NOT NULL, "
-                    + "owed INTEGER NOT NULL, taken_at INTEGER NOT NULL, due_at INTEGER NOT NULL, late_at INTEGER NOT NULL)");
+                    + "owed INTEGER NOT NULL, taken_at INTEGER NOT NULL, due_at INTEGER NOT NULL, late_at INTEGER NOT NULL)",
+            // What every account ever took in and paid out, by kind — the statement is trimmed, this is not.
+            "CREATE TABLE ledger_total (account TEXT NOT NULL, kind TEXT NOT NULL, gained INTEGER NOT NULL, "
+                    + "lost INTEGER NOT NULL, PRIMARY KEY (account, kind))",
+            "INSERT INTO ledger_total (account, kind, gained, lost) SELECT account, kind, "
+                    + "SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END), SUM(CASE WHEN delta < 0 THEN -delta ELSE 0 END) "
+                    + "FROM ledger GROUP BY account, kind",
+            "CREATE TABLE credit_record (account TEXT PRIMARY KEY, on_time INTEGER NOT NULL, late INTEGER NOT NULL)",
+            // What happened in each hour of playtime (Core's count of minutes not away), for "lately".
+            "CREATE TABLE credit_hour (account TEXT NOT NULL, hour INTEGER NOT NULL, earned INTEGER NOT NULL, "
+                    + "staked INTEGER NOT NULL, won INTEGER NOT NULL, PRIMARY KEY (account, hour))");
+
+    /** The first step of the lifetime totals — the steps before it are what a server had until then. */
+    public static final int FIRST_CREDIT_STEP = SCHEMA.size() - 4;
 
     private EconomyDatabase() {
     }

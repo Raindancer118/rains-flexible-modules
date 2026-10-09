@@ -8,6 +8,7 @@ import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.model.Loan;
+import de.raindancer.modules.economy.rules.CreditRule;
 import de.raindancer.modules.economy.rules.LoanRule;
 import de.raindancer.modules.economy.rules.StakeRule;
 import de.raindancer.modules.economy.util.Mini;
@@ -96,14 +97,32 @@ public final class LoanMenu extends Menu implements IEconomyScreen {
     }
 
     private void offers(EconomySettings live, Currency currency) {
+        CreditRule.Limit limit = services.loans().limitOf(viewer.getUniqueId());
         set(MenuLayout.HEADER_SUBJECT, Icons.of(Material.EMERALD, "<green>You owe the bank nothing",
                 "<gray>Borrow " + Mini.of(currency.render(live.loanLeastMoney())) + "<gray> to "
-                        + Mini.of(currency.render(live.loanMostMoney())) + "<gray>."));
+                        + Mini.of(currency.render(limit.amount())) + "<gray>."));
         if (!live.loansEnabled()) {
             band(MenuLayout.RULES, 4, Icons.of(Material.BARRIER, "<red>Loans are switched off"));
             return;
         }
-        List<Money> amounts = new LoanRule().offers(live.loanLeastMoney(), live.loanMostMoney());
+        if (live.loanPersonalLimit()) {
+            band(MenuLayout.LAND, 2, Icons.of(Material.WRITABLE_BOOK, "<white>Your limit: " + Mini.of(currency.render(limit.amount())),
+                    "<gray>What you have, plus a quarter of the",
+                    "<gray>" + Mini.of(currency.render(limit.earned())) + "<gray> you ever earned: "
+                            + Mini.of(currency.render(limit.capacity())),
+                    "<gray>Spending " + Mini.of(currency.render(limit.spent())) + "<gray>: ×" + factor(limit.spending()),
+                    "<gray>Gambled away " + Mini.of(currency.render(limit.gambledAway())) + "<gray>: ×" + factor(limit.gambling()),
+                    "<gray>Lost lately (" + live.loanRecentHours() + " h played) "
+                            + Mini.of(currency.render(limit.lostLately())) + "<gray>: ×" + factor(limit.lately()),
+                    "<gray>Earlier loans: ×" + factor(limit.record()),
+                    "<dark_gray>Never more than " + Mini.of(currency.render(live.loanMostMoney()))));
+        }
+        if (!limit.amount().isAtLeast(live.loanLeastMoney())) {
+            band(MenuLayout.RULES, 4, Icons.of(Material.BARRIER, "<red>The bank will not lend to you yet",
+                    "<gray>Your limit is below the smallest loan.", "<gray>Earn some money first."));
+            return;
+        }
+        List<Money> amounts = new LoanRule().offers(live.loanLeastMoney(), limit.amount());
         int column = 4 - amounts.size() / 2;
         for (Money amount : amounts) {
             Money owed = services.loans().owedFor(amount);
@@ -129,6 +148,10 @@ public final class LoanMenu extends Menu implements IEconomyScreen {
             services.loans().borrow(viewer, amount);
             open();
         }).open();
+    }
+
+    private static String factor(double value) {
+        return String.format(java.util.Locale.ROOT, "%.2f", value);
     }
 
     @Override

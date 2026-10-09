@@ -312,6 +312,7 @@ economy:
     has-loan: "<red>You already owe the bank. One loan at a time — pay it back first with <white>/loan repay</white>."
     too-little: "<red>The bank does not get out of bed for less than <amount><red>."
     too-much: "<red>The bank lends <amount><red> at most. Ambitious, though."
+    over-own-limit: "<red>The bank trusts you with <amount><red> at most. Earn more, gamble less, pay back on time — <white>/loan</white> shows why."
     taken: "<green>You borrowed <amount><green>. Pay back <owed><green> within <days> day(s) — <white>/loan repay</white>."
     nothing-owed: "<gray>You owe the bank nothing. Enjoy it."
     cannot-pay: "<red>You have nothing to pay with. You still owe <owed><red>."

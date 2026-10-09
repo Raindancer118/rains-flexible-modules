@@ -23,6 +23,11 @@ public final class LoanRule implements IEconomyRule {
     }
 
     public Optional<LoanRefusal> refusal(Money amount, Money least, Money most, boolean hasLoan) {
+        return refusal(amount, least, most, Optional.empty(), hasLoan);
+    }
+
+    /** @param own the player's own limit, below the largest loan; empty when there is none */
+    public Optional<LoanRefusal> refusal(Money amount, Money least, Money most, Optional<Money> own, boolean hasLoan) {
         if (hasLoan) {
             return Optional.of(LoanRefusal.HAS_LOAN);
         }
@@ -31,6 +36,9 @@ public final class LoanRule implements IEconomyRule {
         }
         if (most.isPositive() && amount.isMoreThan(most)) {
             return Optional.of(LoanRefusal.TOO_MUCH);
+        }
+        if (own.isPresent() && amount.isMoreThan(own.get())) {
+            return Optional.of(LoanRefusal.OVER_OWN_LIMIT);
         }
         return Optional.empty();
     }

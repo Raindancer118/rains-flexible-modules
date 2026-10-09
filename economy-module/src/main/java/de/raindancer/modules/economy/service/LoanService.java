@@ -37,6 +37,8 @@ public final class LoanService implements IEconomyService {
     private final Effects effects;
     private final LongSupplier clock;
     private final LoanRule rule = new LoanRule();
+    private final de.raindancer.modules.economy.rules.CreditRule credit =
+            new de.raindancer.modules.economy.rules.CreditRule();
     private volatile EconomySettings settings;
 
     public LoanService(Server server, RainEconomy economy, Messages messages, Effects effects, LongSupplier clock,
@@ -57,6 +59,21 @@ public final class LoanService implements IEconomyService {
 
     public Optional<Loan> loanOf(UUID player) {
         return book.loanOf(player);
+    }
+
+    /** How much this player may borrow, and why — the largest loan for everybody when the owner set no limit of their own. */
+    public de.raindancer.modules.economy.rules.CreditRule.Limit limitOf(UUID player) {
+        EconomySettings live = settings;
+        de.raindancer.modules.economy.rules.CreditRule.Limit own = credit.limit(
+                new de.raindancer.modules.economy.rules.CreditRule.Standing(economy.balance(player),
+                        book.credit(player, live.loanRecentHours())),
+                live.loanMostMoney());
+        if (live.loanPersonalLimit()) {
+            return own;
+        }
+        return new de.raindancer.modules.economy.rules.CreditRule.Limit(live.loanMostMoney(), own.capacity(),
+                own.earned(), own.spent(), own.gambledAway(), own.spending(), own.gambling(), own.record(),
+                own.lostLately(), own.lately());
     }
 
     /** What borrowing this much would cost to pay back. */
@@ -87,13 +104,16 @@ public final class LoanService implements IEconomyService {
             refuse(player, "economy.not-allowed");
             return;
         }
+        Money own = limitOf(player.getUniqueId()).amount();
         Optional<LoanRefusal> refusal = rule.refusal(amount, live.loanLeastMoney(), live.loanMostMoney(),
+                live.loanPersonalLimit() ? Optional.of(own) : Optional.empty(),
                 book.loanOf(player.getUniqueId()).isPresent());
         if (refusal.isPresent()) {
             switch (refusal.get()) {
                 case HAS_LOAN -> refuse(player, "economy.loan.has-loan");
                 case TOO_LITTLE -> refuse(player, "economy.loan.too-little", "amount", currency.render(live.loanLeastMoney()));
                 case TOO_MUCH -> refuse(player, "economy.loan.too-much", "amount", currency.render(live.loanMostMoney()));
+                case OVER_OWN_LIMIT -> refuse(player, "economy.loan.over-own-limit", "amount", currency.render(own));
             }
             return;
         }
