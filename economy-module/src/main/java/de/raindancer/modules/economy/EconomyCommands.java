@@ -60,7 +60,7 @@ public final class EconomyCommands {
                 ModuleCommand.of("daily", "Claim the daily reward",
                         new BankCommand(EconomyCommands::require, BankCommand.Door.DAILY)),
                 ModuleCommand.of("casino", "Games of chance",
-                        new BankCommand(EconomyCommands::require, BankCommand.Door.CASINO)),
+                        new BankCommand(EconomyCommands::require, BankCommand.Door.CASINO)).taking("[insure]"),
                 ModuleCommand.of("slots", "The slot machine",
                         new BankCommand(EconomyCommands::require, BankCommand.Door.SLOTS)),
                 ModuleCommand.of("coinflip", "Heads or tails, against the house or a player",

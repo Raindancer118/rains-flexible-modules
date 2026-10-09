@@ -85,10 +85,30 @@ class EconomySupplyScenarioTest {
             expect(ada, "the report shows the cap", "Cap ⛃2,500");
 
             // ---- a payment taxed in slices: 10% on everything
+            set(server, "pay.tax-by-brackets", "true");
             set(server, "pay.tax-brackets", "0 10");
             ada.forgetChat();
             ada.run("pay Bo 100");
             expect(ada, "the tax is named", "⛃10");
+
+            // ---- bet insurance: offered once switched on; a lost flip pays part of the stake back
+            ada.forgetChat();
+            ada.run("casino insure");
+            expect(ada, "not offered while switched off", "not offered");
+            set(server, "gamble.insurance", "true");
+            ada.forgetChat();
+            ada.run("casino insure");
+            expect(ada, "Ada's bets are insured", "Your bets are insured");
+            boolean paidBack = false;
+            for (int flip = 0; flip < 12 && !paidBack; flip++) {
+                ada.forgetChat();
+                ada.run("coinflip 10 heads");
+                expect(ada, "the coin lands", "It landed");
+                Await.ticks(10);
+                paidBack = said(ada, "Bet insurance paid back");
+                ada.closeWindow();
+            }
+            assertThat(paidBack).as("a lost flip was insured").isTrue();
 
             // ---- a community fund with a boost, filled by Bo
             set(server, "features.funds", "true");
@@ -112,6 +132,7 @@ class EconomySupplyScenarioTest {
             expect(ada, "a price is offered", "Repairing it costs");
 
             // ---- dying costs a tenth of the balance
+            set(server, "death.costs-money", "true");
             set(server, "death.lose-percent", "10");
             bo.forgetChat();
             server.console("kill Bo");

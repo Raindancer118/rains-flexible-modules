@@ -196,7 +196,7 @@ public final class CashService implements IEconomyService {
         }
         long wait = new de.raindancer.modules.economy.rules.VestingRule().hoursLeft(
                 book.find(player.getUniqueId()).map(de.raindancer.modules.economy.model.Account::created).orElse(0L),
-                System.currentTimeMillis(), supplied().newAccountHours());
+                System.currentTimeMillis(), supplied().newAccountLock() ? supplied().newAccountHours() : 0);
         if (wait > 0) {
             refuse(player, "economy.pay.too-new", "hours", String.valueOf(wait));
             return;
@@ -349,8 +349,8 @@ public final class CashService implements IEconomyService {
         de.raindancer.modules.economy.rules.NoteExpiryRule expiry = new de.raindancer.modules.economy.rules.NoteExpiryRule();
         long now = System.currentTimeMillis();
         EconomyResult result = book.redeemCash(player.getUniqueId(), check.serials(), check.coins(), check.total(),
-                economy.most(), (face, issuedAt) -> expiry.worth(face, issuedAt, now, aging.noteExpiryDays(),
-                        aging.expiredNotePercent()));
+                economy.most(), (face, issuedAt) -> expiry.worth(face, issuedAt, now,
+                        aging.noteExpiry() ? aging.noteExpiryDays() : 0, aging.expiredNotePercent()));
         if (!result.succeeded()) {
             Outcomes.tell(messages, effects, player, result, currency, "");
             return;

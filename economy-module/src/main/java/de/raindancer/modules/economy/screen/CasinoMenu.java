@@ -69,6 +69,17 @@ public final class CasinoMenu extends Menu implements IEconomyScreen, Bet.BetMen
             services.scratch().buy(viewer, 1);
             refresh();
         });
+        boolean offered = services.gambling().insuranceOffered();
+        boolean insured = services.gambling().insures(viewer.getUniqueId());
+        var supplied = services.supply().current();
+        toolbar(6, offered, Icons.of(insured ? Material.TOTEM_OF_UNDYING : Material.ARMOR_STAND,
+                "<white>Insure my bets: " + (insured ? "<green>on" : "<gray>off"),
+                "<gray>Every stake costs " + supplied.gambleInsurancePremium() + "% more;",
+                "<gray>a lost stake pays " + supplied.gambleInsurancePayback() + "% of it back.",
+                "<yellow>Click<gray> to switch it " + (insured ? "off" : "on")), BankMenu.OFF, click -> {
+            services.gambling().toggleInsurance(viewer);
+            refresh();
+        });
         game(MenuLayout.LAND, 6, Game.LOTTERY, "Pot: " + Mini.of(currency.render(services.lottery().pot())),
                 () -> new LotteryMenu(services, viewer, this).open());
     }

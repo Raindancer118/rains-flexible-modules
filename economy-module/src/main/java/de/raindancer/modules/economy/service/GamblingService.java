@@ -95,6 +95,12 @@ public final class GamblingService implements IEconomyService {
     private volatile EconomySettings settings;
 
     private volatile SupplyService supply;
+    private final java.util.Set<UUID> insured = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** Stakes of multi-step games that were insured when taken, until the game pays out. */
+    private final java.util.Map<UUID, Money> insuredStakes = new java.util.concurrent.ConcurrentHashMap<>();
+    private final de.raindancer.modules.economy.rules.GambleInsuranceRule insurance =
+            new de.raindancer.modules.economy.rules.GambleInsuranceRule();
+    private volatile de.raindancer.modules.economy.store.SupplyBook insuranceStore;
 
     /** The money supply's settings; the shipped ones, which change nothing, until wired. */
     public void supply(SupplyService service) {
@@ -205,12 +211,100 @@ public final class GamblingService implements IEconomyService {
         return LocalDate.now(clock).toEpochDay();
     }
 
+    // ---------------------------------------------------------------------------- bet insurance
+
+    /** Where the players who insure their bets are kept; read once, here. Off the server thread. */
+    public void insurance(de.raindancer.modules.economy.store.SupplyBook store) {
+        this.insuranceStore = store;
+        insured.clear();
+        insured.addAll(store.insuredGamblers());
+    }
+
+    /** Whether bet insurance is offered at all on this server. */
+    public boolean insuranceOffered() {
+        de.raindancer.modules.economy.SupplySettings live = supplied();
+        return live.gambleInsurance() && live.gambleInsurancePremium() > 0;
+    }
+
+    public boolean insures(UUID player) {
+        return insured.contains(player);
+    }
+
+    /** Switches a player's bet insurance; refused (false) when it is not offered. */
+    public boolean toggleInsurance(Player player) {
+        if (!insuranceOffered()) {
+            refuse(player, "economy.gamble.insurance-off");
+            return false;
+        }
+        UUID id = player.getUniqueId();
+        boolean now = !insured.remove(id);
+        if (now) {
+            insured.add(id);
+        }
+        var store = insuranceStore;
+        if (store != null) {
+            de.raindancer.core.platform.util.Scheduling.async(plugin, () -> store.insureGambler(id, now));
+        }
+        de.raindancer.modules.economy.SupplySettings live = supplied();
+        messages.send(player, now ? "economy.gamble.insured" : "economy.gamble.uninsured",
+                "premium", String.valueOf(live.gambleInsurancePremium()),
+                "payback", String.valueOf(live.gambleInsurancePayback()));
+        return now;
+    }
+
+    /** What insuring this stake costs now, or zero when the player does not insure or it is not offered. */
+    public Money premiumFor(UUID player, Money stake) {
+        if (!insures(player) || !insuranceOffered()) {
+            return Money.ZERO;
+        }
+        return de.raindancer.core.social.economy.EconomyLevers.sink(de.raindancer.modules.economy.model.Sources.BET_INSURANCE,
+                insurance.premium(stake, supplied().gambleInsurancePremium()));
+    }
+
+    /** Takes the premium; false (and the player told) when it cannot be paid — the bet is then not made. */
+    private boolean payPremium(Player player, Money premium) {
+        if (!premium.isPositive()) {
+            return true;
+        }
+        EconomyResult paid = economy.move(player.getUniqueId(), premium.negate(), TransactionKind.FEE, "Bet insurance",
+                de.raindancer.modules.economy.model.Sources.BET_INSURANCE);
+        if (!paid.succeeded()) {
+            Outcomes.tell(messages, effects, player, paid, settings.currency(), "");
+            return false;
+        }
+        return true;
+    }
+
+    /** Pays back the insured share of a lost stake — as far as a capped treasury can. */
+    private void payBack(UUID player, Money stake, Money payout) {
+        Money back = insurance.payback(stake, payout, supplied().gambleInsurancePayback());
+        if (!back.isPositive()) {
+            return;
+        }
+        EconomyResult paid = economy.moveUpTo(player, back, TransactionKind.GAMBLE, "Bet insurance paid back");
+        Player online = server.getPlayer(player);
+        if (online != null && paid.succeeded()) {
+            messages.send(online, "economy.gamble.insurance-paid", "amount", settings.currency().render(paid.amount()));
+        }
+    }
+
     /** One game against the house, settled; empty when the ledger refused it (and the player was told). */
     public Optional<EconomyResult> settle(Player player, Money stake, Money payout, String game) {
+        Money premium = premiumFor(player.getUniqueId(), stake);
+        if (!payPremium(player, premium)) {
+            return Optional.empty();
+        }
         EconomyResult result = book.play(player.getUniqueId(), stake, payout, game, economy.most());
         if (!result.succeeded()) {
+            if (premium.isPositive()) {
+                economy.refund(player.getUniqueId(), premium, "Bet insurance: the bet was not made",
+                        de.raindancer.modules.economy.model.Sources.BET_INSURANCE);
+            }
             Outcomes.tell(messages, effects, player, result, settings.currency(), "");
             return Optional.empty();
+        }
+        if (premium.isPositive()) {
+            payBack(player.getUniqueId(), stake, payout);
         }
         count(player.getUniqueId(), stake, payout);
         economy.tell(player.getUniqueId(), payout.minus(stake), result.balance(), TransactionKind.GAMBLE);
@@ -432,10 +526,21 @@ public final class GamblingService implements IEconomyService {
      * crash round. What it pays comes later through {@link #payOut}; losses are counted when it ends.
      */
     public boolean takeStake(Player player, Money stake, String game) {
+        Money premium = premiumFor(player.getUniqueId(), stake);
+        if (!payPremium(player, premium)) {
+            return false;
+        }
         EconomyResult result = book.play(player.getUniqueId(), stake, Money.ZERO, game, economy.most());
         if (!result.succeeded()) {
+            if (premium.isPositive()) {
+                economy.refund(player.getUniqueId(), premium, "Bet insurance: the bet was not made",
+                        de.raindancer.modules.economy.model.Sources.BET_INSURANCE);
+            }
             Outcomes.tell(messages, effects, player, result, settings.currency(), "");
             return false;
+        }
+        if (premium.isPositive()) {
+            insuredStakes.put(player.getUniqueId(), stake);
         }
         economy.tell(player.getUniqueId(), stake.negate(), result.balance(), TransactionKind.GAMBLE);
         return true;
@@ -444,6 +549,9 @@ public final class GamblingService implements IEconomyService {
     /** Pays what a multi-step game returned, stake included, and counts the day's loss. */
     public void payOut(UUID player, Money stake, Money payout, String game) {
         count(player, stake, payout);
+        if (insuredStakes.remove(player) != null) {
+            payBack(player, stake, payout);
+        }
         if (payout.isPositive()) {
             EconomyResult result = economy.move(player, payout, TransactionKind.GAMBLE, game + " — won");
             if (result.outcome() == EconomyResult.Outcome.TREASURY_EMPTY) {

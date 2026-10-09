@@ -20,9 +20,10 @@ public final class Sources {
     public static final String FUND = "economy.fund";
     public static final String REPAIR = "economy.repair";
     public static final String DEATH = "economy.death";
+    public static final String BET_INSURANCE = "economy.bet-insurance";
 
     public static final List<String> ALL = List.of(REWARD, INCOME, INTEREST, DAILY, XP, SELL, PAY_TAX, WEALTH_TAX,
-            AUCTION_JUMP, FUND, REPAIR, DEATH);
+            AUCTION_JUMP, FUND, REPAIR, DEATH, BET_INSURANCE);
 
     private Sources() {
     }

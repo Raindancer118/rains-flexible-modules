@@ -29,6 +29,7 @@ import java.util.List;
         @Topic(path = "supply/tax", title = "Progressive taxes", icon = Material.PAPER),
         @Topic(path = "supply/sinks", title = "Things to spend on", icon = Material.ANVIL),
         @Topic(path = "supply/debts", title = "Debts", icon = Material.LEAD),
+        @Topic(path = "supply/insurance", title = "Insurance", icon = Material.TOTEM_OF_UNDYING),
         @Topic(path = "supply/seasons", title = "Seasons", icon = Material.NETHER_STAR),
 })
 public record SupplySettings(
@@ -46,6 +47,10 @@ public record SupplySettings(
                 + "what is out there now, or nothing is paid until enough has come back. /eco health shows how "
                 + "much there is.")
         @Key("money-supply.cap") String cap,
+
+        @In("supply/treasury") @Title("Pay less when the treasury runs low")
+        @Describe("Payouts shrink as the treasury empties, below the share set next.")
+        @Key("money-supply.low-treasury-brake") boolean lowTreasuryBrake,
 
         @In("supply/treasury") @Title("Pay less when the treasury runs low") @Range(min = 0, max = 100)
         @Describe("Percent of the cap. Below it, every payout shrinks in proportion to what is left: at half "
@@ -94,6 +99,10 @@ public record SupplySettings(
         @Describe("Percent either way, however long prices keep moving.")
         @Key("stabilizer.most-percent") int mostPercent,
 
+        @In("supply/earning") @Title("Selling the same again pays less")
+        @Describe("Each stack of the same item sold within the window below pays the percent below less.")
+        @Key("earn.diminishing") boolean diminishing,
+
         // ------------------------------------------------------------------ slowing money down
         @In("supply/earning") @Title("The same again pays less") @Range(min = 0, max = 90)
         @Describe("Percent less for each kill of the same mob, or block of the same ore, in the same chunk "
@@ -104,6 +113,10 @@ public record SupplySettings(
         @Describe("Minutes.")
         @Key("earn.diminishing-minutes") int diminishingMinutes,
 
+        @In("supply/earning") @Title("Pay less when everybody is rich")
+        @Describe("Payouts shrink when players hold more on average than the amount below.")
+        @Key("earn.per-player-brake") boolean perPlayerBrake,
+
         @In("supply/earning") @Title("Payouts shrink above, per player")
         @Describe("Money per active player. Above it, every payout shrinks in proportion: when everybody is "
                 + "twice as rich as this, rewards are half. 0 is off.")
@@ -113,9 +126,17 @@ public record SupplySettings(
         @Describe("Days.")
         @Key("earn.active-days") int activeDays,
 
+        @In("supply/earning") @Title("Limit selling XP a day")
+        @Describe("The bank buys at most the amount below of experience from one player a day.")
+        @Key("xp.sell-daily-limit") boolean xpDailyLimit,
+
         @In("supply/earning") @Title("Selling XP, at most a day")
         @Describe("What one player may be paid for experience in a day. 0 is no limit.")
         @Key("xp.sell-daily-most") String xpSellDailyMost,
+
+        @In("supply/earning") @Title("Daily shop budgets")
+        @Describe("The shop buys at most the amounts below a day, from one player and from everybody.")
+        @Key("shop.sell-budgets") boolean sellBudgets,
 
         @In("supply/earning") @Title("The shop buys from one player at most")
         @Describe("A day. 0 is no limit.")
@@ -125,10 +146,18 @@ public record SupplySettings(
         @Describe("A day, all players together. 0 is no limit.")
         @Key("shop.sell-budget-server") String sellBudgetServer,
 
+        @In("supply/earning") @Title("Lock new accounts")
+        @Describe("A new account cannot send money away for the hours below.")
+        @Key("pay.new-account-lock") boolean newAccountLock,
+
         @In("supply/earning") @Title("New accounts cannot send money for") @Range(min = 0, max = 720)
         @Describe("Hours after an account opens before it may /pay, bill or withdraw cash — farming money "
                 + "on fresh accounts and handing it to a main one stops working. 0 is off.")
         @Key("pay.new-account-hours") int newAccountHours,
+
+        @In("supply/tax") @Title("Payment tax in slices")
+        @Describe("Payments are taxed by the brackets below instead of the flat payment tax.")
+        @Key("pay.tax-by-brackets") boolean payTaxByBrackets,
 
         // ------------------------------------------------------------------ progressive taxes
         @In("supply/tax") @Title("Payment tax by amount")
@@ -136,15 +165,27 @@ public record SupplySettings(
                 + "is taxed at its own rate, like an income tax. Empty uses the flat payment tax.")
         @Key("pay.tax-brackets") List<String> payTaxBrackets,
 
+        @In("supply/tax") @Title("Wealth tax in slices")
+        @Describe("The wealth tax uses the brackets below instead of its flat percent.")
+        @Key("wealth-tax.by-brackets") boolean wealthTaxByBrackets,
+
         @In("supply/tax") @Title("Wealth tax by amount")
         @Describe("'<from> <percent>', comma separated, on the balance above the allowance. Empty uses the "
                 + "flat wealth tax percent.")
         @Key("wealth-tax.brackets") List<String> wealthTaxBrackets,
 
+        @In("supply/tax") @Title("Only tax idle money")
+        @Describe("The wealth tax skips anybody who sent or spent money within the days below.")
+        @Key("wealth-tax.idle-only") boolean wealthTaxIdleOnly,
+
         @In("supply/tax") @Title("Only tax money lying idle for") @Range(min = 0, max = 365)
         @Describe("Days. An account that sent or spent money within them is not taxed this time. 0 taxes "
                 + "every balance.")
         @Key("wealth-tax.idle-days") int wealthTaxIdleDays,
+
+        @In("supply/tax") @Title("Banknotes expire")
+        @Describe("Notes older than the days below pay only the share below.")
+        @Key("cash.note-expiry") boolean noteExpiry,
 
         @In("supply/tax") @Title("Banknotes expire after") @Range(min = 0, max = 3650)
         @Describe("Days. A note paid in later is worth only the share below. Coins never expire. 0 is never.")
@@ -153,6 +194,10 @@ public record SupplySettings(
         @In("supply/tax") @Title("An expired note is worth") @Range(min = 0, max = 100)
         @Describe("Percent of what is printed on it.")
         @Key("cash.expired-note-percent") int expiredNotePercent,
+
+        @In("supply/sinks") @Title("Dying costs money")
+        @Describe("A share of the balance is destroyed on death, as set below.")
+        @Key("death.costs-money") boolean deathCosts,
 
         // ------------------------------------------------------------------ things to spend on
         @In("supply/sinks") @Title("Dying costs") @Describe("Percent of the balance, destroyed. 0 is off.")
@@ -164,6 +209,10 @@ public record SupplySettings(
         @In("supply/sinks") @Title("Dying costs in")
         @Describe("World names, comma separated. Empty is every world.")
         @Key("death.worlds") List<String> deathWorlds,
+
+        @In("supply/sinks") @Title("Jumping the auction queue")
+        @Describe("A waiting auction can be moved to the front for the price below — /auction jump.")
+        @Key("auction.jump-queue") boolean auctionJump,
 
         @In("supply/sinks") @Title("Jumping the auction queue costs")
         @Describe("A waiting auction can be moved to the front for this. 0 is off.")
@@ -193,6 +242,10 @@ public record SupplySettings(
         @Describe("The 'too expensive' penalty an item collects each time it goes through an anvil.")
         @Key("repair.reset-anvil-cost") boolean repairResetsAnvil,
 
+        @In("supply/debts") @Title("Collect debts from income")
+        @Describe("A share of every payout goes toward what a player owes the server (an unpaid fine, missed upkeep).")
+        @Key("debts.collect") boolean debtCollect,
+
         // ------------------------------------------------------------------ debts
         @In("supply/debts") @Title("Of every payout, toward a debt") @Range(min = 0, max = 100)
         @Describe("Percent. Somebody who owes the server (an unpaid fine, missed upkeep) has this share of "
@@ -201,6 +254,21 @@ public record SupplySettings(
 
         @In("supply/debts") @Title("No gambling while in debt")
         @Key("debts.stop-gambling") boolean debtStopsGambling,
+
+        // ------------------------------------------------------------------ insurance
+        @In("supply/insurance") @Title("Bet insurance")
+        @Describe("Players can insure their bets (casino, Insure my bets): every stake costs the premium below on top, "
+                + "and a lost stake pays back the share below. The house keeps the difference — a money sink.")
+        @Key("gamble.insurance") boolean gambleInsurance,
+
+        @In("supply/insurance") @Title("Premium") @Range(min = 0, max = 100)
+        @Describe("Percent of the stake, paid on top of it.")
+        @Key("gamble.insurance-premium-percent") int gambleInsurancePremium,
+
+        @In("supply/insurance") @Title("Paid back on a loss") @Range(min = 0, max = 100)
+        @Describe("Percent of what was lost. Keep the premium above this times the chance of losing (about half), "
+                + "or the insurance pays out more than it takes.")
+        @Key("gamble.insurance-payback-percent") int gambleInsurancePayback,
 
         // ------------------------------------------------------------------ seasons
         @In("supply/seasons") @Title("Seasons")
@@ -219,7 +287,7 @@ public record SupplySettings(
 
     public static final SupplySettings DEFAULTS = new SupplySettings(
             // treasury
-            false, "0", 0, false, 10,
+            false, "0", false, 0, false, 10,
             // price index
             List.of("bread 16", "iron_ingot 16", "coal 16", "oak_log 32", "cobblestone 64", "wheat 32",
                     "diamond 2", "gold_ingot 4", "leather 8", "glass 16"),
@@ -227,13 +295,15 @@ public record SupplySettings(
             // stabiliser
             false, 1.0, 0.5, 5, 50,
             // earning
-            0, 60, "0", 14, "0", "0", "0", 0,
+            false, 0, 60, false, "0", 14, false, "0", false, "0", "0", false, 0,
             // taxes
-            List.of(), List.of(), 0, 0, 50,
+            false, List.of(), false, List.of(), false, 0, false, 0, 50,
             // sinks
-            0.0, "0", List.of(), "0", false, true, false, 10.0, "1", false,
+            false, 0.0, "0", List.of(), false, "0", false, true, false, 10.0, "1", false,
             // debts
-            50, true,
+            false, 50, true,
+            // insurance
+            false, 30, 50,
             // seasons
             false, List.of("0 1", "10000 0.5", "100000 0.1"), 0);
 

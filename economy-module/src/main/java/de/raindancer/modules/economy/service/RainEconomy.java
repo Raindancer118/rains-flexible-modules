@@ -218,7 +218,8 @@ public final class RainEconomy implements Economy, IEconomyService {
         SupplyService service = supply;
         int percent = service == null ? de.raindancer.modules.economy.SupplySettings.DEFAULTS.debtSharePercent()
                 : service.current().debtSharePercent();
-        if (percent <= 0 || !de.raindancer.core.social.economy.Debts.inDebt(player)) {
+        boolean collecting = service != null && service.current().debtCollect();
+        if (!collecting || percent <= 0 || !de.raindancer.core.social.economy.Debts.inDebt(player)) {
             return;
         }
         Money share = paid.share(Math.min(100, percent) / 100.0)

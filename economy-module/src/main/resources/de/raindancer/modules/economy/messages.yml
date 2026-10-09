@@ -129,6 +129,10 @@ economy:
     claimed: "<green>Daily reward: <amount><green>. Day <white><streak></white> in a row."
 
   gamble:
+    insurance-off: "<red>Bet insurance is not offered on this server."
+    insured: "<green>Your bets are insured: every stake costs <premium>% more, and a lost stake pays <payback>% of it back."
+    uninsured: "<gray>Your bets are no longer insured."
+    insurance-paid: "<green>Bet insurance paid back <amount><green>."
     treasury-short: "<yellow>You won <won><yellow>, but the server's treasury could only pay <amount><yellow> of it right now."
     in-debt: "<red>No games of chance while you owe the server <amount><red>. Pay it with <white>/debt</white>."
     off: "<red>That game is switched off on this server."
@@ -193,6 +197,7 @@ economy:
     no-tickets: "<gray>Nobody had bought a ticket, so the pot carries over."
 
   auction:
+    insured: "<red>That item is insured — end its insurance first (/insurance) if you really want to sell it."
     jumped: "<green>Your auction of <item> is next, for <amount><green>."
     jump-off: "<red>Jumping the queue is not offered on this server."
     jump-none: "<red>You have no auction waiting that is not already next."
@@ -249,6 +254,7 @@ economy:
     queue-size: "<gray><count> more auction(s) waiting."
 
   raffle:
+    insured: "<red>That item is insured — end its insurance first (/insurance) if you really want to raffle it."
     off: "<red>Raffles are switched off on this server."
     not-allowed: "<red>You may not take part in raffles."
     empty-hand: "<red>Hold the item you want to raffle off in your main hand."
@@ -281,6 +287,7 @@ economy:
 
   # Picked instead of the raffle's line of the same name whenever a raffle is free to join.
   giveaway:
+    insured: "<red>That item is insured — end its insurance first (/insurance) if you really want to give it away."
     off: "<red>Giveaways are switched off on this server."
     not-allowed: "<red>You may not take part in giveaways."
     empty-hand: "<red>Hold the item you want to give away in your main hand."

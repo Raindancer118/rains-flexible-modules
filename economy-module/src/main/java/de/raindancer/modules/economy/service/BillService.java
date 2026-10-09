@@ -121,7 +121,7 @@ public final class BillService implements IEconomyService {
         Player payer = server.getPlayer(bill.to());
         long wait = new de.raindancer.modules.economy.rules.VestingRule().hoursLeft(
                 economy.book().find(bill.to()).map(de.raindancer.modules.economy.model.Account::created).orElse(0L),
-                clock.getAsLong(), supplied().newAccountHours());
+                clock.getAsLong(), supplied().newAccountLock() ? supplied().newAccountHours() : 0);
         if (wait > 0) {
             if (payer != null) {
                 refuse(payer, "economy.pay.too-new", "hours", String.valueOf(wait));

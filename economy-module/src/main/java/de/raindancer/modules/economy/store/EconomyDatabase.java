@@ -74,7 +74,9 @@ public final class EconomyDatabase {
                     + "effect TEXT NOT NULL, created INTEGER NOT NULL, done_at INTEGER NOT NULL DEFAULT 0)",
             "CREATE TABLE season_points (account TEXT NOT NULL, season INTEGER NOT NULL, points INTEGER NOT NULL, "
                     + "PRIMARY KEY (account, season))",
-            "CREATE TABLE season (id INTEGER PRIMARY KEY CHECK (id = 1), number INTEGER NOT NULL)");
+            "CREATE TABLE season (id INTEGER PRIMARY KEY CHECK (id = 1), number INTEGER NOT NULL)",
+            // Players who insure their bets.
+            "CREATE TABLE gamble_insured (account TEXT PRIMARY KEY)");
 
     /** The first step of the lifetime totals — the steps before it are what a server had until then. */
     public static final int FIRST_CREDIT_STEP = 16;

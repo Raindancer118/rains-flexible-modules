@@ -159,6 +159,31 @@ public final class SupplyBook {
         });
     }
 
+    /** Everybody who insures their bets. */
+    public java.util.Set<UUID> insuredGamblers() {
+        return database.read(connection -> {
+            java.util.Set<UUID> found = new java.util.HashSet<>();
+            try (PreparedStatement select = connection.prepareStatement("SELECT account FROM gamble_insured");
+                 ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    found.add(UUID.fromString(rows.getString(1)));
+                }
+            }
+            return found;
+        }).orElse(java.util.Set.of());
+    }
+
+    public boolean insureGambler(UUID player, boolean insured) {
+        return database.write(connection -> {
+            try (PreparedStatement change = connection.prepareStatement(insured
+                    ? "INSERT OR IGNORE INTO gamble_insured (account) VALUES (?)"
+                    : "DELETE FROM gamble_insured WHERE account = ?")) {
+                change.setString(1, player.toString());
+                change.executeUpdate();
+            }
+        });
+    }
+
     /** The season being played; 1 until the first one ends. */
     public int season() {
         return database.read(connection -> {

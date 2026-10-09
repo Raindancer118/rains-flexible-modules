@@ -153,7 +153,7 @@ public final class ShopService implements IEconomyService {
     /** How much less selling this again pays: a stack's worth sold lately is one step down. Zero when switched off. */
     int soldAgainPercent(UUID player, Material material) {
         de.raindancer.modules.economy.SupplySettings live = supplied();
-        if (live.diminishingPercent() <= 0) {
+        if (!live.diminishing() || live.diminishingPercent() <= 0) {
             return 0;
         }
         int stacks = sold.soldLately(player, material.name(), live.diminishingMinutes())
@@ -166,6 +166,9 @@ public final class ShopService implements IEconomyService {
     /** Why the shop will not pay {@code total} more to this player today, if it will not: a message key and what is left. */
     Optional<Map.Entry<String, Money>> overBudget(Player player, Money total) {
         de.raindancer.modules.economy.SupplySettings live = supplied();
+        if (!live.sellBudgets()) {
+            return Optional.empty();
+        }
         Currency currency = settings.currency();
         Money mine = de.raindancer.modules.economy.SupplySettings.money(live.sellBudgetPerPlayer(), currency);
         if (mine.isPositive()) {
@@ -400,7 +403,8 @@ public final class ShopService implements IEconomyService {
      */
     public Optional<SaleLot> appraise(UUID seller, ItemStack stack, int slot) {
         if (stack == null || stack.getType().isAir() || CashTags.isCash(stack)
-                || de.raindancer.core.content.items.NonIngredients.isMarked(stack)) {
+                || de.raindancer.core.content.items.NonIngredients.isMarked(stack)
+                || de.raindancer.core.content.items.InsuredItems.isInsured(stack)) {
             return Optional.empty();
         }
         Material material = stack.getType();
@@ -590,7 +594,7 @@ public final class ShopService implements IEconomyService {
             Outcomes.tell(messages, effects, player, result, currency, "");
             return;
         }
-        if (supplied().diminishingPercent() > 0) {
+        if (supplied().diminishing() && supplied().diminishingPercent() > 0) {
             taken.forEach((material, count) -> sold.sold(player.getUniqueId(), material.name(), count));
         }
         if (live.dynamicPrices()) {

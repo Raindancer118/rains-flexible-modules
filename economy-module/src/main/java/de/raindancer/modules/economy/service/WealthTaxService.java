@@ -92,11 +92,11 @@ public final class WealthTaxService implements IEconomyService {
      */
     Money owedBy(Account account, double percent, Money allowance, long now) {
         de.raindancer.modules.economy.SupplySettings live = supplied();
-        if (live.wealthTaxIdleDays() > 0 && now - account.idleSince() < live.wealthTaxIdleDays() * 86_400_000L) {
+        if (live.wealthTaxIdleOnly() && live.wealthTaxIdleDays() > 0 && now - account.idleSince() < live.wealthTaxIdleDays() * 86_400_000L) {
             return Money.ZERO;
         }
         Money owed;
-        if (live.wealthTaxBrackets().isEmpty()) {
+        if (!live.wealthTaxByBrackets() || live.wealthTaxBrackets().isEmpty()) {
             owed = rule.owed(account.balance(), percent, allowance);
         } else {
             de.raindancer.modules.economy.rules.BracketRule brackets = new de.raindancer.modules.economy.rules.BracketRule();

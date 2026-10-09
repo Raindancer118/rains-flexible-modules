@@ -120,8 +120,8 @@ public final class SupplyService implements IEconomyService, EconomyLever {
         MoneySupply now = book.supply(activePlayers);
         snapshot = now;
         SupplySettings live = supply;
-        faucetFromSupply = supplyRule.faucetChange(now, live.scaleBelowPercent(),
-                SupplySettings.money(live.targetPerPlayer(), settings.currency()));
+        faucetFromSupply = supplyRule.faucetChange(now, live.lowTreasuryBrake() ? live.scaleBelowPercent() : 0,
+                live.perPlayerBrake() ? SupplySettings.money(live.targetPerPlayer(), settings.currency()) : Money.ZERO);
     }
 
     public MoneySupply snapshot() {

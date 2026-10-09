@@ -38,7 +38,7 @@ public final class DeathService implements IEconomyService {
     /** What dying here costs this player now; zero when it costs nothing. */
     public Money loss(UUID player, String world) {
         SupplySettings live = SupplyService.settingsOf(supply);
-        if (!(live.deathLosePercent() > 0)) {
+        if (!live.deathCosts() || !(live.deathLosePercent() > 0)) {
             return Money.ZERO;
         }
         if (!live.deathWorlds().isEmpty() && live.deathWorlds().stream()

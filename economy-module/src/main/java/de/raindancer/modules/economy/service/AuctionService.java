@@ -119,7 +119,7 @@ public final class AuctionService implements IEconomyService {
         Currency currency = settings.currency();
         Money price = de.raindancer.core.social.economy.EconomyLevers.sink(de.raindancer.modules.economy.model.Sources.AUCTION_JUMP,
                 de.raindancer.modules.economy.SupplySettings.money(supplied().auctionJumpPrice(), currency));
-        if (!price.isPositive()) {
+        if (!supplied().auctionJump() || !price.isPositive()) {
             messages.send(player, "economy.auction.jump-off");
             return;
         }
@@ -233,6 +233,10 @@ public final class AuctionService implements IEconomyService {
         }
         if (CashTags.isCash(hand)) {
             refuse(seller, "economy.auction.money");
+            return false;
+        }
+        if (de.raindancer.core.content.items.InsuredItems.isInsured(hand)) {
+            refuse(seller, "economy.auction.insured");
             return false;
         }
         List<Auction> all = book.auctions();

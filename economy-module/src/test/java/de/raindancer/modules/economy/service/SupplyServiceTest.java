@@ -99,6 +99,7 @@ class SupplyServiceTest {
             values.put("capped", true);
             values.put("cap", "10000");
             values.put("scaleBelowPercent", 20);
+            values.put("lowTreasuryBrake", true);
             return values;
         }));
         book.open(alice, "Alice", Money.of(9_500));

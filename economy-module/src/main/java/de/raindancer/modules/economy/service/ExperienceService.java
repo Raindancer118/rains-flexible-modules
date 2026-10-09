@@ -115,7 +115,8 @@ public final class ExperienceService implements IEconomyService {
             refuse(player, "economy.xp.worthless");
             return false;
         }
-        Money most = de.raindancer.modules.economy.SupplySettings.money(supplied().xpSellDailyMost(), currency);
+        Money most = supplied().xpDailyLimit()
+                ? de.raindancer.modules.economy.SupplySettings.money(supplied().xpSellDailyMost(), currency) : Money.ZERO;
         if (most.isPositive()) {
             Money left = most.minus(economy.book().today(player.getUniqueId(), XP_SOURCE)).max(Money.ZERO);
             if (pay.isMoreThan(left)) {

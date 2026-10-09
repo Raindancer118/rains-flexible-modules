@@ -41,6 +41,10 @@ public final class BankCommand extends EconomyCommand {
                         live.messages().send(player, "economy.gamble.off");
                         return;
                     }
+                    if (door == Door.CASINO && args.length > 0 && args[0].equalsIgnoreCase("insure")) {
+                        live.gambling().toggleInsurance(player);
+                        return;
+                    }
                     if (door == Door.SLOTS) {
                         live.screens().slots(player);
                     } else {

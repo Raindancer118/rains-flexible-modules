@@ -162,6 +162,10 @@ public final class RaffleService implements IEconomyService {
             refuse(host, kind(giveaway, "money"));
             return false;
         }
+        if (de.raindancer.core.content.items.InsuredItems.isInsured(hand)) {
+            refuse(host, kind(giveaway, "insured"));
+            return false;
+        }
         if (!roomFor(host, ticketPrice, giveaway)) {
             return false;
         }

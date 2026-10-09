@@ -226,6 +226,7 @@ public final class EconomyModule implements FlexModule {
                 System::currentTimeMillis, () -> supply.current().funds(),
                 fund -> Scheduling.global(context.plugin(), () -> fundFilled(context, fund)));
         offTheServerThread(funds::load);
+        offTheServerThread(() -> gambling.insurance(supplyBook));
         var repair = new de.raindancer.modules.economy.service.RepairService(context.plugin(), economy, messages,
                 effects, buttons, supply, now);
         var death = new de.raindancer.modules.economy.service.DeathService(economy, messages, supply, now);

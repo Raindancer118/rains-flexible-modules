@@ -98,7 +98,7 @@ public final class PaymentService implements IEconomyService {
         }
         long wait = new de.raindancer.modules.economy.rules.VestingRule().hoursLeft(
                 economy.book().find(payer.getUniqueId()).map(de.raindancer.modules.economy.model.Account::created)
-                        .orElse(0L), System.currentTimeMillis(), supplied().newAccountHours());
+                        .orElse(0L), System.currentTimeMillis(), supplied().newAccountLock() ? supplied().newAccountHours() : 0);
         if (wait > 0) {
             refuse(payer, "economy.pay.too-new", "hours", String.valueOf(wait));
             return;
@@ -145,7 +145,8 @@ public final class PaymentService implements IEconomyService {
      * economy's levers; never more than the payment.
      */
     Money taxOn(Money amount, EconomySettings live) {
-        java.util.List<String> written = supplied().payTaxBrackets();
+        java.util.List<String> written = supplied().payTaxByBrackets() ? supplied().payTaxBrackets()
+                : java.util.List.of();
         Money tax = written.isEmpty() ? rule.tax(amount, live.payTax())
                 : new de.raindancer.modules.economy.rules.BracketRule().parse(written, live.currency())
                 .map(brackets -> new de.raindancer.modules.economy.rules.BracketRule().tax(amount, brackets))

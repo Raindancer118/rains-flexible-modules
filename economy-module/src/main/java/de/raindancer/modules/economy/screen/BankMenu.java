@@ -139,6 +139,9 @@ public final class BankMenu extends Menu implements IEconomyScreen {
             services.sidebar().refresh(java.util.List.of(viewer));
             refresh();
         });
+        toolbar(6, Icons.of(Material.BEACON, "<aqua>The server's money",
+                "<gray>The treasury, community funds, repair,", "<gray>bet insurance, season points, debts.",
+                "<yellow>Click<gray> to open"), click -> new SupplyMenu(services, viewer, this).open());
         if (viewer.hasPermission(PermissionNodes.ADMIN)) {
             toolbar(4, Icons.of(Material.COMMAND_BLOCK, "<red>Run the economy",
                     "<gray>Switch features, close shop categories,", "<gray>paint the currency."),
