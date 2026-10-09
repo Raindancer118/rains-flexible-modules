@@ -99,6 +99,14 @@ final class FakeServices {
         return new Builder();
     }
 
+    /** Upkeep off, as on a server that never turned it on: nobody owes anything. */
+    private static de.raindancer.modules.claims.service.UpkeepService noUpkeep() {
+        var upkeep = mock(de.raindancer.modules.claims.service.UpkeepService.class);
+        org.mockito.Mockito.lenient().when(upkeep.owed(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(de.raindancer.core.social.economy.Money.ZERO);
+        return upkeep;
+    }
+
     /** Only the collaborators a test actually names are anything other than an unstubbed mock. */
     static final class Builder {
         private Plugin plugin = mock(Plugin.class);
@@ -147,7 +155,8 @@ final class FakeServices {
                     mock(ClaimScreensOpener.class), () -> movement[0], () -> {
             }, () -> true, mock(RainsCore.class),
                     new de.raindancer.modules.claims.service.ClaimWarpService(
-                            mock(de.raindancer.core.world.poi.ClaimWarps.class)));
+                            mock(de.raindancer.core.world.poi.ClaimWarps.class)),
+                    noUpkeep());
             movement[0] = new de.raindancer.modules.claims.listener.MovementListener(services);
             return services;
         }

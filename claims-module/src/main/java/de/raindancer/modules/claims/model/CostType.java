@@ -11,7 +11,9 @@ public enum CostType {
     NONE("Free", "No cost at all", Material.BARRIER),
     ITEM("Item", "A configurable item stack", Material.NETHER_STAR),
     XP_LEVELS("XP Levels", "Experience levels", Material.EXPERIENCE_BOTTLE),
-    XP_POINTS("XP Points", "Raw experience points", Material.EXPERIENCE_BOTTLE);
+    XP_POINTS("XP Points", "Raw experience points", Material.EXPERIENCE_BOTTLE),
+    /** Whole currency units from the player's balance; needs an economy. */
+    MONEY("Money", "Whole currency units from the player's balance", Material.GOLD_INGOT);
 
     private final String displayName;
     private final String description;
@@ -51,6 +53,9 @@ public enum CostType {
         // Friendly aliases so /claimadmin cost xp works as people expect.
         if (normalised.equals("XP") || normalised.equals("LEVEL") || normalised.equals("LEVELS")) {
             return Optional.of(XP_LEVELS);
+        }
+        if (normalised.equals("COINS") || normalised.equals("CURRENCY")) {
+            return Optional.of(MONEY);
         }
         if (normalised.equals("POINTS")) {
             return Optional.of(XP_POINTS);

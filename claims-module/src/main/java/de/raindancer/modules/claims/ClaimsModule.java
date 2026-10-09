@@ -22,6 +22,11 @@ import de.raindancer.modules.claims.service.EntryFeeService;
 import de.raindancer.modules.claims.service.EquipService;
 import de.raindancer.modules.claims.service.EvictionService;
 import de.raindancer.modules.claims.service.FenceService;
+import de.raindancer.modules.claims.service.UpkeepService;
+import de.raindancer.modules.claims.store.UpkeepStore;
+import de.raindancer.core.social.economy.Debts;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.claims.store.ClaimRegistry;
 import de.raindancer.modules.claims.store.ClaimStorage;
 import de.raindancer.modules.claims.store.ZoneRegistry;
@@ -60,7 +65,7 @@ import java.io.UncheckedIOException;
  */
 public final class ClaimsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.6.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.7.0")
             .describedAs("Land claims: who owns what, who may do what there, and the screens for it")
             .by("Raindancer118");
 
@@ -92,6 +97,7 @@ public final class ClaimsModule implements FlexModule {
     private AmbienceService ambience;
     private MovementListener movement;
     private ClaimServices services;
+    private UpkeepService upkeep;
 
     @Override
     public ModuleInfo info() {
@@ -177,11 +183,16 @@ public final class ClaimsModule implements FlexModule {
         zoneStorage.loadAll().forEach(zones::add);
 
         costs = new CostService();
+        upkeep = new UpkeepService(claims, new UpkeepStore(context.dataFolder()), settings.current(),
+                System::currentTimeMillis);
+        // The economy collects part of an owner's income toward what they owe here.
+        Debts.provide(context.plugin(), upkeep);
+        context.closeWith(() -> Debts.retract(upkeep));
         claimService = new ClaimService(context.plugin(), claims, zones, storage, settings.current(),
                 costs, rights);
         claimService.features(features);
         claimService.rules(de.raindancer.modules.claims.rules.ClaimRules.standard(
-                settings::current, claims, zones, names, rights::isBypassing));
+                settings::current, claims, zones, names, rights::isBypassing, upkeep::owed));
         visualizer = new BorderVisualizer(context.plugin(), settings.current());
         selections = new SelectionService(settings.current());
         stick = new SelectionStick(context.plugin(), settings.current(), context.core().messages());
@@ -217,7 +228,7 @@ public final class ClaimsModule implements FlexModule {
                 land.flags(), features, claims, storage, zones, claimService, names, rights, provider,
                 costs, selections, stick, selectionFlow, visualizer, fences, ambience, entryFees,
                 eviction, equipment, broadcasts, settings::current, new LiveScreens(), () -> movement,
-                this::saveZones, this::saveFeaturePolicies, context.core(), claimWarps);
+                this::saveZones, this::saveFeaturePolicies, context.core(), claimWarps, upkeep);
         movement = new MovementListener(services);
         ambience.movement(movement);
 
@@ -242,7 +253,10 @@ public final class ClaimsModule implements FlexModule {
             entryFees.settings(fresh);
             equipment.settings(fresh);
             ambience.settings(fresh);
+            upkeep.settings(fresh);
+            upkeep.refreshProtection();
         });
+        startUpkeep(context);
 
         context.listener(movement);
         context.listener(new PlayerSessionListener(services));
@@ -254,6 +268,40 @@ public final class ClaimsModule implements FlexModule {
         ClaimCommands.ready(services);
 
         log.info("Claims are up: {} claim(s), {} no-claim zone(s).", claims.size(), zones.all().size());
+    }
+
+    /**
+     * Bills whoever is due once a minute, and tells the owners it concerned.
+     *
+     * <p>Idle with upkeep off: {@code settleAll} returns at once, so a server that never turns it on pays for
+     * a timer that does nothing. The schedule itself is the service's, persisted per owner, so the minute
+     * granularity here is only how late a bill can be, never whether it is sent twice.
+     */
+    private void startUpkeep(ModuleContext context) {
+        upkeep.refreshProtection();
+        var task = Scheduling.globalTimer(context.plugin(), 20L * 30, 20L * 60, handle -> {
+            for (UpkeepService.Billing billing : upkeep.settleAll()) {
+                org.bukkit.entity.Player owner = context.plugin().getServer().getPlayer(billing.owner());
+                if (owner == null) {
+                    continue;
+                }
+                boolean paid = billing.outcome() == UpkeepService.Outcome.PAID;
+                if (billing.outcome() == UpkeepService.Outcome.UNAVAILABLE) {
+                    continue;
+                }
+                Scheduling.entity(context.plugin(), owner, () -> {
+                    if (paid) {
+                        services.messages().send(owner, "upkeep.paid-bill",
+                                "amount", Fees.format(billing.amount()),
+                                "chunks", String.valueOf(upkeep.chunksHeld(billing.owner())));
+                    } else {
+                        services.messages().send(owner, "upkeep.missed",
+                                "amount", Fees.format(billing.amount()));
+                    }
+                });
+            }
+        });
+        context.closeWith(task::cancel);
     }
 
     /**

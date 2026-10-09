@@ -107,7 +107,9 @@ public record ClaimServices(
          * Core happens to expose.
          */
         de.raindancer.core.RainsCore core,
-        de.raindancer.modules.claims.service.ClaimWarpService claimWarps) {
+        de.raindancer.modules.claims.service.ClaimWarpService claimWarps,
+        /** What holding land costs, and who has not paid it. Idle while upkeep is off. */
+        de.raindancer.modules.claims.service.UpkeepService upkeep) {
 
     /**
      * The border tracker.

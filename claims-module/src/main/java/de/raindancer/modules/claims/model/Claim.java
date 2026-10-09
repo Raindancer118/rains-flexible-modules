@@ -123,6 +123,7 @@ public final class Claim {
     private long paidArea;
     /** How much of the currency is invested in the claim at its current size. */
     private int settledAmount;
+    private volatile boolean lapsed;
     private org.bukkit.inventory.ItemStack paidItem;
 
     public Claim(UUID id, String name, UUID worldId, String worldName, ClaimShape shape, UUID owner) {
@@ -725,6 +726,18 @@ public final class Claim {
 
     public void createdAt(long createdAt) {
         this.createdAt = createdAt;
+    }
+
+    /**
+     * Whether the owner's unpaid upkeep has gone on long enough that this claim has stopped protecting.
+     * Never saved: it is worked out again from the owner's arrears, so paying clears it at once.
+     */
+    public boolean lapsed() {
+        return lapsed;
+    }
+
+    public void lapsed(boolean lapsed) {
+        this.lapsed = lapsed;
     }
 
     public boolean dirty() {

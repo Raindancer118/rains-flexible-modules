@@ -340,6 +340,7 @@ public final class SelectionFlow {
             case IN_NO_CLAIM_ZONE -> "error.in-no-claim-zone";
             case CANNOT_AFFORD -> "error.cannot-afford";
             case UNDERGROUND_DISALLOWED -> "error.underground-disallowed";
+            case IN_ARREARS -> "error.in-arrears";
             // A rule the module did not write. Its own key is the honest thing to show, and the
             // detail carries whatever it wanted to say.
             case OTHER -> "error.generic";

@@ -34,6 +34,16 @@ public final class PlayerSessionListener implements IClaimListener {
         services.movement().syncPosition(event.getPlayer());
         services.ambience().track(event.getPlayer());
         evictIfBanned(event.getPlayer());
+        warnOfArrears(event.getPlayer());
+    }
+
+    /** An owner who owes upkeep is told as they arrive, since nothing else would say why they cannot claim. */
+    private void warnOfArrears(Player player) {
+        var owed = services.upkeep().owed(player.getUniqueId());
+        if (owed.isPositive()) {
+            services.messages().send(player, "upkeep.join-warning",
+                    "owed", de.raindancer.core.social.economy.Fees.format(owed));
+        }
     }
 
     /**

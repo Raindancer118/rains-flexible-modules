@@ -57,6 +57,8 @@ public final class ClaimService implements IClaimService {
         IN_NO_CLAIM_ZONE,
         CANNOT_AFFORD,
         UNDERGROUND_DISALLOWED,
+        /** The claimant owes upkeep and may not make or grow claims until it is paid. */
+        IN_ARREARS,
         /**
          * A rule this class does not know the key of said no.
          *
@@ -178,6 +180,7 @@ public final class ClaimService implements IClaimService {
             case "error.claim-too-small" -> Failure.TOO_SMALL;
             case "error.claim-too-large" -> Failure.TOO_LARGE;
             case "error.underground-disallowed" -> Failure.UNDERGROUND_DISALLOWED;
+            case "error.in-arrears" -> Failure.IN_ARREARS;
             case "error.in-no-claim-zone" -> Failure.IN_NO_CLAIM_ZONE;
             case "error.overlaps-claim" -> Failure.OVERLAPS_CLAIM;
             default -> Failure.OTHER;
@@ -306,7 +309,7 @@ public final class ClaimService implements IClaimService {
             if (refund <= 0) {
                 return Settlement.NOTHING;
             }
-            depositRefund(claim, type, refund, item);
+            depositRefund(claim, type, refund, item, player.getUniqueId());
             return new Settlement(refund, 0, "");
         }
 
@@ -322,8 +325,17 @@ public final class ClaimService implements IClaimService {
         return new Settlement(0, extra, "");
     }
 
-    private void depositRefund(Claim claim, CostType type, int amount, ItemStack item) {
+    /** Money goes back to {@code payer}'s balance; items and experience go into the claim's bank. */
+    private void depositRefund(Claim claim, CostType type, int amount, ItemStack item, UUID payer) {
         switch (type) {
+            case MONEY -> {
+                var result = CostService.refundMoney(payer, amount);
+                if (!result.succeeded()) {
+                    logger.warning("Could not refund " + amount + " for claim " + claim.name() + ": "
+                            + result.outcome());
+                }
+                return;
+            }
             case ITEM -> {
                 if (item == null) {
                     return;
@@ -446,6 +458,11 @@ public final class ClaimService implements IClaimService {
         }
     }
 
+    /** What comes back of {@code settled} units on delete at the given rate — rounded down. */
+    public static int deleteRefund(int settled, double rate) {
+        return settled <= 0 || !(rate > 0) ? 0 : (int) Math.floor(settled * Math.min(1.0D, rate));
+    }
+
     /** Deletes a claim, optionally refunding what was actually paid to a present owner. */
     public void delete(Claim claim, Player refundTo) {
         // Take the fence down first: once the claim is gone the segment records go with it, and the blocks
@@ -462,7 +479,9 @@ public final class ClaimService implements IClaimService {
                 && claim.hasRecordedPayment()) {
             // Straight into the bank first, so the payout below hands it over in one go. Only what is
             // currently invested comes back — earlier shrink refunds were already paid out.
-            depositRefund(claim, claim.paidCostType(), claim.settledAmount(), claim.paidItem());
+            depositRefund(claim, claim.paidCostType(),
+                    deleteRefund(claim.settledAmount(), settings.deleteRate()), claim.paidItem(),
+                    refundTo.getUniqueId());
             claim.settledAmount(0);
         }
         // Banked entry fees must not evaporate silently.

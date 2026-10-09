@@ -68,7 +68,8 @@ public record ClaimAreaRule(Claim claim) implements ProtectedArea, IClaimRule {
 
     @Override
     public Optional<Boolean> flagOverride(LandFlag flag, LandAudience audience) {
-        return claim.flagOverride(flag, audience);
+        // A lapsed claim answers with the server's defaults rather than its owner's choices.
+        return claim.lapsed() ? Optional.empty() : claim.flagOverride(flag, audience);
     }
 
     @Override
@@ -96,6 +97,9 @@ public record ClaimAreaRule(Claim claim) implements ProtectedArea, IClaimRule {
 
     @Override
     public boolean may(UUID who, LandAction action) {
+        if (claim.lapsed()) {
+            return true;   // unpaid upkeep for long enough: open until it is paid, never deleted
+        }
         if (who == null) {
             return claim.publicHas(action);
         }

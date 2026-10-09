@@ -5,6 +5,7 @@ import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.model.CostType;
 import de.raindancer.modules.claims.model.EntryFee;
+import de.raindancer.modules.claims.model.EntryFeeCut;
 import de.raindancer.modules.claims.rules.FeatureRules;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
@@ -139,7 +140,7 @@ public final class EntryFeeService implements IClaimService {
                 new Prompt(claim.id(), System.currentTimeMillis() + timeout,
                         destination == null ? null : destination.clone(), teleport));
 
-        Component price = costs.describe(fee.type(), fee.amount(), fee.item());
+        Component price = costs.describe(fee.type(), fee.amount(), fee.item(), CostService.ENTRY_FEE_SOURCE);
         messages.send(player, "entry-fee.offer",
                 "claim", claim.name(),
                 "price", net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(price),
@@ -193,7 +194,9 @@ public final class EntryFeeService implements IClaimService {
             return true;
         }
 
-        CostService.Charge charge = costs.charge(player, fee.type(), fee.amount(), fee.item());
+        CostService.Charge charge = fee.type() == CostType.MONEY
+                ? tollInMoney(player, claim, fee)
+                : costs.charge(player, fee.type(), fee.amount(), fee.item(), CostService.ENTRY_FEE_SOURCE);
         if (!charge.success()) {
             messages.send(player, "entry-fee.cannot-afford", 
                     "claim", claim.name(), "missing", charge.shortfallDescription());
@@ -207,25 +210,43 @@ public final class EntryFeeService implements IClaimService {
         grantPass(player, claim);
         messages.send(player, "entry-fee.paid", 
                 "claim", claim.name(),
-                "price", net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(costs.describe(fee.type(), fee.amount(), fee.item())));
+                "price", net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(costs.describe(fee.type(), fee.amount(), fee.item(), CostService.ENTRY_FEE_SOURCE)));
         notifyOwners(claim, player);
         resume(player, prompt);
         return true;
     }
 
+    /** Money goes owner-ward through the economy rather than into the claim's bank, which only holds goods. */
+    private CostService.Charge tollInMoney(Player player, Claim claim, EntryFee fee) {
+        MoneyToll.Result result = MoneyToll.pay(player.getUniqueId(), claim.primaryOwner(), fee.amount(),
+                settings.entryFeeServerCutPercent());
+        return result.paid() ? CostService.Charge.ok() : CostService.Charge.failed(result.shortfall());
+    }
+
     private void depositToBank(Claim claim, EntryFee fee) {
+        bank(claim, fee, settings.entryFeeServerCutPercent());
+    }
+
+    /**
+     * Banks what a visitor paid, less the server's cut.
+     *
+     * <p>The cut is destroyed, not collected anywhere: it is the share of every toll that leaves the game, so
+     * tolls cannot mint resources for owners out of nothing. Rounded down per fee, in the owners' favour.
+     */
+    public static void bank(Claim claim, EntryFee fee, double cutPercent) {
         switch (fee.type()) {
             case ITEM -> {
                 ItemStack stack = fee.item();
-                if (stack != null) {
-                    stack.setAmount(fee.amount());
+                int kept = EntryFeeCut.kept(fee.amount(), cutPercent);
+                if (stack != null && kept > 0) {
+                    stack.setAmount(kept);
                     claim.bank().depositItem(stack);
                 }
             }
-            case XP_LEVELS -> claim.bank()
-                    .depositExperience(CostService.totalExperienceForLevel(fee.amount()));
-            case XP_POINTS -> claim.bank().depositExperience(fee.amount());
-            case NONE -> {
+            case XP_LEVELS -> claim.bank().depositExperience(
+                    EntryFeeCut.kept(CostService.totalExperienceForLevel(fee.amount()), cutPercent));
+            case XP_POINTS -> claim.bank().depositExperience(EntryFeeCut.kept(fee.amount(), cutPercent));
+            case NONE, MONEY -> {
             }
         }
         claim.markDirty();
@@ -277,7 +298,7 @@ public final class EntryFeeService implements IClaimService {
     /** Cheap sanity check used before offering: is the fee even payable right now? */
     public boolean canAfford(Player player, Claim claim) {
         EntryFee fee = claim.entryFee();
-        return costs.canAfford(player, fee.type(), fee.amount(), fee.item());
+        return costs.canAfford(player, fee.type(), fee.amount(), fee.item(), CostService.ENTRY_FEE_SOURCE);
     }
 
     public Component describe(Claim claim) {
@@ -285,7 +306,7 @@ public final class EntryFeeService implements IClaimService {
         if (!fee.enabled()) {
             return Component.text("none");
         }
-        return costs.describe(fee.type(), fee.amount(), fee.item());
+        return costs.describe(fee.type(), fee.amount(), fee.item(), CostService.ENTRY_FEE_SOURCE);
     }
 
     /** True when the visitor is allowed past the gate — either nothing is owed or a pass exists. */

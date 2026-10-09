@@ -12,7 +12,12 @@ import de.raindancer.modules.claims.model.NoClaimZone;
 import de.raindancer.modules.claims.store.ClaimRegistry;
 import de.raindancer.modules.claims.store.ZoneRegistry;
 
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
+
 import java.util.List;
+import java.util.UUID;
+import java.util.function.Function;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -50,8 +55,21 @@ public final class ClaimRules {
     public static Rules<ClaimAttempt> standard(Supplier<ClaimSettings> settings, ClaimRegistry claims,
                                                    ZoneRegistry zones, ClaimNames names,
                                                    Predicate<Player> isBypassing) {
+        return standard(settings, claims, zones, names, isBypassing, who -> Money.ZERO);
+    }
+
+    /**
+     * The same chain, plus the refusal for an owner who has not paid their upkeep.
+     *
+     * @param upkeepOwed what somebody owes in unpaid upkeep right now; zero for nothing
+     */
+    public static Rules<ClaimAttempt> standard(Supplier<ClaimSettings> settings, ClaimRegistry claims,
+                                                   ZoneRegistry zones, ClaimNames names,
+                                                   Predicate<Player> isBypassing,
+                                                   Function<UUID, Money> upkeepOwed) {
         return Rules.of(
                 new WorldIsEnabledRule(settings),
+                new UpkeepIsPaidRule(upkeepOwed, isBypassing),
                 new NameIsUsableRule(names),
                 new NotTooManyCornersRule(settings),
                 new BigEnoughRule(settings),
@@ -78,6 +96,42 @@ public final class ClaimRules {
             return settings.get().worldEnabled(attempt.world().getName())
                     ? Verdict.allowed()
                     : Verdict.refused("error.world-disabled", attempt.world().getName());
+        }
+
+    }
+
+    /**
+     * Somebody in arrears may neither make a claim nor enlarge one; redrawing smaller or the same is fine,
+     * since that is how somebody gets their upkeep down.
+     */
+    static final class UpkeepIsPaidRule extends AbstractRule<ClaimAttempt> implements IClaimRule {
+
+        private final Function<UUID, Money> owed;
+        private final Predicate<Player> isBypassing;
+
+        UpkeepIsPaidRule(Function<UUID, Money> owed, Predicate<Player> isBypassing) {
+            super("the claimant has no unpaid upkeep");
+            this.owed = owed;
+            this.isBypassing = isBypassing;
+        }
+
+        @Override
+        public Verdict judge(ClaimAttempt attempt) {
+            if (attempt.isReshape()) {
+                var old = attempt.existing().shape();
+                boolean grows = attempt.shape().areaBlocks() > old.areaBlocks()
+                        || attempt.shape().coveredChunkKeys().size() > old.coveredChunkKeys().size();
+                if (!grows) {
+                    return Verdict.allowed();
+                }
+            }
+            if (isBypassing.test(attempt.claimant())) {
+                return Verdict.allowed();
+            }
+            Money debt = owed.apply(attempt.claimantId());
+            return debt.isPositive()
+                    ? Verdict.refused("error.in-arrears", Fees.format(debt))
+                    : Verdict.allowed();
         }
 
     }

@@ -7,6 +7,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
+import de.raindancer.core.social.economy.Currency;
+import de.raindancer.core.social.economy.Economies;
+import de.raindancer.core.social.economy.Economy;
+import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -76,8 +83,56 @@ public final class CostService implements IClaimService {
         player.giveExp(Math.max(0, total));
     }
 
+    /** Where creation and growth charges are booked in the economy. */
+    public static final String CREATE_SOURCE = "claims.create";
+    public static final String ENTRY_FEE_SOURCE = "claims.entry-fee";
+    public static final String ENTRY_FEE_CUT_SOURCE = "claims.entry-fee-cut";
+
+    /** Land with no owner has nobody to pay, so its whole fee is booked as the plain entry-fee sink. */
+    static String cutSource(java.util.UUID owner) {
+        return owner == null ? ENTRY_FEE_SOURCE : ENTRY_FEE_CUT_SOURCE;
+    }
+
+    /** A money cost is whole units of the server's currency, so 25 is 25.00 and not 25 cents. */
+    public static Money money(int units) {
+        Currency currency = Economies.current().map(Economy::currency).orElse(Currency.DEFAULT);
+        return currency.ofMajor(Math.max(0, units));
+    }
+
+    /** Gives money back to a balance, exactly as written — no price level, no levers. */
+    public static EconomyResult refundMoney(java.util.UUID to, int units) {
+        return Fees.refund(to, money(units), "Claim refund", CREATE_SOURCE);
+    }
+
+    private static boolean canAffordMoney(java.util.UUID who, int units, String source) {
+        Money price = Fees.quote(source, money(units));
+        if (!price.isPositive()) {
+            return true;
+        }
+        return Economies.current().map(bank -> bank.balance(who).isAtLeast(price)).orElse(false);
+    }
+
+    private static Charge chargeMoney(java.util.UUID who, int units, String source) {
+        EconomyResult result = Fees.charge(who, money(units), "Claim", source);
+        if (result.succeeded()) {
+            return Charge.ok();
+        }
+        return switch (result.outcome()) {
+            case UNAVAILABLE -> Charge.failed("an economy (none is installed)");
+            case NOT_ENOUGH -> Charge.failed(Fees.format(result.amount().minus(result.balance()).max(Money.ZERO))
+                    + " more");
+            case FROZEN -> Charge.failed("an account that is not frozen");
+            default -> Charge.failed(Fees.format(result.amount()) + " (the payment was refused)");
+        };
+    }
+
     public boolean canAfford(Player player, CostType type, int amount, ItemStack item) {
+        return canAfford(player, type, amount, item, CREATE_SOURCE);
+    }
+
+    public boolean canAfford(Player player, CostType type, int amount, ItemStack item, String source) {
         return switch (type) {
+            case MONEY -> canAffordMoney(player.getUniqueId(), amount, source);
             case NONE -> true;
             case ITEM -> item != null && countMatching(player.getInventory(), item) >= amount;
             case XP_LEVELS -> player.getLevel() >= amount;
@@ -86,7 +141,14 @@ public final class CostService implements IClaimService {
     }
 
     public Charge charge(Player player, CostType type, int amount, ItemStack item) {
+        return charge(player, type, amount, item, CREATE_SOURCE);
+    }
+
+    public Charge charge(Player player, CostType type, int amount, ItemStack item, String source) {
         switch (type) {
+            case MONEY -> {
+                return chargeMoney(player.getUniqueId(), amount, source);
+            }
             case NONE -> {
                 return Charge.ok();
             }
@@ -145,6 +207,7 @@ public final class CostService implements IClaimService {
             }
             case XP_LEVELS -> player.giveExpLevels(amount);
             case XP_POINTS -> player.giveExp(amount);
+            case MONEY -> refundMoney(player.getUniqueId(), amount);
         }
     }
 
@@ -190,7 +253,12 @@ public final class CostService implements IClaimService {
 
     /** Human readable cost label for GUIs and messages. */
     public Component describe(CostType type, int amount, ItemStack item) {
+        return describe(type, amount, item, CREATE_SOURCE);
+    }
+
+    public Component describe(CostType type, int amount, ItemStack item, String source) {
         return switch (type) {
+            case MONEY -> Component.text(Fees.format(Fees.quote(source, money(amount))));
             case NONE -> Component.text("free");
             case ITEM -> Component.text(amount + "x ")
                     .append(item == null

@@ -28,6 +28,7 @@ claim:
     <gray>/claim rename <white>a new name<dark_gray> · <gray>delete<dark_gray>
     <gray>/claim transfer <white>somebody<dark_gray> — hand it over entirely
     <gray>/claim warp<dark_gray> · <gray>home<dark_gray> — its warp where you stand, your main home
+    <gray>/claim upkeep<dark_gray> · <gray>pay<dark_gray> — what holding land costs, if the server charges
     <dark_gray>everything else is in the menus
   manual-given: "<green>The manual is in your inventory. <gray>Read it any time."
   stick-given: "<green>There is your marking-out tool. <gray>Left click one corner, right click the other."
@@ -190,6 +191,7 @@ error:
   in-no-claim-zone: "<gray>Nobody may claim in <white><detail></white>."
   cannot-afford: "<gray>You cannot afford that: <white><detail></white>."
   underground-disallowed: "<gray>This server does not allow claims that are wholly underground."
+  in-arrears: "<red>You owe <white><detail></white> in claim upkeep, so you cannot make or enlarge claims. <gray>See <white>/claim upkeep</white> and pay it with <white>/claim upkeep pay</white>."
   generic: "<gray>That did not work. <dark_gray>Reason: <detail>"
   no-such-player: "<gray>No player called <white><player></white> is known here. Check the spelling."
   no-such-claim: "<gray>No claim called <white><claim></white>."
@@ -255,3 +257,19 @@ admin:
   inspect-header: "<gold>── <white><claim></white>, staff view ──"
   diagnose-header: "<gold>── why, here ──"
   ask-owner-filter: "<gray>Show only whose claims? <white>(type a name, or cancel)"
+
+upkeep:
+  disabled: "<gray>This server charges no claim upkeep."
+  status: "<gray>Upkeep: <white><chunks></white> chunk(s) held, <white><bill></white> every <white><period></white>. Next bill in <white><next></white>."
+  nothing-held: "<gray>You hold no land, so there is no upkeep to pay."
+  owed: "<red>You are in arrears: <white><owed></white>. <gray>You cannot make or enlarge claims until it is paid — <white>/claim upkeep pay</white>."
+  lapsed: "<red>Your claims have stopped protecting because the upkeep has gone unpaid for too long. Paying brings the protection back."
+  paid-bill: "<gray>Claim upkeep: <white><amount></white> paid for <white><chunks></white> chunk(s)."
+  missed: "<red>You could not pay your claim upkeep of <white><amount></white>. <gray>You cannot make or enlarge claims until you pay it with <white>/claim upkeep pay</white>."
+  join-warning: "<red>You owe <white><owed></white> in claim upkeep. <gray>Pay it with <white>/claim upkeep pay</white>; until then you cannot make or enlarge claims."
+  nothing-owed: "<gray>You owe no upkeep."
+  paid-all: "<green>Paid <white><paid></white>. Your upkeep is clear."
+  paid-part: "<yellow>Paid <white><paid></white>; <white><left></white> is still owed."
+  cannot-pay: "<gray>You cannot afford to pay any of the <white><owed></white> you owe."
+  no-economy: "<gray>There is no economy to pay with right now. Try again later."
+  info-line: "<gray>Upkeep: <white><bill></white> every <white><period></white> for this owner's land."

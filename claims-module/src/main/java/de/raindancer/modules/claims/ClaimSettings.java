@@ -43,6 +43,7 @@ import java.util.List;
         @Topic(path = "management/selection", title = "Marking one out", icon = Material.GOLDEN_SHOVEL),
         @Topic(path = "management/fences", title = "Fences", icon = Material.OAK_FENCE),
         @Topic(path = "management/entry-fee", title = "Entry fees", icon = Material.GOLD_NUGGET),
+        @Topic(path = "management/upkeep", title = "Upkeep", icon = Material.CLOCK),
         @Topic(path = "appearance", title = "How claims look", icon = Material.SPYGLASS),
         @Topic(path = "appearance/borders", title = "Borders", icon = Material.GLOWSTONE_DUST),
         @Topic(path = "appearance/notices", title = "Arriving and leaving", icon = Material.PAPER),
@@ -87,12 +88,12 @@ public record ClaimSettings(
         // ───────────────────────────────────────────────────────────── what a claim costs
 
         @In("management/cost") @Title("Paid in") @Icon(Material.GOLD_INGOT)
-        @Describe("Nothing, experience levels, or an item somebody hands over.")
+        @Describe("Nothing, experience levels or points, an item somebody hands over, or money (needs an economy).")
         @Key("creation-cost.type")
         CostType creationCostType,
 
         @In("management/cost") @Title("How much") @Range(min = 1, max = 100_000)
-        @Describe("Levels, or how many of the item.")
+        @Describe("Levels, points, how many of the item, or whole currency units for money.")
         @Key("creation-cost.amount")
         int creationCostAmount,
 
@@ -378,8 +379,87 @@ public record ClaimSettings(
         @In("management") @Title("Log what the module is thinking")
         @Describe("Verbose. For working out why a claim is or is not protecting something.")
         @Key("debug")
-        boolean debug
+        boolean debug,
+
+        // ───────────────────────────────────────────────────────────── extra cost rules
+
+        @In("management/cost") @Title("Refund rate on delete")
+        @Describe("A fraction between 0 and 1 of what is currently invested that comes back when somebody "
+                + "deletes their own claim. Only matters with 'Refund on delete' on.")
+        @Key("creation-cost.delete-refund-rate")
+        double deleteRefundRate,
+
+        @In("management/entry-fee") @Title("The server's cut") @Range(min = 0, max = 100)
+        @Describe("Percent of every paid entry fee that is destroyed instead of reaching the owners. "
+                + "0 keeps all of it for them.")
+        @Key("entry-fee.server-cut-percent")
+        double entryFeeServerCutPercent,
+
+        // ───────────────────────────────────────────────────────────── upkeep
+
+        @In("management/upkeep") @Title("Upkeep per chunk")
+        @Describe("Money an owner pays every period for each chunk of claimed land. 0 switches upkeep off.")
+        @Key("upkeep.per-chunk")
+        String upkeepPerChunk,
+
+        @In("management/upkeep") @Title("Each further chunk costs more") @Range(min = 0, max = 1000)
+        @Describe("Percent. Every further chunk an owner holds, across all their claims, costs this much more "
+                + "than the one before, so big landholders pay proportionally more. 0 is flat.")
+        @Key("upkeep.growth-percent")
+        double upkeepGrowthPercent,
+
+        @In("management/upkeep") @Title("Billed every") @Range(min = 1, max = 8760)
+        @Describe("Hours between bills. 168 is a week.")
+        @Key("upkeep.every-hours")
+        int upkeepEveryHours,
+
+        @In("management/upkeep") @Title("Unpaid claims stop protecting after") @Range(min = 0, max = 3650)
+        @Describe("Days. A claim whose owner has been in arrears this long stops protecting until it is "
+                + "paid. Never deleted. 0 means never.")
+        @Key("upkeep.arrears-lift-protection-after-days")
+        int upkeepLiftProtectionAfterDays
 ) {
+
+    /** The shape before the upkeep and cut settings existed; everything new is at its neutral value. */
+    public ClaimSettings(int maxClaimsDefault, int minClaimArea, long maxClaimArea, int maxVertices,
+                         int minClaimHeight, boolean allowOverlappingWorldsOnly, CostType creationCostType,
+                         int creationCostAmount, boolean creationCostPerBlock, int creationCostBlocksPerUnit,
+                         boolean refundOnDelete, double shrinkRefundRate, boolean chargeOnGrow,
+                         int entryFeeMaxAmount, int entryFeeDeclineCooldownSeconds,
+                         int entryFeePromptTimeoutSeconds, boolean entryFeeExemptTrusted,
+                         boolean entryFeeExemptAdmins, boolean fenceAutoBuild, boolean fenceChargeMaterial,
+                         Material fenceDefaultMaterial, int fenceHeight, int fenceMaxColumns, int fenceMaxStep,
+                         boolean fenceRefundToBank, int maxClaimEffects, int maxEffectAmplifier,
+                         boolean effectsRequirePotions, int effectPotionMinutes, int potionStoreMaxStacks,
+                         boolean claimThunderBolts, List<String> blockedEffects, int maxEquipRules,
+                         int equipmentMaxStacks, int pantryMaxStacks, int broadcastNearbyRadius,
+                         BroadcastScope broadcastScope, boolean broadcastKick, boolean broadcastBan,
+                         boolean broadcastTimeout, boolean broadcastLift, boolean enterMessageActionBar,
+                         int borderOnEnterSeconds, int notificationCooldownSeconds, int visualDurationSeconds,
+                         int visualRadius, int visualSpacing, int visualMaxPointsPerTick,
+                         boolean visualShowVerticalPillars, VisualMode visualMode, Material visualEdgeBlock,
+                         Material visualCornerBlock, Material visualZoneBlock, Material selectionStickMaterial,
+                         Material selectionMarkerBlock, VerticalMode verticalMode, boolean selectionStickGlint,
+                         int verticalPaddingDown, int verticalPaddingUp, boolean allowUndergroundClaims,
+                         boolean hiddenUndergroundNotificationsMuted, int autoSaveSeconds,
+                         List<String> disabledWorlds, String creationCostItemEncoded, boolean debug) {
+        this(maxClaimsDefault, minClaimArea, maxClaimArea, maxVertices, minClaimHeight,
+                allowOverlappingWorldsOnly, creationCostType, creationCostAmount, creationCostPerBlock,
+                creationCostBlocksPerUnit, refundOnDelete, shrinkRefundRate, chargeOnGrow, entryFeeMaxAmount,
+                entryFeeDeclineCooldownSeconds, entryFeePromptTimeoutSeconds, entryFeeExemptTrusted,
+                entryFeeExemptAdmins, fenceAutoBuild, fenceChargeMaterial, fenceDefaultMaterial, fenceHeight,
+                fenceMaxColumns, fenceMaxStep, fenceRefundToBank, maxClaimEffects, maxEffectAmplifier,
+                effectsRequirePotions, effectPotionMinutes, potionStoreMaxStacks, claimThunderBolts,
+                blockedEffects, maxEquipRules, equipmentMaxStacks, pantryMaxStacks, broadcastNearbyRadius,
+                broadcastScope, broadcastKick, broadcastBan, broadcastTimeout, broadcastLift,
+                enterMessageActionBar, borderOnEnterSeconds, notificationCooldownSeconds,
+                visualDurationSeconds, visualRadius, visualSpacing, visualMaxPointsPerTick,
+                visualShowVerticalPillars, visualMode, visualEdgeBlock, visualCornerBlock, visualZoneBlock,
+                selectionStickMaterial, selectionMarkerBlock, verticalMode, selectionStickGlint,
+                verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
+                hiddenUndergroundNotificationsMuted, autoSaveSeconds, disabledWorlds,
+                creationCostItemEncoded, debug, 1.0D, 0.0D, "0", 0.0D, 168, 0);
+    }
 
     /** How the outline of a border is drawn. */
     public enum VisualMode {
@@ -433,7 +513,8 @@ public record ClaimSettings(
             Material.GOLD_BLOCK, Material.GLOWSTONE, Material.REDSTONE_BLOCK,
             Material.STICK, Material.SEA_LANTERN, VerticalMode.SELECTION_PADDED,
             true, 8, 16, true, true,
-            300, List.of(), "", false);
+            300, List.of(), "", false,
+            1.0D, 0.0D, "0", 0.0D, 168, 0);
 
     /**
      * How many claims this player may hold.
@@ -530,7 +611,8 @@ public record ClaimSettings(
                 visualCornerBlock, visualZoneBlock, selectionStickMaterial, selectionMarkerBlock, verticalMode,
                 selectionStickGlint, verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
                 hiddenUndergroundNotificationsMuted, autoSaveSeconds, disabledWorlds,
-                creationCostItemEncoded, debug);
+                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, upkeepPerChunk,
+                upkeepGrowthPercent, upkeepEveryHours, upkeepLiftProtectionAfterDays);
     }
 
     /** The same, for the refund rate — the other value a caller genuinely wants to vary on its own. */
@@ -549,7 +631,8 @@ public record ClaimSettings(
                 visualCornerBlock, visualZoneBlock, selectionStickMaterial, selectionMarkerBlock, verticalMode,
                 selectionStickGlint, verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
                 hiddenUndergroundNotificationsMuted, autoSaveSeconds, disabledWorlds,
-                creationCostItemEncoded, debug);
+                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, upkeepPerChunk,
+                upkeepGrowthPercent, upkeepEveryHours, upkeepLiftProtectionAfterDays);
     }
 
     /** The same, for the disabled-world list — the third thing a caller varies on its own. */
@@ -568,7 +651,28 @@ public record ClaimSettings(
                 visualCornerBlock, visualZoneBlock, selectionStickMaterial, selectionMarkerBlock, verticalMode,
                 selectionStickGlint, verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
                 hiddenUndergroundNotificationsMuted, autoSaveSeconds, worlds,
-                creationCostItemEncoded, debug);
+                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, upkeepPerChunk,
+                upkeepGrowthPercent, upkeepEveryHours, upkeepLiftProtectionAfterDays);
+    }
+
+    /** The same, for the upkeep — what a caller turning it on has to vary together. */
+    public ClaimSettings withUpkeep(String perChunk, double growthPercent, int everyHours, int liftAfterDays) {
+        return new ClaimSettings(maxClaimsDefault, minClaimArea, maxClaimArea, maxVertices, minClaimHeight,
+                allowOverlappingWorldsOnly, creationCostType, creationCostAmount, creationCostPerBlock,
+                creationCostBlocksPerUnit, refundOnDelete, shrinkRefundRate, chargeOnGrow, entryFeeMaxAmount,
+                entryFeeDeclineCooldownSeconds, entryFeePromptTimeoutSeconds, entryFeeExemptTrusted,
+                entryFeeExemptAdmins, fenceAutoBuild, fenceChargeMaterial, fenceDefaultMaterial, fenceHeight,
+                fenceMaxColumns, fenceMaxStep, fenceRefundToBank, maxClaimEffects, maxEffectAmplifier,
+                effectsRequirePotions, effectPotionMinutes, potionStoreMaxStacks, claimThunderBolts, blockedEffects,
+                maxEquipRules, equipmentMaxStacks, pantryMaxStacks, broadcastNearbyRadius, broadcastScope,
+                broadcastKick, broadcastBan, broadcastTimeout, broadcastLift, enterMessageActionBar,
+                borderOnEnterSeconds, notificationCooldownSeconds, visualDurationSeconds, visualRadius,
+                visualSpacing, visualMaxPointsPerTick, visualShowVerticalPillars, visualMode, visualEdgeBlock,
+                visualCornerBlock, visualZoneBlock, selectionStickMaterial, selectionMarkerBlock, verticalMode,
+                selectionStickGlint, verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
+                hiddenUndergroundNotificationsMuted, autoSaveSeconds, disabledWorlds,
+                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, perChunk,
+                growthPercent, everyHours, liftAfterDays);
     }
 
     /** Whether a claim of this many blocks is within the configured limits. */
@@ -577,6 +681,24 @@ public record ClaimSettings(
             return false;
         }
         return maxClaimArea <= 0 || area <= maxClaimArea;
+    }
+
+    /** What a claim costs to hold per chunk each period, or zero when upkeep is off. */
+    public de.raindancer.core.social.economy.Money upkeepPerChunkAmount() {
+        return de.raindancer.core.social.economy.Fees.amount(upkeepPerChunk);
+    }
+
+    public boolean upkeepEnabled() {
+        return upkeepPerChunkAmount().isPositive();
+    }
+
+    public long upkeepPeriodMillis() {
+        return Math.max(1, upkeepEveryHours) * 3_600_000L;
+    }
+
+    /** Refund rate on delete, clamped like {@link #refundRate()}. */
+    public double deleteRate() {
+        return Math.max(0.0D, Math.min(1.0D, deleteRefundRate));
     }
 
     /** Refund rate, clamped — a file saying 4.0 must not pay out four times what was taken. */

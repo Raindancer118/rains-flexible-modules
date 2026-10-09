@@ -6,6 +6,7 @@ import de.raindancer.modules.claims.model.ClaimAdminPermission;
 import de.raindancer.modules.claims.model.ClaimBan;
 import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.core.moderation.punishment.Durations;
+import de.raindancer.core.social.economy.Fees;
 import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimAdminPermission;
@@ -112,11 +113,65 @@ public final class ClaimCommand implements IClaimCommand {
             // the whole feature a dead end rather than a degraded one.
             case "accept" -> claims.entryFees().accept(player);
             case "decline", "deny" -> claims.entryFees().decline(player);
+            case "upkeep", "rent" -> upkeep(claims, player, args);
             default -> {
                 if (!MistypedCommand.subcommand(player, "claim", args, 0, suggest(source, new String[]{""}))) {
                     claims.messages().send(player, "claim.unknown-subcommand", "word", args[0]);
                     help(claims, player);
                 }
+            }
+        }
+    }
+
+    /**
+     * {@code /claim upkeep} shows the next bill and any arrears; {@code /claim upkeep pay} pays what is owed.
+     * Typing it is the point: a menu cannot be pressed from the chat line that tells somebody they are in arrears.
+     */
+    private void upkeep(ClaimServices claims, Player player, String[] args) {
+        var upkeep = claims.upkeep();
+        var messages = claims.messages();
+        if (!upkeep.enabled()) {
+            messages.send(player, "upkeep.disabled");
+            return;
+        }
+        UUID me = player.getUniqueId();
+        if (args.length >= 2 && args[1].equalsIgnoreCase("pay")) {
+            var owing = upkeep.owed(me);
+            if (!owing.isPositive()) {
+                messages.send(player, "upkeep.nothing-owed");
+                return;
+            }
+            var payment = upkeep.pay(me);
+            if (payment.refusal() == de.raindancer.core.social.economy.EconomyResult.Outcome.UNAVAILABLE) {
+                messages.send(player, "upkeep.no-economy");
+            } else if (!payment.paid().isPositive()) {
+                messages.send(player, "upkeep.cannot-pay", "owed", Fees.format(owing));
+            } else if (payment.left().isPositive()) {
+                messages.send(player, "upkeep.paid-part",
+                        "paid", Fees.format(payment.paid()), "left", Fees.format(payment.left()));
+            } else {
+                messages.send(player, "upkeep.paid-all", "paid", Fees.format(payment.paid()));
+            }
+            return;
+        }
+        int chunks = upkeep.chunksHeld(me);
+        var owing = upkeep.owed(me);
+        if (chunks == 0 && !owing.isPositive()) {
+            messages.send(player, "upkeep.nothing-held");
+            return;
+        }
+        if (chunks > 0) {
+            long next = upkeep.nextDue(me).orElse(System.currentTimeMillis() + claims.config().upkeepPeriodMillis());
+            messages.send(player, "upkeep.status",
+                    "chunks", String.valueOf(chunks),
+                    "bill", Fees.format(upkeep.quotedBillFor(me)),
+                    "period", Durations.describe(java.time.Duration.ofMillis(claims.config().upkeepPeriodMillis())),
+                    "next", Durations.describe(java.time.Duration.ofMillis(Math.max(0L, next - System.currentTimeMillis()))));
+        }
+        if (owing.isPositive()) {
+            messages.send(player, "upkeep.owed", "owed", Fees.format(owing));
+            if (upkeep.lapsed(me)) {
+                messages.send(player, "upkeep.lapsed");
             }
         }
     }
@@ -627,7 +682,7 @@ public final class ClaimCommand implements IClaimCommand {
             List<String> words = new ArrayList<>(List.of(
                     "new", "create", "list", "here", "info", "show", "border", "hide", "delete",
                     "rename", "trust", "untrust", "kick", "ban", "unban", "timeout", "owner", "transfer",
-                    "cancel", "accept", "decline", "manual", "stick", "select", "help", "warp", "home"));
+                    "cancel", "accept", "decline", "manual", "stick", "select", "help", "warp", "home", "upkeep"));
             if (args.length == 1) {
                 String prefix = args[0].toLowerCase(Locale.ROOT);
                 words.removeIf(word -> !word.startsWith(prefix));

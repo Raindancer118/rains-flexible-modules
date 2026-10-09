@@ -71,6 +71,7 @@ public final class ClaimInfoMenu extends ClaimScreen {
         return switch (claim.paidCostType()) {
             case NONE -> Material.STRUCTURE_VOID;
             case XP_LEVELS, XP_POINTS -> Material.EXPERIENCE_BOTTLE;
+            case MONEY -> Material.GOLD_INGOT;
             case ITEM -> claim.paidItem() == null ? Material.CHEST : claim.paidItem().getType();
         };
     }
@@ -86,15 +87,37 @@ public final class ClaimInfoMenu extends ClaimScreen {
         if (claim.paidCostType() == CostType.NONE || !claim.hasRecordedPayment()) {
             lines.add("<gray>Nothing — claims are free on this server,");
             lines.add("<gray>or this one predates the charge.");
+            addUpkeep(claim, lines);
             return lines;
         }
-        lines.add("<gray>Paid <white>" + claim.paidAmount() + "</white> "
+        lines.add(claim.paidCostType() == CostType.MONEY
+                ? "<gray>Paid <white>" + de.raindancer.core.social.economy.Fees.format(
+                        de.raindancer.modules.claims.service.CostService.money(claim.paidAmount()))
+                : "<gray>Paid <white>" + claim.paidAmount() + "</white> "
                 + claim.paidCostType().displayName().toLowerCase(java.util.Locale.ROOT));
         lines.add("<gray>for <white>" + claim.paidArea() + "</white> blocks");
         lines.add("");
         lines.add("<gray>Currently invested: <white>" + claim.settledAmount());
         lines.add("<dark_gray>a resize settles against the original figures,");
         lines.add("<dark_gray>so shrinking and growing back costs nothing extra");
+        addUpkeep(claim, lines);
         return lines;
+    }
+
+    /** What holding the owner's land costs, when the server charges for it. */
+    private void addUpkeep(Claim claim, List<String> lines) {
+        var upkeep = services().upkeep();
+        if (!upkeep.enabled() || claim.primaryOwner() == null) {
+            return;
+        }
+        lines.add("");
+        lines.add("<gray>Upkeep: <white>" + de.raindancer.core.social.economy.Fees.format(
+                upkeep.quotedBillFor(claim.primaryOwner())) + "</white> every <white>"
+                + de.raindancer.core.moderation.punishment.Durations.describe(
+                        Duration.ofMillis(services().config().upkeepPeriodMillis())) + "</white>");
+        lines.add("<dark_gray>for all of the owner's land together");
+        if (claim.lapsed()) {
+            lines.add("<red>Unpaid for too long: not protecting right now");
+        }
     }
 }

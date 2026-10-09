@@ -50,20 +50,26 @@ public final class EntryFeeMenu extends ClaimScreen {
                     save();
                 });
 
+        boolean economy = de.raindancer.core.social.economy.Economies.current().isPresent();
         band(MenuLayout.WHO, 3, allowed,
                 Icons.of(fee.type().icon(), "<white>Paid in <green>" + fee.type().displayName(),
                         "<gray>" + fee.type().description(),
-                        "<dark_gray>click for the next kind"),
+                        economy ? "<dark_gray>click for the next kind"
+                                : "<dark_gray>click for the next kind <red>(Money is skipped: no economy plugin is installed)"),
                 "The owner's to change",
                 click -> {
-                    CostType[] kinds = CostType.values();
-                    fee.type(kinds[(fee.type().ordinal() + 1) % kinds.length]);
+                    CostType next = fee.type().next();
+                    if (next == CostType.MONEY && !economy) {
+                        next = next.next();
+                    }
+                    fee.type(next);
                     save();
                 });
 
         band(MenuLayout.WHO, 5, allowed,
                 Icons.of(fee.type().icon(), "<white>How much: <green>" + fee.amount(),
-                        "<gray>" + fee.type().displayName() + ", per crossing.",
+                        "<gray>" + fee.type().displayName() + ", per crossing."
+                                + (fee.type() == CostType.MONEY ? " Whole currency units." : ""),
                         "",
                         "<dark_gray>click to set it — up to "
                                 + services().config().entryFeeMaxAmount()),
