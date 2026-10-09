@@ -112,13 +112,24 @@ class MannequinPurchaseTest {
     }
 
     @Test
-    @DisplayName("removing refunds the configured percent to the owner, then removes")
+    @DisplayName("removing refunds the configured percent of what was paid for it, then removes")
     void removalRefundsAShare() {
-        Mannequin mannequin = Mannequin.freshlyPlaced("m1", owner, "world", 0, 64, 0);
+        MannequinPurchase purchase = purchase(priced("10", 50));
+        when(player.getUniqueId()).thenReturn(owner);
+        Mannequin mannequin = purchase.buy(player, MannequinKind.PLAYER).orElseThrow();
+        log.clear();
 
-        purchase(priced("10", 50)).retire(mannequin);
+        purchase.retire(mannequin);
 
-        assertThat(log).containsExactly("refund 500", "remove m1");
+        assertThat(log).containsExactly("refund 250", "remove m1");
+    }
+
+    @Test
+    @DisplayName("a mannequin nobody paid for refunds nothing, whatever it would cost now — no money from nowhere")
+    void nothingPaidNothingBack() {
+        purchase(priced("10", 50)).retire(Mannequin.freshlyPlaced("m1", owner, "world", 0, 64, 0));
+
+        assertThat(log).containsExactly("remove m1");
     }
 
     @Test

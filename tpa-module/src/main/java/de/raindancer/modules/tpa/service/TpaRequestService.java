@@ -254,6 +254,15 @@ public final class TpaRequestService implements ITpaService {
             return false;
         }
 
+        if (travel.isTravelling(traveller.getUniqueId()) || fees.holding(traveller.getUniqueId())) {
+            // One journey at a time — a second would be paid for while the first still holds its fee.
+            if (answering.equals(traveller)) {
+                messages.send(answering, "tpa.already-travelling");
+            } else {
+                messages.send(answering, "tpa.they-are-travelling", "player", traveller.getName());
+            }
+            return false;
+        }
         TpaFees.Taken paid = chargeTraveller(answering, traveller, destination);
         if (paid == null) {
             return false;
@@ -320,7 +329,11 @@ public final class TpaRequestService implements ITpaService {
                 .after(warmup)
                 .bringing(Companions.WHAT_YOU_LEAD);
         Location whereTheyAre = destination.getLocation();
-        fees.hold(traveller.getUniqueId(), paid);
+        if (!fees.hold(traveller.getUniqueId(), paid)) {
+            fees.refund(traveller.getUniqueId(), paid);
+            messages.send(traveller, "tpa.already-travelling");
+            return;
+        }
         travel.go(traveller, whereTheyAre, trip, new Arriving(destination.getName()));
     }
 

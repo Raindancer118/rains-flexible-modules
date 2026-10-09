@@ -174,6 +174,10 @@ public final class BackService implements ITpaService {
             return false;
         }
 
+        if (travel.isTravelling(who.getUniqueId()) || fees.holding(who.getUniqueId())) {
+            messages.send(who, "tpa.already-travelling");
+            return false;
+        }
         TpaFees.Charge charge = fees.charge(who.getUniqueId(), priceFor(who), TpaFees.BACK,
                 ready ? Money.ZERO : skipPrice);
         if (!charge.paid()) {

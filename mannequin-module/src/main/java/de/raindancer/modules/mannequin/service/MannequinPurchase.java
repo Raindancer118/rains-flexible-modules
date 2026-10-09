@@ -62,14 +62,68 @@ public final class MannequinPurchase implements IMannequinService {
         }
     };
 
+    /** What each mannequin was bought for, so a refund is a share of what was paid and never of today's price. */
+    public interface Receipts {
+        void paid(String mannequin, Money amount);
+
+        /** What was paid for it, forgotten as it is read; zero when nothing was. */
+        Money takePaid(String mannequin);
+
+        /** Kept in memory only — for tests, and a server that never charges. */
+        static Receipts inMemory() {
+            java.util.Map<String, Money> paid = new java.util.concurrent.ConcurrentHashMap<>();
+            return new Receipts() {
+                @Override
+                public void paid(String mannequin, Money amount) {
+                    paid.put(mannequin, amount);
+                }
+
+                @Override
+                public Money takePaid(String mannequin) {
+                    Money was = paid.remove(mannequin);
+                    return was == null ? Money.ZERO : was;
+                }
+            };
+        }
+
+        /** Kept in a file in the module's folder, so a refund survives a restart. */
+        static Receipts inFile(java.nio.file.Path file) {
+            de.raindancer.core.data.store.YamlStore store = new de.raindancer.core.data.store.YamlStore(file);
+            return new Receipts() {
+                @Override
+                public void paid(String mannequin, Money amount) {
+                    store.update(yaml -> yaml.set(de.raindancer.core.data.store.YamlStore.asPathPart(mannequin),
+                            amount.minor()));
+                }
+
+                @Override
+                public synchronized Money takePaid(String mannequin) {
+                    String key = de.raindancer.core.data.store.YamlStore.asPathPart(mannequin);
+                    long minor = store.read().getLong(key, 0L);
+                    if (minor > 0) {
+                        store.update(yaml -> yaml.set(key, null));
+                    }
+                    return Money.of(Math.max(0, minor));
+                }
+            };
+        }
+    }
+
     private final Messages messages;
     private final Placer placer;
     private final Remover remover;
     private final FeeBank bank;
+    private final Receipts receipts;
     private volatile MannequinSettings settings;
 
     public MannequinPurchase(Messages messages, Placer placer, Remover remover, FeeBank bank,
                              MannequinSettings settings) {
+        this(messages, placer, remover, bank, Receipts.inMemory(), settings);
+    }
+
+    public MannequinPurchase(Messages messages, Placer placer, Remover remover, FeeBank bank, Receipts receipts,
+                             MannequinSettings settings) {
+        this.receipts = receipts;
         this.messages = messages;
         this.placer = placer;
         this.remover = remover;
@@ -109,14 +163,15 @@ public final class MannequinPurchase implements IMannequinService {
             return Optional.empty();
         }
         if (paid.amount().isPositive()) {
+            receipts.paid(placed.id(), paid.amount());
             messages.send(player, "mannequin.price.paid", "price", Fees.format(paid.amount()));
         }
         return Optional.of(placed);
     }
 
-    /** Gives the owner their configured share of the price back, then removes the mannequin. */
+    /** Gives the owner their configured share of what they paid for it back, then removes the mannequin. */
     public void retire(Mannequin mannequin) {
-        Money back = bank.quote(Fees.amount(settings.price()))
+        Money back = receipts.takePaid(mannequin.id())
                 .share(Math.max(0, Math.min(100, settings.refundPercentOnRemove())) / 100.0);
         if (back.isPositive()) {
             bank.refund(mannequin.owner(), back, "Mannequin removed");

@@ -152,4 +152,19 @@ class TpaFeesTest {
 
         assertThat(bank.balance(who)).isEqualTo(Money.of(900));
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("one paid trip at a time: a second hold is refused, so the first trip's cancellation can never refund it")
+    void oneTripAtATime() {
+        java.util.UUID who = java.util.UUID.randomUUID();
+        TpaFees fees = new TpaFees(de.raindancer.modules.tpa.TpaSettings.DEFAULTS);
+        TpaFees.Taken first = new TpaFees.Taken(de.raindancer.core.social.economy.Money.of(100), TpaFees.TRIP,
+                de.raindancer.core.social.economy.Money.ZERO);
+        TpaFees.Taken second = new TpaFees.Taken(de.raindancer.core.social.economy.Money.of(50), TpaFees.TRIP,
+                de.raindancer.core.social.economy.Money.ZERO);
+        org.assertj.core.api.Assertions.assertThat(fees.hold(who, first)).isTrue();
+        org.assertj.core.api.Assertions.assertThat(fees.holding(who)).isTrue();
+        org.assertj.core.api.Assertions.assertThat(fees.hold(who, second)).isFalse();
+        org.assertj.core.api.Assertions.assertThat(fees.settle(who)).isEqualTo(first);
+    }
 }

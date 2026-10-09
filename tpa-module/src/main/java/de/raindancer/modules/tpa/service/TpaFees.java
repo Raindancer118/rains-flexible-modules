@@ -101,11 +101,22 @@ public final class TpaFees implements ITpaService {
         Fees.refund(who, taken.skip(), "Teleport not made", SKIP);
     }
 
-    /** Remembers what a trip still counting down was paid with. */
-    public void hold(UUID who, Taken taken) {
-        if (who != null && taken != null && taken.total().isPositive()) {
-            held.put(who, taken);
+    /**
+     * Remembers what a trip still counting down was paid with. One trip at a time: a second hold would let the
+     * first trip's cancellation refund the second one's fee, so it is refused and the caller gives it back.
+     *
+     * @return false when a trip is already held for them
+     */
+    public boolean hold(UUID who, Taken taken) {
+        if (who == null || taken == null || !taken.total().isPositive()) {
+            return true;
         }
+        return held.putIfAbsent(who, taken) == null;
+    }
+
+    /** Whether a paid trip is still counting down for them. */
+    public boolean holding(UUID who) {
+        return who != null && held.containsKey(who);
     }
 
     /** The trip ended — what was held is spent, or about to be given back by the caller. */

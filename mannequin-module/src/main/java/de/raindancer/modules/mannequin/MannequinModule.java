@@ -115,7 +115,8 @@ public final class MannequinModule implements FlexModule {
                 delayedScheduler, settings.current());
 
         MannequinPurchase purchases = new MannequinPurchase(context.core().messages(),
-                mannequins::create, mannequins::remove, MannequinPurchase.LIVE, settings.current());
+                mannequins::create, mannequins::remove, MannequinPurchase.LIVE,
+                MannequinPurchase.Receipts.inFile(context.dataFolder().resolve("paid.yml")), settings.current());
         settings.onChange(purchases::settings);
         settings.onChange(equip::settings);
         settings.onChange(redstone::settings);
