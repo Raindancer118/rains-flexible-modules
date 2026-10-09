@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.81.0</rainscore.version>
+        <rainscore.version>1.82.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -63,8 +63,9 @@
         <invsnap-module.version>1.2.1</invsnap-module.version>
         <xpbottle-module.version>1.1.1</xpbottle-module.version>
         <veintoggle-module.version>0.3.0</veintoggle-module.version>
-        <economy-module.version>0.20.1</economy-module.version>
+        <economy-module.version>0.21.0</economy-module.version>
         <roles-module.version>0.2.0</roles-module.version>
+        <jobs-module.version>0.1.0</jobs-module.version>
         <anticheat-module.version>0.5.0</anticheat-module.version>
         <playerutils-module.version>0.2.1</playerutils-module.version>
         <xaeromap-module.version>1.2.0</xaeromap-module.version>
@@ -123,6 +124,8 @@
         <module>economy-standalone</module>
         <module>roles-module</module>
         <module>roles-standalone</module>
+        <module>jobs-module</module>
+        <module>jobs-standalone</module>
         <module>anticheat-module</module>
         <module>anticheat-standalone</module>
         <module>playerutils-module</module>
@@ -300,6 +303,11 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>roles-module</artifactId>
                 <version>${roles-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>jobs-module</artifactId>
+                <version>${jobs-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>

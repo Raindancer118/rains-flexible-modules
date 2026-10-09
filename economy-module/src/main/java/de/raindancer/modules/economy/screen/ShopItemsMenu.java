@@ -96,7 +96,8 @@ public final class ShopItemsMenu extends PaginatedMenu<Material> implements IEco
         PriceTag tag = yours.shop();
         List<String> lore = new ArrayList<>();
         lore.add(tag.buyable() ? "<gray>Buy: " + PriceLines.amount(services.currency(), tag.buy(), yours.buy())
-                : "<dark_gray>Not sold");
+                : services.shop().saleStopped(material).map(why -> "<gold>Not sold now: " + MiniMessage.miniMessage()
+                .escapeTags(why)).orElse("<dark_gray>Not sold"));
         lore.add(tag.sellable() ? "<gray>Sell: " + PriceLines.amount(services.currency(), tag.sell(), yours.sell())
                 : "<dark_gray>Not bought");
         String trend = trend(services.shop().prices().multiplier(material.name()));

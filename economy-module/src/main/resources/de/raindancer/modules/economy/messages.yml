@@ -88,6 +88,7 @@ economy:
     selling-off: "<red>Selling to the shop is switched off on this server."
     category-closed: "<red>The <category> drawer is closed on this server."
     not-for-sale: "<red>The shop does not sell <item>."
+    sale-stopped: "<red>The shop does not sell <item> right now: <reason>."
     not-bought: "<red>The shop does not buy <item>."
     none-carried: "<red>You are not carrying any plain <item>."
     nothing-in-hand: "<red>You are not holding anything."

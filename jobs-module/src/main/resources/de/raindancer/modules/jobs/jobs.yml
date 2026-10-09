@@ -1,0 +1,125 @@
+# The goals the job board puts up. Everybody works on the same goal; whoever gave 30% of it is paid 30% of
+# the reward. The reward is the median balance of the players seen lately (see /settings: jobs), so it is a
+# lot to somebody poor and little to somebody rich. A goal missed pays for the part that was reached.
+#
+#   title   what the board calls it
+#   kind    deliver — items handed in at the board (the shop stops selling them while the goal runs)
+#           fish    — fish caught with a rod; every catch counts
+#   icon    the item shown for it
+#   items   what counts: items by name, * for anything ("*_log"), whole shop drawers (food), "!" leaves one out
+#   start   how big the first one is
+#   least   / most — the smallest and largest it may learn to be
+#   days    how long one runs
+#
+# Each kind learns: reached on day one, the next is up to twice as big; missed, it shrinks to what was
+# managed. Read again with /jobs reload. Delete this file to get the shipped goals back.
+goals:
+  cod:
+    title: Cod for the harbour
+    kind: deliver
+    icon: cod
+    items: [ cod ]
+    start: 150
+    least: 30
+    most: 5000
+    days: 5
+
+  fishing:
+    title: Fishing season
+    kind: fish
+    icon: fishing_rod
+    items: [ cod, salmon, tropical_fish, pufferfish ]
+    start: 200
+    least: 40
+    most: 5000
+    days: 7
+
+  salmon:
+    title: Smoked salmon
+    kind: deliver
+    icon: salmon
+    items: [ salmon ]
+    start: 80
+    least: 20
+    most: 3000
+    days: 5
+
+  wheat:
+    title: Bread for everybody
+    kind: deliver
+    icon: wheat
+    items: [ wheat ]
+    start: 400
+    least: 64
+    most: 20000
+    days: 4
+
+  vegetables:
+    title: The vegetable stall
+    kind: deliver
+    icon: carrot
+    items: [ carrot, potato, beetroot ]
+    start: 400
+    least: 64
+    most: 20000
+    days: 4
+
+  timber:
+    title: Timber for the town
+    kind: deliver
+    icon: oak_log
+    items: [ "*_log", "*_stem", "!stripped_*" ]
+    start: 300
+    least: 64
+    most: 20000
+    days: 5
+
+  roads:
+    title: Stone for the roads
+    kind: deliver
+    icon: cobblestone
+    items: [ cobblestone, cobbled_deepslate ]
+    start: 2000
+    least: 256
+    most: 50000
+    days: 5
+
+  iron:
+    title: Iron for the smithy
+    kind: deliver
+    icon: iron_ingot
+    items: [ iron_ingot ]
+    start: 150
+    least: 32
+    most: 5000
+    days: 6
+
+  wool:
+    title: Wool for the tailor
+    kind: deliver
+    icon: white_wool
+    items: [ "*_wool" ]
+    start: 150
+    least: 32
+    most: 5000
+    days: 5
+
+  bones:
+    title: Clear the night
+    kind: deliver
+    icon: bone
+    items: [ bone ]
+    start: 200
+    least: 32
+    most: 8000
+    days: 5
+
+  paper:
+    title: The paper mill
+    kind: deliver
+    icon: sugar_cane
+    items: [ sugar_cane ]
+    start: 300
+    least: 64
+    most: 20000
+    days: 4

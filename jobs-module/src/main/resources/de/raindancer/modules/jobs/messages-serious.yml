@@ -1,0 +1,3 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+jobs:
+  reached: "<gold>The goal <white><goal></white> has been reached. <white><players></white> player(s) share the reward."

@@ -23,6 +23,7 @@ import de.raindancer.modules.economy.rules.TradePriceRule;
 import de.raindancer.modules.economy.model.YourPrice;
 import de.raindancer.core.social.economy.PersonalPrice;
 import de.raindancer.core.social.economy.PriceModifiers;
+import de.raindancer.core.social.economy.SaleStops;
 import de.raindancer.modules.economy.store.CashTags;
 import de.raindancer.modules.economy.store.MarketBook;
 import de.raindancer.modules.economy.store.PriceBook;
@@ -118,7 +119,13 @@ public final class ShopService implements IEconomyService {
     }
 
     public PriceTag tag(Material material) {
-        return prices.tag(material.name());
+        PriceTag tag = prices.tag(material.name());
+        return tag.buyable() && SaleStops.reason(material.name()).isPresent() ? tag.notSold() : tag;
+    }
+
+    /** Why the shop does not sell this right now, though it normally would — a server goal collecting it. */
+    public Optional<String> saleStopped(Material material) {
+        return prices.tag(material.name()).buyable() ? SaleStops.reason(material.name()) : Optional.empty();
     }
 
     /** What this player pays and is paid for one — the shop's price, changed by their role or the like. */
@@ -156,7 +163,13 @@ public final class ShopService implements IEconomyService {
         Currency currency = live.currency();
         PriceTag tag = tag(material);
         if (!tag.buyable()) {
-            refuse(player, "economy.shop.not-for-sale", "item", Catalogue.readable(material.name()));
+            Optional<String> stopped = saleStopped(material);
+            if (stopped.isPresent()) {
+                refuse(player, "economy.shop.sale-stopped", "item", Catalogue.readable(material.name()),
+                        "reason", stopped.get());
+            } else {
+                refuse(player, "economy.shop.not-for-sale", "item", Catalogue.readable(material.name()));
+            }
             return;
         }
         int amount = Math.max(1, quantity);

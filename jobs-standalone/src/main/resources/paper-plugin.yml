@@ -1,0 +1,26 @@
+# Same shape as every other standalone here — see rtp-standalone's copy for why each line matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Server goals on a job board: deliver or fish with everybody, paid by your share.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# A command, a menu, a fishing listener; payments through RainsCore's economy.
+folia-supported: true
+
+# Money goes through RainsCore's Economies, so this loads without RainsEconomy —
+# and pays nothing until an economy is there.
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

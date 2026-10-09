@@ -145,7 +145,8 @@ public final class TradeMenu extends Menu implements IEconomyScreen {
         PriceTag tag = yours.shop();
         List<String> lines = new java.util.ArrayList<>();
         lines.add(tag.buyable() ? "<gray>Buy one: " + PriceLines.amount(currency, tag.buy(), yours.buy())
-                : "<dark_gray>Not sold");
+                : services.shop().saleStopped(material).map(why -> "<gold>Not sold now: "
+                + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(why)).orElse("<dark_gray>Not sold"));
         lines.add(tag.sellable() ? "<gray>Sell one: " + PriceLines.amount(currency, tag.sell(), yours.sell())
                 : "<dark_gray>Not bought");
         String trend = ShopItemsMenu.trend(services.shop().prices().multiplier(material.name()));

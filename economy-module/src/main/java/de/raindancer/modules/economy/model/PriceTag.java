@@ -28,6 +28,11 @@ public record PriceTag(String material, Money value, Money buy, Money sell, bool
         return new PriceTag(material, Money.ZERO, Money.ZERO, Money.ZERO, false, false, Source.NONE);
     }
 
+    /** The same, but not sold: the shop still buys it, if it did. */
+    public PriceTag notSold() {
+        return new PriceTag(material, value, buy, sell, false, sellable, source);
+    }
+
     public boolean tradable() {
         return buyable || sellable;
     }

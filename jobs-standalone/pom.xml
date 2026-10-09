@@ -10,25 +10,27 @@
         <version>1.0.0</version>
     </parent>
 
-    <artifactId>economy-standalone</artifactId>
+    <artifactId>jobs-standalone</artifactId>
     <packaging>jar</packaging>
 
-    <name>Rain's Economy</name>
-    <description>Rain's Economy as a plugin of its own: the economy module and the standard wrapper.</description>
+    <name>Rain's Jobs</name>
+    <description>
+        Rain's Jobs, as a plugin of its own: the jobs module and the standard wrapper,
+        shaded together.
+    </description>
 
     <properties>
+        <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
         <maven.deploy.skip>true</maven.deploy.skip>
-        <plugin.name>RainsEconomy</plugin.name>
-        <!-- 0.19.0: role discounts (Core PriceModifiers) in the shop, sell capped under the buyer's own buy price; packs (packs.yml, /eco packs). -->
-        <!-- 0.20.0: bulk discount on building blocks and iron (shop.bulk-*, hard cap 30%), role and bulk shown on their own lines, every seed priced, more packs. -->
-        <!-- 0.21.0: the shop holds back what a server goal collects (Core SaleStops), with the reason on the item. -->
-        <plugin.version>0.21.0</plugin.version>
+        <plugin.name>RainsJobs</plugin.name>
+        <!-- 0.1.0: server goals on a job board (/jobs) — deliveries and fishing, paid by share of the median balance, sizes that learn. -->
+        <plugin.version>0.1.0</plugin.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>de.raindancer.modules</groupId>
-            <artifactId>economy-module</artifactId>
+            <artifactId>jobs-module</artifactId>
         </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>
@@ -41,6 +43,7 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
+                <!-- The descriptor names the version, and a version written twice is one that drifts. -->
                 <filtering>true</filtering>
             </resource>
         </resources>
@@ -49,6 +52,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
             </plugin>
+            <!-- StandaloneJarTest reads the built jar, so it runs after the jar exists. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
