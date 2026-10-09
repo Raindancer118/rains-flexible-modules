@@ -138,6 +138,17 @@ final class FakeServices {
             return this;
         }
 
+        private static java.nio.file.Path slotsFile() {
+            try {
+                java.nio.file.Path file = java.nio.file.Files.createTempFile("claim-slots", ".yml");
+                java.nio.file.Files.delete(file);
+                file.toFile().deleteOnExit();
+                return file;
+            } catch (java.io.IOException failed) {
+                throw new java.io.UncheckedIOException(failed);
+            }
+        }
+
         ClaimServices build() {
             // The movement tracker is built from the very ClaimServices it will be handed back through,
             // same as ClaimsModule wires it in production — a mutable holder stands in for the field that
@@ -156,7 +167,9 @@ final class FakeServices {
             }, () -> true, mock(RainsCore.class),
                     new de.raindancer.modules.claims.service.ClaimWarpService(
                             mock(de.raindancer.core.world.poi.ClaimWarps.class)),
-                    noUpkeep());
+                    noUpkeep(), new de.raindancer.modules.claims.service.ClaimSlotService(
+                            new de.raindancer.core.social.economy.BuyableSlots(slotsFile(), "claims.slot", "slot"),
+                            messages, settings));
             movement[0] = new de.raindancer.modules.claims.listener.MovementListener(services);
             return services;
         }

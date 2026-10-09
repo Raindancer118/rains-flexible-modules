@@ -145,7 +145,7 @@ class RoleServiceTest {
         assertThat(PriceModifiers.buy(UUID.randomUUID(), "BREAD", Money.of(1000)).price()).isEqualTo(Money.of(1000));
 
         PriceModifiers.clear();
-        RolesSettings off = new RolesSettings(false, 72, true, true, 40, 14);
+        RolesSettings off = new RolesSettings(false, 72, true, true, 40, 14, false);
         PriceModifiers.provide(mock(org.bukkit.plugin.Plugin.class), new RolePrices(service, () -> off));
         assertThat(PriceModifiers.buy(tomId, "BREAD", Money.of(1000)).price()).isEqualTo(Money.of(1000));
     }

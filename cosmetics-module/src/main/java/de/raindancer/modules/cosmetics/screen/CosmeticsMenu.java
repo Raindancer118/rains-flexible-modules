@@ -3,6 +3,7 @@ package de.raindancer.modules.cosmetics.screen;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.choose.ParticleCatalogue;
 import de.raindancer.core.ui.choose.PlayerChooser;
+import de.raindancer.core.data.settings.SettingsMenu;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -76,11 +77,23 @@ public final class CosmeticsMenu extends Menu implements ICosmeticsScreen {
                         MINI.serialize(services.messages().get("cosmetics.teleport.menu.door-lore"))),
                 click -> new TeleportMenu(services, viewer, this).open());
 
-        if (services.unlocks().anySold()) {
-            toolbar(2, Icons.of(Material.GOLD_INGOT, "<white>Unlocks",
-                            "<gray>What this server sells: colours,", "<gray>gradients, particles and more.", "",
-                            "<dark_gray>Click to see the prices."),
-                    click -> new UnlockMenu(services, viewer, this).open());
+        ItemStack unlocksIcon = Icons.of(Material.GOLD_INGOT, "<white>Unlocks",
+                "<gray>What this server sells: colours,", "<gray>gradients, particles and more.", "",
+                "<dark_gray>Click to see the prices.");
+        boolean sold = services.unlocks().anySold();
+        toolbar(2, sold ? unlocksIcon : Icons.locked(unlocksIcon, services.unlocks().selling()
+                        ? "No price is set yet." : "Cosmetics are not for sale on this server."),
+                click -> {
+                    if (sold) {
+                        new UnlockMenu(services, viewer, this).open();
+                    }
+                });
+        if (services.mayOpenSettings(viewer)) {
+            toolbar(6, Icons.of(Material.COMPARATOR, "<white>Server settings for cosmetics",
+                            "<gray>Name styles, particles, teleport effects,", "<gray>and the prices with their switch.", "",
+                            "<gray>Only people with the settings permission see this."),
+                    click -> new SettingsMenu(viewer, services.brand(), services.core().chatFor(services.brand()),
+                            services.core().settingsNavigation(), "cosmetics", this).open());
         }
 
         boolean mayClearOthers = services.clearing().may(viewer, false);

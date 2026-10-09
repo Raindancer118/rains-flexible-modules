@@ -66,13 +66,18 @@ public final class EntryFeeMenu extends ClaimScreen {
                     save();
                 });
 
+        double cut = services().config().entryFeeServerCutPercent();
+        List<String> howMuch = new java.util.ArrayList<>(List.of(
+                "<gray>" + fee.type().displayName() + ", per crossing."
+                        + (fee.type() == CostType.MONEY ? " Whole currency units." : "")));
+        if (cut > 0 && fee.type() != CostType.NONE) {
+            howMuch.add("<gold>The server keeps " + (cut == Math.rint(cut) ? String.valueOf((long) cut) : String.valueOf(cut))
+                    + "% of every toll; you receive the rest.");
+        }
+        howMuch.add("");
+        howMuch.add("<dark_gray>click to set it — up to " + services().config().entryFeeMaxAmount());
         band(MenuLayout.WHO, 5, allowed,
-                Icons.of(fee.type().icon(), "<white>How much: <green>" + fee.amount(),
-                        "<gray>" + fee.type().displayName() + ", per crossing."
-                                + (fee.type() == CostType.MONEY ? " Whole currency units." : ""),
-                        "",
-                        "<dark_gray>click to set it — up to "
-                                + services().config().entryFeeMaxAmount()),
+                Icons.of(fee.type().icon(), "<white>How much: <green>" + fee.amount(), howMuch),
                 "The owner's to change",
                 // Core's picker rather than ±1 nudges: forty clicks to reach four hundred is why the old
                 // screen had a chat prompt beside it, and nothing is applied until Accept.

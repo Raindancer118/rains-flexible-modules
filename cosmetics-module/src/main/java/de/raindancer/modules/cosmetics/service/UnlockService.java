@@ -79,7 +79,7 @@ public final class UnlockService implements ICosmeticsService, Entitlements {
     }
 
     private Money price(String key) {
-        return Fees.amount(written(key));
+        return settings.sellCosmetics() ? Fees.amount(written(key)) : Money.ZERO;
     }
 
     @Override
@@ -111,8 +111,18 @@ public final class UnlockService implements ICosmeticsService, Entitlements {
         return !sellable().isEmpty();
     }
 
+    /** The owner's switch: off, nothing is for sale and the permissions decide, whatever the prices say. */
+    public boolean selling() {
+        return settings.sellCosmetics();
+    }
+
     /** Every key with a price, in the order the Unlocks page lists them. */
     public List<String> sellable() {
+        return offered().stream().filter(this::priced).toList();
+    }
+
+    /** Every cosmetic that can be sold, priced or not: the Unlocks page greys the ones without a price. */
+    public List<String> offered() {
         List<String> keys = new ArrayList<>(List.of(Unlock.NAME_COLOUR, Unlock.NAME_GRADIENT,
                 Unlock.NAME_ANY_COLOUR, Unlock.NAME_ANIMATED));
         for (TextDecoration decoration : TextDecoration.values()) {
@@ -121,7 +131,7 @@ public final class UnlockService implements ICosmeticsService, Entitlements {
         catalogue.get().presets().forEach(preset -> keys.add(Unlock.preset(preset.id())));
         keys.add(Unlock.PARTICLES);
         keys.add(Unlock.TELEPORT);
-        return keys.stream().filter(this::priced).toList();
+        return keys;
     }
 
     /** What a key is called to a player. */

@@ -20,8 +20,13 @@ public final class ConfirmScreen extends ConfirmMenu implements IInvSnapScreen {
         super(viewer, services.brand(), parent, question, consequences, onYes);
     }
 
+    public ConfirmScreen(InvSnapServices services, Player viewer, Menu parent, String question,
+                         List<String> consequences, String closingLine, Runnable onYes) {
+        super(viewer, services.brand(), parent, question, consequences, closingLine, onYes);
+    }
+
     @Override
     public String describe() {
-        return "asking before overwriting somebody's live inventory";
+        return "asking before overwriting somebody's live inventory, or before an insurance change";
     }
 }

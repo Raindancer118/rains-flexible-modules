@@ -1,5 +1,6 @@
 package de.raindancer.modules.invsnap.screen;
 
+import de.raindancer.core.data.settings.SettingsMenu;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.modules.invsnap.InvSnapServices;
@@ -26,6 +27,8 @@ public final class InvSnapRootMenu extends PaginatedMenu<TrackedPlayer> implemen
     private static final DateTimeFormatter STAMP =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
 
+    private static final String SETTINGS = "rainscore.settings";
+
     private final InvSnapServices services;
 
     public InvSnapRootMenu(InvSnapServices services, Player viewer) {
@@ -41,6 +44,18 @@ public final class InvSnapRootMenu extends PaginatedMenu<TrackedPlayer> implemen
     @Override
     public String breadcrumb() {
         return "Every player's snapshots";
+    }
+
+    @Override
+    protected void render() {
+        super.render();
+        // The owner's door to this module's settings: snapshots, death insurance and item insurance.
+        toolbar(1, viewer.hasPermission(SETTINGS), Icons.of(Material.COMPARATOR, "<white>Settings",
+                        "<gray>Snapshot interval, death insurance and",
+                        "<gray>item insurance: switches and prices.", "", "<yellow>Click: open"),
+                "Settings need " + SETTINGS,
+                click -> new SettingsMenu(viewer, services.brand(), services.core().chatFor(services.brand()),
+                        services.core().settingsNavigation(), "invsnap", this).open());
     }
 
     @Override

@@ -57,8 +57,16 @@ public final class ClaimInfoMenu extends ClaimScreen {
                 "<gray>" + age(claim),
                 "<dark_gray>claimed " + Instant.ofEpochMilli(claim.createdAt())));
 
-        toolbar(4, Icons.of(costIcon(claim), "<white>What it cost", costLines(claim)), click -> {
-            // Nothing to do: this tile is here to be read.
+        boolean mine = services().upkeep().enabled() && claim.isOwner(viewer.getUniqueId());
+        List<String> cost = costLines(claim);
+        if (mine) {
+            cost.add("");
+            cost.add("<dark_gray>click for your upkeep and to pay it");
+        }
+        toolbar(4, Icons.of(costIcon(claim), "<white>What it cost", cost), click -> {
+            if (mine) {
+                new UpkeepMenu(services(), viewer, claim, this).open();
+            }
         });
     }
 
@@ -110,12 +118,25 @@ public final class ClaimInfoMenu extends ClaimScreen {
         if (!upkeep.enabled() || claim.primaryOwner() == null) {
             return;
         }
+        var owner = claim.primaryOwner();
+        var settings = services().config();
+        var parts = upkeep.partsFor(owner);
         lines.add("");
         lines.add("<gray>Upkeep: <white>" + de.raindancer.core.social.economy.Fees.format(
-                upkeep.quotedBillFor(claim.primaryOwner())) + "</white> every <white>"
+                upkeep.quotedBillFor(owner)) + "</white> every <white>"
                 + de.raindancer.core.moderation.punishment.Durations.describe(
-                        Duration.ofMillis(services().config().upkeepPeriodMillis())) + "</white>");
+                        Duration.ofMillis(settings.upkeepPeriodMillis())) + "</white>");
         lines.add("<dark_gray>for all of the owner's land together");
+        if (settings.upkeepPerClaimAmount().isPositive()) {
+            var own = de.raindancer.modules.claims.model.UpkeepBill.claimFee(settings.upkeepPerClaimAmount(),
+                    settings.upkeepPerClaimAreaPercent(), Math.max(1, claim.shape().coveredChunkKeys().size()));
+            lines.add("<gray>This claim's own fee: <white>" + de.raindancer.core.social.economy.Fees.format(
+                    de.raindancer.core.social.economy.Fees.quote("claims.upkeep", own)) + "</white>");
+            lines.add("<dark_gray>grows with its size, " + claim.shape().coveredChunkKeys().size() + " chunk(s)");
+        }
+        if (parts.discounted()) {
+            lines.add("<gold>The owner pays " + (long) parts.payPercent() + "% of it");
+        }
         if (claim.lapsed()) {
             lines.add("<red>Unpaid for too long: not protecting right now");
         }

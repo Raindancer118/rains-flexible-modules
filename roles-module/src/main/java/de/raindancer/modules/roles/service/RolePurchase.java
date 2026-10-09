@@ -55,6 +55,7 @@ public final class RolePurchase implements IRolesService {
                 return true;
             }
             case NOT_FOR_SALE -> messages.send(player, "roles.not-for-sale", "role", coloured);
+            case SWITCHED_OFF -> messages.send(player, "roles.sales-off");
             case ALREADY_YOURS -> messages.send(player, "roles.already-yours", "role", coloured);
             case CANNOT_AFFORD -> messages.send(player, "roles.cannot-afford", "role", coloured, "amount", price);
             case NO_ECONOMY -> messages.send(player, "roles.no-economy", "role", coloured, "amount", price);

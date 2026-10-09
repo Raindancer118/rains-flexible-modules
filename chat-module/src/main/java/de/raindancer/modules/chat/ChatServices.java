@@ -57,6 +57,11 @@ public record ChatServices(
                 history, styles, privateChat, polls, null);
     }
 
+    /** Who sees the doors to Core's /settings pages. */
+    public boolean mayOpenSettings(org.bukkit.entity.Player who) {
+        return who.hasPermission("rainscore.settings");
+    }
+
     /** The settings as they are right now. */
     public ChatSettings config() {
         return settings.get();

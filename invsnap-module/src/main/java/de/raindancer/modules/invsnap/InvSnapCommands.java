@@ -26,10 +26,10 @@ public final class InvSnapCommands {
                         .needing(PermissionNodes.BROWSE)
                         .taking("[player]")
                         .auditUsage(),
-                ModuleCommand.of("insurance", "Insure your inventory against death",
+                ModuleCommand.of("insurance", "Insure your inventory against death, or one item",
                                 new InsuranceCommand(InvSnapCommands::require))
                         .needing(PermissionNodes.INSURE)
-                        .taking("[on|off]"));
+                        .taking("[on|off|item]"));
     }
 
     static void ready(InvSnapServices live) {

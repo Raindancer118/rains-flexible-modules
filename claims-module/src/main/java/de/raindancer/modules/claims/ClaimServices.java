@@ -109,7 +109,8 @@ public record ClaimServices(
         de.raindancer.core.RainsCore core,
         de.raindancer.modules.claims.service.ClaimWarpService claimWarps,
         /** What holding land costs, and who has not paid it. Idle while upkeep is off. */
-        de.raindancer.modules.claims.service.UpkeepService upkeep) {
+        de.raindancer.modules.claims.service.UpkeepService upkeep,
+        de.raindancer.modules.claims.service.ClaimSlotService claimSlots) {
 
     /**
      * The border tracker.

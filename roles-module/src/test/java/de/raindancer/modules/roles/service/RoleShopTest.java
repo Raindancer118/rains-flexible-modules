@@ -41,6 +41,7 @@ class RoleShopTest {
 
     private final AtomicLong now = new AtomicLong(100 * DAY);
     private final UUID tom = UUID.randomUUID();
+    private final java.util.concurrent.atomic.AtomicBoolean selling = new java.util.concurrent.atomic.AtomicBoolean(true);
     private final Bank bank = new Bank(Money.of(1_000_00));
     private OwnedBook owned;
     private ChoiceBook choices;
@@ -67,7 +68,7 @@ class RoleShopTest {
         owned.load();
         choices = new ChoiceBook(new YamlStore(folder.resolve("choices.yml")));
         choices.load();
-        shop = new RoleShop(catalogue, owned, choices, now::get, id -> false);
+        shop = new RoleShop(catalogue, owned, choices, now::get, id -> false, selling::get);
         cook = catalogue.find("cook").orElseThrow();
         mage = catalogue.find("mage").orElseThrow();
         farmer = catalogue.find("farmer").orElseThrow();
@@ -229,6 +230,33 @@ class RoleShopTest {
         assertThat(shop.dueSoon(tom)).extracting(Ownership::role).containsExactly("mage");
         now.set(110 * DAY);
         assertThat(shop.dueSoon(tom)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("switched off (the default): nothing is bought or rented, the economy is never asked, the role stays closed")
+    void switchedOff() {
+        selling.set(false);
+
+        assertThat(shop.buy(tom, cook).outcome()).isEqualTo(RoleShop.Outcome.SWITCHED_OFF);
+        assertThat(shop.rent(tom, mage).outcome()).isEqualTo(RoleShop.Outcome.SWITCHED_OFF);
+        assertThat(shop.may(tom, cook)).isFalse();
+        assertThat(shop.buy(tom, farmer).outcome()).as("a free role is not for sale either way")
+                .isEqualTo(RoleShop.Outcome.NOT_FOR_SALE);
+        assertThat(bank.calls).isEmpty();
+    }
+
+    @Test
+    @DisplayName("switched off: no economy is needed and no rent is collected, a rental is neither charged nor lapsed")
+    void switchedOffCollectsNothing() {
+        shop.rent(tom, mage);
+        selling.set(false);
+        Economies.clear();
+        now.set(140 * DAY);
+
+        assertThat(shop.collect(tom)).isEmpty();
+        assertThat(shop.dueSoon(tom)).isEmpty();
+        assertThat(shop.may(tom, mage)).isTrue();
+        assertThat(owned.of(tom, "mage")).isPresent();
     }
 
     private static final class Bank implements Economy {

@@ -53,6 +53,27 @@ class AdServiceTest {
     }
 
     @Test
+    @DisplayName("a price alone is not a switch: with ads off the price is neither charged nor asked for")
+    void priceWithoutSwitch() {
+        AdService ads = service(settings(false, "25"));
+
+        assertThat(ads.enabled()).isFalse();
+        assertThat(ads.place(player, "hello", false, false).verdict().reason()).isEqualTo("chat.ad.off");
+        assertThat(ads.place(player, "hello", false, false).charged()).isEqualTo(Money.ZERO);
+    }
+
+    @Test
+    @DisplayName("the screen asks the service: on with a price shows it, on with none is free, off is off")
+    void statusForScreens() {
+        Economies.provide(mock(Plugin.class), bank);
+
+        assertThat(service(settings(true, "25")).enabled()).isTrue();
+        assertThat(service(settings(true, "25")).priceText()).contains("25");
+        assertThat(service(settings(true, "0")).priceText()).isEmpty();
+        assertThat(service(ChatSettings.DEFAULTS).enabled()).isFalse();
+    }
+
+    @Test
     @DisplayName("a free ad needs no economy at all")
     void freeNeedsNoEconomy() {
         AdService ads = service(settings(true, "0"));

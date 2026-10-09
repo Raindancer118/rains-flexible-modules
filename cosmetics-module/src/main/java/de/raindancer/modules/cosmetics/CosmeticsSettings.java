@@ -87,6 +87,13 @@ public record CosmeticsSettings(
         @Key("teleport-sounds")
         List<String> teleportSounds,
 
+        @In("cosmetics/prices") @Title("Sell cosmetics")
+        @Describe("The switch for everything below. Off: nothing is for sale whatever the prices say, and the "
+                + "permissions decide who wears what. On: every cosmetic with a price below is bought "
+                + "under Unlocks in /cosmetics; one with price 0 stays decided by its permission.")
+        @Key("sell-cosmetics")
+        boolean sellCosmetics,
+
         @In("cosmetics/prices") @Title("Price: one name colour")
         @Describe("In the server's currency, like 250 or 1.5k. Zero: as today, the permission "
                 + "rainscosmetics.name.colour decides. With a price nobody wears it without buying it "
@@ -137,7 +144,7 @@ public record CosmeticsSettings(
                              int particleMaxCount, List<String> blockedParticles, boolean teleportLooks,
                              List<String> teleportSounds) {
         this(maxStops, dropWithoutPermission, nameAboveHead, particlesEnabled, particleEveryTicks, particleCount,
-                particleMaxCount, blockedParticles, teleportLooks, teleportSounds,
+                particleMaxCount, blockedParticles, teleportLooks, teleportSounds, false,
                 "0", "0", "0", "0", "0", "0", "0", "0");
     }
 
@@ -153,7 +160,7 @@ public record CosmeticsSettings(
     public static final CosmeticsSettings DEFAULTS = new CosmeticsSettings(8, true, true, true, 4, 1, 6,
             List.of("ELDER_GUARDIAN", "EXPLOSION_EMITTER", "EXPLOSION", "FLASH", "SONIC_BOOM",
                     "GUST_EMITTER_LARGE", "GUST_EMITTER_SMALL"),
-            true, TELEPORT_SOUNDS, "0", "0", "0", "0", "0", "0", "0", "0");
+            true, TELEPORT_SOUNDS, false, "0", "0", "0", "0", "0", "0", "0", "0");
 
     public CosmeticsSettings {
         blockedParticles = blockedParticles == null ? List.of()

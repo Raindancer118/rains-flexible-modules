@@ -229,7 +229,7 @@ public final class ClaimService implements IClaimService {
             return validation.get();
         }
         if (!rights.isBypassing(player)) {
-            int limit = settings.maxClaimsFor(player);
+            int limit = claimLimitFor(player);
             if (registry.countOwned(player.getUniqueId()) >= limit) {
                 return Result.fail(Failure.TOO_MANY_CLAIMS, String.valueOf(limit));
             }
@@ -260,6 +260,38 @@ public final class ClaimService implements IClaimService {
         }
         saveAsync(claim);
         return Result.ok(claim);
+    }
+
+    /** What finishing a selection would cost or refund, in words; empty when nothing changes hands. */
+    public Optional<String> quote(Player player, Claim existing, ClaimShape shape) {
+        if (rights.isBypassing(player)) {
+            return Optional.empty();
+        }
+        if (existing == null) {
+            CostType type = settings.creationCostType();
+            if (type == CostType.NONE) {
+                return Optional.empty();
+            }
+            ItemStack item = type == CostType.ITEM ? settings.creationCostItem() : null;
+            return Optional.of("costs " + CostService.label(type, creationCostAmount(shape), item));
+        }
+        if (!existing.hasRecordedPayment()) {
+            return Optional.empty();
+        }
+        int target = existing.targetAmountFor(shape.areaBlocks());
+        int settled = existing.settledAmount();
+        CostType type = existing.paidCostType();
+        ItemStack item = existing.paidItem();
+        if (target > settled && settings.chargeOnGrow()) {
+            return Optional.of("costs " + CostService.label(type, target - settled, item) + " more");
+        }
+        if (target < settled) {
+            int refund = (int) Math.floor((settled - target) * settings.shrinkRefundRate());
+            if (refund > 0) {
+                return Optional.of("refunds " + CostService.label(type, refund, item));
+            }
+        }
+        return Optional.empty();
     }
 
     /**
@@ -439,6 +471,20 @@ public final class ClaimService implements IClaimService {
 
     public void warps(ClaimWarpService warps) {
         this.warps = warps;
+    }
+
+    /** Claim slots each player bought on top of their limit; nobody has any until wired. */
+    private volatile java.util.function.ToIntFunction<UUID> boughtSlots = player -> 0;
+
+    public void boughtSlots(java.util.function.ToIntFunction<UUID> bought) {
+        this.boughtSlots = bought == null ? player -> 0 : bought;
+    }
+
+    /** How many claims this player may hold: their limit plus the slots they bought. */
+    public int claimLimitFor(Player player) {
+        int limit = settings.maxClaimsFor(player);
+        return limit == Integer.MAX_VALUE ? limit
+                : (int) Math.min(Integer.MAX_VALUE, (long) limit + boughtSlots.applyAsInt(player.getUniqueId()));
     }
 
     /** A warp the claim no longer contains is taken away with its front door. */

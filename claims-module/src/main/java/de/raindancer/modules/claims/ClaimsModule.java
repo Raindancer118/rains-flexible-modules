@@ -65,7 +65,7 @@ import java.io.UncheckedIOException;
  */
 public final class ClaimsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.7.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.8.0")
             .describedAs("Land claims: who owns what, who may do what there, and the screens for it")
             .by("Raindancer118");
 
@@ -186,6 +186,12 @@ public final class ClaimsModule implements FlexModule {
         upkeep = new UpkeepService(claims, new UpkeepStore(context.dataFolder()), settings.current(),
                 System::currentTimeMillis);
         // The economy collects part of an owner's income toward what they owe here.
+        upkeep.discount(who -> {
+            org.bukkit.OfflinePlayer person = context.plugin().getServer().getOfflinePlayer(who);
+            org.bukkit.entity.Player online = person.getPlayer();
+            return person.isOp() || (online != null && online.hasPermission(
+                    de.raindancer.modules.claims.util.ClaimPermissions.UPKEEP_DISCOUNT));
+        });
         Debts.provide(context.plugin(), upkeep);
         context.closeWith(() -> Debts.retract(upkeep));
         claimService = new ClaimService(context.plugin(), claims, zones, storage, settings.current(),
@@ -223,12 +229,27 @@ public final class ClaimsModule implements FlexModule {
             return world == null ? null : world.getName();
         });
 
+        var boughtSlots = new de.raindancer.core.social.economy.BuyableSlots(
+                context.dataFolder().resolve("bought-slots.yml"),
+                de.raindancer.modules.claims.service.ClaimSlotService.SOURCE, "Extra claim slot");
+        boughtSlots.load();
+        var claimSlots = new de.raindancer.modules.claims.service.ClaimSlotService(boughtSlots,
+                context.core().messages(), settings.current());
+        settings.onChange(claimSlots::settings);
+        claimService.boughtSlots(boughtSlots::bought);
+        selectionFlow.atLimit(player -> {
+            if (claimSlots.whyNot(player.getUniqueId()).isEmpty()) {
+                context.core().messages().send(player, "slot.offer", "price",
+                        claimSlots.describeNextPrice(player.getUniqueId()));
+            }
+        });
+
         services = new ClaimServices(context.plugin(), context.plugin().getServer(), log,
                 context.core().messages(), context.chat().brand(), context.core().prompts(), land,
                 land.flags(), features, claims, storage, zones, claimService, names, rights, provider,
                 costs, selections, stick, selectionFlow, visualizer, fences, ambience, entryFees,
                 eviction, equipment, broadcasts, settings::current, new LiveScreens(), () -> movement,
-                this::saveZones, this::saveFeaturePolicies, context.core(), claimWarps, upkeep);
+                this::saveZones, this::saveFeaturePolicies, context.core(), claimWarps, upkeep, claimSlots);
         movement = new MovementListener(services);
         ambience.movement(movement);
 

@@ -17,4 +17,10 @@ public interface IInvSnapScreensOpener {
 
     /** Every player this server has a snapshot of, for an admin who does not name one. */
     void root(Player admin);
+
+    /** The player's own Insurance screen. */
+    void insurance(Player player);
+
+    /** Offers the item in the player's hand for insurance: its price, and a confirmation. */
+    void offerHeld(Player player);
 }

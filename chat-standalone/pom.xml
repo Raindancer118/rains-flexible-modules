@@ -64,7 +64,7 @@
           again (or starting/joining one) drops the channel; /chat all and /chat public mean everybody.
           Needs RainsCore 1.41.0.
         -->
-        <plugin.version>1.11.0</plugin.version>
+        <plugin.version>1.11.1</plugin.version>
     </properties>
 
     <dependencies>

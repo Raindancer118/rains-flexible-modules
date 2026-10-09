@@ -2,6 +2,7 @@ package de.raindancer.modules.roles.screen;
 
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
+import de.raindancer.core.data.settings.SettingsMenu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.roles.RolesServices;
@@ -26,6 +27,8 @@ import java.util.Optional;
 
 /** {@code /role}: every role with what it gets in the shop. Click one to take it. */
 public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen {
+
+    private static final String SETTINGS_PERMISSION = "rainscore.settings";
 
     private final RolesServices services;
 
@@ -80,6 +83,14 @@ public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen 
         toolbar(4, Icons.of(mine.map(role -> icon(role.icon())).orElse(Material.NAME_TAG),
                 mine.map(role -> "<white>You are " + role.article() + " " + role.coloured()).orElse("<white>You have no role yet"), lore),
                 click -> { });
+        if (viewer.hasPermission(SETTINGS_PERMISSION)) {
+            toolbar(7, Icons.of(Material.COMPARATOR, "<white>Server settings for roles",
+                            "<gray>Change-wait, perk growth and the switch",
+                            "<gray>that lets players buy and rent roles.",
+                            "", "<gray>Only people with the settings permission see this."),
+                    click -> new SettingsMenu(viewer, services.brand(), services.core().chatFor(services.brand()),
+                            services.core().settingsNavigation(), "roles", this).open());
+        }
         if (viewer.hasPermission(PermissionNodes.BYPASS)) {
             boolean on = services.roles().bypassing(viewer.getUniqueId());
             toolbar(6, Icons.of(on ? Material.LIME_DYE : Material.GRAY_DYE,
@@ -123,6 +134,9 @@ public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen 
             withMine.add(Icons.loreLine("<gold>Your role"));
             item.lore(withMine);
             return item;
+        }
+        if (!open && !services.shop().selling()) {
+            return Icons.locked(item, "Roles are not for sale on this server right now.");
         }
         if (!open) {
             List<Component> forSale = new ArrayList<>(Optional.ofNullable(item.lore()).orElse(List.of()));
@@ -170,6 +184,10 @@ public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen 
         boolean payable = rent ? role.rentable() : role.buyable();
         if (!payable) {
             services.messages().send(viewer, "roles.not-for-sale", "role", new Markup(role.coloured()));
+            return;
+        }
+        if (!services.shop().selling()) {
+            services.messages().send(viewer, "roles.sales-off");
             return;
         }
         String price = rent ? RolePurchase.rentPrice(role) + " a month" : RolePurchase.buyPrice(role);

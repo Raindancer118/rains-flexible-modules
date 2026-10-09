@@ -72,7 +72,7 @@ class UnlockServiceTest {
         CosmeticsSettings d = CosmeticsSettings.DEFAULTS;
         return new CosmeticsSettings(d.maxStops(), d.dropWithoutPermission(), d.nameAboveHead(), d.particlesEnabled(),
                 d.particleEveryTicks(), d.particleCount(), d.particleMaxCount(), d.blockedParticles(), d.teleportLooks(),
-                d.teleportSounds(), "0", gradient, "0", "0", "0", presets, particles, "0");
+                d.teleportSounds(), true, "0", gradient, "0", "0", "0", presets, particles, "0");
     }
 
     @Test
@@ -133,7 +133,7 @@ class UnlockServiceTest {
         assertThat(unlocks.priceText(Unlock.preset("sunset"))).contains("75");
         assertThat(unlocks.priceText(Unlock.preset("plain"))).contains("20");
         assertThat(service(CosmeticsSettings.DEFAULTS).priced(Unlock.preset("plain"))).isFalse();
-        assertThat(service(CosmeticsSettings.DEFAULTS).sellable()).as("only the preset that names its own price")
+        assertThat(service(priced("0", "0", "0")).sellable()).as("only the preset that names its own price")
                 .containsExactly("preset.sunset");
         assertThat(unlocks.sellable()).contains("preset.sunset", "preset.plain");
     }
@@ -176,7 +176,7 @@ class UnlockServiceTest {
         UnlockService unlocks = service(new CosmeticsSettings(d.maxStops(), d.dropWithoutPermission(),
                 d.nameAboveHead(), d.particlesEnabled(), d.particleEveryTicks(), d.particleCount(),
                 d.particleMaxCount(), d.blockedParticles(), d.teleportLooks(), d.teleportSounds(),
-                "0", "0", "0", "0", "15", "0", "0", "0"));
+                true, "0", "0", "0", "0", "15", "0", "0", "0"));
 
         assertThat(unlocks.sellable()).contains(Unlock.decoration(TextDecoration.BOLD),
                 Unlock.decoration(TextDecoration.ITALIC));
@@ -186,11 +186,43 @@ class UnlockServiceTest {
     }
 
     @Test
-    @DisplayName("every shipped price is zero")
+    @DisplayName("prices without the switch change nothing: the permission decides, nothing is sold, no economy is asked")
+    void switchedOff() {
+        CosmeticsSettings p = priced("40", "10", "30");
+        CosmeticsSettings off = new CosmeticsSettings(p.maxStops(), p.dropWithoutPermission(), p.nameAboveHead(),
+                p.particlesEnabled(), p.particleEveryTicks(), p.particleCount(), p.particleMaxCount(),
+                p.blockedParticles(), p.teleportLooks(), p.teleportSounds(), false, "0", "40", "0", "0", "0", "10", "30",
+                "0");
+        UnlockService unlocks = service(off);
+        Permissible who = mock(Permissible.class);
+        when(who.hasPermission(PermissionNodes.NAME_GRADIENT)).thenReturn(true);
+
+        assertThat(unlocks.sellable()).isEmpty();
+        assertThat(unlocks.anySold()).isFalse();
+        assertThat(unlocks.priced(Unlock.NAME_GRADIENT)).isFalse();
+        assertThat(unlocks.allowed(who, Unlock.NAME_GRADIENT, PermissionNodes.NAME_GRADIENT)).isTrue();
+        assertThat(unlocks.buy(tom, Unlock.NAME_GRADIENT).outcome()).isEqualTo(UnlockService.Outcome.NOT_FOR_SALE);
+        assertThat(bank.calls).isEmpty();
+    }
+
+    @Test
+    @DisplayName("switched on, a cosmetic without a price is still decided by its permission and listed as unpriced")
+    void switchedOnWithoutPrice() {
+        UnlockService unlocks = service(priced("40", "0", "0"), List.of(plain));
+
+        assertThat(unlocks.sellable()).containsExactly(Unlock.NAME_GRADIENT);
+        assertThat(unlocks.offered()).contains(Unlock.NAME_COLOUR, Unlock.NAME_GRADIENT, Unlock.PARTICLES, Unlock.TELEPORT);
+        assertThat(unlocks.priced(Unlock.NAME_COLOUR)).isFalse();
+        assertThat(unlocks.selling()).isTrue();
+    }
+
+    @Test
+    @DisplayName("every shipped price is zero and selling is off")
     void shippedPricesAreZero() {
         CosmeticsSettings d = CosmeticsSettings.DEFAULTS;
         assertThat(List.of(d.priceNameColour(), d.priceNameGradient(), d.priceNameAnyColour(), d.priceNameAnimated(),
                 d.priceNameDecoration(), d.pricePreset(), d.priceParticles(), d.priceTeleportLooks())).containsOnly("0");
+        assertThat(d.sellCosmetics()).isFalse();
     }
 
     private static final class Bank implements Economy {

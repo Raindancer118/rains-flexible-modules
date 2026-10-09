@@ -7,7 +7,17 @@ import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
+import de.raindancer.core.content.items.InsuredItems;
+import de.raindancer.core.ui.profile.ProfileExtensions;
+import de.raindancer.modules.invsnap.listener.InsuredItemGuardListener;
+import de.raindancer.modules.invsnap.listener.ItemInsuranceDeathListener;
+import de.raindancer.modules.invsnap.listener.ItemInsuranceJoinListener;
 import de.raindancer.modules.invsnap.listener.PlayerDeathInsuranceListener;
+import de.raindancer.modules.invsnap.model.ItemPolicy;
+import de.raindancer.modules.invsnap.screen.InsuranceMenu;
+import de.raindancer.modules.invsnap.service.ItemInsuranceService;
+import de.raindancer.modules.invsnap.store.ItemPolicyStore;
+import java.util.function.Predicate;
 import de.raindancer.modules.invsnap.listener.PlayerDeathSnapshotListener;
 import de.raindancer.modules.invsnap.listener.PlayerQuitSnapshotListener;
 import de.raindancer.modules.invsnap.rules.RetentionRule;
@@ -38,7 +48,7 @@ import java.util.UUID;
  */
 public final class InvSnapModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.4.0")
             .describedAs("Periodic inventory snapshots for every online player, with an admin "
                     + "screen to browse a player's history and restore one.")
             .by("Raindancer118");
@@ -86,15 +96,47 @@ public final class InvSnapModule implements FlexModule {
                 settings.current());
         settings.onChange(insurance::settings);
 
+        ItemInsuranceService itemInsurance = ItemInsuranceService.live(new ItemPolicyStore(context.dataFolder()),
+                server::getPlayer, settings.current());
+        settings.onChange(itemInsurance::settings);
+        // The answer to "is this policy in force": shops and auctions refuse an item while it is.
+        Predicate<String> inForce = itemInsurance::inForce;
+        InsuredItems.provide(context.plugin(), inForce);
+        context.closeWith(() -> InsuredItems.retract(inForce));
+
+        ItemInsuranceJoinListener joined = new ItemInsuranceJoinListener(context.plugin(), itemInsurance,
+                context.core().messages());
+        context.listener(joined);
+        context.listener(new InsuredItemGuardListener(itemInsurance, context.core().messages(), server::getPlayer,
+                joined));
+        context.listener(new ItemInsuranceDeathListener(itemInsurance, context.core().messages(),
+                server::getPlayer));
         context.listener(new PlayerDeathInsuranceListener(insurance, context.core().messages()));
         context.listener(new PlayerQuitSnapshotListener(snapshotService, autoSnapshotService));
         context.listener(new PlayerDeathSnapshotListener(snapshotService));
 
         services = new InvSnapServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core(), settings::current, settings,
-                snapshotService, insurance, new LiveScreens());
+                snapshotService, insurance, itemInsurance, new LiveScreens());
 
         InvSnapCommands.ready(services);
+
+        InsuranceProfileExtension profile = new InsuranceProfileExtension(() -> services);
+        ProfileExtensions.register(profile);
+        context.closeWith(() -> ProfileExtensions.unregister(profile));
+
+        // Premiums fall due on a minute's poll; whoever is online when one lapses is told at once.
+        var renewals = Scheduling.globalTimer(context.plugin(), 200L, 1200L, task -> {
+            for (ItemPolicy lapsed : itemInsurance.renewDue()) {
+                Player owner = server.getPlayer(lapsed.owner());
+                if (owner != null) {
+                    joined.announce(owner);
+                }
+            }
+        });
+        if (renewals != null) {
+            context.closeWith(renewals::cancel);
+        }
 
         var timer = Scheduling.globalTimer(context.plugin(), TICK_PERIOD_TICKS, TICK_PERIOD_TICKS,
                 task -> autoSnapshotService.tick(server.getOnlinePlayers(), Instant.now()));
@@ -120,6 +162,16 @@ public final class InvSnapModule implements FlexModule {
         @Override
         public void root(Player admin) {
             new InvSnapRootMenu(services, admin).open();
+        }
+
+        @Override
+        public void insurance(Player player) {
+            new InsuranceMenu(services, player, null).open();
+        }
+
+        @Override
+        public void offerHeld(Player player) {
+            InsuranceMenu.offer(services, player, null);
         }
     }
 

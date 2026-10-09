@@ -28,6 +28,7 @@ roles:
   bought: "<green>You bought <role> <green>for <white><amount></white>. It is yours for good."
   rented: "<green>You rented <role> <green>for <white><amount></white> a month. It stays yours while the rent is paid."
   not-for-sale: "<red><role> <red>cannot be bought or rented that way."
+  sales-off: "<red>Roles are not for sale on this server right now, so nothing was charged."
   already-yours: "<gray>You have <role> <gray>already."
   cannot-afford: "<red>That costs <white><amount></white> and you do not have it."
   no-economy: "<red>That costs <white><amount></white>, but this server has no money to pay it with."

@@ -74,4 +74,55 @@ class InvSnapSettingsTest {
             assertThat(listed.insuresWorld("hungergames")).isFalse();
         }
     }
+
+    @Nested
+    @DisplayName("item insurance")
+    class ItemInsurance {
+
+        @Test
+        @DisplayName("ships off and without a price, a week between premiums, three items")
+        void defaultsChangeNothing() {
+            assertThat(defaults.itemInsuranceEnabled()).isFalse();
+            assertThat(defaults.itemInsurancePricePercent()).isZero();
+            assertThat(defaults.itemInsurancePriceFlat()).isEqualTo("0");
+            assertThat(defaults.itemInsuranceLeast()).isEqualTo("0");
+            assertThat(defaults.itemInsuranceEveryHours()).isEqualTo(168);
+            assertThat(defaults.itemInsuranceMostItems()).isEqualTo(3);
+            assertThat(defaults.itemInsuranceClaimFee()).isEqualTo("0");
+            assertThat(defaults.itemInsurancePriced()).isFalse();
+        }
+
+        @Test
+        @DisplayName("any one of percent, flat or floor makes it priced")
+        void priced() {
+            assertThat(defaults.withItemInsurancePrice(5, "0", "0").itemInsurancePriced()).isTrue();
+            assertThat(defaults.withItemInsurancePrice(0, "10", "0").itemInsurancePriced()).isTrue();
+            assertThat(defaults.withItemInsurancePrice(0, "0", "10").itemInsurancePriced()).isTrue();
+        }
+
+        @Test
+        @DisplayName("renewal hours and item count are clamped")
+        void clamped() {
+            assertThat(defaults.withItemInsuranceTerms(0, 0, "0").itemInsuranceEvery())
+                    .isEqualTo(Duration.ofHours(1));
+            assertThat(defaults.withItemInsuranceTerms(24, 99, "0").itemInsuranceMostItemsClamped()).isEqualTo(50);
+        }
+
+        @Test
+        @DisplayName("changing one group leaves the others, death insurance included, as they were")
+        void withersKeepTheRest() {
+            InvSnapSettings changed = defaults.withInsuranceEnabled(true).withItemInsurance(true)
+                    .withItemInsurancePrice(5, "1", "2").withItemInsuranceTerms(24, 5, "3");
+
+            assertThat(changed.insuranceEnabled()).isTrue();
+            assertThat(changed.itemInsuranceEnabled()).isTrue();
+            assertThat(changed.itemInsurancePricePercent()).isEqualTo(5);
+            assertThat(changed.itemInsurancePriceFlat()).isEqualTo("1");
+            assertThat(changed.itemInsuranceLeast()).isEqualTo("2");
+            assertThat(changed.itemInsuranceEveryHours()).isEqualTo(24);
+            assertThat(changed.itemInsuranceMostItems()).isEqualTo(5);
+            assertThat(changed.itemInsuranceClaimFee()).isEqualTo("3");
+            assertThat(changed.withRetentionCount(7).itemInsuranceMostItems()).isEqualTo(5);
+        }
+    }
 }

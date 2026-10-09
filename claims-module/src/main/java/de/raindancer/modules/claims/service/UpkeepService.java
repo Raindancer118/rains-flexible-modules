@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
+import java.util.function.Predicate;
 
 /**
  * Land costs money to hold: bills each owner for the chunks they hold, remembers what they owe, and tells
@@ -58,12 +59,33 @@ public final class UpkeepService implements IClaimService, DebtKeeper {
     public record Payment(Money paid, Money left, EconomyResult.Outcome refusal) {
     }
 
+    /**
+     * The next bill taken apart.
+     *
+     * @param chunks     chunks held, all claims together
+     * @param claims     number of claims held
+     * @param land       the per-chunk part (grows with total land)
+     * @param perClaim   the per-claim part (each claim's fee grows with its own size)
+     * @param payPercent what this owner pays of the sum: the operators' percent, or 100
+     * @param total      what is billed, before the economy's price level
+     */
+    public record Parts(int chunks, int claims, Money land, Money perClaim, double payPercent, Money total) {
+        public Money subtotal() {
+            return land.plus(perClaim);
+        }
+
+        public boolean discounted() {
+            return payPercent < 100.0D;
+        }
+    }
+
     private final ClaimRegistry claims;
     private final UpkeepStore store;
     private final LongSupplier clock;
     private volatile ClaimSettings settings;
     private final Map<UUID, UpkeepAccount> accounts = new ConcurrentHashMap<>();
     private final Map<UUID, Object> locks = new ConcurrentHashMap<>();
+    private volatile Predicate<UUID> discount = who -> false;
 
     public UpkeepService(ClaimRegistry claims, UpkeepStore store, ClaimSettings settings, LongSupplier clock) {
         this.claims = claims;
@@ -99,10 +121,34 @@ public final class UpkeepService implements IClaimService, DebtKeeper {
         return chunks;
     }
 
+    /** Who pays the operators' percent instead of the full bill: operators, and holders of the discount node. */
+    public void discount(Predicate<UUID> discount) {
+        this.discount = discount == null ? who -> false : discount;
+    }
+
     /** What the next bill would be, before the price level — what the owner can expect to see. */
     public Money billFor(UUID owner) {
+        return partsFor(owner).total();
+    }
+
+    /** The next bill and what it is made of. */
+    public Parts partsFor(UUID owner) {
         ClaimSettings now = settings;
-        return UpkeepBill.of(now.upkeepPerChunkAmount(), now.upkeepGrowthPercent(), chunksHeld(owner));
+        List<Integer> sizes = new ArrayList<>();
+        int chunks = 0;
+        for (Claim claim : claims.all()) {
+            if (owner.equals(claim.primaryOwner())) {
+                int covered = claim.shape().coveredChunkKeys().size();
+                sizes.add(Math.max(1, covered));
+                chunks += covered;
+            }
+        }
+        Money land = UpkeepBill.of(now.upkeepPerChunkAmount(), now.upkeepGrowthPercent(), chunks);
+        Money perClaim = UpkeepBill.claimFees(now.upkeepPerClaimAmount(), now.upkeepPerClaimAreaPercent(), sizes);
+        double percent = discount.test(owner) ? Math.max(0.0D, Math.min(100.0D, now.upkeepOperatorsPayPercent()))
+                : 100.0D;
+        Money total = UpkeepBill.discounted(land.plus(perClaim), percent);
+        return new Parts(chunks, sizes.size(), land, perClaim, percent, total);
     }
 
     /** The bill as it would actually be charged, after the economy's price level. */
@@ -217,6 +263,26 @@ public final class UpkeepService implements IClaimService, DebtKeeper {
             Money left = reduce(owner, amount);
             refreshProtection(owner);
             return new Payment(amount, left, null);
+        }
+    }
+
+    /** Pays what is owed and says how it went; the one wording for the command and the screen. */
+    public void payAndTell(org.bukkit.entity.Player player, de.raindancer.core.ui.messages.Messages messages) {
+        Money owing = owed(player.getUniqueId());
+        if (!owing.isPositive()) {
+            messages.send(player, "upkeep.nothing-owed");
+            return;
+        }
+        Payment payment = pay(player.getUniqueId());
+        if (payment.refusal() == EconomyResult.Outcome.UNAVAILABLE) {
+            messages.send(player, "upkeep.no-economy");
+        } else if (!payment.paid().isPositive()) {
+            messages.send(player, "upkeep.cannot-pay", "owed", Fees.format(owing));
+        } else if (payment.left().isPositive()) {
+            messages.send(player, "upkeep.paid-part",
+                    "paid", Fees.format(payment.paid()), "left", Fees.format(payment.left()));
+        } else {
+            messages.send(player, "upkeep.paid-all", "paid", Fees.format(payment.paid()));
         }
     }
 

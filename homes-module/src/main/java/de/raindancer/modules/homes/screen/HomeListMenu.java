@@ -134,14 +134,22 @@ public final class HomeListMenu extends PaginatedMenu<Home> implements IHomeScre
                         "<dark_gray>A permission can raise that; nothing lowers it."),
                 click -> {
                 });
-        if (services.slots().isOn()) {
-            UUID who = viewer.getUniqueId();
-            toolbar(5, !services.slots().isMaxed(who), Icons.of(Material.EMERALD, "<white>Buy a home slot",
-                            "<gray>One more home for <white>" + services.slots().describeNextPrice(who)
-                                    + "<gray>.",
-                            "<gray>You have bought <white>" + services.slots().bought(who) + "<gray> so far."),
-                    "You cannot buy any more slots.",
-                    click -> new SlotOfferScreen(services, viewer, this, false, null).open());
+        UUID who = viewer.getUniqueId();
+        java.util.Optional<String> whyNot = services.slots().whyNot(who);
+        toolbar(5, whyNot.isEmpty(), Icons.of(Material.EMERALD, "<white>Buy a home slot",
+                        services.slots().isOn() ? "<gray>One more home for <white>"
+                                + services.slots().describeNextPrice(who) + "<gray>." : "<gray>One more home.",
+                        "<gray>You have bought <white>" + services.slots().bought(who) + "<gray> so far.",
+                        "<yellow>Click<gray> to buy one"),
+                whyNot.orElse(""),
+                click -> new SlotOfferScreen(services, viewer, this, false, null).open());
+        if (services.mayOpenSettings(viewer)) {
+            toolbar(7, Icons.of(Material.COMPARATOR, "<white>Server settings for homes",
+                            "<gray>Limits, waits, buying home slots,", "<gray>the price of going home.",
+                            "<yellow>Click<gray> to open"),
+                    click -> new de.raindancer.core.data.settings.SettingsMenu(viewer, services.brand(),
+                            services.core().chatFor(services.brand()), services.core().settingsNavigation(), "homes",
+                            this).open());
         }
     }
 

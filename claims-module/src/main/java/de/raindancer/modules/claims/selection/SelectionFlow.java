@@ -347,6 +347,16 @@ public final class SelectionFlow {
             case null -> "error.generic";
         };
         messages.send(player, key, "detail", result.detail() == null ? "" : result.detail());
+        if (result.failure() == ClaimService.Failure.TOO_MANY_CLAIMS) {
+            atLimit.accept(player);
+        }
+    }
+
+    /** Told when somebody is at their claim limit — offers a slot to buy, where that is on. */
+    private volatile java.util.function.Consumer<Player> atLimit = player -> { };
+
+    public void atLimit(java.util.function.Consumer<Player> hint) {
+        this.atLimit = hint == null ? player -> { } : hint;
     }
 
     /** Starts a fresh selection and hands out the tool. */

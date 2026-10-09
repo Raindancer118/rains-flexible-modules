@@ -44,6 +44,8 @@ import java.util.Map;
  */
 public final class ClaimPermissions {
 
+    public static final String UPKEEP_DISCOUNT = "rainsclaims.upkeep.discount";
+
     private ClaimPermissions() {
     }
 
@@ -81,6 +83,9 @@ public final class ClaimPermissions {
                 "Exempt from claim entry fees", PermissionDefault.FALSE));
         permissions.add(new Permission("rec.maxclaims.unlimited",
                 "Removes the claim count cap entirely", PermissionDefault.FALSE));
+        permissions.add(new Permission(UPKEEP_DISCOUNT,
+                "Pays only the operators' percent (upkeep.operators-pay-percent) of the claim upkeep bill",
+                PermissionDefault.FALSE));
 
         return permissions;
     }

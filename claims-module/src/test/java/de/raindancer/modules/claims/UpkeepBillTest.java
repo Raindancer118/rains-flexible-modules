@@ -63,4 +63,42 @@ class UpkeepBillTest {
         assertThat(EntryFeeCut.destroyed(10, -5)).isZero();
         assertThat(EntryFeeCut.kept(10, 30)).isEqualTo(7);
     }
+
+    @Test
+    @DisplayName("a claim's own fee is the flat fee when the area percent is zero")
+    void perClaimFlat() {
+        assertThat(UpkeepBill.claimFee(Money.of(500), 0, 9)).isEqualTo(Money.of(500));
+        assertThat(UpkeepBill.claimFee(Money.ZERO, 50, 9)).isEqualTo(Money.ZERO);
+    }
+
+    @Test
+    @DisplayName("a claim's own fee grows with its own size: fee * (1 + percent/100)^(chunks - 1)")
+    void perClaimGrowsWithItsSize() {
+        assertThat(UpkeepBill.claimFee(Money.of(1000), 10, 1)).isEqualTo(Money.of(1000));
+        assertThat(UpkeepBill.claimFee(Money.of(1000), 10, 3)).isEqualTo(Money.of(1210));
+    }
+
+    @Test
+    @DisplayName("one big claim costs more than two small ones of the same total")
+    void bigClaimCostsMore() {
+        Money big = UpkeepBill.claimFees(Money.of(1000), 50, java.util.List.of(8));
+        Money small = UpkeepBill.claimFees(Money.of(1000), 50, java.util.List.of(4, 4));
+        assertThat(big.minor()).isGreaterThan(small.minor());
+    }
+
+    @Test
+    @DisplayName("a claim fee never overflows into arrears arithmetic")
+    void claimFeeIsClamped() {
+        assertThat(UpkeepBill.claimFee(Money.of(1000), 1000, 100_000).minor()).isLessThanOrEqualTo(1_000_000_000_000_000L);
+    }
+
+    @Test
+    @DisplayName("the operators' percent scales the bill and is clamped to 0..100")
+    void discount() {
+        assertThat(UpkeepBill.discounted(Money.of(1000), 100)).isEqualTo(Money.of(1000));
+        assertThat(UpkeepBill.discounted(Money.of(1000), 25)).isEqualTo(Money.of(250));
+        assertThat(UpkeepBill.discounted(Money.of(1000), 0)).isEqualTo(Money.ZERO);
+        assertThat(UpkeepBill.discounted(Money.of(1000), 250)).isEqualTo(Money.of(1000));
+        assertThat(UpkeepBill.discounted(Money.of(1000), -5)).isEqualTo(Money.ZERO);
+    }
 }

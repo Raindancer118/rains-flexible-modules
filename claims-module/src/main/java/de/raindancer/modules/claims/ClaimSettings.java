@@ -44,6 +44,7 @@ import java.util.List;
         @Topic(path = "management/fences", title = "Fences", icon = Material.OAK_FENCE),
         @Topic(path = "management/entry-fee", title = "Entry fees", icon = Material.GOLD_NUGGET),
         @Topic(path = "management/upkeep", title = "Upkeep", icon = Material.CLOCK),
+        @Topic(path = "management/slots", title = "Buying claim slots", icon = Material.EMERALD),
         @Topic(path = "appearance", title = "How claims look", icon = Material.SPYGLASS),
         @Topic(path = "appearance/borders", title = "Borders", icon = Material.GLOWSTONE_DUST),
         @Topic(path = "appearance/notices", title = "Arriving and leaving", icon = Material.PAPER),
@@ -397,8 +398,14 @@ public record ClaimSettings(
 
         // ───────────────────────────────────────────────────────────── upkeep
 
+        @In("management/upkeep") @Title("Charge upkeep")
+        @Describe("The switch. Off, nobody is billed whatever the prices below say. On with every price 0 "
+                + "is free.")
+        @Key("upkeep.enabled")
+        boolean upkeepSwitch,
+
         @In("management/upkeep") @Title("Upkeep per chunk")
-        @Describe("Money an owner pays every period for each chunk of claimed land. 0 switches upkeep off.")
+        @Describe("Money an owner pays every period for each chunk of claimed land, all claims together.")
         @Key("upkeep.per-chunk")
         String upkeepPerChunk,
 
@@ -407,6 +414,18 @@ public record ClaimSettings(
                 + "than the one before, so big landholders pay proportionally more. 0 is flat.")
         @Key("upkeep.growth-percent")
         double upkeepGrowthPercent,
+
+        @In("management/upkeep") @Title("Fee for every claim")
+        @Describe("Money an owner pays every period for each claim they have, however small. Makes many "
+                + "claims dearer than few.")
+        @Key("upkeep.per-claim")
+        String upkeepPerClaim,
+
+        @In("management/upkeep") @Title("A bigger claim costs more") @Range(min = 0, max = 1000)
+        @Describe("Percent. Each claim's own fee grows by this much for every chunk it covers beyond the "
+                + "first, so one big claim costs more than two small ones. 0 is flat.")
+        @Key("upkeep.per-claim-area-percent")
+        double upkeepPerClaimAreaPercent,
 
         @In("management/upkeep") @Title("Billed every") @Range(min = 1, max = 8760)
         @Describe("Hours between bills. 168 is a week.")
@@ -417,7 +436,37 @@ public record ClaimSettings(
         @Describe("Days. A claim whose owner has been in arrears this long stops protecting until it is "
                 + "paid. Never deleted. 0 means never.")
         @Key("upkeep.arrears-lift-protection-after-days")
-        int upkeepLiftProtectionAfterDays
+        int upkeepLiftProtectionAfterDays,
+
+        @In("management/upkeep") @Title("What operators pay") @Range(min = 0, max = 100)
+        @Describe("Percent of the whole upkeep bill a server operator pays; 100 is the same as everybody, "
+                + "0 is nothing. Players holding the permission rainsclaims.upkeep.discount pay the same "
+                + "percent (while they are online when billed).")
+        @Key("upkeep.operators-pay-percent")
+        double upkeepOperatorsPayPercent,
+
+        // ───────────────────────────────────────────────────────────── buying claim slots
+
+        @In("management/slots") @Title("Players may buy extra claim slots")
+        @Describe("On top of the claims they may have (the limit, or their rec.maxclaims permission), for the "
+                + "price below. Off is the default and needs no economy plugin.")
+        @Key("slots.buying")
+        boolean claimSlotBuying,
+
+        @In("management/slots") @Title("Price of an extra claim slot")
+        @Describe("Money, written like 500 or 1.5k. Each slot bought is kept for good.")
+        @Key("slots.price")
+        String claimSlotPrice,
+
+        @In("management/slots") @Title("Each further slot costs more (percent)") @Range(min = 0, max = 1000)
+        @Describe("How much more every slot a player buys costs than the one before. 0 keeps the price flat.")
+        @Key("slots.price-growth-percent")
+        int claimSlotPriceGrowthPercent,
+
+        @In("management/slots") @Title("Most slots one player may buy") @Range(min = 0, max = 1000)
+        @Describe("A ceiling on bought claim slots per player. 0 means no ceiling.")
+        @Key("slots.most-bought")
+        int mostBoughtClaimSlots
 ) {
 
     /** The shape before the upkeep and cut settings existed; everything new is at its neutral value. */
@@ -458,7 +507,8 @@ public record ClaimSettings(
                 selectionStickMaterial, selectionMarkerBlock, verticalMode, selectionStickGlint,
                 verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
                 hiddenUndergroundNotificationsMuted, autoSaveSeconds, disabledWorlds,
-                creationCostItemEncoded, debug, 1.0D, 0.0D, "0", 0.0D, 168, 0);
+                creationCostItemEncoded, debug, 1.0D, 0.0D, false, "0", 0.0D, "0", 0.0D, 168, 0, 100.0D,
+            false, "0", 0, 0);
     }
 
     /** How the outline of a border is drawn. */
@@ -514,7 +564,8 @@ public record ClaimSettings(
             Material.STICK, Material.SEA_LANTERN, VerticalMode.SELECTION_PADDED,
             true, 8, 16, true, true,
             300, List.of(), "", false,
-            1.0D, 0.0D, "0", 0.0D, 168, 0);
+            1.0D, 0.0D, false, "0", 0.0D, "0", 0.0D, 168, 0, 100.0D,
+            false, "0", 0, 0);
 
     /**
      * How many claims this player may hold.
@@ -611,8 +662,10 @@ public record ClaimSettings(
                 visualCornerBlock, visualZoneBlock, selectionStickMaterial, selectionMarkerBlock, verticalMode,
                 selectionStickGlint, verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
                 hiddenUndergroundNotificationsMuted, autoSaveSeconds, disabledWorlds,
-                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, upkeepPerChunk,
-                upkeepGrowthPercent, upkeepEveryHours, upkeepLiftProtectionAfterDays);
+                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, upkeepSwitch, upkeepPerChunk,
+                upkeepGrowthPercent, upkeepPerClaim, upkeepPerClaimAreaPercent, upkeepEveryHours,
+                upkeepLiftProtectionAfterDays, upkeepOperatorsPayPercent, claimSlotBuying, claimSlotPrice,
+                claimSlotPriceGrowthPercent, mostBoughtClaimSlots);
     }
 
     /** The same, for the refund rate — the other value a caller genuinely wants to vary on its own. */
@@ -631,8 +684,10 @@ public record ClaimSettings(
                 visualCornerBlock, visualZoneBlock, selectionStickMaterial, selectionMarkerBlock, verticalMode,
                 selectionStickGlint, verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
                 hiddenUndergroundNotificationsMuted, autoSaveSeconds, disabledWorlds,
-                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, upkeepPerChunk,
-                upkeepGrowthPercent, upkeepEveryHours, upkeepLiftProtectionAfterDays);
+                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, upkeepSwitch, upkeepPerChunk,
+                upkeepGrowthPercent, upkeepPerClaim, upkeepPerClaimAreaPercent, upkeepEveryHours,
+                upkeepLiftProtectionAfterDays, upkeepOperatorsPayPercent, claimSlotBuying, claimSlotPrice,
+                claimSlotPriceGrowthPercent, mostBoughtClaimSlots);
     }
 
     /** The same, for the disabled-world list — the third thing a caller varies on its own. */
@@ -651,12 +706,22 @@ public record ClaimSettings(
                 visualCornerBlock, visualZoneBlock, selectionStickMaterial, selectionMarkerBlock, verticalMode,
                 selectionStickGlint, verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
                 hiddenUndergroundNotificationsMuted, autoSaveSeconds, worlds,
-                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, upkeepPerChunk,
-                upkeepGrowthPercent, upkeepEveryHours, upkeepLiftProtectionAfterDays);
+                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, upkeepSwitch, upkeepPerChunk,
+                upkeepGrowthPercent, upkeepPerClaim, upkeepPerClaimAreaPercent, upkeepEveryHours,
+                upkeepLiftProtectionAfterDays, upkeepOperatorsPayPercent, claimSlotBuying, claimSlotPrice,
+                claimSlotPriceGrowthPercent, mostBoughtClaimSlots);
     }
 
     /** The same, for the upkeep — what a caller turning it on has to vary together. */
     public ClaimSettings withUpkeep(String perChunk, double growthPercent, int everyHours, int liftAfterDays) {
+        return withUpkeepAll(true, perChunk, growthPercent, upkeepPerClaim, upkeepPerClaimAreaPercent, everyHours,
+                liftAfterDays, upkeepOperatorsPayPercent);
+    }
+
+    /** Every upkeep setting at once. */
+    public ClaimSettings withUpkeepAll(boolean on, String perChunk, double growthPercent, String perClaim,
+                                       double perClaimAreaPercent, int everyHours, int liftAfterDays,
+                                       double operatorsPayPercent) {
         return new ClaimSettings(maxClaimsDefault, minClaimArea, maxClaimArea, maxVertices, minClaimHeight,
                 allowOverlappingWorldsOnly, creationCostType, creationCostAmount, creationCostPerBlock,
                 creationCostBlocksPerUnit, refundOnDelete, shrinkRefundRate, chargeOnGrow, entryFeeMaxAmount,
@@ -671,8 +736,37 @@ public record ClaimSettings(
                 visualCornerBlock, visualZoneBlock, selectionStickMaterial, selectionMarkerBlock, verticalMode,
                 selectionStickGlint, verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
                 hiddenUndergroundNotificationsMuted, autoSaveSeconds, disabledWorlds,
-                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, perChunk,
-                growthPercent, everyHours, liftAfterDays);
+                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, on, perChunk,
+                growthPercent, perClaim, perClaimAreaPercent, everyHours, liftAfterDays, operatorsPayPercent,
+                claimSlotBuying, claimSlotPrice, claimSlotPriceGrowthPercent, mostBoughtClaimSlots);
+    }
+
+    /** What buying a claim slot costs, as Core's {@link de.raindancer.core.social.economy.BuyableSlots} reads it. */
+    public de.raindancer.core.social.economy.BuyableSlots.Terms slotTerms() {
+        return new de.raindancer.core.social.economy.BuyableSlots.Terms(claimSlotBuying,
+                de.raindancer.core.social.economy.Fees.amount(claimSlotPrice), claimSlotPriceGrowthPercent,
+                mostBoughtClaimSlots);
+    }
+
+    /** The same settings with the claim-slot purchase set. */
+    public ClaimSettings withClaimSlots(boolean on, String price, int growthPercent, int most) {
+        return new ClaimSettings(maxClaimsDefault, minClaimArea, maxClaimArea, maxVertices, minClaimHeight,
+                allowOverlappingWorldsOnly, creationCostType, creationCostAmount, creationCostPerBlock,
+                creationCostBlocksPerUnit, refundOnDelete, shrinkRefundRate, chargeOnGrow, entryFeeMaxAmount,
+                entryFeeDeclineCooldownSeconds, entryFeePromptTimeoutSeconds, entryFeeExemptTrusted,
+                entryFeeExemptAdmins, fenceAutoBuild, fenceChargeMaterial, fenceDefaultMaterial, fenceHeight,
+                fenceMaxColumns, fenceMaxStep, fenceRefundToBank, maxClaimEffects, maxEffectAmplifier,
+                effectsRequirePotions, effectPotionMinutes, potionStoreMaxStacks, claimThunderBolts, blockedEffects,
+                maxEquipRules, equipmentMaxStacks, pantryMaxStacks, broadcastNearbyRadius, broadcastScope,
+                broadcastKick, broadcastBan, broadcastTimeout, broadcastLift, enterMessageActionBar,
+                borderOnEnterSeconds, notificationCooldownSeconds, visualDurationSeconds, visualRadius,
+                visualSpacing, visualMaxPointsPerTick, visualShowVerticalPillars, visualMode, visualEdgeBlock,
+                visualCornerBlock, visualZoneBlock, selectionStickMaterial, selectionMarkerBlock, verticalMode,
+                selectionStickGlint, verticalPaddingDown, verticalPaddingUp, allowUndergroundClaims,
+                hiddenUndergroundNotificationsMuted, autoSaveSeconds, disabledWorlds,
+                creationCostItemEncoded, debug, deleteRefundRate, entryFeeServerCutPercent, upkeepSwitch, upkeepPerChunk,
+                upkeepGrowthPercent, upkeepPerClaim, upkeepPerClaimAreaPercent, upkeepEveryHours,
+                upkeepLiftProtectionAfterDays, upkeepOperatorsPayPercent, on, price, growthPercent, most);
     }
 
     /** Whether a claim of this many blocks is within the configured limits. */
@@ -683,13 +777,19 @@ public record ClaimSettings(
         return maxClaimArea <= 0 || area <= maxClaimArea;
     }
 
-    /** What a claim costs to hold per chunk each period, or zero when upkeep is off. */
+    /** What each chunk costs to hold per period. */
     public de.raindancer.core.social.economy.Money upkeepPerChunkAmount() {
         return de.raindancer.core.social.economy.Fees.amount(upkeepPerChunk);
     }
 
+    /** What each claim costs to have per period, before it grows with its size. */
+    public de.raindancer.core.social.economy.Money upkeepPerClaimAmount() {
+        return de.raindancer.core.social.economy.Fees.amount(upkeepPerClaim);
+    }
+
+    /** The switch. Prices alone never bill anybody. */
     public boolean upkeepEnabled() {
-        return upkeepPerChunkAmount().isPositive();
+        return upkeepSwitch;
     }
 
     public long upkeepPeriodMillis() {

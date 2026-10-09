@@ -175,6 +175,22 @@ public final class ClaimMenu extends ClaimScreen {
                     services().screens().manual(viewer);
                 });
 
+        toolbar(2, Icons.of(Material.FILLED_MAP, "<white>About this claim",
+                        "<gray>Size, owners, age, what it cost",
+                        "<gray>and what it costs to keep."),
+                click -> new ClaimInfoMenu(services(), viewer, claim, this).open());
+
+        if (claim.isOwner(viewer.getUniqueId()) && services().upkeep().enabled()) {
+            var owed = services().upkeep().owed(viewer.getUniqueId());
+            toolbar(6, Icons.of(owed.isPositive() ? Material.REDSTONE : Material.CLOCK, "<white>Upkeep",
+                            "<gray>Next bill, what it is made of, pay arrears.",
+                            owed.isPositive() ? "<red>You owe "
+                                    + de.raindancer.core.social.economy.Fees.format(owed)
+                                    : "<dark_gray>" + de.raindancer.core.social.economy.Fees.format(
+                                    services().upkeep().quotedBillFor(viewer.getUniqueId())) + " next"),
+                    click -> new UpkeepMenu(services(), viewer, claim, this).open());
+        }
+
         if (services().features().isOffered(ClaimFeature.ENTRY_FEE)) {
             toolbar(3, Icons.of(Material.GOLD_NUGGET, "<white>Entry fee",
                             "<gray>What a visitor pays at the border.",

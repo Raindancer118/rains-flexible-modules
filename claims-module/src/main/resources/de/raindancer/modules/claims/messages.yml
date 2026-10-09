@@ -261,6 +261,8 @@ admin:
 upkeep:
   disabled: "<gray>This server charges no claim upkeep."
   status: "<gray>Upkeep: <white><chunks></white> chunk(s) held, <white><bill></white> every <white><period></white>. Next bill in <white><next></white>."
+  parts: "<gray>  of that <white><land></white> for the land and <white><claims></white> for your <white><count></white> claim(s)."
+  discounted: "<gray>  You pay <white><percent>%</white> of the full bill."
   nothing-held: "<gray>You hold no land, so there is no upkeep to pay."
   owed: "<red>You are in arrears: <white><owed></white>. <gray>You cannot make or enlarge claims until it is paid — <white>/claim upkeep pay</white>."
   lapsed: "<red>Your claims have stopped protecting because the upkeep has gone unpaid for too long. Paying brings the protection back."
@@ -273,3 +275,15 @@ upkeep:
   cannot-pay: "<gray>You cannot afford to pay any of the <white><owed></white> you owe."
   no-economy: "<gray>There is no economy to pay with right now. Try again later."
   info-line: "<gray>Upkeep: <white><bill></white> every <white><period></white> for this owner's land."
+
+slot:
+  offer: "<gray>You can buy one more claim for <white><price></white>: <white>/claim buyslot</white>, or the button in <white>/claim</white>."
+  confirm: "<yellow>One more claim costs <white><price></white>. Type <white>/claim buyslot confirm</white> to buy it."
+  bought: "<green>Bought a claim slot for <white><price></white>. <gray>You have bought <white><count></white> so far."
+  "off": "<gray>Buying claim slots is switched off on this server."
+  no-price: "<gray>No price is set for a claim slot yet."
+  maxed: "<gray>You have bought the most claim slots anybody may: <white><most></white>."
+  cannot-afford: "<red>A claim slot costs <white><price></white> — you do not have that much."
+  no-economy: "<red>There is no economy on this server to pay with."
+  not-saved: "<red>The slot could not be saved, so your money was given back."
+  refused: "<red>That payment was refused, and nothing was taken."

@@ -18,7 +18,8 @@ invsnap:
 
   insurance:
     disabled: "<yellow>Death insurance is not offered on this server."
-    usage: "<gray>/insurance [on|off]"
+    usage: "<gray>/insurance [on|off|item [cancel]]"
+    death-disabled: "<yellow>Death insurance is not offered on this server. Item insurance is: <white>/insurance item</white>."
     now-on: "<green>You are insured. If you die you pay the premium and keep your inventory — about <white><price></white> for what you carry right now."
     now-off: "<yellow>You are no longer insured. A death drops your things as usual."
     status-on: "<green>You are insured. Dying now would cost about <white><price></white>."
@@ -29,3 +30,26 @@ invsnap:
       not-enough: "<red>You could not afford the premium of <white><price></white>, so this death was uninsured."
       no-economy: "<red>The premium of <white><price></white> could not be taken, so this death was uninsured."
       refused: "<red>The premium of <white><price></white> was refused, so this death was uninsured."
+
+  item:
+    taken: "<green>Insured: <white><item></white>, for <white><price></white>. The premium comes round every <white><hours></white> hours. If it is destroyed, it comes back to you."
+    refused: "<yellow>That item cannot be insured: <reason>."
+    cancelled: "<yellow>The policy on <white><item></white> is cancelled. Nothing is refunded."
+    cancel-none: "<yellow>Hold an item you have insured in your main hand to cancel its policy."
+    kept: "<green>Your insured item(s) (<white><count></white>) are safe and come back once you respawn."
+    returned:
+      inventory: "<green>Your insured <white><item></white> was about to be destroyed, so it went back into your inventory."
+      list: "<yellow>Your insured <white><item></white> was about to be destroyed and is waiting for you in <white>/insurance</white>."
+    lent-came-back: "<green>An insured item you lent out has come back to your inventory."
+    delivered: "<green><white><count></white> insured item(s) came back to your inventory."
+    waiting: "<yellow><white><count></white> insured item(s) are waiting for you. Make room, then collect them in <white>/insurance</white>."
+    no-room: "<red>There is no free slot in your inventory. Make room and try again."
+    worn: "<yellow>Your insured <white><item></white> wore out, which ends its policy. Insurance covers loss, not wear."
+    lapsed: "<red>The policy on <white><item></white> ended: its premium of <white><price></white> could not be paid. It can drop again."
+    claim:
+      paid: "<yellow>Deductible for your returned insured item(s): <white><price></white>."
+      unpaid: "<yellow>The deductible of <white><price></white> could not be taken, so you keep your item(s) and owe nothing."
+    unpaid:
+      not-enough: "<red>You cannot afford the premium, so nothing was insured."
+      no-economy: "<red>The premium could not be taken, so nothing was insured."
+      refused: "<red>The premium was refused, so nothing was insured."

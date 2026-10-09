@@ -1,5 +1,6 @@
 package de.raindancer.modules.cosmetics;
 
+import de.raindancer.core.RainsCore;
 import de.raindancer.core.moderation.vanish.Vanish;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.chat.Brand;
@@ -35,10 +36,16 @@ public record CosmeticsServices(
         de.raindancer.modules.cosmetics.service.TeleportLookService teleports,
         Vanish vanish,
         ICosmeticsScreensOpener screens,
-        de.raindancer.modules.cosmetics.service.UnlockService unlocks) {
+        de.raindancer.modules.cosmetics.service.UnlockService unlocks,
+        RainsCore core) {
 
     public Catalogue offered() {
         return catalogue.get();
+    }
+
+    /** Who sees the doors to Core's /settings pages. */
+    public boolean mayOpenSettings(org.bukkit.entity.Player who) {
+        return who.hasPermission("rainscore.settings");
     }
 
     public CosmeticsSettings config() {

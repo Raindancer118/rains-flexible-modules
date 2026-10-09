@@ -47,6 +47,11 @@ public final class AdService implements IChatService {
         this.settings = fresh;
     }
 
+    /** The owner's switch for /ad. */
+    public boolean enabled() {
+        return settings.adsEnabled();
+    }
+
     /** What the ad costs a player now, as the server's currency writes it; empty when it is free. */
     public String priceText() {
         Money price = Fees.quote(SOURCE, Fees.amount(settings.adsPrice()));

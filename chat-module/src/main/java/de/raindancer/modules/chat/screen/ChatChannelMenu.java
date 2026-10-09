@@ -1,7 +1,13 @@
 package de.raindancer.modules.chat.screen;
 
 import de.raindancer.core.ui.chat.ChatChannel;
+import de.raindancer.core.data.settings.SettingsMenu;
 import de.raindancer.core.ui.chat.ChatChannels;
+import de.raindancer.core.ui.menu.ConfirmMenu;
+import de.raindancer.core.ui.prompt.AnvilInput;
+import de.raindancer.core.ui.prompt.Parsers;
+import de.raindancer.modules.chat.command.AdCommand;
+import de.raindancer.modules.chat.util.PermissionNodes;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.modules.chat.ChatServices;
@@ -47,6 +53,53 @@ public final class ChatChannelMenu extends PaginatedMenu<String> {
         ids.add(ChatChannels.ALL);
         ChatChannels.availableTo(viewer.getUniqueId()).forEach(channel -> ids.add(channel.id()));
         return ids;
+    }
+
+    @Override
+    protected void render() {
+        super.render();
+        toolbar(2, adIcon(), click -> placeAd());
+        if (services.mayOpenSettings(viewer)) {
+            toolbar(6, Icons.of(Material.COMPARATOR, "<white>Server settings for chat",
+                            "<gray>Format, mentions, filters, history, polls", "<gray>and the paid /ad with its switch and price.", "",
+                            "<gray>Only people with the settings permission see this."),
+                    click -> new SettingsMenu(viewer, services.brand(), services.chat(),
+                            services.core().settingsNavigation(), "chat", this).open());
+        }
+    }
+
+    /** What /ad costs, or why it cannot be used: greyed rather than hidden, so nobody asks where it went. */
+    private ItemStack adIcon() {
+        String price = services.ads().priceText();
+        ItemStack icon = Icons.of(Material.GOLD_NUGGET, "<white>Place an ad",
+                "<gray>A line everybody online reads, up to " + services.config().adLength() + " characters.",
+                services.ads().enabled() ? (price.isEmpty() ? "<green>Free." : "<gold>Costs: <white>" + price)
+                        : "<dark_gray>/ad is off on this server.",
+                "", "<yellow>Click<gray> to type one, or use <white>/ad [message]");
+        if (!services.ads().enabled()) {
+            return Icons.locked(icon, "Ads are not for sale on this server.");
+        }
+        return viewer.hasPermission(PermissionNodes.AD) ? icon : Icons.locked(icon, "Needs " + PermissionNodes.AD);
+    }
+
+    private void placeAd() {
+        if (!services.ads().enabled()) {
+            services.messages().send(viewer, "chat.ad.off");
+            return;
+        }
+        if (!viewer.hasPermission(PermissionNodes.AD)) {
+            services.messages().send(viewer, "chat.no-permission");
+            return;
+        }
+        String price = services.ads().priceText();
+        AnvilInput.open(viewer, "Your ad", "", Parsers.text(services.config().adLength()), text ->
+                new ConfirmMenu(viewer, services.brand(), this, "<dark_gray>Send this ad?",
+                        java.util.List.of("<white>" + MINI.escapeTags(text),
+                                price.isEmpty() ? "<gray>It is free." : "<gray>It costs <white>" + price + "<gray>."),
+                        "<dark_gray>Nothing is charged if you say no.", () -> {
+                    AdCommand.place(services, viewer, text);
+                    viewer.closeInventory();
+                }).open(), this::open);
     }
 
     @Override

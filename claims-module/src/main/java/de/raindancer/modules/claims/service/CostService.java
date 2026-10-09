@@ -251,6 +251,18 @@ public final class CostService implements IClaimService {
         inventory.setStorageContents(contents);
     }
 
+    /** A price as plain text, for lore and chat lines: money after the price level, items by name. */
+    public static String label(CostType type, int amount, ItemStack item) {
+        return switch (type) {
+            case MONEY -> Fees.format(Fees.quote(CREATE_SOURCE, money(amount)));
+            case NONE -> "free";
+            case ITEM -> amount + "x " + (item == null ? "an item" : item.getType().name().toLowerCase(
+                    java.util.Locale.ROOT).replace('_', ' '));
+            case XP_LEVELS -> amount + " level" + (amount == 1 ? "" : "s");
+            case XP_POINTS -> amount + " XP";
+        };
+    }
+
     /** Human readable cost label for GUIs and messages. */
     public Component describe(CostType type, int amount, ItemStack item) {
         return describe(type, amount, item, CREATE_SOURCE);

@@ -299,4 +299,81 @@ class UpkeepServiceTest {
         service.settings(upkeep("10", 0, 0));
         assertThat(service.owed(OWNER)).isEqualTo(Money.of(2000));
     }
+
+    private ClaimSettings full(boolean on, String perChunk, String perClaim, double areaPercent, double opsPercent) {
+        return ClaimSettings.DEFAULTS.withUpkeepAll(on, perChunk, 0, perClaim, areaPercent, 24, 0, opsPercent);
+    }
+
+    @Test
+    @DisplayName("prices without the switch bill nobody")
+    void switchIsRequired() {
+        claim(OWNER, 0, 2);
+        UpkeepService service = service(full(false, "10", "5", 0, 100));
+        assertThat(service.enabled()).isFalse();
+        now[0] += 1000 * HOUR;
+        assertThat(service.settle(OWNER).outcome()).isEqualTo(UpkeepService.Outcome.NOT_DUE);
+        assertThat(bank.calls).isEmpty();
+    }
+
+    @Test
+    @DisplayName("switched on with every price 0 is simply free")
+    void onButFree() {
+        claim(OWNER, 0, 2);
+        UpkeepService service = service(full(true, "0", "0", 0, 100));
+        service.settle(OWNER);
+        now[0] += 24 * HOUR;
+        assertThat(service.settle(OWNER).outcome()).isEqualTo(UpkeepService.Outcome.NOT_DUE);
+        assertThat(service.billFor(OWNER)).isEqualTo(Money.ZERO);
+        assertThat(bank.calls).isEmpty();
+    }
+
+    @Test
+    @DisplayName("each claim adds its per-claim fee, grown by its own size, on top of the chunk part")
+    void perClaimPart() {
+        claim(OWNER, 0, 1);
+        claim(OWNER, 1024, 3);
+        UpkeepService service = service(full(true, "10", "100", 10, 100));
+        UpkeepService.Parts parts = service.partsFor(OWNER);
+        // land: 4 chunks * 10.00 = 4000; claims: 100.00 (1 chunk) + 100.00*1.1^2 = 12100 -> 22100
+        assertThat(parts.land()).isEqualTo(Money.of(4000));
+        assertThat(parts.perClaim()).isEqualTo(Money.of(22100));
+        assertThat(parts.claims()).isEqualTo(2);
+        assertThat(service.billFor(OWNER)).isEqualTo(Money.of(26100));
+    }
+
+    @Test
+    @DisplayName("an operator pays the operators' percent of the whole bill, offline or not")
+    void operatorsPayLess() {
+        claim(OWNER, 0, 2);
+        UpkeepService service = service(full(true, "10", "100", 0, 50));
+        service.discount(who -> who.equals(OWNER));
+        UpkeepService.Parts parts = service.partsFor(OWNER);
+        assertThat(parts.subtotal()).isEqualTo(Money.of(12000));
+        assertThat(parts.payPercent()).isEqualTo(50.0D);
+        assertThat(parts.total()).isEqualTo(Money.of(6000));
+        UUID other = UUID.randomUUID();
+        claim(other, 4096, 2);
+        assertThat(service.partsFor(other).total()).isEqualTo(Money.of(12000));
+    }
+
+    @Test
+    @DisplayName("an operators' percent of 0 means the owner is billed nothing and no economy is asked")
+    void operatorsPayNothing() {
+        claim(OWNER, 0, 2);
+        UpkeepService service = service(full(true, "10", "100", 0, 0));
+        service.discount(who -> true);
+        service.settle(OWNER);
+        now[0] += 24 * HOUR;
+        assertThat(service.settle(OWNER).outcome()).isEqualTo(UpkeepService.Outcome.NOT_DUE);
+        assertThat(bank.calls).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the default percent of 100 changes nothing even for a discounted owner")
+    void defaultPercentIsNeutral() {
+        claim(OWNER, 0, 2);
+        UpkeepService service = service(full(true, "10", "0", 0, 100));
+        service.discount(who -> true);
+        assertThat(service.billFor(OWNER)).isEqualTo(Money.of(2000));
+    }
 }

@@ -65,6 +65,33 @@ public final class ClaimListMenu extends PaginatedMenu<Claim> implements IClaimS
         // Directly above the manual, and always — not only while the list is empty. The old placement
         // made this the one thing on the page that stopped being reachable the moment somebody owned a
         // first claim.
+        if (services.upkeep().enabled()) {
+            var owed = services.upkeep().owed(viewer.getUniqueId());
+            toolbar(6, Icons.of(owed.isPositive() ? Material.REDSTONE : Material.CLOCK, "<white>Upkeep",
+                            "<gray>What holding your land costs.",
+                            owed.isPositive() ? "<red>You owe "
+                                    + de.raindancer.core.social.economy.Fees.format(owed)
+                                    : "<dark_gray>" + de.raindancer.core.social.economy.Fees.format(
+                                    services.upkeep().quotedBillFor(viewer.getUniqueId())) + " next"),
+                    click -> new UpkeepMenu(services, viewer, null, this).open());
+        }
+
+        java.util.UUID me = viewer.getUniqueId();
+        java.util.Optional<String> whyNot = services.claimSlots().whyNot(me);
+        toolbar(2, whyNot.isEmpty(), Icons.of(Material.EMERALD, "<white>Buy a claim slot",
+                        whyNot.isEmpty() ? "<gray>One more claim for <white>"
+                                + services.claimSlots().describeNextPrice(me) + "<gray>." : "<gray>One more claim.",
+                        "<gray>You have bought <white>" + services.claimSlots().bought(me) + "<gray> so far.",
+                        "<yellow>Click<gray> to buy one <dark_gray>· asks first"),
+                whyNot.orElse(""),
+                click -> new ConfirmScreen(services, viewer, null, this,
+                        "<yellow>Buy a claim slot for " + services.claimSlots().describeNextPrice(me) + "?",
+                        java.util.List.of("<gray>One more claim than your limit, for good.", "<gray>Not refunded."),
+                        () -> {
+                            services.claimSlots().buy(viewer);
+                            open();
+                        }).open());
+
         toolbar(4, Icons.of(Material.STICK, "<white>Mark out a new claim",
                         "<gray>Mark two corners with the tool and",
                         "<gray>the land between them is yours.",

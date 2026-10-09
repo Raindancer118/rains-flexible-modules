@@ -39,6 +39,36 @@ public final class UpkeepBill {
         return Money.of(clamp(perChunk.minor() * Math.pow(ratio, index - 1)));
     }
 
+    /**
+     * What one claim costs on its own: {@code perClaim * (1 + areaPercent/100)^(chunks - 1)}, so a claim of
+     * one chunk pays the plain fee and every further chunk inside the same claim makes that claim dearer.
+     */
+    public static Money claimFee(Money perClaim, double areaPercent, int chunks) {
+        if (perClaim == null || !perClaim.isPositive()) {
+            return Money.ZERO;
+        }
+        double ratio = 1.0D + Math.max(0.0D, areaPercent) / 100.0D;
+        return Money.of(clamp(perClaim.minor() * Math.pow(ratio, Math.max(1, chunks) - 1)));
+    }
+
+    /** The per-claim fees of all of an owner's claims, given how many chunks each covers. */
+    public static Money claimFees(Money perClaim, double areaPercent, java.util.Collection<Integer> chunksPerClaim) {
+        long total = 0L;
+        for (int chunks : chunksPerClaim) {
+            total = Math.min((long) CEILING, total + claimFee(perClaim, areaPercent, chunks).minor());
+        }
+        return Money.of(total);
+    }
+
+    /** The bill after an owner's reduction: {@code payPercent} of it, clamped to 0..100. */
+    public static Money discounted(Money bill, double payPercent) {
+        if (bill == null || !bill.isPositive()) {
+            return Money.ZERO;
+        }
+        double percent = Double.isNaN(payPercent) ? 100.0D : Math.max(0.0D, Math.min(100.0D, payPercent));
+        return Money.of(Math.round(bill.minor() * percent / 100.0D));
+    }
+
     private static long clamp(double value) {
         if (Double.isNaN(value) || value <= 0) {
             return 0L;

@@ -29,7 +29,7 @@ import java.util.List;
  */
 public final class RolesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.3.1")
             .describedAs("Pick a role with /role — a cook, a builder, an explorer… — and pay less in the shop for what it works with")
             .by("Raindancer118");
 
@@ -69,7 +69,8 @@ public final class RolesModule implements FlexModule {
             context.log().error("owned.yml could not be read. Nobody can buy or rent a role until it is fixed — "
                     + "saving now would replace everybody's purchases.");
         }
-        RoleShop shop = new RoleShop(catalogue, owned, choices, System::currentTimeMillis, service::bypassing);
+        RoleShop shop = new RoleShop(catalogue, owned, choices, System::currentTimeMillis, service::bypassing,
+                () -> settings.current().sellRoles());
         service.access(shop);
         RolesServices services = new RolesServices(context.plugin(), context.plugin().getServer(), context.core(),
                 context.log(), context.core().messages(), context.chat().brand(), settings::current, service, shop,

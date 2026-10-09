@@ -67,10 +67,22 @@ public final class SelectionMenu extends ClaimScreen {
                     refresh();
                 });
 
+        List<String> finish = new ArrayList<>();
+        finish.add(selection.purpose() == Selection.Purpose.NEW_CLAIM ? "<gray>Make the claim." : "<gray>Apply the new outline.");
+        if (selection.isComplete()
+                && (selection.purpose() == Selection.Purpose.NEW_CLAIM
+                || selection.purpose() == Selection.Purpose.RESIZE_CLAIM)) {
+            int[] vertical = services().selections().resolveVerticalRange(selection);
+            var existing = selection.purpose() == Selection.Purpose.RESIZE_CLAIM
+                    ? services().claims().byId(selection.targetClaimId()).orElse(null) : null;
+            services().claimService().quote(viewer, existing, selection.toShape(vertical[0], vertical[1]))
+                    .ifPresent(price -> finish.add("<gold>This " + price));
+        }
+        if (selection.purpose() == Selection.Purpose.NEW_CLAIM) {
+            finish.add("<dark_gray>you will be asked for a name");
+        }
         band(MenuLayout.WHO, 6, selection.isComplete(),
-                Icons.of(Material.LIME_CONCRETE, "<green>Finish",
-                        "<gray>Make the claim.",
-                        "<dark_gray>you will be asked for a name"),
+                Icons.of(Material.LIME_CONCRETE, "<green>Finish", finish),
                 "Mark " + (needed - selection.pointCount()) + " more corner(s) first",
                 click -> {
                     viewer.closeInventory();

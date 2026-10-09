@@ -114,6 +114,17 @@ public final class ClaimCommand implements IClaimCommand {
             case "accept" -> claims.entryFees().accept(player);
             case "decline", "deny" -> claims.entryFees().decline(player);
             case "upkeep", "rent" -> upkeep(claims, player, args);
+            case "buyslot", "slot" -> {
+                var slots = claims.claimSlots();
+                var whyNot = slots.whyNot(player.getUniqueId());
+                if (whyNot.isPresent()) {
+                    slots.buy(player);
+                } else if (args.length >= 2 && args[1].equalsIgnoreCase("confirm")) {
+                    slots.buy(player);
+                } else {
+                    claims.messages().send(player, "slot.confirm", "price", slots.describeNextPrice(player.getUniqueId()));
+                }
+            }
             default -> {
                 if (!MistypedCommand.subcommand(player, "claim", args, 0, suggest(source, new String[]{""}))) {
                     claims.messages().send(player, "claim.unknown-subcommand", "word", args[0]);
@@ -136,22 +147,7 @@ public final class ClaimCommand implements IClaimCommand {
         }
         UUID me = player.getUniqueId();
         if (args.length >= 2 && args[1].equalsIgnoreCase("pay")) {
-            var owing = upkeep.owed(me);
-            if (!owing.isPositive()) {
-                messages.send(player, "upkeep.nothing-owed");
-                return;
-            }
-            var payment = upkeep.pay(me);
-            if (payment.refusal() == de.raindancer.core.social.economy.EconomyResult.Outcome.UNAVAILABLE) {
-                messages.send(player, "upkeep.no-economy");
-            } else if (!payment.paid().isPositive()) {
-                messages.send(player, "upkeep.cannot-pay", "owed", Fees.format(owing));
-            } else if (payment.left().isPositive()) {
-                messages.send(player, "upkeep.paid-part",
-                        "paid", Fees.format(payment.paid()), "left", Fees.format(payment.left()));
-            } else {
-                messages.send(player, "upkeep.paid-all", "paid", Fees.format(payment.paid()));
-            }
+            upkeep.payAndTell(player, messages);
             return;
         }
         int chunks = upkeep.chunksHeld(me);
@@ -167,6 +163,16 @@ public final class ClaimCommand implements IClaimCommand {
                     "bill", Fees.format(upkeep.quotedBillFor(me)),
                     "period", Durations.describe(java.time.Duration.ofMillis(claims.config().upkeepPeriodMillis())),
                     "next", Durations.describe(java.time.Duration.ofMillis(Math.max(0L, next - System.currentTimeMillis()))));
+            var parts = upkeep.partsFor(me);
+            if (parts.perClaim().isPositive()) {
+                messages.send(player, "upkeep.parts",
+                        "land", Fees.format(Fees.quote("claims.upkeep", parts.land())),
+                        "claims", Fees.format(Fees.quote("claims.upkeep", parts.perClaim())),
+                        "count", String.valueOf(parts.claims()));
+            }
+            if (parts.discounted()) {
+                messages.send(player, "upkeep.discounted", "percent", trim(parts.payPercent()));
+            }
         }
         if (owing.isPositive()) {
             messages.send(player, "upkeep.owed", "owed", Fees.format(owing));
@@ -174,6 +180,10 @@ public final class ClaimCommand implements IClaimCommand {
                 messages.send(player, "upkeep.lapsed");
             }
         }
+    }
+
+    private static String trim(double percent) {
+        return percent == Math.rint(percent) ? String.valueOf((long) percent) : String.valueOf(percent);
     }
 
     /** What the command can do, in the order somebody actually needs it. */
@@ -682,7 +692,8 @@ public final class ClaimCommand implements IClaimCommand {
             List<String> words = new ArrayList<>(List.of(
                     "new", "create", "list", "here", "info", "show", "border", "hide", "delete",
                     "rename", "trust", "untrust", "kick", "ban", "unban", "timeout", "owner", "transfer",
-                    "cancel", "accept", "decline", "manual", "stick", "select", "help", "warp", "home", "upkeep"));
+                    "cancel", "accept", "decline", "manual", "stick", "select", "help", "warp", "home", "upkeep",
+                    "buyslot"));
             if (args.length == 1) {
                 String prefix = args[0].toLowerCase(Locale.ROOT);
                 words.removeIf(word -> !word.startsWith(prefix));

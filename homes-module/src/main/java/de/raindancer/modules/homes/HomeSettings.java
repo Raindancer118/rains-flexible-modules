@@ -95,6 +95,11 @@ public record HomeSettings(
         @Key("homes.play-sound")
         boolean playSound,
 
+        @In("homes/keeping") @Title("Players may buy extra home slots")
+        @Describe("On top of their limit, for the price below. Off is the default and needs no economy plugin.")
+        @Key("homes.slot-buying")
+        boolean slotBuying,
+
         @In("homes/keeping") @Title("Price of an extra home slot")
         @Describe("Money, written like 12.50 or 1.5k. Players may buy slots on top of their limit "
                 + "for this much; each is added for good. 0 switches buying off, which is the default "
@@ -130,7 +135,7 @@ public record HomeSettings(
      */
     public static final HomeSettings DEFAULTS =
             new HomeSettings(3, true, 3, true, true, 0, false, true, true, true,
-                    "0", 0, 0, "0");
+                    false, "0", 0, 0, "0");
 
     // ------------------------------------------------------------------ read back safely
 
@@ -157,75 +162,87 @@ public record HomeSettings(
 
     public HomeSettings withMax(int homes) {
         return new HomeSettings(homes, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withAllowCrossWorld(boolean allow) {
         return new HomeSettings(max, allow, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withWarmupSeconds(int seconds) {
         return new HomeSettings(max, allowCrossWorld, seconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withCancelOnMove(boolean cancels) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancels, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withCancelOnDamage(boolean cancels) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancels,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withCooldownSeconds(int seconds) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                seconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                seconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withOperatorsBypass(boolean bypass) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, bypass, safeArrival, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                cooldownSeconds, bypass, safeArrival, bringWhatYouLead, playSound, slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withSafeArrival(boolean safe) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safe, bringWhatYouLead, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                cooldownSeconds, operatorsBypass, safe, bringWhatYouLead, playSound, slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withBringWhatYouLead(boolean bring) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bring, playSound, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                cooldownSeconds, operatorsBypass, safeArrival, bring, playSound, slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withPlaySound(boolean play) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
-                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, play, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, play, slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+    }
+
+    public HomeSettings withSlotBuying(boolean on) {
+        return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
+                cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound, on, slotPrice,
+                slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+    }
+
+    /** What buying a slot costs, as Core's {@link de.raindancer.core.social.economy.BuyableSlots} reads it. */
+    public de.raindancer.core.social.economy.BuyableSlots.Terms slotTerms() {
+        return new de.raindancer.core.social.economy.BuyableSlots.Terms(slotBuying,
+                de.raindancer.core.social.economy.Fees.amount(slotPrice), slotPriceGrowthPercent, mostBoughtSlots);
     }
 
     public HomeSettings withSlotPrice(String price) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
                 cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound,
-                price, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
+                slotBuying, price, slotPriceGrowthPercent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withSlotPriceGrowthPercent(int percent) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
                 cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound,
-                slotPrice, percent, mostBoughtSlots, teleportPrice);
+                slotBuying, slotPrice, percent, mostBoughtSlots, teleportPrice);
     }
 
     public HomeSettings withMostBoughtSlots(int most) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
                 cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound,
-                slotPrice, slotPriceGrowthPercent, most, teleportPrice);
+                slotBuying, slotPrice, slotPriceGrowthPercent, most, teleportPrice);
     }
 
     public HomeSettings withTeleportPrice(String price) {
         return new HomeSettings(max, allowCrossWorld, warmupSeconds, cancelOnMove, cancelOnDamage,
                 cooldownSeconds, operatorsBypass, safeArrival, bringWhatYouLead, playSound,
-                slotPrice, slotPriceGrowthPercent, mostBoughtSlots, price);
+                slotBuying, slotPrice, slotPriceGrowthPercent, mostBoughtSlots, price);
     }
 }

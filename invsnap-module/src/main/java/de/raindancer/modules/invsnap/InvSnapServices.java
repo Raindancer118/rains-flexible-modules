@@ -6,6 +6,7 @@ import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.invsnap.service.InsuranceService;
+import de.raindancer.modules.invsnap.service.ItemInsuranceService;
 import de.raindancer.modules.invsnap.service.SnapshotService;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
@@ -30,6 +31,7 @@ public record InvSnapServices(
 
         SnapshotService snapshots,
         InsuranceService insurance,
+        ItemInsuranceService itemInsurance,
         IInvSnapScreensOpener screens) {
 
     public InvSnapSettings config() {

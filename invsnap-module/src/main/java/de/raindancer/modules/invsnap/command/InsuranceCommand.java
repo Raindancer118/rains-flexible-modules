@@ -12,7 +12,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
 
-/** {@code /insurance [on|off]}: opt in or out of death insurance, or see where you stand. */
+/**
+ * {@code /insurance}: the Insurance screen. {@code on|off} switches death insurance; {@code item} offers the
+ * item in hand, {@code item cancel} ends the policy on it.
+ */
 public final class InsuranceCommand implements IInvSnapCommand {
 
     private final Supplier<InvSnapServices> services;
@@ -29,25 +32,41 @@ public final class InsuranceCommand implements IInvSnapCommand {
             return;
         }
         InsuranceService insurance = live.insurance();
-        if (!insurance.enabled()) {
+        if (!insurance.enabled() && !live.itemInsurance().enabled()) {
             live.messages().send(player, "invsnap.insurance.disabled");
             return;
         }
         String word = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
         switch (word) {
-            case "on" -> {
-                insurance.setInsured(player.getUniqueId(), true);
-                live.messages().send(player, "invsnap.insurance.now-on", "price", price(live, player));
+            case "on", "off" -> {
+                if (!insurance.enabled()) {
+                    live.messages().send(player, "invsnap.insurance.death-disabled");
+                } else if (word.equals("on")) {
+                    insurance.setInsured(player.getUniqueId(), true);
+                    live.messages().send(player, "invsnap.insurance.now-on", "price", price(live, player));
+                } else {
+                    insurance.setInsured(player.getUniqueId(), false);
+                    live.messages().send(player, "invsnap.insurance.now-off");
+                }
             }
-            case "off" -> {
-                insurance.setInsured(player.getUniqueId(), false);
-                live.messages().send(player, "invsnap.insurance.now-off");
-            }
-            case "" -> live.messages().send(player,
-                    insurance.isInsured(player.getUniqueId()) ? "invsnap.insurance.status-on"
-                            : "invsnap.insurance.status-off",
-                    "price", price(live, player));
+            case "item" -> item(live, player, args);
+            case "" -> live.screens().insurance(player);
             default -> live.messages().send(player, "invsnap.insurance.usage");
+        }
+    }
+
+    private static void item(InvSnapServices live, Player player, String[] args) {
+        if (args.length >= 2 && args[1].equalsIgnoreCase("cancel")) {
+            var held = live.itemInsurance().heldPolicyOf(player);
+            if (held.isPresent() && live.itemInsurance().cancel(player, held.get().id())) {
+                live.messages().send(player, "invsnap.item.cancelled", "item", held.get().description());
+            } else {
+                live.messages().send(player, "invsnap.item.cancel-none");
+            }
+        } else if (args.length == 1) {
+            live.screens().offerHeld(player);
+        } else {
+            live.messages().send(player, "invsnap.insurance.usage");
         }
     }
 
@@ -57,11 +76,14 @@ public final class InsuranceCommand implements IInvSnapCommand {
 
     @Override
     public @NotNull Collection<String> suggest(@NotNull CommandSourceStack source, String @NotNull [] args) {
-        return args.length == 1 ? List.of("on", "off") : List.of();
+        if (args.length == 1) {
+            return List.of("on", "off", "item");
+        }
+        return args.length == 2 && args[0].equalsIgnoreCase("item") ? List.of("cancel") : List.of();
     }
 
     @Override
     public String describe() {
-        return "opting in or out of death insurance";
+        return "the Insurance screen, death insurance on or off, and insuring one item";
     }
 }

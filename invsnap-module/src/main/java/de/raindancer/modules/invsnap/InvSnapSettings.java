@@ -7,6 +7,7 @@ import de.raindancer.core.data.settings.Range;
 import de.raindancer.core.data.settings.Settings;
 import de.raindancer.core.data.settings.Title;
 import de.raindancer.core.data.settings.Topic;
+import de.raindancer.core.social.economy.Fees;
 import org.bukkit.Material;
 
 import java.util.List;
@@ -68,15 +69,57 @@ public record InvSnapSettings(
         @Describe("World names where insurance applies, comma separated. Empty means every world. "
                 + "Leave out worlds where another plugin manages inventories.")
         @Key("insurance.worlds")
-        List<String> insuranceWorlds) {
+        List<String> insuranceWorlds,
+
+        @In("invsnap/item-insurance") @Title("Item insurance")
+        @Describe("On: a player can insure one unstackable item (tool, weapon, armour, elytra...) they "
+                + "hold. If an insured item is destroyed (despawn, lava, fire, the void) or its owner dies, it comes back to the owner. Needs a "
+                + "price below, and an economy once one is set.")
+        @Key("item-insurance.enabled")
+        boolean itemInsuranceEnabled,
+
+        @In("invsnap/item-insurance") @Title("Premium, percent of item value") @Range(min = 0, max = 1000)
+        @Describe("This percent of what the item is worth (its shop price), charged when the policy is "
+                + "taken and at every renewal. 0 for none.")
+        @Key("item-insurance.price-percent")
+        double itemInsurancePricePercent,
+
+        @In("invsnap/item-insurance") @Title("Premium, flat")
+        @Describe("Added to the percentage: money, such as 50 or 1.5k. 0 for none.")
+        @Key("item-insurance.price-flat")
+        String itemInsurancePriceFlat,
+
+        @In("invsnap/item-insurance") @Title("Premium, least")
+        @Describe("The least one premium can be, such as 25. 0 for no floor. With no percentage, no flat "
+                + "and no floor there is no price and nothing can be insured.")
+        @Key("item-insurance.least")
+        String itemInsuranceLeast,
+
+        @In("invsnap/item-insurance") @Title("Renewal, hours") @Range(min = 1, max = 8760)
+        @Describe("Hours between premiums. A premium that cannot be paid ends the policy. 168 is a week.")
+        @Key("item-insurance.every-hours")
+        int itemInsuranceEveryHours,
+
+        @In("invsnap/item-insurance") @Title("Items per player") @Range(min = 1, max = 50)
+        @Describe("How many items one player can have insured at once.")
+        @Key("item-insurance.most-items")
+        int itemInsuranceMostItems,
+
+        @In("invsnap/item-insurance") @Title("Deductible")
+        @Describe("Charged each time an insured item is returned after its owner's death, such as 20. "
+                + "If they cannot pay it, the item comes back anyway. 0 for none.")
+        @Key("item-insurance.claim-fee")
+        String itemInsuranceClaimFee) {
 
     /** Snapshot settings with insurance at its shipped (off) default. */
     public InvSnapSettings(int snapshotIntervalSeconds, int retentionCount) {
-        this(snapshotIntervalSeconds, retentionCount, false, 0, "0", "0", false, List.of());
+        this(snapshotIntervalSeconds, retentionCount, false, 0, "0", "0", false, List.of(),
+                false, 0, "0", "0", 168, 3, "0");
     }
 
     public static final InvSnapSettings DEFAULTS =
-            new InvSnapSettings(300, 24, false, 0, "0", "0", false, List.of());
+            new InvSnapSettings(300, 24, false, 0, "0", "0", false, List.of(),
+                    false, 0, "0", "0", 168, 3, "0");
 
     /** {@link #snapshotIntervalSeconds}, clamped and widened into a real {@link Duration}. */
     public Duration snapshotInterval() {
@@ -90,32 +133,76 @@ public record InvSnapSettings(
 
     public InvSnapSettings withSnapshotIntervalSeconds(int seconds) {
         return new InvSnapSettings(seconds, retentionCount, insuranceEnabled, insurancePricePercent,
-                insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds);
+                insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee);
     }
 
     public InvSnapSettings withRetentionCount(int count) {
         return new InvSnapSettings(snapshotIntervalSeconds, count, insuranceEnabled,
-                insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds);
+                insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee);
     }
 
     public InvSnapSettings withInsuranceEnabled(boolean enabled) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, enabled,
-                insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds);
+                insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee);
     }
 
     public InvSnapSettings withInsurancePrice(double percent, String flat, String most) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
-                percent, flat, most, insuranceKeepXp, insuranceWorlds);
+                percent, flat, most, insuranceKeepXp, insuranceWorlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee);
     }
 
     public InvSnapSettings withInsuranceKeepXp(boolean keep) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
-                insurancePricePercent, insurancePriceFlat, insuranceMost, keep, insuranceWorlds);
+                insurancePricePercent, insurancePriceFlat, insuranceMost, keep, insuranceWorlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee);
     }
 
     public InvSnapSettings withInsuranceWorlds(List<String> worlds) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
-                insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, worlds);
+                insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, worlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee);
+    }
+
+    public InvSnapSettings withItemInsurance(boolean enabled) {
+        return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
+                insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds,
+                enabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee);
+    }
+
+    public InvSnapSettings withItemInsurancePrice(double percent, String flat, String least) {
+        return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
+                insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds,
+                itemInsuranceEnabled, percent, flat, least, itemInsuranceEveryHours, itemInsuranceMostItems,
+                itemInsuranceClaimFee);
+    }
+
+    public InvSnapSettings withItemInsuranceTerms(int everyHours, int mostItems, String claimFee) {
+        return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
+                insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds,
+                itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
+                everyHours, mostItems, claimFee);
+    }
+
+    /** {@link #itemInsuranceEveryHours}, clamped, as the time between two premiums. */
+    public Duration itemInsuranceEvery() {
+        return Duration.ofHours(Math.max(1, Math.min(8_760, itemInsuranceEveryHours)));
+    }
+
+    /** {@link #itemInsuranceMostItems}, clamped. */
+    public int itemInsuranceMostItemsClamped() {
+        return Math.max(1, Math.min(50, itemInsuranceMostItems));
+    }
+
+    /** Whether any premium is set at all; with none, an item cannot be sold a policy. */
+    public boolean itemInsurancePriced() {
+        return itemInsurancePricePercent > 0
+                || Fees.amount(itemInsurancePriceFlat).isPositive()
+                || Fees.amount(itemInsuranceLeast).isPositive();
     }
 
     /** Whether insurance covers a death in this world; an empty list means every world. */

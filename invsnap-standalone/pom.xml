@@ -34,8 +34,11 @@
              longer restores it on the spot: it opens an action menu with three doors instead —
              Inspect (every item, exactly as it was, read-only), Compare to now (the same, but each
              slot says whether it still matches what the player is carrying right now), and Restore
-             (the old confirm-then-overwrite, unchanged, still gated on the restore permission). -->
-        <plugin.version>1.3.0</plugin.version>
+             (the old confirm-then-overwrite, unchanged, still gated on the restore permission).
+
+             1.4.0: item insurance (item-insurance.enabled, off by default) and the player-facing Insurance
+             screen behind /insurance. -->
+        <plugin.version>1.4.0</plugin.version>
     </properties>
 
     <dependencies>

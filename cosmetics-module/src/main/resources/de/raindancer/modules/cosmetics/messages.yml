@@ -160,6 +160,8 @@ cosmetics:
     no-economy: "<red><white><what></white> costs <white><amount></white>, but this server has no money to pay it with."
     not-saved: "<red>That could not be saved, so nothing was bought. Staff: unlocks.yml cannot be read."
     not-charged: "<red>The payment for <white><what></white> was refused, so nothing was bought."
+    no-price: "<red><white><what></white> has no price set, so it cannot be bought. Staff: Prices in /settings."
+    switched-off: "<red>Cosmetics are not for sale on this server right now."
     hint: "<gray>Some cosmetics are for sale: <white>/cosmetics</white> → Unlocks."
 
   help-particles:

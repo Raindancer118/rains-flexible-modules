@@ -22,12 +22,22 @@ import java.util.List;
  */
 public final class AdminMenu extends ClaimScreen {
 
+    /** The settings topics the money doors open, relative to the module's settings id. */
+    public static final List<String> MONEY_TOPICS = List.of(
+            "management/cost", "management/entry-fee", "management/upkeep", "management/slots");
+
     public AdminMenu(ClaimServices services, Player viewer, Menu parent) {
         // A full page, not the three-row dialog this used to be: a fourth door — browsing every claim on the
         // server — needs a band of its own, and the WHO band was already full at four buttons. A dialog has
         // no row for a second band at all, so the toolbar tile below silently never rendered before this;
         // fixed as a side effect of giving the page room to hold what it now needs to hold.
         super(services, viewer, null, parent);
+    }
+
+    private void settings(String path) {
+        new de.raindancer.core.data.settings.SettingsMenu(viewer, services().brand(),
+                services().core().chatFor(services().brand()), services().core().settingsNavigation(), "claims/" + path, this)
+                .open();
     }
 
     @Override
@@ -60,6 +70,32 @@ public final class AdminMenu extends ClaimScreen {
                         "<gray>a claim regardless of who owns it.",
                         "<dark_gray>" + services().claims().size() + " claim(s) on the server"),
                 click -> new AdminClaimBrowserMenu(services(), viewer, this).open());
+
+        // The money: Core's generated settings pages, one door each, so an owner who wants to charge for claims
+        // does not have to know the page exists. Status in the lore, because a door that does not say whether the
+        // thing behind it is on is a door nobody opens.
+        var config = services().config();
+        band(MenuLayout.LAND, 2, Icons.of(Material.GOLD_INGOT, "<gold>What a claim costs",
+                        "<gray>Price to make one, and the refunds.",
+                        "<dark_gray>" + (config.creationCostType() == de.raindancer.modules.claims.model.CostType.NONE
+                                ? "free" : "paid in " + config.creationCostType().displayName())),
+                click -> settings("management/cost"));
+
+        band(MenuLayout.LAND, 4, Icons.of(Material.GOLD_NUGGET, "<gold>Entry fees",
+                        "<gray>What owners may charge, and the",
+                        "<gray>share the server keeps.",
+                        "<dark_gray>server keeps " + (long) config.entryFeeServerCutPercent() + "%"),
+                click -> settings("management/entry-fee"));
+
+        band(MenuLayout.LAND, 8, Icons.of(Material.EMERALD, "<gold>Buying claim slots",
+                        "<gray>Extra claims players may buy,", "<gray>and what each one costs.",
+                        config.claimSlotBuying() ? "<green>on" : "<dark_gray>off"),
+                click -> settings("management/slots"));
+
+        band(MenuLayout.LAND, 6, Icons.of(Material.CLOCK, "<gold>Upkeep",
+                        "<gray>Per chunk, per claim, what operators pay.",
+                        config.upkeepEnabled() ? "<green>on" : "<dark_gray>off"),
+                click -> settings("management/upkeep"));
 
         band(MenuLayout.WHO, 7, Icons.of(Material.SPYGLASS,
                         services().land().isBypassing(viewer)

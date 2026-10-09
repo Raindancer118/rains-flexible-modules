@@ -42,9 +42,14 @@ public record RolesSettings(
 
         @In("roles") @Title("Perks are full after") @Range(min = 0, max = 365)
         @Describe("Days of keeping a role until its perks reach the size written in roles.yml. Zero: full at once.")
-        @Key("perks.full-after-days") int fullAfterDays) {
+        @Key("perks.full-after-days") int fullAfterDays,
 
-    public static final RolesSettings DEFAULTS = new RolesSettings(true, 72, true, true, 40, 14);
+        @In("roles") @Title("Sell roles")
+        @Describe("Lets players buy and rent the roles that have a price or rent in roles.yml. Off, those roles "
+                + "stay closed, nothing is charged and no rent is collected.")
+        @Key("sell-roles") boolean sellRoles) {
+
+    public static final RolesSettings DEFAULTS = new RolesSettings(true, 72, true, true, 40, 14, false);
 
     public Duration changeEvery() {
         return Duration.ofHours(Math.max(0, changeEveryHours));

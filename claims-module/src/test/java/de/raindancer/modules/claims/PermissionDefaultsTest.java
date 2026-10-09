@@ -79,6 +79,12 @@ class PermissionDefaultsTest {
     }
 
     @Test
+    @DisplayName("the upkeep discount is nobody's by default; it is granted, or comes with being an operator")
+    void upkeepDiscountIsGranted() {
+        assertThat(defaultOf("rainsclaims.upkeep.discount")).isEqualTo(PermissionDefault.FALSE);
+    }
+
+    @Test
     @DisplayName("rec.admin implies the everyday nodes, as it did before")
     void adminImpliesTheRest() {
         // A child list, because the old descriptor had one: granting rec.admin alone should not leave

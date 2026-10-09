@@ -57,4 +57,9 @@ public record HomeServices(
     public HomeSettings config() {
         return settings.get();
     }
+
+    /** Whether this player may open the server's settings pages — Core's permission for them. */
+    public boolean mayOpenSettings(org.bukkit.entity.Player player) {
+        return player.hasPermission("rainscore.settings");
+    }
 }

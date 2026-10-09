@@ -43,12 +43,17 @@ public final class AdCommand implements IChatCommand {
                     "price", price, "most", String.valueOf(live.config().adLength()));
             return;
         }
+        place(live, player, String.join(" ", args).strip());
+    }
+
+    /** Sends an ad as {@code player}: the command and the chat screen's button do exactly this. */
+    public static void place(ChatServices live, Player player, String typed) {
         var muted = live.core().punishmentGuard().speakRefusal(player.getUniqueId());
         if (muted.isPresent()) {
             player.sendMessage(muted.get());
             return;
         }
-        String text = String.join(" ", args).strip();
+        String text = typed;
         AdService.Result result = live.ads().place(player.getUniqueId(), text,
                 player.hasPermission(PermissionNodes.BYPASS_FILTERS), player.hasPermission(PermissionNodes.BYPASS_FREEZE));
         if (!result.placed()) {

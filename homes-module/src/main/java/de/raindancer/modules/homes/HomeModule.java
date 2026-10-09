@@ -12,14 +12,12 @@ import de.raindancer.modules.homes.listener.HomeSessionListener;
 import de.raindancer.modules.homes.model.Home;
 import de.raindancer.modules.homes.rules.HomeLimitRule;
 import de.raindancer.modules.homes.rules.HomeNameRule;
-import de.raindancer.modules.homes.rules.HomeSlotRule;
 import de.raindancer.modules.homes.screen.HomeEditMenu;
 import de.raindancer.modules.homes.screen.HomeListMenu;
 import de.raindancer.modules.homes.screen.SlotOfferScreen;
 import de.raindancer.modules.homes.service.HomeKeepingService;
 import de.raindancer.modules.homes.service.HomeSlotService;
 import de.raindancer.modules.homes.service.HomeTravelService;
-import de.raindancer.modules.homes.store.BoughtSlots;
 import de.raindancer.modules.homes.store.HomeCatalogue;
 import de.raindancer.modules.homes.store.LegacyHomesFile;
 import de.raindancer.modules.homes.store.SetHomeConfigFile;
@@ -61,7 +59,7 @@ import java.util.Optional;
  */
 public final class HomeModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.5.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.5.1")
             .describedAs("Somewhere of your own to come back to: name it, set it, go to it, and pick "
                     + "from a menu of them")
             .by("Raindancer118");
@@ -73,7 +71,6 @@ public final class HomeModule implements FlexModule {
     private Travel travel;
     private HomeTravelService travelling;
     private HomeKeepingService keeping;
-    private BoughtSlots boughtSlots;
     private HomeSlotService slots;
 
     private HomeServices services;
@@ -170,10 +167,10 @@ public final class HomeModule implements FlexModule {
         travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         travelling = new HomeTravelService(travel, context.core().messages(), context.core().effects(),
                 settings.current());
-        boughtSlots = new BoughtSlots(context.dataFolder().resolve("bought-slots.yml"));
+        var boughtSlots = new de.raindancer.core.social.economy.BuyableSlots(
+                context.dataFolder().resolve("bought-slots.yml"), HomeSlotService.SOURCE, "Extra home slot");
         boughtSlots.load();
-        slots = new HomeSlotService(boughtSlots, new HomeSlotRule(), context.core().messages(),
-                settings.current());
+        slots = new HomeSlotService(boughtSlots, context.core().messages(), settings.current());
         keeping = new HomeKeepingService(homes, limits, names, context.core().messages(), slots,
                 settings.current());
 

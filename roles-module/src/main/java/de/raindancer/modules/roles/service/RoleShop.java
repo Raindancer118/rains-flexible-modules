@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 
@@ -28,7 +29,7 @@ public final class RoleShop implements IRolesService, RoleAccess {
     public static final String BUY = "roles.buy";
     public static final String RENT = "roles.rent";
 
-    public enum Outcome { DONE, NOT_FOR_SALE, ALREADY_YOURS, CANNOT_AFFORD, NO_ECONOMY, NOT_SAVED, REFUSED }
+    public enum Outcome { DONE, NOT_FOR_SALE, SWITCHED_OFF, ALREADY_YOURS, CANNOT_AFFORD, NO_ECONOMY, NOT_SAVED, REFUSED }
 
     /** @param charged what was actually taken, after the price index and levers */
     public record Result(Outcome outcome, Money charged) {
@@ -49,10 +50,15 @@ public final class RoleShop implements IRolesService, RoleAccess {
     private final AccessRule access = new AccessRule();
     private final RentRule rent = new RentRule();
     private final Predicate<UUID> bypassing;
+    private final BooleanSupplier selling;
 
-    /** @param bypassing staff who used /role bypass, who skip prices as they skip the wait */
+    /**
+     * @param bypassing staff who used /role bypass, who skip prices as they skip the wait
+     * @param selling the owner's switch: off, nothing is bought, rented or charged, whatever roles.yml prices say
+     */
     public RoleShop(RoleCatalogue catalogue, OwnedBook owned, ChoiceBook choices, LongSupplier clock,
-                    Predicate<UUID> bypassing) {
+                    Predicate<UUID> bypassing, BooleanSupplier selling) {
+        this.selling = selling;
         this.bypassing = bypassing;
         this.catalogue = catalogue;
         this.owned = owned;
@@ -74,9 +80,17 @@ public final class RoleShop implements IRolesService, RoleAccess {
         return owned.of(player, role.id());
     }
 
+    /** Whether the owner has switched role sales on. */
+    public boolean selling() {
+        return selling.getAsBoolean();
+    }
+
     public Result buy(UUID player, Role role) {
         if (!role.buyable()) {
             return new Result(Outcome.NOT_FOR_SALE, Money.ZERO);
+        }
+        if (!selling()) {
+            return new Result(Outcome.SWITCHED_OFF, Money.ZERO);
         }
         Optional<Ownership> have = owned.of(player, role.id());
         if (have.isPresent() && have.get().kind() == Ownership.Kind.BOUGHT) {
@@ -89,6 +103,9 @@ public final class RoleShop implements IRolesService, RoleAccess {
     public Result rent(UUID player, Role role) {
         if (!role.rentable()) {
             return new Result(Outcome.NOT_FOR_SALE, Money.ZERO);
+        }
+        if (!selling()) {
+            return new Result(Outcome.SWITCHED_OFF, Money.ZERO);
         }
         if (owned.of(player, role.id()).isPresent()) {
             return new Result(Outcome.ALREADY_YOURS, Money.ZERO);
@@ -126,6 +143,9 @@ public final class RoleShop implements IRolesService, RoleAccess {
     /** Charges every rental of this player that has come due, and lapses the ones that cannot be paid. */
     public List<RentEvent> collect(UUID player) {
         List<RentEvent> events = new ArrayList<>();
+        if (!selling()) {
+            return events; // switched off: nothing is charged and nobody loses a role over it
+        }
         long now = clock.getAsLong();
         for (Ownership have : owned.of(player)) {
             if (have.kind() != Ownership.Kind.RENTED || !rent.due(have.dueAt(), now)) {
@@ -168,6 +188,9 @@ public final class RoleShop implements IRolesService, RoleAccess {
 
     /** Rentals whose rent falls due within the warning window. */
     public List<Ownership> dueSoon(UUID player) {
+        if (!selling()) {
+            return List.of();
+        }
         long now = clock.getAsLong();
         return owned.of(player).stream()
                 .filter(have -> have.kind() == Ownership.Kind.RENTED && rent.warn(have.dueAt(), now)).toList();
