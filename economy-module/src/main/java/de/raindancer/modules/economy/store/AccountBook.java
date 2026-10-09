@@ -204,12 +204,13 @@ public final class AccountBook {
             }
             Map<UUID, java.util.TreeMap<Long, CreditHistory.Recent>> hoursRead = new HashMap<>();
             try (PreparedStatement select = connection.prepareStatement(
-                    "SELECT account, hour, earned, staked, won FROM credit_hour");
+                    "SELECT account, hour, earned, spent, staked, won, received, paid FROM credit_hour");
                  ResultSet rows = select.executeQuery()) {
                 while (rows.next()) {
                     hoursRead.computeIfAbsent(UUID.fromString(rows.getString(1)), id -> new java.util.TreeMap<>())
                             .put(rows.getLong(2), new CreditHistory.Recent(Money.of(rows.getLong(3)),
-                                    Money.of(rows.getLong(4)), Money.of(rows.getLong(5))));
+                                    Money.of(rows.getLong(4)), Money.of(rows.getLong(5)), Money.of(rows.getLong(6)),
+                                    Money.of(rows.getLong(7)), Money.of(rows.getLong(8))));
                 }
             }
             long drawRead = 1;
@@ -1031,12 +1032,21 @@ public final class AccountBook {
     /** What one line adds to an hour of play. */
     private static CreditHistory.Recent lately(Transaction line) {
         long delta = line.delta().minor();
-        if (de.raindancer.modules.economy.rules.CreditRule.GAMBLING.contains(line.kind())) {
-            return delta < 0 ? new CreditHistory.Recent(Money.ZERO, Money.of(-delta), Money.ZERO)
-                    : new CreditHistory.Recent(Money.ZERO, Money.ZERO, Money.of(delta));
+        Money in = Money.of(Math.max(0, delta));
+        Money out = Money.of(Math.max(0, -delta));
+        Money none = Money.ZERO;
+        TransactionKind kind = line.kind();
+        if (de.raindancer.modules.economy.rules.CreditRule.GAMBLING.contains(kind)) {
+            return new CreditHistory.Recent(none, none, out, in, none, none);
         }
-        if (de.raindancer.modules.economy.rules.CreditRule.EARNING.contains(line.kind()) && delta > 0) {
-            return new CreditHistory.Recent(Money.of(delta), Money.ZERO, Money.ZERO);
+        if (de.raindancer.modules.economy.rules.CreditRule.EARNING.contains(kind)) {
+            return new CreditHistory.Recent(in, none, none, none, none, none);
+        }
+        if (de.raindancer.modules.economy.rules.CreditRule.SPENDING.contains(kind)) {
+            return new CreditHistory.Recent(none, out, none, none, none, none);
+        }
+        if (de.raindancer.modules.economy.rules.CreditRule.BETWEEN_PLAYERS.contains(kind)) {
+            return new CreditHistory.Recent(none, none, none, none, in, out);
         }
         return CreditHistory.Recent.NONE;
     }
@@ -1738,7 +1748,8 @@ public final class AccountBook {
                 }
                 try (PreparedStatement clear = connection.prepareStatement("DELETE FROM credit_hour WHERE account = ?");
                      PreparedStatement hour = connection.prepareStatement(
-                             "INSERT INTO credit_hour (account, hour, earned, staked, won) VALUES (?, ?, ?, ?, ?)")) {
+                             "INSERT INTO credit_hour (account, hour, earned, spent, staked, won, received, paid) "
+                                     + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
                     for (Map.Entry<UUID, java.util.TreeMap<Long, CreditHistory.Recent>> each : hourWrites.entrySet()) {
                         clear.setString(1, each.getKey().toString());
                         clear.executeUpdate();
@@ -1746,8 +1757,11 @@ public final class AccountBook {
                             hour.setString(1, each.getKey().toString());
                             hour.setLong(2, one.getKey());
                             hour.setLong(3, one.getValue().earned().minor());
-                            hour.setLong(4, one.getValue().staked().minor());
-                            hour.setLong(5, one.getValue().won().minor());
+                            hour.setLong(4, one.getValue().spent().minor());
+                            hour.setLong(5, one.getValue().staked().minor());
+                            hour.setLong(6, one.getValue().won().minor());
+                            hour.setLong(7, one.getValue().received().minor());
+                            hour.setLong(8, one.getValue().paid().minor());
                             hour.addBatch();
                         }
                     }

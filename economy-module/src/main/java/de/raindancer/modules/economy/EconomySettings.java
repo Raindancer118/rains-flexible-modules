@@ -701,14 +701,14 @@ public record EconomySettings(
         @Key("loans.most") String loanMost,
 
         @In("economy/loans") @Title("A limit of their own")
-        @Describe("Each player can borrow up to what they have, plus a quarter of everything they ever earned — "
-                + "less the more they spend and gamble away, more for every loan paid back on time, less for every "
-                + "late one. Never past the largest loan. Off: everybody may borrow the largest loan.")
+        @Describe("Each player can borrow up to what they have, plus a quarter of what they earned in their last "
+                + "hours of play — less the more of it they spent and gambled away, more for every loan paid back on "
+                + "time, less for every late one. Never past the largest loan. Off: everybody may borrow the largest loan.")
         @Key("loans.personal-limit") boolean loanPersonalLimit,
 
-        @In("economy/loans") @Title("Lately means the last … hours of play") @Range(min = 1, max = 168)
-        @Describe("Money lost in games of chance in this much playtime (not away) cuts the limit hard, however "
-                + "much was won before. Hours played, not hours on the clock.")
+        @In("economy/loans") @Title("Counted: the last … hours of play") @Range(min = 1, max = 168)
+        @Describe("Only what was earned, spent, won and lost in this much playtime (not away) counts toward the "
+                + "limit. Hours played, not hours on the clock.")
         @Key("loans.recent-hours") int loanRecentHoursSetting,
 
         @In("economy/loans") @Title("Interest, percent")

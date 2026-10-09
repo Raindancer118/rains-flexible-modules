@@ -107,13 +107,12 @@ public final class LoanMenu extends Menu implements IEconomyScreen {
         }
         if (live.loanPersonalLimit()) {
             band(MenuLayout.LAND, 2, Icons.of(Material.WRITABLE_BOOK, "<white>Your limit: " + Mini.of(currency.render(limit.amount())),
-                    "<gray>What you have, plus a quarter of the",
-                    "<gray>" + Mini.of(currency.render(limit.earned())) + "<gray> you ever earned: "
+                    "<gray>Your last " + live.loanRecentHours() + " hours of play count:",
+                    "<gray>what you have, plus a quarter of the",
+                    "<gray>" + Mini.of(currency.render(limit.earned())) + "<gray> you earned: "
                             + Mini.of(currency.render(limit.capacity())),
-                    "<gray>Spending " + Mini.of(currency.render(limit.spent())) + "<gray>: ×" + factor(limit.spending()),
+                    "<gray>Spent " + Mini.of(currency.render(limit.spent())) + "<gray>: ×" + factor(limit.spending()),
                     "<gray>Gambled away " + Mini.of(currency.render(limit.gambledAway())) + "<gray>: ×" + factor(limit.gambling()),
-                    "<gray>Lost lately (" + live.loanRecentHours() + " h played) "
-                            + Mini.of(currency.render(limit.lostLately())) + "<gray>: ×" + factor(limit.lately()),
                     "<gray>Earlier loans: ×" + factor(limit.record()),
                     "<dark_gray>Never more than " + Mini.of(currency.render(live.loanMostMoney()))));
         }

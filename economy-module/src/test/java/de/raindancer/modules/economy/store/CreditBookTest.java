@@ -147,11 +147,15 @@ class CreditBookTest {
         book.change(alice, Money.of(1_000).negate(), TransactionKind.GAMBLE, "", null, MOST);   // hour 5
         book.change(alice, Money.of(300), TransactionKind.GAMBLE, "", null, MOST);
         book.change(alice, Money.of(200), TransactionKind.SELL, "", null, MOST);
+        book.change(alice, Money.of(70).negate(), TransactionKind.BUY, "", null, MOST);
+        book.change(alice, Money.of(40), TransactionKind.PAY, "", null, MOST);
 
         CreditHistory.Recent last3 = book.credit(alice, 3).recent();
         assertThat(last3.staked()).as("hour 0 is more than three hours of play ago").isEqualTo(Money.of(1_000));
         assertThat(last3.won()).isEqualTo(Money.of(300));
         assertThat(last3.earned()).isEqualTo(Money.of(200));
+        assertThat(last3.spent()).isEqualTo(Money.of(70));
+        assertThat(last3.received()).isEqualTo(Money.of(40));
         assertThat(book.credit(alice, 12).recent().staked()).isEqualTo(Money.of(6_000));
 
         book.flush();

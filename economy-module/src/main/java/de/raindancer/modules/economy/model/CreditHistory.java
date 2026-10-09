@@ -18,16 +18,19 @@ public record CreditHistory(Map<TransactionKind, Money> in, Map<TransactionKind,
     public static final CreditHistory EMPTY = new CreditHistory(Map.of(), Map.of(), 0, 0, Recent.NONE);
 
     /**
-     * The last hours of playtime only: income, money staked and money won in games of chance.
+     * The last hours of playtime only: income, spending, money staked and won in games of chance, and money
+     * from and to other players (kept apart so the two can be netted).
      *
      * <p>Playtime rather than days on the calendar, so a week away does not wipe a losing streak clean.
      */
-    public record Recent(Money earned, Money staked, Money won) {
+    public record Recent(Money earned, Money spent, Money staked, Money won, Money received, Money paid) {
 
-        public static final Recent NONE = new Recent(Money.ZERO, Money.ZERO, Money.ZERO);
+        public static final Recent NONE = new Recent(Money.ZERO, Money.ZERO, Money.ZERO, Money.ZERO, Money.ZERO,
+                Money.ZERO);
 
         public Recent plus(Recent other) {
-            return new Recent(earned.plus(other.earned), staked.plus(other.staked), won.plus(other.won));
+            return new Recent(earned.plus(other.earned), spent.plus(other.spent), staked.plus(other.staked),
+                    won.plus(other.won), received.plus(other.received), paid.plus(other.paid));
         }
     }
 

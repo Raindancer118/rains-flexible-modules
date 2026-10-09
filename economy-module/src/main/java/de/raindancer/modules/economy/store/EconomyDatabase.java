@@ -53,10 +53,14 @@ public final class EconomyDatabase {
             "CREATE TABLE credit_record (account TEXT PRIMARY KEY, on_time INTEGER NOT NULL, late INTEGER NOT NULL)",
             // What happened in each hour of playtime (Core's count of minutes not away), for "lately".
             "CREATE TABLE credit_hour (account TEXT NOT NULL, hour INTEGER NOT NULL, earned INTEGER NOT NULL, "
-                    + "staked INTEGER NOT NULL, won INTEGER NOT NULL, PRIMARY KEY (account, hour))");
+                    + "staked INTEGER NOT NULL, won INTEGER NOT NULL, PRIMARY KEY (account, hour))",
+            // The loan limit reads only the last hours of play, spending and money between players included.
+            "ALTER TABLE credit_hour ADD COLUMN spent INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE credit_hour ADD COLUMN received INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE credit_hour ADD COLUMN paid INTEGER NOT NULL DEFAULT 0");
 
     /** The first step of the lifetime totals — the steps before it are what a server had until then. */
-    public static final int FIRST_CREDIT_STEP = SCHEMA.size() - 4;
+    public static final int FIRST_CREDIT_STEP = SCHEMA.size() - 7;
 
     private EconomyDatabase() {
     }

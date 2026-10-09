@@ -72,8 +72,7 @@ public final class LoanService implements IEconomyService {
             return own;
         }
         return new de.raindancer.modules.economy.rules.CreditRule.Limit(live.loanMostMoney(), own.capacity(),
-                own.earned(), own.spent(), own.gambledAway(), own.spending(), own.gambling(), own.record(),
-                own.lostLately(), own.lately());
+                own.earned(), own.spent(), own.gambledAway(), own.spending(), own.gambling(), own.record());
     }
 
     /** What borrowing this much would cost to pay back. */

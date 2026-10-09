@@ -7,9 +7,9 @@ import de.raindancer.modules.economy.model.TransactionKind;
 import java.util.Set;
 
 /**
- * How much the bank lends one player: what they have, a share of everything they ever earned, cut by
- * how much of it they spend and gamble away, and moved by how their earlier loans ended — never past the
- * server's largest loan.
+ * How much the bank lends one player: what they have, a share of what they earned in their last hours of
+ * play, cut by how much of it they spent and gambled away in that time, and moved by how all their earlier loans
+ * ended — never past the server's largest loan. Earlier earnings do not count: what somebody is doing now does.
  *
  * <h2>Why money between players is netted</h2>
  * Two friends paying the same coins back and forth would otherwise both look like great earners. Payments,
@@ -28,9 +28,9 @@ public final class CreditRule implements IEconomyRule {
 
     public static final Set<TransactionKind> EARNING = Set.of(TransactionKind.SELL, TransactionKind.REWARD,
             TransactionKind.INCOME, TransactionKind.WAGE, TransactionKind.DAILY, TransactionKind.INTEREST);
-    private static final Set<TransactionKind> SPENDING = Set.of(TransactionKind.BUY, TransactionKind.TAX,
+    public static final Set<TransactionKind> SPENDING = Set.of(TransactionKind.BUY, TransactionKind.TAX,
             TransactionKind.FEE);
-    private static final Set<TransactionKind> BETWEEN_PLAYERS = Set.of(TransactionKind.PAY, TransactionKind.BILL,
+    public static final Set<TransactionKind> BETWEEN_PLAYERS = Set.of(TransactionKind.PAY, TransactionKind.BILL,
             TransactionKind.AUCTION, TransactionKind.PLUGIN);
     public static final Set<TransactionKind> GAMBLING = Set.of(TransactionKind.GAMBLE, TransactionKind.LOTTERY,
             TransactionKind.RAFFLE);
@@ -43,57 +43,36 @@ public final class CreditRule implements IEconomyRule {
     }
 
     /** The limit, and every number it came from — for the screen that explains it. */
+    /** Earned, spent and gambled away are all of the last hours of play only. */
     public record Limit(Money amount, Money capacity, Money earned, Money spent, Money gambledAway,
-                        double spending, double gambling, double record, Money lostLately, double lately) {
+                        double spending, double gambling, double record) {
     }
 
     public Limit limit(Standing standing, Money most) {
         CreditHistory history = standing.history();
-        long earned = 0;
-        long spent = 0;
-        long staked = 0;
-        long won = 0;
-        long between = 0;
-        for (TransactionKind kind : TransactionKind.values()) {
-            long in = history.in(kind).minor();
-            long out = history.out(kind).minor();
-            if (EARNING.contains(kind)) {
-                earned += in;
-            } else if (SPENDING.contains(kind)) {
-                spent += out;
-            } else if (BETWEEN_PLAYERS.contains(kind)) {
-                between += in - out;
-            } else if (GAMBLING.contains(kind)) {
-                won += in;
-                staked += out;
-            }
-        }
-        earned += Math.max(0, between);
-        spent += Math.max(0, -between);
-        // A lifetime of winning counts like earning; a lifetime of losing cuts below.
-        earned += Math.max(0, won - staked);
-        long gambledAway = Math.max(0, staked - won);
         CreditHistory.Recent recent = history.recent();
-        long lostLately = Math.max(0, recent.staked().minor() - recent.won().minor());
+        long between = recent.received().minor() - recent.paid().minor();
+        long net = recent.won().minor() - recent.staked().minor();
+        long earned = recent.earned().minor() + Math.max(0, between) + Math.max(0, net);
+        long spent = recent.spent().minor() + Math.max(0, -between);
+        long gambledAway = Math.max(0, -net);
+        long balance = Math.max(0, standing.balance().minor());
 
-        long capacity = Math.max(0, standing.balance().minor())
-                + Math.round(earned * EARNED_SHARE);
+        long capacity = balance + Math.round(earned * EARNED_SHARE);
         double spending = earned + spent == 0 ? 1.0 : 0.5 + 0.5 * earned / (double) (earned + spent);
-        double gambling = gambledAway == 0 ? 1.0
-                : Math.max(LEAST_FACTOR, 1.0 - gambledAway / (double) Math.max(1, earned));
-        // What was lost lately weighs against what is there now and what came in lately, not against a
-        // lifetime: winning big a month ago does not cover being broke every evening since.
-        double lately = lostLately == 0 ? 1.0 : Math.max(LEAST_FACTOR, 1.0 - lostLately
-                / (double) Math.max(1, Math.max(0, standing.balance().minor()) + recent.earned().minor()));
+        // Weighed against what is there now and what came in lately: a big win long ago does not cover being
+        // broke every evening since.
+        double gambling = gambledAway == 0 ? 1.0 : Math.max(LEAST_FACTOR,
+                1.0 - gambledAway / (double) Math.max(1, balance + recent.earned().minor()));
         double record = Math.max(LEAST_FACTOR, Math.min(MOST_RECORD,
                 1.0 + ON_TIME_BONUS * history.repaidOnTime() - LATE_PENALTY * history.repaidLate()));
 
-        long amount = roundDown((long) Math.floor(capacity * spending * gambling * lately * record));
+        long amount = roundDown((long) Math.floor(capacity * spending * gambling * record));
         if (most.isPositive()) {
             amount = Math.min(amount, most.minor());
         }
         return new Limit(Money.of(amount), Money.of(capacity), Money.of(earned), Money.of(spent),
-                Money.of(gambledAway), spending, gambling, record, Money.of(lostLately), lately);
+                Money.of(gambledAway), spending, gambling, record);
     }
 
     /** Down to two significant digits: 12,345 → 12,000. */
