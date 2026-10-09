@@ -12,6 +12,10 @@
 #     items          items by name; * stands for anything: "*_log", "cooked_*"
 #     except         items never covered, though a drawer or pattern would
 #     says           what it covers, in words, instead of the generated list
+#   price          one-time price to buy the role, like 500 or 1.5k. "0" (the default): not for sale
+#   rent-per-month rent charged every 30 days of real time, like 50. "0" (the default): cannot be rented.
+#                  Rent that cannot be paid ends the rental and the player loses the role. With a price and/or
+#                  a rent a role is closed until bought or rented; with neither it is open to everybody.
 #
 # A new role's perks start at a share of these sizes and grow to them the longer it is kept (/settings:
 # "A new role starts at", "Perks are full after"). Where two perks of one role cover the same item, the

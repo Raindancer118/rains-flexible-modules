@@ -11,13 +11,21 @@ import java.util.Locale;
  * so a server can hand out gradients only as presets. A restricted one needs
  * {@code rainscosmetics.preset.<id>}; the node is derived from the id rather than stored, so it cannot
  * drift from the preset it unlocks.
+ *
+ * @param price what it costs, as written; empty means the server's preset price applies
  */
-public record Preset(String id, String title, NameStyle style, boolean restricted) {
+public record Preset(String id, String title, NameStyle style, boolean restricted, String price) {
 
     public static final String PERMISSION_PREFIX = "rainscosmetics.preset.";
 
     public Preset {
         id = id.toLowerCase(Locale.ROOT);
+        price = price == null ? "" : price;
+    }
+
+    /** A preset with no price of its own, which takes the server's price for presets. */
+    public Preset(String id, String title, NameStyle style, boolean restricted) {
+        this(id, title, style, restricted, "");
     }
 
     public String permission() {

@@ -39,6 +39,8 @@ public final class PermissionNodes {
     public static final String CLEAR = "rainscosmetics.clear";
     public static final String CLEAR_OTHERS = "rainscosmetics.clear.others";
     public static final String ADMIN = "rainscosmetics.admin";
+    /** Everything that is for sale, without buying it — staff trying cosmetics out. */
+    public static final String FREE = "rainscosmetics.free";
 
     private PermissionNodes() {
     }
@@ -76,6 +78,7 @@ public final class PermissionNodes {
         nodes.add(new Permission(CLEAR_OTHERS, "Take somebody else's name style and particle off",
                 PermissionDefault.OP));
         nodes.add(new Permission(PRESET_ALL, "Wear every restricted preset", PermissionDefault.OP));
+        nodes.add(new Permission(FREE, "Use every cosmetic that is for sale without buying it", PermissionDefault.OP));
         nodes.add(new Permission(ADMIN, "Reset somebody else's name style, reload the palette",
                 PermissionDefault.OP));
         return nodes;

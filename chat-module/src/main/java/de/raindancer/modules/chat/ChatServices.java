@@ -44,7 +44,18 @@ public record ChatServices(
         ChatHistoryService history,
         ChatStyleService styles,
         PrivateChatService privateChat,
-        de.raindancer.modules.chat.service.PollService polls) {
+        de.raindancer.modules.chat.service.PollService polls,
+        de.raindancer.modules.chat.service.AdService ads) {
+
+    /** Without paid ads, for a test that never places one. */
+    public ChatServices(Plugin plugin, Server server, RainsCore core, LogChannel log, Messages messages,
+                        Chat chat, Brand brand, Supplier<ChatSettings> settings, FormatService format,
+                        MentionService mentions, ChatQualityService quality, FreezeService freeze,
+                        ChatHistoryService history, ChatStyleService styles, PrivateChatService privateChat,
+                        de.raindancer.modules.chat.service.PollService polls) {
+        this(plugin, server, core, log, messages, chat, brand, settings, format, mentions, quality, freeze,
+                history, styles, privateChat, polls, null);
+    }
 
     /** The settings as they are right now. */
     public ChatSettings config() {

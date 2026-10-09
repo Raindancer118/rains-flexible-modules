@@ -199,7 +199,7 @@ public final class CatalogueFile {
             }
             presets.add(new Preset(id, entry.getString("title", id),
                     style.animated(entry.getBoolean("animated", false)),
-                    entry.getBoolean("restricted", false)));
+                    entry.getBoolean("restricted", false), entry.getString("price", "")));
         }
         return presets;
     }
@@ -402,7 +402,8 @@ public final class CatalogueFile {
                     "colours: 1 to 8 stops, left to right. decorations: bold, italic, underlined,",
                     "strikethrough, obfuscated. animated: true lets the gradient flow along the name.",
                     "A preset needs no other permission to wear;",
-                    "restricted: true means only holders of rainscosmetics.preset.<id> may."));
+                    "restricted: true means only holders of rainscosmetics.preset.<id> may.",
+                    "price: 500 makes one preset cost that, bought once in /cosmetics; 0 keeps it free."));
         });
     }
 

@@ -35,6 +35,7 @@ public final class RoleService implements IRolesService {
     /** Staff currently skipping the wait. Not saved: a bypass left on is a bypass forgotten about. */
     private final Set<UUID> bypassing = ConcurrentHashMap.newKeySet();
     private volatile RolesSettings settings;
+    private volatile RoleAccess access = RoleAccess.OPEN;
 
     public RoleService(Server server, RoleCatalogue catalogue, ChoiceBook choices, Messages messages,
                        LongSupplier clock, RolesSettings settings) {
@@ -49,6 +50,15 @@ public final class RoleService implements IRolesService {
     @Override
     public void settings(RolesSettings updated) {
         this.settings = updated == null ? RolesSettings.DEFAULTS : updated;
+    }
+
+    /** Hands in the shop that decides which roles are open. Without one every role is. */
+    public void access(RoleAccess shop) {
+        this.access = shop == null ? RoleAccess.OPEN : shop;
+    }
+
+    public boolean may(UUID player, Role role) {
+        return access.may(player, role);
     }
 
     public List<Role> roles() {
@@ -103,6 +113,10 @@ public final class RoleService implements IRolesService {
 
     /** A player taking a role for themselves, if they may. */
     public boolean choose(Player player, Role role) {
+        if (!access.may(player.getUniqueId(), role)) {
+            messages.send(player, "roles.locked", "role", new Markup(role.coloured()), "id", role.id());
+            return false;
+        }
         ChangeVerdict verdict = verdict(player.getUniqueId(), role);
         if (!verdict.allowed()) {
             switch (verdict.reason()) {

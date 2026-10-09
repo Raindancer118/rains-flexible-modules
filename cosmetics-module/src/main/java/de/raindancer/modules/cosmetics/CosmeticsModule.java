@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.12.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.13.0")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -93,9 +93,22 @@ public final class CosmeticsModule implements FlexModule {
         for (Player online : server.getOnlinePlayers()) {
             Scheduling.entity(context.plugin(), online, () -> teleports.load(online));
         }
+        de.raindancer.modules.cosmetics.store.UnlockBook unlockBook = new de.raindancer.modules.cosmetics.store.UnlockBook(
+                new de.raindancer.core.data.store.YamlStore(context.dataFolder().resolve("unlocks.yml")));
+        unlockBook.load();
+        if (!unlockBook.readable()) {
+            log.error("unlocks.yml could not be read. Nobody can buy a cosmetic until it is fixed — "
+                    + "saving now would replace everybody's purchases.");
+        }
+        de.raindancer.modules.cosmetics.service.UnlockService unlocks =
+                new de.raindancer.modules.cosmetics.service.UnlockService(unlockBook, catalogue::current,
+                        context.core().messages(), settings.current());
+        names.entitlements(unlocks);
+        particles.entitlements(unlocks);
+        teleports.entitlements(unlocks);
         services = new CosmeticsServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), catalogue::current, settings::current, names, particles, reloading,
-                clearing, teleports, context.core().vanish(), new LiveScreens());
+                clearing, teleports, context.core().vanish(), new LiveScreens(), unlocks);
 
         settings.onChange(fresh -> {
             names.settings(fresh);
@@ -103,6 +116,7 @@ public final class CosmeticsModule implements FlexModule {
             reloading.settings(fresh);
             clearing.settings(fresh);
             teleports.settings(fresh);
+            unlocks.settings(fresh);
             // A sound taken off the list, or a particle blocked, stops being played for whoever had picked it.
             for (Player online : server.getOnlinePlayers()) {
                 Scheduling.entity(context.plugin(), online, () -> teleports.load(online));

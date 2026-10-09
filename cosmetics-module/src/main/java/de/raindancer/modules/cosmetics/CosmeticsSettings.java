@@ -26,6 +26,7 @@ import java.util.Set;
         @Topic(path = "cosmetics/names", title = "Name styles", icon = Material.NAME_TAG),
         @Topic(path = "cosmetics/particles", title = "Particles", icon = Material.BLAZE_POWDER),
         @Topic(path = "cosmetics/teleport", title = "Teleports", icon = Material.ENDER_PEARL),
+        @Topic(path = "cosmetics/prices", title = "Prices", icon = Material.GOLD_NUGGET),
 })
 public record CosmeticsSettings(
 
@@ -84,7 +85,61 @@ public record CosmeticsSettings(
         @Describe("Sound keys, like entity.enderman.teleport. Everybody near a teleport hears it, so the list "
                 + "keeps out the deafening ones; whoever has rainscosmetics.teleport.any-sound may pick any.")
         @Key("teleport-sounds")
-        List<String> teleportSounds) {
+        List<String> teleportSounds,
+
+        @In("cosmetics/prices") @Title("Price: one name colour")
+        @Describe("In the server's currency, like 250 or 1.5k. Zero: as today, the permission "
+                + "rainscosmetics.name.colour decides. With a price nobody wears it without buying it "
+                + "(or rainscosmetics.free), whatever their permissions say.")
+        @Key("price-name-colour")
+        String priceNameColour,
+
+        @In("cosmetics/prices") @Title("Price: gradients")
+        @Describe("Zero: rainscosmetics.name.gradient decides. With a price it is bought once, for good.")
+        @Key("price-name-gradient")
+        String priceNameGradient,
+
+        @In("cosmetics/prices") @Title("Price: colours outside the palette")
+        @Describe("Zero: rainscosmetics.name.any-colour decides. With a price it is bought once, for good.")
+        @Key("price-name-any-colour")
+        String priceNameAnyColour,
+
+        @In("cosmetics/prices") @Title("Price: a flowing gradient")
+        @Describe("Zero: rainscosmetics.name.animated decides. With a price it is bought once, for good.")
+        @Key("price-name-animated")
+        String priceNameAnimated,
+
+        @In("cosmetics/prices") @Title("Price: each decoration")
+        @Describe("Bold, italic and the rest are bought one at a time at this price. Zero: the "
+                + "rainscosmetics.name.decoration.* nodes decide.")
+        @Key("price-name-decoration")
+        String priceNameDecoration,
+
+        @In("cosmetics/prices") @Title("Price: each preset")
+        @Describe("What a preset costs unless it has a price: of its own under presets: in config.yml. "
+                + "Zero: as today, public presets are free and restricted ones need their permission.")
+        @Key("price-preset")
+        String pricePreset,
+
+        @In("cosmetics/prices") @Title("Price: particles and wings")
+        @Describe("One purchase unlocks both. Zero: rainscosmetics.particles decides.")
+        @Key("price-particles")
+        String priceParticles,
+
+        @In("cosmetics/prices") @Title("Price: teleport effects")
+        @Describe("Zero: rainscosmetics.teleport decides.")
+        @Key("price-teleport-looks")
+        String priceTeleportLooks) {
+
+    /** Every setting from before prices, with every price at zero — so what predates them keeps compiling. */
+    public CosmeticsSettings(int maxStops, boolean dropWithoutPermission, boolean nameAboveHead,
+                             boolean particlesEnabled, int particleEveryTicks, int particleCount,
+                             int particleMaxCount, List<String> blockedParticles, boolean teleportLooks,
+                             List<String> teleportSounds) {
+        this(maxStops, dropWithoutPermission, nameAboveHead, particlesEnabled, particleEveryTicks, particleCount,
+                particleMaxCount, blockedParticles, teleportLooks, teleportSounds,
+                "0", "0", "0", "0", "0", "0", "0", "0");
+    }
 
     /** Short, recognisable and nobody's ears hurt — the list a player picks from. */
     public static final List<String> TELEPORT_SOUNDS = List.of(
@@ -98,7 +153,7 @@ public record CosmeticsSettings(
     public static final CosmeticsSettings DEFAULTS = new CosmeticsSettings(8, true, true, true, 4, 1, 6,
             List.of("ELDER_GUARDIAN", "EXPLOSION_EMITTER", "EXPLOSION", "FLASH", "SONIC_BOOM",
                     "GUST_EMITTER_LARGE", "GUST_EMITTER_SMALL"),
-            true, TELEPORT_SOUNDS);
+            true, TELEPORT_SOUNDS, "0", "0", "0", "0", "0", "0", "0", "0");
 
     public CosmeticsSettings {
         blockedParticles = blockedParticles == null ? List.of()

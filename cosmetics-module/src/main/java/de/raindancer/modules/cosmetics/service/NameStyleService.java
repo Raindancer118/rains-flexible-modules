@@ -11,6 +11,7 @@ import de.raindancer.modules.cosmetics.CosmeticsSettings;
 import de.raindancer.modules.cosmetics.model.Catalogue;
 import de.raindancer.modules.cosmetics.model.Grants;
 import de.raindancer.modules.cosmetics.model.Preset;
+import de.raindancer.modules.cosmetics.model.Unlock;
 import de.raindancer.modules.cosmetics.rules.NameStyleRule;
 import de.raindancer.modules.cosmetics.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
@@ -40,6 +41,7 @@ public final class NameStyleService implements ICosmeticsService {
     private final NameStyleRule rule = new NameStyleRule();
 
     private volatile CosmeticsSettings settings;
+    private volatile Entitlements entitlements = Entitlements.PERMISSIONS;
 
     public NameStyleService(Identities identities, Nametags nametags, Messages messages,
                             Supplier<Catalogue> catalogue, CosmeticsSettings settings) {
@@ -54,6 +56,11 @@ public final class NameStyleService implements ICosmeticsService {
     public void settings(CosmeticsSettings fresh) {
         this.settings = fresh;
         nametags.enabled(fresh.nameAboveHead());
+    }
+
+    /** Hands in what decides who has bought what. Without it, permissions alone decide, as ever. */
+    public void entitlements(Entitlements fresh) {
+        this.entitlements = fresh == null ? Entitlements.PERMISSIONS : fresh;
     }
 
     /** Puts the styled nametag on or off as the settings say. Called once at enable. */
@@ -78,25 +85,33 @@ public final class NameStyleService implements ICosmeticsService {
         return settings.stops();
     }
 
-    /** What this player may wear, read off their permissions now. */
+    /** What this player may wear, read off their permissions and purchases now. */
     public Grants grantsOf(Permissible who) {
+        Entitlements held = entitlements;
         Set<TextDecoration> decorations = EnumSet.noneOf(TextDecoration.class);
         for (TextDecoration decoration : TextDecoration.values()) {
-            if (who.hasPermission(PermissionNodes.decoration(decoration))) {
+            if (held.allowed(who, Unlock.decoration(decoration), PermissionNodes.decoration(decoration))) {
                 decorations.add(decoration);
             }
         }
         Set<String> presets = new HashSet<>();
+        Set<String> sold = new HashSet<>();
         boolean every = who.hasPermission(PermissionNodes.PRESET_ALL);
         for (Preset preset : catalogue.get().presets()) {
-            if (preset.restricted() && (every || who.hasPermission(preset.permission()))) {
+            String key = Unlock.preset(preset.id());
+            if (held.priced(key)) {
+                sold.add(preset.id());
+                if (held.allowed(who, key, preset.permission())) {
+                    presets.add(preset.id());
+                }
+            } else if (preset.restricted() && (every || who.hasPermission(preset.permission()))) {
                 presets.add(preset.id());
             }
         }
-        return new Grants(who.hasPermission(PermissionNodes.NAME_COLOUR),
-                who.hasPermission(PermissionNodes.NAME_GRADIENT),
-                who.hasPermission(PermissionNodes.NAME_ANY_COLOUR),
-                who.hasPermission(PermissionNodes.NAME_ANIMATED), decorations, presets);
+        return new Grants(held.allowed(who, Unlock.NAME_COLOUR, PermissionNodes.NAME_COLOUR),
+                held.allowed(who, Unlock.NAME_GRADIENT, PermissionNodes.NAME_GRADIENT),
+                held.allowed(who, Unlock.NAME_ANY_COLOUR, PermissionNodes.NAME_ANY_COLOUR),
+                held.allowed(who, Unlock.NAME_ANIMATED, PermissionNodes.NAME_ANIMATED), decorations, presets, sold);
     }
 
     /**
@@ -115,7 +130,20 @@ public final class NameStyleService implements ICosmeticsService {
     }
 
     public StyleGrants styleGrantsOf(Permissible who) {
-        return styleGrants(grantsOf(who));
+        StyleGrants grants = styleGrants(grantsOf(who));
+        Entitlements held = entitlements;
+        grants = sold(grants, held, StyleGrants.Feature.COLOUR, Unlock.NAME_COLOUR);
+        grants = sold(grants, held, StyleGrants.Feature.GRADIENT, Unlock.NAME_GRADIENT);
+        grants = sold(grants, held, StyleGrants.Feature.ANY_COLOUR, Unlock.NAME_ANY_COLOUR);
+        grants = sold(grants, held, StyleGrants.Feature.ANIMATED, Unlock.NAME_ANIMATED);
+        return sold(grants, held, StyleGrants.Feature.DECORATION, Unlock.decoration(TextDecoration.BOLD));
+    }
+
+    /** A feature for sale is greyed with the price and where to buy it, not the node it would otherwise need. */
+    private static StyleGrants sold(StyleGrants grants, Entitlements held, StyleGrants.Feature feature, String key) {
+        return held.priced(key)
+                ? grants.worded(feature, "Costs " + held.priceText(key) + " — buy it under Unlocks in /cosmetics")
+                : grants;
     }
 
     public Verdict judge(Permissible who, NameStyle style) {
@@ -144,6 +172,9 @@ public final class NameStyleService implements ICosmeticsService {
         Verdict verdict = judge(who, style);
         if (verdict.isRefused()) {
             messages.send(who, verdict.reason(), "detail", verdict.detail() == null ? "" : verdict.detail());
+            if (entitlements.anySold()) {
+                messages.send(who, "cosmetics.unlock.hint");
+            }
             return false;
         }
         if (!identities.setNameStyle(who.getUniqueId(), style)) {

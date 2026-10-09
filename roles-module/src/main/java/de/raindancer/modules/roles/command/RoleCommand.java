@@ -22,7 +22,7 @@ import java.util.function.Supplier;
 
 /**
  * {@code /role} opens the roles; {@code /role <role>} takes one; {@code /role info [player]} says what
- * somebody is. Staff: {@code bypass}, {@code set <player> <role|none>}, {@code reset <player>}, {@code reload}.
+ * somebody is. {@code buy}, {@code rent} and {@code cancel <role>} pay for roles that cost something. Staff: {@code bypass}, {@code set <player> <role|none>}, {@code reset <player>}, {@code reload}.
  */
 public final class RoleCommand implements IRolesCommand {
 
@@ -47,6 +47,24 @@ public final class RoleCommand implements IRolesCommand {
                 }
                 asPlayer(live, sender).ifPresent(player -> live.messages().send(player,
                         live.roles().toggleBypass(player.getUniqueId()) ? "roles.bypass-on" : "roles.bypass-off"));
+            }
+            case "buy", "rent", "cancel" -> {
+                if (args.length < 2) {
+                    live.messages().send(sender, "roles.usage-buy");
+                    return;
+                }
+                Optional<Role> role = live.roles().role(args[1]);
+                if (role.isEmpty()) {
+                    live.messages().send(sender, "roles.unknown", "name", args[1]);
+                    return;
+                }
+                asPlayer(live, sender).ifPresent(player -> {
+                    if (first.equals("cancel")) {
+                        live.purchases().cancel(player, role.get());
+                    } else {
+                        new RoleMenu(live, player, null).confirmPurchase(role.get(), first.equals("rent"));
+                    }
+                });
             }
             case "set" -> staff(live, sender, args, 3).ifPresent(target -> {
                 String wanted = args[2].toLowerCase(Locale.ROOT);
@@ -163,6 +181,7 @@ public final class RoleCommand implements IRolesCommand {
         boolean admin = sender.hasPermission(PermissionNodes.ADMIN);
         if (args.length <= 1) {
             options.add("info");
+            options.addAll(List.of("buy", "rent", "cancel"));
             live.roles().roles().forEach(role -> options.add(role.id()));
             if (sender.hasPermission(PermissionNodes.BYPASS)) {
                 options.add("bypass");
@@ -170,6 +189,8 @@ public final class RoleCommand implements IRolesCommand {
             if (admin) {
                 options.addAll(List.of("set", "reset", "reload"));
             }
+        } else if (args.length == 2 && List.of("buy", "rent", "cancel").contains(args[0].toLowerCase(Locale.ROOT))) {
+            live.roles().roles().stream().filter(role -> role.forSale()).forEach(role -> options.add(role.id()));
         } else if (args.length == 2 && admin && List.of("set", "reset", "info").contains(args[0].toLowerCase(Locale.ROOT))) {
             live.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
         } else if (args.length == 3 && admin && args[0].equalsIgnoreCase("set")) {

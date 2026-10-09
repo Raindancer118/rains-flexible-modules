@@ -8,6 +8,9 @@ import de.raindancer.modules.roles.RolesServices;
 import de.raindancer.modules.roles.model.ChangeVerdict;
 import de.raindancer.modules.roles.model.Perk;
 import de.raindancer.modules.roles.model.Role;
+import de.raindancer.modules.roles.model.Ownership;
+import de.raindancer.modules.roles.service.RolePurchase;
+import de.raindancer.core.ui.text.Markup;
 import de.raindancer.modules.roles.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -109,6 +112,8 @@ public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen 
         if (!services.settings().get().perks()) {
             lore.add("<dark_gray>Perks are switched off on this server.");
         }
+        boolean open = services.roles().may(viewer.getUniqueId(), role);
+        priceLines(role, open, lore);
         ChangeVerdict verdict = services.roles().verdict(viewer.getUniqueId(), role);
         ItemStack item = Icons.of(icon(role.icon()), "<white>" + role.coloured(), lore);
         if (verdict.reason() == ChangeVerdict.Reason.SAME) {
@@ -117,6 +122,17 @@ public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen 
             withMine.add(Component.empty());
             withMine.add(Icons.loreLine("<gold>Your role"));
             item.lore(withMine);
+            return item;
+        }
+        if (!open) {
+            List<Component> forSale = new ArrayList<>(Optional.ofNullable(item.lore()).orElse(List.of()));
+            forSale.add(Component.empty());
+            if (role.buyable() && role.rentable()) {
+                forSale.add(Icons.loreLine("<yellow>Click<gray> to buy it, <yellow>right-click<gray> to rent it"));
+            } else {
+                forSale.add(Icons.loreLine("<yellow>Click<gray> to " + (role.buyable() ? "buy" : "rent") + " it"));
+            }
+            item.lore(forSale);
             return item;
         }
         if (!verdict.allowed()) {
@@ -129,8 +145,55 @@ public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen 
         return item;
     }
 
+    private void priceLines(Role role, boolean open, List<String> lore) {
+        if (!role.forSale()) {
+            return;
+        }
+        lore.add("");
+        if (role.buyable()) {
+            lore.add("<gold>Price: <white>" + RolePurchase.buyPrice(role) + " <dark_gray>(once, yours for good)");
+        }
+        if (role.rentable()) {
+            lore.add("<gold>Rent: <white>" + RolePurchase.rentPrice(role) + " <dark_gray>a month, a role you cannot pay for lapses");
+        }
+        services.shop().ownership(viewer.getUniqueId(), role).ifPresent(have -> lore.add(
+                have.kind() == Ownership.Kind.BOUGHT ? "<green>You bought this."
+                        : "<green>You rent this. <gray>Next rent in <white>"
+                        + Times.describe(Duration.ofMillis(Math.max(0, have.dueAt() - System.currentTimeMillis())))));
+        if (!open) {
+            lore.add("<red>Not yours yet.");
+        }
+    }
+
+    /** The question before money is spent; the purchase itself is {@link RolePurchase}'s. */
+    public void confirmPurchase(Role role, boolean rent) {
+        boolean payable = rent ? role.rentable() : role.buyable();
+        if (!payable) {
+            services.messages().send(viewer, "roles.not-for-sale", "role", new Markup(role.coloured()));
+            return;
+        }
+        String price = rent ? RolePurchase.rentPrice(role) + " a month" : RolePurchase.buyPrice(role);
+        List<String> consequences = List.of("<gray>It costs <white>" + price + "<gray>.",
+                rent ? "<gray>Rent is taken every 30 days; if it cannot be paid you lose the role."
+                        : "<gray>It is yours for good.");
+        new ConfirmScreen(viewer, services.brand(), this, "<dark_gray>" + (rent ? "Rent " : "Buy ") + role.coloured() + "<dark_gray>?",
+                consequences, "<dark_gray>Nothing is charged if you say no.", () -> {
+            if (rent) {
+                services.purchases().rent(viewer, role);
+            } else {
+                services.purchases().buy(viewer, role);
+            }
+            open();
+        }).open();
+    }
+
     @Override
     protected void onClick(Role role, InventoryClickEvent event) {
+        if (!services.roles().may(viewer.getUniqueId(), role)) {
+            boolean rent = role.rentable() && (!role.buyable() || event.isRightClick());
+            confirmPurchase(role, rent);
+            return;
+        }
         ChangeVerdict verdict = services.roles().verdict(viewer.getUniqueId(), role);
         if (!verdict.allowed()) {
             // Says why: it is the same role, or how long is left.

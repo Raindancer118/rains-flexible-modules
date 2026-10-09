@@ -105,7 +105,9 @@ class MessagesTest {
         for (Path file : sources()) {
             Matcher matcher = KEY_LITERAL.matcher(read(file));
             while (matcher.find()) {
-                keys.add(matcher.group(1));
+                if (!matcher.group(1).equals("cosmetics.buy")) { // an economy source, not a message
+                    keys.add(matcher.group(1));
+                }
             }
         }
         return keys;

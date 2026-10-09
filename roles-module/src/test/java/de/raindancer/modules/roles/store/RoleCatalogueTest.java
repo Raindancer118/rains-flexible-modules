@@ -35,6 +35,31 @@ class RoleCatalogueTest {
     }
 
     @Test
+    @DisplayName("price and rent-per-month are read as written, and are \"0\" when absent")
+    void prices() throws Exception {
+        List<Role> roles = RoleCatalogue.parse(yaml("""
+                roles:
+                  mage:
+                    price: 1.5k
+                    rent-per-month: 40
+                  cook:
+                    title: Cook
+                """));
+        assertThat(roles.get(0).price()).isEqualTo("1.5k");
+        assertThat(roles.get(0).rent()).isEqualTo("40");
+        assertThat(roles.get(0).forSale()).isTrue();
+        assertThat(roles.get(1).price()).isEqualTo("0");
+        assertThat(roles.get(1).rent()).isEqualTo("0");
+        assertThat(roles.get(1).forSale()).isFalse();
+    }
+
+    @Test
+    @DisplayName("the shipped roles are all free, so a server behaves as before until its owner sets a price")
+    void shippedAreFree() throws Exception {
+        assertThat(shipped()).noneMatch(Role::forSale);
+    }
+
+    @Test
     @DisplayName("a role is read with its perks: buy or sell, categories, items and exceptions")
     void reads() throws Exception {
         List<Role> roles = RoleCatalogue.parse(yaml("""

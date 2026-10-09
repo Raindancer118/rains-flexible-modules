@@ -98,7 +98,9 @@ public final class RoleCatalogue {
                     section == null ? readable(id) : section.getString("title", readable(id)),
                     section == null ? "PAPER" : section.getString("icon", "paper").toUpperCase(Locale.ROOT),
                     HEX.matcher(colour).matches() ? colour.toLowerCase(Locale.ROOT) : "#ffffff",
-                    section == null ? List.of() : section.getStringList("description"), perks));
+                    section == null ? List.of() : section.getStringList("description"), perks,
+                    section == null ? "0" : section.getString("price", "0"),
+                    section == null ? "0" : section.getString("rent-per-month", "0")));
         }
         return read;
     }

@@ -34,7 +34,8 @@ public record CosmeticsServices(
         ClearService clearing,
         de.raindancer.modules.cosmetics.service.TeleportLookService teleports,
         Vanish vanish,
-        ICosmeticsScreensOpener screens) {
+        ICosmeticsScreensOpener screens,
+        de.raindancer.modules.cosmetics.service.UnlockService unlocks) {
 
     public Catalogue offered() {
         return catalogue.get();

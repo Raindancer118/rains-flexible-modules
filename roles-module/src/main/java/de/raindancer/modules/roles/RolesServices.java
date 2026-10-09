@@ -5,6 +5,8 @@ import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.modules.roles.service.RoleService;
+import de.raindancer.modules.roles.service.RolePurchase;
+import de.raindancer.modules.roles.service.RoleShop;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
 
@@ -19,5 +21,7 @@ public record RolesServices(
         Messages messages,
         Brand brand,
         Supplier<RolesSettings> settings,
-        RoleService roles) {
+        RoleService roles,
+        RoleShop shop,
+        RolePurchase purchases) {
 }

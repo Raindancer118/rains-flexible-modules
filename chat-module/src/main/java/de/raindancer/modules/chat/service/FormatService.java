@@ -93,6 +93,13 @@ public final class FormatService implements IChatService {
                 Chat.formatted("message", message));
     }
 
+    /** A paid ad in the owner's ad template: same name rendering as a chat line, no mentions, no personal colour. */
+    public Component renderAd(Player sender, String plainText) {
+        return chat.mm(settings.adTemplate(),
+                Chat.formatted("name", nameOf(sender)),
+                Chat.formatted("message", linkifyIfEnabled(plainText)));
+    }
+
     private Component mentionsOf(String plainText, List<Mention> mentions) {
         if (plainText == null || plainText.isBlank()) {
             return Component.text(plainText == null ? "" : plainText);

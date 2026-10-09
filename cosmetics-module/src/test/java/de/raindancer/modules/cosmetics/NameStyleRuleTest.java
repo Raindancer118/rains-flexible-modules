@@ -55,6 +55,22 @@ class NameStyleRuleTest {
     }
 
     @Test
+    @DisplayName("a preset the server sells is worn only by whoever bought it, and cannot be rebuilt by hand")
+    void soldPreset() {
+        Grants notBought = new Grants(true, true, true, true, READABLE, Set.of(), Set.of("sunset"));
+        Grants bought = new Grants(true, true, true, true, READABLE, Set.of("sunset"), Set.of("sunset"));
+
+        Verdict refused = judge(SUNSET.style(), notBought);
+
+        assertThat(refused.reason()).isEqualTo("cosmetics.refused.sold-preset");
+        assertThat(refused.detail()).isEqualTo("Sunset");
+        assertThat(rule.mayUse(SUNSET, notBought)).isFalse();
+        assertThat(judge(SUNSET.style(), bought).isAllowed()).isTrue();
+        assertThat(rule.mayUse(SUNSET, bought)).isTrue();
+        assertThat(rule.mayUse(SUNSET, EVERYBODY)).as("not sold: public as ever").isTrue();
+    }
+
+    @Test
     @DisplayName("nothing at all is always allowed — taking a style off must never be refused")
     void nothingIsAllowed() {
         assertThat(judge(NameStyle.NONE, Grants.NOTHING).isAllowed()).isTrue();

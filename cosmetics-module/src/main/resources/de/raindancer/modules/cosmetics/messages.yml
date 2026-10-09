@@ -87,6 +87,7 @@ cosmetics:
     animated: "<red>Your gradient can't flow — that option is not unlocked for you."
     too-many-stops: "<red>At most <white><detail></white> colours in one name."
     preset: "<red>The <white><preset></white> preset is not yours to wear."
+    sold-preset: "<red>The <white><detail></white> preset is for sale. <gray>Buy it under Unlocks in /cosmetics."
     particles: "<red>You may not wear particles."
     particle-unknown: "<red><white><detail></white> is not a particle that can be worn."
     particle-blocked: "<red><white><detail></white> is not allowed here — it would cover everybody's screen."
@@ -149,6 +150,17 @@ cosmetics:
       servers-hint: "<dark_gray>Right-click for the server's own."
       nothing-hint: "<dark_gray>Shift-click for nothing at all."
       locked: "Needs <permission>"
+      locked-priced: "Costs <price> — buy it under Unlocks in /cosmetics"
+
+  unlock:
+    bought: "<green>You bought <white><what></white> for <white><amount></white>. It is yours for good."
+    already-yours: "<gray><white><what></white> is yours already."
+    not-for-sale: "<red><white><what></white> is not for sale."
+    cannot-afford: "<red><white><what></white> costs <white><amount></white> and you do not have that much."
+    no-economy: "<red><white><what></white> costs <white><amount></white>, but this server has no money to pay it with."
+    not-saved: "<red>That could not be saved, so nothing was bought. Staff: unlocks.yml cannot be read."
+    not-charged: "<red>The payment for <white><what></white> was refused, so nothing was bought."
+    hint: "<gray>Some cosmetics are for sale: <white>/cosmetics</white> → Unlocks."
 
   help-particles:
     - "<gold><bold>Your particles"

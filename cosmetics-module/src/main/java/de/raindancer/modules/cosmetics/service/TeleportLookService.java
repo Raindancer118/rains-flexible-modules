@@ -15,6 +15,7 @@ import de.raindancer.modules.cosmetics.model.ParticleDensity;
 import de.raindancer.modules.cosmetics.model.ParticleSpeed;
 import de.raindancer.modules.cosmetics.model.TeleportLookChoice;
 import de.raindancer.modules.cosmetics.model.TeleportPart;
+import de.raindancer.modules.cosmetics.model.Unlock;
 import de.raindancer.modules.cosmetics.rules.TeleportLookRule;
 import de.raindancer.modules.cosmetics.store.TeleportChoices;
 import de.raindancer.modules.cosmetics.util.PermissionNodes;
@@ -47,6 +48,7 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
     private final Map<UUID, TeleportLookChoice> chosen = new ConcurrentHashMap<>();
 
     private volatile CosmeticsSettings settings;
+    private volatile Entitlements entitlements = Entitlements.PERMISSIONS;
 
     public TeleportLookService(org.bukkit.plugin.Plugin plugin, Messages messages, TravelShow show,
                                ParticleService particles, CosmeticsSettings settings) {
@@ -109,7 +111,20 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
     }
 
     public boolean mayUse(Player who) {
-        return settings.teleportLooks() && who.hasPermission(PermissionNodes.TELEPORT);
+        return settings.teleportLooks() && entitlements.allowed(who, Unlock.TELEPORT, PermissionNodes.TELEPORT);
+    }
+
+    public boolean priced() {
+        return entitlements.priced(Unlock.TELEPORT);
+    }
+
+    public String priceText() {
+        return entitlements.priceText(Unlock.TELEPORT);
+    }
+
+    /** Hands in what decides who has bought what. Without it, permissions alone decide, as ever. */
+    public void entitlements(Entitlements fresh) {
+        this.entitlements = fresh == null ? Entitlements.PERMISSIONS : fresh;
     }
 
     public boolean mayPickAnySound(Player who) {
@@ -192,7 +207,9 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
 
         @Override
         public String locked() {
-            return "Needs " + PermissionNodes.TELEPORT;
+            return entitlements.priced(Unlock.TELEPORT)
+                    ? "Costs " + entitlements.priceText(Unlock.TELEPORT) + " — buy it under Unlocks in /cosmetics"
+                    : "Needs " + PermissionNodes.TELEPORT;
         }
 
         @Override
@@ -296,7 +313,7 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
 
     private Verdict judge(Player who, TeleportPart part, String value) {
         boolean enabled = settings.teleportLooks();
-        boolean may = who.hasPermission(PermissionNodes.TELEPORT);
+        boolean may = entitlements.allowed(who, Unlock.TELEPORT, PermissionNodes.TELEPORT);
         if (part.isSound()) {
             return rule.judgeSound(enabled, may, value, settings.teleportSounds(), mayPickAnySound(who),
                     value != null && isKnownSound(value));

@@ -37,6 +37,7 @@ class EveryKeyExistsTest {
                         }
                     })
                     .filter(found -> !found.endsWith(".yml")) // roles.yml is a file, not a message
+                    .filter(found -> !found.equals("roles.buy") && !found.equals("roles.rent")) // economy sources
                     .distinct().toList();
         }
 

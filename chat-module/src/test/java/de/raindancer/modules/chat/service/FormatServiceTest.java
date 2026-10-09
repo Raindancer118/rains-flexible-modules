@@ -65,6 +65,14 @@ class FormatServiceTest {
         assertThat(PLAIN.serialize(rendered)).isEqualTo("Tom » hello there");
     }
 
+    @Test
+    @DisplayName("an ad is laid out in the ad template, with the advertiser's name and the text")
+    void rendersAd() {
+        Component rendered = service.renderAd(player("Tom"), "selling cobble");
+
+        assertThat(PLAIN.serialize(rendered)).isEqualTo("[Ad] Tom: selling cobble");
+    }
+
     @Nested
     @DisplayName("default colours and brackets")
     class DefaultColoursAndBrackets {

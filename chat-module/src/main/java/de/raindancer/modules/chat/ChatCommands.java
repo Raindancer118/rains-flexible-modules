@@ -42,6 +42,12 @@ public final class ChatCommands {
                         .aliased("bc")
                         .taking("<message>"),
 
+                ModuleCommand.of("ad", "Pays to broadcast a line to everybody online",
+                                new de.raindancer.modules.chat.command.AdCommand(ChatCommands::require))
+                        .aliased("advert")
+                        .taking("<message> — broadcast it as an ad, if the server sells them")
+                        .needing(de.raindancer.modules.chat.util.PermissionNodes.AD),
+
                 ModuleCommand.of("chathistory", "Shows chat that happened while you were away",
                                 new ChatHistoryCommand(ChatCommands::require))
                         .aliased("chatlog")

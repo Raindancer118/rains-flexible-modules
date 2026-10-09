@@ -52,7 +52,9 @@ public final class TeleportMenu extends Menu implements ICosmeticsScreen {
         TeleportLookService looks = services.teleports();
         TeleportLookChoice choice = looks.current(viewer);
         boolean may = looks.mayUse(viewer);
-        String locked = words("cosmetics.teleport.menu.locked", "permission", PermissionNodes.TELEPORT);
+        String locked = looks.priced()
+                ? words("cosmetics.teleport.menu.locked-priced", "price", looks.priceText())
+                : words("cosmetics.teleport.menu.locked", "permission", PermissionNodes.TELEPORT);
         // In the order they happen: setting off, the countdown, standing in the particles, landing.
         button(MenuLayout.WHO, 2, TeleportPart.DEPART, Material.NOTE_BLOCK, choice, may, locked);
         button(MenuLayout.WHO, 6, TeleportPart.TICK, Material.CLOCK, choice, may, locked);

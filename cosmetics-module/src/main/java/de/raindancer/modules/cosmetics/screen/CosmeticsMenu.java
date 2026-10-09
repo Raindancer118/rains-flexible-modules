@@ -76,6 +76,13 @@ public final class CosmeticsMenu extends Menu implements ICosmeticsScreen {
                         MINI.serialize(services.messages().get("cosmetics.teleport.menu.door-lore"))),
                 click -> new TeleportMenu(services, viewer, this).open());
 
+        if (services.unlocks().anySold()) {
+            toolbar(2, Icons.of(Material.GOLD_INGOT, "<white>Unlocks",
+                            "<gray>What this server sells: colours,", "<gray>gradients, particles and more.", "",
+                            "<dark_gray>Click to see the prices."),
+                    click -> new UnlockMenu(services, viewer, this).open());
+        }
+
         boolean mayClearOthers = services.clearing().may(viewer, false);
         toolbar(4, mayClearOthers,
                 Icons.of(Material.SPONGE, "<white>Clear somebody else's",

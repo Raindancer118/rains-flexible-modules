@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.10.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.11.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -104,10 +104,13 @@ public final class ChatModule implements FlexModule {
                 context.plugin(), server, context.core().votes(), context.core().buttons(),
                 context.core().messages(), settings.current());
 
+        de.raindancer.modules.chat.service.AdService ads = new de.raindancer.modules.chat.service.AdService(
+                quality, freeze, settings.current(), System::currentTimeMillis);
+
         services = new ChatServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, format, mentions, quality, freeze, chatHistory, styleService,
-                privateChat, polls);
+                privateChat, polls, ads);
 
         // @Name suggestions in the chat box — only while mentions are actually drawn.
         context.core().mentionCompletions().enable(settings.current().mentionsEnabled());
@@ -121,6 +124,7 @@ public final class ChatModule implements FlexModule {
             styleService.settings(fresh);
             privateChat.settings(fresh);
             polls.settings(fresh);
+            ads.settings(fresh);
         });
 
         context.listener(new ChatListener(services));

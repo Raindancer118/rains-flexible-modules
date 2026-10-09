@@ -12,6 +12,7 @@ import de.raindancer.modules.cosmetics.CosmeticsSettings;
 import de.raindancer.modules.cosmetics.model.ParticleChoice;
 import de.raindancer.modules.cosmetics.model.ParticleDensity;
 import de.raindancer.modules.cosmetics.model.ParticleSpeed;
+import de.raindancer.modules.cosmetics.model.Unlock;
 import de.raindancer.modules.cosmetics.rules.ParticleRule;
 import de.raindancer.modules.cosmetics.store.ParticleChoices;
 import de.raindancer.modules.cosmetics.store.WingReservations;
@@ -56,6 +57,7 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
     private final AtomicLong ticks = new AtomicLong();
 
     private volatile CosmeticsSettings settings;
+    private volatile Entitlements entitlements = Entitlements.PERMISSIONS;
     private ScheduledTask timer;
 
     public ParticleService(Plugin plugin, Server server, Vanish vanish, Messages messages,
@@ -135,6 +137,17 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
 
     // ------------------------------------------------------------------ choosing
 
+    /** Hands in what decides who has bought what. Without it, permissions alone decide, as ever. */
+    public void entitlements(Entitlements fresh) {
+        this.entitlements = fresh == null ? Entitlements.PERMISSIONS : fresh;
+    }
+
+    private String lockedText() {
+        return entitlements.priced(Unlock.PARTICLES)
+                ? "Costs " + entitlements.priceText(Unlock.PARTICLES) + " — buy it under Unlocks in /cosmetics"
+                : "Needs " + PermissionNodes.PARTICLES;
+    }
+
     @Override
     public ParticleChoice current(Player who) {
         return choices.read(who);
@@ -142,7 +155,7 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
 
     @Override
     public boolean mayUse(Player who) {
-        return settings.particlesEnabled() && who.hasPermission(PermissionNodes.PARTICLES);
+        return settings.particlesEnabled() && entitlements.allowed(who, Unlock.PARTICLES, PermissionNodes.PARTICLES);
     }
 
     public Verdict judge(Player who, String particle) {
@@ -268,7 +281,7 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
 
     @Override
     public String locked() {
-        return "Needs " + PermissionNodes.PARTICLES;
+        return lockedText();
     }
 
     @Override
@@ -432,7 +445,7 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
 
         @Override
         public String locked() {
-            return "Needs " + PermissionNodes.PARTICLES;
+            return lockedText();
         }
 
         @Override

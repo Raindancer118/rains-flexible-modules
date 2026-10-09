@@ -49,6 +49,19 @@ chat:
       <white><text>
       <gold>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
 
+  # ── /ad ───────────────────────────────────────────────────────────────────
+  ad:
+    off: "<red>Ads are not for sale on this server."
+    empty: "<red>An ad needs a message. <gray>/ad [message]"
+    too-long: "<red>Keep an ad to <white><most></white> characters."
+    cooldown: "<red>You can place your next ad in <white><seconds></white>s."
+    usage: "<gray>/ad [message] <dark_gray>— tells everybody online. Costs <white><price></white>, up to <most> characters."
+    usage-free: "<gray>/ad [message] <dark_gray>— tells everybody online, up to <most> characters."
+    cannot-afford: "<red>An ad costs <white><price></white>, and you do not have that much."
+    no-economy: "<red>Ads cost <white><price></white>, but this server has no money to pay it with."
+    not-charged: "<red>The ad could not be paid for, so it was not sent."
+    paid: "<gray>Your ad went out. <white><price></white> paid."
+
   # ── @-mentions ────────────────────────────────────────────────────────────
   mention:
     pinged: "<yellow>⚡ <white><player></white> <yellow>mentioned you: <gray><text>"

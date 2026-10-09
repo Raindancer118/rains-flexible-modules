@@ -28,6 +28,7 @@ import org.bukkit.Material;
         @Topic(path = "chat/quality", title = "Message quality", icon = Material.HOPPER),
         @Topic(path = "chat/history", title = "History", icon = Material.CLOCK),
         @Topic(path = "chat/polls", title = "Polls", icon = Material.WRITABLE_BOOK),
+        @Topic(path = "chat/ads", title = "Paid ads", icon = Material.GOLD_NUGGET),
 })
 public record ChatSettings(
 
@@ -122,13 +123,56 @@ public record ChatSettings(
         @In("chat/polls") @Title("How long a poll runs") @Range(min = 10, max = 3600)
         @Describe("Seconds, when whoever starts it does not say. /poll 5m … overrides it.")
         @Key("poll-seconds")
-        int pollSeconds
+        int pollSeconds,
+
+        @In("chat/ads") @Title("/ad")
+        @Describe("Whether players can pay to broadcast a line to everybody with /ad. Off, /ad only says so.")
+        @Key("ads.enabled")
+        boolean adsEnabled,
+
+        @In("chat/ads") @Title("An ad costs")
+        @Describe("In the server's currency, like 25 or 1.5k. Zero makes ads free, which needs no economy. "
+                + "An ad the chat filters refuse is not charged.")
+        @Key("ads.price")
+        String adsPrice,
+
+        @In("chat/ads") @Title("Seconds between one player's ads") @Range(min = 0, max = 86400)
+        @Describe("How long somebody waits after an ad before the next. Staff with chat.bypass.filters skip it.")
+        @Key("ads.cooldown-seconds")
+        int adsCooldownSeconds,
+
+        @In("chat/ads") @Title("Longest ad") @Range(min = 10, max = 256)
+        @Describe("Characters. A longer ad is refused before anything is charged.")
+        @Key("ads.most-length")
+        int adsMostLength,
+
+        @In("chat/ads") @Title("Ad format")
+        @Describe("How an ad is laid out. <name> is the advertiser's coloured name, <message> what they wrote.")
+        @Key("ads.format")
+        String adsFormat
 
 ) {
 
+    /** The format an ad has until an owner writes one. */
+    public static final String AD_FORMAT = "<gold>[Ad] <reset><name><gray>: <yellow><message>";
+
+    /** Every setting from before ads, with ads off — so what predates them keeps compiling. */
+    public ChatSettings(String format, boolean clickToMessage, boolean linkifyUrls, NamedTextColor defaultMessageColor,
+                        NamedTextColor defaultNameColor, boolean bracketsAroundName, boolean mentionsEnabled,
+                        boolean capsFilterEnabled, int capsThresholdPercent, int capsMinLength,
+                        boolean repeatBlockEnabled, int messageCooldownSeconds, int defaultSlowmodeSeconds,
+                        boolean historyEnabled, int historyCapacity, boolean historyNotifyOnJoin,
+                        boolean pollsEnabled, int pollSeconds) {
+        this(format, clickToMessage, linkifyUrls, defaultMessageColor, defaultNameColor, bracketsAroundName,
+                mentionsEnabled, capsFilterEnabled, capsThresholdPercent, capsMinLength, repeatBlockEnabled,
+                messageCooldownSeconds, defaultSlowmodeSeconds, historyEnabled, historyCapacity,
+                historyNotifyOnJoin, pollsEnabled, pollSeconds, false, "0", 600, 120, AD_FORMAT);
+    }
+
     public static final ChatSettings DEFAULTS = new ChatSettings(
             "<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false,
-            true, true, 70, 8, true, 0, 0, true, 200, true, true, 120);
+            true, true, 70, 8, true, 0, 0, true, 200, true, true, 120,
+            false, "0", 600, 120, AD_FORMAT);
 
     /** Clamped, so a hand-built settings record cannot ask for an impossible threshold. */
     public int capsThreshold() {
@@ -157,5 +201,17 @@ public record ChatSettings(
 
     public java.time.Duration pollLength() {
         return java.time.Duration.ofSeconds(Math.max(10, Math.min(3600, pollSeconds)));
+    }
+
+    public int adCooldown() {
+        return Math.max(0, Math.min(86400, adsCooldownSeconds));
+    }
+
+    public int adLength() {
+        return Math.max(10, Math.min(256, adsMostLength));
+    }
+
+    public String adTemplate() {
+        return adsFormat == null || adsFormat.isBlank() ? AD_FORMAT : adsFormat;
     }
 }

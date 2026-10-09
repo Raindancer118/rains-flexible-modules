@@ -167,5 +167,8 @@ public final class ChatListener implements IChatListener {
     @Override
     public void forget(UUID player) {
         services.quality().forget(player);
+        if (services.ads() != null) {
+            services.ads().forget(player);
+        }
     }
 }

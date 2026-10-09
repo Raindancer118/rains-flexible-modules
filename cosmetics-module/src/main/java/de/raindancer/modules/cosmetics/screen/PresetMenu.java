@@ -63,13 +63,30 @@ public final class PresetMenu extends PaginatedMenu<Preset> implements ICosmetic
                 MINI.serialize(NameStyleService.painted(viewer.getName(), preset.style())),
                 "",
                 wearing ? "<green>You are wearing this." : "<dark_gray>Click to wear it.");
-        return services.names().mayUse(viewer, preset)
-                ? icon
-                : Icons.locked(icon, "Needs " + preset.permission());
+        if (services.names().mayUse(viewer, preset)) {
+            return icon;
+        }
+        return services.unlocks().keyOfPreset(preset)
+                .map(key -> Icons.locked(icon, "Costs " + services.unlocks().priceText(key) + " — click to buy it"))
+                .orElseGet(() -> Icons.locked(icon, "Needs " + preset.permission()));
     }
 
     @Override
     protected void onClick(Preset preset, InventoryClickEvent event) {
+        var sold = services.unlocks().keyOfPreset(preset);
+        if (sold.isPresent() && !services.names().mayUse(viewer, preset)) {
+            String key = sold.get();
+            new ConfirmScreen(services, viewer, this, "Buy the " + preset.title() + " preset?",
+                    List.of("<gray>It costs <white>" + services.unlocks().priceText(key) + "<gray>.",
+                            "<gray>It is yours for good once bought."),
+                    () -> {
+                        if (services.unlocks().purchase(viewer, key)) {
+                            services.names().wear(viewer, preset);
+                        }
+                        open();
+                    }).open();
+            return;
+        }
         // A locked preset answers too: wear() says which node it needs.
         services.names().wear(viewer, preset);
         refresh();

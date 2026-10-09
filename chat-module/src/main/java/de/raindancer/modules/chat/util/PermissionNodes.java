@@ -42,6 +42,9 @@ public final class PermissionNodes {
     /** End somebody else's poll early. */
     public static final String POLL_MANAGE = "chat.poll.manage";
 
+    /** {@code /ad} — a paid broadcast, when the server has switched ads on. */
+    public static final String AD = "chat.ad";
+
     private PermissionNodes() {
     }
 
@@ -62,6 +65,7 @@ public final class PermissionNodes {
                 new Permission(STYLE, "Pick a colour and decorations for your own chat messages",
                         PermissionDefault.OP),
                 new Permission(POLL, "Start a poll in chat", PermissionDefault.OP),
+                new Permission(AD, "Pay to broadcast an ad with /ad", PermissionDefault.TRUE),
                 new Permission(POLL_MANAGE, "End anybody's poll early", PermissionDefault.OP));
     }
 

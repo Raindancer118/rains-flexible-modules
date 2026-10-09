@@ -28,6 +28,10 @@ public final class NameStyleRule implements ICosmeticsRule {
         if (preset.isPresent() && mayUse(preset.get(), grants)) {
             return Verdict.allowed();
         }
+        if (preset.isPresent() && grants.sold().contains(preset.get().id())) {
+            // Not rebuilt by hand either: whoever buys a preset buys exactly this look.
+            return Verdict.refused("cosmetics.refused.sold-preset", preset.get().title());
+        }
         int ceiling = Math.max(1, Math.min(NameStyle.MAX_STOPS, maxStops));
         if (style.colours().size() > ceiling) {
             return Verdict.refused("cosmetics.refused.too-many-stops", ceiling);
@@ -59,9 +63,10 @@ public final class NameStyleRule implements ICosmeticsRule {
         return Verdict.allowed();
     }
 
-    /** A public preset is for everybody; a restricted one for whoever holds its node. */
+    /** A public preset is for everybody; a restricted or sold one for whoever holds it. */
     public boolean mayUse(Preset preset, Grants grants) {
-        return !preset.restricted() || grants.presets().contains(preset.id());
+        return !(preset.restricted() || grants.sold().contains(preset.id()))
+                || grants.presets().contains(preset.id());
     }
 
     @Override

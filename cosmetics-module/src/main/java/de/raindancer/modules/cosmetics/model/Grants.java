@@ -15,13 +15,20 @@ import java.util.Set;
  * @param anyColour   colours that are not in the palette (typed hex codes)
  * @param animated    a gradient that flows along the name
  * @param decorations the decorations they may switch on
- * @param presets     ids of the restricted presets they hold; public presets need nothing
+ * @param presets     ids of the presets they hold that need holding: restricted ones, and sold ones they bought
+ * @param sold        ids of the presets this server sells, which nobody wears without holding them
  */
 public record Grants(boolean colour, boolean gradient, boolean anyColour, boolean animated,
-                     Set<TextDecoration> decorations, Set<String> presets) {
+                     Set<TextDecoration> decorations, Set<String> presets, Set<String> sold) {
 
     /** Nobody may do anything — what a console asking on nobody's behalf gets. */
-    public static final Grants NOTHING = new Grants(false, false, false, false, Set.of(), Set.of());
+    public static final Grants NOTHING = new Grants(false, false, false, false, Set.of(), Set.of(), Set.of());
+
+    /** With no preset for sale. */
+    public Grants(boolean colour, boolean gradient, boolean anyColour, boolean animated,
+                  Set<TextDecoration> decorations, Set<String> presets) {
+        this(colour, gradient, anyColour, animated, decorations, presets, Set.of());
+    }
 
     /** Without a say on animation: whoever may use a gradient may let it flow. */
     public Grants(boolean colour, boolean gradient, boolean anyColour, Set<TextDecoration> decorations,
@@ -32,5 +39,6 @@ public record Grants(boolean colour, boolean gradient, boolean anyColour, boolea
     public Grants {
         decorations = Set.copyOf(decorations);
         presets = Set.copyOf(presets);
+        sold = Set.copyOf(sold);
     }
 }

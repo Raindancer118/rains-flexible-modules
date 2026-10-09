@@ -22,6 +22,7 @@ public final class RolesCommands {
                                 new RoleCommand(RolesCommands::require))
                         .aliased("roles", "job")
                         .taking("(nothing) — the roles", "<role> — take it", "info [player]",
+                                "buy <role> · rent <role> · cancel <role> — roles that cost something",
                                 "bypass — staff: change without waiting",
                                 "set <player> <role|none> · reset <player> · reload — staff")
                         .needing("rainsroles.use"));
