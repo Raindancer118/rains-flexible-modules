@@ -1,13 +1,16 @@
 package de.raindancer.modules.economy.screen;
 
 import de.raindancer.core.social.economy.Currency;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.choose.Catalogue;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
 import de.raindancer.modules.economy.model.PriceTag;
+import de.raindancer.modules.economy.model.YourPrice;
 import de.raindancer.modules.economy.util.Mini;
+import de.raindancer.modules.economy.util.PriceLines;
 import de.raindancer.modules.economy.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -43,13 +46,16 @@ public final class TradeMenu extends Menu implements IEconomyScreen {
     @Override
     protected void render() {
         Currency currency = services.currency();
-        PriceTag tag = services.shop().tag(material);
+        YourPrice yours = services.shop().priceFor(viewer.getUniqueId(), material);
+        PriceTag tag = yours.shop();
         int carrying = services.shop().carrying(viewer, material);
         set(MenuLayout.HEADER_LEFT, Icons.of(Material.GOLD_INGOT, "<white>Your balance",
                 Mini.of(currency.render(services.economy().balance(viewer.getUniqueId())))));
         set(MenuLayout.HEADER_SUBJECT, Icons.of(material, "<white>" + Catalogue.readable(material.name()),
-                tag.buyable() ? "<gray>Buy one: " + Mini.of(currency.render(tag.buy())) : "<dark_gray>Not sold",
-                tag.sellable() ? "<gray>Sell one: " + Mini.of(currency.render(tag.sell())) : "<dark_gray>Not bought",
+                tag.buyable() ? "<gray>Buy one: " + PriceLines.amount(currency, tag.buy(), yours.buy(), yours.buyChange())
+                        : "<dark_gray>Not sold",
+                tag.sellable() ? "<gray>Sell one: " + PriceLines.amount(currency, tag.sell(), yours.sell(),
+                        yours.sellChange()) : "<dark_gray>Not bought",
                 ShopItemsMenu.trend(services.shop().prices().multiplier(material.name())),
                 "<dark_gray>Priced from: " + tag.source().name().toLowerCase()));
         set(MenuLayout.HEADER_RIGHT, Icons.of(Material.CHEST, "<white>You carry " + carrying));
@@ -63,14 +69,16 @@ public final class TradeMenu extends Menu implements IEconomyScreen {
             int count = amount;
             band(MenuLayout.WHO, column, tag.buyable() && viewer.hasPermission(PermissionNodes.SHOP),
                     Icons.of(Material.LIME_STAINED_GLASS_PANE, "<green>Buy " + count,
-                            "<gray>For " + Mini.of(currency.render(tag.buy().times(count)))),
+                            "<gray>For " + PriceLines.amount(currency, tag.buy().times(count),
+                                    yours.buyFor(count).orElse(Money.ZERO), yours.buyChange())),
                     "The shop does not sell this.", click -> {
                         services.shop().buy(viewer, material, count);
                         refresh();
                     });
             band(MenuLayout.LAND, column, tag.sellable() && carrying >= count && viewer.hasPermission(PermissionNodes.SELL),
                     Icons.of(Material.RED_STAINED_GLASS_PANE, "<red>Sell " + count,
-                            "<gray>For " + Mini.of(currency.render(tag.sell().times(count)))),
+                            "<gray>For " + PriceLines.amount(currency, tag.sell().times(count),
+                                    yours.sellFor(count).orElse(Money.ZERO), yours.sellChange())),
                     tag.sellable() ? "You do not carry that many." : "The shop does not buy this.", click -> {
                         services.shop().sell(viewer, material, count);
                         refresh();
@@ -79,7 +87,9 @@ public final class TradeMenu extends Menu implements IEconomyScreen {
         }
         band(MenuLayout.LAND, 7, tag.sellable() && carrying > 0 && viewer.hasPermission(PermissionNodes.SELL),
                 Icons.of(Material.HOPPER, "<red>Sell all " + carrying,
-                        "<gray>For " + Mini.of(currency.render(tag.sell().times(Math.max(0, carrying))))),
+                        "<gray>For " + PriceLines.amount(currency,
+                                tag.sell().times(Math.max(0, carrying)),
+                                yours.sellFor(Math.max(0, carrying)).orElse(Money.ZERO), yours.sellChange())),
                 tag.sellable() ? "You carry none." : "The shop does not buy this.", click -> {
                     services.shop().sell(viewer, material, carrying);
                     refresh();

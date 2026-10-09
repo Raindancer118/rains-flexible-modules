@@ -6,6 +6,7 @@ import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.modules.economy.EconomyServices;
 import de.raindancer.modules.economy.service.ShopService;
 import de.raindancer.modules.economy.util.Mini;
+import de.raindancer.modules.economy.util.PriceLines;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -56,7 +57,9 @@ public final class EnchantMenu extends PaginatedMenu<ShopService.EnchantOffer> i
             meta.addStoredEnchant(offer.enchantment(), offer.level(), false);
             meta.displayName(offer.enchantment().displayName(offer.level()).color(NamedTextColor.LIGHT_PURPLE)
                     .decoration(TextDecoration.ITALIC, false));
-            meta.lore(List.of(line("<gray>" + Mini.of(services.currency().render(offer.price()))),
+            meta.lore(List.of(line("<gray>" + PriceLines.amount(services.currency(), offer.price(),
+                            services.shop().enchantPriceFor(viewer.getUniqueId(), offer).price(),
+                            services.shop().enchantPriceFor(viewer.getUniqueId(), offer))),
                     line("<yellow>Click<gray> to buy the book")));
         });
         return book;

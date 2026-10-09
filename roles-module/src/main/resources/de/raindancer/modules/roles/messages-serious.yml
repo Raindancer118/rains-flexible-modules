@@ -1,0 +1,3 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+roles:
+  wait: "<red>You can change your role again in <white><left></white>."

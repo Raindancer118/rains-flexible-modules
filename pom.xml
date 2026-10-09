@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.78.0</rainscore.version>
+        <rainscore.version>1.79.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -63,7 +63,8 @@
         <invsnap-module.version>1.2.1</invsnap-module.version>
         <xpbottle-module.version>1.1.1</xpbottle-module.version>
         <veintoggle-module.version>0.3.0</veintoggle-module.version>
-        <economy-module.version>0.18.0</economy-module.version>
+        <economy-module.version>0.19.0</economy-module.version>
+        <roles-module.version>0.1.0</roles-module.version>
         <anticheat-module.version>0.5.0</anticheat-module.version>
         <playerutils-module.version>0.2.1</playerutils-module.version>
         <xaeromap-module.version>1.2.0</xaeromap-module.version>
@@ -120,6 +121,8 @@
         <module>veintoggle-standalone</module>
         <module>economy-module</module>
         <module>economy-standalone</module>
+        <module>roles-module</module>
+        <module>roles-standalone</module>
         <module>anticheat-module</module>
         <module>anticheat-standalone</module>
         <module>playerutils-module</module>
@@ -292,6 +295,11 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>economy-module</artifactId>
                 <version>${economy-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>roles-module</artifactId>
+                <version>${roles-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>

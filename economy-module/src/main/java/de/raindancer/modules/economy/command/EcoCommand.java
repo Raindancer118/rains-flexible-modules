@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class EcoCommand extends EconomyCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("give", "take", "set", "reset", "freeze", "unfreeze",
-            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle", "giveaway", "tax", "loan");
+            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle", "giveaway", "tax", "loan", "packs");
 
     public EcoCommand(Supplier<EconomyServices> services) {
         super(services);
@@ -66,6 +66,7 @@ public final class EcoCommand extends EconomyCommand {
                 live.messages().send(player, "economy.admin.coin", "item",
                         held.getType().name().toLowerCase(Locale.ROOT).replace('_', ' '));
             });
+            case "packs" -> packs(live, sender, args);
             case "dealer" -> player(live, sender).ifPresent(player -> {
                 if (args.length > 1 && args[1].equalsIgnoreCase("remove")) {
                     live.messages().send(player, live.dealers().remove(player)
@@ -290,5 +291,25 @@ public final class EcoCommand extends EconomyCommand {
     @Override
     public String describe() {
         return "staff: giving, taking, setting and freezing money, and the owner's tools";
+    }
+
+    /** {@code /eco packs} reads packs.yml again; {@code /eco packs give <player> <pack>} hands one out free. */
+    private static void packs(EconomyServices live, CommandSender sender, String[] args) {
+        if (args.length >= 4 && args[1].equalsIgnoreCase("give")) {
+            org.bukkit.entity.Player target = live.server().getPlayerExact(args[2]);
+            var pack = live.packs().pack(args[3]);
+            if (target == null || pack.isEmpty()) {
+                live.messages().send(sender, target == null ? "economy.not-online" : "economy.packs.unknown",
+                        "player", args[2]);
+                return;
+            }
+            target.getInventory().addItem(live.packs().item(pack.get())).values()
+                    .forEach(left -> target.getWorld().dropItemNaturally(target.getLocation(), left));
+            live.messages().send(sender, "economy.packs.given", "pack", pack.get().title(), "player", target.getName());
+            return;
+        }
+        int count = live.packs().reload();
+        live.messages().send(sender, "economy.packs.reloaded", "count", String.valueOf(count));
+        live.packs().problems().forEach(problem -> sender.sendMessage(problem));
     }
 }

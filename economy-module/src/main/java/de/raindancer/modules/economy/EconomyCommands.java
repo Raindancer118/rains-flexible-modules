@@ -99,7 +99,7 @@ public final class EconomyCommands {
                         .taking("give|take|set <player> <amount> [reason]", "reset|freeze|unfreeze|history <player>",
                                 "menu|reprice|draw|calm|coin", "leaderboard place|remove", "dealer place <game>|remove",
                                 "auction stop|clear", "raffle <prize> <ticket price> [length] | cancel <number>",
-                                "giveaway <prize> [length]", "tax <percent> [confirm]")
+                                "giveaway <prize> [length]", "tax <percent> [confirm]", "packs [give <player> <pack>]")
                         .auditUsage());
     }
 

@@ -766,7 +766,18 @@ public record EconomySettings(
 
         // ------------------------------------------------------------------ general
         @In("economy") @Title("Richest players list") @Describe("/baltop.")
-        @Key("features.baltop") boolean baltopEnabled) {
+        @Key("features.baltop") boolean baltopEnabled,
+
+        // ------------------------------------------------------------------ packs
+        @In("economy/shop") @Title("Packs for sale")
+        @Describe("A Packs drawer in the shop: ready-made bundles (an explorer's, a builder's…) written in "
+                + "packs.yml. A pack is an item, right clicked to unpack, so it can be given away or kept.")
+        @Key("features.packs") boolean packsEnabled,
+
+        @In("economy/shop") @Title("A pack is cheaper by") @Range(min = 0, max = 90)
+        @Describe("Percent off what its contents cost one by one, at each buyer's own prices. A pack with "
+                + "its own price in packs.yml costs exactly that.")
+        @Key("shop.pack-discount-percent") int packDiscountPercent) {
 
     public static final EconomySettings DEFAULTS = new EconomySettings(
             // currency
@@ -817,7 +828,9 @@ public record EconomySettings(
             // display
             true, 3, true, 10, List.of(),
             // general
-            true);
+            true,
+            // packs
+            true, 10);
 
     /** The currency these settings describe. */
     public Currency currency() {

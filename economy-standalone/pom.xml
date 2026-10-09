@@ -19,7 +19,8 @@
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsEconomy</plugin.name>
-        <plugin.version>0.18.0</plugin.version>
+        <!-- 0.19.0: role discounts (Core PriceModifiers) in the shop, sell capped under the buyer's own buy price; packs (packs.yml, /eco packs). -->
+        <plugin.version>0.19.0</plugin.version>
     </properties>
 
     <dependencies>

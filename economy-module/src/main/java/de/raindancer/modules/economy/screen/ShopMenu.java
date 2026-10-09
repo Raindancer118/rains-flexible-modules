@@ -91,6 +91,11 @@ public final class ShopMenu extends Menu implements IEconomyScreen {
                 "<gray>Any enchantment as a book, for an anvil.",
                 "<gray>A level: " + Mini.of(services.currency().render(live.enchantPriceMoney()))), BankMenu.OFF,
                 click -> new EnchantMenu(services, viewer, this).open());
+        band(MenuLayout.LAND, 4, services.packs().enabled(), Icons.of(Material.BUNDLE, "<gold>Packs",
+                "<gray>Ready-made bundles, cheaper than",
+                "<gray>buying it all one by one.",
+                "<gray>" + services.packs().packs().size() + " pack(s)."), BankMenu.OFF,
+                click -> new PacksMenu(services, viewer, this).open());
         band(MenuLayout.LAND, 7, live.xpTradeEnabled(), Icons.of(Material.EXPERIENCE_BOTTLE, "<green>Experience",
                 "<gray>Buy levels, priced by the point.",
                 "<gray>A point: " + Mini.of(services.currency().render(live.xpBuyMoney()))), BankMenu.OFF,

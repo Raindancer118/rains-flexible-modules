@@ -1,0 +1,140 @@
+# The roles players can take with /role. One each; changed again after the wait set in /settings.
+#
+#   title        what the role is called
+#   icon         the item shown for it
+#   colour       its name's colour, as #rrggbb
+#   description  lines under the name
+#   perks        what the shop gives the role:
+#     buy: 25        that much percent off buying …     (at most 50)
+#     sell: 10       that much percent more selling …   (at most 50)
+#     categories     whole shop drawers: building_blocks, decorations, redstone, transportation, food,
+#                    tools, combat, brewing, misc
+#     items          items by name; * stands for anything: "*_log", "cooked_*"
+#     except         items never covered, though a drawer or pattern would
+#     says           what the role menu says instead of the generated line
+#
+# Where two perks of one role cover the same item, the better one counts. Selling never earns more than
+# the player's own buy price, so a discount and a bonus on one item cannot be played against each other.
+# Read again with /role reload. Delete this file to get the shipped roles back.
+roles:
+  cook:
+    title: Cook
+    icon: cooked_beef
+    colour: "#e8a33d"
+    description:
+      - "Keeps the server fed."
+    perks:
+      - buy: 25
+        categories: [ food ]
+        items: [ smoker, campfire, soul_campfire, bowl, sugar, egg, milk_bucket, cake ]
+      - sell: 10
+        items: [ "cooked_*", bread, baked_potato, pumpkin_pie, cookie, cake, rabbit_stew, beetroot_soup,
+                 mushroom_stew, golden_carrot ]
+        says: "10% more selling cooked food"
+
+  farmer:
+    title: Farmer
+    icon: wheat
+    colour: "#9bc53d"
+    description:
+      - "Grows what the cook cooks."
+    perks:
+      - buy: 25
+        items: [ "*_seeds", "*_sapling", "*_hoe", bone_meal, composter, hay_block, wheat, carrot, potato,
+                 sugar_cane, lead, pumpkin, melon ]
+        says: "25% off buying seeds, saplings, hoes and bone meal"
+      - sell: 15
+        items: [ wheat, carrot, potato, beetroot, melon_slice, pumpkin, sugar_cane, cactus, bamboo,
+                 cocoa_beans, sweet_berries, egg, leather, feather, "*_wool", beef, porkchop, chicken,
+                 mutton, rabbit ]
+        says: "15% more selling crops and what animals give"
+
+  builder:
+    title: Builder
+    icon: bricks
+    colour: "#c0703a"
+    description:
+      - "Puts the server up, block by block."
+    perks:
+      - buy: 20
+        categories: [ building_blocks ]
+        items: [ scaffolding, ladder, "*glass*" ]
+        except: [ "*_ore", ancient_debris, "raw_*_block", coal_block, iron_block, gold_block, diamond_block,
+                  emerald_block, lapis_block, redstone_block, netherite_block, copper_block, glass_bottle ]
+        says: "20% off building blocks, glass, scaffolding and ladders"
+      - buy: 15
+        categories: [ decorations ]
+        says: "15% off decoration"
+
+  explorer:
+    title: Explorer
+    icon: compass
+    colour: "#3fa7d6"
+    description:
+      - "Always somewhere else."
+    perks:
+      - buy: 35
+        items: [ firework_rocket ]
+      - buy: 20
+        categories: [ transportation ]
+        items: [ compass, recovery_compass, map, spyglass, clock, ender_pearl, torch, lantern, "*_bed" ]
+        says: "20% off boats, rails, saddles, maps, torches and beds"
+
+  miner:
+    title: Miner
+    icon: iron_pickaxe
+    colour: "#8d99ae"
+    description:
+      - "Knows what is down there."
+    perks:
+      - buy: 20
+        items: [ "*_pickaxe", "*_shovel", torch, ladder, tnt, rail, minecart ]
+        says: "20% off pickaxes, shovels, torches and TNT"
+      - sell: 10
+        items: [ coal, raw_iron, raw_gold, raw_copper, iron_ingot, gold_ingot, copper_ingot, diamond, emerald,
+                 lapis_lazuli, redstone, quartz, amethyst_shard, "*_ore" ]
+        says: "10% more selling ores and what they give"
+
+  mage:
+    title: Mage
+    icon: enchanting_table
+    colour: "#9b5de5"
+    description:
+      - "Has a book for everything."
+    perks:
+      - buy: 25
+        items: [ enchanted_book ]
+      - buy: 20
+        categories: [ brewing ]
+        items: [ lapis_lazuli, experience_bottle, book, bookshelf, enchanting_table, anvil, grindstone,
+                 glowstone_dust, redstone ]
+        says: "20% off lapis, books, bookshelves, anvils and potion making"
+      - sell: 10
+        items: [ blaze_rod, ghast_tear, phantom_membrane, nether_wart, amethyst_shard ]
+
+  hunter:
+    title: Hunter
+    icon: bow
+    colour: "#d64545"
+    description:
+      - "Out at night on purpose."
+    perks:
+      - buy: 20
+        categories: [ combat ]
+        says: "20% off weapons, armour and arrows"
+      - sell: 15
+        items: [ rotten_flesh, bone, string, spider_eye, gunpowder, ender_pearl, slime_ball, blaze_rod,
+                 ghast_tear, phantom_membrane, magma_cream, ink_sac, prismarine_shard ]
+        says: "15% more selling what monsters drop"
+
+  engineer:
+    title: Engineer
+    icon: redstone
+    colour: "#ef476f"
+    description:
+      - "Makes it do it by itself."
+    perks:
+      - buy: 25
+        categories: [ redstone ]
+        items: [ rail, powered_rail, detector_rail, activator_rail, minecart, hopper_minecart ]
+        says: "25% off redstone and rails"

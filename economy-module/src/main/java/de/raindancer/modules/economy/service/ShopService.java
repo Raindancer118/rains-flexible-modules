@@ -15,7 +15,11 @@ import de.raindancer.modules.economy.model.PricedNames;
 import de.raindancer.modules.economy.model.RecipeShape;
 import de.raindancer.modules.economy.model.SaleLot;
 import de.raindancer.modules.economy.model.TransactionKind;
+import de.raindancer.modules.economy.rules.PersonalPriceRule;
 import de.raindancer.modules.economy.rules.TradePriceRule;
+import de.raindancer.modules.economy.model.YourPrice;
+import de.raindancer.core.social.economy.PersonalPrice;
+import de.raindancer.core.social.economy.PriceModifiers;
 import de.raindancer.modules.economy.store.CashTags;
 import de.raindancer.modules.economy.store.MarketBook;
 import de.raindancer.modules.economy.store.PriceBook;
@@ -32,6 +36,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -51,6 +56,7 @@ public final class ShopService implements IEconomyService {
     private final Effects effects;
     private final SettingsStore<EconomySettings> store;
     private final TradePriceRule trade = new TradePriceRule();
+    private final PersonalPriceRule personal = new PersonalPriceRule();
     private final de.raindancer.modules.economy.rules.EnchantValueRule enchants =
             new de.raindancer.modules.economy.rules.EnchantValueRule();
     private final Supplier<List<RecipeShape>> recipes;
@@ -110,6 +116,16 @@ public final class ShopService implements IEconomyService {
         return prices.tag(material.name());
     }
 
+    /** What this player pays and is paid for one — the shop's price, changed by their role or the like. */
+    public YourPrice priceFor(UUID player, Material material) {
+        return personal.forPlayer(player, tag(material));
+    }
+
+    /** What this player pays for an enchanted book the shop offers at {@code price}. */
+    public PersonalPrice enchantPriceFor(UUID player, EnchantOffer offer) {
+        return PriceModifiers.buy(player, Material.ENCHANTED_BOOK.name(), offer.price());
+    }
+
     // ---------------------------------------------------------------------------- buying
 
     public void buy(Player player, Material material, int quantity) {
@@ -121,7 +137,7 @@ public final class ShopService implements IEconomyService {
             return;
         }
         int amount = Math.max(1, quantity);
-        Optional<Money> total = trade.total(tag.buy(), amount);
+        Optional<Money> total = personal.forPlayer(player.getUniqueId(), tag).buyFor(amount);
         if (total.isEmpty()) {
             refuse(player, "economy.not-an-amount");
             return;
@@ -197,10 +213,11 @@ public final class ShopService implements IEconomyService {
         }
         String name = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
                 .serialize(offer.enchantment().displayName(offer.level()));
-        EconomyResult result = economy.move(player.getUniqueId(), offer.price().negate(), TransactionKind.BUY,
+        Money price = enchantPriceFor(player.getUniqueId(), offer).price();
+        EconomyResult result = economy.move(player.getUniqueId(), price.negate(), TransactionKind.BUY,
                 "Enchanted book: " + name);
         if (!result.succeeded()) {
-            Outcomes.tell(messages, effects, player, EconomyResult.failed(result.outcome(), offer.price(),
+            Outcomes.tell(messages, effects, player, EconomyResult.failed(result.outcome(), price,
                     result.balance()), currency, "");
             return;
         }
@@ -208,7 +225,7 @@ public final class ShopService implements IEconomyService {
                 .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
         effects.play(player.getUniqueId(), Cues.REWARD);
         messages.send(player, "economy.shop.bought", "count", "1", "item", "Enchanted Book (" + name + ")",
-                "amount", currency.render(offer.price()));
+                "amount", currency.render(price));
     }
 
     /** What the shop hands over: a spawn egg it sold hatches a mob but never sets a spawner. */
@@ -231,6 +248,20 @@ public final class ShopService implements IEconomyService {
             left -= part;
         }
         return stacks;
+    }
+
+    /** What a pack's contents push on supply and demand: the same as buying them one by one. */
+    public void boughtInPack(List<de.raindancer.modules.economy.model.PackItem> contents) {
+        EconomySettings live = settings;
+        if (!live.dynamicPrices()) {
+            return;
+        }
+        for (var each : contents) {
+            if (prices.tag(each.material()).source() != PriceTag.Source.CUSTOM) {
+                market.traded(each.material(), each.amount(), prices.stackSizeOf(each.material()),
+                        live.pressurePerStackClamped(), true, live.recoveryHoursClamped());
+            }
+        }
     }
 
     // ---------------------------------------------------------------------------- selling
@@ -263,7 +294,7 @@ public final class ShopService implements IEconomyService {
             refuse(player, "economy.shop.nothing-in-hand");
             return;
         }
-        Optional<SaleLot> lot = appraise(held, player.getInventory().getHeldItemSlot());
+        Optional<SaleLot> lot = appraise(player.getUniqueId(), held, player.getInventory().getHeldItemSlot());
         if (lot.isPresent() && !lot.get().plain()) {
             sellLot(player, lot.get());
         } else {
@@ -276,7 +307,7 @@ public final class ShopService implements IEconomyService {
      * enchanted or worn ones one at a time, for more or for less. A renamed item is valued as itself; an
      * item carrying anything else (lore, plugin data, contents) is not bought at all.
      */
-    public Optional<SaleLot> appraise(ItemStack stack, int slot) {
+    public Optional<SaleLot> appraise(UUID seller, ItemStack stack, int slot) {
         if (stack == null || stack.getType().isAir() || CashTags.isCash(stack)
                 || de.raindancer.core.content.items.NonIngredients.isMarked(stack)) {
             return Optional.empty();
@@ -285,7 +316,7 @@ public final class ShopService implements IEconomyService {
         if (sellableStack(stack, material)) {
             PriceTag tag = tag(material);
             return tag.sellable()
-                    ? trade.total(tag.sell(), stack.getAmount()).map(total -> new SaleLot(material, -1,
+                    ? personal.forPlayer(seller, tag).sellFor(stack.getAmount()).map(total -> new SaleLot(material, -1,
                     stack.getAmount(), total, Catalogue.readable(material.name())))
                     : Optional.empty();
         }
@@ -346,7 +377,7 @@ public final class ShopService implements IEconomyService {
         ItemStack[] contents = player.getInventory().getStorageContents();
         for (int slot = 0; slot < contents.length; slot++) {
             ItemStack stack = contents[slot];
-            Optional<SaleLot> lot = appraise(stack, slot);
+            Optional<SaleLot> lot = appraise(player.getUniqueId(), stack, slot);
             if (lot.isEmpty()) {
                 continue;
             }
@@ -357,7 +388,8 @@ public final class ShopService implements IEconomyService {
             }
         }
         List<SaleLot> all = new ArrayList<>();
-        plain.forEach((material, count) -> trade.total(tag(material).sell(), count).ifPresent(total ->
+        plain.forEach((material, count) -> priceFor(player.getUniqueId(), material).sellFor(count)
+                .ifPresent(total ->
                 all.add(new SaleLot(material, -1, count, total, Catalogue.readable(material.name())))));
         all.addAll(special);
         return all;
@@ -391,7 +423,7 @@ public final class ShopService implements IEconomyService {
         }
         PlayerInventory inventory = player.getInventory();
         ItemStack there = inventory.getItem(lot.slot());
-        Optional<SaleLot> now = appraise(there, lot.slot());
+        Optional<SaleLot> now = appraise(player.getUniqueId(), there, lot.slot());
         if (now.isEmpty() || now.get().plain() || !now.get().total().equals(lot.total())) {
             refuse(player, "economy.shop.changed");
             return;
@@ -434,7 +466,7 @@ public final class ShopService implements IEconomyService {
                 }
                 continue;
             }
-            Optional<Money> worth = trade.total(tag.sell(), removed);
+            Optional<Money> worth = personal.forPlayer(player.getUniqueId(), tag).sellFor(removed);
             if (worth.isEmpty()) {
                 giveBack(player, material, removed);
                 continue;

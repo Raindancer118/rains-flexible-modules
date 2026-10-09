@@ -7,7 +7,9 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.modules.economy.EconomyServices;
 import de.raindancer.modules.economy.model.PriceTag;
+import de.raindancer.modules.economy.model.YourPrice;
 import de.raindancer.modules.economy.util.Mini;
+import de.raindancer.modules.economy.util.PriceLines;
 import de.raindancer.modules.economy.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -90,10 +92,13 @@ public final class ShopItemsMenu extends PaginatedMenu<Material> implements IEco
 
     @Override
     protected ItemStack icon(Material material) {
-        PriceTag tag = services.shop().tag(material);
+        YourPrice yours = services.shop().priceFor(viewer.getUniqueId(), material);
+        PriceTag tag = yours.shop();
         List<String> lore = new ArrayList<>();
-        lore.add(tag.buyable() ? "<gray>Buy: " + Mini.of(services.currency().render(tag.buy())) : "<dark_gray>Not sold");
-        lore.add(tag.sellable() ? "<gray>Sell: " + Mini.of(services.currency().render(tag.sell())) : "<dark_gray>Not bought");
+        lore.add(tag.buyable() ? "<gray>Buy: " + PriceLines.amount(services.currency(), tag.buy(), yours.buy(),
+                yours.buyChange()) : "<dark_gray>Not sold");
+        lore.add(tag.sellable() ? "<gray>Sell: " + PriceLines.amount(services.currency(), tag.sell(), yours.sell(),
+                yours.sellChange()) : "<dark_gray>Not bought");
         String trend = trend(services.shop().prices().multiplier(material.name()));
         if (!trend.isEmpty()) {
             lore.add(trend);

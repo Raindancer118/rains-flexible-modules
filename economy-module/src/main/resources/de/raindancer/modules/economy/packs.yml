@@ -1,0 +1,122 @@
+# The packs the shop sells. A pack is one item; right click it to unpack everything inside.
+#
+#   title        what the pack is called
+#   icon         the item it looks like
+#   description  lines under the name
+#   contents     item: how many — plain items only, the way the shop sells them
+#   price        leave out to price it from its contents (each buyer's own prices, less the pack discount
+#                set in /eco). With a price it costs exactly that.
+#   once         true: each player may buy it only once
+#
+# Read again with /eco packs. Delete this file to get the shipped packs back.
+packs:
+  starter:
+    title: Starter Pack
+    icon: chest
+    once: true
+    description:
+      - "A soft landing for your first night."
+      - "One each."
+    price: 100
+    contents:
+      stone_pickaxe: 1
+      stone_axe: 1
+      stone_sword: 1
+      bread: 16
+      torch: 16
+      white_bed: 1
+      crafting_table: 1
+
+  explorer:
+    title: Explorer's Pack
+    icon: compass
+    description:
+      - "Everything for a long trip out."
+    contents:
+      cooked_beef: 16
+      torch: 32
+      white_bed: 1
+      oak_boat: 1
+      compass: 1
+      map: 1
+      bucket: 1
+      shield: 1
+      firework_rocket: 16
+
+  builder:
+    title: Builder's Pack
+    icon: bricks
+    description:
+      - "A good start on a house."
+    contents:
+      stone_bricks: 64
+      oak_planks: 64
+      glass: 32
+      scaffolding: 32
+      ladder: 16
+      oak_door: 2
+
+  miner:
+    title: Miner's Pack
+    icon: iron_pickaxe
+    description:
+      - "Down you go."
+    contents:
+      iron_pickaxe: 1
+      iron_shovel: 1
+      torch: 64
+      bread: 16
+      ladder: 16
+      bucket: 1
+
+  cook:
+    title: Cook's Pack
+    icon: smoker
+    description:
+      - "A kitchen in a box."
+    contents:
+      smoker: 1
+      campfire: 1
+      coal: 16
+      beef: 16
+      potato: 16
+      carrot: 16
+      bowl: 8
+
+  farmer:
+    title: Farmer's Pack
+    icon: wheat
+    description:
+      - "Seeds, a hoe and something to make them grow."
+    contents:
+      iron_hoe: 1
+      wheat_seeds: 32
+      carrot: 8
+      potato: 8
+      bone_meal: 32
+      composter: 1
+
+  mage:
+    title: Mage's Pack
+    icon: enchanting_table
+    description:
+      - "The makings of an enchanting room."
+    contents:
+      enchanting_table: 1
+      bookshelf: 15
+      lapis_lazuli: 32
+      book: 8
+      anvil: 1
+
+  hunter:
+    title: Hunter's Pack
+    icon: bow
+    description:
+      - "For the night shift."
+    contents:
+      bow: 1
+      arrow: 64
+      iron_sword: 1
+      shield: 1
+      cooked_beef: 16
+      iron_chestplate: 1

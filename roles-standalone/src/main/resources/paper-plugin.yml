@@ -1,0 +1,26 @@
+# Same shape as every other standalone here — see rtp-standalone's copy for why each line matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '1.21'
+description: 'Roles players pick with /role, each paying less in the shop for what it works with.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# A command, a menu and a price lookup; nothing touches the world.
+folia-supported: true
+
+# The economy is reached through RainsCore's PriceModifiers, so this loads without RainsEconomy —
+# and the perks simply change nothing until a shop asks.
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

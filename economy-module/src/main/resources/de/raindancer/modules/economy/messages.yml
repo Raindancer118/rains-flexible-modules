@@ -33,7 +33,7 @@ economy:
     bill: "<gray>/bill <player> <amount> [what for]"
     dice: "<gray>/dice <amount> <over|under> <number from 1 to 100>"
     lottery: "<gray>/lottery  ·  /lottery buy [tickets]  ·  /lottery buy <your numbers>  ·  /lottery info"
-    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm|coin  ·  /eco auction stop|clear  ·  /eco raffle <prize> <ticket price> [length] | cancel <number>  ·  /eco giveaway <prize> [length] | cancel <number>  ·  /eco tax <percent> [confirm]  ·  /eco loan <player> [forgive]"
+    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm|coin  ·  /eco auction stop|clear  ·  /eco raffle <prize> <ticket price> [length] | cancel <number>  ·  /eco giveaway <prize> [length] | cancel <number>  ·  /eco tax <percent> [confirm]  ·  /eco loan <player> [forgive]  ·  /eco packs [give <player> <pack>]"
     loan: "<gray>/loan  ·  /loan take <amount>  ·  /loan repay [amount|all]"
     hire: "<gray>/hire <player> <wage> <every, like 1h or 30m> [job]  ·  /hire list  ·  /hire fire|quit <player>"
     raffle: "<gray>/raffle  ·  /raffle start <ticket price> [length, like 30m] [most tickets] [per player]  ·  /raffle money <prize> <ticket price> [length] [most tickets] [per player]  ·  /raffle buy <number> [tickets]  ·  /raffle cancel <number>  ·  /raffle info"
@@ -96,6 +96,18 @@ economy:
     bought: "<green>You bought <count> × <white><item></white> for <amount><green>."
     enchant-gone: "<red>That book is no longer for sale at that price. Nothing was taken."
     sold: "<green>You sold <white><what></white> for <amount><green>."
+
+  packs:
+    off: "<red>Packs are switched off on this server."
+    unknown: "<red>There is no such pack. <gray>/eco packs</gray> reads packs.yml again."
+    not-for-sale: "<red>The <pack> is not for sale: something in it has no price in the shop."
+    once: "<red>You have had the <pack> already. It is one each."
+    bought: "<green>You bought the <white><pack></white> for <amount><green>. Right click it to unpack."
+    unpacked: "<green>You unpacked the <white><pack></white>."
+    empty: "<red>There is nothing in this pack that this server knows."
+    no-room: "<red>That pack holds <stacks> stack(s). Make room first."
+    given: "<green>Gave <white><player></white> the <white><pack></white>."
+    reloaded: "<green>packs.yml read: <white><count></white> pack(s)."
 
   earn:
     income: "<green>Income: <amount><green> for <minutes> minutes online."
