@@ -165,13 +165,14 @@ public final class AccountBook {
             List<Contract> jobs = new ArrayList<>();
             try (PreparedStatement select = connection.prepareStatement(
                     "SELECT id, employer, employer_name, employee, employee_name, wage, every, next_at, missed, title, "
-                            + "since FROM contract ORDER BY since");
+                            + "since, kind FROM contract ORDER BY since");
                  ResultSet rows = select.executeQuery()) {
                 while (rows.next()) {
                     jobs.add(new Contract(UUID.fromString(rows.getString(1)), UUID.fromString(rows.getString(2)),
                             rows.getString(3), UUID.fromString(rows.getString(4)), rows.getString(5),
                             Money.of(rows.getLong(6)), rows.getInt(7), rows.getLong(8), rows.getInt(9),
-                            rows.getString(10), rows.getLong(11)));
+                            rows.getString(10), rows.getLong(11),
+                            "SERVICE".equals(rows.getString(12)) ? Contract.Kind.SERVICE : Contract.Kind.JOB));
                 }
             }
             List<Loan> lent = new ArrayList<>();
@@ -900,8 +901,10 @@ public final class AccountBook {
                 if (due.nextAt() > now) {
                     continue;
                 }
+                String word = due.isService() ? "Contract" : "Wage";
                 EconomyResult paid = transfer(due.employer(), due.employee(), due.wage(), Money.ZERO,
-                        TransactionKind.WAGE, due.title().isEmpty() ? "Wage" : "Wage: " + due.title(), most);
+                        due.isService() ? TransactionKind.CONTRACT : TransactionKind.WAGE,
+                        due.title().isEmpty() ? word : word + ": " + due.title(), most);
                 if (paid.succeeded()) {
                     Contract next = due.paid(now);
                     contracts.put(due.id(), next);
@@ -1792,7 +1795,7 @@ public final class AccountBook {
                 }
                 try (PreparedStatement upsert = connection.prepareStatement(
                         "INSERT INTO contract (id, employer, employer_name, employee, employee_name, wage, every, next_at, "
-                                + "missed, title, since) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE "
+                                + "missed, title, since, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE "
                                 + "SET next_at = excluded.next_at, missed = excluded.missed, wage = excluded.wage");
                      PreparedStatement delete = connection.prepareStatement("DELETE FROM contract WHERE id = ?")) {
                     for (Map.Entry<UUID, Contract> each : contractWrites.entrySet()) {
@@ -1813,6 +1816,7 @@ public final class AccountBook {
                         upsert.setInt(9, job.missed());
                         upsert.setString(10, job.title());
                         upsert.setLong(11, job.since());
+                        upsert.setString(12, job.kind().name());
                         upsert.executeUpdate();
                     }
                 }

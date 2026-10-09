@@ -306,6 +306,28 @@ class AccountBookTest {
     }
 
     @Test
+    @DisplayName("a service contract — rent — is paid on the statement as a contract, and stays one after a restart")
+    void serviceContract() {
+        book.open(alice, "Alice", Money.of(1_000));
+        book.open(bob, "Bob", Money.ZERO);
+        UUID rent = UUID.randomUUID();
+        book.hire(new de.raindancer.modules.economy.model.Contract(rent, alice, "Alice", bob, "Bob", Money.of(300), 1440,
+                10L, 0, "Apartment 3", 1L, de.raindancer.modules.economy.model.Contract.Kind.SERVICE));
+
+        assertThat(book.payroll(10L, 3, most)).extracting(de.raindancer.modules.economy.model.Payday::kind)
+                .containsExactly(de.raindancer.modules.economy.model.Payday.Kind.PAID);
+        assertThat(book.balance(bob)).isEqualTo(Money.of(300));
+        assertThat(book.history(bob, 5, 0)).anySatisfy(line -> {
+            assertThat(line.kind()).isEqualTo(de.raindancer.modules.economy.model.TransactionKind.CONTRACT);
+            assertThat(line.reason()).isEqualTo("Contract: Apartment 3");
+        });
+
+        AccountBook fresh = reopened();
+        assertThat(fresh.contractsOf(alice).getFirst().kind())
+                .isEqualTo(de.raindancer.modules.economy.model.Contract.Kind.SERVICE);
+    }
+
+    @Test
     @DisplayName("hammered from eight threads at once, not one cent appears or disappears")
     void concurrency() throws InterruptedException {
         int people = 8;

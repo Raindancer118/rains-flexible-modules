@@ -57,10 +57,12 @@ public final class EconomyDatabase {
             // The loan limit reads only the last hours of play, spending and money between players included.
             "ALTER TABLE credit_hour ADD COLUMN spent INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE credit_hour ADD COLUMN received INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE credit_hour ADD COLUMN paid INTEGER NOT NULL DEFAULT 0");
+            "ALTER TABLE credit_hour ADD COLUMN paid INTEGER NOT NULL DEFAULT 0",
+            // A contract is a job or a service (rent); every one from before is a job.
+            "ALTER TABLE contract ADD COLUMN kind TEXT NOT NULL DEFAULT 'JOB'");
 
     /** The first step of the lifetime totals — the steps before it are what a server had until then. */
-    public static final int FIRST_CREDIT_STEP = SCHEMA.size() - 7;
+    public static final int FIRST_CREDIT_STEP = SCHEMA.size() - 8;
 
     private EconomyDatabase() {
     }

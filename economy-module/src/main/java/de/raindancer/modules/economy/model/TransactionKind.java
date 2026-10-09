@@ -16,6 +16,7 @@ public enum TransactionKind {
     REWARD("Reward", Material.DIAMOND_PICKAXE),
     INCOME("Income", Material.CLOCK),
     WAGE("Wage", Material.WRITABLE_BOOK),
+    CONTRACT("Contract", Material.BOOK),
     DAILY("Daily reward", Material.SUNFLOWER),
     INTEREST("Interest", Material.EXPERIENCE_BOTTLE),
     GAMBLE("Game of chance", Material.GOLD_BLOCK),

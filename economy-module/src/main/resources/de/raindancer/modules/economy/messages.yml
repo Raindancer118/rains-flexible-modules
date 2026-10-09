@@ -31,6 +31,7 @@ economy:
   usage:
     pay: "<gray>/pay <player> <amount>"
     bill: "<gray>/bill <player> <amount> [what for]"
+    contract: "<gray>/contract pay <player> <amount> <every, like 1d> <what>  ·  /contract charge <player> <amount> <every> <what>  ·  /contract list  ·  /contract end <player>"
     dice: "<gray>/dice <amount> <over|under> <number from 1 to 100>"
     lottery: "<gray>/lottery  ·  /lottery buy [tickets]  ·  /lottery buy <your numbers>  ·  /lottery info"
     eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm|coin  ·  /eco auction stop|clear  ·  /eco raffle <prize> <ticket price> [length] | cancel <number>  ·  /eco giveaway <prize> [length] | cancel <number>  ·  /eco tax <percent> [confirm]  ·  /eco loan <player> [forgive]  ·  /eco packs [give <player> <pack>]"
@@ -362,6 +363,25 @@ economy:
     could-not-pay: "<red>You could not pay <white><player></white>'s wage of <amount><red> — top up your account."
     ended: "<red>Your job for <player> ended: too many wages were missed."
     ended-employer: "<red><player>'s job ended: you missed too many wages."
+
+  contract:
+    off: "<red>Contracts are switched off on this server."
+    yourself: "<red>A contract with yourself? Your accountant would like a word."
+    too-many: "<red><white><player></white> already pays as many contracts and wages as anybody may (<most>)."
+    offered-pay: "<gray>You offered <white><player></white> <amount><gray> every <every> for <white><what></white>. Waiting for an answer."
+    offered-charge: "<gray>You asked <white><player></white> to pay you <amount><gray> every <every> for <white><what></white>. Waiting for an answer."
+    offer-pay: "<yellow><white><player></white> offers to pay you <amount><yellow> every <every> for <white><what></white>. <buttons>"
+    offer-charge: "<yellow><white><player></white> asks you to pay them <amount><yellow> every <every> for <white><what></white>. <buttons>"
+    declined: "<red><player> turned the contract down."
+    started-payer: "<green>Contract made: you pay <white><player></white> <amount><green> every <every> for <white><what></white>."
+    started-payee: "<green>Contract made: <white><player></white> pays you <amount><green> every <every> for <white><what></white>."
+    paid: "<green><white><player></white> paid <amount><green> for <white><what></white>."
+    missed: "<red><player> could not pay <amount><red> for <what> (<count> missed in a row)."
+    could-not-pay: "<red>You could not pay <white><player></white> <amount><red> for <what> — top up your account."
+    ended: "<red>The contract with <player> for <what> ended: too many payments were missed."
+    you-ended: "<gray>You ended the contract with <white><player></white> for <white><what></white>."
+    ended-by: "<red><player> ended the contract for <what>."
+    not-yours: "<red>You have no contract with anybody of that name."
 
   admin:
     coin: "<green>Coins are now made of <white><item></white>. Coins already out keep working."

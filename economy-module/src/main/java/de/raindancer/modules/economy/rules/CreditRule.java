@@ -31,7 +31,7 @@ public final class CreditRule implements IEconomyRule {
             TransactionKind.INCOME, TransactionKind.DAILY, TransactionKind.INTEREST);
     public static final Set<TransactionKind> SPENDING = Set.of(TransactionKind.BUY, TransactionKind.TAX,
             TransactionKind.FEE);
-    public static final Set<TransactionKind> BETWEEN_PLAYERS = Set.of(TransactionKind.PAY, TransactionKind.WAGE,
+    public static final Set<TransactionKind> BETWEEN_PLAYERS = Set.of(TransactionKind.PAY, TransactionKind.WAGE, TransactionKind.CONTRACT,
             TransactionKind.BILL,
             TransactionKind.AUCTION, TransactionKind.PLUGIN);
     public static final Set<TransactionKind> GAMBLING = Set.of(TransactionKind.GAMBLE, TransactionKind.LOTTERY,

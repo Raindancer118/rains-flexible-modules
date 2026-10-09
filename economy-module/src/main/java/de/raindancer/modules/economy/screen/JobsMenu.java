@@ -29,7 +29,7 @@ public final class JobsMenu extends PaginatedMenu<Contract> implements IEconomyS
 
     @Override
     protected Component title() {
-        return MiniMessage.miniMessage().deserialize("<dark_gray>Jobs");
+        return MiniMessage.miniMessage().deserialize("<dark_gray>Jobs & contracts");
     }
 
     @Override
@@ -44,12 +44,25 @@ public final class JobsMenu extends PaginatedMenu<Contract> implements IEconomyS
 
     @Override
     protected ItemStack emptyIcon() {
-        return Icons.of(Material.COBWEB, "<gray>No jobs", "<dark_gray>/hire <player> <wage> <every> [job]");
+        return Icons.of(Material.COBWEB, "<gray>No jobs or contracts", "<dark_gray>/hire <player> <wage> <every> [job]",
+                "<dark_gray>/contract pay|charge <player> <amount> <every> <what>");
     }
 
     @Override
     protected ItemStack icon(Contract job) {
         boolean employer = job.employer().equals(viewer.getUniqueId());
+        if (job.isService()) {
+            Duration due = Duration.ofMillis(Math.max(0, job.nextAt() - System.currentTimeMillis()));
+            String what = MiniMessage.miniMessage().escapeTags(job.title());
+            return Icons.head(employer ? job.employee() : job.employer(),
+                    (employer ? "<yellow>You pay " + job.employeeName() : "<green>" + job.employerName() + " pays you")
+                            + " <gray>for <white>" + what,
+                    "<gray>" + Mini.of(services.currency().render(job.wage())) + " <gray>every "
+                            + Times.describe(Duration.ofMinutes(job.everyMinutes())),
+                    "<gray>Next payment in " + Times.describe(due),
+                    job.missed() > 0 ? "<red>" + job.missed() + " payment(s) missed" : "",
+                    "", "<yellow>Click<gray> to end the contract");
+        }
         String other = employer ? job.employeeName() : job.employerName();
         Duration next = Duration.ofMillis(Math.max(0, job.nextAt() - System.currentTimeMillis()));
         return Icons.head(employer ? job.employee() : job.employer(),
@@ -66,6 +79,16 @@ public final class JobsMenu extends PaginatedMenu<Contract> implements IEconomyS
     protected void onClick(Contract job, InventoryClickEvent event) {
         boolean employer = job.employer().equals(viewer.getUniqueId());
         String other = employer ? job.employeeName() : job.employerName();
+        if (job.isService()) {
+            new ConfirmScreen(viewer, services.brand(), this, "<red>End the contract?",
+                    List.of("<gray>" + MiniMessage.miniMessage().escapeTags(job.title()) + " with " + other + ".",
+                            employer ? "<gray>You stop paying." : "<gray>They stop paying you."),
+                    () -> {
+                        services.hire().end(viewer, job);
+                        open();
+                    }).open();
+            return;
+        }
         new ConfirmScreen(viewer, services.brand(), this, employer ? "<red>Let " + other + " go?" : "<red>Quit?",
                 List.of(employer ? "<gray>No more wages are paid to them." : "<gray>No more wages from " + other + "."),
                 () -> {
