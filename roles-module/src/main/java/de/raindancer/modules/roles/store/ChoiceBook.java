@@ -43,7 +43,8 @@ public final class ChoiceBook {
             }
             try {
                 UUID player = UUID.fromString(key);
-                choices.put(player, new Choice(player, role, each.getLong("chosen-at", 0L)));
+                long chosen = each.getLong("chosen-at", 0L);
+                choices.put(player, new Choice(player, role, chosen, each.getLong("held-since", chosen)));
             } catch (IllegalArgumentException notAPlayer) {
                 // Skipped; the rest still count.
             }
@@ -98,6 +99,7 @@ public final class ChoiceBook {
             String path = "choices." + choice.player();
             yaml.set(path + ".role", choice.role());
             yaml.set(path + ".chosen-at", choice.chosenAt());
+            yaml.set(path + ".held-since", choice.heldSince());
         }));
     }
 }

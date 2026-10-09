@@ -95,13 +95,18 @@ public final class ShopItemsMenu extends PaginatedMenu<Material> implements IEco
         YourPrice yours = services.shop().priceFor(viewer.getUniqueId(), material);
         PriceTag tag = yours.shop();
         List<String> lore = new ArrayList<>();
-        lore.add(tag.buyable() ? "<gray>Buy: " + PriceLines.amount(services.currency(), tag.buy(), yours.buy(),
-                yours.buyChange()) : "<dark_gray>Not sold");
-        lore.add(tag.sellable() ? "<gray>Sell: " + PriceLines.amount(services.currency(), tag.sell(), yours.sell(),
-                yours.sellChange()) : "<dark_gray>Not bought");
+        lore.add(tag.buyable() ? "<gray>Buy: " + PriceLines.amount(services.currency(), tag.buy(), yours.buy())
+                : "<dark_gray>Not sold");
+        lore.add(tag.sellable() ? "<gray>Sell: " + PriceLines.amount(services.currency(), tag.sell(), yours.sell())
+                : "<dark_gray>Not bought");
         String trend = trend(services.shop().prices().multiplier(material.name()));
         if (!trend.isEmpty()) {
             lore.add(trend);
+        }
+        lore.addAll(PriceLines.why(yours));
+        String bulk = PriceLines.bulk(yours.bulk());
+        if (!bulk.isEmpty()) {
+            lore.add(bulk);
         }
         lore.add("");
         lore.add("<yellow>Click<gray> to trade");

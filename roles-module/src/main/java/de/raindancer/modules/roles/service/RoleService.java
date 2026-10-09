@@ -8,6 +8,7 @@ import de.raindancer.modules.roles.model.ChangeVerdict;
 import de.raindancer.modules.roles.model.Choice;
 import de.raindancer.modules.roles.model.Role;
 import de.raindancer.modules.roles.rules.ChangeRule;
+import de.raindancer.modules.roles.rules.TenureRule;
 import de.raindancer.modules.roles.store.ChoiceBook;
 import de.raindancer.modules.roles.store.RoleCatalogue;
 import org.bukkit.Server;
@@ -30,6 +31,7 @@ public final class RoleService implements IRolesService {
     private final Messages messages;
     private final LongSupplier clock;
     private final ChangeRule rule = new ChangeRule();
+    private final TenureRule tenure = new TenureRule();
     /** Staff currently skipping the wait. Not saved: a bypass left on is a bypass forgotten about. */
     private final Set<UUID> bypassing = ConcurrentHashMap.newKeySet();
     private volatile RolesSettings settings;
@@ -109,7 +111,8 @@ public final class RoleService implements IRolesService {
             }
             return false;
         }
-        if (!choices.put(new Choice(player.getUniqueId(), role.id(), clock.getAsLong()))) {
+        long now = clock.getAsLong();
+        if (!choices.put(new Choice(player.getUniqueId(), role.id(), now, now))) {
             messages.send(player, "roles.not-saved");
             return false;
         }
@@ -137,14 +140,44 @@ public final class RoleService implements IRolesService {
         if (role.isEmpty()) {
             return choices.clear(player);
         }
-        return choices.put(new Choice(player, role.get().id(), clock.getAsLong()));
+        long now = clock.getAsLong();
+        return choices.put(new Choice(player, role.get().id(), now, now));
     }
 
     /** Lets a player change straight away, keeping the role they have. */
     public boolean endWait(UUID player) {
         Optional<Choice> current = choices.of(player);
         return current.isEmpty() || choices.put(new Choice(player, current.get().role(),
-                clock.getAsLong() - settings.changeEvery().toMillis()));
+                clock.getAsLong() - settings.changeEvery().toMillis(), current.get().heldSince()));
+    }
+
+    /** How strong this player's perks are by now, 0 to 1. */
+    public double strength(UUID player) {
+        RolesSettings live = settings;
+        return choices.of(player).map(choice -> tenure.strength(choice.heldSince(), clock.getAsLong(),
+                live.startShare(), live.fullAfterDays())).orElse(0.0);
+    }
+
+    /** A perk as a brand-new holder of the role has it. */
+    public int perkFresh(int fullPercent) {
+        RolesSettings live = settings;
+        return tenure.scaled(fullPercent, tenure.strength(0, 0, live.startShare(), live.fullAfterDays()));
+    }
+
+    public int fullAfterDays() {
+        return settings.fullAfterDays();
+    }
+
+    /** A perk as this player has it now. */
+    public int perkNow(UUID player, int fullPercent) {
+        return tenure.scaled(fullPercent, strength(player));
+    }
+
+    /** How long until this player's perks are full; zero when they are. */
+    public Duration untilFull(UUID player) {
+        RolesSettings live = settings;
+        return choices.of(player).map(choice -> tenure.untilFull(choice.heldSince(), clock.getAsLong(),
+                live.fullAfterDays())).orElse(Duration.ZERO);
     }
 
     public int reload() {

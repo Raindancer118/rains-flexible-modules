@@ -7,7 +7,9 @@ import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
+import de.raindancer.core.ui.profile.ProfileExtensions;
 import de.raindancer.modules.roles.listener.RoleListener;
+import de.raindancer.modules.roles.screen.RoleProfileButton;
 import de.raindancer.modules.roles.service.RolePrices;
 import de.raindancer.modules.roles.service.RoleService;
 import de.raindancer.modules.roles.store.ChoiceBook;
@@ -22,7 +24,7 @@ import java.util.List;
  */
 public final class RolesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.2.0")
             .describedAs("Pick a role with /role — a cook, a builder, an explorer… — and pay less in the shop for what it works with")
             .by("Raindancer118");
 
@@ -64,6 +66,9 @@ public final class RolesModule implements FlexModule {
         context.closeWith(() -> PriceModifiers.retract(prices));
 
         context.listener(new RoleListener(services));
+        RoleProfileButton profile = new RoleProfileButton(() -> services);
+        ProfileExtensions.register(profile);
+        context.closeWith(() -> ProfileExtensions.unregister(profile));
         RolesCommands.ready(services);
         context.log().info("Roles are up: {} role(s), {} player(s) have one.", roles, choices.count());
     }

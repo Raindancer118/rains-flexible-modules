@@ -20,7 +20,8 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsEconomy</plugin.name>
         <!-- 0.19.0: role discounts (Core PriceModifiers) in the shop, sell capped under the buyer's own buy price; packs (packs.yml, /eco packs). -->
-        <plugin.version>0.19.0</plugin.version>
+        <!-- 0.20.0: bulk discount on building blocks and iron (shop.bulk-*, hard cap 30%), role and bulk shown on their own lines, every seed priced, more packs. -->
+        <plugin.version>0.20.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -3,6 +3,7 @@ package de.raindancer.modules.roles.rules;
 import de.raindancer.core.social.economy.PriceChange;
 import de.raindancer.core.social.economy.TradeSide;
 import de.raindancer.core.ui.choose.Category;
+import de.raindancer.core.ui.choose.ItemSelection;
 import de.raindancer.modules.roles.model.Perk;
 import de.raindancer.modules.roles.model.Role;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +24,7 @@ class PerkRuleTest {
     }
 
     private static Perk buy(int percent, List<Category> categories, List<String> items, List<String> except) {
-        return new Perk(TradeSide.BUY, percent, categories, items, except, "");
+        return new Perk(TradeSide.BUY, percent, new ItemSelection(categories, items, except), "");
     }
 
     @Test
@@ -52,8 +53,8 @@ class PerkRuleTest {
     void best() {
         Role explorer = role(buy(-20, List.of(Category.TRANSPORTATION), List.of(), List.of()),
                 buy(-35, List.of(), List.of("FIREWORK_ROCKET"), List.of()),
-                new Perk(TradeSide.SELL, 10, List.of(), List.of("FIREWORK_ROCKET"), List.of(), ""),
-                new Perk(TradeSide.SELL, 15, List.of(), List.of("FIREWORK_ROCKET"), List.of(), ""));
+                new Perk(TradeSide.SELL, 10, new ItemSelection(List.of(), List.of("FIREWORK_ROCKET"), List.of()), ""),
+                new Perk(TradeSide.SELL, 15, new ItemSelection(List.of(), List.of("FIREWORK_ROCKET"), List.of()), ""));
         assertThat(rule.change(explorer, "FIREWORK_ROCKET", TradeSide.BUY)).map(PriceChange::percent).contains(-35);
         assertThat(rule.change(explorer, "FIREWORK_ROCKET", TradeSide.SELL)).map(PriceChange::percent).contains(15);
     }
@@ -68,25 +69,14 @@ class PerkRuleTest {
     }
 
     @Test
-    @DisplayName("patterns: a star anywhere, case does not matter")
-    void patterns() {
-        assertThat(Perk.matches("*_log", "OAK_LOG")).isTrue();
-        assertThat(Perk.matches("cooked_*", "COOKED_BEEF")).isTrue();
-        assertThat(Perk.matches("*copper*", "WAXED_COPPER_BLOCK")).isTrue();
-        assertThat(Perk.matches("bread", "BREAD")).isTrue();
-        assertThat(Perk.matches("bread", "BREADS")).isFalse();
-        assertThat(Perk.matches("*_log", "OAK_LOGS")).isFalse();
-    }
-
-    @Test
     @DisplayName("a perk's line for the menu says how much, which way, and on what")
     void says() {
         assertThat(buy(-25, List.of(Category.FOOD), List.of("SMOKER"), List.of()).says())
                 .isEqualTo("25% off buying Food, Smoker");
-        assertThat(new Perk(TradeSide.SELL, 10, List.of(), List.of("WHEAT"), List.of(), "").says())
+        assertThat(new Perk(TradeSide.SELL, 10, new ItemSelection(List.of(), List.of("WHEAT"), List.of()), "").says())
                 .isEqualTo("10% more selling Wheat");
-        assertThat(new Perk(TradeSide.BUY, -5, List.of(), List.of("A"), List.of(), "Cheap rockets").says())
-                .isEqualTo("Cheap rockets");
+        assertThat(new Perk(TradeSide.BUY, -5, new ItemSelection(List.of(), List.of("A"), List.of()), "rockets").says())
+                .isEqualTo("5% off buying rockets");
         assertThat(buy(-20, List.of(), List.of("*_LOG", "A", "B", "C", "D", "E"), List.of()).says())
                 .startsWith("20% off buying ").endsWith("and 2 more");
     }

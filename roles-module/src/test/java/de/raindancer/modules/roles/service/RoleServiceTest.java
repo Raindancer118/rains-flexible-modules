@@ -139,14 +139,34 @@ class RoleServiceTest {
         RolePrices prices = new RolePrices(service, () -> RolesSettings.DEFAULTS);
         PriceModifiers.provide(mock(org.bukkit.plugin.Plugin.class), prices);
         service.choose(tom, cook);
-        assertThat(PriceModifiers.buy(tomId, "BREAD", Money.of(1000)).price()).isEqualTo(Money.of(750));
+        // A new cook has 40% of the 25%: 10%.
+        assertThat(PriceModifiers.buy(tomId, "BREAD", Money.of(1000)).price()).isEqualTo(Money.of(900));
         assertThat(PriceModifiers.buy(tomId, "STONE", Money.of(1000)).price()).isEqualTo(Money.of(1000));
         assertThat(PriceModifiers.buy(UUID.randomUUID(), "BREAD", Money.of(1000)).price()).isEqualTo(Money.of(1000));
 
         PriceModifiers.clear();
-        RolesSettings off = new RolesSettings(false, 72, true, true);
+        RolesSettings off = new RolesSettings(false, 72, true, true, 40, 14);
         PriceModifiers.provide(mock(org.bukkit.plugin.Plugin.class), new RolePrices(service, () -> off));
         assertThat(PriceModifiers.buy(tomId, "BREAD", Money.of(1000)).price()).isEqualTo(Money.of(1000));
+    }
+
+    @Test
+    @DisplayName("perks grow the longer a role is kept, to full after two weeks; a new role starts small again")
+    void tenure() {
+        PriceModifiers.provide(mock(org.bukkit.plugin.Plugin.class), new RolePrices(service, () -> RolesSettings.DEFAULTS));
+        service.choose(tom, cook);
+        now.addAndGet(7 * 24 * HOUR);
+        // 40% + half the way to 100% = 70% of 25% = 17.5 → 18%
+        assertThat(PriceModifiers.buy(tomId, "BREAD", Money.of(1000)).price()).isEqualTo(Money.of(820));
+        assertThat(service.untilFull(tomId)).isEqualTo(Duration.ofDays(7));
+        now.addAndGet(30 * 24 * HOUR);
+        assertThat(PriceModifiers.buy(tomId, "BREAD", Money.of(1000)).price()).isEqualTo(Money.of(750));
+        assertThat(service.perkNow(tomId, -25)).isEqualTo(-25);
+
+        assertThat(service.endWait(tomId)).isTrue();
+        assertThat(service.perkNow(tomId, -25)).as("ending a wait keeps what was grown").isEqualTo(-25);
+        service.choose(tom, builder);
+        assertThat(service.perkNow(tomId, -25)).as("a new role starts small").isEqualTo(-10);
     }
 
     @Test

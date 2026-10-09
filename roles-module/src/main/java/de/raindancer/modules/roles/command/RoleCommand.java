@@ -143,7 +143,9 @@ public final class RoleCommand implements IRolesCommand {
             return;
         }
         live.messages().send(sender, "roles.info", "player", name, "article", role.get().article(), "role", new Markup(role.get().coloured()));
-        role.get().perks().forEach(perk -> live.messages().send(sender, "roles.info-perk", "perk", perk.says()));
+        role.get().perks().forEach(perk -> live.messages().send(sender, "roles.info-perk",
+                "perk", perk.says(live.roles().perkNow(target.getUniqueId(), perk.percent())),
+                "full", String.valueOf(Math.abs(perk.percent()))));
         Duration left = live.roles().left(target.getUniqueId());
         if (left.isZero()) {
             live.messages().send(sender, "roles.info-change-now");

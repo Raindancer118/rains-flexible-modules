@@ -90,6 +90,9 @@ carrot: 10
 potato: 10
 beetroot: 10
 beetroot_seeds: 2
+# The sniffer's seeds: no recipe makes them, so they need a price of their own.
+torchflower_seeds: 25
+pitcher_pod: 25
 melon_slice: 3
 pumpkin: 30
 sugar_cane: 10

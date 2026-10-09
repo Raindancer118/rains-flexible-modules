@@ -5,6 +5,7 @@ import de.raindancer.core.social.economy.PriceModifier;
 import de.raindancer.core.social.economy.TradeSide;
 import de.raindancer.modules.roles.RolesSettings;
 import de.raindancer.modules.roles.rules.PerkRule;
+import de.raindancer.modules.roles.rules.TenureRule;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +20,7 @@ public final class RolePrices implements PriceModifier {
     private final RoleService roles;
     private final Supplier<RolesSettings> settings;
     private final PerkRule rule = new PerkRule();
+    private final TenureRule tenure = new TenureRule();
 
     public RolePrices(RoleService roles, Supplier<RolesSettings> settings) {
         this.roles = roles;
@@ -30,6 +32,9 @@ public final class RolePrices implements PriceModifier {
         if (!settings.get().perks()) {
             return Optional.empty();
         }
-        return roles.roleOf(player).flatMap(role -> rule.change(role, material, side));
+        double strength = roles.strength(player);
+        return roles.roleOf(player).flatMap(role -> rule.change(role, material, side))
+                .map(full -> new PriceChange(tenure.scaled(full.percent(), strength), full.reason()))
+                .filter(change -> change.percent() != 0);
     }
 }

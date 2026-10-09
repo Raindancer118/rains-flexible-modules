@@ -88,10 +88,10 @@ class RolesScenarioTest {
             // ---- the shop shows the price everybody pays crossed out, the cook's next to it, and charges that
             bo.run("shop cooked_beef");
             bo.awaitWindow("Cooked Beef");
-            Await.until("the button shows the cook's price", WAIT, () -> lore(bo, "Buy 16", "Cook")
-                    && lore(bo, "Buy 16", "25%"));
+            // A new cook has 40% of the full 15%: 6%, on a line of its own under the trend.
+            Await.until("the item says the cook's discount", WAIT, () -> lore(bo, "Cooked Beef", "Cook discount: 6%"));
             String line = bo.window().flatMap(window -> window.slotNamed("Buy 16").map(slot -> window.top().get(slot)))
-                    .orElseThrow().lore().stream().filter(text -> text.contains("Cook")).findFirst().orElseThrow();
+                    .orElseThrow().lore().stream().filter(text -> text.contains("For")).findFirst().orElseThrow();
             Matcher amounts = Pattern.compile("⛃([0-9,]+)").matcher(line);
             assertThat(amounts.find()).as(line).isTrue();
             long shown = Long.parseLong(amounts.group(1).replace(",", ""));
@@ -99,11 +99,59 @@ class RolesScenarioTest {
             long cooks = Long.parseLong(amounts.group(1).replace(",", ""));
             assertThat(shown).as("the crossed-out price is everybody's, as Bo paid before (%s)", line)
                     .isGreaterThanOrEqualTo(everybody);
-            assertThat(cooks).as("a quarter off the whole line, rounded up (%s)", line)
-                    .isEqualTo((shown * 75 + 99) / 100);
+            assertThat(cooks).as("6%% off the whole line, rounded up (%s)", line)
+                    .isEqualTo((shown * 94 + 99) / 100);
             bo.closeWindow();
             long cook = buySixteenBeef(bo);
             assertThat(cook).as("charged what the button said").isEqualTo(cooks);
+
+            // ---- the role is on the profile
+            bo.run("rprofile " + bo.id());
+            Await.until("the profile shows the role", WAIT, () -> bo.window()
+                    .flatMap(window -> window.slotNamed("Role: Cook")).isPresent());
+            bo.closeWindow();
+
+            // ---- bulk: two stacks of stone are 5% cheaper, and the button says so
+            ada.run("eco give Bo 20000");
+            Await.ticks(10);
+            bo.forgetChat();
+            Pattern stoneBought = Pattern.compile("You bought 128 × Stone for ⛃([0-9,]+)");
+            long bulkShown = 0;
+            long bulkPrice = 0;
+            for (int attempt = 0; attempt < 3 && bo.chatText().stream().noneMatch(text -> stoneBought.matcher(text).find()); attempt++) {
+                bo.run("shop stone");
+                bo.awaitWindow("Stone");
+                Await.until("the bulk button is there", WAIT, () -> lore(bo, "Buy 128", "Bulk: 5% off"));
+                String bulkLine = bo.window().flatMap(window -> window.slotNamed("Buy 128").map(slot -> window.top().get(slot)))
+                        .orElseThrow().lore().stream().filter(text -> text.contains("For")).findFirst().orElseThrow();
+                Matcher both = Pattern.compile("⛃([0-9,]+)").matcher(bulkLine);
+                assertThat(both.find()).as(bulkLine).isTrue();
+                bulkShown = Long.parseLong(both.group(1).replace(",", ""));
+                assertThat(both.find()).as(bulkLine).isTrue();
+                bulkPrice = Long.parseLong(both.group(1).replace(",", ""));
+                Await.ticks(10);
+                bo.clickSlot(bo.window().orElseThrow().slotNamed("Buy 128").orElseThrow());
+                Await.ticks(40);
+            }
+            String stoneLine = Await.value(() -> "stone is bought in bulk (heard " + bo.chatText() + ")", WAIT,
+                    () -> bo.chatText().stream().filter(text -> stoneBought.matcher(text).find()).findFirst().orElse(null));
+            Matcher paid = stoneBought.matcher(stoneLine);
+            assertThat(paid.find()).isTrue();
+            assertThat(bulkPrice).as("5%% off two stacks").isEqualTo((bulkShown * 95 + 99) / 100);
+            assertThat(Long.parseLong(paid.group(1).replace(",", ""))).as("charged what the button said").isEqualTo(bulkPrice);
+            bo.closeWindow();
+
+            // ---- every seed can be bought
+            for (String seed : List.of("wheat_seeds:Wheat Seeds", "beetroot_seeds:Beetroot Seeds",
+                    "melon_seeds:Melon Seeds", "pumpkin_seeds:Pumpkin Seeds", "torchflower_seeds:Torchflower Seeds",
+                    "pitcher_pod:Pitcher Pod")) {
+                String[] parts = seed.split(":");
+                bo.forgetChat();
+                bo.run("shop " + parts[0]);
+                bo.awaitWindow(parts[1].substring(0, Math.min(10, parts[1].length())));
+                Await.until(parts[1] + " is for sale", WAIT, () -> lore(bo, parts[1], "Buy one:"));
+                bo.closeWindow();
+            }
 
             // ---- three days before changing; same role is no change
             bo.forgetChat();

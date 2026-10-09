@@ -19,7 +19,7 @@ roles:
   reloaded: "<green>roles.yml read: <white><count></white> role(s)."
   info: "<gray><white><player></white> is <article> <role><gray>:"
   info-none: "<gray><white><player></white> has no role yet."
-  info-perk: "<dark_gray>  • <gray><perk>"
+  info-perk: "<dark_gray>  • <gray><perk> <dark_gray>(full: <full>%)"
   info-change: "<gray>Can change again in <white><left></white>."
   info-change-now: "<gray>Can change now."
   usage: "<gray>/role <dark_gray>— the roles · <gray>/role <role> · /role info"

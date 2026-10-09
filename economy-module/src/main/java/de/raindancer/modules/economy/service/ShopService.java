@@ -16,6 +16,9 @@ import de.raindancer.modules.economy.model.RecipeShape;
 import de.raindancer.modules.economy.model.SaleLot;
 import de.raindancer.modules.economy.model.TransactionKind;
 import de.raindancer.modules.economy.rules.PersonalPriceRule;
+import de.raindancer.modules.economy.rules.BulkRule;
+import de.raindancer.modules.economy.model.Bulk;
+import de.raindancer.core.ui.choose.ItemSelection;
 import de.raindancer.modules.economy.rules.TradePriceRule;
 import de.raindancer.modules.economy.model.YourPrice;
 import de.raindancer.core.social.economy.PersonalPrice;
@@ -57,6 +60,8 @@ public final class ShopService implements IEconomyService {
     private final SettingsStore<EconomySettings> store;
     private final TradePriceRule trade = new TradePriceRule();
     private final PersonalPriceRule personal = new PersonalPriceRule();
+    private final BulkRule bulk = new BulkRule();
+    private volatile BulkSetup bulkSetup = new BulkSetup(null, ItemSelection.NOTHING, List.of());
     private final de.raindancer.modules.economy.rules.EnchantValueRule enchants =
             new de.raindancer.modules.economy.rules.EnchantValueRule();
     private final Supplier<List<RecipeShape>> recipes;
@@ -118,7 +123,25 @@ public final class ShopService implements IEconomyService {
 
     /** What this player pays and is paid for one — the shop's price, changed by their role or the like. */
     public YourPrice priceFor(UUID player, Material material) {
-        return personal.forPlayer(player, tag(material));
+        return personal.forPlayer(player, tag(material), bulkFor(material.name()));
+    }
+
+    /** How much cheaper this item gets bought in quantity, as the owner set it. */
+    public Bulk bulkFor(String material) {
+        EconomySettings live = settings;
+        if (!live.bulkDiscount()) {
+            return Bulk.NONE;
+        }
+        BulkSetup setup = bulkSetup;
+        if (setup.from() != live) {
+            setup = new BulkSetup(live, ItemSelection.parse(live.bulkItems()), BulkRule.tiers(live.bulkTiers()));
+            bulkSetup = setup;
+        }
+        return bulk.forItem(material, setup.items(), setup.tiers(), live.bulkMostPercent());
+    }
+
+    /** The owner's bulk lists, read once per settings change rather than once per price drawn. */
+    private record BulkSetup(EconomySettings from, ItemSelection items, List<Bulk.Tier> tiers) {
     }
 
     /** What this player pays for an enchanted book the shop offers at {@code price}. */
@@ -137,7 +160,7 @@ public final class ShopService implements IEconomyService {
             return;
         }
         int amount = Math.max(1, quantity);
-        Optional<Money> total = personal.forPlayer(player.getUniqueId(), tag).buyFor(amount);
+        Optional<Money> total = priceFor(player.getUniqueId(), material).buyFor(amount);
         if (total.isEmpty()) {
             refuse(player, "economy.not-an-amount");
             return;
@@ -316,7 +339,7 @@ public final class ShopService implements IEconomyService {
         if (sellableStack(stack, material)) {
             PriceTag tag = tag(material);
             return tag.sellable()
-                    ? personal.forPlayer(seller, tag).sellFor(stack.getAmount()).map(total -> new SaleLot(material, -1,
+                    ? priceFor(seller, material).sellFor(stack.getAmount()).map(total -> new SaleLot(material, -1,
                     stack.getAmount(), total, Catalogue.readable(material.name())))
                     : Optional.empty();
         }
@@ -466,7 +489,7 @@ public final class ShopService implements IEconomyService {
                 }
                 continue;
             }
-            Optional<Money> worth = personal.forPlayer(player.getUniqueId(), tag).sellFor(removed);
+            Optional<Money> worth = priceFor(player.getUniqueId(), material).sellFor(removed);
             if (worth.isEmpty()) {
                 giveBack(player, material, removed);
                 continue;

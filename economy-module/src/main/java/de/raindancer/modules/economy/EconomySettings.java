@@ -777,7 +777,27 @@ public record EconomySettings(
         @In("economy/shop") @Title("A pack is cheaper by") @Range(min = 0, max = 90)
         @Describe("Percent off what its contents cost one by one, at each buyer's own prices. A pack with "
                 + "its own price in packs.yml costs exactly that.")
-        @Key("shop.pack-discount-percent") int packDiscountPercent) {
+        @Key("shop.pack-discount-percent") int packDiscountPercent,
+
+        // ------------------------------------------------------------------ bulk
+        @In("economy/shop") @Title("Cheaper in bulk")
+        @Describe("Building blocks and iron (the list below) cost less bought in quantity. Never the "
+                + "valuable things: a discount on diamonds would be a discount on money.")
+        @Key("features.bulk-discount") boolean bulkDiscount,
+
+        @In("economy/shop") @Title("Bulk discount steps")
+        @Describe("'<how many> <percent>', comma separated: '128 5, 640 10' is 5% off from two stacks, "
+                + "10% from ten. Bought at once, in one purchase.")
+        @Key("shop.bulk-tiers") List<String> bulkTiers,
+
+        @In("economy/shop") @Title("Bulk discount at most") @Range(min = 0, max = 30)
+        @Describe("The most bulk ever takes off, in percent, whatever the steps say. Never more than 30.")
+        @Key("shop.bulk-most-percent") int bulkMostPercent,
+
+        @In("economy/shop") @Title("Cheaper in bulk")
+        @Describe("Shop drawers (building_blocks, decorations…) and items ('iron_ingot', '*_planks'), comma "
+                + "separated; '!diamond_block' leaves one out.")
+        @Key("shop.bulk-items") List<String> bulkItems) {
 
     public static final EconomySettings DEFAULTS = new EconomySettings(
             // currency
@@ -830,7 +850,15 @@ public record EconomySettings(
             // general
             true,
             // packs
-            true, 10);
+            true, 10,
+            // bulk
+            true, List.of("128 5", "640 10", "1280 15", "1920 20"), 20,
+            List.of("building_blocks", "iron_ingot", "iron_nugget", "raw_iron", "*glass*", "*glass_pane",
+                    "*_planks", "scaffolding", "ladder", "torch", "lantern", "*_wool", "*_carpet", "*_concrete",
+                    "*_concrete_powder", "*terracotta", "rail",
+                    "!*_ore", "!ancient_debris", "!diamond_block", "!emerald_block", "!gold_block",
+                    "!netherite_block", "!lapis_block", "!redstone_block", "!coal_block", "!raw_gold_block",
+                    "!raw_copper_block", "!amethyst_block", "!glass_bottle", "!*_shulker_box"));
 
     /** The currency these settings describe. */
     public Currency currency() {

@@ -33,9 +33,18 @@ public record RolesSettings(
 
         @In("roles") @Title("Remind players without a role")
         @Describe("A line a few seconds after joining, for anybody who has not picked one yet.")
-        @Key("remind-on-join") boolean remindOnJoin) {
+        @Key("remind-on-join") boolean remindOnJoin,
 
-    public static final RolesSettings DEFAULTS = new RolesSettings(true, 72, true, true);
+        @In("roles") @Title("A new role starts at") @Range(min = 0, max = 100)
+        @Describe("Percent of its perks' full size. They grow from there the longer the role is kept, so "
+                + "swapping roles to chase a discount starts each one small again.")
+        @Key("perks.start-share") int startShare,
+
+        @In("roles") @Title("Perks are full after") @Range(min = 0, max = 365)
+        @Describe("Days of keeping a role until its perks reach the size written in roles.yml. Zero: full at once.")
+        @Key("perks.full-after-days") int fullAfterDays) {
+
+    public static final RolesSettings DEFAULTS = new RolesSettings(true, 72, true, true, 40, 14);
 
     public Duration changeEvery() {
         return Duration.ofHours(Math.max(0, changeEveryHours));

@@ -51,7 +51,7 @@ class RoleCatalogueTest {
                         except: [ diamond_block ]
                       - sell: 10
                         items: [ "*_log" ]
-                        says: More for logs
+                        says: logs
                 """));
         assertThat(roles).hasSize(1);
         Role builder = roles.getFirst();
@@ -61,11 +61,11 @@ class RoleCatalogueTest {
         Perk buy = builder.perks().getFirst();
         assertThat(buy.side()).isEqualTo(TradeSide.BUY);
         assertThat(buy.percent()).isEqualTo(-20);
-        assertThat(buy.categories()).containsExactly(Category.BUILDING_BLOCKS, Category.DECORATIONS);
-        assertThat(buy.except()).containsExactly("DIAMOND_BLOCK");
+        assertThat(buy.items().categories()).containsExactly(Category.BUILDING_BLOCKS, Category.DECORATIONS);
+        assertThat(buy.items().except()).containsExactly("DIAMOND_BLOCK");
         Perk sell = builder.perks().get(1);
         assertThat(sell.side()).isEqualTo(TradeSide.SELL);
-        assertThat(sell.says()).isEqualTo("More for logs");
+        assertThat(sell.says()).isEqualTo("10% more selling logs");
     }
 
     @Test
@@ -103,7 +103,7 @@ class RoleCatalogueTest {
                         categories: [ wizardry, brewing ]
                 """));
         assertThat(roles).extracting(Role::id).containsExactly("mage");
-        assertThat(roles.getFirst().perks().getFirst().categories()).containsExactly(Category.BREWING);
+        assertThat(roles.getFirst().perks().getFirst().items().categories()).containsExactly(Category.BREWING);
         assertThat(roles.getFirst().perks().getFirst().percent()).isEqualTo(-RoleCatalogue.LARGEST_PERK);
         assertThat(roles.getFirst().colour()).as("a colour that is not hex falls back").isEqualTo("#ffffff");
     }

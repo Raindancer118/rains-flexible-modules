@@ -4,6 +4,7 @@ import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.social.economy.TradeSide;
 import de.raindancer.core.ui.choose.Catalogue;
 import de.raindancer.core.ui.choose.Category;
+import de.raindancer.core.ui.choose.ItemSelection;
 import de.raindancer.modules.roles.model.Perk;
 import de.raindancer.modules.roles.model.Role;
 import org.bukkit.configuration.ConfigurationSection;
@@ -28,11 +29,11 @@ import java.util.regex.Pattern;
 public final class RoleCatalogue {
 
     /**
-     * The most any perk may change a price, in percent. The shop pays 40% of an item's worth by default;
-     * a discount past 60% would let a player buy and sell straight back at a profit, so this stays well
-     * under it.
+     * The most any perk may change a price, in percent, however it is written. Kept small on purpose: a
+     * role is a flavour, not a second economy. (Selling back is capped under the player's own buy price
+     * anyway, so no size of perk makes buying and selling back pay.)
      */
-    public static final int LARGEST_PERK = 50;
+    public static final int LARGEST_PERK = 25;
 
     private static final Pattern ID = Pattern.compile("[a-z0-9_-]{1,32}");
     private static final Pattern HEX = Pattern.compile("#[0-9a-fA-F]{6}");
@@ -135,8 +136,9 @@ public final class RoleCatalogue {
             }
         }
         Object says = written.get("says");
-        return Optional.of(new Perk(side, side == TradeSide.BUY ? -size : size, categories,
-                strings(written.get("items")), strings(written.get("except")), says == null ? "" : says.toString()));
+        return Optional.of(new Perk(side, side == TradeSide.BUY ? -size : size,
+                new ItemSelection(categories, strings(written.get("items")), strings(written.get("except"))),
+                says == null ? "" : says.toString()));
     }
 
     private static List<String> strings(Object value) {

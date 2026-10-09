@@ -57,9 +57,10 @@ public final class EnchantMenu extends PaginatedMenu<ShopService.EnchantOffer> i
             meta.addStoredEnchant(offer.enchantment(), offer.level(), false);
             meta.displayName(offer.enchantment().displayName(offer.level()).color(NamedTextColor.LIGHT_PURPLE)
                     .decoration(TextDecoration.ITALIC, false));
-            meta.lore(List.of(line("<gray>" + PriceLines.amount(services.currency(), offer.price(),
-                            services.shop().enchantPriceFor(viewer.getUniqueId(), offer).price(),
-                            services.shop().enchantPriceFor(viewer.getUniqueId(), offer))),
+            var yours = services.shop().enchantPriceFor(viewer.getUniqueId(), offer);
+            meta.lore(List.of(line("<gray>" + PriceLines.amount(services.currency(), offer.price(), yours.price())
+                            + (yours.changed() ? " <dark_aqua>" + String.join(", ", yours.reasons()) + " discount: "
+                            + -yours.percent() + "%" : "")),
                     line("<yellow>Click<gray> to buy the book")));
         });
         return book;

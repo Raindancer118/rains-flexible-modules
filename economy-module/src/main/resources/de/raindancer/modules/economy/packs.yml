@@ -121,3 +121,73 @@ packs:
       shield: 1
       cooked_beef: 16
       iron_chestplate: 1
+
+  librarian:
+    title: Librarian's Pack
+    icon: lectern
+    description:
+      - "Paper, ink and somewhere to keep it."
+    contents:
+      lectern: 1
+      bookshelf: 6
+      book: 16
+      writable_book: 2
+      paper: 32
+      feather: 8
+      ink_sac: 8
+      lantern: 2
+
+  fisher:
+    title: Fisher's Pack
+    icon: fishing_rod
+    description:
+      - "A rod, a boat and a long afternoon."
+    contents:
+      fishing_rod: 2
+      oak_boat: 1
+      bucket: 2
+      cooked_cod: 16
+      lantern: 2
+
+  nether:
+    title: Nether Pack
+    icon: obsidian
+    description:
+      - "A portal, a lighter and gold for the piglins."
+    contents:
+      obsidian: 10
+      flint_and_steel: 1
+      golden_helmet: 1
+      cooked_porkchop: 16
+      torch: 32
+      cobblestone: 64
+
+  engineer:
+    title: Engineer's Pack
+    icon: redstone
+    description:
+      - "Make it do it by itself."
+    contents:
+      redstone: 64
+      redstone_torch: 16
+      repeater: 8
+      comparator: 4
+      piston: 8
+      sticky_piston: 4
+      observer: 4
+      hopper: 4
+      lever: 4
+
+  brewer:
+    title: Brewer's Pack
+    icon: brewing_stand
+    description:
+      - "Everything but the recipe book."
+    contents:
+      brewing_stand: 1
+      cauldron: 1
+      glass_bottle: 16
+      nether_wart: 16
+      blaze_powder: 8
+      sugar: 8
+      glistering_melon_slice: 2
