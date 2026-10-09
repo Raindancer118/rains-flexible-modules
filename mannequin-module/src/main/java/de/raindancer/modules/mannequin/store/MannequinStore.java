@@ -1,5 +1,7 @@
 package de.raindancer.modules.mannequin.store;
 
+import io.papermc.paper.registry.RegistryKey;
+import io.papermc.paper.registry.RegistryAccess;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
@@ -8,7 +10,6 @@ import de.raindancer.modules.mannequin.model.Mannequin;
 import de.raindancer.modules.mannequin.model.MannequinKind;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.Registry;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
@@ -202,7 +203,7 @@ public final class MannequinStore {
                         continue;
                     }
                     NamespacedKey key = NamespacedKey.fromString(encoded.substring(0, colon));
-                    Enchantment enchant = key == null ? null : Registry.ENCHANTMENT.get(key);
+                    Enchantment enchant = key == null ? null : RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(key);
                     if (enchant == null) {
                         continue;
                     }

@@ -1,5 +1,6 @@
 package de.raindancer.modules.claims.listener;
 
+import de.raindancer.core.world.movement.Footing;
 import de.raindancer.modules.claims.ClaimServices;
 import de.raindancer.modules.claims.model.Claim;
 import de.raindancer.modules.claims.model.ClaimBan;
@@ -318,7 +319,7 @@ public final class MovementListener implements IClaimListener {
      * is not enough once the client has left the ground.
      */
     private void resyncIfAirborne(Player player, Location from) {
-        if (player.isOnGround()) {
+        if (Footing.grounded(player)) {
             return;
         }
         Location safe = from.clone();

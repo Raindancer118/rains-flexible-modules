@@ -170,8 +170,8 @@ public final class CombatService implements IAntiCheatService {
         if (attacker.isSleeping()) {
             return "attacked while asleep";
         }
-        if (attacker.isHandRaised() && attacker.getItemInUse() != null) {
-            return "attacked while using " + attacker.getItemInUse().getType().name().toLowerCase(Locale.ROOT);
+        if (attacker.isHandRaised() && attacker.hasActiveItem()) {
+            return "attacked while using " + attacker.getActiveItem().getType().name().toLowerCase(Locale.ROOT);
         }
         InventoryType open = attacker.getOpenInventory().getType();
         if (open != InventoryType.CRAFTING && open != InventoryType.CREATIVE) {

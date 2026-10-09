@@ -31,7 +31,7 @@ import de.raindancer.modules.pack.service.PackRegistrationService;
  */
 public final class PackModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("serverpack", "Server Pack", "1.0.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("serverpack", "Server Pack", "1.1.0")
             .describedAs("The one resource pack this server wears, hosted elsewhere and applied to "
                     + "everybody — through RainsCore, which owns the single pack slot")
             .by("Raindancer118");

@@ -52,11 +52,20 @@ public final class Downloads {
 
     /** Paper {@code version} build {@code build}, from Paper's own download API. */
     public static Path paper(String version, int build) {
-        Path jar = cache().resolve("paper-" + version + "-" + build + ".jar");
+        return server("paper", version, build);
+    }
+
+    /** Folia {@code version} build {@code build} — Paper's regionised fork, from the same API. */
+    public static Path folia(String version, int build) {
+        return server("folia", version, build);
+    }
+
+    private static Path server(String project, String version, int build) {
+        Path jar = cache().resolve(project + "-" + version + "-" + build + ".jar");
         if (Files.exists(jar)) {
             return jar;
         }
-        JsonObject meta = json("https://fill.papermc.io/v3/projects/paper/versions/" + version + "/builds/" + build);
+        JsonObject meta = json("https://fill.papermc.io/v3/projects/" + project + "/versions/" + version + "/builds/" + build);
         JsonObject download = meta.getAsJsonObject("downloads").getAsJsonObject("server:default");
         String sha256 = download.getAsJsonObject("checksums").get("sha256").getAsString();
         fetch(download.get("url").getAsString(), jar, "SHA-256", sha256);

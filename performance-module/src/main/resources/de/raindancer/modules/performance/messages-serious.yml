@@ -1,0 +1,4 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+performance:
+  full: "<yellow>Animal limit reached here (<white><limit></white>). No further animals are born in this area."
+  owner-told: "<yellow>Your claim <white><claim></white> is affecting server performance: <white><count> <kind></white> at <white><x> <z></white>. Please reduce them."

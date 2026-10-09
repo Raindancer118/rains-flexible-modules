@@ -27,7 +27,7 @@ public final class StandaloneDescriptor {
     private static final Pattern PLUGIN_NAME = Pattern.compile("[A-Za-z0-9_.-]+");
 
     /** The oldest game this is known to work against. Not the version it is built with. */
-    private static final String API_VERSION = "1.21";
+    private static final String API_VERSION = "26.3";
 
     private final String name;
     private final String version;

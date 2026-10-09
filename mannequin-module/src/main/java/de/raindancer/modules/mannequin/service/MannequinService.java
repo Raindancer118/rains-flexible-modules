@@ -1,5 +1,7 @@
 package de.raindancer.modules.mannequin.service;
 
+import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.attribute.Attribute;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.mannequin.MannequinSettings;
@@ -264,7 +266,7 @@ public final class MannequinService implements IMannequinService {
                 mannequin.id());
 
         double health = mannequin.resolvedMaxHealth(settings.maxHealthClamped());
-        entity.setMaxHealth(health);
+        MannequinService.maxHealth(entity, health);
         entity.setHealth(health);
 
         if (mannequin.kind().supportsSkin() && entity instanceof org.bukkit.entity.Mannequin skinnable) {
@@ -305,7 +307,7 @@ public final class MannequinService implements IMannequinService {
         configureCommon(entity, mannequin);
         disableAiAndFalling(entity);
         if (entity instanceof Zombie zombie) {
-            zombie.setBaby(false);
+            zombie.setAdult();
         }
     }
 
@@ -515,5 +517,17 @@ public final class MannequinService implements IMannequinService {
      */
     public boolean isTracked(UUID liveEntityId) {
         return registry.idFor(liveEntityId).isPresent();
+    }
+
+    /** The entity's top health, through the attribute it is kept in. Clamps current health down with it. */
+    public static void maxHealth(LivingEntity entity, double health) {
+        AttributeInstance max = entity.getAttribute(Attribute.MAX_HEALTH);
+        if (max == null) {
+            return;
+        }
+        max.setBaseValue(health);
+        if (entity.getHealth() > health) {
+            entity.setHealth(health);
+        }
     }
 }

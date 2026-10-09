@@ -1,5 +1,6 @@
 package de.raindancer.modules.xpbottle.service;
 
+import io.papermc.paper.datacomponent.item.TooltipDisplay;
 import de.raindancer.modules.xpbottle.XpBottleSettings;
 import de.raindancer.modules.xpbottle.model.Bottle;
 import de.raindancer.modules.xpbottle.store.BottleTags;
@@ -126,14 +127,15 @@ public final class BottleForge implements IXpBottleService {
         if (bottle.mayVacuum()) {
             // The shimmer, and the flag that stops "Unbreaking I" appearing under the name.
             meta.addEnchant(Enchantment.UNBREAKING, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-        } else {
-            meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
         if (meta instanceof PotionMeta potion) {
             potion.setColor(tintFor(bottle));
         }
         stack.setItemMeta(meta);
+        // The bottle's own lore says what is in it; the potion's "No Effects" line would contradict it.
+        stack.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay()
+                .addHiddenComponents(DataComponentTypes.POTION_CONTENTS).build());
 
         if (bottle.mayVacuum()) {
             stack.setData(DataComponentTypes.CONSUMABLE, Consumable.consumable()

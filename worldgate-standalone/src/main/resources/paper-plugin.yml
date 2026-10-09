@@ -4,7 +4,7 @@ name: ${plugin.name}
 version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
-api-version: '1.21'
+api-version: '26.3'
 description: 'Locks, drains or closes the Nether and the End to entry, and evacuates whoever is still inside.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore

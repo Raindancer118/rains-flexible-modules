@@ -1,5 +1,6 @@
 package de.raindancer.modules.playerutils.service;
 
+import de.raindancer.core.world.movement.Footing;
 import de.raindancer.core.RainsCore;
 import de.raindancer.core.moderation.players.Outcome;
 import de.raindancer.core.platform.util.Scheduling;
@@ -52,7 +53,7 @@ public final class FlightService implements IPlayerUtilsService {
         if (wanted == now) {
             return new Change(Outcome.NOTHING_TO_DO, now);
         }
-        if (!wanted && settings.softLanding() && !target.isOnGround()) {
+        if (!wanted && settings.softLanding() && !Footing.grounded(target)) {
             landing.add(target.getUniqueId());
             Scheduling.entityLater(plugin, target, SOFT_LANDING_TICKS, () -> landing.remove(target.getUniqueId()));
         }

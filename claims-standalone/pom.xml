@@ -54,8 +54,8 @@
           2.3.1: the feature policies set from the "What this claim can do" screen are now persisted
           (FeaturePolicyStore, on top of Core's own YamlStore) — they used to be rebuilt from
           FeatureRules' defaults on every enable(), so a change made there never survived a restart.
-        -->
-        <plugin.version>2.8.0</plugin.version>
+             2.9.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
+        <plugin.version>2.9.0</plugin.version>
     </properties>
 
     <dependencies>

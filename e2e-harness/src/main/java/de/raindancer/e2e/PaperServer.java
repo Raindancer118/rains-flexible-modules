@@ -26,7 +26,7 @@ import java.util.stream.Stream;
  * and the harness's probe; started, restarted and stopped; asked over RCON; its log read.
  *
  * <pre>{@code
- * try (PaperServer server = PaperServer.builder("26.2", 111)
+ * try (PaperServer server = PaperServer.builder("26.3", 169)
  *         .plugin(Path.of("speedrun-standalone/target/RainsSpeedrun-1.28.1.jar"))
  *         .seed(1).build()) {
  *     server.start();
@@ -71,6 +71,12 @@ public final class PaperServer implements AutoCloseable {
 
     public static Builder builder(String version, int build) {
         return new Builder(Downloads.paper(version, build));
+    }
+
+    /** The server this run is played on: Paper, or Folia when {@link E2e#onFolia()} says so. */
+    public static Builder forRun() {
+        return new Builder(E2e.onFolia() ? Downloads.folia(E2e.PAPER_VERSION, E2e.FOLIA_BUILD)
+                : Downloads.paper(E2e.PAPER_VERSION, E2e.PAPER_BUILD));
     }
 
     /** Builds a server folder. */
@@ -149,6 +155,8 @@ public final class PaperServer implements AutoCloseable {
                 "max-players=20",
                 "difficulty=normal",
                 "sync-chunk-writes=false",
+                // Since 26.3 a new server starts with its whitelist on, and every bot would be turned away.
+                "white-list=false",
                 "") + "\n");
         // A bot that disconnects and reconnects at once is a normal thing in a scenario, not an attack.
         Files.writeString(folder.resolve("bukkit.yml"), "settings:\n  connection-throttle: -1\n");
@@ -173,7 +181,7 @@ public final class PaperServer implements AutoCloseable {
                     "name: E2eProbe",
                     "version: '1'",
                     "main: " + E2eProbe.class.getName(),
-                    "api-version: '1.21'",
+                    "api-version: '26.3'",
                     "folia-supported: true",
                     "commands:",
                     "  e2e:",

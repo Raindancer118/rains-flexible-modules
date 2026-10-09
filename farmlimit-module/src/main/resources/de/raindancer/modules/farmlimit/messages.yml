@@ -1,9 +1,0 @@
-# This module's wording. Every line can be rewritten in plugins/RainsCore/messages.yml.
-farmlimit:
-  full-of-kind: "<yellow>This farm is full: <white><limit></white> <kind>s close together is the most. Nothing more hatches or is born here."
-  full: "<yellow>This farm is full: <white><limit></white> animals close together is the most. Nothing more is born here."
-  header: "<gray>The <white><count></white> most crowded chunk(s) with at least <white><least></white> entities:"
-  line: "<white><total></white> <gray>— mostly <white><kind></white> (<kind-count>) <dark_gray>· <gray><world> <white><x> <z></white>"
-  none: "<green>No loaded chunk holds <white><least></white> entities or more."
-  usage: "<gray>/farms <dark_gray>— the most crowded chunks · <gray>/farms <least> <dark_gray>— only those with at least that many"
-  folia: "<red>/farms cannot count every world at once on this server: Folia gives no thread all of them."

@@ -65,7 +65,7 @@ import java.util.List;
  */
 public final class XaeroMapModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("xaeromap", "Xaero's Map support", "1.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("xaeromap", "Xaero's Map support", "1.3.0")
             .describedAs("Gives every world its own map on Xaero's Minimap and World Map, offers a "
                     + "player their homes and warps as waypoints, and draws this server's claims.")
             .by("Raindancer118");

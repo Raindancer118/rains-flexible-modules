@@ -1,5 +1,6 @@
 package de.raindancer.modules.playerutils.screen;
 
+import org.bukkit.potion.PotionEffectType;
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.menu.Icons;
@@ -15,7 +16,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectTypeCategory;
 
 import java.util.Comparator;
 import java.util.List;
@@ -71,7 +71,7 @@ public final class EffectsMenu extends PaginatedMenu<PotionEffect> implements IP
 
     @Override
     protected ItemStack icon(PotionEffect effect) {
-        boolean bad = effect.getType().getCategory() == PotionEffectTypeCategory.HARMFUL;
+        boolean bad = effect.getType().getEffectCategory() == PotionEffectType.Category.HARMFUL;
         String name = effect.getType().getKey().getKey().replace('_', ' ');
         String time = effect.isInfinite() ? "forever" : (effect.getDuration() / 20) + " s left";
         boolean may = mayTakeOff();

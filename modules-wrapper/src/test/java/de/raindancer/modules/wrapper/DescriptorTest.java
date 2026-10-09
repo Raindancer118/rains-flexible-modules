@@ -108,7 +108,9 @@ class DescriptorTest {
 
         @Test
         void declaresAnApiVersion() {
-            assertThat(descriptor.render()).contains("api-version:");
+            // 26.3: built against it, and declaring less makes Paper rewrite the plugin's bytecode for
+            // an older API on every load.
+            assertThat(descriptor.render()).contains("api-version: '26.3'");
         }
     }
 

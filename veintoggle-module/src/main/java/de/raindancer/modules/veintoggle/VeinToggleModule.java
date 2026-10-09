@@ -33,7 +33,7 @@ public final class VeinToggleModule implements FlexModule {
     /** How long the undoer has to agree to pay for what nobody could give back. */
     private static final long BILL_SECONDS = 60;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.4.0")
             .describedAs("Switch Veinminer on or off for yourself with /vein, and undo a vein with /ctrl-z")
             .by("Raindancer118");
 

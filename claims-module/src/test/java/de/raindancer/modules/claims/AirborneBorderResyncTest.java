@@ -55,7 +55,7 @@ class AirborneBorderResyncTest {
     @DisplayName("a gliding player refused at the border is teleported back, not just stopped")
     void aGlidingPlayerIsResynced() {
         Player player = FakeServices.player(banned);
-        when(player.isOnGround()).thenReturn(false);
+        standing(player, false);
 
         Location from = FakeServices.at(world, -1, 15, 5);
         Location to = FakeServices.at(world, 1, 15, 5);
@@ -72,7 +72,7 @@ class AirborneBorderResyncTest {
     @DisplayName("a grounded player refused at the border is only stopped — cancelling already works there")
     void aGroundedPlayerIsNotTeleported() {
         Player player = FakeServices.player(banned);
-        when(player.isOnGround()).thenReturn(true);
+        standing(player, true);
 
         Location from = FakeServices.at(world, -1, 5, 5);
         Location to = FakeServices.at(world, 1, 5, 5);
@@ -98,5 +98,15 @@ class AirborneBorderResyncTest {
 
         assertThat(event.isCancelled()).isFalse();
         verify(player, never()).teleport(org.mockito.ArgumentMatchers.any(Location.class));
+    }
+
+    /**
+     * Ground as the server sees it — blocks under the feet ({@code Footing}), not the client's
+     * {@code isOnGround}, which Paper deprecates because a hacked client can claim anything.
+     */
+    private void standing(Player player, boolean onSomething) {
+        when(player.getWorld()).thenReturn(world);
+        when(player.getBoundingBox()).thenReturn(new org.bukkit.util.BoundingBox(0, 5, 0, 0.6, 6.8, 0.6));
+        when(world.hasCollisionsIn(org.mockito.ArgumentMatchers.any())).thenReturn(onSomething);
     }
 }

@@ -38,8 +38,8 @@
           now, and what is left is what a name tag means. Nothing an owner configured is lost and
           every tag already dyed keeps its colour — the persistent-data namespace is unchanged — but
           a major number is what says "read the notes before upgrading".
-        -->
-        <plugin.version>2.2.1</plugin.version>
+             2.3.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
+        <plugin.version>2.3.0</plugin.version>
     </properties>
 
     <dependencies>

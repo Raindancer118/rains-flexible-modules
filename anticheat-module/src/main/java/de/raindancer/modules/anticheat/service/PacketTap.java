@@ -199,7 +199,9 @@ public final class PacketTap implements IAntiCheatService {
                 case "net.minecraft.network.protocol.game.ServerboundClientTickEndPacket" -> new Reader(Kind.TICK_END, new MethodHandle[0]);
                 case "net.minecraft.network.protocol.game.ServerboundAttackPacket" -> new Reader(Kind.ATTACK, new MethodHandle[]{
                         LOOKUP.findVirtual(type, "entityId", MethodType.methodType(int.class))});
-                case "net.minecraft.network.protocol.game.ServerboundSwingPacket" -> new Reader(Kind.SWING, new MethodHandle[0]);
+                // 26.3 renamed the arm swing to a punch (and dropped the hand); the old name is 26.2 and before.
+                case "net.minecraft.network.protocol.game.ServerboundPunchPacket",
+                     "net.minecraft.network.protocol.game.ServerboundSwingPacket" -> new Reader(Kind.SWING, new MethodHandle[0]);
                 case "net.minecraft.network.protocol.game.ServerboundPlayerActionPacket" -> new Reader(Kind.ACTION, new MethodHandle[]{
                         LOOKUP.findVirtual(type, "getAction", MethodType.methodType(type.getMethod("getAction").getReturnType()))});
                 case "net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket" -> new Reader(Kind.COMMAND, new MethodHandle[]{

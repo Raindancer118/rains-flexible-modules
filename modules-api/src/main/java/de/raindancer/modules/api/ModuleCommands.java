@@ -2,6 +2,7 @@ package de.raindancer.modules.api;
 
 import de.raindancer.core.RainsCore;
 import de.raindancer.core.moderation.audit.AuditEntry;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
@@ -44,7 +45,7 @@ public final class ModuleCommands {
         BasicCommand real = command.handler();
         BasicCommand guarded = new BasicCommand() {
             @Override
-            public void execute(CommandSourceStack source, String[] args) {
+            public void execute(CommandSourceStack source, String[] args) throws CommandSyntaxException {
                 Optional<String> refusal = refusalFor(registry, moduleId);
                 if (refusal.isPresent()) {
                     source.getSender().sendMessage(

@@ -42,7 +42,7 @@ import org.cloudburstmc.math.vector.Vector3i;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundClientTickEndPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundAttackPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundMovePlayerRotPacket;
-import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundSwingPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPunchPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundBossEventPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundDisguisedChatPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundLoginPacket;
@@ -172,6 +172,11 @@ public final class Bot {
     private volatile GameMode gameMode = GameMode.SURVIVAL;
     private volatile String world = "";
     private volatile Vector3d position = Vector3d.ZERO;
+    /** Where the head points: 26.3 has a client confirm a teleport by echoing where it ended up, rotation included. */
+    private volatile float yaw;
+    /** Whether a position went out since the last tick end — see {@link #sendPosition}. */
+    private volatile boolean positionThisTick;
+    private volatile float pitch;
     private volatile float health = 20;
     private volatile int heldSlot;
     private volatile int windowState;
@@ -220,7 +225,7 @@ public final class Bot {
         this.name = name;
         // Paper's own offline-mode id for a name, so the server and the scenario agree on who this is.
         this.id = UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
-        this.version = "26.2";
+        this.version = E2e.MINECRAFT_VERSION;
     }
 
     public String name() {
@@ -370,8 +375,11 @@ public final class Bot {
                         relative.contains(PositionElement.X) ? was.getX() + to.getX() : to.getX(),
                         relative.contains(PositionElement.Y) ? was.getY() + to.getY() : to.getY(),
                         relative.contains(PositionElement.Z) ? was.getZ() + to.getZ() : to.getZ());
-                from.send(new ServerboundAcceptTeleportationPacket(moved.getId()));
-                from.send(new ServerboundMovePlayerPosPacket(true, false, position.getX(), position.getY(), position.getZ()));
+                yaw = relative.contains(PositionElement.Y_ROT) ? yaw + moved.getYRot() : moved.getYRot();
+                pitch = relative.contains(PositionElement.X_ROT) ? pitch + moved.getXRot() : moved.getXRot();
+                from.send(new ServerboundAcceptTeleportationPacket(moved.getId(),
+                        position.getX(), position.getY(), position.getZ(), yaw, pitch));
+                sendPosition(new ServerboundMovePlayerPosPacket(true, false, position.getX(), position.getY(), position.getZ()));
                 from.send(ServerboundPlayerLoadedPacket.INSTANCE);
                 loaded = true;
             }
@@ -827,7 +835,7 @@ public final class Bot {
     /** Takes a step — what a frozen player is held back from. */
     public Bot step(double dx, double dz) {
         Vector3d now = position;
-        session.send(new ServerboundMovePlayerPosPacket(true, false, now.getX() + dx, now.getY(), now.getZ() + dz));
+        sendPosition(new ServerboundMovePlayerPosPacket(true, false, now.getX() + dx, now.getY(), now.getZ() + dz));
         position = Vector3d.from(now.getX() + dx, now.getY(), now.getZ() + dz);
         return this;
     }
@@ -842,13 +850,15 @@ public final class Bot {
 
     /** Claims to be at a position — anywhere, as a hacked client may. */
     public Bot moveTo(double x, double y, double z, boolean onGround) {
-        session.send(new ServerboundMovePlayerPosPacket(onGround, false, x, y, z));
+        sendPosition(new ServerboundMovePlayerPosPacket(onGround, false, x, y, z));
         position = Vector3d.from(x, y, z);
         return this;
     }
 
     /** Turns the head without moving. */
     public Bot look(float yaw, float pitch) {
+        this.yaw = yaw;
+        this.pitch = pitch;
         session.send(new ServerboundMovePlayerRotPacket(true, false, yaw, pitch));
         return this;
     }
@@ -895,13 +905,28 @@ public final class Bot {
     }
 
     /** The packet a client sends at the end of each of its ticks. */
+    /**
+     * Since 26.3 the server takes one position per client tick and kicks for a second one, and only a
+     * tick end clears that. A scenario that paces itself with {@link #tickEnd} is left exactly as it
+     * is; one that does not gets the tick end a real client would have sent in between.
+     */
+    private synchronized void sendPosition(ServerboundMovePlayerPosPacket move) {
+        if (positionThisTick) {
+            session.send(ServerboundClientTickEndPacket.INSTANCE);
+        }
+        session.send(move);
+        positionThisTick = true;
+    }
+
     public Bot tickEnd() {
         session.send(ServerboundClientTickEndPacket.INSTANCE);
+        positionThisTick = false;
         return this;
     }
 
     public Bot swing() {
-        session.send(new ServerboundSwingPacket(Hand.MAIN_HAND));
+        // 26.3 swings the main hand with a bare punch packet; there is no hand to name any more.
+        session.send(ServerboundPunchPacket.INSTANCE);
         return this;
     }
 

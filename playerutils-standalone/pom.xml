@@ -28,8 +28,9 @@
 
         <!-- 0.1.0: the first release. Fly, heal, feed, damage, starve, drown, breathe, extinguish,
              ignite, explode, launch, scale, speed, wipe, spectate, sudo, ping, status, hunger,
-             effects, near, position and /player, every one aimed by name, nickname or selector. -->
-        <plugin.version>0.2.1</plugin.version>
+             effects, near, position and /player, every one aimed by name, nickname or selector.
+             0.3.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
+        <plugin.version>0.3.0</plugin.version>
     </properties>
 
     <dependencies>

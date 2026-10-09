@@ -58,7 +58,7 @@ public final class MovementListener implements IAntiCheatListener {
         Location to = event.getTo();
         boolean rotated = to.getYaw() != event.getFrom().getYaw() || to.getPitch() != event.getFrom().getPitch();
         track.samples.add(new MoveSample(to.getX(), to.getY(), to.getZ(), to.getYaw(), to.getPitch(), true, rotated,
-                event.getPlayer().isOnGround(), false, 1, System.nanoTime(), false));
+                claimsGround(event.getPlayer()), false, 1, System.nanoTime(), false));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -210,5 +210,14 @@ public final class MovementListener implements IAntiCheatListener {
     @Override
     public String describe() {
         return "feeding moves to the engine and opening exemptions for knockback, elytras, pistons and effects";
+    }
+
+    /**
+     * What the client says about touching the ground. Paper deprecates this for being the client's word —
+     * which is exactly what an anticheat has to check against the server's own view.
+     */
+    @SuppressWarnings("deprecation")
+    private static boolean claimsGround(org.bukkit.entity.Player player) {
+        return player.isOnGround();
     }
 }

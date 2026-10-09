@@ -37,8 +37,9 @@
              (the old confirm-then-overwrite, unchanged, still gated on the restore permission).
 
              1.4.0: item insurance (item-insurance.enabled, off by default) and the player-facing Insurance
-             screen behind /insurance. -->
-        <plugin.version>1.4.1</plugin.version>
+             screen behind /insurance.
+             1.5.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
+        <plugin.version>1.5.0</plugin.version>
     </properties>
 
     <dependencies>

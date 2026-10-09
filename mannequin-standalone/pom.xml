@@ -127,8 +127,8 @@
           hopper, that same vanilla command) does to tell an adjacent comparator to recompute. Fixed
           by operating on Block#getState(false), the real block entity Paper itself documents as "to
           operate on real block data" — the same live path every other container interaction takes.
-        -->
-        <plugin.version>1.9.0</plugin.version>
+             1.10.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
+        <plugin.version>1.10.0</plugin.version>
     </properties>
 
     <dependencies>

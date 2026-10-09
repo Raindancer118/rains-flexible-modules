@@ -71,7 +71,7 @@ class GuardedCommandTest {
     }
 
     @Test
-    void runningACommandOfAFailedModuleExplainsItselfInsteadOfThrowing() {
+    void runningACommandOfAFailedModuleExplainsItselfInsteadOfThrowing() throws Exception {
         Hostile raw = new Hostile();
         ModuleRegistry registry = withA(FakeModule.named("moderation", journal)
                 .failingToEnable(new IllegalStateException("could not open its database"))
@@ -90,7 +90,7 @@ class GuardedCommandTest {
     }
 
     @Test
-    void runningACommandBeforeAnythingWasEnabledExplainsItself() {
+    void runningACommandBeforeAnythingWasEnabledExplainsItself() throws Exception {
         Hostile raw = new Hostile();
         ModuleRegistry registry = withA(FakeModule.named("moderation", journal)
                 .offering(ModuleCommand.of("mod", "Moderation", raw)));
@@ -102,7 +102,7 @@ class GuardedCommandTest {
     }
 
     @Test
-    void runningACommandOfAnEnabledModuleReachesTheModule() {
+    void runningACommandOfAnEnabledModuleReachesTheModule() throws Exception {
         List<String> ran = new ArrayList<>();
         ModuleRegistry registry = withA(FakeModule.named("moderation", journal)
                 .offering(ModuleCommand.of("mod", "Moderation",
@@ -184,7 +184,7 @@ class GuardedCommandTest {
     }
 
     @Test
-    void aModuleThatWasStoppedNoLongerAnswersItsCommand() {
+    void aModuleThatWasStoppedNoLongerAnswersItsCommand() throws Exception {
         Hostile raw = new Hostile();
         ModuleRegistry registry = withA(FakeModule.named("moderation", journal)
                 .offering(ModuleCommand.of("mod", "Moderation", raw)));

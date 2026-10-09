@@ -279,7 +279,7 @@ public final class ShopService implements IEconomyService {
         for (org.bukkit.enchantments.Enchantment enchantment : all) {
             for (int level = 1; level <= enchantment.getMaxLevel(); level++) {
                 var each = new de.raindancer.modules.economy.model.EnchantLevel(enchantment.getKey().getKey(), level,
-                        enchantment.isTreasure(), enchantment.isCursed());
+                        isTreasure(enchantment), enchantment.isCursed());
                 if (enchants.offered(each, live.enchantTreasure(), live.enchantClosed())) {
                     offers.add(new EnchantOffer(enchantment, level,
                             enchants.buyPrice(book, each, live.enchantPriceMoney(), live.enchantValueMoney())));
@@ -430,7 +430,7 @@ public final class ShopService implements IEconomyService {
             all.putAll(stored.getStoredEnchants());
         }
         all.forEach((enchantment, level) -> levels.add(new de.raindancer.modules.economy.model.EnchantLevel(
-                enchantment.getKey().getKey(), level, enchantment.isTreasure(), enchantment.isCursed())));
+                enchantment.getKey().getKey(), level, isTreasure(enchantment), enchantment.isCursed())));
         int damage = meta instanceof org.bukkit.inventory.meta.Damageable worn ? worn.getDamage() : 0;
         Money each = enchants.sellValue(tag.sell(), enchants.durabilityLeft(material.getMaxDurability(), damage),
                 enchants.bonus(levels, live.enchantValueMoney()), live.sellRatioClamped());
@@ -683,5 +683,14 @@ public final class ShopService implements IEconomyService {
     private void refuse(Player player, String key, Object... values) {
         messages.send(player, key, values);
         effects.play(player.getUniqueId(), Cues.NO);
+    }
+
+    /** Treasure is a tag since 26.3 — what loot and trades give, never an enchanting table. */
+    private static boolean isTreasure(org.bukkit.enchantments.Enchantment enchantment) {
+        var registry = io.papermc.paper.registry.RegistryAccess.registryAccess()
+                .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT);
+        return registry.getTag(io.papermc.paper.registry.keys.tags.EnchantmentTagKeys.TREASURE)
+                .contains(io.papermc.paper.registry.TypedKey.create(
+                        io.papermc.paper.registry.RegistryKey.ENCHANTMENT, enchantment.getKey()));
     }
 }

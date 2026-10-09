@@ -43,8 +43,8 @@
 
           2.3.2: logging out no longer clears the wait between trips home — the same hole /rtp had,
           fixed the same way: quitting sweeps the waits that are over, not the running ones.
-        -->
-        <plugin.version>2.5.1</plugin.version>
+             2.6.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
+        <plugin.version>2.6.0</plugin.version>
     </properties>
 
     <dependencies>

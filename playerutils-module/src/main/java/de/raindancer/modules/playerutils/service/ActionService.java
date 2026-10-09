@@ -1,5 +1,6 @@
 package de.raindancer.modules.playerutils.service;
 
+import org.bukkit.potion.PotionEffectType;
 import de.raindancer.core.RainsCore;
 import de.raindancer.core.moderation.audit.AuditEntry;
 import de.raindancer.core.moderation.players.BodyState;
@@ -19,7 +20,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectTypeCategory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -177,7 +177,7 @@ public final class ActionService implements IPlayerUtilsService {
     }
 
     private static boolean isBad(PotionEffect effect) {
-        return effect.getType().getCategory() == PotionEffectTypeCategory.HARMFUL;
+        return effect.getType().getEffectCategory() == PotionEffectType.Category.HARMFUL;
     }
 
     private Result feed(Player target) {

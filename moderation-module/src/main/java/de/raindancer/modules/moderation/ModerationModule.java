@@ -68,7 +68,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.30.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.31.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -287,6 +287,15 @@ public final class ModerationModule implements FlexModule {
             }
         }
         context.core().punishmentGuard().appealMessage(settings.current().appealMessage());
+        // Whoever may vanish counts as staff to Core, so with "staff see staff" on (the default) a vanished
+        // admin is in the other admins' tablist and their joins and leaves reach them.
+        String vanishNode = ModerationPermission.VANISH.node();
+        context.core().vanish().countAsStaff(vanishNode);
+        for (org.bukkit.entity.Player online : server.getOnlinePlayers()) {
+            if (context.core().vanish().isStaffSeeStaff() && online.hasPermission(vanishNode)) {
+                context.core().vanish().maySeeVanished(online.getUniqueId(), true);
+            }
+        }
 
         services = new ModerationServices(context.plugin(), server, log, context.core().messages(),
                 context.chat(), context.chat().brand(), context.core().prompts(),

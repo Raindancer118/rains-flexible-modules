@@ -4,7 +4,7 @@ name: ${plugin.name}
 version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
-api-version: '1.21'
+api-version: '26.3'
 description: 'Land claims: who owns what, who may do what there, and the screens for it.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore

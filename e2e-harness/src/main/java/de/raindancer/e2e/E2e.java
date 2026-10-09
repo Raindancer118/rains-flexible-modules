@@ -12,11 +12,26 @@ import java.nio.file.Path;
  */
 public final class E2e {
 
-    public static final String PAPER_VERSION = "26.2";
-    public static final int PAPER_BUILD = 111;
-    public static final String MINECRAFT_VERSION = "26.2";
+    public static final String PAPER_VERSION = "26.3";
+    /** 26.3 has no stable build yet; 169 is the BETA Lilly's SMP runs. */
+    public static final int PAPER_BUILD = 169;
+    public static final String MINECRAFT_VERSION = "26.3";
+    /**
+     * Folia of the same game version — the bots speak exactly one protocol. Folia 26.3 is not out yet
+     * (PaperMC/Folia#507); until it is, {@code -De2e.server=folia} fails at the download, saying so.
+     */
+    public static final int FOLIA_BUILD = 1;
 
     private E2e() {
+    }
+
+    /**
+     * Whether this run plays on Folia rather than Paper — {@code -De2e.server=folia} or
+     * {@code RAINS_E2E_SERVER=folia}. The same scenarios, so a plugin that claims Folia is held to it.
+     */
+    public static boolean onFolia() {
+        String chosen = System.getProperty("e2e.server", System.getenv("RAINS_E2E_SERVER"));
+        return "folia".equalsIgnoreCase(chosen == null ? "" : chosen.trim());
     }
 
     public static Path out() {

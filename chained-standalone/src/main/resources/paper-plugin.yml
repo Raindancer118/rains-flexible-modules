@@ -4,7 +4,7 @@ name: ${plugin.name}
 version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
-api-version: '1.21'
+api-version: '26.3'
 description: 'Two players, mechanically chained together — get too far apart and further separation is simply blocked, a speedrun timer runs underneath it, and the map can be reset between attempts.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore

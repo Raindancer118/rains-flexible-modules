@@ -1,5 +1,7 @@
 package de.raindancer.modules.speedrun.manhunt;
 
+import io.papermc.paper.registry.RegistryKey;
+import io.papermc.paper.registry.RegistryAccess;
 import de.raindancer.core.RainsCore;
 import de.raindancer.core.data.settings.SettingsSchema;
 import de.raindancer.core.data.settings.SettingsStore;
@@ -49,7 +51,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.Registry;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
@@ -284,7 +285,7 @@ public final class ManhuntGame {
     private static void warnAboutUnknownStructures(LogChannel log) {
         for (StructureChoices.Choice choice : StructureChoices.all()) {
             for (String key : choice.structureKeys()) {
-                if (Registry.STRUCTURE.get(NamespacedKey.minecraft(key)) == null) {
+                if (RegistryAccess.registryAccess().getRegistry(RegistryKey.STRUCTURE).get(NamespacedKey.minecraft(key)) == null) {
                     log.warn("The structure compass knows '{}' but this server has no such structure.", key);
                 }
             }

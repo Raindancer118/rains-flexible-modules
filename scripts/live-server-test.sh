@@ -26,8 +26,8 @@ REACTOR_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RAINSCORE_ROOT="$(cd "$REACTOR_ROOT/../RainsCore" && pwd)"
 TESTPLUGIN_ROOT="$(cd "$REACTOR_ROOT/../RainsCoreTestPlugin" && pwd)"
 
-PAPER_VERSION="26.2"
-PAPER_BUILD="111"
+PAPER_VERSION="26.3"
+PAPER_BUILD="169"
 STARTUP_TIMEOUT="${STARTUP_TIMEOUT:-120}"
 SHUTDOWN_TIMEOUT="${SHUTDOWN_TIMEOUT:-60}"
 
@@ -110,6 +110,8 @@ level-seed=1
 spawn-protection=0
 view-distance=6
 simulation-distance=4
+# Since 26.3 a new server starts with its whitelist on.
+white-list=false
 EOF
 
 find "$RAINSCORE_ROOT/target" -maxdepth 1 -name 'RainsCore-*.jar' \

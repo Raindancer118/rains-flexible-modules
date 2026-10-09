@@ -113,7 +113,7 @@ class ModuleCommandsTest {
      * module has, and the command's own work must not be held hostage by that.
      */
     @Test
-    void anAuditedCommandStillRunsWithoutRainsCore() {
+    void anAuditedCommandStillRunsWithoutRainsCore() throws Exception {
         ModuleRegistry registry = new ModuleRegistry();
         registry.add(FakeModule.named("moderation", journal));
         registry.enableAll(module -> new FakeSession(module.info().id(), journal));

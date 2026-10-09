@@ -63,8 +63,8 @@
           picker) stops talking in the private chat — still a member, still reading it; going private
           again (or starting/joining one) drops the channel; /chat all and /chat public mean everybody.
           Needs RainsCore 1.41.0.
-        -->
-        <plugin.version>1.11.1</plugin.version>
+             1.12.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
+        <plugin.version>1.12.0</plugin.version>
     </properties>
 
     <dependencies>

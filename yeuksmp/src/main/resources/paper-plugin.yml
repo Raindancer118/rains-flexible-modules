@@ -4,7 +4,7 @@ name: ${plugin.name}
 version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
-api-version: '1.21'
+api-version: '26.3'
 description: 'Claims, teleport requests, warps, moderation, the server pack, coloured names, homes, random teleport, essentials, chat, training mannequins, inventory snapshots and Xaero''s map support — the thirteen modules this server runs, in one jar.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore

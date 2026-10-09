@@ -1,3 +1,0 @@
-# The serious wording for this module: only the lines that differ from messages.yml.
-farmlimit:
-  full: "<yellow>Animal limit reached here (<white><limit></white>). No further animals are born in this area."

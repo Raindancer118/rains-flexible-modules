@@ -23,7 +23,7 @@ import java.util.List;
  */
 public final class JobsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.3.0")
             .describedAs("The job board — goals everybody delivers or fishes towards, paid by their share")
             .by("Raindancer118");
 

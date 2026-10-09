@@ -32,8 +32,9 @@
              Xaero's Minimap and Xaero's World Map, instead of all of them sharing one map keyed on
              the server address. And this server's claims are drawn on both of those maps, in the
              claim protocol both mods already read — with their names, and coloured so that your own
-             claims, the ones you are trusted on, and each stranger's are told apart at a glance. -->
-        <plugin.version>1.2.0</plugin.version>
+             claims, the ones you are trusted on, and each stranger's are told apart at a glance.
+             1.3.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
+        <plugin.version>1.3.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -1,5 +1,6 @@
 package de.raindancer.modules.mannequin.screen;
 
+import de.raindancer.modules.mannequin.service.MannequinService;
 import de.raindancer.core.ui.choose.AmountChooser;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
@@ -108,7 +109,7 @@ public final class HealthScreen extends PaginatedMenu<Map.Entry<String, Double>>
         Mannequin updated = mannequin.withMaxHealthOverride(health);
         services.mannequins().save(updated);
         services.mannequins().liveEntity(id).ifPresent(entity ->
-                entity.setMaxHealth(updated.resolvedMaxHealth(services.config().maxHealthClamped())));
+                MannequinService.maxHealth(entity, updated.resolvedMaxHealth(services.config().maxHealthClamped())));
         refresh();
     }
 

@@ -70,7 +70,7 @@ class ChainMovementListenerTest {
         Player player = FakeServices.player(playerId);
         Player partner = FakeServices.player(partnerId);
         when(partner.getLocation()).thenReturn(FakeServices.at(world, 0, 64, 0));
-        when(player.isOnGround()).thenReturn(true);
+        standing(player, true);
 
         Location from = FakeServices.at(world, 30, 64, 0);
         Location to = FakeServices.at(world, 35, 64, 0);   // past 32, and further than before
@@ -119,7 +119,7 @@ class ChainMovementListenerTest {
         Player player = FakeServices.player(playerId);
         Player partner = FakeServices.player(partnerId);
         when(partner.getLocation()).thenReturn(FakeServices.at(world, 0, 64, 0));
-        when(player.isOnGround()).thenReturn(false);
+        standing(player, false);
 
         Location from = FakeServices.at(world, 30, 64, 0);
         Location to = FakeServices.at(world, 35, 64, 0);
@@ -145,7 +145,7 @@ class ChainMovementListenerTest {
         Player player = FakeServices.player(playerId);
         Player partner = FakeServices.player(partnerId);
         when(partner.getLocation()).thenReturn(FakeServices.at(world, 0, 64, 0));
-        when(player.isOnGround()).thenReturn(true);
+        standing(player, true);
 
         Location from = FakeServices.at(world, 30, 64, 0);
         Location to = FakeServices.at(world, 35, 64, 0);
@@ -185,5 +185,15 @@ class ChainMovementListenerTest {
         // Nothing observable from the outside beyond "this does not throw" — the throttle map itself
         // is private, and the cooldown's own behaviour is Core's Cooldowns, already tested there.
         listener.forget(playerId);
+    }
+
+    /**
+     * Ground as the server sees it — blocks under the feet ({@code Footing}), not the client's
+     * {@code isOnGround}, which Paper deprecates because a hacked client can claim anything.
+     */
+    private void standing(Player player, boolean onSomething) {
+        when(player.getWorld()).thenReturn(world);
+        when(player.getBoundingBox()).thenReturn(new org.bukkit.util.BoundingBox(0, 5, 0, 0.6, 6.8, 0.6));
+        when(world.hasCollisionsIn(org.mockito.ArgumentMatchers.any())).thenReturn(onSomething);
     }
 }

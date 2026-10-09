@@ -34,7 +34,7 @@ final class Server implements AutoCloseable {
 
     /** @param others plugins from elsewhere — another author's plugin a module works alongside */
     static Server start(String scenario, List<String> plugins, List<Path> others, List<String> upLines) {
-        PaperServer.Builder builder = PaperServer.builder(E2e.PAPER_VERSION, E2e.PAPER_BUILD)
+        PaperServer.Builder builder = PaperServer.forRun()
                 .seed(1)
                 .in(E2e.serverFolder(scenario))
                 .plugin(Path.of(System.getProperty("e2e.rainscore")));

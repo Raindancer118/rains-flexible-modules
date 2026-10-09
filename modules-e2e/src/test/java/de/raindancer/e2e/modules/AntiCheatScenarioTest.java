@@ -49,7 +49,7 @@ class AntiCheatScenarioTest {
             server.console("forceload add -16 -16 16 16");
             server.console("fill -12 100 -12 12 100 12 minecraft:stone");
             server.console("fill -12 101 -12 12 125 12 minecraft:air");
-            server.console("gamerule doDaylightCycle false");
+            server.console("gamerule advance_time false");
 
             Bot ada = server.admin("Ada");
             Bot legit = server.player("Legit");

@@ -1,5 +1,6 @@
 package de.raindancer.modules.chained.listener;
 
+import de.raindancer.core.world.movement.Footing;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.speedrun.SpeedrunSession;
@@ -123,7 +124,7 @@ public final class ChainMovementListener implements IChainedListener {
     }
 
     private void resyncIfAirborne(Player player, Location from) {
-        if (player.isOnGround()) {
+        if (Footing.grounded(player)) {
             return;
         }
         Location safe = from.clone();

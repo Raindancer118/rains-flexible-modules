@@ -23,15 +23,15 @@
           portable jar.
         -->
         <java.version>25</java.version>
-        <paper.api.version>26.2.build.111-stable</paper.api.version>
-        <rainscore.version>1.90.0</rainscore.version>
+        <paper.api.version>26.3.build.169-beta</paper.api.version>
+        <rainscore.version>1.91.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
-        <!-- The end-to-end harness and its headless client: one timestamped 26.2 build, never the moving SNAPSHOT. -->
+        <!-- The end-to-end harness and its headless client: one timestamped 26.3 build, never the moving SNAPSHOT. -->
         <e2e-harness.version>0.5.0</e2e-harness.version>
-        <mcprotocollib.version>26.2-20260907.143312-19</mcprotocollib.version>
+        <mcprotocollib.version>26.3-20260925.105100-9</mcprotocollib.version>
         <!-- Which tests run: everything but the e2e ones, unless -Pe2e turns it round. -->
         <e2e.excluded>e2e,screenshots</e2e.excluded>
         <e2e.groups></e2e.groups>
@@ -40,43 +40,43 @@
         <!-- One property per library module, each its own version — independent of the reactor's
              <version> and of each other. Bumping one of these is what a <module>-vX.Y.Z release tag
              is checked against; nothing else in this file ties a module's version to another's. -->
-        <modules-api.version>1.1.0</modules-api.version>
-        <modules-wrapper.version>1.2.1</modules-wrapper.version>
+        <modules-api.version>1.2.0</modules-api.version>
+        <modules-wrapper.version>1.3.0</modules-wrapper.version>
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
-        <claims-module.version>2.8.0</claims-module.version>
-        <moderation-module.version>2.30.0</moderation-module.version>
-        <names-module.version>2.2.1</names-module.version>
-        <cosmetics-module.version>0.13.1</cosmetics-module.version>
-        <warp-module.version>1.6.0</warp-module.version>
-        <homes-module.version>2.5.1</homes-module.version>
-        <tpa-module.version>2.3.0</tpa-module.version>
-        <farmworld-module.version>1.3.0</farmworld-module.version>
-        <pack-module.version>1.0.0</pack-module.version>
-        <chained-module.version>1.3.0</chained-module.version>
-        <rtp-module.version>1.3.0</rtp-module.version>
-        <essentials-module.version>1.17.0</essentials-module.version>
-        <worldgate-module.version>1.3.0</worldgate-module.version>
+        <claims-module.version>2.9.0</claims-module.version>
+        <moderation-module.version>2.31.0</moderation-module.version>
+        <names-module.version>2.3.0</names-module.version>
+        <cosmetics-module.version>0.14.0</cosmetics-module.version>
+        <warp-module.version>1.7.0</warp-module.version>
+        <homes-module.version>2.6.0</homes-module.version>
+        <tpa-module.version>2.4.0</tpa-module.version>
+        <farmworld-module.version>1.4.0</farmworld-module.version>
+        <pack-module.version>1.1.0</pack-module.version>
+        <chained-module.version>1.4.0</chained-module.version>
+        <rtp-module.version>1.4.0</rtp-module.version>
+        <essentials-module.version>1.18.0</essentials-module.version>
+        <worldgate-module.version>1.4.0</worldgate-module.version>
         <!-- 0.x until it is everything that was asked for; the first release of World Utils. -->
-        <worldutils-module.version>0.3.0</worldutils-module.version>
-        <mannequin-module.version>1.9.0</mannequin-module.version>
-        <invsnap-module.version>1.4.1</invsnap-module.version>
-        <xpbottle-module.version>1.2.0</xpbottle-module.version>
-        <veintoggle-module.version>0.3.0</veintoggle-module.version>
-        <farmlimit-module.version>0.1.0</farmlimit-module.version>
-        <economy-module.version>0.22.0</economy-module.version>
-        <roles-module.version>0.3.1</roles-module.version>
-        <jobs-module.version>0.2.0</jobs-module.version>
-        <anticheat-module.version>0.5.0</anticheat-module.version>
-        <playerutils-module.version>0.2.1</playerutils-module.version>
-        <xaeromap-module.version>1.2.0</xaeromap-module.version>
-        <wallsroads-module.version>1.2.0</wallsroads-module.version>
+        <worldutils-module.version>0.4.0</worldutils-module.version>
+        <mannequin-module.version>1.10.0</mannequin-module.version>
+        <invsnap-module.version>1.5.0</invsnap-module.version>
+        <xpbottle-module.version>1.3.0</xpbottle-module.version>
+        <veintoggle-module.version>0.4.0</veintoggle-module.version>
+        <performance-module.version>0.1.0</performance-module.version>
+        <economy-module.version>0.23.0</economy-module.version>
+        <roles-module.version>0.4.0</roles-module.version>
+        <jobs-module.version>0.3.0</jobs-module.version>
+        <anticheat-module.version>0.6.0</anticheat-module.version>
+        <playerutils-module.version>0.3.0</playerutils-module.version>
+        <xaeromap-module.version>1.3.0</xaeromap-module.version>
+        <wallsroads-module.version>1.3.0</wallsroads-module.version>
         <hungergames-module.version>2.9.0</hungergames-module.version>
         <!-- Split out of RainsCore 13.08.2026, after a join handler there cleared a player's
              inventory on every join anywhere on the server — see speedrun-module's own README/javadoc
              for the incident. chained-module depends on this directly for the engine underneath it. -->
-        <speedrun-module.version>1.32.0</speedrun-module.version>
-        <chat-module.version>1.11.1</chat-module.version>
+        <speedrun-module.version>1.33.0</speedrun-module.version>
+        <chat-module.version>1.12.0</chat-module.version>
         <!-- Depends on speedrun-module's engine classes the same way chained-module does; see that
              module's own note in this file. -->
     </properties>
@@ -121,8 +121,8 @@
         <module>xpbottle-standalone</module>
         <module>veintoggle-module</module>
         <module>veintoggle-standalone</module>
-        <module>farmlimit-module</module>
-        <module>farmlimit-standalone</module>
+        <module>performance-module</module>
+        <module>performance-standalone</module>
         <module>economy-module</module>
         <module>economy-standalone</module>
         <module>roles-module</module>
@@ -299,8 +299,8 @@
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
-                <artifactId>farmlimit-module</artifactId>
-                <version>${farmlimit-module.version}</version>
+                <artifactId>performance-module</artifactId>
+                <version>${performance-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>

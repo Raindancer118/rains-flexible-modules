@@ -126,7 +126,8 @@ public final class E2eProbe extends JavaPlugin implements Listener {
         Player player = (Player) event.getPlayer();
         Inventory top = event.getInventory();
         net.kyori.adventure.text.Component title = event.getView().title();
-        Bukkit.getScheduler().runTaskLater(this, () -> {
+        // The player's own scheduler, not Bukkit's: Folia has no main thread to put it on.
+        player.getScheduler().runDelayed(this, task -> {
             JsonObject open = new JsonObject();
             open.addProperty("event", "open");
             open.addProperty("player", player.getName());
@@ -153,7 +154,7 @@ public final class E2eProbe extends JavaPlugin implements Listener {
             open.add("entries", entries);
             open.addProperty("list", isList(top.getHolder(false)));
             write(open);
-        }, 1L);
+        }, null, 1L);
     }
 
     /** Core's PaginatedMenu puts its entries in the first four rows; the toolbar below is controls. */

@@ -29,7 +29,7 @@ import java.util.List;
  */
 public final class RolesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.3.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.4.0")
             .describedAs("Pick a role with /role — a cook, a builder, an explorer… — and pay less in the shop for what it works with")
             .by("Raindancer118");
 

@@ -4,7 +4,7 @@ name: ${plugin.name}
 version: '${plugin.version}'
 main: de.raindancer.modules.wrapper.ModulePlugin
 bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
-api-version: '1.21'
+api-version: '26.3'
 description: 'Dye a name tag, then craft it with an item to paint that item''s name — gradients included.'
 author: Raindancer118
 website: https://github.com/Raindancer118/RainsCore
