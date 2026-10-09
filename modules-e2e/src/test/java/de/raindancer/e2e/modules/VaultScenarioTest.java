@@ -92,6 +92,23 @@ class VaultScenarioTest {
             assertThat(ada.items().stream().filter(item -> item.is("dirt")).mapToInt(Bot.Item::amount).sum())
                     .isEqualTo(64);
 
+            // Everything in at once, then everything out at once.
+            ada.run("vault");
+            ada.awaitWindow("Vault");
+            ada.click("Put everything in");
+            Await.until("Ada's whole inventory is in the vault", Duration.ofSeconds(10),
+                    () -> topHas(ada, "dirt") && topHas(ada, "mace")
+                            && ada.carrying(item -> item.is("dirt") || item.is("mace")).isEmpty());
+            assertThat(ada.inventory().get(5)).as("worn armour stays on without shift").isNotNull();
+            ada.shiftClickSlot(ada.window().orElseThrow().slotNamed("Take all").orElseThrow());
+            Await.until("all of it is back", Duration.ofSeconds(10),
+                    () -> ada.carrying(item -> item.is("mace")).isPresent()
+                            && ada.carrying(item -> item.is("dirt")).isPresent());
+            ada.closeWindow();
+            Await.ticks(10);
+            assertThat(ada.items().stream().filter(item -> item.is("dirt")).mapToInt(Bot.Item::amount).sum())
+                    .as("nothing lost or doubled on the round trip").isEqualTo(64);
+
             // And a vault that was put away is still there next time.
             server.console("item replace entity Ada hotbar.3 with minecraft:emerald 5");
             ada.run("vault");

@@ -99,14 +99,14 @@ public final class VaultMenu extends ModerationScreen {
                     }
                     changed();
                 });
-        toolbar(2, services().vaults().wearsAnything(viewer),
-                Icons.of(Material.ARMOR_STAND, "<green>Put away what you are wearing",
-                        "<gray>Onto its stand, or into the vault",
-                        "<gray>when the stand is taken."),
-                "You are not wearing anything",
+        toolbar(2, Icons.of(Material.CHEST, "<green>Put everything in",
+                        "<gray>Click: your whole inventory",
+                        "<gray>Shift-click: what you are wearing too",
+                        "<dark_gray>Armour goes onto its stand first.",
+                        "<dark_gray>What does not fit stays with you."),
                 event -> {
                     if (stillTheirs()) {
-                        services().vaults().storeWorn(viewer);
+                        services().vaults().depositAll(viewer, event.isShiftClick());
                         changed();
                     }
                 });

@@ -40,8 +40,7 @@ public final class PlayerStats {
             return lore;
         }
 
-        Duration playtime = Duration.ofSeconds(player.getStatistic(Statistic.PLAY_ONE_MINUTE) / 20L);
-        lore.add("<gray>Played for <white>" + Times.describe(playtime) + "</white>.");
+        lore.addAll(playtime(player));
 
         Instant firstJoined = Instant.ofEpochMilli(player.getFirstPlayed());
         lore.add("<gray>First joined <white>" + Times.describe(Duration.between(firstJoined, now()))
@@ -57,6 +56,22 @@ public final class PlayerStats {
                 + player.getStatistic(Statistic.MOB_KILLS) + " mob kill(s), "
                 + player.getStatistic(Statistic.PLAYER_KILLS) + " player kill(s).");
         return lore;
+    }
+
+    /**
+     * How long they have played — Core's own count when it has one, which also knows how much of it they were
+     * not away; else the game's statistic. What a moderator weighs "full diamond after ten hours?" against.
+     */
+    public static List<String> playtime(OfflinePlayer player) {
+        if (de.raindancer.core.RainsCore.isAvailable()
+                && de.raindancer.core.RainsCore.get().playtime().isKnown(player.getUniqueId())) {
+            de.raindancer.core.social.presence.Playtime counted = de.raindancer.core.RainsCore.get().playtime();
+            return List.of("<gray>Played for <white>" + Times.describe(counted.played(player.getUniqueId())) + "</white>.",
+                    "<gray>Not away for <white>" + Times.describe(counted.playedActively(player.getUniqueId()))
+                            + "</white> of it.");
+        }
+        Duration playtime = Duration.ofSeconds(player.getStatistic(Statistic.PLAY_ONE_MINUTE) / 20L);
+        return List.of("<gray>Played for <white>" + Times.describe(playtime) + "</white>.");
     }
 
     private static Instant now() {

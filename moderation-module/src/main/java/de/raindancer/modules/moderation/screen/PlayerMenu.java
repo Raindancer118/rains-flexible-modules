@@ -73,6 +73,12 @@ public final class PlayerMenu extends ModerationScreen {
                 click -> new NotesMenu(services(), viewer, this, subject, subjectName).open());
 
         band(MenuLayout.WHO, 4, Icons.head(subject, "<white>" + subjectName, whatIsInForce()));
+        // Playtime on its own, at a glance: what "full diamond already?" is weighed against.
+        org.bukkit.OfflinePlayer them = services().server().getOfflinePlayer(subject);
+        if (them.hasPlayedBefore() || them.isOnline()) {
+            set(MenuLayout.HEADER_RIGHT, Icons.of(Material.CLOCK, "<white>Playtime",
+                    de.raindancer.modules.moderation.util.PlayerStats.playtime(them)));
+        }
 
         band(MenuLayout.WHO, 6, may(ModerationPermission.REPORTS),
                 Icons.of(Material.PAPER, "<yellow>Reported",

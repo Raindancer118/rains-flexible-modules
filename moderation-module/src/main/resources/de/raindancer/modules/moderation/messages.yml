@@ -89,6 +89,8 @@ moderation:
     cursed: "<gray>Your <white><piece></white> is bound to you by a curse and stays on."
     equipped: "<green>Put on <white><count></white> piece(s) of armour from your vault."
     stored-worn: "<green>Put <white><count></white> piece(s) of armour into your vault."
+    stored-all: "<green>Put <white><count></white> stack(s) into your vault."
+    stored-some: "<yellow>Put <white><count></white> stack(s) in; your vault is full, the rest stayed with you."
     no-room: "<red>Your vault has no room for what you are wearing."
     not-yours: "<red>You no longer have a vault on this server."
 

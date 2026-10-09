@@ -225,6 +225,46 @@ public final class VaultService implements IModerationService {
         messages.send(owner, "moderation.vault.equipped", "count", String.valueOf(changed));
     }
 
+    /**
+     * Everything carried in at once — hotbar, storage and off hand, and with {@code alsoWorn} the armour too.
+     * What does not fit stays where it was.
+     */
+    public void depositAll(Player owner, boolean alsoWorn) {
+        Stash vault = of(owner.getUniqueId());
+        org.bukkit.inventory.PlayerInventory inventory = owner.getInventory();
+        int stored = 0;
+        boolean full = false;
+        java.util.List<Integer> slots = new java.util.ArrayList<>();
+        for (int slot = 0; slot < 36; slot++) {
+            slots.add(slot);
+        }
+        slots.add(40);   // the off hand
+        for (int slot : slots) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            int accepted = vault.deposit(stack);
+            if (accepted < stack.getAmount()) {
+                full = true;
+            }
+            if (accepted <= 0) {
+                continue;
+            }
+            stack.setAmount(stack.getAmount() - accepted);
+            inventory.setItem(slot, stack.isEmpty() ? null : stack);
+            stored++;
+        }
+        if (stored > 0) {
+            save(owner.getUniqueId());
+        }
+        messages.send(owner, full ? "moderation.vault.stored-some" : "moderation.vault.stored-all",
+                "count", String.valueOf(stored));
+        if (alsoWorn) {
+            storeWorn(owner);
+        }
+    }
+
     /** Takes off what is worn: onto its empty stand, otherwise into the vault, otherwise it stays on. */
     public void storeWorn(Player owner) {
         Stash vault = of(owner.getUniqueId());
