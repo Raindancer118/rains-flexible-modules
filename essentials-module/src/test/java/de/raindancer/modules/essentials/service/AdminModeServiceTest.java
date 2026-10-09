@@ -203,4 +203,31 @@ class AdminModeServiceTest {
         service.toggle(other);
         verify(vanish, never()).reveal(otherId);
     }
+
+    @Test
+    @DisplayName("a broken admin-mode file counts as being in admin mode — never as an empty one")
+    void brokenFileFailsClosed() throws Exception {
+        java.nio.file.Files.writeString(folder.resolve(id + ".yml"), "survival: [unclosed\n  : :");
+
+        service.joined(player);
+
+        assertThat(service.isInAdminMode(id)).isTrue();
+        verify(messages, org.mockito.Mockito.atLeastOnce()).send(player, "essentials.admin.file-broken");
+        assertThat(service.toggle(player)).as("cannot come out: that would make the admin side theirs").isFalse();
+        assertThat(service.enter(player)).isFalse();
+        verify(loadouts, never()).apply(any(), any());
+        verify(loadouts, never()).capture(any());
+    }
+
+    @Test
+    @DisplayName("losing the permission with a broken file still keeps them marked, not freed")
+    void brokenFileWithoutPermission() throws Exception {
+        java.nio.file.Files.writeString(folder.resolve(id + ".yml"), "survival: [unclosed\n  : :");
+        when(player.hasPermission(PermissionNodes.ADMIN_MODE)).thenReturn(false);
+
+        service.joined(player);
+
+        assertThat(service.isInAdminMode(id)).isTrue();
+        verify(loadouts, never()).apply(any(), any());
+    }
 }

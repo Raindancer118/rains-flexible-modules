@@ -60,6 +60,13 @@ class RulesAdminScenarioTest {
             server.console("give Ada stick 3");
             Await.until("Ada holds sticks", Duration.ofSeconds(5),
                     () -> ada.carrying(item -> item.is("stick")).isPresent());
+            // Admin items stay on the admin side: a drop is refused and the sticks stay.
+            ada.hold(ada.hotbarSlotOf(item -> item.is("stick")));
+            ada.forgetChat();
+            ada.dropHeld();
+            ada.expectChat("Admin items stay on the admin side");
+            assertThat(ada.items().stream().filter(item -> item.is("stick")).mapToInt(Bot.Item::amount).sum())
+                    .isEqualTo(3);
             ada.runAndExpect("admin", "Admin mode off");
             ada.expectGameMode(GameMode.SURVIVAL);
             Await.until("the diamonds are back, the sticks are not", Duration.ofSeconds(5),

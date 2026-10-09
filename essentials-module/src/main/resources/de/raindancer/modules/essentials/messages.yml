@@ -203,6 +203,9 @@ essentials:
     could-not-save: "<red>Could not write the inventory to disk, so nothing was switched. The console says why."
     unreadable: "<red><white><count></white> item(s) there cannot be read by this server right now, so nothing was switched. Switching would lose them."
     bar: "<red><bold>ADMIN MODE</bold></red> <gray>— /admin to leave"
+    file-broken: "<red>Your admin-mode file cannot be read, so you stay in admin mode until staff fix it. Nothing was switched."
+    kept-apart: "<red>Admin items stay on the admin side. <gray>Leave admin mode with <white>/admin</white> for that."
+    look-only: "<gray>Admin mode: you can look in here, but not take or put anything."
 
   # ── /roast and /joke ──────────────────────────────────────────────────────
   # Said in chat as whoever asked, so they are plain text: no colours, and a mute stops them.

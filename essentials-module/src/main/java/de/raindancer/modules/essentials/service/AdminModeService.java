@@ -31,6 +31,8 @@ public final class AdminModeService implements IEssentialsService {
     public static final String SURVIVAL = "survival";
     public static final String ADMIN = "admin";
     private static final String BAR = "essentials-admin-mode";
+    private static final de.raindancer.core.platform.log.LogChannel log =
+            de.raindancer.core.platform.log.Log.of("essentials");
 
     private final LoadoutStore store;
     private final Loadouts loadouts;
@@ -64,6 +66,27 @@ public final class AdminModeService implements IEssentialsService {
         return inAdminMode.contains(player);
     }
 
+    /** Whether this player's items must stay on the admin side right now. */
+    public boolean keepsItemsApart(UUID player) {
+        return settings.adminKeepItemsApart() && isInAdminMode(player);
+    }
+
+    /**
+     * A broken file cannot say which side they wear, so they count as in admin mode and stay there until it is
+     * fixed: coming out would make whatever they hold their survival inventory.
+     */
+    private boolean brokenFile(Player player) {
+        UUID id = player.getUniqueId();
+        if (store.readable(id)) {
+            return false;
+        }
+        inAdminMode.add(id);
+        log.error("The admin-mode file of {} ({}) cannot be read. They are treated as in admin mode until it is "
+                + "fixed.", player.getName(), id);
+        messages.send(player, "essentials.admin.file-broken");
+        return true;
+    }
+
     /** In or out, whichever they are not. Must run on the player's own thread. */
     public boolean toggle(Player player) {
         return isInAdminMode(player.getUniqueId()) ? leave(player) : enter(player);
@@ -71,6 +94,9 @@ public final class AdminModeService implements IEssentialsService {
 
     public boolean enter(Player player) {
         UUID id = player.getUniqueId();
+        if (brokenFile(player)) {
+            return false;
+        }
         if (isInAdminMode(id)) {
             messages.send(player, "essentials.admin.already-in");
             return false;
@@ -107,6 +133,9 @@ public final class AdminModeService implements IEssentialsService {
     /** Anybody in admin mode may always leave it — losing the permission must not lock them in. */
     public boolean leave(Player player) {
         UUID id = player.getUniqueId();
+        if (brokenFile(player)) {
+            return false;
+        }
         Loadout survival = store.load(id, SURVIVAL).orElse(null);
         if (survival == null) {
             inAdminMode.remove(id);
@@ -141,6 +170,10 @@ public final class AdminModeService implements IEssentialsService {
     /** Picks up admin mode left on from before a quit or a restart. */
     public void joined(Player player) {
         UUID id = player.getUniqueId();
+        if (brokenFile(player)) {
+            showBar(id);
+            return;
+        }
         if (!store.has(id, SURVIVAL)) {
             inAdminMode.remove(id);
             return;
