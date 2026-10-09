@@ -167,4 +167,27 @@ class CreditBookTest {
         assertThat(reopened.credit(alice, 12).recent().staked()).isEqualTo(Money.of(6_000));
         again.close();
     }
+
+    @Test
+    @DisplayName("wages are money between players: cycling them with a friend through /pay earns nobody anything")
+    void wagesAreNetted() {
+        Database database = open(EconomyDatabase.SCHEMA);
+        AccountBook book = book(database);
+        UUID bob = UUID.randomUUID();
+        book.open(alice, "Alice", Money.of(10_000));
+        book.open(bob, "Bob", Money.of(10_000));
+        for (int round = 0; round < 5; round++) {
+            book.transfer(bob, alice, Money.of(5_000), Money.ZERO, TransactionKind.WAGE, "Wage", MOST);
+            book.transfer(alice, bob, Money.of(5_000), Money.ZERO, TransactionKind.PAY, "", MOST);
+        }
+        de.raindancer.modules.economy.rules.CreditRule rule = new de.raindancer.modules.economy.rules.CreditRule();
+        for (UUID who : java.util.List.of(alice, bob)) {
+            de.raindancer.modules.economy.rules.CreditRule.Limit limit = rule.limit(
+                    new de.raindancer.modules.economy.rules.CreditRule.Standing(book.balance(who), book.credit(who, 12)),
+                    Money.ZERO);
+            assertThat(limit.earned()).as("nothing earned by passing money around").isEqualTo(Money.ZERO);
+            assertThat(limit.amount()).isEqualTo(Money.of(10_000));
+        }
+        database.close();
+    }
 }

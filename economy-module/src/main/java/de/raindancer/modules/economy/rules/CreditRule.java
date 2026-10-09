@@ -12,7 +12,7 @@ import java.util.Set;
  * ended — never past the server's largest loan. Earlier earnings do not count: what somebody is doing now does.
  *
  * <h2>Why money between players is netted</h2>
- * Two friends paying the same coins back and forth would otherwise both look like great earners. Payments,
+ * Two friends paying the same coins back and forth would otherwise both look like great earners. Payments, wages,
  * bills and auctions count only as what came in more than went out (earned), or the other way round (spent).
  *
  * <h2>Why the highest balance ever does not count</h2>
@@ -26,11 +26,13 @@ public final class CreditRule implements IEconomyRule {
     static final double LATE_PENALTY = 0.3;
     static final double MOST_RECORD = 2.0;
 
+    /** Money from the server, not from another player — wages are between players and netted below. */
     public static final Set<TransactionKind> EARNING = Set.of(TransactionKind.SELL, TransactionKind.REWARD,
-            TransactionKind.INCOME, TransactionKind.WAGE, TransactionKind.DAILY, TransactionKind.INTEREST);
+            TransactionKind.INCOME, TransactionKind.DAILY, TransactionKind.INTEREST);
     public static final Set<TransactionKind> SPENDING = Set.of(TransactionKind.BUY, TransactionKind.TAX,
             TransactionKind.FEE);
-    public static final Set<TransactionKind> BETWEEN_PLAYERS = Set.of(TransactionKind.PAY, TransactionKind.BILL,
+    public static final Set<TransactionKind> BETWEEN_PLAYERS = Set.of(TransactionKind.PAY, TransactionKind.WAGE,
+            TransactionKind.BILL,
             TransactionKind.AUCTION, TransactionKind.PLUGIN);
     public static final Set<TransactionKind> GAMBLING = Set.of(TransactionKind.GAMBLE, TransactionKind.LOTTERY,
             TransactionKind.RAFFLE);
