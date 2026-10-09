@@ -25,7 +25,7 @@ import java.util.function.Supplier;
  */
 public final class RulesCommand implements IEssentialsCommand {
 
-    static final List<String> MANAGING = List.of("edit", "add", "remove", "preset");
+    static final List<String> MANAGING = List.of("edit", "add", "remove", "punishment", "preset");
     static final List<String> PRESET_WORDS = List.of("list", "show", "take", "apply", "save", "delete");
 
     private static final String ADD_USAGE = "/rules add <title> | <text>";
@@ -74,6 +74,7 @@ public final class RulesCommand implements IEssentialsCommand {
             }
             case "add" -> add(live, sender, args);
             case "remove" -> remove(live, sender, args);
+            case "punishment" -> punishment(live, sender, args);
             default -> preset(live, sender, args);
         }
     }
@@ -97,6 +98,17 @@ public final class RulesCommand implements IEssentialsCommand {
         }
         rule.ifPresentOrElse(found -> live.rules().remove(sender, found.id()),
                 () -> live.messages().send(sender, "essentials.rules.no-such", "number", args[1]));
+    }
+
+    /** {@code /rules punishment <number> <warn, mute 1h, ban 3d, ban>} — nothing after the number clears it. */
+    private static void punishment(EssentialsServices live, CommandSender sender, String[] args) {
+        Optional<HouseRule> rule = args.length < 2 ? Optional.empty()
+                : number(args[1]).flatMap(live.rules().book()::byNumber);
+        if (rule.isEmpty()) {
+            live.messages().send(sender, "essentials.usage", "usage", "/rules punishment <number> <warn, mute 1h, ban>");
+            return;
+        }
+        live.rules().setPenalties(sender, rule.get().id(), String.join(" ", Arrays.copyOfRange(args, 2, args.length)));
     }
 
     private static void preset(EssentialsServices live, CommandSender sender, String[] args) {
@@ -187,7 +199,9 @@ public final class RulesCommand implements IEssentialsCommand {
         } else if (args[0].equalsIgnoreCase("preset") && args.length == 3
                 && List.of("show", "take", "apply", "delete", "save").contains(args[1].toLowerCase(Locale.ROOT))) {
             services.get().rules().book().presets().stream().map(RulePreset::name).forEach(options::add);
-        } else if (args[0].equalsIgnoreCase("remove") && args.length == 2) {
+        } else if (args[0].equalsIgnoreCase("punishment") && args.length >= 3) {
+            options.addAll(List.of("warn,", "kick,", "mute 1h,", "ban 3d,", "ban"));
+        } else if ((args[0].equalsIgnoreCase("remove") || args[0].equalsIgnoreCase("punishment")) && args.length == 2) {
             for (int number = 1; number <= services.get().rules().book().rules().size(); number++) {
                 options.add(String.valueOf(number));
             }

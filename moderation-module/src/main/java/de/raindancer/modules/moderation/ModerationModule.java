@@ -68,7 +68,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.28.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.29.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -89,6 +89,15 @@ public final class ModerationModule implements FlexModule {
     private AnnouncementRule announcements;
 
     private PunishmentService punishmentService;
+
+    /** How often everybody broke each of the server's rules — see {@code RuleOffences}. */
+    private static de.raindancer.modules.moderation.store.RuleOffences ruleOffences(
+            de.raindancer.modules.api.ModuleContext context) {
+        de.raindancer.modules.moderation.store.RuleOffences offences =
+                new de.raindancer.modules.moderation.store.RuleOffences(context.dataFolder().resolve("rule-offences.yml"));
+        offences.load();
+        return offences;
+    }
     private ReportService reportService;
     private SuspiciousCommandService suspiciousCommands;
     private de.raindancer.modules.moderation.service.HoneypotService honeypots;
@@ -255,6 +264,8 @@ public final class ModerationModule implements FlexModule {
                 this::banLimitRule, this::promotionRule, this::filingRule,
                 punishmentService, reportService, suspiciousCommands, xrayEvidence, noteService, staffChat, roster, immune,
                 staffService, worldTools, banhammer, vaults,
+                new de.raindancer.modules.moderation.service.RuleBreachService(punishmentService,
+                        ruleOffences(context), staffRule, this::banLimitRule, context.core().messages()),
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
 

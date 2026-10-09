@@ -53,6 +53,9 @@ public final class RulesMenu extends PaginatedMenu<HouseRule> {
     protected ItemStack icon(HouseRule rule) {
         int number = entries().indexOf(rule) + 1;
         List<String> lore = new ArrayList<>(lore(rule.text()));
+        if (!rule.penalties().isEmpty()) {
+            lore.add("<red>" + escaped(de.raindancer.modules.essentials.service.RulesService.ladderInWords(rule.penalties())));
+        }
         lore.add("");
         lore.add(rule.enabled() ? "<green>shown to players" : "<red>switched off — kept, not shown");
         lore.add("");

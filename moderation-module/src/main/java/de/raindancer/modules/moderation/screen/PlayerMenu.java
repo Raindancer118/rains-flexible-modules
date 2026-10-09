@@ -115,6 +115,17 @@ public final class PlayerMenu extends ModerationScreen {
                 "For whoever may read a record",
                 click -> new HistoryMenu(services(), viewer, this, subject, subjectName).open());
 
+        // The server's own rules, each with the punishment everybody can read in /rules.
+        if (!services().ruleBreaches().rules().isEmpty()) {
+            band(MenuLayout.RULES, 7, may(ModerationPermission.WARN),
+                    Icons.of(Material.IRON_BARS, "<yellow>Broke a rule",
+                            "<gray>Pick the rule; its punishment",
+                            "<gray>for their next offence is handed out.",
+                            "<dark_gray>The same everybody reads in /rules."),
+                    "For whoever may hand out punishments",
+                    click -> new RuleBreachMenu(services(), viewer, this, subject, subjectName).open());
+        }
+
         band(MenuLayout.LAND, 3, may(ModerationPermission.HISTORY),
                 Icons.of(Material.OAK_SIGN, "<yellow>Audit trail",
                         "<gray>Joins, teleports, gamemode changes,",

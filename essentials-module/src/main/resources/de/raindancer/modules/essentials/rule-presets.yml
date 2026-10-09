@@ -1,32 +1,42 @@
 # Rule presets: whole sets of rules, put in place with /rules preset apply <name> or in /rules edit.
 # Add your own here or with /rules preset save <name>. A deleted file is written again on the next start.
+# punishments: what the 1st, 2nd, ... offence costs (warn, kick, mute 1h, freeze 30m, ban 3d, ban = for good);
+# past the last one it stays on the last one. Players see it in /rules; moderators hand it out from /mod.
 friendly-smp:
   description: A survival server for building together
   rules:
     - title: Be kind
       text: No insults, slurs, harassment or hate. Disagree like adults.
       icon: poppy
+      punishments: warn, mute 1h, mute 1d, ban 3d
     - title: No griefing
       text: Do not break, change or take what other people built or own, claimed or not.
       icon: tnt
+      punishments: ban 3d, ban 30d, ban
     - title: No stealing
       text: Chests, farms and animals that are not yours stay untouched unless the owner says otherwise.
       icon: chest
+      punishments: ban 1d, ban 7d, ban
     - title: No cheating
       text: No hacked clients, x-ray, duping or exploits. Found a bug? Tell staff instead of using it.
       icon: ender_eye
+      punishments: ban 14d, ban
     - title: PvP only by agreement
       text: Only fight players who agreed to it. Killing someone who did not is griefing.
       icon: iron_sword
+      punishments: warn, ban 1d, ban 7d
     - title: Keep the server running
       text: No lag machines or huge mob farms. Ask staff before building anything big with redstone.
       icon: redstone
+      punishments: warn, ban 1d, ban 7d
     - title: Keep chat readable
       text: No spam, caps floods or advertising other servers.
       icon: writable_book
+      punishments: warn, mute 30m, mute 6h, mute 3d
     - title: Staff have the last word
       text: If staff ask you to stop, stop. Disagree in private, not in chat.
       icon: golden_helmet
+      punishments: warn, kick, ban 1d
 pvp:
   description: Fighting allowed everywhere, but play fair
   rules:
@@ -36,33 +46,42 @@ pvp:
     - title: No cheating
       text: No hacked clients, kill aura, reach, x-ray, duping or exploits.
       icon: ender_eye
+      punishments: ban 14d, ban
     - title: No spawn killing
       text: Leave freshly spawned players alone until they have left spawn.
       icon: red_bed
+      punishments: warn, ban 1d, ban 7d
     - title: Trash talk, not hate
       text: Banter is fine. Slurs, threats and harassment are not.
       icon: paper
+      punishments: mute 1h, mute 1d, ban 7d
     - title: No combat logging
       text: Logging out during a fight counts as dying.
       icon: barrier
+      punishments: warn, ban 1h, ban 1d
     - title: Staff have the last word
       text: If staff ask you to stop, stop.
       icon: golden_helmet
+      punishments: warn, kick, ban 1d
 creative:
   description: A building server
   rules:
     - title: Be kind
       text: No insults, harassment or hate.
       icon: poppy
+      punishments: warn, mute 1h, mute 1d, ban 3d
     - title: Build on your own plot
       text: Do not build on, change or copy someone else's plot without asking.
       icon: grass_block
+      punishments: warn, ban 1d, ban 7d
     - title: Nothing offensive
       text: No offensive builds, skins, signs or names.
       icon: oak_sign
+      punishments: warn, ban 3d, ban
     - title: No lag
       text: No entity spam, huge redstone clocks or anything else that slows the server down.
       icon: redstone
+      punishments: warn, ban 1d, ban 7d
 anarchy:
   description: No rules, except the ones that keep the server alive
   rules:
@@ -72,6 +91,8 @@ anarchy:
     - title: Do not crash the server
       text: Lag machines and crash exploits get you banned, so everyone else can keep playing.
       icon: barrier
+      punishments: ban
     - title: Real-world law still applies
       text: No doxxing, threats or illegal content. Staff will ban for that.
       icon: iron_bars
+      punishments: ban

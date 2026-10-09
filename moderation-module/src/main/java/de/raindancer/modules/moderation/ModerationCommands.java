@@ -105,6 +105,11 @@ public final class ModerationCommands {
                                 new KickCommand(ModerationCommands::require))
                         .taking("<player> [reason]")
                         .needing(ModerationPermission.KICK.node()),
+                ModuleCommand.of("broke", "Punishes somebody for breaking one of the server's rules, as the rule says",
+                                new de.raindancer.modules.moderation.command.BrokeCommand(ModerationCommands::require))
+                        .aliased("rulebreak")
+                        .taking("<player> — pick the rule", "<player> <rule number> [what happened]")
+                        .needing(ModerationPermission.WARN.node()),
                 ModuleCommand.of("warn", "Puts a warning on somebody's record",
                                 new WarnCommand(ModerationCommands::require))
                         .taking("<player> [reason]")

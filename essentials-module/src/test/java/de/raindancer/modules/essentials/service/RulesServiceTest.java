@@ -45,6 +45,7 @@ class RulesServiceTest {
                               text: First.
                             - title: Two
                               text: Second.
+                              punishments: warn, mute 1h, ban
                         """.getBytes(StandardCharsets.UTF_8)), "base");
         book.load();
         service = new RulesService(book, messages, mock(ChatButtons.class), EssentialsSettings.DEFAULTS);
@@ -120,5 +121,24 @@ class RulesServiceTest {
         assertThat(service.takeFromPreset(manager, "base", 9)).isFalse();
         assertThat(service.takeFromPreset(manager, "nope", 1)).isFalse();
         assertThat(book.rules()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("everybody reading the rules is told what breaking each one costs")
+    void penaltiesAreShown() {
+        CommandSender player = mock(CommandSender.class);
+        service.show(player);
+        verify(messages).sendPlain(player, "essentials.rules.penalties",
+                "penalties", "1st: a warning · 2nd: muted for 1 hour · then: banned for good");
+    }
+
+    @Test
+    @DisplayName("the rules are offered to the rest of the server as players see them, numbered among the shown")
+    void offeredToTheServer() {
+        java.util.List<de.raindancer.core.moderation.rules.ServerRule> offered = service.serverRules();
+        assertThat(offered).hasSize(1);
+        assertThat(offered.getFirst().number()).isEqualTo(1);
+        assertThat(offered.getFirst().title()).isEqualTo("Two");
+        assertThat(offered.getFirst().ladder()).hasSize(3);
     }
 }

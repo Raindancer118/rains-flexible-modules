@@ -27,6 +27,7 @@ class RuleBookTest {
                 - title: No griefing
                   text: Leave what others built alone.
                   icon: tnt
+                  punishments: warn, ban 3d, ban
             anarchy:
               description: Anything goes
               rules:
@@ -160,5 +161,24 @@ class RuleBookTest {
         assertThat(book(folder).rules()).hasSize(3);
         assertThat(book.has(taken)).isTrue();
         assertThat(book.has(book.preset("friendly-smp").orElseThrow().rules().getLast())).isTrue();
+    }
+
+    @Test
+    @DisplayName("a rule's punishments come from its preset, can be changed, and survive a restart")
+    void punishments(@TempDir Path folder) {
+        RuleBook book = book(folder);
+        HouseRule griefing = book.rules().get(1);
+        assertThat(de.raindancer.core.moderation.rules.RulePenalty.write(griefing.penalties()))
+                .isEqualTo("warn, ban 3d, ban");
+        assertThat(book.rules().getFirst().penalties()).isEmpty();
+
+        book.update(griefing.id(), rule -> rule.withPenalties(
+                de.raindancer.core.moderation.rules.RulePenalty.ladder("mute 1h, ban").orElseThrow()));
+        HouseRule again = book(folder).rules().get(1);
+        assertThat(de.raindancer.core.moderation.rules.RulePenalty.write(again.penalties())).isEqualTo("mute 1h, ban");
+
+        assertThat(book.savePreset("mine", "")).isTrue();
+        assertThat(de.raindancer.core.moderation.rules.RulePenalty.write(
+                book(folder).preset("mine").orElseThrow().rules().get(1).penalties())).isEqualTo("mute 1h, ban");
     }
 }

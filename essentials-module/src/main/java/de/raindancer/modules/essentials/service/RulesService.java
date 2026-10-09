@@ -3,6 +3,8 @@ package de.raindancer.modules.essentials.service;
 import de.raindancer.core.platform.rule.Verdict;
 import de.raindancer.core.ui.chat.ChatButtons;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.moderation.rules.RulePenalty;
+import de.raindancer.core.moderation.rules.ServerRule;
 import de.raindancer.modules.essentials.EssentialsSettings;
 import de.raindancer.modules.essentials.model.HouseRule;
 import de.raindancer.modules.essentials.model.RulePreset;
@@ -80,6 +82,42 @@ public final class RulesService implements IEssentialsService {
     private void line(CommandSender to, int number, HouseRule rule) {
         messages.sendPlain(to, rule.enabled() ? "essentials.rules.line" : "essentials.rules.line-off",
                 "number", number, "title", rule.title(), "text", rule.text());
+        if (!rule.penalties().isEmpty()) {
+            messages.sendPlain(to, "essentials.rules.penalties", "penalties", ladderInWords(rule.penalties()));
+        }
+    }
+
+    /** "1st: a warning · 2nd: muted for 1 hour · then: banned for good" — Core's wording, shared with moderation. */
+    public static String ladderInWords(List<RulePenalty> ladder) {
+        return RulePenalty.describe(ladder);
+    }
+
+    /** The rules players see, numbered as they see them, for the rest of the server — moderation punishes by them. */
+    public List<ServerRule> serverRules() {
+        List<HouseRule> shown = book.shown();
+        List<ServerRule> offered = new java.util.ArrayList<>(shown.size());
+        for (int index = 0; index < shown.size(); index++) {
+            HouseRule rule = shown.get(index);
+            offered.add(new ServerRule(rule.id(), index + 1, rule.title(), rule.text(), rule.penalties()));
+        }
+        return offered;
+    }
+
+    /** @param typed a ladder like "warn, mute 1h, ban"; blank takes every penalty away */
+    public boolean setPenalties(CommandSender by, String id, String typed) {
+        java.util.Optional<List<RulePenalty>> ladder = RulePenalty.ladder(typed);
+        if (ladder.isEmpty()) {
+            messages.send(by, "essentials.rules.penalties-unreadable", "typed", typed);
+            return false;
+        }
+        boolean found = book.update(id, rule -> rule.withPenalties(ladder.get()));
+        if (!found) {
+            messages.send(by, "essentials.rules.gone");
+            return false;
+        }
+        messages.send(by, ladder.get().isEmpty() ? "essentials.rules.penalties-cleared" : "essentials.rules.penalties-set",
+                "penalties", ladder.get().isEmpty() ? "" : ladderInWords(ladder.get()));
+        return true;
     }
 
     /** Somebody's very first join, if the owner wants the rules shown then. */

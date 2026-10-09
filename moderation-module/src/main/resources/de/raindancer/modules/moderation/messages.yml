@@ -77,6 +77,12 @@ moderation:
     already-banned: "<gray>That player is already banned."
 
   # /vault — an operator's own stash. Sneak-right-click with the Banhammer puts it in, with an empty hand takes it out.
+  # ── /broke: the server's own rules, each with its own punishment ─────────────────────
+  rules:
+    punished: "<green><white><player></white> broke rule <number> (<title>) for the <offence> time: <white><penalty></white>."
+    no-ladder: "<red>Rule <number> (<title>) has no fixed punishment. Set one with <white>/rules punishment <number> …</white>, or punish by hand."
+    no-such: "<red>There is no rule <white><number></white>. <gray>/rules lists them."
+
   vault:
     stashed: "<gold>The Banhammer is in your vault. <gray>Get it back with <white>/vault</white>."
     drawn: "<gold>The Banhammer, out of your vault."

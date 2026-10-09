@@ -72,6 +72,30 @@ public final class RuleMenu extends Menu {
                     }
                 });
 
+        java.util.List<String> penaltyLore = new java.util.ArrayList<>();
+        if (rule.penalties().isEmpty()) {
+            penaltyLore.add("<gray>None set: staff decide each time.");
+        } else {
+            for (String part : de.raindancer.modules.essentials.service.RulesService.ladderInWords(rule.penalties())
+                    .split(" · ")) {
+                penaltyLore.add("<gray>" + RulesMenu.escaped(part));
+            }
+        }
+        penaltyLore.add("");
+        penaltyLore.add("<dark_gray>click, then type them, like:");
+        penaltyLore.add("<dark_gray>warn, mute 1h, ban 3d, ban");
+        penaltyLore.add("<dark_gray>right-click to take them all away");
+        band(MenuLayout.LAND, 4, Icons.of(Material.IRON_BARS, "<white>Punishment for breaking it", penaltyLore),
+                click -> {
+                    if (click.isRightClick()) {
+                        services.rules().setPenalties(viewer, ruleId, "");
+                        refresh();
+                    } else {
+                        ask("essentials.rules.type-penalties",
+                                typed -> services.rules().setPenalties(viewer, ruleId, typed));
+                    }
+                });
+
         band(MenuLayout.RULES, 2, Icons.of(rule.enabled() ? Material.LIME_DYE : Material.GRAY_DYE,
                         rule.enabled() ? "<green>Shown to players" : "<red>Switched off",
                         "<gray>Off keeps the rule without showing it.", "",

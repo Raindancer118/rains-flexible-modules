@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.16.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.17.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, a nickname, /rules, and /admin for staff")
             .by("Raindancer118");
@@ -140,6 +140,12 @@ public final class EssentialsModule implements FlexModule {
         de.raindancer.modules.essentials.service.RulesService rules =
                 new de.raindancer.modules.essentials.service.RulesService(ruleBook, context.core().messages(),
                         context.core().buttons(), settings.current());
+
+        // Moderation punishes by these, and says what each costs, without knowing this module exists.
+        java.util.function.Supplier<java.util.List<de.raindancer.core.moderation.rules.ServerRule>> offeredRules =
+                rules::serverRules;
+        de.raindancer.core.moderation.rules.ServerRules.provide(offeredRules);
+        context.closeWith(() -> de.raindancer.core.moderation.rules.ServerRules.withdraw(offeredRules));
 
         de.raindancer.modules.essentials.service.AdminModeService adminMode =
                 new de.raindancer.modules.essentials.service.AdminModeService(

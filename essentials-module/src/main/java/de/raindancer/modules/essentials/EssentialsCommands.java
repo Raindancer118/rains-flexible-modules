@@ -105,6 +105,7 @@ public final class EssentialsCommands {
                                 "edit — the rule editor, for staff",
                                 "add <title> | <text> — a new rule at the end",
                                 "remove <number>",
+                                "punishment <number> <warn, mute 1h, ban 3d, ban> — what breaking it costs",
                                 "preset [list] — every preset",
                                 "preset show <name> — its rules, numbered",
                                 "preset take <name> <number> — add just that rule to yours",

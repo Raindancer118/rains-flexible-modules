@@ -227,7 +227,7 @@ public final class RuleBook {
             Object enabled = entry.get("enabled");
             found.add(new HouseRule(withIds && id != null ? String.valueOf(id) : null,
                     text(entry.get("title")), text(entry.get("text")), material(entry.get("icon")),
-                    !(enabled instanceof Boolean flag) || flag));
+                    !(enabled instanceof Boolean flag) || flag, penalties(entry.get("punishments"))));
         }
         return withIds ? withUniqueIds(found) : found;
     }
@@ -279,6 +279,19 @@ public final class RuleBook {
         return value == null ? "" : String.valueOf(value);
     }
 
+    private static List<de.raindancer.core.moderation.rules.RulePenalty> penalties(Object value) {
+        if (value == null) {
+            return List.of();
+        }
+        String written = value instanceof List<?> list
+                ? String.join(", ", list.stream().map(String::valueOf).toList()) : String.valueOf(value);
+        return de.raindancer.core.moderation.rules.RulePenalty.ladder(written).orElseGet(() -> {
+            log.warn("A rule's punishments '{}' could not be read (write them like: warn, mute 1h, ban 3d, ban); "
+                    + "it has none until they are fixed.", written);
+            return List.of();
+        });
+    }
+
     private static Material material(Object value) {
         Material found = value == null ? null : Material.matchMaterial(String.valueOf(value));
         return found == null ? HouseRule.DEFAULT_ICON : found;
@@ -294,6 +307,9 @@ public final class RuleBook {
             entry.put("title", rule.title());
             entry.put("text", rule.text());
             entry.put("icon", rule.icon().name().toLowerCase(Locale.ROOT));
+            if (!rule.penalties().isEmpty()) {
+                entry.put("punishments", de.raindancer.core.moderation.rules.RulePenalty.write(rule.penalties()));
+            }
             if (withIds || !rule.enabled()) {
                 entry.put("enabled", rule.enabled());
             }
@@ -307,7 +323,8 @@ public final class RuleBook {
         if (!rulesFile.write(yaml -> {
             yaml.options().setHeader(List.of(
                     "The server's rules, in the order /rules shows them. Edit in game with /rules edit,",
-                    "or here and restart. 'enabled: false' keeps a rule without showing it."));
+                    "or here and restart. 'enabled: false' keeps a rule without showing it.",
+                    "'punishments: warn, mute 1h, ban 3d, ban' is what the 1st, 2nd, ... offence costs."));
             yaml.set("rules", entries);
         })) {
             log.error("Could not write {}; the change to the rules is lost on the next restart.", rulesFile.file());
