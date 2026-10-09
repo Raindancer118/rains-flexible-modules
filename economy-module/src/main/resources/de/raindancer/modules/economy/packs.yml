@@ -105,6 +105,7 @@ packs:
       enchanting_table: 1
       bookshelf: 15
       lapis_lazuli: 32
+      experience_bottle: 16
       book: 8
       anvil: 1
 

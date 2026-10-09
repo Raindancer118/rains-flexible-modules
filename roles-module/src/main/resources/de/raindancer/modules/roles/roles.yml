@@ -108,7 +108,7 @@ roles:
         categories: [ brewing ]
         items: [ lapis_lazuli, experience_bottle, book, bookshelf, enchanting_table, anvil, grindstone,
                  glowstone_dust, redstone ]
-        says: "20% off lapis, books, bookshelves, anvils and potion making"
+        says: "20% off lapis, experience bottles, books, bookshelves, anvils and potion making"
       - sell: 10
         items: [ blaze_rod, ghast_tear, phantom_membrane, nether_wart, amethyst_shard ]
 

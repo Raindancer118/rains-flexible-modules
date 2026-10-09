@@ -219,4 +219,17 @@ class PriceBookTest {
         assertThat(book(EconomySettingsTest.with("features.dynamic-prices", "false"), PLANKS).multiplier("DIAMOND"))
                 .as("switched off").isEqualTo(1.0);
     }
+
+    @Test
+    @DisplayName("a bottle o' enchanting is worth the points it holds on average, at the shop's price for a point")
+    void experienceBottle() {
+        PriceTag bottle = book(EconomySettings.DEFAULTS, PLANKS).tag("EXPERIENCE_BOTTLE");
+        assertThat(bottle.buyable()).isTrue();
+        assertThat(bottle.value()).isEqualTo(EconomySettings.DEFAULTS.xpBuyMoney().times(PriceBook.POINTS_PER_BOTTLE));
+        PriceTag dearer = book(EconomySettingsTest.with("xp.buy-per-point", "10"), PLANKS).tag("EXPERIENCE_BOTTLE");
+        assertThat(dearer.value()).isEqualTo(Money.of(10L * PriceBook.POINTS_PER_BOTTLE));
+        PriceTag owners = book(EconomySettingsTest.with("shop.values", "experience_bottle 500"), PLANKS)
+                .tag("EXPERIENCE_BOTTLE");
+        assertThat(owners.value()).as("an owner's own value wins").isEqualTo(Money.of(500));
+    }
 }

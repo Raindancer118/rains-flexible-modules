@@ -33,6 +33,11 @@ import java.util.function.ToIntFunction;
  */
 public final class PriceBook {
 
+    /** What a thrown bottle o' enchanting gives on average: 3 to 11 points. */
+    public static final int POINTS_PER_BOTTLE = 7;
+
+    private static final String BOTTLE = "EXPERIENCE_BOTTLE";
+
     private record Snapshot(EconomySettings settings, Map<String, Money> values, Set<String> custom,
                             PricedNames buyPrices, PricedNames sellPrices, Set<String> notSold,
                             Set<String> notBought, List<String> eggs) {
@@ -86,6 +91,15 @@ public final class PriceBook {
         Map<String, Money> values = new HashMap<>(settings.deriveFromRecipes()
                 ? solver.solve(base, recipes, settings.craftMarkupClamped(), settings.smeltMarkupClamped())
                 : base);
+        // No recipe makes one, so the solver never prices it; it is worth the points it holds, which the shop
+        // already sells by the point. Priced after the recipes so an owner's own value (in base) still wins.
+        if (!base.containsKey(BOTTLE)) {
+            try {
+                values.put(BOTTLE, settings.xpBuyMoney().times(POINTS_PER_BOTTLE));
+            } catch (ArithmeticException tooDear) {
+                values.remove(BOTTLE);
+            }
+        }
         Set<String> closedEggs = new HashSet<>();
         for (String mob : names(settings.spawnEggsClosed())) {
             closedEggs.add(mob.endsWith(EGG) ? mob : mob + EGG);
