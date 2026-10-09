@@ -22,6 +22,8 @@ import java.time.Duration;
  */
 @Settings(id = "invsnap", topics = {
         @Topic(path = "invsnap", title = "Inventory snapshots", icon = Material.CHEST),
+        @Topic(path = "invsnap/insurance", title = "Death insurance", icon = Material.TOTEM_OF_UNDYING),
+        @Topic(path = "invsnap/item-insurance", title = "Item insurance", icon = Material.SHIELD),
 })
 public record InvSnapSettings(
 

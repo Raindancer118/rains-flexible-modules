@@ -125,4 +125,12 @@ class InvSnapSettingsTest {
             assertThat(changed.withRetentionCount(7).itemInsuranceMostItems()).isEqualTo(5);
         }
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("the settings are a schema the server accepts: every page a setting sits on is declared")
+    void schemaIsValid() {
+        org.assertj.core.api.Assertions.assertThatCode(() ->
+                de.raindancer.core.data.settings.SettingsSchema.of(InvSnapSettings.class, InvSnapSettings.DEFAULTS))
+                .doesNotThrowAnyException();
+    }
 }

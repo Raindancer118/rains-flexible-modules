@@ -38,7 +38,7 @@
 
              1.4.0: item insurance (item-insurance.enabled, off by default) and the player-facing Insurance
              screen behind /insurance. -->
-        <plugin.version>1.4.0</plugin.version>
+        <plugin.version>1.4.1</plugin.version>
     </properties>
 
     <dependencies>
