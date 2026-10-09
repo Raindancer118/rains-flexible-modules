@@ -1,6 +1,9 @@
 package de.raindancer.modules.tpa.service;
 
 import de.raindancer.core.moderation.punishment.Durations;
+import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.moderation.vanish.Vanish;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.platform.util.Scheduling;
@@ -57,6 +60,7 @@ public final class TpaRequestService implements ITpaService {
     private final Messages messages;
     private final ChatButtons buttons;
     private final Vanish vanish;
+    private final TpaFees fees = new TpaFees(null);
 
     /** The wait between one player's requests. Core's, so two clicks in a millisecond cannot both pass. */
     private final Cooldowns<UUID> waits;
@@ -94,6 +98,7 @@ public final class TpaRequestService implements ITpaService {
     @Override
     public void settings(TpaSettings fresh) {
         this.settings = fresh;
+        fees.settings(fresh);
         waits.every(Duration.ofSeconds(fresh.cooldown()));
         requests.standingFor(Duration.ofSeconds(fresh.requestStanding()));
     }
@@ -106,6 +111,14 @@ public final class TpaRequestService implements ITpaService {
      * @return whether the request was made
      */
     public boolean ask(Player from, Player to, TpaKind kind) {
+        return ask(from, to, kind, false);
+    }
+
+    /**
+     * @param paySkip whether they have agreed to pay {@code tpa.skip-cooldown-price} if the wait between
+     *                requests is still running — only the offer's button sets it
+     */
+    private boolean ask(Player from, Player to, TpaKind kind, boolean paySkip) {
         if (!vanish.canSee(from.getUniqueId(), to.getUniqueId())) {
             // Reported exactly as if nobody by that name were here at all — the same message the
             // command already sends for somebody who is not online — so asking is not a second way
@@ -117,15 +130,32 @@ public final class TpaRequestService implements ITpaService {
         boolean reachable = now.allowCrossWorld() || from.getWorld().equals(to.getWorld());
         boolean mayBypass = from.hasPermission(PermissionNodes.BYPASS_TOGGLE);
 
+        boolean ready = isReadyToAsk(from);
+        Money skipPrice = skipPriceFor(from);
+        boolean buyingSkip = !ready && paySkip && skipPrice.isPositive();
+
         TpaAskingRule.Verdict verdict = asking.check(from.getUniqueId(), to.getUniqueId(),
                 prefs.of(to.getUniqueId()), reachable, mayBypass,
                 requests.has(from.getUniqueId(), to.getUniqueId()),
-                !isReadyToAsk(from));
+                !ready && !buyingSkip);
         if (!verdict.isFine()) {
+            if (verdict == TpaAskingRule.Verdict.TOO_SOON && skipPrice.isPositive()) {
+                offerToSkip(from, to, kind);
+                return false;
+            }
             messages.send(from, verdict.messageKey(),
                     "player", to.getName(),
                     "time", waitLeft(from.getUniqueId()));
             return false;
+        }
+        TpaFees.Taken bought = TpaFees.Taken.NOTHING;
+        if (buyingSkip) {
+            TpaFees.Charge charge = fees.charge(from.getUniqueId(), Money.ZERO, TpaFees.TRIP, skipPrice);
+            if (!charge.paid()) {
+                tellWhyNotPaid(from, charge.refusal());
+                return false;
+            }
+            bought = charge.taken();
         }
 
         // One call, not two: put() after displacedBy() would find the request displacedBy() just
@@ -142,6 +172,7 @@ public final class TpaRequestService implements ITpaService {
             // Only reachable if something changed between the rule and here — another thread asked
             // first. Saying so beats silence.
             messages.send(from, "tpa.already-asked", "player", to.getName());
+            fees.refund(from.getUniqueId(), bought);
             return false;
         }
 
@@ -165,6 +196,7 @@ public final class TpaRequestService implements ITpaService {
                 clicker -> onlineOf(clicker).ifPresent(answerer -> accept(answerer, from.getUniqueId())),
                 clicker -> onlineOf(clicker).ifPresent(answerer -> deny(answerer, from.getUniqueId())));
         to.sendMessage(asked.appendNewline().append(question));
+        tellThePrice(from, to, kind);
 
         sweepAfter(from, made.get());
         return true;
@@ -222,12 +254,17 @@ public final class TpaRequestService implements ITpaService {
             return false;
         }
 
+        TpaFees.Taken paid = chargeTraveller(answering, traveller, destination);
+        if (paid == null) {
+            return false;
+        }
+
         messages.send(answering, "tpa.you-accepted", "player", prefs.nameOf(request.from()));
         onlineOf(request.from()).filter(asker -> !asker.equals(answering))
                 .ifPresent(asker -> messages.send(asker, "tpa.they-accepted",
                         "player", answering.getName()));
 
-        send(traveller, destination, request);
+        send(traveller, destination, paid);
         return true;
     }
 
@@ -275,7 +312,7 @@ public final class TpaRequestService implements ITpaService {
      * <p>The destination is a supplier: the person being travelled to may keep walking while the
      * countdown runs, and the traveller should end up where they actually are.
      */
-    private void send(Player traveller, Player destination, TpaRequest request) {
+    private void send(Player traveller, Player destination, TpaFees.Taken paid) {
         TpaSettings now = settings;
         int warmup = bypasses(traveller, PermissionNodes.BYPASS_WARMUP) ? 0 : now.warmup();
 
@@ -283,8 +320,77 @@ public final class TpaRequestService implements ITpaService {
                 .after(warmup)
                 .bringing(Companions.WHAT_YOU_LEAD);
         Location whereTheyAre = destination.getLocation();
+        fees.hold(traveller.getUniqueId(), paid);
         travel.go(traveller, whereTheyAre, trip, new Arriving(destination.getName()));
     }
+
+    // ------------------------------------------------------------------------ paying
+
+    /** What a trip costs this player as written: nothing at all with the bypass. */
+    private Money tripPriceFor(Player traveller, Player destination) {
+        return traveller.hasPermission(PermissionNodes.BYPASS_FEE) ? Money.ZERO
+                : fees.trip(traveller.getLocation(), destination.getLocation());
+    }
+
+    private Money skipPriceFor(Player asker) {
+        return asker.hasPermission(PermissionNodes.BYPASS_FEE) ? Money.ZERO : fees.skip();
+    }
+
+    /**
+     * Takes the trip's price from whoever travels.
+     *
+     * @return what was taken, or null after telling everybody concerned why nobody is going
+     */
+    private TpaFees.Taken chargeTraveller(Player answering, Player traveller, Player destination) {
+        TpaFees.Charge charge = fees.charge(traveller.getUniqueId(),
+                tripPriceFor(traveller, destination), TpaFees.TRIP, Money.ZERO);
+        if (charge.paid()) {
+            return charge.taken();
+        }
+        tellWhyNotPaid(traveller, charge.refusal());
+        if (!traveller.equals(answering)) {
+            messages.send(answering, "tpa.traveller-cannot-pay", "player", traveller.getName());
+        }
+        return null;
+    }
+
+    private void tellWhyNotPaid(Player who, EconomyResult refusal) {
+        String key = refusal.outcome() == EconomyResult.Outcome.NOT_ENOUGH
+                ? "tpa.cannot-afford" : "tpa.payment-failed";
+        messages.send(who, key, "price", Fees.format(refusal.amount()));
+    }
+
+    /** Both people are told what the trip will cost, when it costs anything. */
+    private void tellThePrice(Player from, Player to, TpaKind kind) {
+        Player traveller = kind == TpaKind.TO ? from : to;
+        Player destination = kind == TpaKind.TO ? to : from;
+        Money quoted = Fees.quote(TpaFees.TRIP, tripPriceFor(traveller, destination));
+        if (!quoted.isPositive()) {
+            return;
+        }
+        String price = Fees.format(quoted);
+        messages.send(traveller, "tpa.price-you", "price", price);
+        Player other = traveller.equals(from) ? to : from;
+        messages.send(other, "tpa.price-them", "player", traveller.getName(), "price", price);
+    }
+
+    /** The refusal for somebody on a wait they could buy their way out of: the price, and a button. */
+    private void offerToSkip(Player from, Player to, TpaKind kind) {
+        UUID who = from.getUniqueId();
+        UUID target = to.getUniqueId();
+        String price = Fees.format(Fees.quote(TpaFees.SKIP, skipPriceFor(from)));
+        Component line = messages.prefixed("tpa.too-soon-skippable",
+                "time", waitLeft(who), "price", price);
+        Component button = buttons.label("<green>[Skip the wait]")
+                .tooltip("<gray>Pay <white>" + price + "</white> and ask now")
+                .forOnly(who).expiringIn(OFFER_LIFETIME)
+                .does(clicker -> onlineOf(clicker).ifPresent(asker ->
+                        onlineOf(target).ifPresent(asked -> ask(asker, asked, kind, true))))
+                .render();
+        from.sendMessage(line.appendSpace().append(button));
+    }
+
+    private static final Duration OFFER_LIFETIME = Duration.ofSeconds(30);
 
     private boolean bypasses(Player who, String node) {
         return who.hasPermission(node) || (settings.operatorsBypass() && who.isOp());
@@ -315,6 +421,13 @@ public final class TpaRequestService implements ITpaService {
      */
     public void leaves(UUID who) {
         waits.sweep();
+        // Standing through a wait when they quit: no trip, so no charge.
+        fees.refundHeld(who);
+    }
+
+    /** Gives back everything paid for trips that never ended — for the module stopping. */
+    public void refundPending() {
+        fees.refundAllHeld();
     }
 
     /** The wait itself, for the tests in this package. */
@@ -342,17 +455,31 @@ public final class TpaRequestService implements ITpaService {
 
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
+            TpaFees.Taken spent = fees.settle(traveller.getUniqueId());
+            if (spent != null && spent.total().isPositive()) {
+                messages.send(traveller, "tpa.paid", "price", Fees.format(spent.total()));
+            }
             messages.send(traveller, "tpa.arrived", "player", towards);
         }
 
         @Override
         public void cancelled(Player traveller, TravelReason why, Trip trip) {
             messages.send(traveller, keyFor(why), "player", towards);
+            giveBack(traveller);
         }
 
         @Override
         public void refused(Player traveller, TravelReason why, Trip trip) {
             messages.send(traveller, keyFor(why), "player", towards);
+            giveBack(traveller);
+        }
+
+        private void giveBack(Player traveller) {
+            TpaFees.Taken spent = fees.settle(traveller.getUniqueId());
+            if (spent != null && spent.total().isPositive()) {
+                fees.refund(traveller.getUniqueId(), spent);
+                messages.send(traveller, "tpa.refunded", "price", Fees.format(spent.total()));
+            }
         }
     }
 

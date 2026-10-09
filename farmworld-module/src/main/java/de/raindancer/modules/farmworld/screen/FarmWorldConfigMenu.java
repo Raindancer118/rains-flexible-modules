@@ -1,6 +1,10 @@
 package de.raindancer.modules.farmworld.screen;
 
+import de.raindancer.core.social.economy.Fees;
 import de.raindancer.core.ui.choose.AmountChooser;
+import de.raindancer.core.ui.prompt.Parsed;
+import de.raindancer.core.ui.prompt.Parsers;
+import de.raindancer.core.ui.prompt.Question;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
@@ -198,6 +202,63 @@ public final class FarmWorldConfigMenu extends Menu implements IFarmWorldScreen 
         amount(MenuLayout.LAND, 7, "warn-minutes", "Minutes of notice",
                 now.warnMinutes(), 0, 1440,
                 Icons.of(Material.BELL, "<white>Warn this long before", lore(warningLore(now))));
+
+        drawThePrices(now);
+    }
+
+    // ------------------------------------------------------------------------ what it costs
+
+    /**
+     * The two prices, on the toolbar row beneath the three bands: the bands are full, and a price is the
+     * one setting here that is typed rather than nudged — an amount like {@code 1.5k} has no sensible step.
+     */
+    private void drawThePrices(FarmWorldSettings now) {
+        toolbar(3, Icons.of(Material.GOLD_NUGGET, "<white>Price of every entry",
+                        lore(priceText(now.entryPrice()),
+                                "<gray>Taken each time somebody goes to a farm world,",
+                                "<gray>and given back if the trip does not happen.",
+                                "<dark_gray>Zero is free, and needs no economy plugin.",
+                                "",
+                                "<gray>Click to type an amount.")),
+                click -> askPrice("entry-price", "Price of every entry", now.entryPrice()));
+        toolbar(5, Icons.of(Material.GOLD_INGOT, "<white>Price of a 24-hour pass",
+                        lore(priceText(now.dayPassPrice()),
+                                "<gray>One payment, then every farm world is open to",
+                                "<gray>that player for 24 hours. Kept across restarts.",
+                                "<dark_gray>With both prices set, each entry offers both.",
+                                "<dark_gray>Zero means there is no pass.",
+                                "",
+                                "<gray>Click to type an amount.")),
+                click -> askPrice("day-pass-price", "Price of a 24-hour pass", now.dayPassPrice()));
+    }
+
+    private static String priceText(String written) {
+        return Fees.amount(written).isPositive() ? Fees.format(Fees.amount(written)) : "Free";
+    }
+
+    /**
+     * Asks in chat, because an amount is typed. Anything that is not an amount is refused at the prompt:
+     * the store would otherwise take the text and every fee would quietly read it as zero.
+     */
+    private void askPrice(String key, String what, String current) {
+        viewer.closeInventory();
+        Question.asking((Parsers.Parser<String>) typed -> {
+                    String clean = typed == null ? "" : typed.strip();
+                    if (clean.equals("0") || Fees.amount(clean).isPositive()) {
+                        return Parsed.ok(clean);
+                    }
+                    return Parsed.no("Type an amount like 12.50 or 1.5k, or 0 for free.");
+                })
+                .promptMarkup("<gray>" + what + " — now <white>" + priceText(current)
+                        + "</white>. Type the new amount, or say cancel.")
+                .suggest("0")
+                .owner("farmworlds")
+                .onAnswer(answer -> {
+                    write(key, answer);
+                    open();
+                })
+                .onCancel(this::open)
+                .ask(viewer);
     }
 
     // ------------------------------------------------------------------------ the two kinds of button

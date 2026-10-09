@@ -51,7 +51,7 @@ import java.util.List;
  */
 public final class TpaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.2.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.3.0")
             .describedAs("Ask somebody whether you may come to them, or whether they will come to "
                     + "you — and go back to where you were")
             .by("Raindancer118");
@@ -125,7 +125,8 @@ public final class TpaModule implements FlexModule {
         asking = new TpaRequestService(context.plugin(), requests, prefs, new TpaAskingRule(),
                 travel, context.core().messages(), context.core().buttons(), context.core().vanish(),
                 settings.current());
-        back = new BackService(travel, context.core().messages(), settings.current());
+        back = new BackService(travel, context.core().messages(), settings.current(),
+                context.core().buttons());
 
         services = new TpaServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
@@ -208,6 +209,13 @@ public final class TpaModule implements FlexModule {
         // will never come, and the countdown tasks must not outlive the plugin that scheduled them.
         if (travel != null) {
             travel.clear();
+        }
+        // The countdowns just dropped will never call back, so what they were paid is given back here.
+        if (asking != null) {
+            asking.refundPending();
+        }
+        if (back != null) {
+            back.refundPending();
         }
         // Requests are in memory only and go with the module. Deliberately: a request from before a
         // restart is one whose asker has long since walked away, and answering it would teleport

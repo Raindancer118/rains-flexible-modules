@@ -28,6 +28,7 @@ import java.util.List;
         @Topic(path = "rtp/travelling", title = "Going there", icon = Material.CLOCK),
         @Topic(path = "rtp/where", title = "Where somebody may land", icon = Material.MAP),
         @Topic(path = "rtp/pool", title = "Getting ready ahead of time", icon = Material.CHEST),
+        @Topic(path = "rtp/prices", title = "What it costs", icon = Material.GOLD_INGOT),
 })
 public record RtpSettings(
 
@@ -120,16 +121,31 @@ public record RtpSettings(
                 + "so the ceiling exists for the search it would otherwise cost to keep filling a pool "
                 + "nobody is emptying, not for the space.")
         @Key("pool-max-size")
-        int poolMaxSize) {
+        int poolMaxSize,
+
+        @In("rtp/prices") @Title("Price of a random teleport")
+        @Describe("Money taken for each random teleport, charged when the trip is actually on its "
+                + "way and given back if it is cancelled or fails. Written like 12.50 or 1.5k. "
+                + "Zero is free, and needs no economy plugin.")
+        @Key("rtp.price")
+        String price,
+
+        @In("rtp/prices") @Title("Price of skipping the wait")
+        @Describe("Money to use /rtp while the wait between goes is still running. When set, the "
+                + "refusal offers it as a button to click. Zero keeps the wait as a plain refusal.")
+        @Key("rtp.skip-cooldown-price")
+        String skipCooldownPrice) {
 
     public RtpSettings {
         disabledWorlds = disabledWorlds == null ? List.of() : List.copyOf(disabledWorlds);
         safeArrivalPolicy = safeArrivalPolicy == null ? FlagPolicy.AVAILABLE : safeArrivalPolicy;
+        price = price == null ? "0" : price;
+        skipCooldownPrice = skipCooldownPrice == null ? "0" : skipCooldownPrice;
     }
 
     public static final RtpSettings DEFAULTS = new RtpSettings(
             3, 30, true, 100, 5000, FlagPolicy.AVAILABLE, 8, 1, false, List.of(),
-            true, 40, 3000);
+            true, 40, 3000, "0", "0");
 
     // ------------------------------------------------------------------ read back safely
 
@@ -205,71 +221,83 @@ public record RtpSettings(
 
     public RtpSettings withWarmupSeconds(int seconds) {
         return new RtpSettings(seconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withCooldownSeconds(int seconds) {
         return new RtpSettings(warmupSeconds, seconds, hurtCancelsWarmup, minRadius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withHurtCancelsWarmup(boolean cancels) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, cancels, minRadius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withMinRadius(int radius) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, radius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withMaxRadius(int radius) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, radius,
-                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withSafeArrivalPolicy(FlagPolicy policy) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
-                policy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
+                policy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withSafeArrivalRadius(int radius) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
-                safeArrivalPolicy, radius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
+                safeArrivalPolicy, radius, heightTolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withHeightTolerance(int tolerance) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
-                safeArrivalPolicy, safeArrivalRadius, tolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize);
+                safeArrivalPolicy, safeArrivalRadius, tolerance, centreOnPlayer, disabledWorlds, poolEnabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withCentreOnPlayer(boolean centred) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
                 safeArrivalPolicy, safeArrivalRadius, heightTolerance, centred, disabledWorlds,
-                poolEnabled, poolDailyMinimum, poolMaxSize);
+                poolEnabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withDisabledWorlds(List<String> worlds) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
                 safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, worlds,
-                poolEnabled, poolDailyMinimum, poolMaxSize);
+                poolEnabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withPoolEnabled(boolean enabled) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
                 safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds,
-                enabled, poolDailyMinimum, poolMaxSize);
+                enabled, poolDailyMinimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withPoolDailyMinimum(int minimum) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
                 safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds,
-                poolEnabled, minimum, poolMaxSize);
+                poolEnabled, minimum, poolMaxSize, price, skipCooldownPrice);
     }
 
     public RtpSettings withPoolMaxSize(int maxSize) {
         return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
                 safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds,
-                poolEnabled, poolDailyMinimum, maxSize);
+                poolEnabled, poolDailyMinimum, maxSize, price, skipCooldownPrice);
+    }
+
+    public RtpSettings withPrice(String written) {
+        return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds,
+                poolEnabled, poolDailyMinimum, poolMaxSize, written, skipCooldownPrice);
+    }
+
+    public RtpSettings withSkipCooldownPrice(String written) {
+        return new RtpSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, minRadius, maxRadius,
+                safeArrivalPolicy, safeArrivalRadius, heightTolerance, centreOnPlayer, disabledWorlds,
+                poolEnabled, poolDailyMinimum, poolMaxSize, price, written);
     }
 }

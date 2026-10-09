@@ -1,6 +1,11 @@
 package de.raindancer.modules.farmworld.service;
 
+import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
+import de.raindancer.core.ui.chat.ChatButtons;
 import de.raindancer.core.world.time.Times;
+import net.kyori.adventure.text.Component;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.core.ui.effect.Effects;
@@ -14,11 +19,17 @@ import de.raindancer.modules.farmworld.model.Arrival;
 import de.raindancer.modules.farmworld.model.FarmWorldView;
 import de.raindancer.core.world.teleport.Scatter;
 import de.raindancer.modules.farmworld.rules.FarmAccessRule;
+import de.raindancer.modules.farmworld.rules.FarmEntryRule;
+import de.raindancer.modules.farmworld.store.FarmPasses;
 import de.raindancer.modules.farmworld.store.FarmWorldCatalogue;
+import de.raindancer.modules.farmworld.util.PermissionNodes;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.function.LongSupplier;
@@ -88,7 +99,18 @@ public final class FarmTravelService implements IFarmWorldService {
      */
     private final Random random;
 
+    private final FarmEntryRule entryRule = new FarmEntryRule();
+    private final FarmFees fees = new FarmFees(null);
+    private final FarmPasses passes;
+    private final ChatButtons buttons;
+
     private volatile FarmWorldSettings settings;
+
+    /** How long a day pass lasts, from the trip it was bought for. */
+    private static final Duration PASS_LENGTH = Duration.ofHours(24);
+
+    /** How long the offer's buttons can be clicked. */
+    private static final Duration OFFER_LIFETIME = Duration.ofSeconds(30);
 
     public FarmTravelService(FarmWorldCatalogue catalogue, Travel travel, FarmAccessRule access,
                              Messages messages, Effects effects, FarmWorldSettings settings,
@@ -105,6 +127,21 @@ public final class FarmTravelService implements IFarmWorldService {
     public FarmTravelService(FarmWorldCatalogue catalogue, Travel travel, FarmAccessRule access,
                              Messages messages, Effects effects, FarmWorldSettings settings,
                              Random random, LongSupplier clock) {
+        this(catalogue, travel, access, messages, effects, settings, random, clock, null, null);
+    }
+
+    /**
+     * The same, with the day passes and the chat buttons the entry offer is drawn with.
+     *
+     * @param passes  null means passes cannot be held, so buying one grants nothing
+     * @param buttons null draws the offer as plain text with no buttons
+     */
+    public FarmTravelService(FarmWorldCatalogue catalogue, Travel travel, FarmAccessRule access,
+                             Messages messages, Effects effects, FarmWorldSettings settings,
+                             Random random, LongSupplier clock, FarmPasses passes,
+                             ChatButtons buttons) {
+        this.passes = passes;
+        this.buttons = buttons;
         this.between = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
         this.catalogue = catalogue;
         this.travel = travel;
@@ -121,6 +158,7 @@ public final class FarmTravelService implements IFarmWorldService {
         // Pushed into the cooldown, which holds its own copy of the wait. Left out, the file says two
         // minutes and the server keeps enforcing yesterday's one.
         between.every(fresh.cooldownFor());
+        fees.settings(fresh);
     }
 
     /** The wait, for a screen that wants to say how long is left. */
@@ -144,6 +182,43 @@ public final class FarmTravelService implements IFarmWorldService {
      */
     public void leaves(UUID who) {
         between.sweep();
+        // Standing through a warm-up when they quit: no trip, so no charge.
+        fees.refundHeld(who);
+    }
+
+    /** Gives back everything paid for trips that never ended — for the module stopping. */
+    public void refundPending() {
+        fees.refundAllHeld();
+    }
+
+    /**
+     * What entering costs this player, as lines for a button: nothing when it is free.
+     *
+     * <p>A pass they already hold says so, since that is the answer to "what will this cost me".
+     */
+    public List<String> priceLines(Player who) {
+        List<String> lines = new ArrayList<>();
+        if (bypassesFees(who)) {
+            return lines;
+        }
+        if (passes != null && passes.isActive(who.getUniqueId())) {
+            lines.add("<green>Your day pass is running — free.");
+            return lines;
+        }
+        Money entry = Fees.quote(FarmFees.ENTRY, fees.entry());
+        Money pass = Fees.quote(FarmFees.PASS, fees.pass());
+        if (entry.isPositive()) {
+            lines.add("<gray>Costs <white>" + Fees.format(entry) + "</white> to enter.");
+        }
+        if (pass.isPositive()) {
+            lines.add("<gray>" + (entry.isPositive() ? "Or " : "Costs ") + "<white>" + Fees.format(pass)
+                    + "</white> for a pass: free entry for 24 hours.");
+        }
+        return lines;
+    }
+
+    private boolean bypassesFees(Player who) {
+        return who.hasPermission(PermissionNodes.BYPASS_FEE);
     }
 
     // ------------------------------------------------------------------------ going
@@ -155,6 +230,10 @@ public final class FarmTravelService implements IFarmWorldService {
      * four more times, and then report as broken.
      */
     public void goTo(Player traveller, String name, Arrival how) {
+        goTo(traveller, name, how, FarmEntryRule.Choice.NONE);
+    }
+
+    private void goTo(Player traveller, String name, Arrival how, FarmEntryRule.Choice choice) {
         if (traveller == null) {
             return;
         }
@@ -163,11 +242,19 @@ public final class FarmTravelService implements IFarmWorldService {
             messages.send(traveller, "farmworlds.unknown", "name", String.valueOf(name));
             return;
         }
-        go(traveller, farm, how);
+        go(traveller, farm, how, choice);
     }
 
     /** The same, when the farm world is already in hand — what a menu click has. */
     public void go(Player traveller, FarmWorldView farm, Arrival how) {
+        go(traveller, farm, how, FarmEntryRule.Choice.NONE);
+    }
+
+    /**
+     * @param choice which price they picked from the offer's buttons; {@code NONE} for a plain request,
+     *               which is asked to choose when both prices are set
+     */
+    private void go(Player traveller, FarmWorldView farm, Arrival how, FarmEntryRule.Choice choice) {
         if (traveller == null || farm == null) {
             return;
         }
@@ -207,7 +294,72 @@ public final class FarmTravelService implements IFarmWorldService {
             play(traveller, Cues.COOLDOWN);
             return;
         }
+
+        Money entry = bypassesFees(traveller) ? Money.ZERO : fees.entry();
+        Money pass = bypassesFees(traveller) ? Money.ZERO : fees.pass();
+        FarmEntryRule.Entry decision = entryRule.decide(entry, pass,
+                passes != null && passes.isActive(traveller.getUniqueId()),
+                bypassesFees(traveller), choice);
+        if (decision == FarmEntryRule.Entry.CHOOSE) {
+            offer(traveller, farm, arrival);
+            play(traveller, Cues.COOLDOWN);
+            return;
+        }
+        FarmFees.Taken taken = FarmFees.Taken.NOTHING;
+        if (decision != FarmEntryRule.Entry.FREE) {
+            boolean buying = decision == FarmEntryRule.Entry.BUY_PASS;
+            FarmFees.Charge charge = fees.charge(traveller.getUniqueId(), buying ? pass : entry,
+                    buying ? FarmFees.PASS : FarmFees.ENTRY);
+            if (!charge.paid()) {
+                tellWhyNotPaid(traveller, charge.refusal());
+                refused(traveller);
+                return;
+            }
+            taken = charge.taken();
+            fees.hold(traveller.getUniqueId(), taken);
+        }
         depart(traveller, farm, world, arrival);
+    }
+
+    private void tellWhyNotPaid(Player traveller, EconomyResult refusal) {
+        String key = refusal.outcome() == EconomyResult.Outcome.NOT_ENOUGH
+                ? "farmworlds.cannot-afford" : "farmworlds.payment-failed";
+        messages.send(traveller, key, "price", Fees.format(refusal.amount()));
+    }
+
+    /**
+     * Both prices are set: say so, with a button for each. The pass is the alternative, never the default.
+     *
+     * <p>Bound to this player alone and for a short while; a click comes back through {@code go} and so
+     * asks every question again.
+     */
+    private void offer(Player traveller, FarmWorldView farm, Arrival how) {
+        UUID who = traveller.getUniqueId();
+        String entry = Fees.format(Fees.quote(FarmFees.ENTRY, fees.entry()));
+        String pass = Fees.format(Fees.quote(FarmFees.PASS, fees.pass()));
+        Component line = messages.prefixed("farmworlds.entry-offer",
+                "name", farm.name(), "price", entry, "pass-price", pass);
+        if (buttons == null) {
+            traveller.sendMessage(line);
+            return;
+        }
+        Component once = chooseButton("<green>[Pay " + entry + "]", "<gray>Enter once", who, farm, how,
+                FarmEntryRule.Choice.ENTRY);
+        Component day = chooseButton("<aqua>[24h pass " + pass + "]",
+                "<gray>Enter any farm world free for 24 hours", who, farm, how,
+                FarmEntryRule.Choice.PASS);
+        traveller.sendMessage(line.appendNewline().append(once).appendSpace().append(day));
+    }
+
+    private Component chooseButton(String label, String tooltip, UUID who, FarmWorldView farm, Arrival how,
+                                   FarmEntryRule.Choice choice) {
+        return buttons.label(label).tooltip(tooltip).forOnly(who).expiringIn(OFFER_LIFETIME)
+                .does(clicker -> {
+                    Player clicked = org.bukkit.Bukkit.getPlayer(clicker);
+                    if (clicked != null && clicked.isOnline()) {
+                        goTo(clicked, farm.name(), how, choice);
+                    }
+                }).render();
     }
 
     private void depart(Player traveller, FarmWorldView farm, World world, Arrival how) {
@@ -309,6 +461,19 @@ public final class FarmTravelService implements IFarmWorldService {
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
             between.start(traveller.getUniqueId());
+            FarmFees.Taken spent = fees.settle(traveller.getUniqueId());
+            if (spent != null && spent.amount().isPositive()) {
+                if (spent.isPass()) {
+                    // Starts now, not when it was paid for: a trip cancelled or failed never got here.
+                    if (passes != null) {
+                        passes.grant(traveller.getUniqueId(), PASS_LENGTH);
+                    }
+                    messages.send(traveller, "farmworlds.pass-bought",
+                            "price", Fees.format(spent.amount()));
+                } else {
+                    messages.send(traveller, "farmworlds.paid", "price", Fees.format(spent.amount()));
+                }
+            }
             // No arrival cue here: Core's Travel plays it for every teleport, in the traveller's own choice.
             // Where they came out only matters when it was somewhere unpredictable. On the platform it is
             // the same three numbers every time, and printing them is noise.
@@ -330,6 +495,7 @@ public final class FarmTravelService implements IFarmWorldService {
         @Override
         public void cancelled(Player traveller, TravelReason why, Trip trip) {
             messages.send(traveller, keyFor(why), "name", farm.name());
+            giveBack(traveller);
             // A cancelled warm-up is a refusal to the player, whatever it is called in Core: they stood still,
             // something happened, and they are not going. The sound has to say that.
             play(traveller, Cues.NO);
@@ -338,7 +504,16 @@ public final class FarmTravelService implements IFarmWorldService {
         @Override
         public void refused(Player traveller, TravelReason why, Trip trip) {
             messages.send(traveller, keyFor(why), "name", farm.name());
+            giveBack(traveller);
             play(traveller, Cues.NO);
+        }
+
+        private void giveBack(Player traveller) {
+            FarmFees.Taken spent = fees.settle(traveller.getUniqueId());
+            if (spent != null && spent.amount().isPositive()) {
+                fees.refund(traveller.getUniqueId(), spent);
+                messages.send(traveller, "farmworlds.refunded", "price", Fees.format(spent.amount()));
+            }
         }
     }
 

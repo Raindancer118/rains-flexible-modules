@@ -6,6 +6,11 @@ import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.actionbar.ActionBarPriority;
 import de.raindancer.core.ui.actionbar.ActionBars;
+import de.raindancer.core.ui.chat.ChatButtons;
+import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
+import net.kyori.adventure.text.Component;
 import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
@@ -18,6 +23,7 @@ import de.raindancer.core.world.teleport.TravelWatcher;
 import de.raindancer.core.world.teleport.Trip;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.rtp.RtpSettings;
+import de.raindancer.modules.rtp.rules.RtpFeeRule;
 import de.raindancer.modules.rtp.rules.RtpRule;
 import de.raindancer.modules.rtp.util.PermissionNodes;
 import org.bukkit.Location;
@@ -25,8 +31,11 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.UUID;
 import java.util.function.LongSupplier;
 
@@ -104,6 +113,17 @@ public final class RtpService implements IRtpService {
     private final ActionBars actionBars;
     private final LogChannel log;
     private final Random random;
+    private final ChatButtons buttons;
+    private final RtpFeeRule feeRule = new RtpFeeRule();
+    private final RtpFees fees = new RtpFees(null);
+
+    /**
+     * What each traveller has paid for a trip that has not yet ended either way.
+     *
+     * <p>Travel gives no callback when somebody logs out or the module stops mid-warm-up, so this is what
+     * lets {@link #leaves} and {@link #refundPending} give the money back.
+     */
+    private final Map<UUID, RtpFees.Taken> paid = Collections.synchronizedMap(new HashMap<>());
 
     /**
      * The wait between goes.
@@ -140,6 +160,20 @@ public final class RtpService implements IRtpService {
     public RtpService(Plugin plugin, Travel travel, Safety safety, RtpLocationPoolService pool,
                       RtpRule rule, Messages messages, Effects effects, ActionBars actionBars,
                       LogChannel log, RtpSettings settings, Random random, LongSupplier clock) {
+        this(plugin, travel, safety, pool, rule, messages, effects, actionBars, log, settings,
+                random, clock, null);
+    }
+
+    /**
+     * The same, with the chat buttons the offer to pay for skipping the wait is drawn with.
+     *
+     * @param buttons null draws the offer as plain text with no button
+     */
+    public RtpService(Plugin plugin, Travel travel, Safety safety, RtpLocationPoolService pool,
+                      RtpRule rule, Messages messages, Effects effects, ActionBars actionBars,
+                      LogChannel log, RtpSettings settings, Random random, LongSupplier clock,
+                      ChatButtons buttons) {
+        this.buttons = buttons;
         this.between = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
         this.plugin = plugin;
         this.travel = travel;
@@ -160,6 +194,7 @@ public final class RtpService implements IRtpService {
         // Pushed into the cooldown, which holds its own copy of the wait. Left out, the file says
         // thirty seconds and the server keeps enforcing whatever it said when this started.
         between.every(java.time.Duration.ofSeconds(this.settings.cooldown()));
+        fees.settings(this.settings);
     }
 
     /** The wait, for a screen or a diagnostic that wants to say how long is left. */
@@ -186,6 +221,17 @@ public final class RtpService implements IRtpService {
      */
     public void leaves(UUID who) {
         between.sweep();
+        // Standing through a warm-up when they quit: no trip, so no charge.
+        RtpFees.Taken unspent = who == null ? null : paid.remove(who);
+        if (unspent != null) {
+            fees.refund(who, unspent);
+        }
+    }
+
+    /** Gives back everything paid for trips that never ended — for the module stopping. */
+    public void refundPending() {
+        paid.forEach((who, taken) -> fees.refund(who, taken));
+        paid.clear();
     }
 
     /** Whether this player's own choice is even asked for, under the settings right now. */
@@ -215,6 +261,15 @@ public final class RtpService implements IRtpService {
      *                        for this, so it cannot promise it
      */
     public void go(Player traveller, boolean playerWantsSafe, Integer minDistance) {
+        go(traveller, playerWantsSafe, minDistance, false);
+    }
+
+    /**
+     * @param payToSkipWait whether they have agreed to pay {@code rtp.skip-cooldown-price} if the wait is
+     *                      still running — only the offer's button sets it. Ignored when no wait is running
+     */
+    private void go(Player traveller, boolean playerWantsSafe, Integer minDistance,
+                    boolean payToSkipWait) {
         if (traveller == null) {
             return;
         }
@@ -227,22 +282,31 @@ public final class RtpService implements IRtpService {
         }
 
         // Asked, not spent — see the class note on why the wait is charged on arrival.
-        if (!traveller.hasPermission(PermissionNodes.BYPASS_COOLDOWN)
-                && !between.isReady(traveller.getUniqueId())) {
+        RtpFeeRule.AtCooldown atCooldown = feeRule.atCooldown(
+                between.isReady(traveller.getUniqueId()),
+                traveller.hasPermission(PermissionNodes.BYPASS_COOLDOWN),
+                skipPriceFor(traveller), payToSkipWait);
+        if (atCooldown == RtpFeeRule.AtCooldown.REFUSE) {
             messages.send(traveller, "rtp.on-cooldown", "time", waitLeft(traveller.getUniqueId()));
             play(traveller, Cues.COOLDOWN);
             return;
         }
+        if (atCooldown == RtpFeeRule.AtCooldown.OFFER) {
+            offerToSkip(traveller, playerWantsSafe, minDistance);
+            play(traveller, Cues.COOLDOWN);
+            return;
+        }
+        boolean payingSkip = atCooldown == RtpFeeRule.AtCooldown.GO_PAYING;
 
         Location raw = destinationIn(world, traveller, minDistance);
         boolean checked = rule.effectiveSafeArrival(settings.safeArrivalPolicy(), playerWantsSafe);
         if (!checked || safety == null) {
-            depart(traveller, raw);
+            depart(traveller, raw, payingSkip);
             return;
         }
 
         if (pool == null || minDistance != null) {
-            searchLive(traveller, raw, minDistance, 1);
+            searchLive(traveller, raw, minDistance, 1, payingSkip);
             return;
         }
         // The pool first: a spot already found and checked, re-verified once more because the ground
@@ -253,12 +317,12 @@ public final class RtpService implements IRtpService {
                 .thenAccept(fromPool -> fromPool.ifPresentOrElse(
                         location -> onThePlayersThread(traveller, () -> {
                             if (traveller.isOnline()) {
-                                depart(traveller, location);
+                                depart(traveller, location, payingSkip);
                             }
                         }),
-                        () -> searchLive(traveller, raw, null, 1)))
+                        () -> searchLive(traveller, raw, null, 1, payingSkip)))
                 .exceptionally(failure -> {
-                    searchLive(traveller, raw, null, 1);
+                    searchLive(traveller, raw, null, 1, payingSkip);
                     return null;
                 });
     }
@@ -271,7 +335,8 @@ public final class RtpService implements IRtpService {
      * rolls again itself, up to {@link #MAX_SEARCH_ATTEMPTS} times, with a fresh point of its own each
      * time. Only the last attempt's failure is ever actually shown to anybody.
      */
-    private void searchLive(Player traveller, Location raw, Integer minDistance, int attempt) {
+    private void searchLive(Player traveller, Location raw, Integer minDistance, int attempt,
+                            boolean payingSkip) {
         // The search is bounded to a couple of seconds even on bad terrain — see
         // SafeSpots#nearestConsistentHeight — but a couple of seconds of nothing happening still
         // reads as a frozen command. Shown at LOW priority: a refusal or an arrival either one
@@ -288,13 +353,13 @@ public final class RtpService implements IRtpService {
                     if (found.isPresent()) {
                         clearSearching(traveller);
                         if (traveller.isOnline()) {
-                            depart(traveller, at(found.get(), raw));
+                            depart(traveller, at(found.get(), raw), payingSkip);
                         }
                         return;
                     }
                     if (attempt < MAX_SEARCH_ATTEMPTS && traveller.isOnline()) {
                         Location again = destinationIn(traveller.getWorld(), traveller, minDistance);
-                        searchLive(traveller, again, minDistance, attempt + 1);
+                        searchLive(traveller, again, minDistance, attempt + 1, payingSkip);
                         return;
                     }
                     clearSearching(traveller);
@@ -334,11 +399,68 @@ public final class RtpService implements IRtpService {
     }
 
     /** The already-resolved destination is handed to Travel with no further search of its own. */
-    private void depart(Player traveller, Location destination) {
+    private void depart(Player traveller, Location destination, boolean payingSkip) {
+        UUID who = traveller.getUniqueId();
+        RtpFees.Charge charge = fees.charge(who, priceFor(traveller),
+                payingSkip ? skipPriceFor(traveller) : Money.ZERO);
+        if (!charge.paid()) {
+            tellWhyNotPaid(traveller, charge.refusal());
+            refused(traveller);
+            return;
+        }
+        if (charge.taken().total().isPositive()) {
+            paid.put(who, charge.taken());
+        }
         int warmup = traveller.hasPermission(PermissionNodes.BYPASS_WARMUP) ? 0 : settings.warmup();
         Trip trip = Trip.to("somewhere new").after(warmup).exactly();
         travel.go(traveller, destination, trip, new Wording());
     }
+
+    /** What a trip costs this player: nothing at all with the bypass, or when the owner set no price. */
+    private Money priceFor(Player traveller) {
+        return traveller.hasPermission(PermissionNodes.BYPASS_FEE) ? Money.ZERO
+                : fees.fee();
+    }
+
+    private Money skipPriceFor(Player traveller) {
+        return traveller.hasPermission(PermissionNodes.BYPASS_FEE) ? Money.ZERO
+                : fees.skip();
+    }
+
+    private void tellWhyNotPaid(Player traveller, EconomyResult refusal) {
+        String key = refusal.outcome() == EconomyResult.Outcome.NOT_ENOUGH
+                ? "rtp.cannot-afford" : "rtp.payment-failed";
+        messages.send(traveller, key, "price", Fees.format(refusal.amount()));
+    }
+
+    /**
+     * The refusal for somebody on a wait they could buy their way out of: the price, and a button.
+     *
+     * <p>Bound to this player alone and for a short while only; the click comes back through
+     * {@code go} and so asks every question again, including whether the wait is in fact still running.
+     */
+    private void offerToSkip(Player traveller, boolean playerWantsSafe, Integer minDistance) {
+        UUID who = traveller.getUniqueId();
+        String price = Fees.format(Fees.quote(RtpFees.SKIP, skipPriceFor(traveller)));
+        Component line = messages.prefixed("rtp.on-cooldown-skippable",
+                "time", waitLeft(who), "price", price);
+        if (buttons == null) {
+            traveller.sendMessage(line);
+            return;
+        }
+        Component button = buttons.label("<green>[Skip the wait]")
+                .tooltip("<gray>Pay <white>" + price + "</white> and go now")
+                .forOnly(who).expiringIn(OFFER_LIFETIME)
+                .does(clicker -> {
+                    Player clicked = plugin.getServer().getPlayer(clicker);
+                    if (clicked != null && clicked.isOnline()) {
+                        go(clicked, playerWantsSafe, minDistance, true);
+                    }
+                }).render();
+        traveller.sendMessage(line.appendSpace().append(button));
+    }
+
+    private static final java.time.Duration OFFER_LIFETIME = java.time.Duration.ofSeconds(30);
 
     /** Runs something back on the thread that owns this player. Never blocks; logs what it throws. */
     private void onThePlayersThread(Player traveller, Runnable task) {
@@ -427,6 +549,10 @@ public final class RtpService implements IRtpService {
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
             between.start(traveller.getUniqueId());
+            RtpFees.Taken spent = paid.remove(traveller.getUniqueId());
+            if (spent != null && spent.total().isPositive()) {
+                messages.send(traveller, "rtp.paid", "price", Fees.format(spent.total()));
+            }
             // No arrival cue here: Core's Travel plays it for every teleport, in the traveller's own choice.
             messages.send(traveller, "rtp.arrived",
                     "where", where.getBlockX() + ", " + where.getBlockZ());
@@ -441,13 +567,23 @@ public final class RtpService implements IRtpService {
         @Override
         public void cancelled(Player traveller, TravelReason why, Trip trip) {
             messages.send(traveller, keyFor(why));
+            giveBack(traveller);
             play(traveller, Cues.NO);
         }
 
         @Override
         public void refused(Player traveller, TravelReason why, Trip trip) {
             messages.send(traveller, keyFor(why));
+            giveBack(traveller);
             play(traveller, Cues.NO);
+        }
+
+        private void giveBack(Player traveller) {
+            RtpFees.Taken spent = paid.remove(traveller.getUniqueId());
+            if (spent != null && spent.total().isPositive()) {
+                fees.refund(traveller.getUniqueId(), spent);
+                messages.send(traveller, "rtp.refunded", "price", Fees.format(spent.total()));
+            }
         }
     }
 

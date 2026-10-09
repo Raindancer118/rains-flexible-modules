@@ -49,7 +49,7 @@ import java.util.Random;
  */
 public final class RtpModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("rtp", "Random Teleport", "1.2.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("rtp", "Random Teleport", "1.3.0")
             .describedAs("Sends a player somewhere random in their own world, inside a ring an owner "
                     + "sets — the warm-up, the safe landing and the teleport are RainsCore's Travel")
             .by("Raindancer118");
@@ -116,7 +116,7 @@ public final class RtpModule implements FlexModule {
         travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         rtp = new RtpService(context.plugin(), travel, context.core().safety(), pool, rule,
                 context.core().messages(), context.core().effects(), context.core().actionBars(),
-                log, settings.current(), new Random());
+                log, settings.current(), new Random(), null, context.core().buttons());
 
         // Every setting is a snapshot, so a reload hands the service a fresh one. Missing this is a
         // service that keeps yesterday's cooldown until the next restart, which gets reported as "the
@@ -176,6 +176,10 @@ public final class RtpModule implements FlexModule {
         // them.
         if (travel != null) {
             travel.clear();
+        }
+        // The countdowns just dropped will never call back, so what they were paid is given back here.
+        if (rtp != null) {
+            rtp.refundPending();
         }
 
         // Whatever the pool has not yet written — a location marked used a moment ago, say — must not

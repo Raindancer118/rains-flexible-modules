@@ -60,6 +60,14 @@ class ConfigMenuTest {
     private static final Pattern ADDRESSED_BY_A_CHOOSER =
             Pattern.compile("amount\\(MenuLayout\\.\\w+, \\d+, \"([a-z0-9-]+)\"");
 
+    /**
+     * A key handed to the {@code askPrice} helper, which asks for an amount in chat.
+     *
+     * <p>The fourth route, for the two prices: an amount like {@code 1.5k} is typed, not nudged or picked.
+     */
+    private static final Pattern ADDRESSED_BY_A_PROMPT =
+            Pattern.compile("askPrice\\(\"([a-z0-9-]+)\"");
+
     private static String source() {
         try {
             return Files.readString(CONFIG_MENU);
@@ -73,7 +81,7 @@ class ConfigMenuTest {
         Set<String> keys = new LinkedHashSet<>();
         String body = source();
         for (Pattern pattern : List.of(ADDRESSED_DIRECTLY, ADDRESSED_BY_A_SWITCH,
-                ADDRESSED_BY_A_CHOOSER)) {
+                ADDRESSED_BY_A_CHOOSER, ADDRESSED_BY_A_PROMPT)) {
             Matcher matcher = pattern.matcher(body);
             while (matcher.find()) {
                 keys.add(matcher.group(1));

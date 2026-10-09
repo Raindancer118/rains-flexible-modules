@@ -23,6 +23,7 @@ import de.raindancer.modules.farmworld.screen.FarmWorldMenu;
 import de.raindancer.modules.farmworld.service.FarmAdminService;
 import de.raindancer.modules.farmworld.service.FarmTravelService;
 import de.raindancer.modules.farmworld.service.NoticeService;
+import de.raindancer.modules.farmworld.store.FarmPasses;
 import de.raindancer.modules.farmworld.store.FarmWorldCatalogue;
 import de.raindancer.modules.farmworld.util.PermissionNodes;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
@@ -76,7 +77,7 @@ import java.util.Random;
  */
 public final class FarmWorldModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("farmworlds", "Farm Worlds", "1.2.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("farmworlds", "Farm Worlds", "1.3.0")
             .describedAs("Somewhere to strip-mine that is regenerated — arrived at "
                     + "somewhere different every time, and announced before it goes")
             .by("Raindancer118");
@@ -111,6 +112,7 @@ public final class FarmWorldModule implements FlexModule {
     private FarmWorldCatalogue catalogue;
     private Travel travel;
     private FarmTravelService travelling;
+    private FarmPasses passes;
     private FarmAdminService admin;
     private NoticeService notices;
     private ScheduledTask watching;
@@ -171,8 +173,13 @@ public final class FarmWorldModule implements FlexModule {
 
         FarmAccessRule access = new FarmAccessRule();
         travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
+        // Who holds a day pass, until when. Its own file: it is the server's record of money already
+        // paid, and must outlive a restart and a regeneration alike.
+        passes = new FarmPasses(context.dataFolder().resolve("day-passes.yml"));
+        passes.load();
         travelling = new FarmTravelService(catalogue, travel, access, context.core().messages(),
-                context.core().effects(), settings.current(), new Random());
+                context.core().effects(), settings.current(), new Random(), null, passes,
+                context.core().buttons());
         admin = new FarmAdminService(context.plugin(), server, catalogue, access,
                 context.core().messages(), log, settings.current());
         // Everybody, as one audience. The server itself: a warning about a farm world being regenerated is
@@ -300,6 +307,13 @@ public final class FarmWorldModule implements FlexModule {
         // never come, and the countdown tasks must not outlive the plugin that scheduled them.
         if (travel != null) {
             travel.clear();
+        }
+        // The countdowns just dropped will never call back, so what they were paid is given back here.
+        if (travelling != null) {
+            travelling.refundPending();
+        }
+        if (passes != null) {
+            passes.flush();
         }
 
         // What the module changed about a farm world's definition, if anything has not reached the disk yet.

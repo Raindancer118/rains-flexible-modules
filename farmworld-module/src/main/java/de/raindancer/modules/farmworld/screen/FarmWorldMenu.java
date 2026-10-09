@@ -177,6 +177,7 @@ public final class FarmWorldMenu extends Menu implements IFarmWorldScreen {
         lore.add("");
         lore.add("<dark_gray>No platform, no way back and nothing around it —");
         lore.add("<dark_gray>which is the point. Bring what you need.");
+        lore.addAll(services.travelling().priceLines(viewer));
         lore.add("");
         lore.add("<gray>Click to go. Or type <white>/farm "
                 + (name == null ? "<the farm world>" : name) + " rtp</white>.");
@@ -196,6 +197,7 @@ public final class FarmWorldMenu extends Menu implements IFarmWorldScreen {
             lore.add("<gray>Then <white>" + Times.describe(now.cooldownFor())
                     + "</white> before you can go again.");
         }
+        lore.addAll(services.travelling().priceLines(viewer));
         lore.add("<gray>Click to go.");
         return Icons.of(Material.ENDER_PEARL, "<white>Go there", lore);
     }

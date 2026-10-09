@@ -29,6 +29,7 @@ tpa:
   not-accepting: "<yellow><player></yellow> is not accepting teleport requests right now."
   already-asked: "<yellow>You have already asked <white><player></white> — they have not answered yet."
   too-soon: "<yellow>Another <white><time></white> before you can ask again."
+  too-soon-skippable: "<yellow>Another <white><time></white> before you can ask again — or skip the wait for <white><price></white>."
   no-such-player: "<red>Nobody called <white><player></white> is known to this server. Check the spelling."
   is-offline: "<yellow><player></yellow> is offline right now. Ask again when they are back."
   too-many: "<yellow><selector></yellow> matches <white><count></white> players, and a request goes to one. Pick one."
@@ -52,6 +53,13 @@ tpa:
   theirs-ran-out: "<gray><player></gray>'s teleport request ran out."
 
   # ---------------------------------------------------------------- going
+  price-you: "<gray>If it goes ahead, the trip costs <white>you</white> about <white><price></white>."
+  price-them: "<gray>If it goes ahead, the trip costs <white><player></white> about <white><price></white>."
+  cannot-afford: "<red>That costs <white><price></white>, and you do not have it."
+  payment-failed: "<red>The <white><price></white> could not be taken, so nothing happened. Nothing was charged."
+  traveller-cannot-pay: "<yellow><player></yellow> cannot pay for the trip, so nobody went anywhere."
+  paid: "<gray>Paid <white><price></white>."
+  refunded: "<gray>No trip, so your <white><price></white> is back."
   warming-up: "<gray>Off to <white><player></white> in <white><seconds></white>s… stand still."
   arrived: "<green>You arrived at <white><player></white>."
   nowhere-safe: "<red>There is nowhere safe to put you next to <white><player></white>."
@@ -74,6 +82,7 @@ tpa:
   not-blocked: "<gray><player></gray> is not on your block list."
 
   # ---------------------------------------------------------------- going back
+  back-too-soon-skippable: "<yellow>Another <white><time></white> before you can go back — or skip the wait for <white><price></white>."
   back-warming-up: "<gray>Back to <white><what></white> in <white><seconds></white>s… stand still."
   back-arrived: "<green>Back to <white><what></white>."
   nowhere-to-go-back-to: "<gray>There is nowhere to go back to yet."

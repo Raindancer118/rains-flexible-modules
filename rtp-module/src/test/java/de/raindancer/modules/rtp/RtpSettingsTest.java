@@ -31,6 +31,13 @@ class RtpSettingsTest {
     class Defaults {
 
         @Test
+        @DisplayName("nothing costs anything until an owner says so")
+        void pricesAreOff() {
+            assertThat(defaults.price()).isEqualTo("0");
+            assertThat(defaults.skipCooldownPrice()).isEqualTo("0");
+        }
+
+        @Test
         @DisplayName("each one is what it should be, by name")
         void eachOneByName() {
             assertThat(defaults.warmupSeconds()).as("stand still for").isEqualTo(3);

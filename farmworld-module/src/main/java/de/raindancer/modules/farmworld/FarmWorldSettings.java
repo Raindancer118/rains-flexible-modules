@@ -39,6 +39,7 @@ import java.time.Duration;
         @Topic(path = "farmworlds/travelling", title = "Getting there", icon = Material.ENDER_PEARL),
         @Topic(path = "farmworlds/arriving", title = "Where you land", icon = Material.FILLED_MAP),
         @Topic(path = "farmworlds/regenerating", title = "Being warned", icon = Material.BELL),
+        @Topic(path = "farmworlds/prices", title = "What it costs", icon = Material.GOLD_INGOT),
 })
 public record FarmWorldSettings(
 
@@ -130,10 +131,29 @@ public record FarmWorldSettings(
                 + "an hour's notice given once is notice nobody remembers hearing. Zero leaves only "
                 + "those two.")
         @Key("warn-minutes")
-        int warnMinutes) {
+        int warnMinutes,
+
+        @In("farmworlds/prices") @Title("Price of every entry")
+        @Describe("Money taken each time somebody goes to a farm world, charged as the trip is on its "
+                + "way and given back if it is cancelled or fails. Written like 12.50 or 1.5k. Zero is "
+                + "free, and needs no economy plugin.")
+        @Key("entry-price")
+        String entryPrice,
+
+        @In("farmworlds/prices") @Title("Price of a 24-hour pass")
+        @Describe("Money for a pass that lets somebody enter any farm world as often as they like for "
+                + "twenty-four hours from the trip it was bought for. Kept across restarts. Zero means "
+                + "there is no pass; with both prices set, each entry offers the two side by side.")
+        @Key("day-pass-price")
+        String dayPassPrice) {
+
+    public FarmWorldSettings {
+        entryPrice = entryPrice == null ? "0" : entryPrice;
+        dayPassPrice = dayPassPrice == null ? "0" : dayPassPrice;
+    }
 
     public static final FarmWorldSettings DEFAULTS = new FarmWorldSettings(
-            5, 60, true, 8, true, false, 8, 10, true, 250, 4000, 15);
+            5, 60, true, 8, true, false, 8, 10, true, 250, 4000, 15, "0", "0");
 
     // ------------------------------------------------------------------ read back safely
 
@@ -202,50 +222,58 @@ public record FarmWorldSettings(
     // ------------------------------------------------------------------ one component at a time
 
     public FarmWorldSettings withWarmupSeconds(int seconds) {
-        return new FarmWorldSettings(seconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes);
+        return new FarmWorldSettings(seconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withCooldownSeconds(int seconds) {
-        return new FarmWorldSettings(warmupSeconds, seconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes);
+        return new FarmWorldSettings(warmupSeconds, seconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withHurtCancelsWarmup(boolean cancels) {
-        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, cancels, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes);
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, cancels, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withSafeArrivalRadius(int radius) {
-        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, radius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes);
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, radius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withBringWhatYouLead(boolean bring) {
-        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bring, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes);
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bring, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withBringNearbyPets(boolean bring) {
-        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bring, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes);
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bring, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withBringRadius(int radius) {
-        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, radius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes);
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, radius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withBringAtMost(int most) {
-        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, most, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes);
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, most, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withScatterArrivals(boolean scatter) {
-        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatter, scatterNearest, scatterFurthest, warnMinutes);
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatter, scatterNearest, scatterFurthest, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withScatterNearest(int blocks) {
-        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, blocks, scatterFurthest, warnMinutes);
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, blocks, scatterFurthest, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withScatterFurthest(int blocks) {
-        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, blocks, warnMinutes);
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, blocks, warnMinutes, entryPrice, dayPassPrice);
     }
 
     public FarmWorldSettings withWarnMinutes(int minutes) {
-        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, minutes);
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, minutes, entryPrice, dayPassPrice);
+    }
+
+    public FarmWorldSettings withEntryPrice(String written) {
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes, written, dayPassPrice);
+    }
+
+    public FarmWorldSettings withDayPassPrice(String written) {
+        return new FarmWorldSettings(warmupSeconds, cooldownSeconds, hurtCancelsWarmup, safeArrivalRadius, bringWhatYouLead, bringNearbyPets, bringRadius, bringAtMost, scatterArrivals, scatterNearest, scatterFurthest, warnMinutes, entryPrice, written);
     }
 }

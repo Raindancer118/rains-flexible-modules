@@ -1,6 +1,11 @@
 package de.raindancer.modules.tpa.service;
 
 import de.raindancer.core.moderation.punishment.Durations;
+import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.social.economy.Money;
+import de.raindancer.core.ui.chat.ChatButtons;
+import net.kyori.adventure.text.Component;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.teleport.Companions;
@@ -43,10 +48,20 @@ public final class BackService implements ITpaService {
     /** The wait between one player's returns, kept apart from the wait between requests. */
     private final Cooldowns<UUID> waits;
 
+    private final TpaFees fees = new TpaFees(null);
+    private final ChatButtons buttons;
+
     private volatile TpaSettings settings;
 
     public BackService(Travel travel, Messages messages, TpaSettings settings) {
-        this(travel, messages, settings, null);
+        this(travel, messages, settings, (LongSupplier) null);
+    }
+
+    /**
+     * @param buttons draws the offer to pay for skipping the wait; null offers it as plain text
+     */
+    public BackService(Travel travel, Messages messages, TpaSettings settings, ChatButtons buttons) {
+        this(travel, messages, settings, null, buttons);
     }
 
     /**
@@ -56,6 +71,12 @@ public final class BackService implements ITpaService {
      *              running server wants. A test hands in one it can move itself
      */
     public BackService(Travel travel, Messages messages, TpaSettings settings, LongSupplier clock) {
+        this(travel, messages, settings, clock, null);
+    }
+
+    private BackService(Travel travel, Messages messages, TpaSettings settings, LongSupplier clock,
+                        ChatButtons buttons) {
+        this.buttons = buttons;
         this.waits = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
         this.travel = travel;
         this.returns = travel.cameFrom();
@@ -66,6 +87,7 @@ public final class BackService implements ITpaService {
     @Override
     public void settings(TpaSettings fresh) {
         this.settings = fresh;
+        fees.settings(fresh);
         waits.every(Duration.ofSeconds(fresh.backCooldown()));
     }
 
@@ -102,6 +124,25 @@ public final class BackService implements ITpaService {
      * two places for ever, which is a teleport with no cost at all.
      */
     public boolean go(Player who) {
+        return go(who, false);
+    }
+
+    /** What going back costs this player as written, for a button's lore. */
+    public Money priceFor(Player who) {
+        return who.hasPermission(PermissionNodes.BYPASS_FEE) ? Money.ZERO : fees.back();
+    }
+
+    /** The same, as the player would be charged and read: empty when it is free. */
+    public String priceText(Player who) {
+        Money quoted = Fees.quote(TpaFees.BACK, priceFor(who));
+        return quoted.isPositive() ? Fees.format(quoted) : "";
+    }
+
+    /**
+     * @param paySkip whether they have agreed to pay {@code tpa.skip-cooldown-price} if the wait is
+     *                still running — only the offer's button sets it
+     */
+    private boolean go(Player who, boolean paySkip) {
         if (!settings.backEnabled()) {
             messages.send(who, "tpa.back-switched-off");
             return false;
@@ -122,13 +163,29 @@ public final class BackService implements ITpaService {
             messages.send(who, "tpa.back-cross-world-off");
             return false;
         }
-        if (!isReady(who)) {
-            messages.send(who, "tpa.back-too-soon", "time", waitLeft(who.getUniqueId()));
+        Money skipPrice = who.hasPermission(PermissionNodes.BYPASS_FEE) ? Money.ZERO : fees.skip();
+        boolean ready = isReady(who);
+        if (!ready && !(paySkip && skipPrice.isPositive())) {
+            if (skipPrice.isPositive()) {
+                offerToSkip(who, skipPrice);
+            } else {
+                messages.send(who, "tpa.back-too-soon", "time", waitLeft(who.getUniqueId()));
+            }
+            return false;
+        }
+
+        TpaFees.Charge charge = fees.charge(who.getUniqueId(), priceFor(who), TpaFees.BACK,
+                ready ? Money.ZERO : skipPrice);
+        if (!charge.paid()) {
+            String key = charge.refusal().outcome() == EconomyResult.Outcome.NOT_ENOUGH
+                    ? "tpa.cannot-afford" : "tpa.payment-failed";
+            messages.send(who, key, "price", Fees.format(charge.refusal().amount()));
             return false;
         }
 
         // Taken only once everything has passed, so a refusal does not cost somebody the way back.
         returns.take(who.getUniqueId());
+        fees.hold(who.getUniqueId(), charge.taken());
 
         int warmup = bypasses(who, PermissionNodes.BYPASS_WARMUP) ? 0 : settings.warmup();
         travel.go(who, destination,
@@ -137,6 +194,27 @@ public final class BackService implements ITpaService {
                         .bringing(Companions.WHAT_YOU_LEAD),
                 new Arriving(where));
         return true;
+    }
+
+    /** The refusal for somebody on a wait they could buy their way out of: the price, and a button. */
+    private void offerToSkip(Player who, Money skipPrice) {
+        String price = Fees.format(Fees.quote(TpaFees.SKIP, skipPrice));
+        Component line = messages.prefixed("tpa.back-too-soon-skippable",
+                "time", waitLeft(who.getUniqueId()), "price", price);
+        if (buttons == null) {
+            who.sendMessage(line);
+            return;
+        }
+        Component button = buttons.label("<green>[Skip the wait]")
+                .tooltip("<gray>Pay <white>" + price + "</white> and go back now")
+                .forOnly(who.getUniqueId()).expiringIn(java.time.Duration.ofSeconds(30))
+                .does(clicker -> {
+                    Player clicked = org.bukkit.Bukkit.getPlayer(clicker);
+                    if (clicked != null && clicked.isOnline()) {
+                        go(clicked, true);
+                    }
+                }).render();
+        who.sendMessage(line.appendSpace().append(button));
     }
 
     /** Whether they may go back yet. */
@@ -168,6 +246,14 @@ public final class BackService implements ITpaService {
      */
     public void leaves(UUID who) {
         waits.sweep();
+        // Standing through a wait when they quit: no trip, so no charge. The place they were going
+        // back to is not restored either — they left, and Core drops their waypoints with them.
+        fees.refundHeld(who);
+    }
+
+    /** Gives back everything paid for trips that never ended — for the module stopping. */
+    public void refundPending() {
+        fees.refundAllHeld();
     }
 
     /** The wait itself, for the tests in this package. */
@@ -200,6 +286,10 @@ public final class BackService implements ITpaService {
         @Override
         public void arrived(Player traveller, Location destination, Trip trip) {
             waits.start(traveller.getUniqueId());
+            TpaFees.Taken spent = fees.settle(traveller.getUniqueId());
+            if (spent != null && spent.total().isPositive()) {
+                messages.send(traveller, "tpa.paid", "price", Fees.format(spent.total()));
+            }
             messages.send(traveller, "tpa.back-arrived", "what", where.cause().describe());
         }
 
@@ -214,12 +304,22 @@ public final class BackService implements ITpaService {
         public void cancelled(Player traveller, TravelReason why, Trip trip) {
             returns.remember(traveller.getUniqueId(), where);
             messages.send(traveller, keyFor(why), "what", where.cause().describe());
+            giveBack(traveller);
         }
 
         @Override
         public void refused(Player traveller, TravelReason why, Trip trip) {
             returns.remember(traveller.getUniqueId(), where);
             messages.send(traveller, keyFor(why), "what", where.cause().describe());
+            giveBack(traveller);
+        }
+
+        private void giveBack(Player traveller) {
+            TpaFees.Taken spent = fees.settle(traveller.getUniqueId());
+            if (spent != null && spent.total().isPositive()) {
+                fees.refund(traveller.getUniqueId(), spent);
+                messages.send(traveller, "tpa.refunded", "price", Fees.format(spent.total()));
+            }
         }
     }
 

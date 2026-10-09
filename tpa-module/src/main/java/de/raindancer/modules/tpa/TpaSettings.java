@@ -22,6 +22,7 @@ import org.bukkit.Material;
         @Topic(path = "tpa/asking", title = "Asking", icon = Material.PAPER),
         @Topic(path = "tpa/travelling", title = "Going", icon = Material.ENDER_EYE),
         @Topic(path = "tpa/back", title = "Going back", icon = Material.COMPASS),
+        @Topic(path = "tpa/prices", title = "What it costs", icon = Material.GOLD_INGOT),
 })
 public record TpaSettings(
 
@@ -94,11 +95,52 @@ public record TpaSettings(
                 + "alone — which is still clickable, and still there when they come back to the "
                 + "keyboard.")
         @Key("tpa.notify-sound")
-        boolean notifySound) {
+        boolean notifySound,
+
+        @In("tpa/prices") @Title("Price of a teleport")
+        @Describe("Money the person who travels pays for every request that is accepted — the asker "
+                + "for /tpa, the person who answered for /tpahere. Charged as they set off, given "
+                + "back if the trip is cancelled or fails. Written like 12.50 or 1.5k; zero is free "
+                + "and needs no economy plugin.")
+        @Key("tpa.price")
+        String price,
+
+        @In("tpa/prices") @Title("Extra per 100 blocks")
+        @Describe("Added to the price in proportion to the distance, within one world: 250 blocks "
+                + "costs two and a half times this. Zero means distance costs nothing.")
+        @Key("tpa.price-per-100-blocks")
+        String pricePer100Blocks,
+
+        @In("tpa/prices") @Title("Extra for crossing worlds")
+        @Describe("Added to the price, flat, when the trip crosses into another world, where "
+                + "distance means nothing. Only matters where crossing worlds is allowed.")
+        @Key("tpa.cross-world-price")
+        String crossWorldPrice,
+
+        @In("tpa/prices") @Title("Price of going back")
+        @Describe("Money /back costs, charged as they set off and given back if the trip fails. "
+                + "Zero is free.")
+        @Key("tpa.back-price")
+        String backPrice,
+
+        @In("tpa/prices") @Title("Price of skipping a wait")
+        @Describe("Money to ask again, or go back again, while the wait is still running. When set, "
+                + "the refusal offers it as a button. Zero keeps the wait a plain refusal.")
+        @Key("tpa.skip-cooldown-price")
+        String skipCooldownPrice) {
+
+    public TpaSettings {
+        price = price == null ? "0" : price;
+        pricePer100Blocks = pricePer100Blocks == null ? "0" : pricePer100Blocks;
+        crossWorldPrice = crossWorldPrice == null ? "0" : crossWorldPrice;
+        backPrice = backPrice == null ? "0" : backPrice;
+        skipCooldownPrice = skipCooldownPrice == null ? "0" : skipCooldownPrice;
+    }
 
     /** Exactly what the old plugin shipped: {@code (60, 3, true, true, 5, true, false, true, true, 10, true)}. */
     public static final TpaSettings DEFAULTS =
-            new TpaSettings(60, 3, true, true, 5, true, false, true, true, 10, true);
+            new TpaSettings(60, 3, true, true, 5, true, false, true, true, 10, true,
+                    "0", "0", "0", "0", "0");
 
     // ------------------------------------------------------------------ read back safely
 
@@ -130,66 +172,97 @@ public record TpaSettings(
     public TpaSettings withRequestSeconds(int seconds) {
         return new TpaSettings(seconds, warmupSeconds, cancelOnMove, cancelOnDamage, cooldownSeconds,
                 allowCrossWorld, operatorsBypass, backEnabled, backOnDeath, backCooldownSeconds,
-                notifySound);
+                notifySound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
     }
 
     public TpaSettings withWarmupSeconds(int seconds) {
         return new TpaSettings(requestSeconds, seconds, cancelOnMove, cancelOnDamage, cooldownSeconds,
                 allowCrossWorld, operatorsBypass, backEnabled, backOnDeath, backCooldownSeconds,
-                notifySound);
+                notifySound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
     }
 
     public TpaSettings withCancelOnMove(boolean cancels) {
         return new TpaSettings(requestSeconds, warmupSeconds, cancels, cancelOnDamage,
                 cooldownSeconds, allowCrossWorld, operatorsBypass, backEnabled, backOnDeath,
-                backCooldownSeconds, notifySound);
+                backCooldownSeconds, notifySound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
     }
 
     public TpaSettings withCancelOnDamage(boolean cancels) {
         return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancels, cooldownSeconds,
                 allowCrossWorld, operatorsBypass, backEnabled, backOnDeath, backCooldownSeconds,
-                notifySound);
+                notifySound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
     }
 
     public TpaSettings withCooldownSeconds(int seconds) {
         return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage, seconds,
                 allowCrossWorld, operatorsBypass, backEnabled, backOnDeath, backCooldownSeconds,
-                notifySound);
+                notifySound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
     }
 
     public TpaSettings withAllowCrossWorld(boolean allow) {
         return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage,
                 cooldownSeconds, allow, operatorsBypass, backEnabled, backOnDeath,
-                backCooldownSeconds, notifySound);
+                backCooldownSeconds, notifySound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
     }
 
     public TpaSettings withOperatorsBypass(boolean bypass) {
         return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage,
                 cooldownSeconds, allowCrossWorld, bypass, backEnabled, backOnDeath,
-                backCooldownSeconds, notifySound);
+                backCooldownSeconds, notifySound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
     }
 
     public TpaSettings withBackEnabled(boolean enabled) {
         return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage,
                 cooldownSeconds, allowCrossWorld, operatorsBypass, enabled, backOnDeath,
-                backCooldownSeconds, notifySound);
+                backCooldownSeconds, notifySound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
     }
 
     public TpaSettings withBackOnDeath(boolean onDeath) {
         return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage,
                 cooldownSeconds, allowCrossWorld, operatorsBypass, backEnabled, onDeath,
-                backCooldownSeconds, notifySound);
+                backCooldownSeconds, notifySound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
     }
 
     public TpaSettings withBackCooldownSeconds(int seconds) {
         return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage,
                 cooldownSeconds, allowCrossWorld, operatorsBypass, backEnabled, backOnDeath, seconds,
-                notifySound);
+                notifySound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
     }
 
     public TpaSettings withNotifySound(boolean sound) {
         return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage,
                 cooldownSeconds, allowCrossWorld, operatorsBypass, backEnabled, backOnDeath,
-                backCooldownSeconds, sound);
+                backCooldownSeconds, sound,
+                price, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
+    }
+
+    public TpaSettings withPrice(String written) {
+        return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage, cooldownSeconds, allowCrossWorld, operatorsBypass, backEnabled, backOnDeath, backCooldownSeconds, notifySound, written, pricePer100Blocks, crossWorldPrice, backPrice, skipCooldownPrice);
+    }
+
+    public TpaSettings withPricePer100Blocks(String written) {
+        return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage, cooldownSeconds, allowCrossWorld, operatorsBypass, backEnabled, backOnDeath, backCooldownSeconds, notifySound, price, written, crossWorldPrice, backPrice, skipCooldownPrice);
+    }
+
+    public TpaSettings withCrossWorldPrice(String written) {
+        return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage, cooldownSeconds, allowCrossWorld, operatorsBypass, backEnabled, backOnDeath, backCooldownSeconds, notifySound, price, pricePer100Blocks, written, backPrice, skipCooldownPrice);
+    }
+
+    public TpaSettings withBackPrice(String written) {
+        return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage, cooldownSeconds, allowCrossWorld, operatorsBypass, backEnabled, backOnDeath, backCooldownSeconds, notifySound, price, pricePer100Blocks, crossWorldPrice, written, skipCooldownPrice);
+    }
+
+    public TpaSettings withSkipCooldownPrice(String written) {
+        return new TpaSettings(requestSeconds, warmupSeconds, cancelOnMove, cancelOnDamage, cooldownSeconds, allowCrossWorld, operatorsBypass, backEnabled, backOnDeath, backCooldownSeconds, notifySound, price, pricePer100Blocks, crossWorldPrice, backPrice, written);
     }
 }

@@ -182,46 +182,68 @@ class FarmWorldSettingsTest {
     class Withers {
 
         @Test
+        @DisplayName("entering costs nothing until an owner says so")
+        void pricesAreOff() {
+            assertThat(defaults.entryPrice()).isEqualTo("0");
+            assertThat(defaults.dayPassPrice()).isEqualTo("0");
+            assertThat(defaults.withEntryPrice("5").withDayPassPrice("20"))
+                    .extracting(FarmWorldSettings::entryPrice, FarmWorldSettings::dayPassPrice)
+                    .containsExactly("5", "20");
+        }
+
+        @Test
         @DisplayName("each with… leaves the other eleven alone")
         void nothingElseMoves() {
             // What a positional constructor with twelve components gets wrong: a wither written by copying the
             // one above it and changing the wrong position. Every one of these would compile.
             assertThat(defaults.withWarmupSeconds(1))
                     .isEqualTo(new FarmWorldSettings(1, 60, true, 8, true, false, 8, 10, true, 250,
-                            4000, 15));
+                            4000, 15,
+                            "0", "0"));
             assertThat(defaults.withCooldownSeconds(1))
                     .isEqualTo(new FarmWorldSettings(5, 1, true, 8, true, false, 8, 10, true, 250,
-                            4000, 15));
+                            4000, 15,
+                            "0", "0"));
             assertThat(defaults.withHurtCancelsWarmup(false))
                     .isEqualTo(new FarmWorldSettings(5, 60, false, 8, true, false, 8, 10, true, 250,
-                            4000, 15));
+                            4000, 15,
+                            "0", "0"));
             assertThat(defaults.withSafeArrivalRadius(1))
                     .isEqualTo(new FarmWorldSettings(5, 60, true, 1, true, false, 8, 10, true, 250,
-                            4000, 15));
+                            4000, 15,
+                            "0", "0"));
             assertThat(defaults.withBringWhatYouLead(false))
                     .isEqualTo(new FarmWorldSettings(5, 60, true, 8, false, false, 8, 10, true, 250,
-                            4000, 15));
+                            4000, 15,
+                            "0", "0"));
             assertThat(defaults.withBringNearbyPets(true))
                     .isEqualTo(new FarmWorldSettings(5, 60, true, 8, true, true, 8, 10, true, 250,
-                            4000, 15));
+                            4000, 15,
+                            "0", "0"));
             assertThat(defaults.withBringRadius(1))
                     .isEqualTo(new FarmWorldSettings(5, 60, true, 8, true, false, 1, 10, true, 250,
-                            4000, 15));
+                            4000, 15,
+                            "0", "0"));
             assertThat(defaults.withBringAtMost(1))
                     .isEqualTo(new FarmWorldSettings(5, 60, true, 8, true, false, 8, 1, true, 250,
-                            4000, 15));
+                            4000, 15,
+                            "0", "0"));
             assertThat(defaults.withScatterArrivals(false))
                     .isEqualTo(new FarmWorldSettings(5, 60, true, 8, true, false, 8, 10, false, 250,
-                            4000, 15));
+                            4000, 15,
+                            "0", "0"));
             assertThat(defaults.withScatterNearest(1))
                     .isEqualTo(new FarmWorldSettings(5, 60, true, 8, true, false, 8, 10, true, 1,
-                            4000, 15));
+                            4000, 15,
+                            "0", "0"));
             assertThat(defaults.withScatterFurthest(1))
                     .isEqualTo(new FarmWorldSettings(5, 60, true, 8, true, false, 8, 10, true, 250,
-                            1, 15));
+                            1, 15,
+                            "0", "0"));
             assertThat(defaults.withWarnMinutes(1))
                     .isEqualTo(new FarmWorldSettings(5, 60, true, 8, true, false, 8, 10, true, 250,
-                            4000, 1));
+                            4000, 1,
+                            "0", "0"));
         }
 
         @Test

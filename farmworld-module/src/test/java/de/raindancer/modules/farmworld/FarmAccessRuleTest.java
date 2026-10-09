@@ -207,9 +207,12 @@ class FarmAccessRuleTest {
             // as the plugin being broken rather than as a permission being ungranted.
             var declared = PermissionNodes.declared(java.util.List.of("mining"));
 
-            assertThat(declared).filteredOn(node -> !node.getName().equals(PermissionNodes.MANAGE))
+            assertThat(declared).filteredOn(node -> !node.getName().equals(PermissionNodes.MANAGE)
+                            && !node.getName().equals(PermissionNodes.BYPASS_FEE))
                     .allMatch(node -> node.getDefault() == org.bukkit.permissions.PermissionDefault.TRUE);
-            assertThat(declared).filteredOn(node -> node.getName().equals(PermissionNodes.MANAGE))
+            assertThat(declared).filteredOn(node -> node.getName().equals(PermissionNodes.MANAGE)
+                            || node.getName().equals(PermissionNodes.BYPASS_FEE))
+                    .hasSize(2)
                     .allMatch(node -> node.getDefault() == org.bukkit.permissions.PermissionDefault.OP);
         }
     }

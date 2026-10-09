@@ -40,6 +40,9 @@ public final class PermissionNodes {
     /** Making farm worlds, changing them, and regenerating one by hand. */
     public static final String MANAGE = "rainsfarmworlds.farm.manage";
 
+    /** Entering without paying the entry price or buying a day pass. */
+    public static final String BYPASS_FEE = "rainsfarmworlds.farm.bypass.fee";
+
     /** What a single farm world's own node is prefixed with. */
     public static final String WORLD_PREFIX = "rainsfarmworlds.world.";
 
@@ -84,6 +87,9 @@ public final class PermissionNodes {
                 PermissionDefault.TRUE));
         all.add(new Permission(MANAGE,
                 "Make and change farm worlds, and throw one away by hand",
+                PermissionDefault.OP));
+        all.add(new Permission(BYPASS_FEE,
+                "Enter farm worlds without paying",
                 PermissionDefault.OP));
         for (String name : worldNames == null ? List.<String>of() : worldNames) {
             String node = forWorld(name);

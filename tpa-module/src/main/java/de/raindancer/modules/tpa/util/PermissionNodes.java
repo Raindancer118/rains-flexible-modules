@@ -32,6 +32,9 @@ public final class PermissionNodes {
     /** Skipping both waits — between requests, and between going back. */
     public static final String BYPASS_COOLDOWN = "tpa.bypass.cooldown";
 
+    /** Not paying for teleports, going back, or skipping a wait. */
+    public static final String BYPASS_FEE = "tpa.bypass.fee";
+
     /**
      * Asking somebody who has requests switched off, or who has blocked you.
      *
@@ -58,6 +61,9 @@ public final class PermissionNodes {
                         PermissionDefault.FALSE),
                 new Permission(BYPASS_COOLDOWN,
                         "Ask again, or go back again, without waiting",
+                        PermissionDefault.FALSE),
+                new Permission(BYPASS_FEE,
+                        "Teleport and go back without paying",
                         PermissionDefault.FALSE),
                 new Permission(BYPASS_TOGGLE,
                         "Ask somebody who has requests switched off, or who has blocked you",

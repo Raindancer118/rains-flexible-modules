@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import de.raindancer.core.data.settings.Key;
+import de.raindancer.modules.tpa.service.TpaFees;
 import de.raindancer.modules.tpa.store.TpaPrefsFile;
 import de.raindancer.modules.tpa.util.PermissionNodes;
 
@@ -98,6 +99,11 @@ class MessagesTest {
         keys.add(PermissionNodes.BYPASS_WARMUP);
         keys.add(PermissionNodes.BYPASS_COOLDOWN);
         keys.add(PermissionNodes.BYPASS_TOGGLE);
+        keys.add(PermissionNodes.BYPASS_FEE);
+        // The economy's names for what a fee is for — spelled like keys, sent to no player.
+        keys.add(TpaFees.TRIP);
+        keys.add(TpaFees.BACK);
+        keys.add(TpaFees.SKIP);
         // The block-list file, which the module reads as the old plugin left it. A filename, not a
         // key, and the one literal here that is neither a setting nor a node.
         keys.add(TpaPrefsFile.FILE_NAME);

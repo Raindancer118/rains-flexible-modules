@@ -81,6 +81,10 @@ public final class TpaHubMenu extends Menu implements ITpaScreen {
                             + "."
                     : "<gray>Nowhere to go back to just yet.");
             lore.add("<dark_gray>Set by any teleport — a warp, a home, a request.");
+            String price = services.back().priceText(viewer);
+            if (!price.isEmpty()) {
+                lore.add("<gray>Costs <white>" + price + "</white>.");
+            }
             lore.add("");
             lore.add(somewhere ? "<gray>Click to go. This closes the menu." : "");
 

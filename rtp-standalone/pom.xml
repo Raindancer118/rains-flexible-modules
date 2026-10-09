@@ -47,7 +47,7 @@
           player's entry outright, so /rtp, disconnect, reconnect and go again cost nothing; it now
           sweeps the waits that are already over and leaves the running ones alone.
         -->
-        <plugin.version>1.2.2</plugin.version>
+        <plugin.version>1.3.0</plugin.version>
     </properties>
 
     <dependencies>
