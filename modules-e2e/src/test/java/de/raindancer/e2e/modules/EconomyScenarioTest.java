@@ -253,6 +253,10 @@ class EconomyScenarioTest {
             bo.run("eco give Bo 1000");
             Await.until("Bo may not", WAIT, () -> said(bo, "You may not do that"));
             ada.forgetChat();
+            ada.run("eco set Bo 0");
+            Await.until("Ada empties it", WAIT, () -> said(ada, "now has ⛃0"));
+            ada.run("eco set Bo -5");
+            Await.until("a negative balance is refused", WAIT, () -> said(ada, "-5 is not an amount"));
             ada.run("eco set Bo 500");
             Await.until("Ada sets it", WAIT, () -> said(ada, "now has ⛃500"));
             ada.run("eco freeze Bo");

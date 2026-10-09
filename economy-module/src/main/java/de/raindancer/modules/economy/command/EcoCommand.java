@@ -178,7 +178,8 @@ public final class EcoCommand extends EconomyCommand {
                     live.messages().send(sender, "economy.usage.eco");
                     return;
                 }
-                target(live, sender, args[1]).ifPresent(who -> amount(live, sender, args[2]).ifPresent(amount ->
+                target(live, sender, args[1]).ifPresent(who -> (sub.equals("set") ? balance(live, sender, args[2])
+                        : amount(live, sender, args[2])).ifPresent(amount ->
                         adjust(live, sender, sub, who, amount, rest(args, 3))));
             }
             case "reset" -> {

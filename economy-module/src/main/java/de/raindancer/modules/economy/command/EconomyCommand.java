@@ -58,7 +58,17 @@ abstract class EconomyCommand implements IEconomyCommand {
     }
 
     static Optional<Money> amount(EconomyServices live, CommandSender sender, String typed) {
-        Optional<Money> read = live.currency().parse(typed).filter(Money::isPositive);
+        return read(live, sender, typed, Money::isPositive);
+    }
+
+    /** Like {@link #amount} but zero is allowed — a balance can be set to nothing. */
+    static Optional<Money> balance(EconomyServices live, CommandSender sender, String typed) {
+        return read(live, sender, typed, money -> !money.isNegative());
+    }
+
+    private static Optional<Money> read(EconomyServices live, CommandSender sender, String typed,
+                                        java.util.function.Predicate<Money> allowed) {
+        Optional<Money> read = live.currency().parse(typed).filter(allowed);
         if (read.isEmpty()) {
             live.messages().send(sender, "economy.not-an-amount-typed", "typed", typed);
         }
