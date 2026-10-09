@@ -184,6 +184,21 @@ class ItemInsuranceServiceTest {
         }
 
         @Test
+        @DisplayName("the owner's own death: the item still in the dying inventory is the item itself, and is stored")
+        void ownDeathWithItemStillInInventory() {
+            policyFor(owner, "p1");
+            Player dier = player(owner, 3);
+            ItemStack item = sword("p1");
+            when(dier.getInventory().getContents()).thenReturn(new ItemStack[]{item});
+            PlayerDeathEvent event = death(dier, false, item);
+
+            service.onDeath(event);
+
+            assertThat(event.getDrops()).isEmpty();
+            assertThat(store.returnsOf(owner)).as("not lost").hasSize(1);
+        }
+
+        @Test
         @DisplayName("one policy, one item: a copy in the drops while the item already waits is removed, not stored again")
         void copyOnDeathIsNotStoredTwice() {
             policyFor(owner, "p1");

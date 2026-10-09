@@ -409,7 +409,8 @@ public final class ItemInsuranceService implements IInvSnapService {
                 continue;
             }
             UUID owner = policy.get().owner();
-            if (alreadyHome(owner, policy.get().id())) {
+            // The dier's own inventory still holds what is dying with them, so it is no proof of being home.
+            if (alreadyHome(owner, policy.get().id(), !owner.equals(dier.getUniqueId()))) {
                 // One policy, one item: a second copy is not insured, and is not dropped either.
                 drops.remove();
                 continue;
@@ -453,7 +454,7 @@ public final class ItemInsuranceService implements IInvSnapService {
             }
         }
         UUID owner = policy.get().owner();
-        if (alreadyHome(owner, policy.get().id())) {
+        if (alreadyHome(owner, policy.get().id(), true)) {
             // One policy, one item: the owner has it, or it waits for them — this is a copy, and goes.
             synchronized (returnedEntities) {
                 returnedEntities.put(entity, Boolean.TRUE);
@@ -482,8 +483,8 @@ public final class ItemInsuranceService implements IInvSnapService {
      * Whether the item of this policy is already with its owner — in their inventory, or waiting on their list.
      * One policy covers one item: anything returned beyond that would be a copy made out of thin air.
      */
-    private boolean alreadyHome(UUID owner, String policyId) {
-        Player player = online.apply(owner);
+    private boolean alreadyHome(UUID owner, String policyId, boolean lookInInventory) {
+        Player player = lookInInventory ? online.apply(owner) : null;
         if (player != null) {
             ItemStack[] contents = player.getInventory().getContents();
             if (contents != null) {
