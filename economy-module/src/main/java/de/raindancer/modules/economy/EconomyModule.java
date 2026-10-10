@@ -85,7 +85,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.23.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.24.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -158,7 +158,7 @@ public final class EconomyModule implements FlexModule {
         CashService cash = new CashService(server, economy, messages, effects, context.core().audit(),
                 de.raindancer.modules.economy.store.CashSeal.load(context.dataFolder().resolve("cash.key")), now);
         ShopService shop = new ShopService(server, economy, prices, market, messages, effects, settings, now);
-        RewardService rewards = new RewardService(economy, window, now);
+        RewardService rewards = new RewardService(economy, window, messages, now);
         IncomeService income = new IncomeService(context.plugin(), rewards, messages, System::currentTimeMillis, now);
         HireService hire = new HireService(context.plugin(), server, economy, messages, effects, buttons,
                 System::currentTimeMillis, now);

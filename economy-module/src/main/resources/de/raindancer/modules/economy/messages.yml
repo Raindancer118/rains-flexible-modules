@@ -122,6 +122,7 @@ economy:
     income: "<green>Income: <amount><green> for <minutes> minutes online."
     income-away: "<gray>Income while away: <amount><gray> for <minutes> minutes online."
     interest: "<green>Interest: <amount><green> on what is in your account."
+    advancement: "<green>+ <amount> <green>for the advancement <white><advancement></white>."
 
   daily:
     off: "<red>The daily reward is switched off on this server."

@@ -1,5 +1,6 @@
 package de.raindancer.modules.economy;
 
+import io.papermc.paper.advancement.AdvancementDisplay;
 import de.raindancer.core.data.settings.SettingsSchema;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.social.economy.Currency;
@@ -113,6 +114,10 @@ public class EconomySettingsTest {
         assertThat(d.dailyStreakMost()).isEqualTo(7);
         assertThat(d.advancementRewardsEnabled()).isTrue();
         assertThat(d.advancementMoney()).isEqualTo(Money.of(250));
+        assertThat(d.advancementMoney(AdvancementDisplay.Frame.TASK)).isEqualTo(Money.of(250));
+        assertThat(d.advancementMoney(AdvancementDisplay.Frame.GOAL)).as("harder pays more").isEqualTo(Money.of(750));
+        assertThat(d.advancementMoney(AdvancementDisplay.Frame.CHALLENGE)).isEqualTo(Money.of(2000));
+        assertThat(d.advancementTell()).as("the player is told what an advancement paid").isTrue();
         assertThat(d.hourlyCapMoney()).isEqualTo(Money.of(20_000));
 
         assertThat(d.interestEnabled()).isTrue();

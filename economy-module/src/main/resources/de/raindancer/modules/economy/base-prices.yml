@@ -158,6 +158,12 @@ nautilus_shell: 300
 heart_of_the_sea: 3000
 shulker_shell: 800
 dragon_breath: 300
+wither_skeleton_skull: 1500
+skeleton_skull: 400
+zombie_head: 400
+creeper_head: 500
+piglin_head: 500
+dragon_head: 5000
 nether_star: 20000
 totem_of_undying: 3000
 turtle_scute: 200

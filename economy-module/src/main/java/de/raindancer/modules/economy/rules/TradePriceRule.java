@@ -20,7 +20,9 @@ public final class TradePriceRule implements IEconomyRule {
         if (!(exact > 0)) {
             return Money.ZERO;
         }
-        return Money.of((long) Math.min(Long.MAX_VALUE / 2, Math.floor(exact + 1e-9)));
+        // At least one coin: rounded down, rotten flesh (worth 2) would sell for nothing. Kept under the buy price
+        // by capSellBelowBuy, so an item that costs one coin still sells for none.
+        return Money.of((long) Math.max(1, Math.min(Long.MAX_VALUE / 2, Math.floor(exact + 1e-9))));
     }
 
     /** A sell price at or above the buy price would be a money machine; it is kept a cent below. */

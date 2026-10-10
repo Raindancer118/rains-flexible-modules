@@ -8,7 +8,7 @@ import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 
 import java.util.UUID;
 
-/** Advancements that announce themselves pay; recipes and hidden ones do not. */
+/** Advancements that announce themselves pay, the harder ones more; recipes and hidden ones do not. */
 public final class RewardListener implements IEconomyListener {
 
     private final EconomyServices services;
@@ -24,7 +24,7 @@ public final class RewardListener implements IEconomyListener {
             return;
         }
         services.rewards().advanced(event.getPlayer(),
-                PlainTextComponentSerializer.plainText().serialize(display.title()));
+                PlainTextComponentSerializer.plainText().serialize(display.title()), display.frame());
     }
 
     @Override

@@ -5,6 +5,8 @@ import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.model.TransactionKind;
 import de.raindancer.modules.economy.util.PermissionNodes;
+import de.raindancer.core.ui.messages.Messages;
+import io.papermc.paper.advancement.AdvancementDisplay;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 
@@ -16,11 +18,13 @@ public final class RewardService implements IEconomyService {
 
     private final RainEconomy economy;
     private final EarningWindow window;
+    private final Messages messages;
     private volatile EconomySettings settings;
 
-    public RewardService(RainEconomy economy, EarningWindow window, EconomySettings settings) {
+    public RewardService(RainEconomy economy, EarningWindow window, Messages messages, EconomySettings settings) {
         this.economy = economy;
         this.window = window;
+        this.messages = messages;
         settings(settings);
     }
 
@@ -29,12 +33,17 @@ public final class RewardService implements IEconomyService {
         this.settings = updated == null ? EconomySettings.DEFAULTS : updated;
     }
 
-    public void advanced(Player player, String title) {
+    /** Pays for an advancement by how hard it is, and says so when the owner wants it said. */
+    public void advanced(Player player, String title, AdvancementDisplay.Frame frame) {
         EconomySettings live = settings;
         if (!live.advancementRewardsEnabled()) {
             return;
         }
-        pay(player, live.advancementMoney(), "Advancement: " + title, TransactionKind.REWARD);
+        EconomyResult result = pay(player, live.advancementMoney(frame), "Advancement: " + title, TransactionKind.REWARD);
+        if (result.succeeded() && live.advancementTell() && messages != null) {
+            messages.send(player, "economy.earn.advancement", "amount", live.currency().render(result.amount()),
+                    "advancement", title);
+        }
     }
 
     /** Pays through the hourly cap; what the cap or the account refuses is simply not paid. */

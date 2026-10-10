@@ -1,6 +1,7 @@
 package de.raindancer.modules.economy;
 
 import de.raindancer.core.data.settings.Describe;
+import io.papermc.paper.advancement.AdvancementDisplay;
 import de.raindancer.core.data.settings.In;
 import de.raindancer.core.data.settings.Key;
 import de.raindancer.core.data.settings.Range;
@@ -354,7 +355,21 @@ public record EconomySettings(
         @In("economy/earn") @Title("Pay for advancements") @Key("features.advancement-rewards")
         boolean advancementRewardsEnabled,
 
-        @In("economy/earn") @Title("Per advancement") @Key("earn.advancement") String advancementReward,
+        @In("economy/earn") @Title("Per advancement")
+        @Describe("An ordinary one — a task, like Stone Age.")
+        @Key("earn.advancement") String advancementReward,
+
+        @In("economy/earn") @Title("Per goal advancement")
+        @Describe("The harder ones with the rounded frame, like Hot Stuff or The End?")
+        @Key("earn.advancement-goal") String advancementGoalReward,
+
+        @In("economy/earn") @Title("Per challenge advancement")
+        @Describe("The hardest, purple ones, like Return to Sender or How Did We Get Here?")
+        @Key("earn.advancement-challenge") String advancementChallengeReward,
+
+        @In("economy/earn") @Title("Tell players what an advancement paid")
+        @Describe("A chat line with the amount whenever an advancement pays.")
+        @Key("earn.advancement-tell") boolean advancementTell,
 
         @In("economy/earn") @Title("Most earned per hour")
         @Describe("From passive income and advancements together. 0 for no limit.")
@@ -818,7 +833,7 @@ public record EconomySettings(
             // earning
             false, "10", "2", 30, 5,
             true, "500", "100", 7,
-            true, "250", "20000",
+            true, "250", "750", "2000", true, "20000",
             // interest
             true, 0.25, 60, "250",
             // gambling
@@ -926,6 +941,15 @@ public record EconomySettings(
 
     public Money advancementMoney() {
         return money(advancementReward, DEFAULTS.advancementReward);
+    }
+
+    /** What an advancement pays by how hard it is: tasks least, challenges most. */
+    public Money advancementMoney(AdvancementDisplay.Frame frame) {
+        return switch (frame) {
+            case GOAL -> money(advancementGoalReward, DEFAULTS.advancementGoalReward);
+            case CHALLENGE -> money(advancementChallengeReward, DEFAULTS.advancementChallengeReward);
+            case null, default -> advancementMoney();
+        };
     }
 
     public Money hourlyCapMoney() {
