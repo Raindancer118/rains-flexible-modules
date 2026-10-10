@@ -85,7 +85,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.26.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.27.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -231,6 +231,7 @@ public final class EconomyModule implements FlexModule {
                 effects, buttons, supply, now);
         var death = new de.raindancer.modules.economy.service.DeathService(economy, messages, supply, now);
         var seasons = new de.raindancer.modules.economy.service.SeasonService(book, supplyBook, supply, now);
+        var backpay = new de.raindancer.modules.economy.service.BackpayService(context.plugin(), economy, messages, now);
         de.raindancer.core.social.economy.EconomyLevers.provide(context.plugin(), supply);
         de.raindancer.core.social.economy.EconomyLevers.provide(context.plugin(), funds);
         java.util.function.DoubleSupplier level = supply::priceLevel;
@@ -243,7 +244,7 @@ public final class EconomyModule implements FlexModule {
 
         for (var service : List.of(economy, notifier, payments, bills, cash, shop, rewards, income, hire, statements,
                 interest, daily, gambling, lottery, sidebar, displays, tables, scratch, crash, race, dealers, auctions,
-                raffles, tax, experience, loans, packs, supply, funds, repair, death, seasons)) {
+                raffles, tax, experience, loans, packs, supply, funds, repair, death, seasons, backpay)) {
             settings.onChange(service::settings);
         }
 
@@ -251,7 +252,7 @@ public final class EconomyModule implements FlexModule {
                 settings::current, settings, economy, market, payments, bills, cash, shop, rewards, income, hire,
                 statements, interest, daily, leaderboard, sidebar, displays, gambling, lottery, tables, scratch, crash,
                 race, dealers, auctions, raffles, tax, experience, loans, packs, new LiveScreens(), supply, supplyStore,
-                funds, repair, death, seasons);
+                funds, repair, death, seasons, backpay);
         sidebar.pot(lottery::pot);
         this.tables = tables;
         this.crash = crash;

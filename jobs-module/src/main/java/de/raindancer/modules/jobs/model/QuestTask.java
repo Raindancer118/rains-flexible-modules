@@ -13,7 +13,15 @@ public enum QuestTask {
     /** Breed animals. Things are the animals: "cow", "sheep". */
     BREED("Breed"),
     /** Travel, in blocks, on foot or riding. Things are not used. */
-    TRAVEL("Travel");
+    TRAVEL("Travel"),
+    /** Craft things. Things are what is made: "bread", "beacon". */
+    CRAFT("Craft"),
+    /** Take smelted things out of a furnace. Things are what comes out: "iron_ingot", "glass". */
+    SMELT("Smelt"),
+    /** Enchant at a table. Things: "any", or "level_30" for an enchantment that cost thirty levels. */
+    ENCHANT("Enchant"),
+    /** Trade with villagers. Things are what is traded for: "emerald", or "*" for anything. */
+    TRADE("Trade");
 
     private final String verb;
 

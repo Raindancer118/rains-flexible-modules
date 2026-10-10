@@ -140,15 +140,20 @@ class QuestsScenarioTest {
             mia.run("quests ask 200b");
             mia.expectChat("Nobody pays more than");
             mia.run("quests ask 100m");
+            mia.awaitWindow("How long?");
+            Await.until("the times are offered", WAIT, () -> mia.window().orElseThrow().slotNamed("Let the work decide").isPresent());
+            Await.ticks(10);
+            mia.clickSlot(mia.window().orElseThrow().slotNamed("Let the work decide").orElseThrow());
             mia.awaitWindow("Pick your work");
             Await.until(() -> "several offers, all paying a hundred million (" + mia.window().map(window -> window.top()
                     .toString()).orElse("none") + ")", WAIT, () -> offers(mia) >= 3
                     && mia.window().orElseThrow().slotNamed("⛃100,000,000").isPresent());
             mia.closeWindow();
             mia.forgetChat();
-            mia.run("quests ask 2k");
+            mia.run("quests ask 2k 1h");
             mia.awaitWindow("Pick your work");
-            Await.until("offers are shown", WAIT, () -> offers(mia) >= 3);
+            Await.until("offers in the hour chosen", WAIT, () -> offers(mia) >= 3
+                    && lore(mia, "Each pays", "Each in 1 hour"));
             Await.ticks(10);
             mia.clickSlot(mia.window().orElseThrow().top().entrySet().stream()
                     .filter(entry -> entry.getValue().lore().stream().anyMatch(line -> line.contains("Click to take it")))
@@ -159,6 +164,35 @@ class QuestsScenarioTest {
             mia.expectChat("You are on an order already");
             mia.run("quests cancel");
             mia.expectChat("Order given up");
+
+            // ---- a free swap of one of the day's quests
+            server.console("settings set jobs-quests:per-day 3");
+            server.console("quests reset Mia");
+            mia.run("quests");
+            mia.awaitWindow("Your quests");
+            int swappable = Await.value(() -> "a quest that can be swapped (" + mia.window().map(window -> window.top()
+                    .toString()).orElse("none") + ")", WAIT, () -> mia.window().flatMap(window -> window.top().entrySet()
+                    .stream().filter(entry -> entry.getValue().lore().stream().anyMatch(line -> line.contains("to swap it")))
+                    .map(java.util.Map.Entry::getKey).findFirst()).orElse(null));
+            mia.clickSlot(swappable);
+            mia.awaitWindow("Swap this quest?");
+            Await.ticks(10);
+            mia.forgetChat();
+            mia.clickSlot(mia.window().orElseThrow().slotNamed("Yes, do it").orElseThrow());
+            mia.expectChat("Swapped.");
+            mia.closeWindow();
+
+            // ---- back pay, once, for an advancement made while advancements did not pay
+            server.console("settings set economy:features.advancement-rewards false");
+            server.console("advancement grant Mia only minecraft:story/smelt_iron");
+            Await.ticks(20);
+            server.console("settings set economy:features.advancement-rewards true");
+            mia.forgetChat();
+            mia.run("claimadvancements");
+            Await.until(() -> "back pay for the one unpaid advancement (heard " + mia.chatText() + ")", WAIT,
+                    () -> said(mia, "Back pay for 1 advancement(s)") && said(mia, "⛃250"));
+            mia.run("claimadvancements");
+            mia.expectChat("claimed your back pay already");
 
             assertThat(server.paper.errorsFrom("RainsCore", "RainsEconomy", "RainsRoles", "RainsJobs")).isEmpty();
         }

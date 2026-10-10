@@ -2366,6 +2366,33 @@ public final class AccountBook {
         }).orElse(List.of());
     }
 
+    /**
+     * What one account was paid, summed by reason, for every reason starting with {@code prefix} — with the prefix
+     * taken off: {@code "Advancement: "} gives each advancement's title and what it paid. Off the server's threads.
+     */
+    public java.util.Map<String, Money> paidFor(UUID id, String prefix) {
+        flush();
+        return database.read(connection -> {
+            java.util.Map<String, Money> paid = new java.util.HashMap<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT reason, SUM(delta) FROM ledger WHERE account = ? AND delta > 0 AND reason LIKE ? "
+                            + "GROUP BY reason")) {
+                select.setString(1, id.toString());
+                // LIKE narrows the rows; startsWith below is the real test (LIKE ignores case and treats _ as any).
+                select.setString(2, prefix + "%");
+                try (ResultSet rows = select.executeQuery()) {
+                    while (rows.next()) {
+                        String reason = rows.getString(1);
+                        if (reason != null && reason.startsWith(prefix)) {
+                            paid.merge(reason.substring(prefix.length()), Money.of(rows.getLong(2)), Money::plus);
+                        }
+                    }
+                }
+            }
+            return paid;
+        }).orElse(java.util.Map.of());
+    }
+
     /** What arrived since a moment, by kind — "while you were away". Off the server's threads. */
     public Money arrivedSince(UUID id, long since, Collection<TransactionKind> kinds) {
         flush();

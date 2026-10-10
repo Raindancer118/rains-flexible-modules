@@ -139,6 +139,10 @@ public final class QuestMenu extends PaginatedMenu<Quest> implements IJobsScreen
             case OWED -> "<yellow>Done — paid as soon as the treasury can";
             case OPEN -> "<dark_gray>Counts as you play.";
         });
+        if (swappable(quest)) {
+            int left = services.quests().rerollsLeft(viewer.getUniqueId());
+            lore.add("<yellow>Click<gray> to swap it for another — free, " + left + " left today");
+        }
         Material icon = found.map(template -> Material.matchMaterial(template.icon())).filter(Material::isItem)
                 .orElse(Material.PAPER);
         ItemStack item = Icons.of(quest.state() == Quest.State.PAID ? Material.LIME_DYE : icon,
@@ -146,9 +150,28 @@ public final class QuestMenu extends PaginatedMenu<Quest> implements IJobsScreen
         return item;
     }
 
+    private boolean swappable(Quest quest) {
+        return quest.open() && quest.progress() == 0 && services.quests().rerollsLeft(viewer.getUniqueId()) > 0;
+    }
+
     @Override
     protected void onClick(Quest quest, InventoryClickEvent event) {
-        // The quests count by themselves; nothing to hand in.
+        // The quests count by themselves; a click is only ever a free swap.
+        if (!swappable(quest)) {
+            return;
+        }
+        int index = entries().indexOf(quest);
+        String title = services.quests().template(quest).map(QuestTemplate::title).orElse(quest.template());
+        new de.raindancer.core.ui.menu.ConfirmMenu(viewer, services.brand(), this,
+                "<dark_gray>Swap this quest?",
+                List.of("<white>" + MINI.escapeTags(title), "<gray>For another of the same kind, at your tier.",
+                        "<gray>Free swaps left today: <white>" + services.quests().rerollsLeft(viewer.getUniqueId())),
+                "<dark_gray>The quest you swap away is gone for today.",
+                () -> {
+                    services.messages().send(viewer, services.quests().reroll(viewer.getUniqueId(), index)
+                            ? "jobs.quest.swapped" : "jobs.quest.not-swapped");
+                    open();
+                }).open();
     }
 
     private static String bar(int progress, int amount) {

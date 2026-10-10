@@ -372,6 +372,11 @@ public record EconomySettings(
         @Describe("A chat line with the amount whenever an advancement pays.")
         @Key("earn.advancement-tell") boolean advancementTell,
 
+        @In("economy/earn") @Title("Back pay for earlier advancements")
+        @Describe("Once per player, /claimadvancements pays for advancements made before they paid — or tops up "
+                + "ones paid less than they pay now. Players who have some waiting are told when they join.")
+        @Key("earn.advancement-backpay") boolean advancementBackpay,
+
         @In("economy/earn") @Title("Most earned per hour")
         @Describe("From passive income and advancements together. 0 for no limit.")
         @Key("earn.hourly-cap") String hourlyCap,
@@ -834,7 +839,7 @@ public record EconomySettings(
             // earning
             false, "10", "2", 30, 5,
             true, "500", "100", 7,
-            true, "250", "750", "2000", true, "20000",
+            true, "250", "750", "2000", true, true, "20000",
             // interest
             true, 0.25, 60, "250",
             // gambling

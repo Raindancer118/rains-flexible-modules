@@ -3,11 +3,13 @@
 # about a hundred Wardens in half an hour; a hundred billion is hundreds of Ender Dragons in minutes.
 #
 #   name      what the units are called, plural ("Wardens", "blocks of stone")
-#   task      mine, harvest, kill, fish, breed or travel — counted as for quests (see quests.yml)
+#   task      mine, harvest, kill, fish, breed, travel, craft, smelt, enchant or trade — as for quests (quests.yml)
 #   things    what counts; * for anything, "!" leaves one out
 #   value     what one is worth in the easiest order; harder orders pay up to 100,000 times as much per unit
 #   rate      how many a skilled player manages in an hour; the time allowed is worked out from it
 #   hardness  0 for the easiest work, 1 for the hardest: an order picks work about as hard as its amount
+#   most-per-unit  the most one unit may ever be worth — for work whose inputs the shop sells (crafting,
+#             smelting, enchanting, trading): kept under what they cost, so buying them in never pays
 #   icon      the item shown for it
 #
 # Read again with /quests reload. Delete this file to get the shipped work back.
@@ -491,3 +493,332 @@ work:
     rate: 2
     hardness: 1.0
     icon: dragon_head
+  bread:
+    name: "loaves of bread"
+    task: craft
+    things: [ bread ]
+    value: 3
+    rate: 300
+    hardness: 0.02
+    most-per-unit: 27
+    icon: bread
+  torches:
+    name: "torches"
+    task: craft
+    things: [ torch ]
+    value: 1
+    rate: 600
+    hardness: 0.03
+    most-per-unit: 7
+    icon: torch
+  glass:
+    name: "glass"
+    task: smelt
+    things: [ glass ]
+    value: 1
+    rate: 600
+    hardness: 0.03
+    most-per-unit: 4
+    icon: glass
+  cooked-meat:
+    name: "cooked meat"
+    task: smelt
+    things: [ cooked_beef, cooked_porkchop, cooked_chicken, cooked_mutton, cooked_rabbit, cooked_cod, cooked_salmon ]
+    value: 2
+    rate: 300
+    hardness: 0.05
+    most-per-unit: 18
+    icon: cooked_beef
+  pies:
+    name: "pumpkin pies"
+    task: craft
+    things: [ pumpkin_pie ]
+    value: 5
+    rate: 120
+    hardness: 0.1
+    most-per-unit: 45
+    icon: pumpkin_pie
+  iron-ingots:
+    name: "iron ingots"
+    task: smelt
+    things: [ iron_ingot ]
+    value: 4
+    rate: 300
+    hardness: 0.12
+    most-per-unit: 72
+    icon: iron_ingot
+  rails:
+    name: "rails"
+    task: craft
+    things: [ rail ]
+    value: 3
+    rate: 400
+    hardness: 0.15
+    most-per-unit: 30
+    icon: rail
+  trades:
+    name: "times with villagers"
+    task: trade
+    things: [ "*" ]
+    value: 3
+    rate: 60
+    hardness: 0.2
+    most-per-unit: 50
+    icon: emerald
+  enchant:
+    name: "items at the enchanting table"
+    task: enchant
+    things: [ any ]
+    value: 5
+    rate: 60
+    hardness: 0.2
+    most-per-unit: 90
+    icon: enchanting_table
+  gold-ingots:
+    name: "gold ingots"
+    task: smelt
+    things: [ gold_ingot ]
+    value: 6
+    rate: 200
+    hardness: 0.2
+    most-per-unit: 108
+    icon: gold_ingot
+  golden-carrots:
+    name: "golden carrots"
+    task: craft
+    things: [ golden_carrot ]
+    value: 12
+    rate: 100
+    hardness: 0.25
+    most-per-unit: 114
+    icon: golden_carrot
+  golden-apples:
+    name: "golden apples"
+    task: craft
+    things: [ golden_apple ]
+    value: 30
+    rate: 30
+    hardness: 0.35
+    most-per-unit: 970
+    icon: golden_apple
+  armadillos:
+    name: "Armadillos bred"
+    task: breed
+    things: [ armadillo ]
+    value: 40
+    rate: 15
+    hardness: 0.35
+    icon: armadillo_scute
+  cocoa-plantation:
+    name: "cocoa pods"
+    task: harvest
+    things: [ cocoa ]
+    value: 6
+    rate: 400
+    hardness: 0.4
+    icon: cocoa_beans
+  anvils:
+    name: "anvils"
+    task: craft
+    things: [ anvil ]
+    value: 60
+    rate: 20
+    hardness: 0.4
+    most-per-unit: 2450
+    icon: anvil
+  enchant-30:
+    name: "level-30 enchantments"
+    task: enchant
+    things: [ level_30 ]
+    value: 60
+    rate: 20
+    hardness: 0.45
+    most-per-unit: 1000
+    icon: experience_bottle
+  tables:
+    name: "enchanting tables"
+    task: craft
+    things: [ enchanting_table ]
+    value: 80
+    rate: 10
+    hardness: 0.45
+    most-per-unit: 2390
+    icon: enchanting_table
+  camels:
+    name: "Camels bred"
+    task: breed
+    things: [ camel ]
+    value: 100
+    rate: 6
+    hardness: 0.45
+    icon: cactus
+  crying-obsidian:
+    name: "crying obsidian"
+    task: mine
+    things: [ crying_obsidian ]
+    value: 25
+    rate: 40
+    hardness: 0.5
+    icon: crying_obsidian
+  crystals:
+    name: "end crystals"
+    task: craft
+    things: [ end_crystal ]
+    value: 15
+    rate: 30
+    hardness: 0.5
+    most-per-unit: 380
+    icon: end_crystal
+  pandas:
+    name: "Pandas bred"
+    task: breed
+    things: [ panda ]
+    value: 120
+    rate: 6
+    hardness: 0.5
+    icon: bamboo
+  travel-far:
+    name: "blocks"
+    task: travel
+    value: 1
+    rate: 20000
+    hardness: 0.5
+    icon: elytra
+  wart-fields:
+    name: "ripe nether wart"
+    task: harvest
+    things: [ nether_wart ]
+    value: 4
+    rate: 600
+    hardness: 0.5
+    icon: nether_wart
+  chorus:
+    name: "chorus plants"
+    task: mine
+    things: [ chorus_plant ]
+    value: 8
+    rate: 300
+    hardness: 0.55
+    icon: chorus_fruit
+  puffer-run:
+    name: "pufferfish"
+    task: fish
+    things: [ pufferfish ]
+    value: 120
+    rate: 8
+    hardness: 0.55
+    icon: pufferfish
+  end-quarry:
+    name: "blocks of end stone"
+    task: mine
+    things: [ end_stone ]
+    value: 8
+    rate: 600
+    hardness: 0.6
+    icon: end_stone
+  treasure:
+    name: "treasures from the sea"
+    task: fish
+    things: [ enchanted_book, name_tag, saddle, nautilus_shell, bow, fishing_rod ]
+    value: 150
+    rate: 4
+    hardness: 0.65
+    icon: nautilus_shell
+  scrap:
+    name: "netherite scrap"
+    task: smelt
+    things: [ netherite_scrap ]
+    value: 150
+    rate: 6
+    hardness: 0.7
+    most-per-unit: 3420
+    icon: netherite_scrap
+  beacons:
+    name: "beacons"
+    task: craft
+    things: [ beacon ]
+    value: 300
+    rate: 4
+    hardness: 0.7
+    most-per-unit: 18000
+    icon: beacon
+  diamond-vein:
+    name: "diamond ore"
+    task: mine
+    things: [ diamond_ore, deepslate_diamond_ore ]
+    value: 200
+    rate: 15
+    hardness: 0.75
+    icon: diamond_ore
+  conduits:
+    name: "conduits"
+    task: craft
+    things: [ conduit ]
+    value: 150
+    rate: 2
+    hardness: 0.75
+    most-per-unit: 4800
+    icon: conduit
+  sniffers:
+    name: "Sniffers bred"
+    task: breed
+    things: [ sniffer ]
+    value: 800
+    rate: 2
+    hardness: 0.75
+    icon: sniffer_egg
+  emerald-hunt:
+    name: "emerald ore"
+    task: mine
+    things: [ emerald_ore, deepslate_emerald_ore ]
+    value: 400
+    rate: 4
+    hardness: 0.8
+    icon: emerald_ore
+  travel-epic:
+    name: "blocks"
+    task: travel
+    value: 5
+    rate: 30000
+    hardness: 0.8
+    icon: firework_rocket
+  netherite:
+    name: "netherite ingots"
+    task: craft
+    things: [ netherite_ingot ]
+    value: 300
+    rate: 3
+    hardness: 0.8
+    most-per-unit: 14800
+    icon: netherite_ingot
+  catalysts:
+    name: "sculk catalysts"
+    task: mine
+    things: [ sculk_catalyst ]
+    value: 800
+    rate: 3
+    hardness: 0.85
+    icon: sculk_catalyst
+  treasure-hoard:
+    name: "treasures from the sea"
+    task: fish
+    things: [ enchanted_book, name_tag, saddle, nautilus_shell ]
+    value: 600
+    rate: 4
+    hardness: 0.9
+    icon: heart_of_the_sea
+  debris-deep:
+    name: "ancient debris"
+    task: mine
+    things: [ ancient_debris ]
+    value: 1200
+    rate: 5
+    hardness: 1.0
+    icon: netherite_block
+  travel-legend:
+    name: "blocks"
+    task: travel
+    value: 20
+    rate: 40000
+    hardness: 1.0
+    icon: dragon_egg

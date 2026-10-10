@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Counts what players do towards their quests: blocks, crops, kills, catches, breeding and distance. */
+/** Counts what players do towards their quests and orders: blocks, crops, kills, catches, breeding, distance, crafting, smelting, enchanting and trading. */
 public final class QuestListener implements IJobsListener {
 
     /** Further than this between two samples is a teleport, not a journey. */
@@ -87,8 +87,69 @@ public final class QuestListener implements IJobsListener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreed(EntityBreedEvent event) {
+        // Parents bought as eggs could be bred without end; only animals raised the slow way count.
+        if (FARMED.contains(event.getMother().getEntitySpawnReason())
+                || FARMED.contains(event.getFather().getEntitySpawnReason())) {
+            return;
+        }
         if (event.getBreeder() instanceof Player player && playing(player)) {
             count(player, QuestTask.BREED, event.getEntity().getType().name(), 1);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCraft(org.bukkit.event.inventory.CraftItemEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player) || !playing(player)) {
+            return;
+        }
+        org.bukkit.Material made = event.getRecipe().getResult().getType();
+        if (!event.isShiftClick()) {
+            count(player, QuestTask.CRAFT, made.name(), event.getRecipe().getResult().getAmount());
+            return;
+        }
+        // A shift click makes as many as the grid allows; what arrived in the inventory a tick later is the count.
+        int before = carried(player, made);
+        de.raindancer.core.platform.util.Scheduling.entityLater(services.plugin(), player, 1L, () -> {
+            int arrived = carried(player, made) - before;
+            if (arrived > 0) {
+                count(player, QuestTask.CRAFT, made.name(), arrived);
+            }
+        });
+    }
+
+    private static int carried(Player player, org.bukkit.Material type) {
+        int total = 0;
+        for (org.bukkit.inventory.ItemStack stack : player.getInventory().getStorageContents()) {
+            if (stack != null && stack.getType() == type) {
+                total += stack.getAmount();
+            }
+        }
+        return total;
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSmelt(org.bukkit.event.inventory.FurnaceExtractEvent event) {
+        if (playing(event.getPlayer()) && event.getItemAmount() > 0) {
+            count(event.getPlayer(), QuestTask.SMELT, event.getItemType().name(), event.getItemAmount());
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEnchant(org.bukkit.event.enchantment.EnchantItemEvent event) {
+        Player player = event.getEnchanter();
+        if (!playing(player)) {
+            return;
+        }
+        count(player, QuestTask.ENCHANT, "ANY", 1);
+        if (event.getExpLevelCost() >= 30) {
+            count(player, QuestTask.ENCHANT, "LEVEL_30", 1);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTrade(io.papermc.paper.event.player.PlayerTradeEvent event) {
+        if (playing(event.getPlayer())) {
+            count(event.getPlayer(), QuestTask.TRADE, event.getTrade().getResult().getType().name(), 1);
         }
     }
 

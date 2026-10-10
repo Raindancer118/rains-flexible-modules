@@ -142,26 +142,49 @@ public final class OrderService {
      * What {@code asked} would be: an offer, or why not. Asking while an offer is still open is a re-roll, and
      * counts against the day's.
      */
-    public synchronized Answer ask(UUID player, Money asked) {
+    public Answer ask(UUID player, Money asked) {
+        return ask(player, asked, null);
+    }
+
+    /**
+     * The same with a time the player chose: work that fits it, at the order's pace, never less than the amount
+     * buys. Null lets the work decide the time.
+     */
+    /**
+     * Why {@code asked} cannot be an order for this player right now — before anything is offered, so a screen
+     * asking how long they have is not shown for an amount that would be refused anyway.
+     */
+    public synchronized Optional<Answer> refusal(UUID player, Money asked) {
         OrderSettings live = settings;
         Money least = Fees.amount(live.least());
         Money most = Fees.amount(live.hardestAt());
         if (!live.enabled()) {
-            return Answer.no("jobs.order.switched-off", asked);
+            return Optional.of(Answer.no("jobs.order.switched-off", asked));
         }
         if (least.isMoreThan(asked)) {
-            return Answer.no("jobs.order.too-little", least);
+            return Optional.of(Answer.no("jobs.order.too-little", least));
         }
         if (most.isPositive() && asked.isMoreThan(most)) {
-            return Answer.no("jobs.order.too-much", most);
+            return Optional.of(Answer.no("jobs.order.too-much", most));
         }
         OrderBook.Ledger ledger = ledger(player);
         if (ledger.current().filter(OrderService::running).isPresent()) {
-            return Answer.no("jobs.order.busy", asked);
+            return Optional.of(Answer.no("jobs.order.busy", asked));
         }
         if (ledger.taken() >= live.perDay()) {
-            return Answer.no("jobs.order.none-left", asked);
+            return Optional.of(Answer.no("jobs.order.none-left", asked));
         }
+        return Optional.empty();
+    }
+
+    public synchronized Answer ask(UUID player, Money asked, Duration chosen) {
+        Optional<Answer> refused = refusal(player, asked);
+        if (refused.isPresent()) {
+            return refused.get();
+        }
+        OrderSettings live = settings;
+        Money most = Fees.amount(live.hardestAt());
+        OrderBook.Ledger ledger = ledger(player);
         boolean reroll = ledger.offered();
         if (reroll && ledger.rerolls() >= live.rerollsPerDay()) {
             return Answer.no("jobs.order.no-rerolls", asked);
@@ -175,13 +198,24 @@ public final class OrderService {
             return Answer.no("jobs.order.not-saved", asked);
         }
         double difficulty = rule.difficulty(asked, Fees.amount(live.easyUpTo()), most);
+        double pace = rule.pressure(difficulty, live.paceEasiest(), live.paceHardest());
         java.util.List<Offer> offers = new java.util.ArrayList<>();
-        for (Work work : rule.pickSome(works.all(), difficulty, live.choices(), random)) {
-            int units = rule.units(asked, rule.perUnit(Fees.amount(work.value()), difficulty),
-                    0.8 + random.nextDouble() * 0.45);
-            Duration time = rule.time(units, work.rate(),
-                    rule.pressure(difficulty, live.paceEasiest(), live.paceHardest()));
-            offers.add(new Offer(work, units, time, asked, work.says(units)));
+        if (chosen == null) {
+            for (Work work : rule.pickSome(works.all(), difficulty, live.choices(), asked, random)) {
+                int units = rule.units(asked, rule.perUnit(Fees.amount(work.value()), difficulty),
+                        0.8 + random.nextDouble() * 0.45);
+                offers.add(new Offer(work, units, rule.time(units, work.rate(), pace), asked, work.says(units)));
+            }
+        } else {
+            Duration time = Duration.ofMinutes(Math.clamp(chosen.toMinutes(), OrderRule.SHORTEST.toMinutes(),
+                    OrderRule.LONGEST.toMinutes()));
+            for (Work work : rule.fitting(works.all(), difficulty, asked, time, pace, live.choices(), random)) {
+                int units = rule.unitsIn(asked, work, difficulty, time, pace);
+                offers.add(new Offer(work, units, time, asked, work.says(units)));
+            }
+        }
+        if (offers.isEmpty()) {
+            return Answer.no("jobs.order.no-work", asked);
         }
         offered.put(player, java.util.List.copyOf(offers));
         return new Answer(offers, null, asked);

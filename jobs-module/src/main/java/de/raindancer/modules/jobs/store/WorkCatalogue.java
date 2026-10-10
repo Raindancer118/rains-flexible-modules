@@ -84,7 +84,8 @@ public final class WorkCatalogue {
             }
             read.add(new Work(id, section.getString("name", Catalogue.readable(id.replace('-', '_').toUpperCase(Locale.ROOT))),
                     section.getString("icon", "paper").toUpperCase(Locale.ROOT), task, things,
-                    section.getString("value", "1"), section.getDouble("rate", 60), section.getDouble("hardness", 0.5)));
+                    section.getString("value", "1"), section.getDouble("rate", 60), section.getDouble("hardness", 0.5),
+                    section.getString("most-per-unit", "")));
         }
         return read;
     }

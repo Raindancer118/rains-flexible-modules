@@ -55,7 +55,7 @@ public final class QuestBook {
                             Quest.State.valueOf(String.valueOf(written.containsKey("state") ? written.get("state") : "OPEN"))));
                 }
                 days.put(UUID.fromString(id), new QuestDay(each.getString("day", ""), each.getInt("tier"), quests,
-                        each.getStringList("before")));
+                        each.getStringList("before"), each.getInt("rerolls")));
             } catch (IllegalArgumentException unreadable) {
                 // One player's day that cannot be read is left out; they are given a new one.
             }
@@ -134,6 +134,7 @@ public final class QuestBook {
             yaml.set(path + ".day", day.day());
             yaml.set(path + ".tier", day.tier());
             yaml.set(path + ".before", day.before());
+            yaml.set(path + ".rerolls", day.rerolls());
             List<Map<String, Object>> quests = new ArrayList<>();
             for (Quest quest : day.quests()) {
                 Map<String, Object> line = new LinkedHashMap<>();

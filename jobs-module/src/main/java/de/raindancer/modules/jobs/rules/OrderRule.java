@@ -87,19 +87,82 @@ public final class OrderRule implements IJobsRule {
         return close.get(random.nextInt(close.size()));
     }
 
+    /** Whether this work may be offered at this difficulty: within its cap, when it has one. */
+    public boolean allowed(Work work, double difficulty) {
+        if (work.cap().isEmpty()) {
+            return true;
+        }
+        Money cap = de.raindancer.core.social.economy.Fees.amount(work.cap());
+        return !perUnit(de.raindancer.core.social.economy.Fees.amount(work.value()), difficulty).isMoreThan(cap);
+    }
+
     /**
-     * {@code how} different works for one order: those about as hard in random order, then the nearest others —
-     * so there is always a choice, and the choice is between things of about the same weight.
+     * {@code how} different works for one order: about as hard, of different kinds first — mining, fishing,
+     * crafting rather than four ways of killing — then more about as hard, then the nearest others.
      */
-    public List<Work> pickSome(List<Work> works, double difficulty, int how, Random random) {
-        List<Work> close = new java.util.ArrayList<>(works.stream()
+    public List<Work> pickSome(List<Work> works, double difficulty, int how, Money asked, Random random) {
+        List<Work> usable = works.stream().filter(each -> allowed(each, difficulty)).toList();
+        List<Work> close = new java.util.ArrayList<>(usable.stream()
                 .filter(each -> Math.abs(each.hardness() - difficulty) <= WINDOW).toList());
         java.util.Collections.shuffle(close, random);
-        List<Work> picked = new java.util.ArrayList<>(close.subList(0, Math.min(Math.max(0, how), close.size())));
-        works.stream().filter(each -> !picked.contains(each))
+        List<Work> ordered = new java.util.ArrayList<>(close);
+        usable.stream().filter(each -> !close.contains(each))
                 .sorted(Comparator.comparingDouble(each -> Math.abs(each.hardness() - difficulty)))
-                .limit(Math.max(0, how - picked.size())).forEach(picked::add);
+                .forEach(ordered::add);
+        return kindsFirst(ordered, close.size(), how);
+    }
+
+    /** From an order of preference, one of each kind among the first {@code preferred}, then the rest in order. */
+    private static List<Work> kindsFirst(List<Work> ordered, int preferred, int how) {
+        List<Work> picked = new java.util.ArrayList<>();
+        java.util.Set<de.raindancer.modules.jobs.model.QuestTask> kinds = java.util.EnumSet.noneOf(
+                de.raindancer.modules.jobs.model.QuestTask.class);
+        for (Work each : ordered.subList(0, Math.min(preferred, ordered.size()))) {
+            if (picked.size() < how && kinds.add(each.task())) {
+                picked.add(each);
+            }
+        }
+        for (Work each : ordered) {
+            if (picked.size() >= how) {
+                break;
+            }
+            if (!picked.contains(each)) {
+                picked.add(each);
+            }
+        }
         return picked;
+    }
+
+    /**
+     * How many units of {@code work} an order for {@code asked} asks for in a chosen time: what the time holds at
+     * the order's pace, but never under what the amount buys — a short time is no discount, a long one more work.
+     */
+    public int unitsIn(Money asked, Work work, double difficulty, Duration time, double pace) {
+        double needed = asked.minor() / (double) Math.max(1, perUnit(de.raindancer.core.social.economy.Fees.amount(
+                work.value()), difficulty).minor());
+        double held = work.rate() * time.toMinutes() / 60.0 * pace;
+        return nice(Math.max(1, Math.max(needed * 0.8, held)));
+    }
+
+    /**
+     * Works whose natural time for this amount is closest to the time chosen — what the amount buys at the order's
+     * pace — of different kinds first.
+     */
+    public List<Work> fitting(List<Work> works, double difficulty, Money asked, Duration time, double pace, int how,
+                              Random random) {
+        double wanted = Math.max(1, time.toMinutes()) / 60.0;
+        List<Work> usable = works.stream().filter(each -> allowed(each, difficulty)).toList();
+        List<Work> near = usable.stream().filter(each -> Math.abs(each.hardness() - difficulty) <= WINDOW * 1.5).toList();
+        List<Work> pool = near.isEmpty() ? usable : near;
+        java.util.Map<Work, Double> score = new java.util.HashMap<>();
+        for (Work each : pool) {
+            double needed = asked.minor() / (double) Math.max(1, perUnit(de.raindancer.core.social.economy.Fees.amount(
+                    each.value()), difficulty).minor());
+            double natural = needed / (each.rate() * Math.max(0.0001, pace));
+            score.put(each, Math.abs(Math.log(Math.max(1e-6, natural) / wanted)) + random.nextDouble() * 0.3);
+        }
+        List<Work> ordered = pool.stream().sorted(Comparator.comparingDouble(score::get)).toList();
+        return kindsFirst(ordered, Math.min(ordered.size(), how * 3), how);
     }
 
     @Override

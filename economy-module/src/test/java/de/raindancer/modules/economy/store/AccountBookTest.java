@@ -391,4 +391,19 @@ class AccountBookTest {
         book.wealthTax(balance -> Money.of(balance.minor() / 10), "wealth tax", clock.get());
         assertThat(book.balance(BEDROCK)).isEqualTo(Money.of(9_000));
     }
+
+    @Test
+    @DisplayName("what an account was paid is summed by reason for one prefix, the prefix taken off; others are left out")
+    void paidFor() {
+        UUID ana = UUID.randomUUID();
+        book.open(ana, "Ana", Money.of(1_000));
+        book.change(ana, Money.of(250), TransactionKind.REWARD, "Advancement: Stone Age", null, Money.of(1_000_000_000));
+        book.change(ana, Money.of(250), TransactionKind.REWARD, "Advancement: Hot Stuff", null, Money.of(1_000_000_000));
+        book.change(ana, Money.of(100), TransactionKind.REWARD, "Advancement: Hot Stuff", null, Money.of(1_000_000_000));
+        book.change(ana, Money.of(500), TransactionKind.REWARD, "Daily reward", null, Money.of(1_000_000_000));
+        book.change(ana, Money.of(77), TransactionKind.REWARD, "advancement: lower case is not the same", null, Money.of(1_000_000_000));
+        var paid = book.paidFor(ana, "Advancement: ");
+        assertThat(paid).containsOnlyKeys("Stone Age", "Hot Stuff");
+        assertThat(paid.get("Hot Stuff")).isEqualTo(Money.of(350));
+    }
 }

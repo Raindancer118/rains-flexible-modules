@@ -116,7 +116,7 @@ class QuestServiceTest {
         book = new QuestBook(new YamlStore(folder.resolve("quest-progress.yml")));
         book.load();
         service = new QuestService(server, catalogue, book, messages, Log.of("jobs"), now::get, ZoneOffset.UTC,
-                new Random(5), new QuestSettings(true, 3, 2, "5000", 35, 60, 8, 25, 100, true));
+                new Random(5), new QuestSettings(true, 3, 2, "5000", 35, 60, 8, 25, 100, true, 1));
     }
 
     @AfterEach
@@ -227,7 +227,7 @@ class QuestServiceTest {
     @Test
     @DisplayName("switched off, nobody gets quests and nothing counts")
     void off() {
-        service.settings(new QuestSettings(false, 3, 2, "5000", 35, 60, 8, 25, 100, true));
+        service.settings(new QuestSettings(false, 3, 2, "5000", 35, 60, 8, 25, 100, true, 1));
         assertThat(service.today(ana).quests()).isEmpty();
         service.progress(player, QuestTask.KILL, "ZOMBIE", 50);
         assertThat(bank.balance(ana)).isEqualTo(Money.of(1_000));
@@ -242,5 +242,37 @@ class QuestServiceTest {
         assertThat(service.today(rich).quests()).extracting(Quest::template).contains("blazes");
         assertThat(service.give(rich, "blazes")).isEmpty();
         assertThat(service.give(rich, "nonsense")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("one quest a day can be swapped for free for another of its kind, at the same tier; no second time")
+    void freeReroll() {
+        miner();
+        QuestDay day = service.today(ana);
+        int general = 0;
+        while (service.template(day.quests().get(general)).orElseThrow().forRole()) {
+            general++;
+        }
+        String before = day.quests().get(general).template();
+        assertThat(service.rerollsLeft(ana)).isEqualTo(1);
+        assertThat(service.reroll(ana, general)).isTrue();
+        QuestDay after = service.today(ana);
+        Quest swapped = after.quests().get(general);
+        assertThat(swapped.template()).isNotEqualTo(before);
+        assertThat(service.template(swapped).orElseThrow().forRole()).as("still one for anybody").isFalse();
+        assertThat(after.quests()).extracting(Quest::template).doesNotHaveDuplicates();
+        assertThat(service.rerollsLeft(ana)).isZero();
+        assertThat(service.reroll(ana, general == 0 ? 1 : 0)).isFalse();
+    }
+
+    @Test
+    @DisplayName("a quest already done or begun is not swapped")
+    void notOnceBegun() {
+        QuestDay day = service.today(ana);
+        Quest first = day.quests().getFirst();
+        var template = service.template(first).orElseThrow();
+        service.progress(player, template.task(), template.things().items().isEmpty() ? "" : template.things().items().getFirst(), 1);
+        assertThat(service.reroll(ana, 0)).isFalse();
+        assertThat(service.rerollsLeft(ana)).isEqualTo(1);
     }
 }

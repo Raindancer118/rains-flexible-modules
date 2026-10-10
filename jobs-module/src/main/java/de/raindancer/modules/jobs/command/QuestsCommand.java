@@ -49,7 +49,16 @@ public final class QuestsCommand implements IJobsCommand {
             } else if (args.length < 2) {
                 OrderScreens.ask(live, player, null);
             } else {
-                OrderScreens.answer(live, player, null, String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
+                // "/quests ask 50k" chooses the time on a screen; "/quests ask 50k 30m" has chosen it already.
+                java.util.Optional<java.time.Duration> time = args.length > 2
+                        ? de.raindancer.core.platform.util.Times.parseLenient(args[args.length - 1]) : java.util.Optional.empty();
+                String amount = String.join(" ", java.util.Arrays.copyOfRange(args, 1,
+                        time.isPresent() ? args.length - 1 : args.length));
+                if (time.isPresent()) {
+                    OrderScreens.offers(live, player, null, amount, time.get());
+                } else {
+                    OrderScreens.answer(live, player, null, amount);
+                }
             }
             return;
         }
@@ -107,6 +116,8 @@ public final class QuestsCommand implements IJobsCommand {
             options.addAll(List.of("ask", "cancel"));
         } else if (args.length == 2 && args[0].equalsIgnoreCase("ask")) {
             options.addAll(List.of("1000", "10k", "1m", "100m"));
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("ask")) {
+            options.addAll(List.of("10m", "30m", "1h", "3h", "1d"));
         }
         if (!source.getSender().hasPermission(PermissionNodes.ADMIN)) {
             return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(typed)).toList();

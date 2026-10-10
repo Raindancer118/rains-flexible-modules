@@ -124,6 +124,14 @@ economy:
     interest: "<green>Interest: <amount><green> on what is in your account."
     advancement: "<green>+ <amount> <green>for the advancement <white><advancement></white>."
 
+  backpay:
+    waiting: "<gold>You made <white><count></white> advancement(s) before they paid, or paid less. <click:run_command:/claimadvancements><hover:show_text:'Claim it'><yellow>[Claim <amount><yellow>]</yellow></hover></click> <gray>— once only."
+    paid: "<green>Back pay for <white><count></white> advancement(s): <amount><green>. <gray>That was the one time."
+    nothing: "<gray>Every advancement you made is paid already. <dark_gray>Go make some more."
+    already: "<red>You have claimed your back pay already. <gray>New advancements pay as you make them."
+    off: "<red>Back pay for advancements is switched off on this server."
+    refused: "<red>The treasury could not pay that right now. <gray>Nothing is lost — try /claimadvancements later."
+
   daily:
     off: "<red>The daily reward is switched off on this server."
     already: "<red>You have had today's reward. Come back in <hours> hour(s)."

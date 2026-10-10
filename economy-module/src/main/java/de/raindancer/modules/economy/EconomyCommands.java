@@ -59,6 +59,8 @@ public final class EconomyCommands {
                         new BankCommand(EconomyCommands::require, BankCommand.Door.BALTOP)).aliased("richest"),
                 ModuleCommand.of("daily", "Claim the daily reward",
                         new BankCommand(EconomyCommands::require, BankCommand.Door.DAILY)),
+                ModuleCommand.of("claimadvancements", "Once: pay for advancements made before they paid",
+                        new BankCommand(EconomyCommands::require, BankCommand.Door.BACKPAY)).aliased("backpay"),
                 ModuleCommand.of("casino", "Games of chance",
                         new BankCommand(EconomyCommands::require, BankCommand.Door.CASINO)).taking("[insure]"),
                 ModuleCommand.of("slots", "The slot machine",

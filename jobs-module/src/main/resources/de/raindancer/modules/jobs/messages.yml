@@ -37,6 +37,8 @@ jobs:
     never-here: "<red><white><player></white> has never been on this server."
     reset: "<green><white><player></white> gets new quests for today."
     reloaded: "<green>quests.yml read: <white><count></white> quest(s)."
+    swapped: "<green>Swapped. <gray>Your new quest is on <white>/quests</white>."
+    not-swapped: "<red>That one cannot be swapped — it is begun, or there is nothing left to swap it for."
   order:
     go: "<gold><work>. <yellow>You have <white><time></white>. Go! <gray>(<amount><gray> if you make it)"
     bar: "<gold><work> <white><progress>/<units></white> <gray>· <white><left></white> left"

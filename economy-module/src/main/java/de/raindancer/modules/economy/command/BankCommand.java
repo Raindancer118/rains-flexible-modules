@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 /** {@code /bank} opens the bank; {@code /casino}, {@code /baltop} and {@code /daily} are its doors typed. */
 public final class BankCommand extends EconomyCommand {
 
-    public enum Door { BANK, CASINO, BALTOP, DAILY, SLOTS }
+    public enum Door { BANK, CASINO, BALTOP, DAILY, SLOTS, BACKPAY }
 
     private final Door door;
 
@@ -66,6 +66,11 @@ public final class BankCommand extends EconomyCommand {
                         live.daily().claim(player);
                     }
                 }
+                case BACKPAY -> {
+                    if (allowed(live, sender, PermissionNodes.EARN)) {
+                        live.backpay().claim(player);
+                    }
+                }
             }
         });
     }
@@ -78,6 +83,7 @@ public final class BankCommand extends EconomyCommand {
             case SLOTS -> "opening the slot machine";
             case BALTOP -> "the richest players";
             case DAILY -> "claiming the daily reward";
+            case BACKPAY -> "claiming pay for advancements made before they paid";
         };
     }
 }

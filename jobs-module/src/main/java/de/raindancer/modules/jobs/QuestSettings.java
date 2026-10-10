@@ -51,7 +51,12 @@ public record QuestSettings(
 
         @In("quests") @Title("Tell players about the day's quests")
         @Describe("A line when somebody joins and has new quests.")
-        @Key("tell-on-join") boolean tellOnJoin) {
+        @Key("tell-on-join") boolean tellOnJoin,
 
-    public static final QuestSettings DEFAULTS = new QuestSettings(true, 3, 2, "5000", 35, 60, 8, 25, 100, true);
+        @In("quests") @Title("Free swaps a day") @Range(min = 0, max = 9)
+        @Describe("How many of the day's quests a player may swap for another of the same kind, free — one not "
+                + "begun yet. Clicking a quest in /quests offers it.")
+        @Key("free-rerolls") int freeRerolls) {
+
+    public static final QuestSettings DEFAULTS = new QuestSettings(true, 3, 2, "5000", 35, 60, 8, 25, 100, true, 1);
 }

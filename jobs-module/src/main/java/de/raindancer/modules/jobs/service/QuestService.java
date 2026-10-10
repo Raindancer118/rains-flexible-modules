@@ -151,15 +151,56 @@ public final class QuestService {
                 && quest.open() && !quest.done())) {
             return Optional.empty();
         }
-        QuestSettings live = settings;
-        Quest quest = new Quest(template.get().id(), rule.amount(template.get().amount(), day.tier(), live.harderPercent()),
-                rule.pay(Fees.amount(template.get().pay()), day.tier(), live.payMorePercent(),
-                        template.get().forRole() ? live.roleBonusPercent() : 0, live.payScalePercent()),
-                0, Quest.State.OPEN);
+        Quest quest = fresh(template.get(), day.tier());
         List<Quest> quests = new ArrayList<>(day.quests());
         quests.add(quest);
-        return book.putNow(player, new QuestDay(day.day(), day.tier(), quests, day.before()))
+        return book.putNow(player, new QuestDay(day.day(), day.tier(), quests, day.before(), day.rerolls()))
                 ? Optional.of(quest) : Optional.empty();
+    }
+
+    /** A quest from its template at a tier, nothing done yet. */
+    private Quest fresh(QuestTemplate template, int tier) {
+        QuestSettings live = settings;
+        return new Quest(template.id(), rule.amount(template.amount(), tier, live.harderPercent()),
+                rule.pay(Fees.amount(template.pay()), tier, live.payMorePercent(),
+                        template.forRole() ? live.roleBonusPercent() : 0, live.payScalePercent()),
+                0, Quest.State.OPEN);
+    }
+
+    /** Free swaps left today. */
+    public int rerollsLeft(UUID player) {
+        return Math.max(0, settings.freeRerolls() - today(player).rerolls());
+    }
+
+    /**
+     * Swaps one of today's quests, not begun, for another of its kind — one for anybody for one for anybody, a
+     * role's for the same role's — at the same tier, using a free swap. Yesterday's are left out while others
+     * are there.
+     *
+     * @return false, and nothing changed, when it may not be swapped or there is nothing to swap it for
+     */
+    public synchronized boolean reroll(UUID player, int index) {
+        QuestDay day = today(player);
+        if (index < 0 || index >= day.quests().size() || rerollsLeft(player) <= 0) {
+            return false;
+        }
+        Quest quest = day.quests().get(index);
+        Optional<QuestTemplate> was = template(quest);
+        if (!quest.open() || quest.progress() > 0 || was.isEmpty()) {
+            return false;
+        }
+        java.util.Set<String> taken = new java.util.HashSet<>();
+        day.quests().forEach(each -> taken.add(each.template()));
+        List<QuestTemplate> others = new ArrayList<>(catalogue.all().stream()
+                .filter(each -> each.role().equals(was.get().role()) && !taken.contains(each.id())).toList());
+        if (others.isEmpty()) {
+            return false;
+        }
+        java.util.Collections.shuffle(others, random);
+        others.sort(java.util.Comparator.comparing(each -> day.before().contains(each.id())));
+        QuestDay swapped = day.with(index, fresh(others.getFirst(), day.tier()));
+        return book.putNow(player, new QuestDay(swapped.day(), swapped.tier(), swapped.quests(), swapped.before(),
+                day.rerolls() + 1));
     }
 
     public List<QuestTemplate> templates() {
@@ -178,7 +219,7 @@ public final class QuestService {
         }
         List<Quest> owed = owedOf(held.get());
         if (!owed.isEmpty()) {
-            return book.putNow(player, new QuestDay("", held.get().tier(), owed, held.get().before()));
+            return book.putNow(player, new QuestDay("", held.get().tier(), owed, held.get().before(), 0));
         }
         return book.clear(player);
     }

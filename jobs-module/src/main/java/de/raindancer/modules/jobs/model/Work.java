@@ -9,13 +9,16 @@ import de.raindancer.core.ui.choose.ItemSelection;
  * @param value    what one is worth in the easiest order, as written ("8")
  * @param rate     how many a skilled player manages in an hour — the clock is worked out from it
  * @param hardness 0 for the easiest work, 1 for the hardest; an order picks work as hard as its amount
+ * @param cap      the most one unit may be worth, as written, or empty for no limit — for work whose inputs the
+ *                 shop sells, kept under what they cost, so buying them in and crafting never pays
  */
 public record Work(String id, String name, String icon, QuestTask task, ItemSelection things, String value,
-                   double rate, double hardness) {
+                   double rate, double hardness, String cap) {
 
     public Work {
         rate = Math.max(0.01, rate);
         hardness = Math.clamp(hardness, 0.0, 1.0);
+        cap = cap == null ? "" : cap.strip();
     }
 
     /** "Kill 100 Wardens", "Mine 2,000 blocks of stone", "Travel 5,000 blocks". */

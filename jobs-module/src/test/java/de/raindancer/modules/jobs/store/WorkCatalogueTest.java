@@ -36,6 +36,15 @@ class WorkCatalogueTest {
                     .as("work between " + low + " and " + (low + 0.2)).hasSizeGreaterThanOrEqualTo(4);
         }
         assertThat(works).extracting(Work::id).contains("wardens", "withers", "dragons", "elder-guardians");
+        for (double band = 0; band < 1; band += 0.25) {
+            double low = band;
+            assertThat(works.stream().filter(each -> each.task() != QuestTask.KILL && each.hardness() >= low
+                    && each.hardness() <= low + 0.25).map(Work::task).distinct())
+                    .as("kinds of work other than killing between " + low + " and " + (low + 0.25))
+                    .hasSizeGreaterThanOrEqualTo(3);
+        }
+        assertThat(works).extracting(Work::task).contains(QuestTask.CRAFT, QuestTask.SMELT, QuestTask.ENCHANT,
+                QuestTask.TRADE, QuestTask.TRAVEL, QuestTask.FISH, QuestTask.MINE, QuestTask.BREED, QuestTask.HARVEST);
     }
 
     @Test
@@ -44,7 +53,7 @@ class WorkCatalogueTest {
         for (Work work : shipped()) {
             Material icon = Material.matchMaterial(work.icon());
             assertThat(icon).as(work.id() + " icon").isNotNull();
-            if (work.task() == QuestTask.TRAVEL) {
+            if (work.task() == QuestTask.TRAVEL || work.task() == QuestTask.ENCHANT || work.task() == QuestTask.TRADE) {
                 continue;
             }
             List<String> names = switch (work.task()) {
@@ -56,5 +65,13 @@ class WorkCatalogueTest {
                         .as(work.id() + ": " + pattern).isTrue();
             }
         }
+    }
+
+    @Test
+    @DisplayName("everything made from what the shop sells has a cap, so buying the inputs and crafting never pays")
+    void boughtInputsAreCapped() throws Exception {
+        assertThat(shipped()).filteredOn(work -> work.task() == QuestTask.CRAFT || work.task() == QuestTask.SMELT
+                || work.task() == QuestTask.ENCHANT || work.task() == QuestTask.TRADE)
+                .isNotEmpty().allSatisfy(work -> assertThat(work.cap()).as(work.id()).isNotBlank());
     }
 }
