@@ -31,6 +31,10 @@ class BackpayRuleTest {
         BackpayRule.Owed owed = rule.owed(made, paid, BackpayRuleTest::price);
         assertThat(owed.total()).isEqualTo(Money.of(250 + 750 + 1750));
         assertThat(owed.count()).isEqualTo(3);
+        assertThat(owed.lines()).as("each one on its own, under its own title, so the ledger knows it was paid")
+                .containsExactly(new BackpayRule.Line("Stone Age", Money.of(250)),
+                        new BackpayRule.Line("The End?", Money.of(750)),
+                        new BackpayRule.Line("Return to Sender", Money.of(1750)));
     }
 
     @Test

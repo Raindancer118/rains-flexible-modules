@@ -103,11 +103,8 @@ public final class QuestListener implements IJobsListener {
             return;
         }
         org.bukkit.Material made = event.getRecipe().getResult().getType();
-        if (!event.isShiftClick()) {
-            count(player, QuestTask.CRAFT, made.name(), event.getRecipe().getResult().getAmount());
-            return;
-        }
-        // A shift click makes as many as the grid allows; what arrived in the inventory a tick later is the count.
+        // Counted by what arrived — in the inventory or on the cursor — a tick later, never by the recipe: a click
+        // on the result with something else held crafts nothing, though the event is still fired.
         int before = carried(player, made);
         de.raindancer.core.platform.util.Scheduling.entityLater(services.plugin(), player, 1L, () -> {
             int arrived = carried(player, made) - before;
@@ -118,7 +115,8 @@ public final class QuestListener implements IJobsListener {
     }
 
     private static int carried(Player player, org.bukkit.Material type) {
-        int total = 0;
+        org.bukkit.inventory.ItemStack cursor = player.getItemOnCursor();
+        int total = cursor.getType() == type ? cursor.getAmount() : 0;
         for (org.bukkit.inventory.ItemStack stack : player.getInventory().getStorageContents()) {
             if (stack != null && stack.getType() == type) {
                 total += stack.getAmount();

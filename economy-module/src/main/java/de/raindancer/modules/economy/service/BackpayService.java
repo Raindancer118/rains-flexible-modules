@@ -50,6 +50,12 @@ public final class BackpayService implements IEconomyService {
         this.settings = updated == null ? EconomySettings.DEFAULTS : updated;
     }
 
+    /** The same who-may-earn as paying for an advancement as it is made: not in creative or spectator, and allowed to earn. */
+    private static boolean mayEarn(Player player) {
+        return player.getGameMode() != org.bukkit.GameMode.CREATIVE && player.getGameMode() != org.bukkit.GameMode.SPECTATOR
+                && player.hasPermission(de.raindancer.modules.economy.util.PermissionNodes.EARN);
+    }
+
     private boolean hasClaimed(Player player) {
         return player.getPersistentDataContainer().has(claimed, PersistentDataType.BYTE);
     }
@@ -88,7 +94,8 @@ public final class BackpayService implements IEconomyService {
 
     /** A line at join for somebody with back pay waiting. */
     public void remind(Player player) {
-        if (!settings.advancementBackpay() || !settings.advancementRewardsEnabled() || hasClaimed(player)) {
+        if (!settings.advancementBackpay() || !settings.advancementRewardsEnabled() || hasClaimed(player)
+                || !mayEarn(player)) {
             return;
         }
         owed(player, owed -> {
@@ -109,6 +116,10 @@ public final class BackpayService implements IEconomyService {
             messages.send(player, "economy.backpay.already");
             return;
         }
+        if (!mayEarn(player)) {
+            messages.send(player, "economy.backpay.not-now");
+            return;
+        }
         owed(player, owed -> {
             if (hasClaimed(player)) {
                 messages.send(player, "economy.backpay.already");
@@ -118,21 +129,39 @@ public final class BackpayService implements IEconomyService {
                 messages.send(player, "economy.backpay.nothing");
                 return;
             }
-            // Marked first: a second claim racing this one finds it taken. Unmarked again if the pay is refused.
+            if (!mayEarn(player)) {
+                messages.send(player, "economy.backpay.not-now");
+                return;
+            }
+            // Marked first: a second claim racing this one finds it taken. The ledger is the real record, though —
+            // each advancement is paid under the reason the lookup reads, so even with this mark lost (a crash
+            // before the player's data is saved) a second claim finds nothing owed.
             player.getPersistentDataContainer().set(claimed, PersistentDataType.BYTE, (byte) 1);
             economy.open(player.getUniqueId(), player.getName());
-            Money paying = EconomyLevers.faucet(Sources.REWARD, owed.total());
-            EconomyResult result = paying.isPositive()
-                    ? economy.move(player.getUniqueId(), paying, TransactionKind.REWARD,
-                    "Advancements made before they paid (" + owed.count() + ")")
-                    : EconomyResult.failed(EconomyResult.Outcome.TREASURY_EMPTY, owed.total(), Money.ZERO);
-            if (!result.succeeded()) {
+            Money total = Money.ZERO;
+            int paid = 0;
+            for (BackpayRule.Line line : owed.lines()) {
+                Money paying = EconomyLevers.faucet(Sources.REWARD, line.due());
+                if (!paying.isPositive()) {
+                    break;
+                }
+                EconomyResult result = economy.move(player.getUniqueId(), paying, TransactionKind.REWARD,
+                        PREFIX + line.title());
+                if (!result.succeeded()) {
+                    break;
+                }
+                total = total.plus(result.amount());
+                paid++;
+            }
+            if (paid == 0) {
                 player.getPersistentDataContainer().remove(claimed);
                 messages.send(player, "economy.backpay.refused");
                 return;
             }
-            messages.send(player, "economy.backpay.paid", "count", String.valueOf(owed.count()),
-                    "amount", settings.currency().render(result.amount()));
+            final Money paidTotal = total;
+            final int paidCount = paid;
+            messages.send(player, "economy.backpay.paid", "count", String.valueOf(paidCount),
+                    "amount", settings.currency().render(paidTotal));
         });
     }
 }

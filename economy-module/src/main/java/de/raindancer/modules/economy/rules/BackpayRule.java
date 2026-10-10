@@ -17,21 +17,35 @@ public final class BackpayRule implements IEconomyRule {
     public record Made(String title, AdvancementDisplay.Frame frame) {
     }
 
-    /** What is owed in all, and for how many advancements. */
-    public record Owed(Money total, int count) {
+    /** What one advancement is still owed. */
+    public record Line(String title, Money due) {
+    }
+
+    /** What is owed, advancement by advancement. */
+    public record Owed(List<Line> lines) {
+
+        public Owed {
+            lines = List.copyOf(lines);
+        }
+
+        public Money total() {
+            return lines.stream().map(Line::due).reduce(Money.ZERO, Money::plus);
+        }
+
+        public int count() {
+            return lines.size();
+        }
     }
 
     public Owed owed(List<Made> made, Map<String, Money> paid, Function<AdvancementDisplay.Frame, Money> price) {
-        Money total = Money.ZERO;
-        int count = 0;
+        List<Line> lines = new java.util.ArrayList<>();
         for (Made each : made) {
             Money due = price.apply(each.frame()).minus(paid.getOrDefault(each.title(), Money.ZERO));
             if (due.isPositive()) {
-                total = total.plus(due);
-                count++;
+                lines.add(new Line(each.title(), due));
             }
         }
-        return new Owed(total, count);
+        return new Owed(lines);
     }
 
     @Override

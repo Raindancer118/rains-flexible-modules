@@ -131,6 +131,7 @@ economy:
     already: "<red>You have claimed your back pay already. <gray>New advancements pay as you make them."
     off: "<red>Back pay for advancements is switched off on this server."
     refused: "<red>The treasury could not pay that right now. <gray>Nothing is lost — try /claimadvancements later."
+    not-now: "<red>Not in creative or spectator — and not without the right to earn. <gray>Claim it while playing."
 
   daily:
     off: "<red>The daily reward is switched off on this server."

@@ -27,8 +27,9 @@
              0.24.0: harder advancements pay more, and say what they paid; mob drops sell (a cheap item sells for a coin).
              0.25.0: the sell price explains itself under it, like the buy price.
              0.26.0: treasure enchantments (Mending…) are for sale as books by default.
-             0.27.0: /claimadvancements — once, back pay for advancements made before they paid (or paid less). -->
-        <plugin.version>0.27.0</plugin.version>
+             0.27.0: /claimadvancements — once, back pay for advancements made before they paid (or paid less).
+             0.27.1: back pay recorded per advancement in the ledger; not in creative/spectator or without earn. -->
+        <plugin.version>0.27.1</plugin.version>
     </properties>
 
     <dependencies>
