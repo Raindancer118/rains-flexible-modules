@@ -182,7 +182,7 @@ pufferfish: 30
 
 # ---- rare finds
 saddle: 400
-name_tag: 300
+# name_tag: no price of its own — it is crafted from paper and an iron nugget now, and priced from that recipe.
 sponge: 500
 trident: 2000
 enchanted_golden_apple: 15000

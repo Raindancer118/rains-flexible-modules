@@ -129,6 +129,16 @@ class QuestsScenarioTest {
             Await.until(() -> "rotten flesh is bought and sold (" + loreOf(mia, "Rotten Flesh") + ")", WAIT,
                     () -> lore(mia, "Rotten Flesh", "Sell one:") && lore(mia, "Rotten Flesh", "Buy one:"));
             mia.closeWindow();
+            // Name tags are crafted from paper and an iron nugget now, so they cost about that.
+            mia.run("shop name_tag");
+            mia.awaitWindow("Name Tag");
+            long nameTag = Await.value(() -> "a price for name tags (" + loreOf(mia, "Name Tag") + ")", WAIT,
+                    () -> mia.window().flatMap(window -> window.slotNamed("Name Tag").map(slot -> window.top().get(slot)))
+                            .flatMap(item -> item.lore().stream().filter(line -> line.contains("Buy one:")).findFirst())
+                            .map(line -> Long.parseLong(line.replaceAll(".*⛃([0-9,]+).*", "$1").replace(",", "")))
+                            .orElse(null));
+            assertThat(nameTag).as("a name tag's price").isBetween(1L, 60L);
+            mia.closeWindow();
             mia.run("shop diamond");
             mia.awaitWindow("Diamond");
             Await.until(() -> "the miner's bonus is under the sell price (" + loreOf(mia, "Diamond") + ")", WAIT,
