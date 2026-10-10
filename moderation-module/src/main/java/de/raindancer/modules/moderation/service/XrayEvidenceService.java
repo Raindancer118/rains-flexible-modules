@@ -121,10 +121,10 @@ public final class XrayEvidenceService implements IModerationService {
             ledger.bait(reach.expected(), reach.reached());
             changed |= reach.reached() > 0;
             for (HoneypotService.Key key : reach.positions()) {
-                ledger.dug(world.getName(), key.x(), key.y(), key.z(), -2);
+                ledger.dug(world.getName(), key.x(), key.y(), key.z(), MiningLedger.BAIT);
             }
         }
-        ledger.dug(world.getName(), block.getX(), block.getY(), block.getZ(), dugKind == null ? -1 : dugKind.ordinal());
+        ledger.dug(world.getName(), block.getX(), block.getY(), block.getZ(), dugKind == null ? MiningLedger.ROCK : dugKind.ordinal());
 
         if (dugKind == null) {
             changed |= steer(player, world, block, theirs, ledger);
@@ -227,13 +227,12 @@ public final class XrayEvidenceService implements IModerationService {
             return java.util.List.of();
         }
         java.util.List<Find> finds = new java.util.ArrayList<>();
-        String world = ledger.trailWorld();
         OreKind[] kinds = OreKind.values();
-        for (int[] step : ledger.trail()) {
-            if (step[3] == -2) {
-                finds.add(new Find(world, step[0], step[1], step[2], null));
-            } else if (step[3] >= 0 && step[3] < kinds.length) {
-                finds.add(new Find(world, step[0], step[1], step[2], kinds[step[3]]));
+        for (MiningLedger.Find step : ledger.finds()) {
+            if (step.kind() == MiningLedger.BAIT) {
+                finds.add(new Find(step.world(), step.x(), step.y(), step.z(), null));
+            } else if (step.kind() >= 0 && step.kind() < kinds.length) {
+                finds.add(new Find(step.world(), step.x(), step.y(), step.z(), kinds[step.kind()]));
             }
         }
         java.util.Collections.reverse(finds);

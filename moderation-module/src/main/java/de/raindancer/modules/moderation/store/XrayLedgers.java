@@ -99,10 +99,22 @@ public final class XrayLedgers {
                                 Integer.parseInt(parts[2]), Integer.parseInt(parts[3])});
                     }
                 }
+                List<MiningLedger.Find> finds = null;
+                if (row.isList("finds")) {
+                    finds = new ArrayList<>();
+                    for (String find : row.getStringList("finds")) {
+                        // World last, so a comma in a world name stays in the name.
+                        String[] parts = find.split(",", 5);
+                        if (parts.length == 5) {
+                            finds.add(new MiningLedger.Find(parts[4], Integer.parseInt(parts[0]), Integer.parseInt(parts[1]),
+                                    Integer.parseInt(parts[2]), Integer.parseInt(parts[3])));
+                        }
+                    }
+                }
                 MiningLedger ledger = new MiningLedger(row.getLong("updated"));
                 ledger.restore(revealed, veins, row.getDouble("bait-reached"), row.getDouble("bait-expected"),
                         row.getDouble("toward"), row.getDouble("away"), row.getLong("updated"),
-                        row.getString("trail-world", ""), trail);
+                        row.getString("trail-world", ""), trail, finds);
                 ledgers.put(who, ledger);
                 String name = row.getString("name");
                 if (name != null && !name.isEmpty()) {
@@ -132,6 +144,11 @@ public final class XrayLedgers {
                 trail.add(step[0] + "," + step[1] + "," + step[2] + "," + step[3]);
             }
             yaml.set(key + ".trail", trail);
+            List<String> finds = new ArrayList<>();
+            for (MiningLedger.Find find : ledger.finds()) {
+                finds.add(find.x() + "," + find.y() + "," + find.z() + "," + find.kind() + "," + find.world());
+            }
+            yaml.set(key + ".finds", finds);
         }));
     }
 }

@@ -20,6 +20,13 @@ import java.util.Map;
 public final class MiningLedger {
 
     public static final int TRAIL = 2000;
+    public static final int FINDS = 500;
+    public static final int ROCK = -1;
+    public static final int BAIT = -2;
+
+    /** A vein (ore ordinal) or a bait ({@link #BAIT}) their digging reached. */
+    public record Find(String world, int x, int y, int z, int kind) {
+    }
 
     private final Map<String, Double> revealed = new HashMap<>();
     private final Map<String, EnumMap<OreKind, Double>> veins = new HashMap<>();
@@ -29,9 +36,14 @@ public final class MiningLedger {
     private double turnsAway;
     private double totalRevealed;
     private long updatedMillis;
-    /** Dig positions, oldest first: {x, y, z, kind (-1 rock, ordinal ore, -2 bait)} — for the replay. */
+    /** Dig positions, oldest first: {x, y, z, kind ({@link #ROCK}, ore ordinal, {@link #BAIT})} — for the replay. */
     private final Deque<int[]> trail = new ArrayDeque<>();
     private String trailWorld = "";
+    /**
+     * Kept apart from the trail: the trail is rock-heavy and starts over in every world, and the
+     * moderator must still be able to see the finds behind the counts.
+     */
+    private final Deque<Find> finds = new ArrayDeque<>();
 
     public MiningLedger(long nowMillis) {
         this.updatedMillis = nowMillis;
@@ -85,6 +97,12 @@ public final class MiningLedger {
         while (trail.size() > TRAIL) {
             trail.removeFirst();
         }
+        if (kind != ROCK) {
+            finds.addLast(new Find(world, x, y, z, kind));
+            while (finds.size() > FINDS) {
+                finds.removeFirst();
+            }
+        }
     }
 
     public synchronized Map<String, Double> revealedByBand() {
@@ -134,10 +152,14 @@ public final class MiningLedger {
         return java.util.List.copyOf(trail);
     }
 
+    public synchronized java.util.List<Find> finds() {
+        return java.util.List.copyOf(finds);
+    }
+
     /** For loading from disk. */
     public synchronized void restore(Map<String, Double> revealedByBand, Map<String, Map<OreKind, Double>> veinsByBand,
                                      double baitReached, double baitExpected, double toward, double away, long updated,
-                                     String world, java.util.List<int[]> savedTrail) {
+                                     String world, java.util.List<int[]> savedTrail, java.util.List<Find> savedFinds) {
         revealed.clear();
         revealed.putAll(revealedByBand);
         totalRevealed = revealedByBand.values().stream().mapToDouble(Double::doubleValue).sum();
@@ -155,5 +177,18 @@ public final class MiningLedger {
         this.trailWorld = world == null ? "" : world;
         trail.clear();
         savedTrail.forEach(trail::addLast);
+        finds.clear();
+        if (savedFinds != null) {
+            savedFinds.forEach(finds::addLast);
+        } else {
+            for (int[] step : savedTrail) {
+                if (step[3] != ROCK) {
+                    finds.addLast(new Find(trailWorld, step[0], step[1], step[2], step[3]));
+                }
+            }
+        }
+        while (finds.size() > FINDS) {
+            finds.removeFirst();
+        }
     }
 }

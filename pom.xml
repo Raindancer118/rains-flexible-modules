@@ -45,7 +45,7 @@
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
         <claims-module.version>2.9.0</claims-module.version>
-        <moderation-module.version>2.33.0</moderation-module.version>
+        <moderation-module.version>2.33.1</moderation-module.version>
         <names-module.version>2.3.0</names-module.version>
         <cosmetics-module.version>0.15.0</cosmetics-module.version>
         <warp-module.version>1.7.0</warp-module.version>
