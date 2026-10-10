@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.3.build.169-beta</paper.api.version>
-        <rainscore.version>1.98.0</rainscore.version>
+        <rainscore.version>1.100.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
@@ -65,8 +65,8 @@
         <veintoggle-module.version>0.4.0</veintoggle-module.version>
         <performance-module.version>0.1.0</performance-module.version>
         <economy-module.version>0.27.2</economy-module.version>
-        <roles-module.version>0.7.2</roles-module.version>
-        <jobs-module.version>0.7.1</jobs-module.version>
+        <roles-module.version>0.7.3</roles-module.version>
+        <jobs-module.version>0.7.2</jobs-module.version>
         <anticheat-module.version>0.8.1</anticheat-module.version>
         <playerutils-module.version>0.3.0</playerutils-module.version>
         <xaeromap-module.version>1.3.0</xaeromap-module.version>

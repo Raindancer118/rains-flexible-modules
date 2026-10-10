@@ -12,10 +12,7 @@ import de.raindancer.modules.roles.model.Role;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -42,6 +39,7 @@ public final class RoleCatalogue {
 
     private final YamlStore store;
     private final Supplier<InputStream> shipped;
+    private volatile de.raindancer.core.data.store.ShippedEntries.Merged lastMerge;
     private volatile List<Role> roles = List.of();
 
     public RoleCatalogue(YamlStore store, Supplier<InputStream> shipped) {
@@ -51,16 +49,8 @@ public final class RoleCatalogue {
 
     /** Reads the file again. @return how many roles it holds */
     public int reload() {
-        if (!store.exists()) {
-            try (InputStream in = shipped.get()) {
-                if (in != null) {
-                    Files.createDirectories(store.file().getParent());
-                    Files.writeString(store.file(), new String(in.readAllBytes(), StandardCharsets.UTF_8));
-                }
-            } catch (IOException failed) {
-                // Read below as no roles; /role says there are none.
-            }
-        }
+        // Written out once; after that, what a newer version ships is merged in without undoing the owner's edits.
+        lastMerge = de.raindancer.core.data.store.ShippedEntries.bringUp(store.file(), shipped, "roles", java.util.Set.of("abilities"));
         roles = parse(store.read());
         return roles.size();
     }
@@ -72,6 +62,18 @@ public final class RoleCatalogue {
     public Optional<Role> find(String id) {
         return id == null ? Optional.empty()
                 : roles.stream().filter(role -> role.id().equals(id.toLowerCase(Locale.ROOT))).findFirst();
+    }
+
+    /** What the last read added or filled in from the shipped file — for a line in the log. */
+    public List<String> merged() {
+        var merge = lastMerge;
+        if (merge == null) {
+            return List.of();
+        }
+        List<String> lines = new ArrayList<>();
+        merge.added().forEach(id -> lines.add("added " + id));
+        merge.filled().forEach(field -> lines.add("filled in " + field));
+        return lines;
     }
 
     public List<String> problems() {

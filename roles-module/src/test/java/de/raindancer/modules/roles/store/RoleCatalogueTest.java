@@ -275,4 +275,23 @@ class RoleCatalogueTest {
                     .hasValueSatisfying(change -> assertThat(change.percent()).isNegative());
         }
     }
+
+    @Test
+    @DisplayName("a roles.yml written by an older version gets the new roles and the abilities, keeping its own perks")
+    void olderFileIsBroughtUp(@TempDir Path folder) throws Exception {
+        Path file = folder.resolve("roles.yml");
+        try (var old = RoleCatalogueTest.class.getResourceAsStream("/roles-before-abilities.yml")) {
+            Files.writeString(file, new String(old.readAllBytes(), StandardCharsets.UTF_8).replace("buy: 15", "buy: 17"));
+        }
+        RoleCatalogue catalogue = new RoleCatalogue(new YamlStore(file),
+                () -> RoleCatalogue.class.getResourceAsStream("/de/raindancer/modules/roles/roles.yml"));
+        catalogue.reload();
+        assertThat(catalogue.find("biologist")).isPresent();
+        assertThat(catalogue.all()).allSatisfy(role -> assertThat(role.abilities()).as(role.id()).isNotEmpty());
+        assertThat(catalogue.merged()).contains("added biologist", "filled in cook.abilities");
+        assertThat(Files.readString(file)).as("the owner's 17% kept").contains("buy: 17");
+        String once = Files.readString(file);
+        catalogue.reload();
+        assertThat(Files.readString(file)).as("a second start changes nothing").isEqualTo(once);
+    }
 }

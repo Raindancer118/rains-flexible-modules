@@ -78,8 +78,8 @@ class QuestsScenarioTest {
 
             // ---- a miner's quest, given by staff: 4 diamond ore at tier 0, with the role's quarter more pay
             // No random quests today, so the one given is the only one to watch.
-            server.console("settings set jobs-quests:per-day 0");
-            server.console("settings set jobs-quests:per-day-for-role 0");
+            server.console("settings set jobs-quests:quests.per-day 0");
+            server.console("settings set jobs-quests:quests.per-day-for-role 0");
             server.console("quests reset Mia");
             String given = server.console("quests give Mia miner-diamonds");
             assertThat(given).contains(DIAMONDS).contains("4 to go");
@@ -190,7 +190,7 @@ class QuestsScenarioTest {
             mia.expectChat("Order given up");
 
             // ---- a free swap of one of the day's quests
-            server.console("settings set jobs-quests:per-day 3");
+            server.console("settings set jobs-quests:quests.per-day 3");
             server.console("quests reset Mia");
             mia.run("quests");
             mia.awaitWindow("Your quests");

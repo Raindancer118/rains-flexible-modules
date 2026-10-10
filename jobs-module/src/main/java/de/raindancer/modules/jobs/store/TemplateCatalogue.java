@@ -8,10 +8,7 @@ import de.raindancer.modules.jobs.model.GoalTemplate;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -26,6 +23,7 @@ public final class TemplateCatalogue {
 
     private final YamlStore store;
     private final Supplier<InputStream> shipped;
+    private volatile de.raindancer.core.data.store.ShippedEntries.Merged lastMerge;
     private volatile List<GoalTemplate> templates = List.of();
 
     public TemplateCatalogue(YamlStore store, Supplier<InputStream> shipped) {
@@ -34,16 +32,8 @@ public final class TemplateCatalogue {
     }
 
     public int reload() {
-        if (!store.exists()) {
-            try (InputStream in = shipped.get()) {
-                if (in != null) {
-                    Files.createDirectories(store.file().getParent());
-                    Files.writeString(store.file(), new String(in.readAllBytes(), StandardCharsets.UTF_8));
-                }
-            } catch (IOException failed) {
-                // Read below as no goals; the board says so.
-            }
-        }
+        // Written out once; after that, what a newer version ships is merged in without undoing the owner's edits.
+        lastMerge = de.raindancer.core.data.store.ShippedEntries.bringUp(store.file(), shipped, "goals", java.util.Set.of());
         templates = parse(store.read());
         return templates.size();
     }
@@ -55,6 +45,18 @@ public final class TemplateCatalogue {
     public Optional<GoalTemplate> find(String id) {
         return id == null ? Optional.empty()
                 : templates.stream().filter(each -> each.id().equals(id.toLowerCase(Locale.ROOT))).findFirst();
+    }
+
+    /** What the last read added or filled in from the shipped file — for a line in the log. */
+    public List<String> merged() {
+        var merge = lastMerge;
+        if (merge == null) {
+            return List.of();
+        }
+        List<String> lines = new ArrayList<>();
+        merge.added().forEach(id -> lines.add("added " + id));
+        merge.filled().forEach(field -> lines.add("filled in " + field));
+        return lines;
     }
 
     public List<String> problems() {

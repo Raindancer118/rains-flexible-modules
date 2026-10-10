@@ -20,7 +20,7 @@ public record RolesSettings(
         @In("roles") @Title("Roles change prices")
         @Describe("Whether a role's perks count in the shop. Off, everybody keeps their role and pays the "
                 + "same as everybody else.")
-        @Key("perks") boolean perks,
+        @Key("perks.enabled") boolean perks,
 
         @In("roles") @Title("Roles have abilities")
         @Describe("Small things a role does better in the game: a Cook gets hungry slower, a Miner's pickaxe "

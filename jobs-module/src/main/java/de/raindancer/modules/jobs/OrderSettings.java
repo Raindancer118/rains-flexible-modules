@@ -18,38 +18,38 @@ public record OrderSettings(
         @In("orders") @Title("Orders")
         @Describe("Players name an amount and get work to earn it in a set time: the more they ask, the harder the "
                 + "work and the tighter the clock. /quests → Ask for work")
-        @Key("enabled") boolean enabled,
+        @Key("orders.enabled") boolean enabled,
 
         @In("orders") @Title("Orders a day") @Range(min = 1, max = 50)
         @Describe("How many orders one player may take a day, done or not.")
-        @Key("per-day") int perDay,
+        @Key("orders.per-day") int perDay,
 
         @In("orders") @Title("Offers to pick from") @Range(min = 1, max = 9)
         @Describe("Different work offered for one amount — all paying it; the player takes one.")
-        @Key("choices") int choices,
+        @Key("orders.choices") int choices,
 
         @In("orders") @Title("Other offers, a day") @Range(min = 0, max = 50)
         @Describe("How often a player may turn a set of offers down for a fresh one, a day.")
-        @Key("rerolls-per-day") int rerollsPerDay,
+        @Key("orders.rerolls-per-day") int rerollsPerDay,
 
         @In("orders") @Title("Smallest amount")
-        @Key("least") String least,
+        @Key("orders.least") String least,
 
         @In("orders") @Title("Easy up to")
         @Describe("Up to this the work is easy and the clock generous.")
-        @Key("easy-up-to") String easyUpTo,
+        @Key("orders.easy-up-to") String easyUpTo,
 
         @In("orders") @Title("Hardest at")
         @Describe("At this the work is the hardest there is and the time a joke. Also the most anybody may ask for.")
-        @Key("hardest-at") String hardestAt,
+        @Key("orders.hardest-at") String hardestAt,
 
         @In("orders") @Title("Pace asked for at the easy end")
         @Describe("Of a skilled player's pace: 0.15 leaves plenty of time.")
-        @Key("pace.easiest") double paceEasiest,
+        @Key("orders.pace.easiest") double paceEasiest,
 
         @In("orders") @Title("Pace asked for at the hardest")
         @Describe("Of a skilled player's pace: 750 is seven hundred and fifty times faster than anybody can.")
-        @Key("pace.hardest") double paceHardest) {
+        @Key("orders.pace.hardest") double paceHardest) {
 
     public static final OrderSettings DEFAULTS = new OrderSettings(true, 3, 4, 5, "100", "1000", "100000000000", 0.15, 750);
 }

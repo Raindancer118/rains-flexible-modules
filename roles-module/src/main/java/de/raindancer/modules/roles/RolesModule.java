@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class RolesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.7.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.7.3")
             .describedAs("Pick a role with /role — a cook, a builder, an explorer… — pay less in the shop for what it works with, and do it a little better in the game")
             .by("Raindancer118");
 
@@ -57,6 +57,7 @@ public final class RolesModule implements FlexModule {
                 () -> RolesModule.class.getResourceAsStream("roles.yml"));
         int roles = catalogue.reload();
         catalogue.problems().forEach(problem -> context.log().warn("roles.yml: {}", problem));
+        catalogue.merged().forEach(change -> context.log().info("roles.yml: {} from the shipped roles.", change));
         ChoiceBook choices = new ChoiceBook(new YamlStore(context.dataFolder().resolve("choices.yml")));
         choices.load();
         if (!choices.readable()) {

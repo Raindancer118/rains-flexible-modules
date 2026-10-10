@@ -31,7 +31,7 @@ import java.util.List;
  */
 public final class JobsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.7.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.7.2")
             .describedAs("The job board — goals everybody delivers or fishes towards, paid by their share — personal daily quests, harder and better paid the richer you are, and orders: name what you want to earn and race the clock")
             .by("Raindancer118");
 
@@ -81,6 +81,7 @@ public final class JobsModule implements FlexModule {
                 () -> JobsModule.class.getResourceAsStream("jobs.yml"));
         int kinds = templates.reload();
         templates.problems().forEach(problem -> context.log().warn("jobs.yml: {}", problem));
+        templates.merged().forEach(change -> context.log().info("jobs.yml: {} from the shipped goals.", change));
         GoalBook book = new GoalBook(new YamlStore(context.dataFolder().resolve("goals.yml")));
         book.load();
         if (!book.readable()) {
@@ -96,6 +97,7 @@ public final class JobsModule implements FlexModule {
                 () -> JobsModule.class.getResourceAsStream("quests.yml"));
         int questKinds = questCatalogue.reload();
         questCatalogue.problems().forEach(problem -> context.log().warn("quests.yml: {}", problem));
+        questCatalogue.merged().forEach(change -> context.log().info("quests.yml: {} from the shipped quests.", change));
         QuestBook questBook = new QuestBook(new YamlStore(context.dataFolder().resolve("quest-progress.yml")));
         questBook.load();
         if (!questBook.readable()) {
@@ -111,6 +113,7 @@ public final class JobsModule implements FlexModule {
                 () -> JobsModule.class.getResourceAsStream("orders.yml"));
         int workKinds = work.reload();
         work.problems().forEach(problem -> context.log().warn("orders.yml: {}", problem));
+        work.merged().forEach(change -> context.log().info("orders.yml: {} from the shipped work.", change));
         OrderBook orderBook = new OrderBook(new YamlStore(context.dataFolder().resolve("order-progress.yml")));
         orderBook.load();
         if (!orderBook.readable()) {
