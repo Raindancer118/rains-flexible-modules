@@ -210,3 +210,6 @@ roles:
                  rabbit_foot, leather, feather, egg, "*_wool", beef, porkchop, chicken, mutton, rabbit, cod, salmon,
                  tropical_fish, pufferfish, honeycomb ]
         says: "what mobs and animals drop"
+      - buy: 15
+        items: [ bone_meal ]
+        says: "fertiliser (bone meal)"

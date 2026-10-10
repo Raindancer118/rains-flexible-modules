@@ -264,4 +264,15 @@ class RoleCatalogueTest {
             }
         }
     }
+
+    @Test
+    @DisplayName("farmers and biologists pay less for fertiliser — bone meal")
+    void fertiliser() throws Exception {
+        PerkRule rule = new PerkRule();
+        for (String id : List.of("farmer", "biologist")) {
+            Role role = shipped().stream().filter(each -> each.id().equals(id)).findFirst().orElseThrow();
+            assertThat(rule.change(role, "BONE_MEAL", TradeSide.BUY)).as(id)
+                    .hasValueSatisfying(change -> assertThat(change.percent()).isNegative());
+        }
+    }
 }
