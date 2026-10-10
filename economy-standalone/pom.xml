@@ -29,8 +29,10 @@
              0.26.0: treasure enchantments (Mending…) are for sale as books by default.
              0.27.0: /claimadvancements — once, back pay for advancements made before they paid (or paid less).
              0.27.1: back pay recorded per advancement in the ledger; not in creative/spectator or without earn.
-             0.27.2: name tags are priced from their recipe (paper + iron nugget), no longer a rare find's 300. -->
-        <plugin.version>0.27.2</plugin.version>
+             0.27.2: name tags are priced from their recipe (paper + iron nugget), no longer a rare find's 300.
+             0.28.0: enchantments priced by usefulness (shop.enchant-worth), drawer sorted by it; /sell enchantments;
+                    enchanted books sell again; staff call off any auction (/eco auction cancel, menus). -->
+        <plugin.version>0.28.0</plugin.version>
     </properties>
 
     <dependencies>

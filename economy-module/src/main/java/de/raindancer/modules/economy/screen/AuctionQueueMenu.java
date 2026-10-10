@@ -55,8 +55,11 @@ public final class AuctionQueueMenu extends PaginatedMenu<Auction> implements IE
         if (auction.hasBuyout()) {
             lore.add(line("<gray>Buy it now: " + Mini.of(services.currency().render(auction.buyout()))));
         }
+        lore.add(line("<dark_gray>Number " + de.raindancer.modules.economy.service.AuctionService.shortId(auction)));
         if (auction.seller().equals(viewer.getUniqueId())) {
             lore.add(line("<yellow>Click<gray> to take it back"));
+        } else if (staff()) {
+            lore.add(line("<red>Click<gray> to call it off (staff)"));
         }
         item.lore(lore);
         return item;
@@ -65,11 +68,20 @@ public final class AuctionQueueMenu extends PaginatedMenu<Auction> implements IE
     @Override
     protected void onClick(Auction auction, InventoryClickEvent event) {
         if (!auction.seller().equals(viewer.getUniqueId())) {
+            if (staff()) {
+                new ConfirmScreen(viewer, services.brand(), this, "Call off " + auction.itemName() + "?",
+                        List.of("It goes back to " + auction.sellerName() + "."),
+                        () -> services.auctions().callOff(auction.id())).open();
+            }
             return;
         }
         new ConfirmScreen(viewer, services.brand(), this, "Take back " + auction.itemName() + "?",
                 List.of("It comes back to your inventory."), () -> services.auctions().withdraw(viewer, auction.id()))
                 .open();
+    }
+
+    private boolean staff() {
+        return viewer.hasPermission(de.raindancer.modules.economy.util.PermissionNodes.ADMIN);
     }
 
     private static Component line(String text) {
@@ -78,7 +90,8 @@ public final class AuctionQueueMenu extends PaginatedMenu<Auction> implements IE
 
     @Override
     protected List<String> helpLines() {
-        return List.of("The auctions waiting their turn, in order.", "Your own can be taken back from here.");
+        return List.of("The auctions waiting their turn, in order.", "Your own can be taken back from here;",
+                "staff can call off anybody's.");
     }
 
     @Override

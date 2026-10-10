@@ -302,14 +302,18 @@ public final class ShopService implements IEconomyService {
                 .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT);
         List<org.bukkit.enchantments.Enchantment> all = new ArrayList<>();
         registry.forEach(all::add);
-        all.sort(java.util.Comparator.comparing(enchantment -> enchantment.getKey().getKey()));
+        var worth = live.enchantWorthTable();
+        // Most useful first, so the drawer opens on what players come for.
+        all.sort(java.util.Comparator.<org.bukkit.enchantments.Enchantment>comparingDouble(enchantment -> -worth.best(
+                        enchantment.getKey().getKey(), enchantment.getMaxLevel(), isTreasure(enchantment), enchantment.isCursed()))
+                .thenComparing(enchantment -> enchantment.getKey().getKey()));
         for (org.bukkit.enchantments.Enchantment enchantment : all) {
             for (int level = 1; level <= enchantment.getMaxLevel(); level++) {
                 var each = new de.raindancer.modules.economy.model.EnchantLevel(enchantment.getKey().getKey(), level,
-                        isTreasure(enchantment), enchantment.isCursed());
+                        enchantment.getMaxLevel(), isTreasure(enchantment), enchantment.isCursed());
                 if (enchants.offered(each, live.enchantTreasure(), live.enchantClosed())) {
                     offers.add(new EnchantOffer(enchantment, level,
-                            enchants.buyPrice(book, each, live.enchantPriceMoney(), live.enchantValueMoney())));
+                            enchants.buyPrice(book, each, live.enchantPriceMoney(), live.enchantValueMoney(), worth)));
                 }
             }
         }
@@ -424,6 +428,72 @@ public final class ShopService implements IEconomyService {
     }
 
     /**
+     * Sells the enchantments off the item in hand and keeps the item, the way a grindstone takes them off —
+     * at what they would add to its sale. Curses stay on; a book with nothing left becomes a plain book.
+     */
+    public void sellEnchantments(Player player) {
+        EconomySettings live = settings;
+        PlayerInventory inventory = player.getInventory();
+        int slot = inventory.getHeldItemSlot();
+        ItemStack held = inventory.getItem(slot);
+        if (held == null || held.getType().isAir()) {
+            refuse(player, "economy.shop.nothing-in-hand");
+            return;
+        }
+        if (!live.enchantedSelling() || CashTags.isCash(held) || de.raindancer.core.content.items.NonIngredients.isMarked(held)
+                || de.raindancer.core.content.items.InsuredItems.isInsured(held) || !onlyWornOrEnchanted(held)) {
+            refuse(player, "economy.shop.no-enchantments");
+            return;
+        }
+        org.bukkit.inventory.meta.ItemMeta meta = held.getItemMeta();
+        java.util.Map<org.bukkit.enchantments.Enchantment, Integer> all = new java.util.HashMap<>(meta.getEnchants());
+        if (meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta stored) {
+            all.putAll(stored.getStoredEnchants());
+        }
+        java.util.List<de.raindancer.modules.economy.model.EnchantLevel> levels = new ArrayList<>();
+        all.forEach((enchantment, level) -> levels.add(new de.raindancer.modules.economy.model.EnchantLevel(
+                enchantment.getKey().getKey(), level, enchantment.getMaxLevel(), isTreasure(enchantment), enchantment.isCursed())));
+        Money each = enchants.enchantsOff(levels, live.enchantValueMoney(), live.enchantWorthTable(), live.sellRatioClamped());
+        if (!each.isPositive()) {
+            refuse(player, "economy.shop.no-enchantments");
+            return;
+        }
+        Optional<Money> total = trade.total(each, held.getAmount());
+        if (total.isEmpty() || !total.get().isPositive()) {
+            refuse(player, "economy.shop.no-enchantments");
+            return;
+        }
+        Optional<Map.Entry<String, Money>> budget = overBudget(player, total.get());
+        if (budget.isPresent()) {
+            refuse(player, budget.get().getKey(), "left", live.currency().render(budget.get().getValue()));
+            return;
+        }
+        ItemStack before = held.clone();
+        ItemStack after = held.clone();
+        after.editMeta(edited -> {
+            all.keySet().stream().filter(enchantment -> !enchantment.isCursed()).forEach(edited::removeEnchant);
+            if (edited instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta stored) {
+                all.keySet().stream().filter(enchantment -> !enchantment.isCursed()).forEach(stored::removeStoredEnchant);
+            }
+        });
+        if (after.getType() == Material.ENCHANTED_BOOK && after.getItemMeta() instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta left
+                && !left.hasStoredEnchants()) {
+            after = after.withType(Material.BOOK);
+        }
+        inventory.setItem(slot, after);
+        String label = Catalogue.readable(before.getType().name());
+        EconomyResult result = economy.move(player.getUniqueId(), total.get(), TransactionKind.SELL,
+                label + " (enchantments)", SELL_SOURCE);
+        if (!result.succeeded()) {
+            inventory.setItem(slot, before);
+            Outcomes.tell(messages, effects, player, result, live.currency(), "");
+            return;
+        }
+        effects.play(player.getUniqueId(), Cues.EARNED);
+        messages.send(player, "economy.shop.sold-enchantments", "what", label, "amount", live.currency().render(total.get()));
+    }
+
+    /**
      * What one stack fetches, if the shop takes it: plain items by kind, and — when enchanted selling is on —
      * enchanted or worn ones one at a time, for more or for less. A renamed item is valued as itself; an
      * item carrying anything else (lore, plugin data, contents) is not bought at all.
@@ -457,10 +527,10 @@ public final class ShopService implements IEconomyService {
             all.putAll(stored.getStoredEnchants());
         }
         all.forEach((enchantment, level) -> levels.add(new de.raindancer.modules.economy.model.EnchantLevel(
-                enchantment.getKey().getKey(), level, isTreasure(enchantment), enchantment.isCursed())));
+                enchantment.getKey().getKey(), level, enchantment.getMaxLevel(), isTreasure(enchantment), enchantment.isCursed())));
         int damage = meta instanceof org.bukkit.inventory.meta.Damageable worn ? worn.getDamage() : 0;
         Money each = enchants.sellValue(tag.sell(), enchants.durabilityLeft(material.getMaxDurability(), damage),
-                enchants.bonus(levels, live.enchantValueMoney()), live.sellRatioClamped());
+                enchants.bonus(levels, live.enchantValueMoney(), live.enchantWorthTable()), live.sellRatioClamped());
         if (!each.isPositive()) {
             return Optional.empty();
         }
@@ -471,10 +541,18 @@ public final class ShopService implements IEconomyService {
 
     /** Whether the only differences from a plain item are enchantments, wear, a name and the anvil's cost. */
     private static boolean onlyWornOrEnchanted(ItemStack stack) {
+        ItemStack stripped = stripped(stack);
+        // The fresh item goes through the same round trip: a book whose enchantments were taken off keeps an
+        // empty enchantment list in its data, which a brand-new book does not have — and is just as plain.
+        return stripped != null && stripped.isSimilar(stripped(new ItemStack(stack.getType())));
+    }
+
+    /** A copy without enchantments, wear, repair cost and name — or null for an item without meta. */
+    private static ItemStack stripped(ItemStack stack) {
         ItemStack stripped = stack.clone();
         org.bukkit.inventory.meta.ItemMeta meta = stripped.getItemMeta();
         if (meta == null) {
-            return false;
+            return null;
         }
         new ArrayList<>(meta.getEnchants().keySet()).forEach(meta::removeEnchant);
         if (meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta stored) {
@@ -489,7 +567,7 @@ public final class ShopService implements IEconomyService {
         meta.displayName(null);
         stripped.setItemMeta(meta);
         stripped.setAmount(1);
-        return stripped.isSimilar(new ItemStack(stack.getType()));
+        return stripped;
     }
 
     /** Everything carried that the shop takes: plain items grouped by kind, special ones one by one. */

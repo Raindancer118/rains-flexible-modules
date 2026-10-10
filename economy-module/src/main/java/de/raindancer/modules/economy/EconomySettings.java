@@ -263,12 +263,13 @@ public record EconomySettings(
         @Key("shop.enchant-books") boolean enchantBooks,
 
         @In("economy/shop") @Title("A level of enchantment costs")
-        @Describe("On a book bought from the shop; treasure enchantments like Mending cost double.")
+        @Describe("A level of an ordinary enchantment, on a book bought from the shop. Useful ones cost more "
+                + "(see 'How useful each enchantment is').")
         @Key("shop.enchant-price") String enchantPrice,
 
         @In("economy/shop") @Title("Treasure enchantments for sale")
-        @Describe("Mending, Frost Walker, Soul Speed and the others otherwise found only as loot, at double the price "
-                + "of a level. Selling them to the shop works either way.")
+        @Describe("Mending, Frost Walker, Soul Speed and the others otherwise found only as loot, priced by how "
+                + "useful they are. Selling them to the shop works either way.")
         @Key("shop.enchant-treasure") boolean enchantTreasure,
 
         @In("economy/shop") @Title("Enchantments not for sale")
@@ -280,8 +281,16 @@ public record EconomySettings(
         @Key("shop.enchanted-selling") boolean enchantedSelling,
 
         @In("economy/shop") @Title("Each enchantment level is worth")
-        @Describe("Treasure enchantments like Mending count double; curses take value away.")
+        @Describe("What the shop pays for a level of an ordinary enchantment. Useful ones are worth more "
+                + "(see 'How useful each enchantment is'); curses take value away.")
         @Key("shop.enchant-value") String enchantValue,
+
+        @In("economy/shop") @Title("How useful each enchantment is")
+        @Describe("Changes to the built-in ranking, one per line like 'mending 12': what an enchantment is worth "
+                + "at its highest level, in levels of an ordinary one. Built in: Mending 12, Protection and "
+                + "Efficiency 10, Sharpness, Unbreaking and Fortune 9 … down to Knockback, Punch and Bane of "
+                + "Arthropods 2. Buying and selling prices both follow it; the shop's drawer is sorted by it.")
+        @Key("shop.enchant-worth") List<String> enchantWorth,
 
         @In("economy/shop/spawn-eggs") @Title("Spawn eggs for sale")
         @Describe("A Spawn eggs drawer in the shop: every mob's egg at the price below.")
@@ -833,7 +842,7 @@ public record EconomySettings(
             true, Material.GOLD_NUGGET, "", true, true, 0.0, 2304,
             // shop
             true, true, 1.0, 0.4, SellPricing.AUTOMATIC, List.of(), List.of(), List.of(), List.of(), List.of(),
-            true, 0.1, 0.15, true, 0.5, 2.0, 0.02, 12.0, true, "500", true, List.of(), true, "40",
+            true, 0.1, 0.15, true, 0.5, 2.0, 0.02, 12.0, true, "500", true, List.of(), true, "40", List.of(),
             true, "2000", List.of("ender_dragon", "wither"),
             true, true, true, true, true, true, true, true, true,
             // earning
@@ -927,6 +936,10 @@ public record EconomySettings(
     /** May be zero: nothing while away. */
     public Money incomeAwayMoney() {
         return settingOrZero(incomeAway);
+    }
+
+    public de.raindancer.modules.economy.rules.EnchantWorthRule enchantWorthTable() {
+        return new de.raindancer.modules.economy.rules.EnchantWorthRule(enchantWorth);
     }
 
     public Money enchantValueMoney() {

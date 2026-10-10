@@ -94,6 +94,20 @@ public final class EcoCommand extends EconomyCommand {
                 }
             });
             case "auction" -> {
+                if (args.length > 2 && args[1].equalsIgnoreCase("cancel")) {
+                    var picked = live.auctions().pick(args[2]);
+                    if (picked.isEmpty()) {
+                        live.messages().send(sender, "economy.auction.no-such", "what", args[2]);
+                        return;
+                    }
+                    if (!live.auctions().callOff(picked.get().id())) {
+                        live.messages().send(sender, "economy.auction.nothing-running");
+                        return;
+                    }
+                    live.messages().send(sender, "economy.auction.cancelled", "item", picked.get().itemName(),
+                            "player", picked.get().sellerName());
+                    return;
+                }
                 if (args.length > 1 && args[1].equalsIgnoreCase("clear")) {
                     live.messages().send(sender, "economy.auction.cleared",
                             "count", String.valueOf(live.auctions().callOffAll()));
@@ -354,7 +368,12 @@ public final class EcoCommand extends EconomyCommand {
             return starting(args[1], List.of("cancel", "10000"));
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("auction")) {
-            return starting(args[1], List.of("stop", "clear"));
+            return starting(args[1], List.of("stop", "clear", "cancel"));
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("auction") && args[1].equalsIgnoreCase("cancel")) {
+            EconomyServices now = live();
+            return now == null ? List.of() : starting(args[2], now.auctions().auctions().stream()
+                    .map(de.raindancer.modules.economy.service.AuctionService::shortId).toList());
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("loan")) {
             return starting(args[2], List.of("forgive"));

@@ -420,6 +420,11 @@ public final class AuctionService implements IEconomyService {
         return ended.isPresent();
     }
 
+    /** The auction staff mean by a short id or a seller's name, queued or live. */
+    public Optional<Auction> pick(String typed) {
+        return rule.pick(book.auctions(), typed);
+    }
+
     /** Everything off: the live auction and the whole queue go back to their sellers. */
     public int callOffAll() {
         int count = 0;

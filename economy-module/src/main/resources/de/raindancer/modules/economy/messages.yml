@@ -37,7 +37,7 @@ economy:
     contract: "<gray>/contract pay <player> <amount> <every, like 1d> <what>  ·  /contract charge <player> <amount> <every> <what>  ·  /contract list  ·  /contract end <player>"
     dice: "<gray>/dice <amount> <over|under> <number from 1 to 100>"
     lottery: "<gray>/lottery  ·  /lottery buy [tickets]  ·  /lottery buy <your numbers>  ·  /lottery info"
-    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm|coin  ·  /eco auction stop|clear  ·  /eco raffle <prize> <ticket price> [length] | cancel <number>  ·  /eco giveaway <prize> [length] | cancel <number>  ·  /eco tax <percent> [confirm]  ·  /eco loan <player> [forgive]  ·  /eco packs [give <player> <pack>]"
+    eco: "<gray>/eco give|take|set <player> <amount> [reason]  ·  /eco reset|freeze|unfreeze|history <player>  ·  /eco menu|reprice|draw|calm|coin  ·  /eco auction stop|clear|cancel <number or seller>  ·  /eco raffle <prize> <ticket price> [length] | cancel <number>  ·  /eco giveaway <prize> [length] | cancel <number>  ·  /eco tax <percent> [confirm]  ·  /eco loan <player> [forgive]  ·  /eco packs [give <player> <pack>]"
     loan: "<gray>/loan  ·  /loan take <amount>  ·  /loan repay [amount|all]"
     hire: "<gray>/hire <player> <wage> <every, like 1h or 30m> [job]  ·  /hire list  ·  /hire fire|quit <player>"
     raffle: "<gray>/raffle  ·  /raffle start <ticket price> [length, like 30m] [most tickets] [per player]  ·  /raffle money <prize> <ticket price> [length] [most tickets] [per player]  ·  /raffle buy <number> [tickets]  ·  /raffle cancel <number>  ·  /raffle info"
@@ -105,6 +105,8 @@ economy:
     bought: "<green>You bought <count> × <white><item></white> for <amount><green>."
     enchant-gone: "<red>That book is no longer for sale at that price. Nothing was taken."
     sold: "<green>You sold <white><what></white> for <amount><green>."
+    sold-enchantments: "<green>You sold the enchantments off your <white><what></white> for <amount><green>. It keeps any curse."
+    no-enchantments: "<red>That carries no enchantment the shop buys. Curses cannot be sold off."
 
   packs:
     off: "<red>Packs are switched off on this server."
@@ -261,6 +263,8 @@ economy:
     stopped: "<green>The running auction is called off; the item and any bid went back."
     cleared: "<green><count> auction(s) called off; every item and bid went back."
     nothing-running: "<gray>No auction to call off."
+    no-such: "<red>No auction fits <white><what></white>. <gray>Give its number from the queue or the seller's name."
+    cancelled: "<green>Called off: <white><player></white>'s <white><item></white>. The item went back to them, and any bid to its bidder."
     queue-size: "<gray><count> more auction(s) waiting."
 
   raffle:

@@ -6,22 +6,19 @@ import de.raindancer.modules.economy.model.EnchantLevel;
 import java.util.List;
 
 /**
- * What enchantments and wear do to what the shop pays: every level adds a fixed value (treasure double,
- * and curses — treasure too — take double away), and the plain part of the price shrinks with the durability used up.
+ * What enchantments and wear do to what the shop pays: each enchantment adds what it is worth
+ * ({@link EnchantWorthRule} — the useful ones more, curses take away), and the plain part of the price
+ * shrinks with the durability used up.
  */
 public final class EnchantValueRule implements IEconomyRule {
 
     /** May be negative when curses outweigh the rest. */
-    public Money bonus(List<EnchantLevel> enchantments, Money perLevel) {
-        long total = 0;
+    public Money bonus(List<EnchantLevel> enchantments, Money perLevel, EnchantWorthRule worth) {
+        double total = 0;
         for (EnchantLevel each : enchantments) {
-            long value = Math.multiplyExact(perLevel.minor(), Math.max(0, each.level()));
-            if (each.treasure()) {
-                value = Math.multiplyExact(value, 2);
-            }
-            total = each.curse() ? total - value : total + value;
+            total += perLevel.minor() * worth.worth(each);
         }
-        return Money.of(total);
+        return Money.of(Math.round(total));
     }
 
     /**
@@ -40,16 +37,22 @@ public final class EnchantValueRule implements IEconomyRule {
     }
 
     /**
-     * What an enchanted book costs in the shop: the book, plus the levels at the buying price — treasure
-     * double — and never less per level than the shop pays, so buying and selling back cannot make money.
+     * What an enchanted book costs in the shop: the book, plus what the enchantment is worth at the buying
+     * price per level — and never less per level than the shop pays, so buying and selling back cannot make money.
      */
-    public Money buyPrice(Money book, EnchantLevel enchantment, Money buyPerLevel, Money sellPerLevel) {
+    public Money buyPrice(Money book, EnchantLevel enchantment, Money buyPerLevel, Money sellPerLevel, EnchantWorthRule worth) {
         long perLevel = Math.max(buyPerLevel.minor(), sellPerLevel.minor());
-        long value = Math.multiplyExact(perLevel, Math.max(1, enchantment.level()));
-        if (enchantment.treasure()) {
-            value = Math.multiplyExact(value, 2);
-        }
+        long value = Math.round(perLevel * Math.max(0, worth.worth(enchantment)));
         return book.max(Money.ZERO).plus(Money.of(value));
+    }
+
+    /**
+     * What the shop pays for taking the enchantments off an item, the item kept: what they would add to its
+     * sale. Curses cannot be sold off — they stay on, and take nothing away.
+     */
+    public Money enchantsOff(List<EnchantLevel> enchantments, Money perLevel, EnchantWorthRule worth, double sellRatio) {
+        List<EnchantLevel> sellable = enchantments.stream().filter(each -> !each.curse()).toList();
+        return sellValue(Money.ZERO, 1.0, bonus(sellable, perLevel, worth), sellRatio);
     }
 
     /** Whether the shop sells it: never a curse, treasure only when allowed, nothing an owner closed. */

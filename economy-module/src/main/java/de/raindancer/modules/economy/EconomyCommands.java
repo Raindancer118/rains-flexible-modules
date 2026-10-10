@@ -54,7 +54,7 @@ public final class EconomyCommands {
                         new ShopCommand(EconomyCommands::require, false)).aliased("market")
                         .taking("[category|item|search <text>]"),
                 ModuleCommand.of("sell", "Sell to the server's shop",
-                        new ShopCommand(EconomyCommands::require, true)).taking("[hand|all]"),
+                        new ShopCommand(EconomyCommands::require, true)).taking("[hand|all|enchantments]"),
                 ModuleCommand.of("baltop", "The richest players",
                         new BankCommand(EconomyCommands::require, BankCommand.Door.BALTOP)).aliased("richest"),
                 ModuleCommand.of("daily", "Claim the daily reward",

@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
 
-/** {@code /shop [category | item | search text]} and {@code /sell [hand | all]}. */
+/** {@code /shop [category | item | search text]} and {@code /sell [hand | all | enchantments]}. */
 public final class ShopCommand extends EconomyCommand {
 
     private final boolean selling;
@@ -38,6 +38,7 @@ public final class ShopCommand extends EconomyCommand {
                 String how = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
                 switch (how) {
                     case "hand" -> live.shop().sellHand(player);
+                    case "enchantments", "enchants" -> live.shop().sellEnchantments(player);
                     case "all" -> live.shop().sellEverything(player);
                     default -> live.screens().sell(player);
                 }
@@ -81,7 +82,7 @@ public final class ShopCommand extends EconomyCommand {
         }
         String typed = args.length == 0 ? "" : args[0];
         if (selling) {
-            return starting(typed, List.of("hand", "all"));
+            return starting(typed, List.of("hand", "all", "enchantments"));
         }
         List<String> options = new ArrayList<>(List.of("search"));
         for (Category category : Category.values()) {

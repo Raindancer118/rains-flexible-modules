@@ -176,6 +176,17 @@ public final class AuctionMenu extends Menu implements IEconomyScreen {
                             List.of("You pay " + currency.format(auction.buyout()) + " and the auction ends at once."),
                             () -> auctions.bid(viewer, auction.buyout(), auction.id().toString())).open());
         }
+        if (viewer.hasPermission(de.raindancer.modules.economy.util.PermissionNodes.ADMIN)) {
+            toolbar(7, Icons.of(Material.BARRIER, "<red>Call it off", "<gray>Staff: the item goes back to "
+                    + auction.sellerName() + ",", "<gray>every bid back to its bidder."), click ->
+                    new ConfirmScreen(viewer, services.brand(), this, "Call off this auction?",
+                            List.of(auction.itemName() + " goes back to " + auction.sellerName() + ".",
+                                    auction.hasBid() ? auction.bidderName() + " gets their bid back." : "Nobody has bid yet."),
+                            () -> {
+                                auctions.callOff(auction.id());
+                                open(services, viewer, back);
+                            }).open());
+        }
     }
 
     private static Component line(String text) {

@@ -150,7 +150,49 @@ class EconomyScenarioTest {
             ada.forgetChat();
             ada.run("sell hand");
             Await.until("the enchanted sword is sold", WAIT, () -> said(ada, "Diamond Sword (enchanted) for"));
-            assertThat(soldFor(ada)).as("worth more enchanted").isGreaterThan(plainSword);
+            long sharpSword = soldFor(ada);
+            assertThat(sharpSword).as("worth more enchanted").isGreaterThan(plainSword);
+            // The same five levels of something far less useful are worth far less.
+            server.console("give Ada minecraft:diamond_sword[minecraft:enchantments={\"minecraft:bane_of_arthropods\":5}] 1");
+            Await.until("the bane sword arrives", WAIT, () -> ada.carrying(item -> item.is("diamond_sword")).isPresent());
+            ada.hold(ada.hotbarSlotOf(item -> item.is("diamond_sword")));
+            Await.ticks(5);
+            ada.forgetChat();
+            ada.run("sell hand");
+            Await.until("the bane sword is sold", WAIT, () -> said(ada, "Diamond Sword (enchanted) for"));
+            long baneSword = soldFor(ada);
+            assertThat(baneSword).as("an enchantment adds what it is useful for").isGreaterThan(plainSword).isLessThan(sharpSword);
+
+            // ---- the enchantments sold off, the sword kept — and its curse with it
+            server.console("give Ada minecraft:diamond_sword[minecraft:enchantments={\"minecraft:sharpness\":5,"
+                    + "\"minecraft:vanishing_curse\":1}] 1");
+            Await.until("the sword to strip arrives", WAIT, () -> ada.carrying(item -> item.is("diamond_sword")).isPresent());
+            ada.hold(ada.hotbarSlotOf(item -> item.is("diamond_sword")));
+            Await.ticks(5);
+            ada.forgetChat();
+            ada.run("sell enchantments");
+            Await.until("the enchantments are sold", WAIT, () -> said(ada, "sold the enchantments off your Diamond Sword for"));
+            assertThat(ada.carrying(item -> item.is("diamond_sword"))).as("the sword is kept").isPresent();
+            ada.forgetChat();
+            ada.run("sell enchantments");
+            Await.until("a curse is not for sale", WAIT, () -> said(ada, "Curses cannot be sold off"));
+            server.console("clear Ada minecraft:diamond_sword");
+            server.console("give Ada minecraft:enchanted_book[minecraft:stored_enchantments={\"minecraft:mending\":1}] 1");
+            Await.until("the book arrives", WAIT, () -> ada.carrying(item -> item.is("enchanted_book")).isPresent());
+            ada.hold(ada.hotbarSlotOf(item -> item.is("enchanted_book")));
+            Await.ticks(5);
+            ada.forgetChat();
+            ada.run("sell enchantments");
+            Await.until("Mending is sold", WAIT, () -> said(ada, "sold the enchantments off your Enchanted Book for"));
+            Await.until("a plain book is left", WAIT, () -> ada.carrying(item -> item.is("book")).isPresent());
+            // ---- and an enchanted book sells whole, for more than a plain one
+            server.console("give Ada minecraft:enchanted_book[minecraft:stored_enchantments={\"minecraft:protection\":4}] 1");
+            Await.until("the protection book arrives", WAIT, () -> ada.carrying(item -> item.is("enchanted_book")).isPresent());
+            ada.hold(ada.hotbarSlotOf(item -> item.is("enchanted_book")));
+            Await.ticks(5);
+            ada.forgetChat();
+            ada.run("sell hand");
+            Await.until("the enchanted book is sold", WAIT, () -> said(ada, "Enchanted Book (enchanted) for"));
 
             // ---- the statement, printed as a book to keep
             ada.run("bank");
@@ -473,6 +515,27 @@ class EconomyScenarioTest {
                     .isPresent());
             Await.until("Bo is paid, less the fee", WAIT, () -> said(bo, "sold for ⛃100") && said(bo, "⛃95"));
             Await.until("the bar is gone", WAIT, () -> ada.bossBars().stream().noneMatch(bar -> bar.contains("Auction")));
+
+            // ---- staff call auctions off: a queued one by its seller's name, then the running one, bid and all
+            server.console("item replace entity Bo weapon.mainhand with minecraft:emerald 2");
+            Await.ticks(10);
+            bo.run("auction sell 50 5m");
+            Await.until("the first is live", WAIT, () -> ada.bossBars().stream().anyMatch(bar -> bar.contains("Auction")));
+            server.console("item replace entity Bo weapon.mainhand with minecraft:gold_ingot 2");
+            Await.ticks(10);
+            bo.run("auction sell 50 5m");
+            Await.until("the second waits in the queue", WAIT, () -> server.console("auction info").contains("waiting"));
+            cy.forgetChat();
+            cy.run("auction bid");
+            Await.until("Cy bids on the live one", WAIT, () -> said(cy, "Cy bids"));
+            assertThat(server.console("eco auction cancel Bo")).as("Bo's newest: the queued gold").contains("Called off")
+                    .contains("Gold Ingot");
+            Await.until("the gold is back with Bo", WAIT, () -> bo.carrying(item -> item.is("gold_ingot")).isPresent());
+            assertThat(server.console("eco auction cancel Bo")).as("then the live one, though it has a bid")
+                    .contains("Called off");
+            Await.until("the emeralds are back with Bo", WAIT, () -> bo.carrying(item -> item.is("emerald")).isPresent());
+            Await.until("Cy is told", WAIT, () -> said(cy, "called off"));
+            assertThat(server.console("eco auction cancel Nobody")).contains("No auction fits");
 
             // ---- a raffle: started from the hand, tickets bought by command and by chat button, drawn
             server.console("settings set economy:raffle.min-minutes 1");
