@@ -145,6 +145,20 @@ class QuestsScenarioTest {
                     () -> lore(mia, "Diamond", "Miner: +"));
             mia.closeWindow();
 
+            // ---- a biologist sells what grows and what mobs drop for more
+            server.console("role set Mia biologist");
+            mia.run("shop bone");
+            mia.awaitWindow("Bone");
+            Await.until(() -> "the biologist's bonus is under the sell price (" + loreOf(mia, "Bone") + ")", WAIT,
+                    () -> lore(mia, "Bone", "Biologist: +"));
+            mia.closeWindow();
+            mia.run("shop oak_sapling");
+            mia.awaitWindow("Oak Sapling");
+            Await.until(() -> "and on saplings (" + loreOf(mia, "Oak Sapling") + ")", WAIT,
+                    () -> lore(mia, "Oak Sapling", "Biologist: +"));
+            mia.closeWindow();
+            server.console("role set Mia miner");
+
             // ---- orders: name an amount, get work and a clock; too much is refused
             mia.forgetChat();
             mia.run("quests ask 200b");

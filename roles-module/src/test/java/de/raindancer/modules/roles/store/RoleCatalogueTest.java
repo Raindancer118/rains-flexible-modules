@@ -227,4 +227,39 @@ class RoleCatalogueTest {
             assertThat(ability.percent()).isBetween(5, 15);
         });
     }
+
+    @Test
+    @DisplayName("a biologist sells anything that grows and anything mobs drop for more")
+    void biologist() throws Exception {
+        Role biologist = shipped().stream().filter(role -> role.id().equals("biologist")).findFirst().orElseThrow();
+        PerkRule rule = new PerkRule();
+        for (String plant : List.of("OAK_SAPLING", "POPPY", "WHEAT", "WHEAT_SEEDS", "CARROT", "RED_MUSHROOM", "KELP",
+                "CACTUS", "SUGAR_CANE", "BAMBOO", "MOSS_BLOCK", "OAK_LEAVES", "SWEET_BERRIES", "NETHER_WART",
+                "CHORUS_FRUIT", "SUNFLOWER", "LILY_PAD", "VINE", "CRIMSON_FUNGUS", "APPLE", "MELON_SLICE", "PUMPKIN")) {
+            assertThat(rule.change(biologist, plant, TradeSide.SELL)).as(plant).hasValueSatisfying(
+                    change -> assertThat(change.percent()).isPositive());
+        }
+        for (String drop : List.of("ROTTEN_FLESH", "BONE", "STRING", "SPIDER_EYE", "GUNPOWDER", "ENDER_PEARL",
+                "LEATHER", "FEATHER", "SLIME_BALL", "BLAZE_ROD", "SHULKER_SHELL", "TURTLE_SCUTE", "BEEF", "MUTTON")) {
+            assertThat(rule.change(biologist, drop, TradeSide.SELL)).as(drop).hasValueSatisfying(
+                    change -> assertThat(change.percent()).isPositive());
+        }
+        assertThat(rule.change(biologist, "DIAMOND", TradeSide.SELL)).as("not a plant, not a drop").isEmpty();
+        assertThat(rule.change(biologist, "OAK_PLANKS", TradeSide.SELL)).as("made from a plant is not a plant").isEmpty();
+    }
+
+    @Test
+    @DisplayName("every item a shipped perk names exists: a typo would quietly cover nothing")
+    void perkItemsExist() throws Exception {
+        java.util.List<String> materials = java.util.Arrays.stream(org.bukkit.Material.values())
+                .filter(each -> !each.isLegacy()).map(Enum::name).toList();
+        for (Role role : shipped()) {
+            for (Perk perk : role.perks()) {
+                for (String pattern : perk.items().items()) {
+                    assertThat(materials.stream().anyMatch(name -> de.raindancer.core.ui.choose.ItemSelection.matches(pattern, name)))
+                            .as(role.id() + ": " + pattern).isTrue();
+                }
+            }
+        }
+    }
 }

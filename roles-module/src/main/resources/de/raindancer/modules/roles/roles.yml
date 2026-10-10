@@ -181,3 +181,32 @@ roles:
         categories: [ redstone ]
         items: [ rail, powered_rail, detector_rail, activator_rail, minecart, hopper_minecart ]
         says: "redstone and rails"
+
+  biologist:
+    title: Biologist
+    icon: spore_blossom
+    colour: "#6ab04c"
+    description:
+      - "Studies everything that grows or breathes."
+    abilities:
+      - harvest: 10
+    perks:
+      - sell: 12
+        items: [ "*_sapling", "*_leaves", "*_seeds", "*_mushroom", "*_fungus", "*_roots", "*_tulip", "*_petals",
+                 dandelion, poppy, blue_orchid, allium, azure_bluet, oxeye_daisy, cornflower, lily_of_the_valley,
+                 wither_rose, torchflower, sunflower, lilac, rose_bush, peony, pitcher_plant, pitcher_pod,
+                 spore_blossom, wildflowers, cactus, cactus_flower, sugar_cane, bamboo, kelp, seagrass, sea_pickle,
+                 vine, glow_lichen, lily_pad, moss_block, moss_carpet, azalea, flowering_azalea, big_dripleaf,
+                 small_dripleaf, hanging_roots, short_grass, tall_grass, fern, large_fern, dead_bush, nether_wart,
+                 wheat, carrot, potato, beetroot, melon_slice, melon, pumpkin, sweet_berries, glow_berries,
+                 cocoa_beans, chorus_fruit, chorus_flower, apple, mangrove_propagule, nether_sprouts, twisting_vines,
+                 weeping_vines, shroomlight, red_mushroom_block, brown_mushroom_block ]
+        except: [ "*_wood", "*_log", "stripped_*" ]
+        says: "anything that grows"
+      - sell: 10
+        items: [ rotten_flesh, bone, bone_meal, string, spider_eye, gunpowder, ender_pearl, slime_ball, blaze_rod,
+                 breeze_rod, ghast_tear, phantom_membrane, magma_cream, ink_sac, glow_ink_sac, prismarine_shard,
+                 prismarine_crystals, shulker_shell, nautilus_shell, turtle_scute, armadillo_scute, rabbit_hide,
+                 rabbit_foot, leather, feather, egg, "*_wool", beef, porkchop, chicken, mutton, rabbit, cod, salmon,
+                 tropical_fish, pufferfish, honeycomb ]
+        says: "what mobs and animals drop"
