@@ -67,6 +67,8 @@ public final class ModuleBootstrap implements PluginBootstrap {
             // And one /changelog: what changed, told to returning players once. Publishing is
             // rainscore.changelog.manage, op-only like every undeclared Core node.
             de.raindancer.core.platform.command.CoreCommands.changelog(event.registrar());
+            // And one /maintenance (aliases /wartung, /wartungsmodus), op-only through rainscore.maintenance.
+            de.raindancer.core.platform.command.CoreCommands.maintenance(event.registrar());
         });
     }
 }

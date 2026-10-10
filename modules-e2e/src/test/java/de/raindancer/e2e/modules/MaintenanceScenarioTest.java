@@ -26,13 +26,27 @@ class MaintenanceScenarioTest {
             cy.leave();
 
             ada.runAndExpect("maintenance add Cy", "Cy is on the maintenance list");
-            ada.runAndExpect("maintenance on New spawn", "Maintenance mode is on");
+            // Called off during the countdown: nobody goes.
+            ada.runAndExpect("maintenance on", "sent off in 20 s");
+            bo.expectChat("Maintenance starts in 20 s");
+            ada.runAndExpect("maintenance off", "Maintenance mode is off");
+            bo.expectChat("Maintenance was called off");
+            Await.ticks(20 * 22);
+            assertThat(bo.isOnline()).as("called off, so Bo stays").isTrue();
 
-            Await.until("Bo is sent off", Duration.ofSeconds(10), () -> !bo.isOnline());
+            ada.runAndExpect("maintenance on New spawn", "sent off in 20 s");
+            bo.expectChat("starts in 20 s. (New spawn)");
+            ada.expectChat("(New spawn) You can stay");
+            assertThat(server.paper.bot("Dee").joinRefused()).as("closed to joins during the countdown").contains("under maintenance");
+            assertThat(bo.isOnline()).as("not before the countdown ends").isTrue();
+            // 17 s into the countdown: longer than expectChat waits.
+            Await.until("Bo is told 3 s are left", Duration.ofSeconds(25),
+                    () -> bo.chatText().stream().anyMatch(line -> line.contains("starts in 3 s. (New spawn)")));
+
+            Await.until("Bo is sent off", Duration.ofSeconds(15), () -> !bo.isOnline());
             assertThat(bo.disconnectReason()).contains("under maintenance").contains("New spawn");
             assertThat(ada.isOnline()).as("an op stays").isTrue();
 
-            assertThat(server.paper.bot("Dee").joinRefused()).contains("under maintenance");
             cy.rejoin();
             assertThat(cy.isOnline()).as("on the list").isTrue();
 
