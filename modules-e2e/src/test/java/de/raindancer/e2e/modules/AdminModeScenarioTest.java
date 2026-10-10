@@ -27,7 +27,7 @@ class AdminModeScenarioTest {
     }
 
     @Test
-    @DisplayName("in admin mode a chest takes what is put in it, and an advancement is not made — out of it, it is, and pays")
+    @DisplayName("in admin mode a chest takes what is put in it, bypass lets a drop through, and an advancement is not made — out of it, it is, and pays")
     void adminMode() {
         try (Server server = Server.start("adminmode", List.of("essentials-standalone:RainsEssentials-.*",
                 "economy-standalone:RainsEconomy-.*"), List.of("Essentials are up", "The economy is up"))) {
@@ -63,6 +63,20 @@ class AdminModeScenarioTest {
             ada.closeWindow();
             Await.until("the diamonds are in the chest", WAIT, () -> server.console(
                     "execute if items block 2 " + Y + " 0 container.* minecraft:diamond").contains("passed"));
+
+            // ---- bypass: items are not kept apart while it is on — a drop lands in the world
+            server.console("kill @e[type=item]");
+            server.console("give Ada minecraft:stick 1");
+            Await.ticks(10);
+            ada.forgetChat();
+            ada.run("admin bypass");
+            ada.expectChat("Bypass on");
+            ada.hold(0);
+            ada.dropHeld();
+            Await.until("the stick lies in the world", WAIT,
+                    () -> server.console("execute if entity @e[type=item]").contains("passed"));
+            ada.run("admin bypass");
+            ada.expectChat("Bypass off");
 
             // ---- no advancement in admin mode
             server.console("gamemode survival Ada");

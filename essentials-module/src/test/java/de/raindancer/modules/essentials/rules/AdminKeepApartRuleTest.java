@@ -61,4 +61,36 @@ class AdminKeepApartRuleTest {
         assertThat(changes.says(changes.in())).isEqualTo("64 Diamond, 1 Nether Star");
         assertThat(rule.changes(before, before).none()).isTrue();
     }
+
+    @Test
+    @DisplayName("an enchanted item swapped for a plain one of its kind is a change in each direction, and says so")
+    void sameKindDifferentItem() {
+        var before = java.util.Map.of("DIAMOND_SWORD", 1);
+        var after = java.util.Map.of("DIAMOND_SWORD (enchanted #1a2b)", 1);
+        AdminKeepApartRule.Changes changes = rule.changes(before, after);
+        assertThat(changes.none()).isFalse();
+        assertThat(changes.says(changes.in())).isEqualTo("1 Diamond Sword (enchanted #1a2b)");
+        assertThat(changes.says(changes.out())).isEqualTo("1 Diamond Sword");
+    }
+
+    @Test
+    @DisplayName("somebody else's inventory or ender chest is never open to admin items; the admin's own always is")
+    void othersInventories() {
+        for (boolean containers : new boolean[]{false, true}) {
+            assertThat(rule.mayUse("PLAYER", containers, true, false)).isTrue();
+            assertThat(rule.mayUse("ENDER_CHEST", containers, true, false)).isTrue();
+            assertThat(rule.mayUse("PLAYER", containers, false, false)).as("someone else's, containers " + containers).isFalse();
+            assertThat(rule.mayUse("ENDER_CHEST", containers, false, false)).as("someone else's, containers " + containers).isFalse();
+        }
+    }
+
+    @Test
+    @DisplayName("with containers allowed, only ones in the world: a chest or a chest boat, not a window from nowhere")
+    void onlyInTheWorld() {
+        assertThat(rule.mayUse("CHEST", true, false, true)).isTrue();
+        assertThat(rule.mayUse("CHEST", true, false, false)).as("a chest window no block holds").isFalse();
+        assertThat(rule.mayUse("CHEST", false, false, true)).as("containers off").isFalse();
+        assertThat(rule.mayUse("MERCHANT", true, false, true)).isFalse();
+        assertThat(rule.mayUse("WORKBENCH", false, false, false)).as("hands everything back").isTrue();
+    }
 }

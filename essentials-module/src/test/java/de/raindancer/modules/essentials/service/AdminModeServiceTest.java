@@ -271,4 +271,33 @@ class AdminModeServiceTest {
         assertThat(service.isInAdminMode(id)).isTrue();
         verify(loadouts, never()).apply(any(), any());
     }
+
+    @Test
+    @DisplayName("bypass lifts keeping admin items apart for whoever switches it on, only in admin mode, until they leave")
+    void bypass() {
+        when(loadouts.capture(player)).thenReturn(SURVIVAL);
+        when(player.hasPermission(PermissionNodes.ADMIN_BYPASS)).thenReturn(true);
+        assertThat(service.toggleBypass(player)).as("not in admin mode").isFalse();
+        service.toggle(player);
+        assertThat(service.keepsItemsApart(id)).isTrue();
+        assertThat(service.toggleBypass(player)).isTrue();
+        assertThat(service.bypassing(id)).isTrue();
+        assertThat(service.keepsItemsApart(id)).isFalse();
+        assertThat(service.toggleBypass(player)).isTrue();
+        assertThat(service.keepsItemsApart(id)).as("switched off again").isTrue();
+        service.toggleBypass(player);
+        when(loadouts.capture(player)).thenReturn(ADMIN_NOW);
+        service.leave(player);
+        assertThat(service.bypassing(id)).as("gone with admin mode").isFalse();
+    }
+
+    @Test
+    @DisplayName("bypass needs its own permission")
+    void bypassPermission() {
+        when(loadouts.capture(player)).thenReturn(SURVIVAL);
+        service.toggle(player);
+        when(player.hasPermission(PermissionNodes.ADMIN_BYPASS)).thenReturn(false);
+        assertThat(service.toggleBypass(player)).isFalse();
+        assertThat(service.keepsItemsApart(id)).isTrue();
+    }
 }

@@ -35,6 +35,23 @@ public final class AdminKeepApartRule extends AbstractRule<String> {
         return containers ? !"MERCHANT".equals(inventoryType) : mayUseWindow(inventoryType);
     }
 
+    /**
+     * Whether a window may be used by somebody keeping admin items apart.
+     *
+     * @param own     whether the window's inventory is the viewer's own — a player inventory or an ender chest is
+     *                only ever theirs; somebody else's (looked into by staff) never takes admin items
+     * @param inWorld whether a block or an entity in the world holds it — the only containers "use containers" opens
+     */
+    public boolean mayUse(String inventoryType, boolean containers, boolean own, boolean inWorld) {
+        if ("PLAYER".equals(inventoryType) || "ENDER_CHEST".equals(inventoryType)) {
+            return own;
+        }
+        if (mayUseWindow(inventoryType)) {
+            return true;
+        }
+        return containers && inWorld && !"MERCHANT".equals(inventoryType);
+    }
+
     /** What went into a container and what came out, by item name. */
     public record Changes(java.util.Map<String, Integer> in, java.util.Map<String, Integer> out) {
 
@@ -47,9 +64,16 @@ public final class AdminKeepApartRule extends AbstractRule<String> {
             return which.entrySet().stream()
                     .sorted(java.util.Map.Entry.<String, Integer>comparingByValue().reversed()
                             .thenComparing(java.util.Map.Entry.comparingByKey()))
-                    .map(each -> each.getValue() + " " + de.raindancer.core.ui.choose.Catalogue.readable(each.getKey()))
+                    .map(each -> each.getValue() + " " + readable(each.getKey()))
                     .collect(java.util.stream.Collectors.joining(", "));
         }
+    }
+
+    /** "DIAMOND_SWORD (enchanted #1a2b)" → "Diamond Sword (enchanted #1a2b)". */
+    static String readable(String key) {
+        int mark = key.indexOf(" (");
+        return mark < 0 ? de.raindancer.core.ui.choose.Catalogue.readable(key)
+                : de.raindancer.core.ui.choose.Catalogue.readable(key.substring(0, mark)) + key.substring(mark);
     }
 
     /** The difference between two counts of a container's items, by item name. */

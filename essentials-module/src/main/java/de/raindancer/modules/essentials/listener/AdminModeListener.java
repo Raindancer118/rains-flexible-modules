@@ -57,14 +57,39 @@ public final class AdminModeListener implements IEssentialsListener {
     private record Opened(Inventory inventory, java.util.Map<String, Integer> counts) {
     }
 
+    /**
+     * What a container holds, by item — the whole item, not only its kind: a plain diamond sword taken out for an
+     * enchanted one put in is a change, and must read as one.
+     */
     private static java.util.Map<String, Integer> counts(Inventory inventory) {
         java.util.Map<String, Integer> counts = new java.util.HashMap<>();
         for (ItemStack stack : inventory.getContents()) {
             if (stack != null && !stack.getType().isAir()) {
-                counts.merge(stack.getType().name(), stack.getAmount(), Integer::sum);
+                counts.merge(key(stack), stack.getAmount(), Integer::sum);
             }
         }
         return counts;
+    }
+
+    /** An item's kind, and — when it is more than plain — what makes it so and a short fingerprint of exactly what. */
+    private static String key(ItemStack stack) {
+        ItemStack one = stack.asOne();
+        if (!one.hasItemMeta() || one.isSimilar(new ItemStack(one.getType()))) {
+            return one.getType().name();
+        }
+        var meta = one.getItemMeta();
+        java.util.List<String> marks = new java.util.ArrayList<>();
+        if (meta.hasEnchants() || meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta stored && stored.hasStoredEnchants()) {
+            marks.add("enchanted");
+        }
+        if (meta.hasCustomName()) {
+            marks.add("named");
+        }
+        if (marks.isEmpty()) {
+            marks.add("changed");
+        }
+        return one.getType().name() + " (" + String.join(", ", marks) + " #"
+                + Integer.toHexString(java.util.Arrays.hashCode(one.serializeAsBytes())) + ")";
     }
 
     private void audit(Player player, String action, org.bukkit.Location where, String detail) {
@@ -127,8 +152,21 @@ public final class AdminModeListener implements IEssentialsListener {
     /** The audit line for a container somebody in admin mode changed. */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onCloseContainer(org.bukkit.event.inventory.InventoryCloseEvent event) {
-        Opened was = opened.remove(event.getPlayer().getUniqueId());
-        if (was == null || !(event.getPlayer() instanceof Player player) || was.inventory() != event.getView().getTopInventory()) {
+        if (event.getPlayer() instanceof Player player) {
+            written(player);
+        }
+    }
+
+    /** Leaving with a container open writes its line too. */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onQuitWithContainer(org.bukkit.event.player.PlayerQuitEvent event) {
+        written(event.getPlayer());
+    }
+
+    /** Writes the line for the container this player had open in admin mode, if anything in it changed. */
+    private void written(Player player) {
+        Opened was = opened.remove(player.getUniqueId());
+        if (was == null) {
             return;
         }
         AdminKeepApartRule.Changes changes = rule.changes(was.counts(), counts(was.inventory()));
@@ -159,7 +197,20 @@ public final class AdminModeListener implements IEssentialsListener {
     /** A window this player may not use — never one of our own menus, which handle their clicks. */
     private boolean closed(InventoryView view, Player player) {
         Inventory top = view.getTopInventory();
-        return !(top.getHolder(false) instanceof Menu) && !rule.mayUseWindow(top.getType().name(), containers(player));
+        var holder = top.getHolder(false);
+        if (holder instanceof Menu) {
+            return false;
+        }
+        boolean own = holder == null ? !"PLAYER".equals(top.getType().name()) && !"ENDER_CHEST".equals(top.getType().name())
+                : holder.equals(player);
+        if ("ENDER_CHEST".equals(top.getType().name()) && holder == null) {
+            // The ender chest block opens the viewer's own; it is held by the player, so a null holder is a window
+            // somebody built — not theirs.
+            own = false;
+        }
+        boolean inWorld = holder instanceof org.bukkit.block.BlockState || holder instanceof org.bukkit.block.DoubleChest
+                || holder instanceof org.bukkit.entity.Entity && !(holder instanceof Player);
+        return !rule.mayUse(top.getType().name(), containers(player), own, inWorld);
     }
 
     /** A window that keeps what is put in it, in the world — the ones worth a line in the audit log. */

@@ -73,7 +73,30 @@ public final class AdminModeService implements IEssentialsService {
 
     /** Whether this player's items must stay on the admin side right now. */
     public boolean keepsItemsApart(UUID player) {
-        return settings.adminKeepItemsApart() && isInAdminMode(player);
+        return settings.adminKeepItemsApart() && isInAdminMode(player) && !bypassing.contains(player);
+    }
+
+    /** Who lifted keeping admin items apart for themselves — in memory, gone when they leave admin mode or go. */
+    private final java.util.Set<UUID> bypassing = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public boolean bypassing(UUID player) {
+        return bypassing.contains(player);
+    }
+
+    /**
+     * Switches bypass on or off for somebody in admin mode with the right to it.
+     *
+     * @return false, and nothing changed, when they are not in admin mode or may not
+     */
+    public boolean toggleBypass(Player player) {
+        UUID id = player.getUniqueId();
+        if (!isInAdminMode(id) || !player.hasPermission(de.raindancer.modules.essentials.util.PermissionNodes.ADMIN_BYPASS)) {
+            return false;
+        }
+        if (!bypassing.remove(id)) {
+            bypassing.add(id);
+        }
+        return true;
     }
 
     /** Whether somebody keeping items apart may still use containers, frames and the like — logged when they do. */
@@ -141,6 +164,7 @@ public final class AdminModeService implements IEssentialsService {
     /** Anybody in admin mode may always leave it — losing the permission must not lock them in. */
     public boolean leave(Player player) {
         UUID id = player.getUniqueId();
+        bypassing.remove(id);
         if (brokenFile(player)) {
             return false;
         }
@@ -198,6 +222,7 @@ public final class AdminModeService implements IEssentialsService {
     /** They stay in admin mode while away; only what is held in memory goes. */
     public void forget(UUID player) {
         inAdminMode.remove(player);
+        bypassing.remove(player);
         powersOff(player);
     }
 

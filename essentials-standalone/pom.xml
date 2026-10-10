@@ -72,7 +72,7 @@
           1.6.1: /msg answers to /m instead of /w — /w is RainsWorldUtils' world switch, and two plugins
           registering one name leaves Paper to decide which one a player gets.
              1.18.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
-        <plugin.version>1.19.0</plugin.version>
+        <plugin.version>1.20.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -48,7 +48,20 @@ public final class AdminCommand implements IEssentialsCommand {
             }
             case "off" -> live.adminMode().leave(player);
             case "status" -> live.messages().send(player, in ? "essentials.admin.status-in" : "essentials.admin.status-out");
-            default -> live.messages().send(player, "essentials.usage", "usage", "/admin [on|off|status]");
+            case "bypass" -> {
+                if (!player.hasPermission(de.raindancer.modules.essentials.util.PermissionNodes.ADMIN_BYPASS)) {
+                    live.messages().send(player, "essentials.no-permission");
+                } else if (!live.adminMode().toggleBypass(player)) {
+                    live.messages().send(player, "essentials.admin.bypass-not-in");
+                } else {
+                    boolean on = live.adminMode().bypassing(player.getUniqueId());
+                    live.core().audit().record(de.raindancer.core.moderation.audit.AuditEntry.of("essentials",
+                            on ? "switched admin-mode bypass on" : "switched admin-mode bypass off")
+                            .by(player.getUniqueId(), player.getName()));
+                    live.messages().send(player, on ? "essentials.admin.bypass-on" : "essentials.admin.bypass-off");
+                }
+            }
+            default -> live.messages().send(player, "essentials.usage", "usage", "/admin [on|off|status|bypass]");
         }
     }
 
@@ -56,6 +69,6 @@ public final class AdminCommand implements IEssentialsCommand {
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
         return args.length > 1 ? List.of()
-                : List.of("on", "off", "status").stream().filter(word -> word.startsWith(typed)).toList();
+                : List.of("on", "off", "status", "bypass").stream().filter(word -> word.startsWith(typed)).toList();
     }
 }
