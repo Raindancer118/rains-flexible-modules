@@ -76,6 +76,11 @@ public final class AdminModeService implements IEssentialsService {
         return settings.adminKeepItemsApart() && isInAdminMode(player);
     }
 
+    /** Whether somebody keeping items apart may still use containers, frames and the like — logged when they do. */
+    public boolean usesContainers(UUID player) {
+        return settings.adminContainers() && isInAdminMode(player);
+    }
+
     /**
      * A broken file cannot say which side they wear, so they count as in admin mode and stay there until it is
      * fixed: coming out would make whatever they hold their survival inventory.

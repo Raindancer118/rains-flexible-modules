@@ -42,7 +42,7 @@ class WelcomeServiceTest {
     void vanillaLines() {
         EssentialsSettings off = new EssentialsSettings(3, true, 300, true, false, true, true, 16, true, true,
                 List.of(), true, List.of(), true, true, 20, true, true, org.bukkit.GameMode.SURVIVAL, true, false,
-                true, true, true);
+                true, true, true, true);
         WelcomeService welcome = new WelcomeService(messages, chat, mock(ReactionService.class), off);
 
         assertThat(welcome.seemsToLeave(ada, List.of())).isFalse();

@@ -27,6 +27,48 @@ public final class AdminKeepApartRule extends AbstractRule<String> {
         return HANDS_BACK.contains(inventoryType);
     }
 
+    /**
+     * The same, when the owner lets admin mode use containers: every window then, except trading with villagers,
+     * which is not working on the server's things but spending on them.
+     */
+    public boolean mayUseWindow(String inventoryType, boolean containers) {
+        return containers ? !"MERCHANT".equals(inventoryType) : mayUseWindow(inventoryType);
+    }
+
+    /** What went into a container and what came out, by item name. */
+    public record Changes(java.util.Map<String, Integer> in, java.util.Map<String, Integer> out) {
+
+        public boolean none() {
+            return in.isEmpty() && out.isEmpty();
+        }
+
+        /** "64 Diamond, 1 Nether Star", biggest first. */
+        public String says(java.util.Map<String, Integer> which) {
+            return which.entrySet().stream()
+                    .sorted(java.util.Map.Entry.<String, Integer>comparingByValue().reversed()
+                            .thenComparing(java.util.Map.Entry.comparingByKey()))
+                    .map(each -> each.getValue() + " " + de.raindancer.core.ui.choose.Catalogue.readable(each.getKey()))
+                    .collect(java.util.stream.Collectors.joining(", "));
+        }
+    }
+
+    /** The difference between two counts of a container's items, by item name. */
+    public Changes changes(java.util.Map<String, Integer> before, java.util.Map<String, Integer> after) {
+        java.util.Map<String, Integer> in = new java.util.TreeMap<>();
+        java.util.Map<String, Integer> out = new java.util.TreeMap<>();
+        java.util.Set<String> names = new java.util.TreeSet<>(before.keySet());
+        names.addAll(after.keySet());
+        for (String name : names) {
+            int delta = after.getOrDefault(name, 0) - before.getOrDefault(name, 0);
+            if (delta > 0) {
+                in.put(name, delta);
+            } else if (delta < 0) {
+                out.put(name, -delta);
+            }
+        }
+        return new Changes(in, out);
+    }
+
     /** @param material the clicked block's material name */
     public boolean mayUseBlock(String material) {
         return !TAKES_FROM_HAND.contains(material) && !material.endsWith("SHELF");
