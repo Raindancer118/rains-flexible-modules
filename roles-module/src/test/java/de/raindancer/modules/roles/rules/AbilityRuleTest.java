@@ -39,6 +39,18 @@ class AbilityRuleTest {
     }
 
     @Test
+    @DisplayName("a butcher's extra is the animal's own meat — never what it carried, like a donkey's golden apples")
+    void meat() {
+        assertThat(rule.meat("BEEF")).isTrue();
+        assertThat(rule.meat("COOKED_PORKCHOP")).as("killed while burning").isTrue();
+        assertThat(rule.meat("MUTTON")).isTrue();
+        assertThat(rule.meat("GOLDEN_APPLE")).isFalse();
+        assertThat(rule.meat("ENCHANTED_GOLDEN_APPLE")).isFalse();
+        assertThat(rule.meat("GOLDEN_CARROT")).isFalse();
+        assertThat(rule.meat("BREAD")).isFalse();
+    }
+
+    @Test
     @DisplayName("ore luck is for ore that drops something else: not a silk-touched block, not stone")
     void fortune() {
         assertThat(rule.lucky("IRON_ORE", "RAW_IRON")).isTrue();

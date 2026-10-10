@@ -26,7 +26,7 @@
         <!-- 0.1.0: /role — pick a role, change it after three days (staff: /role bypass); the role's perks change shop prices through Core's PriceModifiers. -->
         <!-- 0.2.0: perks grow with how long a role is kept (start share, full after days), smaller and capped at 25%; the role on /player.
              0.4.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
-        <plugin.version>0.6.0</plugin.version>
+        <plugin.version>0.6.1</plugin.version>
     </properties>
 
     <dependencies>

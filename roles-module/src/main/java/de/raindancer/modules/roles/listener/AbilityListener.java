@@ -158,6 +158,14 @@ public final class AbilityListener implements IRolesListener {
         }
     }
 
+    /** A break somebody else's plugin cancelled after the luck was drawn drops nothing; its mark goes. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onOreCancelled(org.bukkit.event.block.BlockBreakEvent event) {
+        if (event.isCancelled()) {
+            lucky.remove(where(event.getBlock()));
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onOreDrops(BlockDropItemEvent event) {
         if (!lucky.remove(where(event.getBlock())) || event.getItems().isEmpty()) {
@@ -203,7 +211,7 @@ public final class AbilityListener implements IRolesListener {
         if (percent <= 0 || !rule.happens(percent, roll())) {
             return;
         }
-        event.getDrops().stream().filter(drop -> drop != null && drop.getType().isEdible()).findFirst()
+        event.getDrops().stream().filter(drop -> drop != null && rule.meat(drop.getType().name())).findFirst()
                 .ifPresent(food -> {
                     ItemStack one = food.clone();
                     one.setAmount(1);

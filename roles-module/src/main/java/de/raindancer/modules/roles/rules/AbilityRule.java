@@ -26,6 +26,18 @@ public final class AbilityRule implements IRolesRule {
         return roll < exact - whole ? whole + 1 : whole;
     }
 
+    private static final java.util.Set<String> MEAT = java.util.Set.of("BEEF", "PORKCHOP", "CHICKEN", "MUTTON",
+            "RABBIT", "COD", "SALMON", "COOKED_BEEF", "COOKED_PORKCHOP", "COOKED_CHICKEN", "COOKED_MUTTON",
+            "COOKED_RABBIT", "COOKED_COD", "COOKED_SALMON");
+
+    /**
+     * Whether a drop is meat an animal gives of itself. Anything else among its drops — a donkey's chest, a
+     * llama's — it was carrying, and copying that would duplicate whatever somebody put there.
+     */
+    public boolean meat(String material) {
+        return MEAT.contains(material);
+    }
+
     /** Whether a block and what it dropped are ore giving its yield — not a silk-touched block, not anything else. */
     public boolean lucky(String block, String dropped) {
         return block.endsWith("_ORE") && !block.equals(dropped);
