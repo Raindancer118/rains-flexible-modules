@@ -24,7 +24,7 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.3.build.169-beta</paper.api.version>
-        <rainscore.version>1.97.0</rainscore.version>
+        <rainscore.version>1.98.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
