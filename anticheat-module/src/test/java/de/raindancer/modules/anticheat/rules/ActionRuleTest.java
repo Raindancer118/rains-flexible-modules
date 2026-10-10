@@ -38,15 +38,15 @@ class ActionRuleTest {
     }
 
     @Test
-    @DisplayName("kick at the kick level; at the ban level the server's rules decide, or a ban if the owner switched bans on")
+    @DisplayName("kick at the kick level; never anything at the ban level unless the owner switched bans on")
     void punishes() {
         ActionRule.Decision atKick = rule.decide(CheckType.FLY, CheckType.FLY.kickAt(), defaults);
         assertThat(atKick.kick()).isTrue();
         assertThat(atKick.ban()).isFalse();
         assertThat(rule.decide(CheckType.FLY, CheckType.FLY.banAt(), defaults).ban())
-                .as("punished by the rules out of the box").isTrue();
-        assertThat(rule.decide(CheckType.FLY, CheckType.FLY.banAt(), with(false, false, List.of(), List.of(), 100)).ban())
-                .as("neither rules nor bans: the kick level is the most that happens").isFalse();
+                .as("bans stay off until the owner switches them on, rules or not").isFalse();
+        assertThat(rule.decide(CheckType.FLY, CheckType.FLY.banAt(), with(false, true, List.of(), List.of(), 100)).ban())
+                .as("punishing by the rules only says what a ban level costs, not that it costs anything").isFalse();
         assertThat(rule.decide(CheckType.STRAFE, 1000, defaults).ban()).as("a check without a ban level never").isFalse();
 
         ActionRule.Decision banned = rule.decide(CheckType.FLY, CheckType.FLY.banAt(), with(true, List.of(), List.of(), 100));

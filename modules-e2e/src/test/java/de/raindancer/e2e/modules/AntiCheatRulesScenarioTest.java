@@ -40,6 +40,8 @@ class AntiCheatRulesScenarioTest {
             assertThat(server.console("rules")).as("a new server starts with the friendly-smp rules").contains("No cheating");
             // Straight to the ban level: no kick on the way, and a level a few hits reach.
             assertThat(server.console("settings set auto-kick false")).contains("is now");
+            assertThat(server.console("settings set auto-ban true")).as("the rules punish only where bans are on")
+                    .contains("is now");
             assertThat(server.console("settings set punish-scale 10")).contains("is now");
 
             Bot ada = server.admin("Ada");

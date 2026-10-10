@@ -79,9 +79,9 @@ public record AntiCheatSettings(
         boolean autoKick,
 
         @In("anticheat/actions") @Title("Ban")
-        @Describe("A player whose violation level reaches a check's ban level is banned for the ban length "
-                + "below — when the server's rules do not decide it instead (see 'Punish by the rules'). Off by "
-                + "default: only checks that cannot fail by accident have a ban level at all.")
+        @Describe("A player whose violation level reaches a check's ban level is punished: by the server's "
+                + "rules (see 'Punish by the rules'), else banned for the ban length below. Off by default: only "
+                + "checks that cannot fail by accident have a ban level at all, and nothing happens there while off.")
         @Key("auto-ban")
         boolean autoBan,
 
@@ -91,10 +91,10 @@ public record AntiCheatSettings(
         String banLength,
 
         @In("anticheat/actions") @Title("Punish by the rules")
-        @Describe("A player reaching a check's ban level gets what the server's rule about cheating (/rules) "
-                + "says, counted like a moderator hands it out: 1st offence, 2nd, … At most once every five "
-                + "minutes per player. Needs the rules and the moderation module; without them, or when that "
-                + "rule has no punishments, 'Ban' decides, and with that off it stays at the kick.")
+        @Describe("With 'Ban' on, a player reaching a check's ban level gets what the server's rule about "
+                + "cheating (/rules) says instead of the fixed ban, counted like a moderator hands it out: 1st "
+                + "offence, 2nd, … At most once every five minutes per player. Needs the rules and the moderation "
+                + "module; without them, or when that rule has no punishments, the fixed ban is used.")
         @Key("punish-by-rules")
         boolean punishByRules,
 

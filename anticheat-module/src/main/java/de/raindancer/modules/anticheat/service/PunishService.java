@@ -62,7 +62,7 @@ public final class PunishService implements IAntiCheatService {
         });
     }
 
-    /** The ban level is reached: the rules' next punishment, else a fixed ban if switched on, else a kick. */
+    /** The ban level is reached with bans on: the rules' next punishment, else the fixed ban. */
     public void atBanLevel(Player player, PlayerTrack track, CheckType check, double level) {
         if (track.kicking) {
             return;
@@ -99,12 +99,7 @@ public final class PunishService implements IAntiCheatService {
     }
 
     private void withoutRules(Player player, PlayerTrack track, CheckType check, double level) {
-        AntiCheatSettings now = settings;
-        if (now.autoBan()) {
-            ban(player, track, check, level);
-        } else if (now.autoKick()) {
-            kick(player, track, check, level);
-        }
+        ban(player, track, check, level);
     }
 
     /** A fresh start: their next offence may be punished at once. */
