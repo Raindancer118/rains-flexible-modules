@@ -59,7 +59,8 @@ class MaintenanceScenarioTest {
             assertThat(bo.rejoin().isOnline()).isTrue();
 
             // The update wording, as somebody turned away reads it.
-            ada.runAndExpect("maintenance on update 3", "sent off in 20 s");
+            ada.runAndExpect("maintenance on update 3", "sent off in 60 s");
+            bo.expectChat("starts in 60 s. (We're updating; back in about 3 minutes)");
             assertThat(server.paper.bot("Eve").joinRefused())
                     .contains("Hey you! We're updating the server and expect to be back in about 3 minutes. Please try again then!");
             ada.runAndExpect("maintenance off", "Maintenance mode is off");
