@@ -11,7 +11,7 @@ anticheat:
   no-permission: "<red>You do not have permission to do that."
   info-clean: "<green> No failed checks."
   log-empty: "<green>No evidence against <white><player></white>."
-  reset: "<green><white><player></white>'s violation levels are cleared."
+  reset: "<green><white><player></white>'s record is cleared: violation levels, evidence and replays."
   replay-none: "<gray>No replays of <white><player></white>. Replays are kept when a check alerts."
   check-now-on: "<green><white><check></white> is on."
   check-now-off: "<gray><white><check></white> is off."

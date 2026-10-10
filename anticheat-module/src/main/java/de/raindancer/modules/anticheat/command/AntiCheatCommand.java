@@ -89,13 +89,9 @@ public final class AntiCheatCommand implements BasicCommand {
                 });
             }
             case "reset" -> {
-                if (!manage(live, sender)) {
-                    return;
+                if (manage(live, sender)) {
+                    reset(live, sender, args);
                 }
-                withPlayer(live, sender, args, target -> {
-                    live.tracks().of(target).violations().resetAll();
-                    live.messages().send(sender, "anticheat.reset", "player", target.getName());
-                });
             }
             case "checks" -> checks(live, sender);
             case "status" -> status(live, sender);
@@ -129,6 +125,22 @@ public final class AntiCheatCommand implements BasicCommand {
                 "deviation", String.format(Locale.ROOT, "%.1f", clicks.deviation()),
                 "kurtosis", String.format(Locale.ROOT, "%.2f", clicks.kurtosis()),
                 "skewness", String.format(Locale.ROOT, "%.2f", clicks.skewness()));
+    }
+
+    /** A fresh start: levels, evidence and replays, for a player online or not. */
+    private static void reset(AntiCheatServices live, CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            live.messages().send(sender, "anticheat.usage");
+            return;
+        }
+        UUID who = resolve(live, args[1]);
+        if (who == null) {
+            live.messages().send(sender, "anticheat.no-record", "player", args[1]);
+            return;
+        }
+        String name = live.evidence().nameOf(who);
+        live.violations().freshStart(who, live.tracks().find(who).orElse(null));
+        live.messages().send(sender, "anticheat.reset", "player", name == null ? args[1] : name);
     }
 
     private void log(AntiCheatServices live, CommandSender sender, String[] args) {
@@ -276,7 +288,13 @@ public final class AntiCheatCommand implements BasicCommand {
         if (args.length <= 1) {
             options.addAll(SUBCOMMANDS);
         } else if (args.length == 2 && !List.of("alerts", "verbose", "checks", "status").contains(args[0].toLowerCase(Locale.ROOT))) {
-            services.get().server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
+            AntiCheatServices live = services.get();
+            live.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
+            if (List.of("log", "replay", "reset").contains(args[0].toLowerCase(Locale.ROOT))) {
+                // Offline players with a record can be looked up and cleared too.
+                live.evidence().everybody().stream().map(live.evidence()::nameOf)
+                        .filter(name -> name != null && !options.contains(name)).forEach(options::add);
+            }
         } else if (args.length == 3 && args[0].equalsIgnoreCase("exempt")) {
             options.addAll(List.of("30", "60", "300", "3600"));
         }

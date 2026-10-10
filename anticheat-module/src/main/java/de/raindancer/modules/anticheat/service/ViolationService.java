@@ -95,6 +95,22 @@ public final class ViolationService implements IAntiCheatService {
         lastReplay.keySet().removeIf(key -> key.startsWith(player.toString()));
     }
 
+    /**
+     * Forgets everything the anti-cheat holds against a player: levels, evidence and replays. The track
+     * is null for a player who is offline, who has no levels to clear.
+     */
+    public void freshStart(java.util.UUID player, PlayerTrack track) {
+        if (track != null) {
+            track.violations().resetAll();
+        }
+        evidence.clear(player);
+        de.raindancer.modules.anticheat.store.ReplayStore store = replays;
+        if (store != null) {
+            store.clear(player);
+        }
+        forget(player);
+    }
+
     /** Where frozen replays go; without one, alerts keep no replay. */
     public void replaysTo(de.raindancer.modules.anticheat.store.ReplayStore store) {
         this.replays = store;

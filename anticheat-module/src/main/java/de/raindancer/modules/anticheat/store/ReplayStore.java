@@ -33,6 +33,11 @@ public final class ReplayStore {
         dirty.set(true);
     }
 
+    public void clear(UUID who) {
+        replays.clear(who);
+        dirty.set(true);
+    }
+
     public void load() {
         ConfigurationSection players = store.read().getConfigurationSection("players");
         if (players == null) {

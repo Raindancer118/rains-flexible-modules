@@ -115,11 +115,13 @@ public final class PlayerChecksMenu extends PaginatedMenu<CheckType> implements 
                     services.messages().send(viewer, "anticheat.exempted", "player", track.name(), "seconds", 60);
                 });
         if (manage) {
-            danger(Icons.of(Material.LAVA_BUCKET, "<red>Clear their record", "<gray>Sets every violation level back to zero.",
-                    "<dark_gray>Evidence already written is kept."), click -> new ConfirmMenu(viewer, services.chat().brand(), this,
-                    "Clear " + track.name() + "'s violation levels?", List.of("<gray>Every check starts from zero for them."),
+            danger(Icons.of(Material.LAVA_BUCKET, "<red>Clear their record", "<gray>A fresh start: violation levels,",
+                    "<gray>evidence and replays are deleted.", "<dark_gray>Kicks and bans stay in their history."),
+                    click -> new ConfirmMenu(viewer, services.chat().brand(), this,
+                    "Clear " + track.name() + "'s whole record?", List.of("<gray>Every check starts from zero for them,",
+                    "<gray>and their evidence and replays are gone for good."),
                     () -> {
-                        track.violations().resetAll();
+                        services.violations().freshStart(track.id(), track);
                         services.messages().send(viewer, "anticheat.reset", "player", track.name());
                     }).open());
         } else {

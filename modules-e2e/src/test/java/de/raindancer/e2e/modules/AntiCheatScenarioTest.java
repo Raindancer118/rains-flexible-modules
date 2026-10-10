@@ -259,6 +259,14 @@ class AntiCheatScenarioTest {
             assertThat(chat).noneMatch(line -> line.contains("Legit"));
             assertThat(server.console("anticheat log Far")).contains("Reach");
             ada.runAndExpect("anticheat replay Hover", "Replay 1/");
+
+            assertThat(server.console("anticheat reset Far")).contains("record is wiped");
+            assertThat(server.console("anticheat info Far")).as("an online player's levels are cleared").contains("Squeaky clean");
+            assertThat(server.console("anticheat log Far")).as("and their evidence").contains("No evidence");
+            hover.leave();
+            assertThat(server.console("anticheat reset Hover")).as("an offline player can be cleared too").contains("record is wiped");
+            assertThat(server.console("anticheat log Hover")).contains("No evidence");
+            ada.runAndExpect("anticheat replay Hover", "No replays");
             assertThat(server.paper.errorsFrom("RainsCore", "RainsAntiCheat")).isEmpty();
         }
     }

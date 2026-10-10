@@ -48,6 +48,10 @@ public final class Replays {
         return Set.copyOf(replays.keySet());
     }
 
+    public void clear(UUID who) {
+        replays.remove(who);
+    }
+
     public void restore(UUID who, List<Replay> saved) {
         Deque<Replay> theirs = new ArrayDeque<>(saved);
         replays.put(who, theirs);
