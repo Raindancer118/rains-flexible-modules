@@ -440,7 +440,14 @@ public final class ShopService implements IEconomyService {
             refuse(player, "economy.shop.nothing-in-hand");
             return;
         }
-        if (!live.enchantedSelling() || CashTags.isCash(held) || de.raindancer.core.content.items.NonIngredients.isMarked(held)
+        if (!live.sellingEnabled()) {
+            refuse(player, "economy.shop.selling-off");
+            return;
+        }
+        // The same gates as selling the whole item: what the shop does not buy, it does not buy the enchantments of.
+        PriceTag tag = tag(held.getType() == Material.ENCHANTED_BOOK ? Material.BOOK : held.getType());
+        if (!live.enchantedSelling() || !tag.sellable() || CashTags.isCash(held)
+                || de.raindancer.core.content.items.NonIngredients.isMarked(held)
                 || de.raindancer.core.content.items.InsuredItems.isInsured(held) || !onlyWornOrEnchanted(held)) {
             refuse(player, "economy.shop.no-enchantments");
             return;
