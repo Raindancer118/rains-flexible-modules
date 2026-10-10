@@ -191,7 +191,7 @@ roles:
     abilities:
       - harvest: 10
     perks:
-      - sell: 12
+      - sell: 20
         items: [ "*_sapling", "*_leaves", "*_seeds", "*_mushroom", "*_fungus", "*_roots", "*_tulip", "*_petals",
                  dandelion, poppy, blue_orchid, allium, azure_bluet, oxeye_daisy, cornflower, lily_of_the_valley,
                  wither_rose, torchflower, sunflower, lilac, rose_bush, peony, pitcher_plant, pitcher_pod,

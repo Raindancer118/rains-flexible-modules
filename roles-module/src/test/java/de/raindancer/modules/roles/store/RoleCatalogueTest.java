@@ -244,6 +244,8 @@ class RoleCatalogueTest {
             assertThat(rule.change(biologist, drop, TradeSide.SELL)).as(drop).hasValueSatisfying(
                     change -> assertThat(change.percent()).isPositive());
         }
+        assertThat(rule.change(biologist, "POPPY", TradeSide.SELL)).as("plants: up to 20%")
+                .hasValueSatisfying(change -> assertThat(change.percent()).isEqualTo(20));
         assertThat(rule.change(biologist, "DIAMOND", TradeSide.SELL)).as("not a plant, not a drop").isEmpty();
         assertThat(rule.change(biologist, "OAK_PLANKS", TradeSide.SELL)).as("made from a plant is not a plant").isEmpty();
     }
