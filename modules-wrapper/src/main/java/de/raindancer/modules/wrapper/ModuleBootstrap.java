@@ -64,6 +64,9 @@ public final class ModuleBootstrap implements PluginBootstrap {
             // One /prefix per server, for the same reason: Core declines every plugin but the first.
             // Its permission, rainscore.prefix, is declared nowhere: undeclared Core nodes are op-only.
             de.raindancer.core.platform.command.CoreCommands.prefix(event.registrar());
+            // And one /changelog: what changed, told to returning players once. Publishing is
+            // rainscore.changelog.manage, op-only like every undeclared Core node.
+            de.raindancer.core.platform.command.CoreCommands.changelog(event.registrar());
         });
     }
 }
