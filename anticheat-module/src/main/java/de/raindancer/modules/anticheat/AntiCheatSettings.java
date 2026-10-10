@@ -56,7 +56,8 @@ public record AntiCheatSettings(
         @In("anticheat") @Title("Leave translated clients alone")
         @Describe("Players joining with another game version through ViaVersion send their moves translated, "
                 + "by that version's physics and packet order. On, movement and packet checks leave them "
-                + "alone; combat, world and inventory checks still run. /anticheat info shows their version.")
+                + "alone; combat, world and inventory checks still run. Off by default: a cheat client can "
+                + "simply pick an old version to slip past those checks. /anticheat info shows their version.")
         @Key("exempt-translated")
         boolean exemptTranslated,
 
@@ -211,7 +212,7 @@ public record AntiCheatSettings(
         int dampenPercent) {
 
     public static final AntiCheatSettings DEFAULTS = new AntiCheatSettings(
-            true, true, 17.0, 600, true, true,
+            true, true, 17.0, 600, true, false,
             true, true, true, true, false, "7d", true, "auto", 100, true, 200,
             List.of(), List.of(), true, 0.3, 150, 20,
             List.of("wurst", "meteor", "liquidbounce", "aristois", "rusherhack", "konas", "bleachhack",

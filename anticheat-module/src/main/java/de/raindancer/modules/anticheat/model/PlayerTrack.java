@@ -181,6 +181,7 @@ public final class PlayerTrack {
         public int jesusTicks;
         public int glideClimbTicks;
         public int vehicleClimbTicks;
+        public final Excuses excuses = new Excuses();
         /**
          * Pending knockback: vx, vy, vz, sentAtMillis, highestRiseSince, blocked (1 when a ceiling, liquid
          * or web could explain it), transaction id (0 none), millis the client confirmed it (0 not yet).

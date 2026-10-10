@@ -131,8 +131,9 @@ class AntiCheatHonestScenarioTest {
             // Facing south, walking east: only the left key is down — the omni-sprint a cheat gives.
             sideways.keys(false, false, true, false, false, false, true).sprinting(true);
             Await.ticks(20);
-            // Lilly's SMP runs at 17-19 tps: the server judges fewer ticks than the clients send.
-            server.console("tick rate 18");
+            // Lilly's SMP runs at 17-19 tps: the server judges fewer ticks than the clients send. Not 18: on a
+            // busy test machine that dips under min-tps 17, and the movement checks rightly pause.
+            server.console("tick rate 19");
 
             List<Thread> walkers = new ArrayList<>();
             for (Strip strip : STRIPS) {

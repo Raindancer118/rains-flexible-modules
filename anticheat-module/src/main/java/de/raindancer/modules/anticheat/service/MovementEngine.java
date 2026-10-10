@@ -373,9 +373,12 @@ public final class MovementEngine implements IAntiCheatService {
         int maxX = (int) Math.floor(Math.max(m.x, sample.x()) + half);
         int maxY = (int) Math.floor(Math.max(m.y, sample.y()) + height);
         int maxZ = (int) Math.floor(Math.max(m.z, sample.z()) + half);
-        return track.packets.blocks.uncertain(minX, minY, minZ, maxX, maxY, maxZ, track.now(), patienceMillis)
-                || BlockChanges.changedSince(world, minX, minY, minZ, maxX, maxY, maxZ,
-                        sample.nanos() - pingMillis * 1_000_000L - MOVE_MARGIN_NANOS);
+        if (track.packets.blocks.uncertain(minX, minY, minZ, maxX, maxY, maxZ, track.now(), patienceMillis)) {
+            return true;
+        }
+        // Rationed: changing blocks around oneself every tick must not make every move unjudgeable.
+        return track.movement.excuses.grant(BlockChanges.changedSince(world, minX, minY, minZ, maxX, maxY, maxZ,
+                sample.nanos() - pingMillis * 1_000_000L - MOVE_MARGIN_NANOS));
     }
 
     private boolean judgeHorizontal(Player player, PlayerTrack track, MoveSample sample, double hd, double dy,
