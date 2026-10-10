@@ -63,6 +63,7 @@ class RoleServiceTest {
                         roles:
                           cook:
                             perks: [ { buy: 25, items: [ bread ] } ]
+                            abilities: [ { hunger: 20 } ]
                           builder:
                             perks: [ { buy: 20, items: [ stone ] } ]
                         """.getBytes(StandardCharsets.UTF_8)));
@@ -145,7 +146,7 @@ class RoleServiceTest {
         assertThat(PriceModifiers.buy(UUID.randomUUID(), "BREAD", Money.of(1000)).price()).isEqualTo(Money.of(1000));
 
         PriceModifiers.clear();
-        RolesSettings off = new RolesSettings(false, 72, true, true, 40, 14, false);
+        RolesSettings off = new RolesSettings(false, true, 72, true, true, 40, 14, false);
         PriceModifiers.provide(mock(org.bukkit.plugin.Plugin.class), new RolePrices(service, () -> off));
         assertThat(PriceModifiers.buy(tomId, "BREAD", Money.of(1000)).price()).isEqualTo(Money.of(1000));
     }
@@ -181,5 +182,32 @@ class RoleServiceTest {
         assertThat(stuck.choose(tom, cook)).isFalse();
         verify(messages).send(eq(tom), eq("roles.not-saved"), any(Object[].class));
         assertThat(Files.readString(file)).contains("nope");
+    }
+
+    @Test
+    @DisplayName("an ability starts at the share a new role gets, grows to full, and is nothing when switched off")
+    void abilities() {
+        var hunger = de.raindancer.modules.roles.model.AbilityKind.HUNGER;
+        assertThat(service.abilityNow(tomId, hunger)).as("no role, no ability").isZero();
+        service.choose(tom, cook);
+        assertThat(service.abilityNow(tomId, hunger)).isEqualTo(8);
+        assertThat(service.abilityNow(tomId, de.raindancer.modules.roles.model.AbilityKind.SPEED)).isZero();
+        now.addAndGet(Duration.ofDays(14).toMillis());
+        assertThat(service.abilityNow(tomId, hunger)).isEqualTo(20);
+        service.settings(new RolesSettings(true, false, 72, true, true, 40, 14, false));
+        assertThat(service.abilityNow(tomId, hunger)).isZero();
+    }
+
+    @Test
+    @DisplayName("whoever needs to know hears of every change of role, picked or set by staff")
+    void tellsOfChanges() {
+        List<UUID> heard = new java.util.ArrayList<>();
+        service.onChange(heard::add);
+        service.choose(tom, cook);
+        service.set(tomId, Optional.empty());
+        service.choose(tom, cook);
+        now.addAndGet(HOUR);
+        service.choose(tom, builder);
+        assertThat(heard).as("the refused change is not heard").containsExactly(tomId, tomId, tomId);
     }
 }

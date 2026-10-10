@@ -22,6 +22,12 @@ public record RolesSettings(
                 + "same as everybody else.")
         @Key("perks") boolean perks,
 
+        @In("roles") @Title("Roles have abilities")
+        @Describe("Small things a role does better in the game: a Cook gets hungry slower, a Miner's pickaxe "
+                + "wears less, a Hunter hits monsters a little harder. They grow with the role like the perks. "
+                + "Off, roles only change prices.")
+        @Key("abilities") boolean abilities,
+
         @In("roles") @Title("Change role again after") @Range(min = 0, max = 8760)
         @Describe("Hours between one choice and the next. The first role is picked whenever; staff with "
                 + "/role bypass skip the wait. Zero lets anybody change whenever they like.")
@@ -49,7 +55,7 @@ public record RolesSettings(
                 + "stay closed, nothing is charged and no rent is collected.")
         @Key("sell-roles") boolean sellRoles) {
 
-    public static final RolesSettings DEFAULTS = new RolesSettings(true, 72, true, true, 40, 14, false);
+    public static final RolesSettings DEFAULTS = new RolesSettings(true, true, 72, true, true, 40, 14, false);
 
     public Duration changeEvery() {
         return Duration.ofHours(Math.max(0, changeEveryHours));

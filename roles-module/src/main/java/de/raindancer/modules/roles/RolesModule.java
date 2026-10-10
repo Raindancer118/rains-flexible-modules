@@ -8,7 +8,11 @@ import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.core.ui.profile.ProfileExtensions;
+import de.raindancer.modules.roles.listener.AbilityListener;
 import de.raindancer.modules.roles.listener.RoleListener;
+import de.raindancer.core.social.roles.HeldRole;
+import de.raindancer.core.social.roles.PlayerRoles;
+import de.raindancer.core.social.roles.RoleSource;
 import de.raindancer.modules.roles.screen.RoleProfileButton;
 import de.raindancer.modules.roles.service.RolePrices;
 import de.raindancer.modules.roles.service.RoleService;
@@ -29,8 +33,8 @@ import java.util.List;
  */
 public final class RolesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.4.0")
-            .describedAs("Pick a role with /role — a cook, a builder, an explorer… — and pay less in the shop for what it works with")
+    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.5.0")
+            .describedAs("Pick a role with /role — a cook, a builder, an explorer… — pay less in the shop for what it works with, and do it a little better in the game")
             .by("Raindancer118");
 
     @Override
@@ -81,10 +85,21 @@ public final class RolesModule implements FlexModule {
         context.closeWith(() -> PriceModifiers.retract(prices));
 
         context.listener(new RoleListener(services));
+        AbilityListener abilities = new AbilityListener(services);
+        context.listener(abilities);
+        service.onChange(abilities::refresh);
+        settings.onChange(changed -> context.plugin().getServer().getOnlinePlayers().forEach(abilities::refresh));
+        context.closeWith(abilities::strip);
+        RoleSource source = player -> service.roleOf(player)
+                .map(role -> new HeldRole(role.id(), role.title(), role.colour()));
+        PlayerRoles.provide(context.plugin(), source);
+        context.closeWith(() -> PlayerRoles.retract(source));
         // Rent runs on real time, so it is collected here as well as at join: a server nobody leaves would never see a join.
+        // Speed and reach grow with the role, so they are put on again at the same time.
         var rentTimer = Scheduling.globalTimer(context.plugin(), 20L * 60, 20L * 60 * 5, task -> {
             for (Player online : context.plugin().getServer().getOnlinePlayers()) {
                 Scheduling.entity(context.plugin(), online, () -> RoleListener.collectRent(services, online));
+                abilities.refresh(online);
             }
         });
         if (rentTimer != null) {

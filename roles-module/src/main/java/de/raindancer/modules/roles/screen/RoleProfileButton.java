@@ -43,6 +43,8 @@ public final class RoleProfileButton implements ProfileExtension, IRolesScreen {
                 lore.add("<green>✔ <white>" + MiniMessage.miniMessage().escapeTags(
                         perk.says(live.roles().perkNow(subject.getUniqueId(), perk.percent()))));
             }
+            role.get().abilities().forEach(ability -> lore.add("<aqua>✦ <white>" + MiniMessage.miniMessage().escapeTags(
+                    ability.says(live.roles().abilityNow(subject.getUniqueId(), ability)))));
         }
         if (self) {
             lore.add("");

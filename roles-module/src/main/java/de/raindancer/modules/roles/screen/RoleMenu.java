@@ -7,6 +7,7 @@ import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.roles.RolesServices;
 import de.raindancer.modules.roles.model.ChangeVerdict;
+import de.raindancer.modules.roles.model.Ability;
 import de.raindancer.modules.roles.model.Perk;
 import de.raindancer.modules.roles.model.Role;
 import de.raindancer.modules.roles.model.Ownership;
@@ -64,8 +65,9 @@ public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen 
         Duration left = services.roles().left(viewer.getUniqueId());
         List<String> lore = new ArrayList<>();
         if (mine.isEmpty()) {
-            lore.add("<gray>Pick one below. Each pays less");
-            lore.add("<gray>in the shop for different things.");
+            lore.add("<gray>Pick one below. Each pays less in the");
+            lore.add("<gray>shop for different things, and does");
+            lore.add("<gray>something a little better in the game.");
         } else if (left.isZero()) {
             lore.add("<green>You can change it now.");
         } else {
@@ -115,6 +117,12 @@ public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen 
             String grows = now == perk.percent() ? "" : " <dark_gray>→ " + Math.abs(perk.percent()) + "%";
             lore.add("<green>✔ <white>" + MiniMessage.miniMessage().escapeTags(perk.says(now)) + grows);
         }
+        for (Ability ability : role.abilities()) {
+            int now = mine ? services.roles().abilityNow(viewer.getUniqueId(), ability)
+                    : services.roles().perkFresh(ability.percent());
+            String grows = now == ability.percent() ? "" : " <dark_gray>→ " + ability.percent() + "%";
+            lore.add("<aqua>✦ <white>" + MiniMessage.miniMessage().escapeTags(ability.says(now)) + grows);
+        }
         if (!mine && services.roles().fullAfterDays() > 0 && role.perks().stream()
                 .anyMatch(perk -> services.roles().perkFresh(perk.percent()) != perk.percent())) {
             lore.add("<dark_gray>Perks start small and grow to full");
@@ -122,6 +130,9 @@ public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen 
         }
         if (!services.settings().get().perks()) {
             lore.add("<dark_gray>Perks are switched off on this server.");
+        }
+        if (!role.abilities().isEmpty() && !services.settings().get().abilities()) {
+            lore.add("<dark_gray>Abilities are switched off on this server.");
         }
         boolean open = services.roles().may(viewer.getUniqueId(), role);
         priceLines(role, open, lore);
@@ -221,6 +232,8 @@ public final class RoleMenu extends PaginatedMenu<Role> implements IRolesScreen 
         List<String> consequences = new ArrayList<>();
         role.perks().forEach(perk -> consequences.add("<gray>" + MiniMessage.miniMessage().escapeTags(
                 perk.says(services.roles().perkFresh(perk.percent()))) + " <dark_gray>→ " + Math.abs(perk.percent()) + "%"));
+        role.abilities().forEach(ability -> consequences.add("<aqua>" + MiniMessage.miniMessage().escapeTags(
+                ability.says(services.roles().perkFresh(ability.percent()))) + " <dark_gray>→ " + ability.percent() + "%"));
         String closing = verdict.reason() == ChangeVerdict.Reason.BYPASS || services.roles().holdsFor().isZero()
                 ? "<dark_gray>You can change again whenever you like."
                 : "<dark_gray>You can change again in " + Times.describe(services.roles().holdsFor()) + ".";

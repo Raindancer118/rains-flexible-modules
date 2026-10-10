@@ -7,7 +7,7 @@ roles:
   same: "<gray>You are <article> <role> <gray>already."
   unknown: "<red>There is no role called <white><name></white>. <gray><white>/role</white> shows them all."
   not-saved: "<red>That could not be saved, so nothing changed. Staff: choices.yml cannot be read."
-  no-role-yet: "<gray>You have no role yet. <white>/role</white> — a cook, a builder, an explorer… each pays less in the shop for different things."
+  no-role-yet: "<gray>You have no role yet. <white>/role</white> — a cook, a builder, an explorer… each pays less in the shop for different things and is a little better at something."
   only-a-player: "<red>Only a player has a role."
   never-here: "<red><white><player></white> has never been on this server."
   bypass-on: "<green>Bypass on: you can change role whenever you like. <gray>/role bypass again turns it off; leaving does too."

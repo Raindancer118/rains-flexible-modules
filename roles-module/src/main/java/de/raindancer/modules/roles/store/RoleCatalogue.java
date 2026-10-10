@@ -5,6 +5,8 @@ import de.raindancer.core.social.economy.TradeSide;
 import de.raindancer.core.ui.choose.Catalogue;
 import de.raindancer.core.ui.choose.Category;
 import de.raindancer.core.ui.choose.ItemSelection;
+import de.raindancer.modules.roles.model.Ability;
+import de.raindancer.modules.roles.model.AbilityKind;
 import de.raindancer.modules.roles.model.Perk;
 import de.raindancer.modules.roles.model.Role;
 import org.bukkit.configuration.ConfigurationSection;
@@ -88,9 +90,13 @@ public final class RoleCatalogue {
             }
             ConfigurationSection section = all.getConfigurationSection(id);
             List<Perk> perks = new ArrayList<>();
+            List<Ability> abilities = new ArrayList<>();
             if (section != null) {
                 for (Map<?, ?> written : section.getMapList("perks")) {
                     perk(written).ifPresent(perks::add);
+                }
+                for (Map<?, ?> written : section.getMapList("abilities")) {
+                    ability(written).ifPresent(abilities::add);
                 }
             }
             String colour = section == null ? "" : section.getString("colour", "");
@@ -100,7 +106,7 @@ public final class RoleCatalogue {
                     HEX.matcher(colour).matches() ? colour.toLowerCase(Locale.ROOT) : "#ffffff",
                     section == null ? List.of() : section.getStringList("description"), perks,
                     section == null ? "0" : section.getString("price", "0"),
-                    section == null ? "0" : section.getString("rent-per-month", "0")));
+                    section == null ? "0" : section.getString("rent-per-month", "0"), abilities));
         }
         return read;
     }
@@ -141,6 +147,18 @@ public final class RoleCatalogue {
         return Optional.of(new Perk(side, side == TradeSide.BUY ? -size : size,
                 new ItemSelection(categories, strings(written.get("items")), strings(written.get("except"))),
                 says == null ? "" : says.toString()));
+    }
+
+    /** "- hunger: 20", with "items: [...]" for tools. An unknown kind is left out rather than costing the role. */
+    private static Optional<Ability> ability(Map<?, ?> written) {
+        for (Map.Entry<?, ?> entry : written.entrySet()) {
+            Optional<AbilityKind> kind = AbilityKind.byKey(String.valueOf(entry.getKey()));
+            if (kind.isPresent() && entry.getValue() instanceof Number number && number.intValue() > 0) {
+                return Optional.of(new Ability(kind.get(), number.intValue(),
+                        new ItemSelection(List.of(), strings(written.get("items")), strings(written.get("except")))));
+            }
+        }
+        return Optional.empty();
     }
 
     private static List<String> strings(Object value) {

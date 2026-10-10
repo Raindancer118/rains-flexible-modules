@@ -164,6 +164,9 @@ public final class RoleCommand implements IRolesCommand {
         role.get().perks().forEach(perk -> live.messages().send(sender, "roles.info-perk",
                 "perk", perk.says(live.roles().perkNow(target.getUniqueId(), perk.percent())),
                 "full", String.valueOf(Math.abs(perk.percent()))));
+        role.get().abilities().forEach(ability -> live.messages().send(sender, "roles.info-perk",
+                "perk", ability.says(live.roles().abilityNow(target.getUniqueId(), ability)),
+                "full", String.valueOf(ability.percent())));
         Duration left = live.roles().left(target.getUniqueId());
         if (left.isZero()) {
             live.messages().send(sender, "roles.info-change-now");

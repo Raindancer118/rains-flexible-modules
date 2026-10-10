@@ -12,12 +12,23 @@
 #     items          items by name; * stands for anything: "*_log", "cooked_*"
 #     except         items never covered, though a drawer or pattern would
 #     says           what it covers, in words, instead of the generated list
+#   abilities      what the role does a little better in the game, at full strength (each has a ceiling):
+#     hunger: 20     hunger drains that much slower                       (at most 30)
+#     harvest: 20    that chance of one more crop from a ripe one          (at most 30)
+#     falls: 25      that much less fall damage                            (at most 40)
+#     speed: 6       that much faster on foot                              (at most 10)
+#     reach: 20      reaches blocks that much further                      (at most 25)
+#     tools: 20      that chance a tool takes no wear; items: [ ... ]      (at most 30)
+#                    picks which tools (any pickaxe, shovel, axe or hoe when left out)
+#     xp: 15         that much more experience                             (at most 25)
+#     monsters: 10   that much more damage to monsters, never to players   (at most 15)
+#     carts: 25      minecarts ridden go that much faster                  (at most 30)
 #   price          one-time price to buy the role, like 500 or 1.5k. "0" (the default): not for sale
 #   rent-per-month rent charged every 30 days of real time, like 50. "0" (the default): cannot be rented.
 #                  Rent that cannot be paid ends the rental and the player loses the role. With a price and/or
 #                  a rent a role is closed until bought or rented; with neither it is open to everybody.
 #
-# A new role's perks start at a share of these sizes and grow to them the longer it is kept (/settings:
+# A new role's perks and abilities start at a share of these sizes and grow to them the longer it is kept (/settings:
 # "A new role starts at", "Perks are full after"). Where two perks of one role cover the same item, the
 # better one counts. Selling never earns more than the player's own buy price, so no perk can be played
 # against the shop. Read again with /role reload. Delete this file to get the shipped roles back.
@@ -28,6 +39,8 @@ roles:
     colour: "#e8a33d"
     description:
       - "Keeps the server fed."
+    abilities:
+      - hunger: 20
     perks:
       - buy: 15
         categories: [ food ]
@@ -44,6 +57,8 @@ roles:
     colour: "#9bc53d"
     description:
       - "Grows what the cook cooks."
+    abilities:
+      - harvest: 20
     perks:
       - buy: 15
         items: [ "*_seeds", pitcher_pod, "*_sapling", "*_hoe", bone_meal, composter, hay_block, wheat, carrot,
@@ -61,6 +76,9 @@ roles:
     colour: "#c0703a"
     description:
       - "Puts the server up, block by block."
+    abilities:
+      - reach: 20
+      - falls: 25
     perks:
       - buy: 12
         categories: [ building_blocks ]
@@ -78,6 +96,8 @@ roles:
     colour: "#3fa7d6"
     description:
       - "Always somewhere else."
+    abilities:
+      - speed: 6
     perks:
       - buy: 20
         items: [ firework_rocket ]
@@ -93,6 +113,9 @@ roles:
     colour: "#8d99ae"
     description:
       - "Knows what is down there."
+    abilities:
+      - tools: 20
+        items: [ "*_pickaxe", "*_shovel" ]
     perks:
       - buy: 12
         items: [ "*_pickaxe", "*_shovel", torch, ladder, tnt, rail, minecart ]
@@ -108,6 +131,8 @@ roles:
     colour: "#9b5de5"
     description:
       - "Has a book for everything."
+    abilities:
+      - xp: 15
     perks:
       - buy: 15
         items: [ enchanted_book ]
@@ -127,6 +152,8 @@ roles:
     colour: "#d64545"
     description:
       - "Out at night on purpose."
+    abilities:
+      - monsters: 10
     perks:
       - buy: 12
         categories: [ combat ]
@@ -142,6 +169,8 @@ roles:
     colour: "#ef476f"
     description:
       - "Makes it do it by itself."
+    abilities:
+      - carts: 25
     perks:
       - buy: 15
         categories: [ redstone ]

@@ -32,6 +32,7 @@ public final class RoleService implements IRolesService {
     private final LongSupplier clock;
     private final ChangeRule rule = new ChangeRule();
     private final TenureRule tenure = new TenureRule();
+    private final java.util.List<java.util.function.Consumer<UUID>> changed = new java.util.concurrent.CopyOnWriteArrayList<>();
     /** Staff currently skipping the wait. Not saved: a bypass left on is a bypass forgotten about. */
     private final Set<UUID> bypassing = ConcurrentHashMap.newKeySet();
     private volatile RolesSettings settings;
@@ -130,6 +131,7 @@ public final class RoleService implements IRolesService {
             messages.send(player, "roles.not-saved");
             return false;
         }
+        changed(player.getUniqueId());
         // Staff trying roles out are not announced, not even their first.
         boolean bypass = verdict.reason() == ChangeVerdict.Reason.BYPASS || bypassing.contains(player.getUniqueId());
         if (bypass || settings.changeEvery().isZero()) {
@@ -151,11 +153,12 @@ public final class RoleService implements IRolesService {
 
     /** Staff giving somebody a role, or none. Starts their wait as if they had chosen it. */
     public boolean set(UUID player, Optional<Role> role) {
-        if (role.isEmpty()) {
-            return choices.clear(player);
-        }
         long now = clock.getAsLong();
-        return choices.put(new Choice(player, role.get().id(), now, now));
+        boolean saved = role.isEmpty() ? choices.clear(player) : choices.put(new Choice(player, role.get().id(), now, now));
+        if (saved) {
+            changed(player);
+        }
+        return saved;
     }
 
     /** Lets a player change straight away, keeping the role they have. */
@@ -180,6 +183,26 @@ public final class RoleService implements IRolesService {
 
     public int fullAfterDays() {
         return settings.fullAfterDays();
+    }
+
+    /** An ability as this player has it now; zero with abilities switched off. */
+    public int abilityNow(UUID player, de.raindancer.modules.roles.model.Ability ability) {
+        return settings.abilities() ? tenure.scaled(ability.percent(), strength(player)) : 0;
+    }
+
+    /** The size this player has of their role's abilities of one kind now — the best of them; zero for none. */
+    public int abilityNow(UUID player, de.raindancer.modules.roles.model.AbilityKind kind) {
+        return roleOf(player).map(role -> role.abilities().stream().filter(each -> each.kind() == kind)
+                .mapToInt(each -> abilityNow(player, each)).max().orElse(0)).orElse(0);
+    }
+
+    /** Called with the player whenever their role changes — for what has to be put on or taken off them. */
+    public void onChange(java.util.function.Consumer<UUID> listener) {
+        changed.add(listener);
+    }
+
+    private void changed(UUID player) {
+        changed.forEach(each -> each.accept(player));
     }
 
     /** A perk as this player has it now. */

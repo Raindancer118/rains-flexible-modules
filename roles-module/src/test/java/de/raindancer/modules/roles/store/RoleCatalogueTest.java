@@ -173,4 +173,30 @@ class RoleCatalogueTest {
         assertThat(roles).allSatisfy(role -> assertThat(role.perks()).allSatisfy(perk ->
                 assertThat(Math.abs(perk.percent())).as(role.id()).isLessThanOrEqualTo(RoleCatalogue.LARGEST_PERK)));
     }
+
+    @Test
+    @DisplayName("abilities are read by kind, capped, and unknown kinds are left out")
+    void abilities() throws Exception {
+        List<Role> roles = RoleCatalogue.parse(yaml("""
+                roles:
+                  miner:
+                    abilities:
+                      - tools: 20
+                        items: [ "*_pickaxe" ]
+                      - speed: 99
+                      - flying: 50
+                """));
+        var abilities = roles.getFirst().abilities();
+        assertThat(abilities).hasSize(2);
+        assertThat(abilities.getFirst().kind()).isEqualTo(de.raindancer.modules.roles.model.AbilityKind.TOOLS);
+        assertThat(abilities.getFirst().covers("DIAMOND_PICKAXE")).isTrue();
+        assertThat(abilities.getFirst().covers("DIAMOND_AXE")).isFalse();
+        assertThat(abilities.get(1).percent()).isEqualTo(de.raindancer.modules.roles.model.AbilityKind.SPEED.most());
+    }
+
+    @Test
+    @DisplayName("every shipped role has an in-game ability as well as its shop perks")
+    void shippedHaveAbilities() throws Exception {
+        assertThat(shipped()).isNotEmpty().allSatisfy(role -> assertThat(role.abilities()).as(role.id()).isNotEmpty());
+    }
 }
