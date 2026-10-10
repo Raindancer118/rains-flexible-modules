@@ -71,6 +71,11 @@ public final class JobBoardMenu extends PaginatedMenu<Goal> implements IJobsScre
                         : ", at " + services.settings().get().payScalePercent() + "%") + ")"),
                 () -> lore.add("<dark_gray>No economy: goals pay nothing."));
         toolbar(4, Icons.of(Material.LECTERN, "<white>How it works", lore), click -> { });
+        if (services.quests().settings().enabled()) {
+            toolbar(6, Icons.of(Material.WRITABLE_BOOK, "<white>Your quests", "<gray>Personal quests for today,",
+                    "<gray>paid as soon as each is done.", "<yellow>Click<gray> to open"),
+                    click -> new QuestMenu(services, viewer, this).open());
+        }
     }
 
     @Override

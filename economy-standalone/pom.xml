@@ -23,8 +23,10 @@
         <!-- 0.20.0: bulk discount on building blocks and iron (shop.bulk-*, hard cap 30%), role and bulk shown on their own lines, every seed priced, more packs. -->
         <!-- 0.21.0: the shop holds back what a server goal collects (Core SaleStops), with the reason on the item.
              0.23.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
-             0.23.1: Bedrock players (Floodgate ids) are players again: on /baltop, sidebar, boards, wealth tax, seasons. -->
-        <plugin.version>0.23.1</plugin.version>
+             0.23.1: Bedrock players (Floodgate ids) are players again: on /baltop, sidebar, boards, wealth tax, seasons.
+             0.24.0: harder advancements pay more, and say what they paid; mob drops sell (a cheap item sells for a coin).
+             0.25.0: the sell price explains itself under it, like the buy price. -->
+        <plugin.version>0.25.0</plugin.version>
     </properties>
 
     <dependencies>

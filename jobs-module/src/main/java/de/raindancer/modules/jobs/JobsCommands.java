@@ -2,6 +2,7 @@ package de.raindancer.modules.jobs;
 
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.jobs.command.JobsCommand;
+import de.raindancer.modules.jobs.command.QuestsCommand;
 
 import java.util.List;
 
@@ -20,8 +21,13 @@ public final class JobsCommands {
         return List.of(
                 ModuleCommand.of("jobs", "The job board: the server's goals, and your share of the reward",
                                 new JobsCommand(JobsCommands::require))
-                        .aliased("goals", "board", "quests")
+                        .aliased("goals", "board")
                         .taking("(nothing) — the board", "list · end <number> · new [kind] · reload — staff")
+                        .needing("rainsjobs.use"),
+                ModuleCommand.of("quests", "Your personal quests for today, paid as soon as each is done",
+                                new QuestsCommand(JobsCommands::require))
+                        .aliased("quest", "dailies")
+                        .taking("(nothing) — your quests", "give <player> <quest> · reset <player> · reload — staff")
                         .needing("rainsjobs.use"));
     }
 

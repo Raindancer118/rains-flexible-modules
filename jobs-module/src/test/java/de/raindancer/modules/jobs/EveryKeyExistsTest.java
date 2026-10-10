@@ -37,7 +37,7 @@ class EveryKeyExistsTest {
                         }
                     })
                     .filter(found -> !found.endsWith(".yml")) // jobs.yml is a file, not a message
-                    .filter(found -> !found.equals("jobs.goal")) // the economy source key, not a message
+                    .filter(found -> !found.equals("jobs.goal") && !found.equals("jobs.quest")) // economy source keys, not messages
                     .distinct().toList();
         }
 

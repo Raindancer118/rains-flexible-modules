@@ -8,7 +8,12 @@ import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
+import de.raindancer.core.world.blocks.PlacedBlocks;
 import de.raindancer.modules.jobs.listener.FishListener;
+import de.raindancer.modules.jobs.listener.QuestListener;
+import de.raindancer.modules.jobs.service.QuestService;
+import de.raindancer.modules.jobs.store.QuestBook;
+import de.raindancer.modules.jobs.store.QuestCatalogue;
 import de.raindancer.modules.jobs.service.GoalService;
 import de.raindancer.modules.jobs.store.GoalBook;
 import de.raindancer.modules.jobs.store.TemplateCatalogue;
@@ -23,11 +28,24 @@ import java.util.List;
  */
 public final class JobsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.3.0")
-            .describedAs("The job board — goals everybody delivers or fishes towards, paid by their share")
+    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.4.0")
+            .describedAs("The job board — goals everybody delivers or fishes towards, paid by their share — and personal daily quests, harder and better paid the richer you are")
             .by("Raindancer118");
 
     private GoalService goals;
+    private QuestService quests;
+    private volatile Object watched;
+
+    /** Watches the blocks the quests now ask for — after quests.yml is read again. */
+    public static void rewatch(QuestService quests, org.bukkit.plugin.Plugin plugin) {
+        JobsModule running = current;
+        if (running != null) {
+            PlacedBlocks.unwatch(running.watched);
+            running.watched = PlacedBlocks.watch(plugin, quests.minedBlocks());
+        }
+    }
+
+    private static volatile JobsModule current;
 
     @Override
     public ModuleInfo info() {
@@ -36,6 +54,7 @@ public final class JobsModule implements FlexModule {
 
     @Override
     public void enable(ModuleContext context) {
+        current = this;
         SettingsStore<JobsSettings> settings = context.settings(JobsSettings.class, JobsSettings.DEFAULTS);
         context.core().messages().defineFrom(JobsModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
@@ -59,19 +78,52 @@ public final class JobsModule implements FlexModule {
         goals = new GoalService(context.plugin().getServer(), templates, book, context.core().messages(),
                 context.log(), System::currentTimeMillis, new SecureRandom(), settings.current());
         settings.onChange(goals::settings);
+        SettingsStore<QuestSettings> questSettings = context.settings(QuestSettings.class, QuestSettings.DEFAULTS);
+        QuestCatalogue questCatalogue = new QuestCatalogue(new YamlStore(context.dataFolder().resolve("quests.yml")),
+                () -> JobsModule.class.getResourceAsStream("quests.yml"));
+        int questKinds = questCatalogue.reload();
+        questCatalogue.problems().forEach(problem -> context.log().warn("quests.yml: {}", problem));
+        QuestBook questBook = new QuestBook(new YamlStore(context.dataFolder().resolve("quest-progress.yml")));
+        questBook.load();
+        if (!questBook.readable()) {
+            context.log().error("quest-progress.yml could not be read. Quests are counted but nothing is saved or paid "
+                    + "until it is fixed — saving now would lose everybody's progress.");
+        }
+        quests = new QuestService(context.plugin().getServer(), questCatalogue, questBook, context.core().messages(),
+                context.log(), System::currentTimeMillis, java.time.ZoneId.systemDefault(), new SecureRandom(),
+                questSettings.current());
+        questSettings.onChange(quests::settings);
         JobsServices services = new JobsServices(context.plugin(), context.plugin().getServer(), context.core(),
-                context.log(), context.core().messages(), context.chat().brand(), settings::current, goals);
+                context.log(), context.core().messages(), context.chat().brand(), settings::current, goals, quests);
+        // Mining quests must not count blocks a player put there; Core remembers where the ones they ask for are placed.
+        watched = PlacedBlocks.watch(context.plugin(), quests.minedBlocks());
+        context.closeWith(() -> PlacedBlocks.unwatch(watched));
+        QuestListener questListener = new QuestListener(services);
+        context.listener(questListener);
+        var travel = Scheduling.globalTimer(context.plugin(), 20L * 10, 20L * 10, task -> {
+            for (org.bukkit.entity.Player online : context.plugin().getServer().getOnlinePlayers()) {
+                Scheduling.entity(context.plugin(), online, () -> questListener.sample(online));
+            }
+        });
+        if (travel != null) {
+            context.closeWith(travel::cancel);
+        }
 
         SaleStops.provide(context.plugin(), goals);
         context.closeWith(() -> SaleStops.retract(goals));
         context.listener(new FishListener(services));
-        var minutes = Scheduling.globalTimer(context.plugin(), 20L * 5, 20L * 60, task -> goals.tick());
+        var minutes = Scheduling.globalTimer(context.plugin(), 20L * 5, 20L * 60, task -> {
+            goals.tick();
+            quests.tick();
+        });
         if (minutes != null) {
             context.closeWith(minutes::cancel);
         }
         context.closeWith(goals::flush);
+        context.closeWith(quests::flush);
         JobsCommands.ready(services);
-        context.log().info("The job board is up: {} kind(s) of goal, {} on the board.", kinds, book.active().size());
+        context.log().info("The job board is up: {} kind(s) of goal, {} on the board; {} personal quest(s).", kinds,
+                book.active().size(), questKinds);
     }
 
     @Override
@@ -85,5 +137,9 @@ public final class JobsModule implements FlexModule {
         if (goals != null) {
             goals.flush();
         }
+        if (quests != null) {
+            quests.flush();
+        }
+        current = null;
     }
 }

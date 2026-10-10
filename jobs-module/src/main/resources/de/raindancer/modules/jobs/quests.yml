@@ -1,0 +1,314 @@
+# Personal quests: every player gets a few each day, some anybody can do and some for their role (/role).
+# They are done by playing — mining, killing, fishing… — and pay as soon as they are done (/quests).
+#
+# The sizes here are for the poorest players. The richer somebody is, the higher their tier: each tier asks
+# a little more and pays rather more (/settings: Personal quests), so quests stay worth doing.
+#
+#   title   what it is called
+#   task    mine    — break blocks, never ones a player put there      things: blocks ("iron_ore", "*_log")
+#           harvest — break ripe crops                                 things: crop blocks ("wheat", "carrots")
+#           kill    — kill mobs, never from spawners or spawn eggs     things: mobs ("zombie")
+#           fish    — reel fish in with a rod                          things: the fish ("cod")
+#           breed   — breed animals                                    things: the animals ("cow")
+#           travel  — move that many blocks, on foot or riding         (no things)
+#   things  what counts; * for anything, "!" leaves one out
+#   role    the role it is for, as in roles.yml ("miner"); left out: anybody
+#   amount  how many, at the lowest tier
+#   pay     what it pays at the lowest tier
+#   icon    the item shown for it
+#
+# Read again with /quests reload. Delete this file to get the shipped quests back.
+quests:
+  # ---- anybody
+  quarry:
+    title: Quarry work
+    task: mine
+    things: [ stone, deepslate, andesite, diorite, granite, tuff ]
+    amount: 128
+    pay: 90
+    icon: stone_pickaxe
+  lumberjack:
+    title: Lumberjack
+    task: mine
+    things: [ "*_log", "*_stem", "!stripped_*" ]
+    amount: 48
+    pay: 100
+    icon: iron_axe
+  coal-run:
+    title: Coal run
+    task: mine
+    things: [ coal_ore, deepslate_coal_ore ]
+    amount: 20
+    pay: 110
+    icon: coal
+  night-watch:
+    title: Night watch
+    task: kill
+    things: [ zombie, husk, drowned, zombie_villager ]
+    amount: 12
+    pay: 110
+    icon: rotten_flesh
+  bone-collector:
+    title: Bone collector
+    task: kill
+    things: [ skeleton, stray, bogged ]
+    amount: 10
+    pay: 120
+    icon: bone
+  web-sweeper:
+    title: Web sweeper
+    task: kill
+    things: [ spider, cave_spider ]
+    amount: 8
+    pay: 100
+    icon: string
+  catch-of-the-day:
+    title: Catch of the day
+    task: fish
+    things: [ cod, salmon, tropical_fish, pufferfish ]
+    amount: 10
+    pay: 120
+    icon: cod
+  harvest-help:
+    title: Harvest help
+    task: harvest
+    things: [ wheat, carrots, potatoes, beetroots ]
+    amount: 64
+    pay: 90
+    icon: wheat
+  animal-keeper:
+    title: Animal keeper
+    task: breed
+    things: [ cow, sheep, pig, chicken, rabbit, goat ]
+    amount: 6
+    pay: 90
+    icon: wheat
+  stretch-legs:
+    title: Stretch your legs
+    task: travel
+    amount: 1500
+    pay: 90
+    icon: leather_boots
+
+  # ---- cook
+  cook-butcher:
+    title: The butcher's order
+    task: kill
+    things: [ cow, pig, sheep, chicken, rabbit ]
+    role: cook
+    amount: 12
+    pay: 160
+    icon: beef
+  cook-fresh-fish:
+    title: Fresh fish for the kitchen
+    task: fish
+    things: [ cod, salmon ]
+    role: cook
+    amount: 16
+    pay: 180
+    icon: salmon
+  cook-garden:
+    title: The kitchen garden
+    task: harvest
+    things: [ wheat, carrots, potatoes, beetroots ]
+    role: cook
+    amount: 96
+    pay: 160
+    icon: carrot
+
+  # ---- farmer
+  farmer-wheat:
+    title: Wheat for the mill
+    task: harvest
+    things: [ wheat ]
+    role: farmer
+    amount: 128
+    pay: 180
+    icon: wheat
+  farmer-roots:
+    title: Roots and tubers
+    task: harvest
+    things: [ carrots, potatoes, beetroots ]
+    role: farmer
+    amount: 128
+    pay: 180
+    icon: potato
+  farmer-herd:
+    title: A bigger herd
+    task: breed
+    things: [ cow, sheep, pig, chicken, rabbit, goat, horse, llama ]
+    role: farmer
+    amount: 12
+    pay: 170
+    icon: lead
+  farmer-melons:
+    title: Melons and pumpkins
+    task: mine
+    things: [ melon, pumpkin ]
+    role: farmer
+    amount: 32
+    pay: 160
+    icon: melon
+
+  # ---- builder
+  builder-sand:
+    title: Sand and gravel
+    task: mine
+    things: [ sand, red_sand, gravel ]
+    role: builder
+    amount: 128
+    pay: 170
+    icon: sand
+  builder-stone:
+    title: Stone for the walls
+    task: mine
+    things: [ stone, deepslate, andesite, diorite, granite, tuff, calcite ]
+    role: builder
+    amount: 256
+    pay: 170
+    icon: stone_bricks
+  builder-timber:
+    title: Beams and boards
+    task: mine
+    things: [ "*_log", "*_stem", "!stripped_*" ]
+    role: builder
+    amount: 96
+    pay: 180
+    icon: oak_planks
+
+  # ---- explorer
+  explorer-far:
+    title: Far and wide
+    task: travel
+    role: explorer
+    amount: 4000
+    pay: 180
+    icon: compass
+  explorer-pearls:
+    title: Pearl hunter
+    task: kill
+    things: [ enderman ]
+    role: explorer
+    amount: 6
+    pay: 200
+    icon: ender_pearl
+  explorer-deserts:
+    title: Sand in the boots
+    task: kill
+    things: [ husk, stray, bogged ]
+    role: explorer
+    amount: 8
+    pay: 180
+    icon: dead_bush
+
+  # ---- miner
+  miner-iron:
+    title: Iron from the deep
+    task: mine
+    things: [ iron_ore, deepslate_iron_ore ]
+    role: miner
+    amount: 24
+    pay: 190
+    icon: raw_iron
+  miner-diamonds:
+    title: A glint in the dark
+    task: mine
+    things: [ diamond_ore, deepslate_diamond_ore ]
+    role: miner
+    amount: 4
+    pay: 260
+    icon: diamond
+  miner-gold:
+    title: Gold fever
+    task: mine
+    things: [ gold_ore, deepslate_gold_ore, nether_gold_ore ]
+    role: miner
+    amount: 16
+    pay: 190
+    icon: raw_gold
+  miner-deep:
+    title: Down to the deepslate
+    task: mine
+    things: [ deepslate, tuff ]
+    role: miner
+    amount: 192
+    pay: 170
+    icon: deepslate
+
+  # ---- mage
+  mage-lapis:
+    title: Lapis for the table
+    task: mine
+    things: [ lapis_ore, deepslate_lapis_ore ]
+    role: mage
+    amount: 8
+    pay: 190
+    icon: lapis_lazuli
+  mage-blazes:
+    title: Rods for the stand
+    task: kill
+    things: [ blaze ]
+    role: mage
+    amount: 8
+    pay: 220
+    icon: blaze_rod
+  mage-witches:
+    title: A word with the witches
+    task: kill
+    things: [ witch ]
+    role: mage
+    amount: 3
+    pay: 200
+    icon: brewing_stand
+
+  # ---- hunter
+  hunter-undead:
+    title: Lay them to rest
+    task: kill
+    things: [ zombie, husk, drowned, zombie_villager, skeleton, stray, bogged ]
+    role: hunter
+    amount: 32
+    pay: 190
+    icon: iron_sword
+  hunter-creepers:
+    title: Defuse the night
+    task: kill
+    things: [ creeper ]
+    role: hunter
+    amount: 10
+    pay: 200
+    icon: gunpowder
+  hunter-spiders:
+    title: Spider season
+    task: kill
+    things: [ spider, cave_spider ]
+    role: hunter
+    amount: 16
+    pay: 180
+    icon: spider_eye
+
+  # ---- engineer
+  engineer-redstone:
+    title: Dust for the circuits
+    task: mine
+    things: [ redstone_ore, deepslate_redstone_ore ]
+    role: engineer
+    amount: 16
+    pay: 190
+    icon: redstone
+  engineer-copper:
+    title: Copper for the wiring
+    task: mine
+    things: [ copper_ore, deepslate_copper_ore ]
+    role: engineer
+    amount: 32
+    pay: 180
+    icon: raw_copper
+  engineer-quartz:
+    title: Quartz for the comparators
+    task: mine
+    things: [ nether_quartz_ore ]
+    role: engineer
+    amount: 32
+    pay: 190
+    icon: quartz
