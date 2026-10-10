@@ -26,7 +26,7 @@
 
         <!-- 0.x until the first complete version is signed off.
              0.14.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
-        <plugin.version>0.14.0</plugin.version>
+        <plugin.version>0.15.0</plugin.version>
     </properties>
 
     <dependencies>

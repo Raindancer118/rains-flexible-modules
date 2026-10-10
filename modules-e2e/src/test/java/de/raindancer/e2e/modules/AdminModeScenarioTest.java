@@ -22,15 +22,21 @@ class AdminModeScenarioTest {
         return bot.chatText().stream().anyMatch(line -> line.contains(text));
     }
 
+    /** What Ada carries in her persistent data — her cosmetics among it. */
+    private static String wearing(Server server) {
+        return server.console("data get entity Ada BukkitValues").toLowerCase(java.util.Locale.ROOT);
+    }
+
     private static boolean has(Server server, String advancement) {
         return server.console("execute if entity @a[name=Ada,advancements={" + advancement + "=true}]").contains("passed");
     }
 
     @Test
-    @DisplayName("in admin mode a chest takes what is put in it, bypass lets a drop through, and an advancement is not made — out of it, it is, and pays")
+    @DisplayName("admin mode has cosmetics of its own; a chest takes what is put in it, bypass lets a drop through, and an advancement is not made — out of it, it is, and pays")
     void adminMode() {
         try (Server server = Server.start("adminmode", List.of("essentials-standalone:RainsEssentials-.*",
-                "economy-standalone:RainsEconomy-.*"), List.of("Essentials are up", "The economy is up"))) {
+                "economy-standalone:RainsEconomy-.*", "cosmetics-standalone:RainsCosmetics-.*"),
+                List.of("Essentials are up", "The economy is up", "Cosmetics is up"))) {
             server.console("forceload add -16 -16 16 16");
             server.console("fill -6 " + (Y - 3) + " -6 6 " + (Y - 1) + " 6 minecraft:stone");
             server.console("fill -6 " + Y + " -6 6 " + (Y + 3) + " 6 minecraft:air");
@@ -38,9 +44,19 @@ class AdminModeScenarioTest {
             Bot ada = server.admin("Ada");
             server.console("tp Ada 0.5 " + Y + " 0.5");
             Await.ticks(20);
+            // ---- survival cosmetics, before going in
+            ada.runAndExpect("cosmetics particle flame", "You are wearing");
+            ada.runAndExpect("cosmetics name preset sunset", "Your name is now");
+            assertThat(wearing(server)).contains("flame");
+
             ada.forgetChat();
             ada.run("admin on");
             ada.expectChat("Admin mode on");
+
+            // ---- admin mode has cosmetics of its own: nothing at first, then its own particle
+            Await.until(() -> "the survival particle is off in admin mode (" + wearing(server) + ")", WAIT,
+                    () -> !wearing(server).contains("flame"));
+            ada.runAndExpect("cosmetics particle dust", "You are wearing");
 
             // ---- a chest: open it, put diamonds in
             server.console("clear Ada");
@@ -88,6 +104,13 @@ class AdminModeScenarioTest {
             ada.forgetChat();
             ada.run("admin off");
             ada.expectChat("Admin mode off");
+            Await.until(() -> "the survival particle is back (" + wearing(server) + ")", WAIT,
+                    () -> wearing(server).contains("flame") && !wearing(server).contains("dust"));
+            ada.run("admin on");
+            Await.until(() -> "and the admin one when going in again (" + wearing(server) + ")", WAIT,
+                    () -> wearing(server).contains("dust") && !wearing(server).contains("flame"));
+            ada.run("admin off");
+            Await.until("out again", WAIT, () -> wearing(server).contains("flame"));
             server.console("gamemode survival Ada");
             ada.forgetChat();
             server.console("advancement grant Ada only minecraft:story/mine_stone");
@@ -95,7 +118,7 @@ class AdminModeScenarioTest {
             Await.until(() -> "and paid (heard " + ada.chatText() + ")", WAIT,
                     () -> said(ada, "for the advancement Stone Age"));
 
-            assertThat(server.paper.errorsFrom("RainsCore", "RainsEssentials", "RainsEconomy")).isEmpty();
+            assertThat(server.paper.errorsFrom("RainsCore", "RainsEssentials", "RainsEconomy", "RainsCosmetics")).isEmpty();
         }
     }
 }

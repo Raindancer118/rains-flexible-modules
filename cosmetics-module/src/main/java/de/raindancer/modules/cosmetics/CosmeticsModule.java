@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.14.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.15.0")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -110,6 +110,24 @@ public final class CosmeticsModule implements FlexModule {
                 context.chat().brand(), catalogue::current, settings::current, names, particles, reloading,
                 clearing, teleports, context.core().vanish(), new LiveScreens(), unlocks,
                 context.core());
+        // What admin mode swaps with the rest of a side: the worn particle, wings and teleport looks (all kept under
+        // rainscosmetics: in the player's data) and the name style, so an admin wears different cosmetics as admin.
+        de.raindancer.core.data.loadout.SideData.Part worn =
+                de.raindancer.core.data.loadout.SideData.keepNamespace(context.plugin(), "rainscosmetics");
+        de.raindancer.core.data.loadout.SideData.Part style =
+                new de.raindancer.modules.cosmetics.store.NameStyleSide(context.core().identities());
+        de.raindancer.core.data.loadout.SideData.keep(context.plugin(), style);
+        java.util.function.Consumer<org.bukkit.entity.Player> redraw = player -> {
+            names.revalidate(player);
+            particles.revalidate(player);
+            teleports.load(player);
+        };
+        de.raindancer.core.data.loadout.SideData.onSwitched(context.plugin(), redraw);
+        context.closeWith(() -> {
+            de.raindancer.core.data.loadout.SideData.retract(worn);
+            de.raindancer.core.data.loadout.SideData.retract(style);
+            de.raindancer.core.data.loadout.SideData.stopListening(redraw);
+        });
 
         settings.onChange(fresh -> {
             names.settings(fresh);
