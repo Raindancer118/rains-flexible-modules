@@ -55,4 +55,5 @@ jobs:
     not-saved: "<red>That could not be saved, so nothing changed. Staff: order-progress.yml cannot be written."
     cancelled: "<gray>Order given up. Nothing is paid, and it counts as one of today's."
     not-running: "<red>You have no order running."
+    stale: "<red>That offer is gone. <gray>Ask again for a fresh one."
     reloaded: "<green>orders.yml read: <white><count></white> kind(s) of work."

@@ -51,6 +51,7 @@ class OrderServiceTest {
     private final UUID ana = UUID.randomUUID();
     private final Player player = mock(Player.class);
     private OrderService service;
+    private WorkCatalogue works;
 
     private static final class Bank implements Economy {
         final Map<UUID, Money> balances = new HashMap<>();
@@ -96,7 +97,7 @@ class OrderServiceTest {
         when(player.getUniqueId()).thenReturn(ana);
         when(player.isOnline()).thenReturn(true);
         when(server.getPlayer(ana)).thenReturn(player);
-        WorkCatalogue works = new WorkCatalogue(new YamlStore(folder.resolve("orders.yml")), () ->
+        works = new WorkCatalogue(new YamlStore(folder.resolve("orders.yml")), () ->
                 new ByteArrayInputStream("""
                         work:
                           zombies: { name: Zombies, task: kill, things: [ zombie ], value: 8, rate: 150, hardness: 0.05 }
@@ -118,10 +119,10 @@ class OrderServiceTest {
     @Test
     @DisplayName("a small amount is easy work with hours to do it; a vast one is the hardest work in minutes")
     void scales() {
-        OrderService.Offer small = service.ask(ana, coins("1000"), false).offer();
+        OrderService.Offer small = service.ask(ana, coins("1000")).offer();
         assertThat(small.work().id()).isEqualTo("zombies");
         assertThat(small.time()).isGreaterThan(Duration.ofHours(3));
-        OrderService.Offer vast = service.ask(ana, coins("100000000000"), false).offer();
+        OrderService.Offer vast = service.ask(ana, coins("100000000000")).offer();
         assertThat(vast.work().id()).isIn("wardens", "dragons");
         assertThat(vast.time()).isLessThan(Duration.ofHours(1));
         assertThat(vast.pay()).isEqualTo(coins("100000000000"));
@@ -130,18 +131,18 @@ class OrderServiceTest {
     @Test
     @DisplayName("too little, too much, nothing to offer, and switched off are refused with a reason")
     void refusals() {
-        assertThat(service.ask(ana, coins("5"), false).refusal()).isEqualTo("jobs.order.too-little");
-        assertThat(service.ask(ana, coins("200000000000"), false).refusal()).isEqualTo("jobs.order.too-much");
+        assertThat(service.ask(ana, coins("5")).refusal()).isEqualTo("jobs.order.too-little");
+        assertThat(service.ask(ana, coins("200000000000")).refusal()).isEqualTo("jobs.order.too-much");
         service.settings(new OrderSettings(false, 3, 5, "100", "1000", "100000000000", 0.15, 750));
-        assertThat(service.ask(ana, coins("1000"), false).refusal()).isEqualTo("jobs.order.switched-off");
+        assertThat(service.ask(ana, coins("1000")).refusal()).isEqualTo("jobs.order.switched-off");
     }
 
     @Test
     @DisplayName("taken, it counts what it asks for and pays the amount asked when done in time")
     void doneInTime() {
-        OrderService.Offer offer = service.ask(ana, coins("1000"), false).offer();
+        OrderService.Offer offer = service.ask(ana, coins("1000")).offer();
         assertThat(service.accept(player, offer)).isTrue();
-        assertThat(service.ask(ana, coins("1000"), false).refusal()).as("one at a time").isEqualTo("jobs.order.busy");
+        assertThat(service.ask(ana, coins("1000")).refusal()).as("one at a time").isEqualTo("jobs.order.busy");
         service.progress(player, QuestTask.KILL, "SKELETON", 500);
         assertThat(service.current(ana).orElseThrow().progress()).isZero();
         service.progress(player, QuestTask.KILL, "ZOMBIE", offer.units());
@@ -152,7 +153,7 @@ class OrderServiceTest {
     @Test
     @DisplayName("out of time, it fails and pays nothing, and kills after the end count for nothing")
     void tooLate() {
-        OrderService.Offer offer = service.ask(ana, coins("1000"), false).offer();
+        OrderService.Offer offer = service.ask(ana, coins("1000")).offer();
         service.accept(player, offer);
         now.addAndGet(offer.time().toMillis() + 1);
         service.progress(player, QuestTask.KILL, "ZOMBIE", offer.units());
@@ -165,16 +166,41 @@ class OrderServiceTest {
     @DisplayName("so many orders and re-rolls a day; a new day starts the count again")
     void limits() {
         for (int i = 0; i < 3; i++) {
-            OrderService.Offer offer = service.ask(ana, coins("1000"), false).offer();
+            OrderService.Offer offer = service.ask(ana, coins("1000")).offer();
             assertThat(service.accept(player, offer)).isTrue();
             assertThat(service.cancel(player)).isTrue();
         }
-        assertThat(service.ask(ana, coins("1000"), false).refusal()).isEqualTo("jobs.order.none-left");
+        assertThat(service.ask(ana, coins("1000")).refusal()).isEqualTo("jobs.order.none-left");
         now.addAndGet(DAY);
+        assertThat(service.ask(ana, coins("1000")).offer()).as("the first offer is no re-roll").isNotNull();
         for (int i = 0; i < 5; i++) {
-            assertThat(service.ask(ana, coins("1000"), true).offer()).isNotNull();
+            assertThat(service.ask(ana, coins("1000")).offer()).isNotNull();
         }
-        assertThat(service.ask(ana, coins("1000"), true).refusal()).isEqualTo("jobs.order.no-rerolls");
-        assertThat(service.ask(ana, coins("1000"), false).offer()).as("a first offer is no re-roll").isNotNull();
+        assertThat(service.ask(ana, coins("1000")).refusal()).isEqualTo("jobs.order.no-rerolls");
+    }
+
+    @Test
+    @DisplayName("leaving and coming back, or a restart, does not hand out re-rolls again")
+    void rerollsSurviveLeaving() {
+        for (int i = 0; i < 6; i++) {
+            service.ask(ana, coins("1000"));
+        }
+        service.forget(ana);
+        assertThat(service.ask(ana, coins("1000")).refusal()).isEqualTo("jobs.order.no-rerolls");
+        OrderBook reread = new OrderBook(new YamlStore(folder.resolve("order-progress.yml")));
+        service.flush();
+        reread.load();
+        OrderService restarted = new OrderService(server, works, reread, messages, Log.of("jobs"), now::get,
+                ZoneOffset.UTC, new Random(4), OrderSettings.DEFAULTS);
+        assertThat(restarted.ask(ana, coins("1000")).refusal()).isEqualTo("jobs.order.no-rerolls");
+    }
+
+    @Test
+    @DisplayName("only an offer still open can be taken: one already taken is not taken again")
+    void onlyOpenOffers() {
+        OrderService.Offer offer = service.ask(ana, coins("1000")).offer();
+        assertThat(service.accept(player, offer)).isTrue();
+        service.cancel(player);
+        assertThat(service.accept(player, offer)).as("the same offer twice").isFalse();
     }
 }

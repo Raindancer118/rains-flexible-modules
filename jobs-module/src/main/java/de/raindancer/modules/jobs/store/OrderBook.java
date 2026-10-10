@@ -17,15 +17,20 @@ import java.util.UUID;
  */
 public final class OrderBook {
 
-    /** One player's day: how many orders and re-rolls, and the order they are on, if any. */
-    public record Ledger(String day, int taken, int rerolls, Order order) {
+    /**
+     * One player's day: how many orders and re-rolls, and the order they are on, if any.
+     *
+     * @param offered whether they were made an offer they have not taken — asking again then is a re-roll. Kept
+     *                here, not in memory, so leaving and coming back does not hand the re-rolls out again
+     */
+    public record Ledger(String day, int taken, int rerolls, boolean offered, Order order) {
 
         public Optional<Order> current() {
             return Optional.ofNullable(order);
         }
 
         public Ledger with(Order next) {
-            return new Ledger(day, taken, rerolls, next);
+            return new Ledger(day, taken, rerolls, offered, next);
         }
     }
 
@@ -58,7 +63,7 @@ public final class OrderBook {
                         written.getLong("started-at"), written.getLong("ends-at"), written.getInt("progress"),
                         Order.State.valueOf(written.getString("state", "OPEN")));
                 ledgers.put(UUID.fromString(id), new Ledger(each.getString("day", ""), each.getInt("taken"),
-                        each.getInt("rerolls"), order));
+                        each.getInt("rerolls"), each.getBoolean("offered"), order));
             } catch (IllegalArgumentException unreadable) {
                 // One player's line that cannot be read is left out.
             }
@@ -112,6 +117,7 @@ public final class OrderBook {
             yaml.set(path + ".day", ledger.day());
             yaml.set(path + ".taken", ledger.taken());
             yaml.set(path + ".rerolls", ledger.rerolls());
+            yaml.set(path + ".offered", ledger.offered());
             ledger.current().ifPresent(order -> {
                 yaml.set(path + ".order.work", order.work());
                 yaml.set(path + ".order.says", order.says());

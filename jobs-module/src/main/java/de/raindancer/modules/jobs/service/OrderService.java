@@ -61,7 +61,7 @@ public final class OrderService {
     private final Random random;
     private final OrderRule rule = new OrderRule();
     private final Map<UUID, BossBar> bars = new ConcurrentHashMap<>();
-    /** The last offer each player was made and has not taken — asking again then is a re-roll. */
+    /** The offer each player was last made, so only that one can be taken. */
     private final Map<UUID, Offer> offered = new ConcurrentHashMap<>();
     private volatile OrderSettings settings;
 
@@ -118,7 +118,7 @@ public final class OrderService {
     private OrderBook.Ledger ledger(UUID player) {
         String today = today();
         return book.of(player).map(held -> held.day().equals(today) ? held
-                : new OrderBook.Ledger(today, 0, 0, held.order())).orElse(new OrderBook.Ledger(today, 0, 0, null));
+                : new OrderBook.Ledger(today, 0, 0, false, held.order())).orElse(new OrderBook.Ledger(today, 0, 0, false, null));
     }
 
     public Optional<Order> current(UUID player) {
@@ -129,8 +129,11 @@ public final class OrderService {
         return order.state() == Order.State.OPEN;
     }
 
-    /** What {@code asked} would be: an offer, or why not. A re-roll counts against the day's re-rolls. */
-    public synchronized Answer ask(UUID player, Money asked, boolean reroll) {
+    /**
+     * What {@code asked} would be: an offer, or why not. Asking while an offer is still open is a re-roll, and
+     * counts against the day's.
+     */
+    public synchronized Answer ask(UUID player, Money asked) {
         OrderSettings live = settings;
         Money least = Fees.amount(live.least());
         Money most = Fees.amount(live.hardestAt());
@@ -150,14 +153,17 @@ public final class OrderService {
         if (ledger.taken() >= live.perDay()) {
             return Answer.no("jobs.order.none-left", asked);
         }
+        boolean reroll = ledger.offered();
         if (reroll && ledger.rerolls() >= live.rerollsPerDay()) {
             return Answer.no("jobs.order.no-rerolls", asked);
         }
         if (works.all().isEmpty()) {
             return Answer.no("jobs.order.no-work", asked);
         }
-        if (reroll) {
-            book.put(player, new OrderBook.Ledger(ledger.day(), ledger.taken(), ledger.rerolls() + 1, ledger.order()));
+        OrderBook.Ledger next = new OrderBook.Ledger(ledger.day(), ledger.taken(),
+                ledger.rerolls() + (reroll ? 1 : 0), true, ledger.order());
+        if (!book.putNow(player, next)) {
+            return Answer.no("jobs.order.not-saved", asked);
         }
         double difficulty = rule.difficulty(asked, Fees.amount(live.easyUpTo()), most);
         Work work = rule.pick(works.all(), difficulty, random);
@@ -166,11 +172,6 @@ public final class OrderService {
         Offer offer = new Offer(work, units, time, asked, work.says(units));
         offered.put(player, offer);
         return new Answer(offer, null, asked);
-    }
-
-    /** The same, a re-roll when this player was made an offer they have not taken. */
-    public Answer ask(UUID player, Money asked) {
-        return ask(player, asked, offered.containsKey(player));
     }
 
     /** Re-rolls left today. */
@@ -190,10 +191,15 @@ public final class OrderService {
             messages.send(player, "jobs.order.none-left");
             return false;
         }
+        // Only the offer last made, and only once: an old screen cannot take work that was turned down or done.
+        if (!ledger.offered() || offered.get(id) != offer) {
+            messages.send(player, "jobs.order.stale");
+            return false;
+        }
         long now = clock.getAsLong();
         Order order = new Order(offer.work().id(), offer.says(), offer.units(), offer.pay(), now,
                 now + offer.time().toMillis(), 0, Order.State.OPEN);
-        if (!book.putNow(id, new OrderBook.Ledger(ledger.day(), ledger.taken() + 1, ledger.rerolls(), order))) {
+        if (!book.putNow(id, new OrderBook.Ledger(ledger.day(), ledger.taken() + 1, ledger.rerolls(), false, order))) {
             messages.send(player, "jobs.order.not-saved");
             return false;
         }
@@ -327,7 +333,6 @@ public final class OrderService {
 
     public void forget(UUID player) {
         bars.remove(player);
-        offered.remove(player);
     }
 
     public void flush() {
