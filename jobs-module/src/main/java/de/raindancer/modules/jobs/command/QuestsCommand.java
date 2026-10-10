@@ -2,6 +2,7 @@ package de.raindancer.modules.jobs.command;
 
 import de.raindancer.core.platform.command.PlayerTargets;
 import de.raindancer.modules.jobs.JobsServices;
+import de.raindancer.modules.jobs.screen.OrderScreens;
 import de.raindancer.modules.jobs.screen.QuestMenu;
 import de.raindancer.modules.jobs.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -16,7 +17,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-/** {@code /quests} opens today's quests. Staff: {@code give <player> <quest>}, {@code reset <player>}, {@code reload}. */
+/** {@code /quests} opens today's quests; {@code ask [amount]} and {@code cancel} for orders. Staff: {@code give <player> <quest>}, {@code reset <player>}, {@code reload}. */
 public final class QuestsCommand implements IJobsCommand {
 
     private final Supplier<JobsServices> services;
@@ -37,6 +38,18 @@ public final class QuestsCommand implements IJobsCommand {
                 live.messages().send(sender, "jobs.quest.switched-off");
             } else {
                 new QuestMenu(live, player, null).open();
+            }
+            return;
+        }
+        if (first.equals("ask") || first.equals("cancel")) {
+            if (!(sender instanceof Player player)) {
+                live.messages().send(sender, "jobs.only-a-player");
+            } else if (first.equals("cancel")) {
+                live.messages().send(player, live.orders().cancel(player) ? "jobs.order.cancelled" : "jobs.order.not-running");
+            } else if (args.length < 2) {
+                OrderScreens.ask(live, player, null);
+            } else {
+                OrderScreens.answer(live, player, null, String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
             }
             return;
         }
@@ -78,6 +91,7 @@ public final class QuestsCommand implements IJobsCommand {
             }
             case "reload" -> {
                 live.messages().send(sender, "jobs.quest.reloaded", "count", String.valueOf(live.quests().reload()));
+                live.messages().send(sender, "jobs.order.reloaded", "count", String.valueOf(live.orders().reload()));
                 de.raindancer.modules.jobs.JobsModule.rewatch(live.quests(), live.plugin());
                 live.quests().problems().forEach(sender::sendMessage);
             }
@@ -87,11 +101,16 @@ public final class QuestsCommand implements IJobsCommand {
 
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
-        if (!source.getSender().hasPermission(PermissionNodes.ADMIN)) {
-            return List.of();
-        }
         String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
         List<String> options = new ArrayList<>();
+        if (args.length <= 1) {
+            options.addAll(List.of("ask", "cancel"));
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("ask")) {
+            options.addAll(List.of("1000", "10k", "1m", "100m"));
+        }
+        if (!source.getSender().hasPermission(PermissionNodes.ADMIN)) {
+            return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(typed)).toList();
+        }
         if (args.length <= 1) {
             options.addAll(List.of("give", "reset", "reload"));
         } else if (args.length == 2 && (args[0].equalsIgnoreCase("reset") || args[0].equalsIgnoreCase("give"))) {

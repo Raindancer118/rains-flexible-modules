@@ -27,7 +27,8 @@ public final class JobsCommands {
                 ModuleCommand.of("quests", "Your personal quests for today, paid as soon as each is done",
                                 new QuestsCommand(JobsCommands::require))
                         .aliased("quest", "dailies")
-                        .taking("(nothing) — your quests", "give <player> <quest> · reset <player> · reload — staff")
+                        .taking("(nothing) — your quests", "ask [amount] — work for that much, against the clock",
+                                "cancel — give the order up", "give <player> <quest> · reset <player> · reload — staff")
                         .needing("rainsjobs.use"));
     }
 

@@ -1,0 +1,493 @@
+# The work an order can turn into. /quests → Ask for work: a player names an amount, and gets work as hard as
+# that amount — the more they ask, the harder the work, the more of it and the less time. A hundred million is
+# about a hundred Wardens in half an hour; a hundred billion is hundreds of Ender Dragons in minutes.
+#
+#   name      what the units are called, plural ("Wardens", "blocks of stone")
+#   task      mine, harvest, kill, fish, breed or travel — counted as for quests (see quests.yml)
+#   things    what counts; * for anything, "!" leaves one out
+#   value     what one is worth in the easiest order; harder orders pay up to 100,000 times as much per unit
+#   rate      how many a skilled player manages in an hour; the time allowed is worked out from it
+#   hardness  0 for the easiest work, 1 for the hardest: an order picks work about as hard as its amount
+#   icon      the item shown for it
+#
+# Read again with /quests reload. Delete this file to get the shipped work back.
+work:
+  stone:
+    name: "blocks of stone"
+    task: mine
+    things: [ stone, deepslate, andesite, diorite, granite, tuff ]
+    value: 1
+    rate: 1200
+    hardness: 0.0
+    icon: stone
+  shovel:
+    name: "blocks of dirt, sand or gravel"
+    task: mine
+    things: [ dirt, grass_block, sand, red_sand, gravel, clay ]
+    value: 1
+    rate: 1000
+    hardness: 0.0
+    icon: iron_shovel
+  wheat:
+    name: "ripe crops"
+    task: harvest
+    things: [ wheat, carrots, potatoes, beetroots ]
+    value: 1
+    rate: 600
+    hardness: 0.02
+    icon: wheat
+  travel:
+    name: "blocks"
+    task: travel
+    value: 0.1
+    rate: 15000
+    hardness: 0.02
+    icon: leather_boots
+  logs:
+    name: "logs"
+    task: mine
+    things: [ "*_log", "*_stem", "!stripped_*" ]
+    value: 3
+    rate: 400
+    hardness: 0.05
+    icon: oak_log
+  zombies:
+    name: "Zombies"
+    task: kill
+    things: [ zombie, husk, drowned, zombie_villager ]
+    value: 8
+    rate: 150
+    hardness: 0.05
+    icon: rotten_flesh
+  spiders:
+    name: "Spiders"
+    task: kill
+    things: [ spider, cave_spider ]
+    value: 8
+    rate: 120
+    hardness: 0.06
+    icon: string
+  skeletons:
+    name: "Skeletons"
+    task: kill
+    things: [ skeleton, stray, bogged ]
+    value: 9
+    rate: 120
+    hardness: 0.07
+    icon: bone
+  netherrack:
+    name: "blocks of netherrack"
+    task: mine
+    things: [ netherrack ]
+    value: 1
+    rate: 1500
+    hardness: 0.08
+    icon: netherrack
+  melons:
+    name: "melons or pumpkins"
+    task: mine
+    things: [ melon, pumpkin ]
+    value: 3
+    rate: 300
+    hardness: 0.08
+    icon: melon
+  breed:
+    name: "farm animals bred"
+    task: breed
+    things: [ cow, sheep, pig, chicken, rabbit, goat ]
+    value: 6
+    rate: 80
+    hardness: 0.08
+    icon: wheat
+  creepers:
+    name: "Creepers"
+    task: kill
+    things: [ creeper ]
+    value: 12
+    rate: 80
+    hardness: 0.1
+    icon: gunpowder
+  coal:
+    name: "coal ore"
+    task: mine
+    things: [ coal_ore, deepslate_coal_ore ]
+    value: 6
+    rate: 150
+    hardness: 0.1
+    icon: coal
+  fish:
+    name: "fish"
+    task: fish
+    things: [ cod, salmon, tropical_fish, pufferfish ]
+    value: 8
+    rate: 60
+    hardness: 0.1
+    icon: cod
+  copper:
+    name: "copper ore"
+    task: mine
+    things: [ copper_ore, deepslate_copper_ore ]
+    value: 5
+    rate: 200
+    hardness: 0.12
+    icon: raw_copper
+  drowned:
+    name: "Drowned"
+    task: kill
+    things: [ drowned ]
+    value: 10
+    rate: 80
+    hardness: 0.12
+    icon: trident
+  cocoa:
+    name: "cocoa pods"
+    task: harvest
+    things: [ cocoa ]
+    value: 2
+    rate: 300
+    hardness: 0.15
+    icon: cocoa_beans
+  slimes:
+    name: "Slimes"
+    task: kill
+    things: [ slime ]
+    value: 6
+    rate: 200
+    hardness: 0.15
+    icon: slime_ball
+  iron:
+    name: "iron ore"
+    task: mine
+    things: [ iron_ore, deepslate_iron_ore ]
+    value: 10
+    rate: 100
+    hardness: 0.18
+    icon: raw_iron
+  redstone:
+    name: "redstone ore"
+    task: mine
+    things: [ redstone_ore, deepslate_redstone_ore ]
+    value: 10
+    rate: 90
+    hardness: 0.2
+    icon: redstone
+  quartz:
+    name: "nether quartz ore"
+    task: mine
+    things: [ nether_quartz_ore ]
+    value: 6
+    rate: 200
+    hardness: 0.2
+    icon: quartz
+  bees:
+    name: "Bees bred"
+    task: breed
+    things: [ bee ]
+    value: 10
+    rate: 30
+    hardness: 0.2
+    icon: honeycomb
+  nether-gold:
+    name: "nether gold ore"
+    task: mine
+    things: [ nether_gold_ore ]
+    value: 5
+    rate: 150
+    hardness: 0.22
+    icon: gold_nugget
+  lapis:
+    name: "lapis ore"
+    task: mine
+    things: [ lapis_ore, deepslate_lapis_ore ]
+    value: 15
+    rate: 50
+    hardness: 0.25
+    icon: lapis_lazuli
+  wart:
+    name: "ripe nether wart"
+    task: harvest
+    things: [ nether_wart ]
+    value: 2
+    rate: 400
+    hardness: 0.25
+    icon: nether_wart
+  axolotls:
+    name: "Axolotls bred"
+    task: breed
+    things: [ axolotl ]
+    value: 15
+    rate: 20
+    hardness: 0.25
+    icon: axolotl_bucket
+  gold:
+    name: "gold ore"
+    task: mine
+    things: [ gold_ore, deepslate_gold_ore ]
+    value: 18
+    rate: 50
+    hardness: 0.28
+    icon: raw_gold
+  amethyst:
+    name: "amethyst clusters"
+    task: mine
+    things: [ amethyst_cluster ]
+    value: 20
+    rate: 40
+    hardness: 0.3
+    icon: amethyst_shard
+  endermen:
+    name: "Endermen"
+    task: kill
+    things: [ enderman ]
+    value: 20
+    rate: 120
+    hardness: 0.3
+    icon: ender_pearl
+  witches:
+    name: "Witches"
+    task: kill
+    things: [ witch ]
+    value: 30
+    rate: 20
+    hardness: 0.3
+    icon: glass_bottle
+  phantoms:
+    name: "Phantoms"
+    task: kill
+    things: [ phantom ]
+    value: 20
+    rate: 20
+    hardness: 0.3
+    icon: phantom_membrane
+  pufferfish:
+    name: "pufferfish"
+    task: fish
+    things: [ pufferfish ]
+    value: 25
+    rate: 8
+    hardness: 0.3
+    icon: pufferfish
+  turtles:
+    name: "Turtles bred"
+    task: breed
+    things: [ turtle ]
+    value: 25
+    rate: 10
+    hardness: 0.3
+    icon: turtle_scute
+  end-stone:
+    name: "blocks of end stone"
+    task: mine
+    things: [ end_stone ]
+    value: 2
+    rate: 600
+    hardness: 0.35
+    icon: end_stone
+  pillagers:
+    name: "Pillagers"
+    task: kill
+    things: [ pillager ]
+    value: 20
+    rate: 60
+    hardness: 0.35
+    icon: crossbow
+  magma:
+    name: "Magma Cubes"
+    task: kill
+    things: [ magma_cube ]
+    value: 10
+    rate: 150
+    hardness: 0.35
+    icon: magma_cream
+  obsidian:
+    name: "blocks of obsidian"
+    task: mine
+    things: [ obsidian ]
+    value: 15
+    rate: 60
+    hardness: 0.4
+    icon: obsidian
+  blazes:
+    name: "Blazes"
+    task: kill
+    things: [ blaze ]
+    value: 25
+    rate: 80
+    hardness: 0.4
+    icon: blaze_rod
+  diamonds:
+    name: "diamond ore"
+    task: mine
+    things: [ diamond_ore, deepslate_diamond_ore ]
+    value: 60
+    rate: 15
+    hardness: 0.45
+    icon: diamond
+  ghasts:
+    name: "Ghasts"
+    task: kill
+    things: [ ghast ]
+    value: 40
+    rate: 15
+    hardness: 0.45
+    icon: ghast_tear
+  hoglins:
+    name: "Hoglins"
+    task: kill
+    things: [ hoglin ]
+    value: 25
+    rate: 40
+    hardness: 0.45
+    icon: cooked_porkchop
+  guardians:
+    name: "Guardians"
+    task: kill
+    things: [ guardian ]
+    value: 20
+    rate: 150
+    hardness: 0.5
+    icon: prismarine_shard
+  sculk:
+    name: "blocks of sculk"
+    task: mine
+    things: [ sculk, sculk_vein ]
+    value: 3
+    rate: 300
+    hardness: 0.5
+    icon: sculk
+  wither-skeletons:
+    name: "Wither Skeletons"
+    task: kill
+    things: [ wither_skeleton ]
+    value: 40
+    rate: 40
+    hardness: 0.55
+    icon: wither_skeleton_skull
+  vindicators:
+    name: "Vindicators"
+    task: kill
+    things: [ vindicator ]
+    value: 50
+    rate: 20
+    hardness: 0.55
+    icon: iron_axe
+  emeralds:
+    name: "emerald ore"
+    task: mine
+    things: [ emerald_ore, deepslate_emerald_ore ]
+    value: 120
+    rate: 4
+    hardness: 0.6
+    icon: emerald
+  breezes:
+    name: "Breezes"
+    task: kill
+    things: [ breeze ]
+    value: 60
+    rate: 20
+    hardness: 0.6
+    icon: breeze_rod
+  brutes:
+    name: "Piglin Brutes"
+    task: kill
+    things: [ piglin_brute ]
+    value: 120
+    rate: 10
+    hardness: 0.6
+    icon: golden_axe
+  debris:
+    name: "ancient debris"
+    task: mine
+    things: [ ancient_debris ]
+    value: 250
+    rate: 5
+    hardness: 0.65
+    icon: ancient_debris
+  shulkers:
+    name: "Shulkers"
+    task: kill
+    things: [ shulker ]
+    value: 80
+    rate: 30
+    hardness: 0.65
+    icon: shulker_shell
+  evokers:
+    name: "Evokers"
+    task: kill
+    things: [ evoker ]
+    value: 150
+    rate: 6
+    hardness: 0.65
+    icon: totem_of_undying
+  ravagers:
+    name: "Ravagers"
+    task: kill
+    things: [ ravager ]
+    value: 150
+    rate: 8
+    hardness: 0.7
+    icon: saddle
+  elder-guardians:
+    name: "Elder Guardians"
+    task: kill
+    things: [ elder_guardian ]
+    value: 800
+    rate: 3
+    hardness: 0.8
+    icon: wet_sponge
+  breeze-storm:
+    name: "Breezes"
+    task: kill
+    things: [ breeze ]
+    value: 300
+    rate: 20
+    hardness: 0.82
+    icon: wind_charge
+  shulker-hunt:
+    name: "Shulkers"
+    task: kill
+    things: [ shulker ]
+    value: 400
+    rate: 30
+    hardness: 0.88
+    icon: shulker_box
+  debris-hoard:
+    name: "ancient debris"
+    task: mine
+    things: [ ancient_debris ]
+    value: 500
+    rate: 5
+    hardness: 0.9
+    icon: netherite_scrap
+  brute-legion:
+    name: "Piglin Brutes"
+    task: kill
+    things: [ piglin_brute ]
+    value: 600
+    rate: 10
+    hardness: 0.92
+    icon: golden_axe
+  wardens:
+    name: "Wardens"
+    task: kill
+    things: [ warden ]
+    value: 750
+    rate: 6
+    hardness: 0.85
+    icon: sculk_shrieker
+  withers:
+    name: "Withers"
+    task: kill
+    things: [ wither ]
+    value: 1500
+    rate: 4
+    hardness: 0.9
+    icon: nether_star
+  dragons:
+    name: "Ender Dragons"
+    task: kill
+    things: [ ender_dragon ]
+    value: 3000
+    rate: 2
+    hardness: 1.0
+    icon: dragon_head

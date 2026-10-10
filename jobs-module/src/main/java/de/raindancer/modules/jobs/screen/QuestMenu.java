@@ -8,6 +8,7 @@ import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.jobs.JobsServices;
+import de.raindancer.modules.jobs.model.Order;
 import de.raindancer.modules.jobs.model.Quest;
 import de.raindancer.modules.jobs.model.QuestDay;
 import de.raindancer.modules.jobs.model.QuestTask;
@@ -81,6 +82,36 @@ public final class QuestMenu extends PaginatedMenu<Quest> implements IJobsScreen
         lore.add("");
         lore.add("<gray>New quests in <white>" + Times.describe(untilNew));
         toolbar(4, Icons.of(Material.WRITABLE_BOOK, "<white>Your quests", lore), click -> { });
+        if (services.orders().settings().enabled()) {
+            Optional<Order> running = services.orders().current(viewer.getUniqueId())
+                    .filter(order -> order.state() == Order.State.OPEN);
+            if (running.isPresent()) {
+                Order order = running.get();
+                Duration left = Duration.ofMillis(Math.max(0, order.endsAt() - System.currentTimeMillis()));
+                toolbar(2, Icons.of(Material.CLOCK, "<gold>" + MINI.escapeTags(order.says()),
+                        bar(order.progress(), order.units()) + " <white>" + order.progress() + "<gray>/" + order.units(),
+                        "<gray>Left: <white>" + Times.describe(left),
+                        "<gray>Pays: <white>" + money(order.pay()) + " <gray>if done in time",
+                        "", "<red>Click<gray> to give it up"), click -> new de.raindancer.core.ui.menu.ConfirmMenu(
+                        viewer, services.brand(), this, "<dark_gray>Give the order up?",
+                        List.of("<gray>Nothing is paid, and it counts as one of today's orders."),
+                        () -> {
+                            if (services.orders().cancel(viewer)) {
+                                services.messages().send(viewer, "jobs.order.cancelled");
+                            }
+                            open();
+                        }).open());
+            } else {
+                toolbar(2, Icons.of(Material.CLOCK, "<gold>Ask for work",
+                        "<gray>Name what you want to earn and get",
+                        "<gray>work to match — and a clock.",
+                        "<gray>The more you ask, the harder it gets:",
+                        "<dark_gray>a thousand is an afternoon of zombies;",
+                        "<dark_gray>a hundred million is Wardens, fast.",
+                        "", "<yellow>Click<gray> to name an amount"),
+                        click -> OrderScreens.ask(services, viewer, this));
+            }
+        }
         toolbar(6, Icons.of(Material.LECTERN, "<white>Job board", "<gray>The server's shared goals",
                 "<yellow>Click<gray> to open"), click -> new JobBoardMenu(services, viewer, this).open());
     }

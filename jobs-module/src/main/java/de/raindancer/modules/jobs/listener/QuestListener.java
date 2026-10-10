@@ -59,10 +59,10 @@ public final class QuestListener implements IJobsListener {
         Block block = event.getBlock();
         String type = block.getType().name();
         if (block.getBlockData() instanceof Ageable crop && crop.getAge() >= crop.getMaximumAge()) {
-            services.quests().progress(player, QuestTask.HARVEST, type, 1);
+            count(player, QuestTask.HARVEST, type, 1);
         }
         if (PlacedBlocks.watching(block.getType()) && !PlacedBlocks.isPlaced(block)) {
-            services.quests().progress(player, QuestTask.MINE, type, 1);
+            count(player, QuestTask.MINE, type, 1);
         }
     }
 
@@ -73,14 +73,14 @@ public final class QuestListener implements IJobsListener {
         if (killer == null || dead instanceof Player || !playing(killer) || FARMED.contains(dead.getEntitySpawnReason())) {
             return;
         }
-        services.quests().progress(killer, QuestTask.KILL, dead.getType().name(), 1);
+        count(killer, QuestTask.KILL, dead.getType().name(), 1);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onFish(PlayerFishEvent event) {
         if (event.getState() == PlayerFishEvent.State.CAUGHT_FISH && event.getCaught() instanceof Item item
                 && playing(event.getPlayer())) {
-            services.quests().progress(event.getPlayer(), QuestTask.FISH, item.getItemStack().getType().name(),
+            count(event.getPlayer(), QuestTask.FISH, item.getItemStack().getType().name(),
                     item.getItemStack().getAmount());
         }
     }
@@ -88,7 +88,7 @@ public final class QuestListener implements IJobsListener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreed(EntityBreedEvent event) {
         if (event.getBreeder() instanceof Player player && playing(player)) {
-            services.quests().progress(player, QuestTask.BREED, event.getEntity().getType().name(), 1);
+            count(player, QuestTask.BREED, event.getEntity().getType().name(), 1);
         }
     }
 
@@ -124,7 +124,7 @@ public final class QuestListener implements IJobsListener {
         }
         double distance = Math.hypot(here.getX() - before.getX(), here.getZ() - before.getZ());
         if (distance <= MOST_PER_SAMPLE) {
-            services.quests().travelled(player, distance);
+            services.orders().progress(player, QuestTask.TRAVEL, "", services.quests().travelled(player, distance));
         }
     }
 
@@ -136,9 +136,16 @@ public final class QuestListener implements IJobsListener {
         return Math.abs(before.getYaw() - here.getYaw()) > 0.5f || Math.abs(before.getPitch() - here.getPitch()) > 0.5f;
     }
 
+    /** Counts for the day's quests and for the running order alike. */
+    private void count(Player player, QuestTask task, String thing, int count) {
+        services.quests().progress(player, task, thing, count);
+        services.orders().progress(player, task, thing, count);
+    }
+
     @Override
     public void forget(UUID player) {
         lastSeen.remove(player);
         services.quests().forget(player);
+        services.orders().forget(player);
     }
 }

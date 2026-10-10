@@ -240,10 +240,14 @@ public final class QuestService {
         return owed;
     }
 
-    /** Blocks this player moved since the last sample; added up until there are whole ones to count. */
-    public void travelled(Player player, double blocks) {
+    /**
+     * Blocks this player moved since the last sample; added up until there are whole ones to count.
+     *
+     * @return the whole blocks counted now, for anything else that counts travel
+     */
+    public int travelled(Player player, double blocks) {
         if (blocks <= 0) {
-            return;
+            return 0;
         }
         double total = walked.merge(player.getUniqueId(), blocks, Double::sum);
         int whole = (int) Math.floor(total);
@@ -251,6 +255,7 @@ public final class QuestService {
             walked.put(player.getUniqueId(), total - whole);
             progress(player, QuestTask.TRAVEL, "", whole);
         }
+        return whole;
     }
 
     public void forget(UUID player) {

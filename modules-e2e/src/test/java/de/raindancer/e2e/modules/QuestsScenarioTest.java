@@ -48,7 +48,7 @@ class QuestsScenarioTest {
     }
 
     @Test
-    @DisplayName("an explorer is faster; a miner's quest counts mined ore but not placed ore and pays; advancements pay by difficulty; mob drops sell")
+    @DisplayName("an explorer is faster; a miner's quest counts mined ore but not placed ore and pays; advancements pay by difficulty; mob drops sell; an order is offered, taken and given up")
     void quests() {
         try (Server server = Server.start("quests", List.of("economy-standalone:RainsEconomy-.*",
                 "roles-standalone:RainsRoles-.*", "jobs-standalone:RainsJobs-.*"),
@@ -128,6 +128,27 @@ class QuestsScenarioTest {
             Await.until(() -> "the miner's bonus is under the sell price (" + loreOf(mia, "Diamond") + ")", WAIT,
                     () -> lore(mia, "Diamond", "Miner: +"));
             mia.closeWindow();
+
+            // ---- orders: name an amount, get work and a clock; too much is refused
+            mia.forgetChat();
+            mia.run("quests ask 200b");
+            mia.expectChat("Nobody pays more than");
+            mia.run("quests ask 100m");
+            mia.awaitWindow("Take this order?");
+            Await.until(() -> "the offer names the pay (" + loreOf(mia, "What this does") + ")", WAIT,
+                    () -> lore(mia, "What this does", "⛃100,000,000"));
+            mia.closeWindow();
+            mia.forgetChat();
+            mia.run("quests ask 2k");
+            mia.awaitWindow("Take this order?");
+            Await.ticks(10);
+            mia.clickSlot(mia.window().orElseThrow().slotNamed("Yes, do it").orElseThrow());
+            Await.until(() -> "the order starts (heard " + mia.chatText() + ")", WAIT,
+                    () -> said(mia, "You have") && said(mia, "Go!"));
+            mia.run("quests ask 2k");
+            mia.expectChat("You are on an order already");
+            mia.run("quests cancel");
+            mia.expectChat("Order given up");
 
             assertThat(server.paper.errorsFrom("RainsCore", "RainsEconomy", "RainsRoles", "RainsJobs")).isEmpty();
         }

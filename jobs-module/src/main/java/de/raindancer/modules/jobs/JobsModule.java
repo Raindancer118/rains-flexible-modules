@@ -11,7 +11,10 @@ import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.core.world.blocks.PlacedBlocks;
 import de.raindancer.modules.jobs.listener.FishListener;
 import de.raindancer.modules.jobs.listener.QuestListener;
+import de.raindancer.modules.jobs.service.OrderService;
 import de.raindancer.modules.jobs.service.QuestService;
+import de.raindancer.modules.jobs.store.OrderBook;
+import de.raindancer.modules.jobs.store.WorkCatalogue;
 import de.raindancer.modules.jobs.store.QuestBook;
 import de.raindancer.modules.jobs.store.QuestCatalogue;
 import de.raindancer.modules.jobs.service.GoalService;
@@ -28,12 +31,13 @@ import java.util.List;
  */
 public final class JobsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.4.0")
-            .describedAs("The job board — goals everybody delivers or fishes towards, paid by their share — and personal daily quests, harder and better paid the richer you are")
+    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.5.0")
+            .describedAs("The job board — goals everybody delivers or fishes towards, paid by their share — personal daily quests, harder and better paid the richer you are, and orders: name what you want to earn and race the clock")
             .by("Raindancer118");
 
     private GoalService goals;
     private QuestService quests;
+    private OrderService orders;
     private volatile Object watched;
 
     /** Watches the blocks the quests now ask for — after quests.yml is read again. */
@@ -41,11 +45,20 @@ public final class JobsModule implements FlexModule {
         JobsModule running = current;
         if (running != null) {
             PlacedBlocks.unwatch(running.watched);
-            running.watched = PlacedBlocks.watch(plugin, quests.minedBlocks());
+            running.watched = PlacedBlocks.watch(plugin, mined(quests, running.orders));
         }
     }
 
     private static volatile JobsModule current;
+
+    private static java.util.Set<org.bukkit.Material> mined(QuestService quests, OrderService orders) {
+        java.util.Set<org.bukkit.Material> blocks = java.util.EnumSet.noneOf(org.bukkit.Material.class);
+        blocks.addAll(quests.minedBlocks());
+        if (orders != null) {
+            blocks.addAll(orders.minedBlocks());
+        }
+        return blocks;
+    }
 
     @Override
     public ModuleInfo info() {
@@ -93,10 +106,25 @@ public final class JobsModule implements FlexModule {
                 context.log(), System::currentTimeMillis, java.time.ZoneId.systemDefault(), new SecureRandom(),
                 questSettings.current());
         questSettings.onChange(quests::settings);
+        SettingsStore<OrderSettings> orderSettings = context.settings(OrderSettings.class, OrderSettings.DEFAULTS);
+        WorkCatalogue work = new WorkCatalogue(new YamlStore(context.dataFolder().resolve("orders.yml")),
+                () -> JobsModule.class.getResourceAsStream("orders.yml"));
+        int workKinds = work.reload();
+        work.problems().forEach(problem -> context.log().warn("orders.yml: {}", problem));
+        OrderBook orderBook = new OrderBook(new YamlStore(context.dataFolder().resolve("order-progress.yml")));
+        orderBook.load();
+        if (!orderBook.readable()) {
+            context.log().error("order-progress.yml could not be read. Nobody can take an order until it is fixed.");
+        }
+        orders = new OrderService(context.plugin().getServer(), work, orderBook, context.core().messages(),
+                context.log(), System::currentTimeMillis, java.time.ZoneId.systemDefault(), new SecureRandom(),
+                orderSettings.current());
+        orderSettings.onChange(orders::settings);
         JobsServices services = new JobsServices(context.plugin(), context.plugin().getServer(), context.core(),
-                context.log(), context.core().messages(), context.chat().brand(), settings::current, goals, quests);
-        // Mining quests must not count blocks a player put there; Core remembers where the ones they ask for are placed.
-        watched = PlacedBlocks.watch(context.plugin(), quests.minedBlocks());
+                context.log(), context.core().messages(), context.chat().brand(), settings::current, goals, quests,
+                orders);
+        // Mining must not count blocks a player put there; Core remembers where the ones quests and orders ask for are placed.
+        watched = PlacedBlocks.watch(context.plugin(), mined(quests, orders));
         context.closeWith(() -> PlacedBlocks.unwatch(watched));
         QuestListener questListener = new QuestListener(services);
         context.listener(questListener);
@@ -108,6 +136,17 @@ public final class JobsModule implements FlexModule {
         if (travel != null) {
             context.closeWith(travel::cancel);
         }
+        // The order's clock, once a second, for whoever has one running.
+        var clocks = Scheduling.globalTimer(context.plugin(), 20L, 20L, task -> {
+            for (org.bukkit.entity.Player online : context.plugin().getServer().getOnlinePlayers()) {
+                if (orders.current(online.getUniqueId()).isPresent()) {
+                    Scheduling.entity(context.plugin(), online, () -> orders.bar(online));
+                }
+            }
+        });
+        if (clocks != null) {
+            context.closeWith(clocks::cancel);
+        }
 
         SaleStops.provide(context.plugin(), goals);
         context.closeWith(() -> SaleStops.retract(goals));
@@ -115,15 +154,17 @@ public final class JobsModule implements FlexModule {
         var minutes = Scheduling.globalTimer(context.plugin(), 20L * 5, 20L * 60, task -> {
             goals.tick();
             quests.tick();
+            orders.tick();
         });
         if (minutes != null) {
             context.closeWith(minutes::cancel);
         }
         context.closeWith(goals::flush);
         context.closeWith(quests::flush);
+        context.closeWith(orders::flush);
         JobsCommands.ready(services);
-        context.log().info("The job board is up: {} kind(s) of goal, {} on the board; {} personal quest(s).", kinds,
-                book.active().size(), questKinds);
+        context.log().info("The job board is up: {} kind(s) of goal, {} on the board; {} personal quest(s), {} kind(s) "
+                + "of work for orders.", kinds, book.active().size(), questKinds, workKinds);
     }
 
     @Override
@@ -139,6 +180,9 @@ public final class JobsModule implements FlexModule {
         }
         if (quests != null) {
             quests.flush();
+        }
+        if (orders != null) {
+            orders.flush();
         }
         current = null;
     }

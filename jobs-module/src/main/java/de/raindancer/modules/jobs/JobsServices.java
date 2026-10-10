@@ -5,6 +5,7 @@ import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.jobs.service.GoalService;
+import de.raindancer.modules.jobs.service.OrderService;
 import de.raindancer.modules.jobs.service.QuestService;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
@@ -21,5 +22,6 @@ public record JobsServices(
         Brand brand,
         Supplier<JobsSettings> settings,
         GoalService goals,
-        QuestService quests) {
+        QuestService quests,
+        OrderService orders) {
 }
