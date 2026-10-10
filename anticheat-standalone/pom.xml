@@ -27,8 +27,10 @@
              0.6.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
              0.7.0: /anticheat reset is a real fresh start (levels, evidence, replays), also for offline players.
              0.8.0: at a check's ban level the server's rule about cheating decides the punishment (via moderation).
-             0.8.1: only with auto-ban on; punish-by-rules says what a ban level costs, not that it costs anything. -->
-        <plugin.version>0.8.1</plugin.version>
+             0.8.1: only with auto-ban on; punish-by-rules says what a ban level costs, not that it costs anything.
+             0.9.0: false positives from Lilly's SMP fixed (steps, ladders, NoFall without a fall, mined ground,
+                    sprint flag, punches, passengers); ViaVersion-translated clients left to combat/world checks. -->
+        <plugin.version>0.9.0</plugin.version>
     </properties>
 
     <dependencies>

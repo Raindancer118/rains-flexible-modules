@@ -53,6 +53,18 @@ public final class PlayerTrack {
     public volatile boolean bypassAll;
     public final Set<CheckType> bypassed = java.util.concurrent.ConcurrentHashMap.newKeySet();
     public volatile boolean bedrock;
+    /** The client's own game version when ViaVersion translates it, else null. */
+    public volatile String translatedFrom;
+    private volatile boolean versionKnown;
+
+    public boolean versionKnown() {
+        return versionKnown;
+    }
+
+    public void version(String translatedFrom) {
+        this.translatedFrom = translatedFrom;
+        this.versionKnown = true;
+    }
     public volatile boolean kicking;
     public volatile int ping;
     public volatile int entityId = Integer.MIN_VALUE;
@@ -276,6 +288,10 @@ public final class PlayerTrack {
         public boolean usedThisTick;
         public boolean digging;
         public int attacksAwaitingSwing;
+        public boolean swung;
+        public long lastSwingNanos;
+        /** In or on a vehicle or mount, as of the last tick — set by the player's own thread. */
+        public volatile boolean riding;
         public int startsThisTick;
         /** Our own ping packets in flight: id → nanos sent. */
         public final java.util.LinkedHashMap<Integer, Long> transactions = new java.util.LinkedHashMap<>();

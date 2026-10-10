@@ -29,7 +29,7 @@ public enum CheckType {
             false, Action.SETBACK, 1, 30, 60, 6),
     JESUS("jesus", Category.MOVEMENT, "Jesus", "Walking on water or lava.",
             false, Action.SETBACK, 2, 30, 0, 6),
-    SPRINT("sprint", Category.MOVEMENT, "Sprint", "Sprinting where the game does not allow it: backwards, starving, while using an item.",
+    SPRINT("sprint", Category.MOVEMENT, "Sprint", "Sprinting while starving. Sprinting sideways or backwards counts as Speed: those moves are held to walking pace.",
             false, Action.SETBACK, 3, 0, 0, 6),
     ELYTRA("elytra", Category.MOVEMENT, "Elytra", "Gliding that climbs or hovers without a firework.",
             false, Action.SETBACK, 3, 40, 0, 6),
@@ -167,6 +167,14 @@ public enum CheckType {
 
     public double decayPerMinute() {
         return decayPerMinute;
+    }
+
+    /**
+     * Whether this check models the server's own game version — its physics or its packet order — so
+     * a client of another version, translated by ViaVersion, fails it without cheating.
+     */
+    public boolean versionBound() {
+        return category == Category.MOVEMENT || category == Category.PACKETS || this == NO_SWING || this == KEEP_SPRINT;
     }
 
     /** By key ({@code fly}) or by name ({@code FLY}, {@code no_fall}), case-insensitive. */

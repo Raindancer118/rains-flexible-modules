@@ -125,4 +125,25 @@ class VerticalRuleTest {
     void unknown() {
         assertThat(rule.judge(air(Double.NaN, 5)).passed()).isTrue();
     }
+
+    @Test
+    @DisplayName("after stepping up onto a slab the player walks on level: a step is no upward speed")
+    void levelAfterStep() {
+        // Lilly's SMP: 588 flags of "falling faster than gravity (dy 0.0000, at least 0.4116)" — the 0.5 step taken as speed.
+        assertThat(rule.judge(fromGround(0, 0.5, true)).passed()).isTrue();
+        assertThat(rule.judge(fromGround(0.5, 0, true)).passed()).isTrue();
+        assertThat(rule.judge(fromGround(0.5625, 0, true)).passed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("walking off an edge after a step falls from rest, not from the step's height change")
+    void fallAfterStep() {
+        assertThat(rule.judge(fromGround(0.5, Physics.nextVertical(0, G), false)).passed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a jump right after a step is still a jump")
+    void jumpAfterStep() {
+        assertThat(rule.judge(fromGround(0.5, 0.42, false)).passed()).isTrue();
+    }
 }

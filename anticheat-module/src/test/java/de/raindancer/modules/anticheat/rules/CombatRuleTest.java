@@ -79,4 +79,14 @@ class CombatRuleTest {
         assertThat(Geometry.yawDelta(10, 350)).isCloseTo(-20, within(1e-9));
         assertThat(Geometry.yawDelta(0, 720)).isCloseTo(0, within(1e-9));
     }
+
+    @Test
+    @DisplayName("an attack mid-swing needs no swing of its own; one long after the last swing does")
+    void swingCovers() {
+        // Lilly's SMP: 26.3 clients only punch when the swing starts over — fast clickers hit mid-swing.
+        assertThat(CombatRule.swingCovers(0)).isTrue();
+        assertThat(CombatRule.swingCovers(250_000_000L)).isTrue();
+        assertThat(CombatRule.swingCovers(CombatRule.SWING_NANOS + 1)).isFalse();
+        assertThat(CombatRule.swingCovers(Long.MAX_VALUE)).as("never swung").isFalse();
+    }
 }

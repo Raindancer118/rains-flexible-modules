@@ -31,6 +31,14 @@ public final class Physics {
         return collisionBelow && (dy <= NEGLIGIBLE || wasStanding && dy <= stepHeight + NEGLIGIBLE);
     }
 
+    /** Fall distance under which vanilla never deals damage, with room to spare (safe fall is 3). */
+    public static final double NO_FALL_MIN = 1.5;
+
+    /** Whether claiming ground now would skip a fall worth skipping: what they fell so far plus this move. */
+    public static boolean skipsFall(double fallen, double dy) {
+        return fallen + Math.max(0, -dy) >= NO_FALL_MIN;
+    }
+
     /** One tick of vertical motion in air: gravity, then drag. */
     public static double nextVertical(double velocity, double gravity) {
         return (velocity - gravity) * VERTICAL_DRAG;

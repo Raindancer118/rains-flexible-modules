@@ -1,6 +1,7 @@
 package de.raindancer.modules.anticheat.service;
 
 import de.raindancer.core.platform.util.Scheduling;
+import de.raindancer.core.world.blocks.BlockChanges;
 import de.raindancer.modules.anticheat.AntiCheatSettings;
 import de.raindancer.modules.anticheat.model.Buffer;
 import de.raindancer.modules.anticheat.model.CheckType;
@@ -38,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 /**
  * Once a tick, on each player's own thread: takes the moves their client reported since the last
@@ -101,6 +103,7 @@ public final class MovementEngine implements IAntiCheatService {
         PlayerTrack.Movement m = track.movement;
         synchronized (track) {
             m.ticks++;
+            track.packets.riding = player.isInsideVehicle();
             if (m.ticks % 20 == 1) {
                 refreshPermissions(player, track);
                 measurePing(player, track);
@@ -233,8 +236,8 @@ public final class MovementEngine implements IAntiCheatService {
         Surroundings here = Surroundings.at(world, sample.x(), sample.y(), sample.z(), player.getWidth(), player.getHeight());
         // A block the client has not been told about yet is still there for it — mined away under its
         // feet by a vein miner, another player, an explosion. Its own word is all there is until then.
-        boolean blocksInFlux = !Double.isNaN(m.x) && blocksInFlux(track, m, sample, player.getWidth(), player.getHeight(),
-                2L * track.compensated(settings.maxPing()) + 500);
+        boolean blocksInFlux = !Double.isNaN(m.x) && blocksInFlux(world, track, m, sample, player.getWidth(), player.getHeight(),
+                2L * track.compensated(settings.maxPing()) + 500, track.compensated(settings.maxPing()));
         if (blocksInFlux) {
             here = here.withGround(sample.onGround());
         } else {
@@ -283,7 +286,7 @@ public final class MovementEngine implements IAntiCheatService {
                 nearRideable = Surroundings.nearRideableGround(world, sample.x(), sample.y(), sample.z());
                 if (!nearRideable) {
                     CheckType which = here.overLiquid() && Math.abs(dy) < 0.05 ? CheckType.JESUS : CheckType.FLY;
-                    failed |= report(player, track, which, 1, 1, 0.02, judged.reason());
+                    failed |= report(player, track, which, 1, 1, 0.02, judged.reason() + where(sample, here));
                 }
             } else {
                 track.buffer(CheckType.FLY, 1, 0.02).pass();
@@ -292,13 +295,14 @@ public final class MovementEngine implements IAntiCheatService {
 
         // NoFall: the client says it stands on something the server says is not there.
         if (sample.onGround() && !here.ground() && !specialNow && !here.overLiquid() && !gliding
-                && run(track, CheckType.NO_FALL) && !track.isExempt(PlayerTrack.Exemption.BLOCK_UNDERFOOT)) {
+                && Physics.skipsFall(m.ourFallDistance, dy) && run(track, CheckType.NO_FALL) && !track.isExempt(PlayerTrack.Exemption.BLOCK_UNDERFOOT)) {
             if (!nearRideable) {
                 nearRideable = Surroundings.nearRideableGround(world, sample.x(), sample.y(), sample.z());
             }
             if (!nearRideable && track.buffer(CheckType.NO_FALL, 2, 0.05).fail(1)) {
                 ActionRule.Decision decision = violations.flag(player, track, Flag.of(CheckType.NO_FALL,
-                        String.format(Locale.ROOT, "claimed to stand while falling (dy %.2f, fallen %.1f)", dy, m.ourFallDistance)));
+                        String.format(Locale.ROOT, "claimed to stand while falling (dy %.2f, fallen %.1f)", dy, m.ourFallDistance)
+                                + where(sample, here)));
                 if (decision.act()) {
                     // Vanilla deals the damage itself the next time it believes they landed.
                     player.setFallDistance(Math.max(player.getFallDistance(), m.ourFallDistance));
@@ -323,7 +327,9 @@ public final class MovementEngine implements IAntiCheatService {
 
         // Ladders: no faster than vanilla climbs, unless something launched them.
         if (here.climbable() && m.special && dy > 0 && Double.isNaN(velocityY) && !levitating && run(track, CheckType.FLY)) {
-            Judgement climbed = airControl.climb(dy / ticks);
+            Judgement climbed = airControl.climb(dy / ticks, m.lastDy, m.onGround,
+                    Physics.jumpVelocity(attribute(player, Attribute.JUMP_STRENGTH, Physics.JUMP_VELOCITY),
+                            level(player, PotionEffectType.JUMP_BOOST), m.jumpFactor));
             if (climbed.failed()) {
                 failed |= report(player, track, CheckType.FLY, 1, 2, 0.05, climbed.reason());
             }
@@ -344,14 +350,32 @@ public final class MovementEngine implements IAntiCheatService {
         remember(world, m, sample, dy, hd, here, false);
     }
 
-    private static boolean blocksInFlux(PlayerTrack track, PlayerTrack.Movement m, MoveSample sample, double width, double height,
-                                        long patienceMillis) {
+    /** Margin on top of the ping for when a client made a move and when the server read it. */
+    private static final long MOVE_MARGIN_NANOS = 150_000_000L;
+
+    /**
+     * Whether a block around the move may look different to the client than to us: a change we sent
+     * that it has not provably applied, or one made after it could have heard of it — the move was made
+     * before the block under it was mined, and is only read now, when the block is gone.
+     */
+    /** Exactly where, for whoever reads the evidence: the height to the ten-thousandth and what is underfoot. */
+    private static String where(MoveSample sample, Surroundings here) {
+        return String.format(Locale.ROOT, " · y %.4f over %s, client says %s", sample.y(),
+                here.below().name().toLowerCase(Locale.ROOT), sample.onGround() ? "ground" : "air");
+    }
+
+    private static boolean blocksInFlux(World world, PlayerTrack track, PlayerTrack.Movement m, MoveSample sample,
+                                        double width, double height, long patienceMillis, long pingMillis) {
         double half = width / 2 + 0.1;
-        return track.packets.blocks.uncertain(
-                (int) Math.floor(Math.min(m.x, sample.x()) - half), (int) Math.floor(Math.min(m.y, sample.y()) - 1),
-                (int) Math.floor(Math.min(m.z, sample.z()) - half), (int) Math.floor(Math.max(m.x, sample.x()) + half),
-                (int) Math.floor(Math.max(m.y, sample.y()) + height), (int) Math.floor(Math.max(m.z, sample.z()) + half),
-                track.now(), patienceMillis);
+        int minX = (int) Math.floor(Math.min(m.x, sample.x()) - half);
+        int minY = (int) Math.floor(Math.min(m.y, sample.y()) - 1);
+        int minZ = (int) Math.floor(Math.min(m.z, sample.z()) - half);
+        int maxX = (int) Math.floor(Math.max(m.x, sample.x()) + half);
+        int maxY = (int) Math.floor(Math.max(m.y, sample.y()) + height);
+        int maxZ = (int) Math.floor(Math.max(m.z, sample.z()) + half);
+        return track.packets.blocks.uncertain(minX, minY, minZ, maxX, maxY, maxZ, track.now(), patienceMillis)
+                || BlockChanges.changedSince(world, minX, minY, minZ, maxX, maxY, maxZ,
+                        sample.nanos() - pingMillis * 1_000_000L - MOVE_MARGIN_NANOS);
     }
 
     private boolean judgeHorizontal(Player player, PlayerTrack track, MoveSample sample, double hd, double dy,
@@ -367,16 +391,26 @@ public final class MovementEngine implements IAntiCheatService {
         boolean maySprint = (player.getFoodLevel() > 6 || player.getAllowFlight()) && !sneaking && useMaySprint
                 && !player.hasPotionEffect(PotionEffectType.BLINDNESS);
         double speed = attribute(player, Attribute.MOVEMENT_SPEED, 0.1);
+        boolean sprintCounted = player.isSprinting();
+        // Vanilla only sprints forwards. The sprint flag itself may linger (some clients keep it), so it is
+        // the speed that is held to walking: sprinting sideways or backwards is what the flag would buy.
+        if (m.inputSeen && !m.forward && track.now() - m.inputChangedMillis > 200 + track.compensated(settings.maxPing())) {
+            maySprint = false;
+            if (sprintCounted) {
+                speed /= Physics.SPRINT_MULTIPLIER;
+                sprintCounted = false;
+            }
+        }
         boolean jumped = m.onGround && dy > 0.1;
         HorizontalRule.Move move = new HorizontalRule.Move(m.lastHd, hd, ticks, m.onGround, m.onGroundBefore,
-                m.friction, m.frictionBefore, speed, player.isSprinting(), maySprint, useSlowdown * sneakSlowdown,
+                m.friction, m.frictionBefore, speed, sprintCounted, maySprint, useSlowdown * sneakSlowdown,
                 jumped, velocityH, 0);
         HorizontalRule.Result result = horizontal.judge(move);
         if (result.failed()) {
             int pushers = Surroundings.pushers(player.getWorld(), sample.x(), sample.y(), sample.z(), player);
             if (pushers > 0) {
                 result = horizontal.judge(new HorizontalRule.Move(m.lastHd, hd, ticks, m.onGround, m.onGroundBefore,
-                        m.friction, m.frictionBefore, speed, player.isSprinting(), maySprint,
+                        m.friction, m.frictionBefore, speed, sprintCounted, maySprint,
                         useSlowdown * sneakSlowdown, jumped, velocityH, 0.05 * Math.min(3, pushers)));
             }
         }
@@ -626,17 +660,11 @@ public final class MovementEngine implements IAntiCheatService {
             track.buffer(CheckType.SPRINT, 4, 0.2).pass();
             return;
         }
+        // Sideways, backwards or while using an item the sprint flag buys nothing by itself — the speed
+        // check holds those moves to their real limit. Lilly's SMP: 26.3 clients keep the flag while eating.
         String why = null;
-        if (m.inputSeen && !m.forward && now - m.inputChangedMillis > 200 + track.compensated(settings.maxPing())) {
-            why = m.backward ? "sprinting backwards" : "sprinting without moving forward";
-        } else if (player.getFoodLevel() <= 6 && player.getGameMode() == GameMode.SURVIVAL && !player.getAllowFlight()) {
+        if (player.getFoodLevel() <= 6 && player.getGameMode() == GameMode.SURVIVAL && !player.getAllowFlight()) {
             why = "sprinting while starving";
-        } else if (player.isHandRaised()) {
-            ItemStack using = player.getActiveItem();
-            UseEffects effects = using.getDataOrDefault(DataComponentTypes.USE_EFFECTS, null);
-            if (effects == null || !effects.canSprint()) {
-                why = "sprinting while using " + using.getType().name().toLowerCase(Locale.ROOT);
-            }
         }
         if (why == null) {
             track.buffer(CheckType.SPRINT, 4, 0.2).pass();
@@ -694,6 +722,11 @@ public final class MovementEngine implements IAntiCheatService {
             }
         }
         track.bedrock = Tracks.isBedrock(player.getUniqueId());
+        if (!track.versionKnown()) {
+            UUID id = player.getUniqueId();
+            track.version(de.raindancer.core.platform.bukkit.ClientVersions.translated(id)
+                    ? de.raindancer.core.platform.bukkit.ClientVersions.of(id).map(v -> v.name()).orElse("another version") : null);
+        }
     }
 
     /** States the movement checks do not model at all. */

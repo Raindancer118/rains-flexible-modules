@@ -6,7 +6,8 @@ import java.util.Locale;
  * Steering where vanilla barely allows it. In the air, each tick keeps 0.91 of the last tick's
  * sideways motion and adds at most the air acceleration (0.026 sprinting) in any direction — so the
  * <em>vector</em> difference is bounded, not just the speed. A cheat that turns or stops in mid-air
- * passes every speed check and fails this one. On ladders the climb is capped at 0.2 a tick.
+ * passes every speed check and fails this one. On ladders a climb is 0.2 a tick, but a
+ * ladder only ever slows a fall: a jump rises on it like anywhere else.
  */
 public final class AirControlRule implements IAntiCheatRule {
 
@@ -42,9 +43,19 @@ public final class AirControlRule implements IAntiCheatRule {
         return Judgement.PASS;
     }
 
-    public Judgement climb(double dy) {
-        if (dy > CLIMB + 0.03) {
-            return Judgement.fail(dy - CLIMB, String.format(Locale.ROOT, "climbing at %.3f, ladders allow %.2f", dy, CLIMB));
+    /**
+     * @param lastDy       the previous move's height change, NaN when unknown
+     * @param wasOnGround  standing before this move, so it may be a jump
+     */
+    public Judgement climb(double dy, double lastDy, boolean wasOnGround, double jumpVelocity) {
+        double allowed = CLIMB;
+        if (wasOnGround) {
+            allowed = Math.max(allowed, jumpVelocity);
+        } else if (!Double.isNaN(lastDy)) {
+            allowed = Math.max(allowed, Physics.nextVertical(lastDy, Physics.GRAVITY));
+        }
+        if (dy > allowed + 0.03) {
+            return Judgement.fail(dy - allowed, String.format(Locale.ROOT, "climbing at %.3f, at most %.3f", dy, allowed));
         }
         return Judgement.PASS;
     }

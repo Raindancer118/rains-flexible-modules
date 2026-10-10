@@ -120,6 +120,14 @@ public final class MovementListener implements IAntiCheatListener {
         }
     }
 
+    /** Horses, striders and happy ghasts too: their riders' clients send a rotation every tick from now on. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onMount(org.bukkit.event.entity.EntityMountEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            services.tracks().of(player).packets.riding = true;
+        }
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onExit(VehicleExitEvent event) {
         if (event.getExited() instanceof Player player) {

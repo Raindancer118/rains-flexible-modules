@@ -804,6 +804,21 @@ public final class Bot {
         return this;
     }
 
+    /** Which movement keys are held, as the client reports them whenever they change. */
+    public Bot keys(boolean forward, boolean backward, boolean left, boolean right, boolean jump, boolean sneak, boolean sprint) {
+        session.send(new org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.level.ServerboundPlayerInputPacket(
+                forward, backward, left, right, jump, sneak, sprint));
+        return this;
+    }
+
+    /** Starts or stops sprinting. */
+    public Bot sprinting(boolean on) {
+        session.send(new org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerCommandPacket(
+                ownEntityId, on ? org.geysermc.mcprotocollib.protocol.data.game.entity.player.PlayerState.START_SPRINTING
+                        : org.geysermc.mcprotocollib.protocol.data.game.entity.player.PlayerState.STOP_SPRINTING));
+        return this;
+    }
+
     /** Throws the held item away — the Q key. */
     public Bot dropHeld() {
         session.send(new org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerActionPacket(

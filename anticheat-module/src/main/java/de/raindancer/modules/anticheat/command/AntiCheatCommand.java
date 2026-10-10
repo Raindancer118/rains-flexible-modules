@@ -116,7 +116,8 @@ public final class AntiCheatCommand implements BasicCommand {
         String brand = target.getClientBrandName();
         PlayerTrack.Exemption exemption = track.exemption();
         live.messages().send(sender, "anticheat.info-meta", "ping", target.getPing(),
-                "brand", brand == null ? "unknown" : brand,
+                "brand", (brand == null ? "unknown" : brand)
+                        + (track.translatedFrom == null ? "" : " on " + track.translatedFrom + ", translated"),
                 "tap", track.packets.tapped ? (track.packets.sendsTickEnd ? "packets with tick clock" : "packets") : "events only",
                 "timer", String.format(Locale.ROOT, "%.0f", track.timer.balance()),
                 "exempt", exemption == null ? "no" : exemption.name().toLowerCase(Locale.ROOT).replace('_', ' '));

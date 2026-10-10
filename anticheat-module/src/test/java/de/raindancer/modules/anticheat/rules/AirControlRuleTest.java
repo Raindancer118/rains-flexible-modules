@@ -41,7 +41,17 @@ class AirControlRuleTest {
     @Test
     @DisplayName("climbing a ladder at 0.2 is vanilla; faster is not")
     void ladder() {
-        assertThat(rule.climb(0.2).passed()).isTrue();
-        assertThat(rule.climb(0.45).failed()).isTrue();
+        assertThat(rule.climb(0.2, 0.2, false, 0.42).passed()).isTrue();
+        assertThat(rule.climb(0.45, 0.2, false, 0.42).failed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a jump on a ladder rises like any jump: ladders only slow a fall")
+    void jumpOnLadder() {
+        // Lilly's SMP: "climbing at 0.420 / 0.333 / 0.248, ladders allow 0.20" — a jump arc, tick by tick.
+        assertThat(rule.climb(0.42, 0, true, 0.42).passed()).isTrue();
+        assertThat(rule.climb(0.3332, 0.42, false, 0.42).passed()).isTrue();
+        assertThat(rule.climb(0.2481, 0.3332, false, 0.42).passed()).isTrue();
+        assertThat(rule.climb(0.42, 0.2, false, 0.42).failed()).as("no second jump in mid-air").isTrue();
     }
 }

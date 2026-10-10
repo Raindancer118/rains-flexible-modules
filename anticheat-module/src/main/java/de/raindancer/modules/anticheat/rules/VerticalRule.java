@@ -31,7 +31,9 @@ public final class VerticalRule implements IAntiCheatRule {
             return Judgement.PASS;
         }
         int ticks = Math.max(1, move.ticks());
-        double first = Physics.nextVertical(move.lastDy(), move.gravity());
+        // Standing, the ground has stopped them: a step up or a landing leaves no speed to carry on with.
+        double speed = move.wasOnGround() ? 0 : move.lastDy();
+        double first = Physics.nextVertical(speed, move.gravity());
         double expected = Physics.travelled(first, ticks, move.gravity());
 
         double highest = expected;

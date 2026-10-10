@@ -381,7 +381,8 @@ public final class PacketTap implements IAntiCheatService {
                             track.pendingFlags.add(Flag.of(CheckType.BAD_PACKETS, 2,
                                     String.format(Locale.ROOT, "pitch %.1f, past straight up or down", pitch)));
                         }
-                        if (hasRot && !hasPos && yaw == p.lastYaw && pitch == p.lastPitch) {
+                        // A passenger's client sends its rotation every tick, changed or not.
+                        if (hasRot && !hasPos && !p.riding && yaw == p.lastYaw && pitch == p.lastPitch) {
                             track.pendingFlags.add(Flag.of(CheckType.BAD_PACKETS, 0.5, "sent the same rotation twice"));
                         }
                         if (hasRot) {
@@ -412,7 +413,9 @@ public final class PacketTap implements IAntiCheatService {
                         track.combat.targetsThisTick.clear();
                         if (p.attacksAwaitingSwing > 0) {
                             p.attacksAwaitingSwing = 0;
-                            track.pendingFlags.add(Flag.of(CheckType.NO_SWING, "attacked without swinging in the same tick"));
+                            if (!de.raindancer.modules.anticheat.rules.CombatRule.swingCovers(p.swung ? nanos - p.lastSwingNanos : Long.MAX_VALUE)) {
+                                track.pendingFlags.add(Flag.of(CheckType.NO_SWING, "attacked without swinging in the same tick"));
+                            }
                         }
                         p.startsThisTick = 0;
                     }
@@ -431,6 +434,8 @@ public final class PacketTap implements IAntiCheatService {
                     case SWING -> {
                         post("a swing");
                         p.attacksAwaitingSwing = 0;
+                        p.swung = true;
+                        p.lastSwingNanos = nanos;
                         if (!p.digging && !p.usedThisTick) {
                             Flag clicked = clicks.click(track, millis);
                             if (clicked != null) {

@@ -21,6 +21,14 @@ public final class CombatRule implements IAntiCheatRule {
     }
 
     /** The closest any candidate eye came to any candidate box. */
+    /** One arm swing at normal speed — six ticks — with a tick to spare. */
+    public static final long SWING_NANOS = 350_000_000L;
+
+    /** Whether an attack this long after the last swing still falls within that swing. */
+    public static boolean swingCovers(long sinceSwingNanos) {
+        return sinceSwingNanos >= 0 && sinceSwingNanos <= SWING_NANOS;
+    }
+
     public double closest(List<Vector> eyes, List<BoundingBox> boxes) {
         double best = Double.POSITIVE_INFINITY;
         for (Vector eye : eyes) {

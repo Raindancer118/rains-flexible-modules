@@ -42,6 +42,9 @@ public final class ViolationService implements IAntiCheatService {
         if (!rule.runs(check, now) || track.bypassAll || track.bypassed.contains(check)) {
             return false;
         }
+        if (track.translatedFrom != null && now.exemptTranslated() && check.versionBound()) {
+            return false;
+        }
         return !(track.bedrock && now.exemptBedrock());
     }
 

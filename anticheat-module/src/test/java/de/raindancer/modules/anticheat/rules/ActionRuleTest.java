@@ -20,7 +20,7 @@ class ActionRuleTest {
 
     private static AntiCheatSettings with(boolean autoBan, boolean byRules, List<String> disabled, List<String> silent, int scale) {
         AntiCheatSettings d = AntiCheatSettings.DEFAULTS;
-        return new AntiCheatSettings(d.enabled(), d.packetTap(), d.minTps(), d.maxPing(), d.exemptBedrock(),
+        return new AntiCheatSettings(d.enabled(), d.packetTap(), d.minTps(), d.maxPing(), d.exemptBedrock(), d.exemptTranslated(),
                 d.alerts(), d.setbacks(), d.cancel(), d.autoKick(), autoBan, d.banLength(), byRules, d.cheatingRule(),
                 scale, d.evidence(),
                 d.evidencePerPlayer(), disabled, silent, d.experimentalChecks(), d.reachLeniency(), d.timerLeniency(),

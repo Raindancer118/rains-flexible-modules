@@ -81,4 +81,15 @@ class PhysicsTest {
         assertThat(Physics.standing(true, 0.5, true, Physics.STEP_HEIGHT)).isTrue();
         assertThat(Physics.standing(false, -0.1, true, Physics.STEP_HEIGHT)).isFalse();
     }
+
+    @Test
+    @DisplayName("claiming ground only skips a fall when there is a fall to skip")
+    void skipsFall() {
+        // Lilly's SMP: 1818 of 2185 NoFall flags were "dy 0.00, fallen 0.0" — nothing to skip, nothing gained.
+        assertThat(Physics.skipsFall(0, 0)).isFalse();
+        assertThat(Physics.skipsFall(0.8, -0.23)).isFalse();
+        assertThat(Physics.skipsFall(1.3, -0.3)).isTrue();
+        assertThat(Physics.skipsFall(0, -1.6)).as("one long move down counts too").isTrue();
+        assertThat(Physics.skipsFall(2.5, 0)).isTrue();
+    }
 }
