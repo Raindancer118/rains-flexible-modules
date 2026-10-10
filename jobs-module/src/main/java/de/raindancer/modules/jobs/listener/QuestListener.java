@@ -34,7 +34,8 @@ public final class QuestListener implements IJobsListener {
     public static final double MOST_PER_SAMPLE = 500;
     /** Mobs that do not count: bred in a box, or bought as an egg and hatched to be killed. */
     private static final Set<CreatureSpawnEvent.SpawnReason> FARMED = Set.of(CreatureSpawnEvent.SpawnReason.SPAWNER,
-            CreatureSpawnEvent.SpawnReason.SPAWNER_EGG, CreatureSpawnEvent.SpawnReason.DISPENSE_EGG);
+            CreatureSpawnEvent.SpawnReason.SPAWNER_EGG, CreatureSpawnEvent.SpawnReason.DISPENSE_EGG,
+            CreatureSpawnEvent.SpawnReason.COMMAND, CreatureSpawnEvent.SpawnReason.CUSTOM);
 
     private final JobsServices services;
     private final Map<UUID, Location> lastSeen = new ConcurrentHashMap<>();
@@ -118,13 +119,21 @@ public final class QuestListener implements IJobsListener {
         Location here = player.getLocation();
         Location before = lastSeen.put(player.getUniqueId(), here);
         if (before == null || before.getWorld() != here.getWorld() || !playing(player) || player.isFlying()
-                || Away.isKnown() && Away.isAway(player.getUniqueId())) {
+                || Away.isKnown() && Away.isAway(player.getUniqueId()) || !lookedAround(before, here)) {
             return;
         }
         double distance = Math.hypot(here.getX() - before.getX(), here.getZ() - before.getZ());
         if (distance <= MOST_PER_SAMPLE) {
             services.quests().travelled(player, distance);
         }
+    }
+
+    /**
+     * Whether the view turned between two samples. A water stream, a minecart loop or a piston clock carries an
+     * idle player for hours without the camera ever moving; somebody actually travelling turns it all the time.
+     */
+    public static boolean lookedAround(Location before, Location here) {
+        return Math.abs(before.getYaw() - here.getYaw()) > 0.5f || Math.abs(before.getPitch() - here.getPitch()) > 0.5f;
     }
 
     @Override
