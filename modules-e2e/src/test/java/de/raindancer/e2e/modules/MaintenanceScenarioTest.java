@@ -28,20 +28,19 @@ class MaintenanceScenarioTest {
             ada.runAndExpect("maintenance add Cy", "Cy is on the maintenance list");
             // Called off during the countdown: nobody goes.
             ada.runAndExpect("maintenance on", "sent off in 20 s");
-            bo.expectChat("Maintenance starts in 20 s");
+            bo.expectChat("[Server] Maintenance in 20 seconds.");
             ada.runAndExpect("maintenance off", "Maintenance mode is off");
             bo.expectChat("Maintenance was called off");
             Await.ticks(20 * 22);
             assertThat(bo.isOnline()).as("called off, so Bo stays").isTrue();
 
             ada.runAndExpect("maintenance on New spawn", "sent off in 20 s");
-            bo.expectChat("starts in 20 s. (New spawn)");
-            ada.expectChat("(New spawn) You can stay");
+            bo.expectChat("[Server] Maintenance in 20 seconds: New spawn");
             assertThat(server.paper.bot("Dee").joinRefused()).as("closed to joins during the countdown").contains("under maintenance");
             assertThat(bo.isOnline()).as("not before the countdown ends").isTrue();
-            // 17 s into the countdown: longer than expectChat waits.
-            Await.until("Bo is told 3 s are left", Duration.ofSeconds(25),
-                    () -> bo.chatText().stream().anyMatch(line -> line.contains("starts in 3 s. (New spawn)")));
+            // 10 s into the countdown, after the joinRefused above: longer than expectChat waits.
+            Await.until("Bo is told 10 s are left", Duration.ofSeconds(25),
+                    () -> bo.chatText().stream().anyMatch(line -> line.contains("Maintenance in 10 seconds - see you soon!")));
 
             Await.until("Bo is sent off", Duration.ofSeconds(15), () -> !bo.isOnline());
             assertThat(bo.disconnectReason()).contains("under maintenance").contains("New spawn");
@@ -60,7 +59,7 @@ class MaintenanceScenarioTest {
 
             // The update wording, as somebody turned away reads it.
             ada.runAndExpect("maintenance on update 3", "sent off in 60 s");
-            bo.expectChat("starts in 60 s. (We're updating; back in about 3 minutes)");
+            bo.expectChat("[Server] Restart in 60 seconds for an update!");
             assertThat(server.paper.bot("Eve").joinRefused())
                     .contains("Hey you! We're updating the server and expect to be back in about 3 minutes. Please try again then!");
             ada.runAndExpect("maintenance off", "Maintenance mode is off");
