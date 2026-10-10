@@ -4,6 +4,7 @@ anticheat:
   alert-experimental: "<gold>◇ <click:run_command:'/anticheat info <player>'><white><player></white></click> <gray>looks off on <yellow><check></yellow><count> <dark_gray>(experimental) · <gray>level <white><level></white> <dark_gray>· <gray><detail>"
   verbose: "<dark_gray>[verbose] <gray><player> <dark_gray>· <gray><check> <dark_gray><level> · <gray><detail>"
   kicked: "<red><white><player></white> was kicked for <yellow><check></yellow> <gray>(level <level>). The physics engine sends its regards."
+  rule-punished: "<dark_red><white><player></white> broke rule <number> (<rule>) with <yellow><check></yellow> <gray>— <offence> offence: <white><penalty></white>."
   banned: "<dark_red><white><player></white> was banned for <yellow><check></yellow> <gray>(level <level>, <length>)."
   kick-screen: "<red>Kicked: unfair advantage (<check>).\n<gray>If that was a mistake, it will not happen twice. If it was not, it will."
   ban-screen: "<red>Banned: unfair advantage (<check>).\n<gray>Length: <length>"

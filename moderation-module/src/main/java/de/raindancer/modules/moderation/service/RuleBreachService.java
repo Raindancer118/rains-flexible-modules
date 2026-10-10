@@ -2,6 +2,7 @@ package de.raindancer.modules.moderation.service;
 
 import de.raindancer.core.moderation.punishment.Punishment;
 import de.raindancer.core.moderation.punishment.PunishmentKind;
+import de.raindancer.core.moderation.rules.RuleBreaches;
 import de.raindancer.core.moderation.rules.RulePenalty;
 import de.raindancer.core.moderation.rules.ServerRule;
 import de.raindancer.core.moderation.rules.ServerRules;
@@ -124,6 +125,21 @@ public final class RuleBreachService implements IModerationService {
                 "title", broken.title(), "penalty", breach.penalty().describe(),
                 "offence", RulePenalty.ordinal(breach.offence()));
         return Optional.of(given);
+    }
+
+    /**
+     * For a plugin that catches a rule broken on its own (the anti-cheat): the next rung, handed out with the
+     * console's rights and everything said to {@code console}, counted like a moderator's.
+     */
+    public RuleBreaches.Judge judge(CommandSender console) {
+        return (subject, subjectName, broken, by, note) -> {
+            Optional<RuleBreachRule.Breach> breach = next(subject, broken, note);
+            if (breach.isEmpty()) {
+                return Optional.empty();
+            }
+            return breakRule(console, null, by == null ? "Console" : by, subject, subjectName, broken, note)
+                    .map(given -> new RuleBreaches.Outcome(breach.get().penalty(), breach.get().offence()));
+        };
     }
 
     private static Sentence sentenceOf(RuleBreachRule.Breach breach) {

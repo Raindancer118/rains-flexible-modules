@@ -65,7 +65,7 @@ public final class ViolationService implements IAntiCheatService {
             freeze(track, check, flag.detail());
         }
         if (decision.ban()) {
-            punishments.ban(player, track, check, level);
+            punishments.atBanLevel(player, track, check, level);
             track.violations().scale(check, 0.5);
         } else if (decision.kick()) {
             punishments.kick(player, track, check, level);
@@ -107,6 +107,9 @@ public final class ViolationService implements IAntiCheatService {
         de.raindancer.modules.anticheat.store.ReplayStore store = replays;
         if (store != null) {
             store.clear(player);
+        }
+        if (punishments != null) {
+            punishments.forgive(player);
         }
         forget(player);
     }

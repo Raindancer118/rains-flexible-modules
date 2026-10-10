@@ -79,9 +79,9 @@ public record AntiCheatSettings(
         boolean autoKick,
 
         @In("anticheat/actions") @Title("Ban")
-        @Describe("A player whose violation level reaches a check's ban level is banned. Off by default: "
-                + "only checks that cannot fail by accident have a ban level at all, and a human should "
-                + "still have the last word.")
+        @Describe("A player whose violation level reaches a check's ban level is banned for the ban length "
+                + "below — when the server's rules do not decide it instead (see 'Punish by the rules'). Off by "
+                + "default: only checks that cannot fail by accident have a ban level at all.")
         @Key("auto-ban")
         boolean autoBan,
 
@@ -89,6 +89,20 @@ public record AntiCheatSettings(
         @Describe("How long an automatic ban lasts: 30m, 12h, 7d, or 'forever'.")
         @Key("ban-length")
         String banLength,
+
+        @In("anticheat/actions") @Title("Punish by the rules")
+        @Describe("A player reaching a check's ban level gets what the server's rule about cheating (/rules) "
+                + "says, counted like a moderator hands it out: 1st offence, 2nd, … At most once every five "
+                + "minutes per player. Needs the rules and the moderation module; without them, or when that "
+                + "rule has no punishments, 'Ban' decides, and with that off it stays at the kick.")
+        @Key("punish-by-rules")
+        boolean punishByRules,
+
+        @In("anticheat/actions") @Title("Rule about cheating")
+        @Describe("Which rule that is: its number in /rules, or 'auto' for the first rule whose title "
+                + "mentions cheating or hacking.")
+        @Key("cheating-rule")
+        String cheatingRule,
 
         @In("anticheat/actions") @Title("Kick and ban levels, in percent") @Range(min = 10, max = 1000)
         @Describe("Scales every check's kick and ban level. 200 is twice as lenient, 50 twice as strict.")
@@ -191,7 +205,7 @@ public record AntiCheatSettings(
 
     public static final AntiCheatSettings DEFAULTS = new AntiCheatSettings(
             true, true, 17.0, 600, true,
-            true, true, true, true, false, "7d", 100, true, 200,
+            true, true, true, true, false, "7d", true, "auto", 100, true, 200,
             List.of(), List.of(), true, 0.3, 150, 20,
             List.of("wurst", "meteor", "liquidbounce", "aristois", "rusherhack", "konas", "bleachhack",
                     "inertia", "novoline", "tenacity"),

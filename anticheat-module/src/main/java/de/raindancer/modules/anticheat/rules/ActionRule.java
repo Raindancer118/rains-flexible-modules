@@ -8,6 +8,7 @@ public final class ActionRule implements IAntiCheatRule {
 
     /**
      * @param act  set back or cancel, whichever the check does
+     * @param ban  the ban level is reached: the rules punish, or a ban if the owner switched bans on
      */
     public record Decision(boolean alert, boolean act, boolean kick, boolean ban) {
 
@@ -30,7 +31,8 @@ public final class ActionRule implements IAntiCheatRule {
         };
         double scale = settings.punishScale() / 100.0;
         boolean kick = !passive && settings.autoKick() && check.kickAt() > 0 && level >= check.kickAt() * scale;
-        boolean ban = !passive && settings.autoBan() && check.banAt() > 0 && level >= check.banAt() * scale;
+        boolean ban = !passive && (settings.autoBan() || settings.punishByRules()) && check.banAt() > 0
+                && level >= check.banAt() * scale;
         return new Decision(alert, act, kick && !ban, ban);
     }
 

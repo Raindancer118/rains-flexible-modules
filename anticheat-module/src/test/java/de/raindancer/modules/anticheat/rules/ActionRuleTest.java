@@ -15,9 +15,14 @@ class ActionRuleTest {
     private final AntiCheatSettings defaults = AntiCheatSettings.DEFAULTS;
 
     private static AntiCheatSettings with(boolean autoBan, List<String> disabled, List<String> silent, int scale) {
+        return with(autoBan, AntiCheatSettings.DEFAULTS.punishByRules(), disabled, silent, scale);
+    }
+
+    private static AntiCheatSettings with(boolean autoBan, boolean byRules, List<String> disabled, List<String> silent, int scale) {
         AntiCheatSettings d = AntiCheatSettings.DEFAULTS;
         return new AntiCheatSettings(d.enabled(), d.packetTap(), d.minTps(), d.maxPing(), d.exemptBedrock(),
-                d.alerts(), d.setbacks(), d.cancel(), d.autoKick(), autoBan, d.banLength(), scale, d.evidence(),
+                d.alerts(), d.setbacks(), d.cancel(), d.autoKick(), autoBan, d.banLength(), byRules, d.cheatingRule(),
+                scale, d.evidence(),
                 d.evidencePerPlayer(), disabled, silent, d.experimentalChecks(), d.reachLeniency(), d.timerLeniency(),
                 d.maxCps(), d.blockedBrands(), d.blockedChannels(), d.kickBlockedClients(), d.announceBrands(), d.antiEsp(),
                 d.antiEspRange(), d.dampenSuspects(), d.dampenPercent());
@@ -33,12 +38,16 @@ class ActionRuleTest {
     }
 
     @Test
-    @DisplayName("kick at the kick level; never a ban unless the owner switched bans on")
+    @DisplayName("kick at the kick level; at the ban level the server's rules decide, or a ban if the owner switched bans on")
     void punishes() {
         ActionRule.Decision atKick = rule.decide(CheckType.FLY, CheckType.FLY.kickAt(), defaults);
         assertThat(atKick.kick()).isTrue();
         assertThat(atKick.ban()).isFalse();
-        assertThat(rule.decide(CheckType.FLY, CheckType.FLY.banAt(), defaults).ban()).isFalse();
+        assertThat(rule.decide(CheckType.FLY, CheckType.FLY.banAt(), defaults).ban())
+                .as("punished by the rules out of the box").isTrue();
+        assertThat(rule.decide(CheckType.FLY, CheckType.FLY.banAt(), with(false, false, List.of(), List.of(), 100)).ban())
+                .as("neither rules nor bans: the kick level is the most that happens").isFalse();
+        assertThat(rule.decide(CheckType.STRAFE, 1000, defaults).ban()).as("a check without a ban level never").isFalse();
 
         ActionRule.Decision banned = rule.decide(CheckType.FLY, CheckType.FLY.banAt(), with(true, List.of(), List.of(), 100));
         assertThat(banned.ban()).isTrue();
