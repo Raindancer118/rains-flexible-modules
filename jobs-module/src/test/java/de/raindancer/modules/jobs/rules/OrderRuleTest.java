@@ -105,4 +105,16 @@ class OrderRuleTest {
         assertThat(rule.pick(List.of(work("zombie", 0.05)), 1.0, random).id()).isEqualTo("zombie");
         assertThat(rule.pick(works, 0.95, random).id()).isIn("warden", "dragon");
     }
+
+    @Test
+    @DisplayName("several offers are different work, near the order's difficulty first, then the nearest others")
+    void picksSeveral() {
+        List<Work> works = List.of(work("zombie", 0.05), work("skeleton", 0.1), work("spider", 0.12),
+                work("blaze", 0.45), work("warden", 0.8), work("dragon", 1.0));
+        List<Work> four = rule.pickSome(works, 0.05, 4, new Random(9));
+        assertThat(four).hasSize(4).doesNotHaveDuplicates();
+        assertThat(four.subList(0, 3)).extracting(Work::id).containsExactlyInAnyOrder("zombie", "skeleton", "spider");
+        assertThat(four.get(3).id()).as("the next nearest").isEqualTo("blaze");
+        assertThat(rule.pickSome(works, 0.5, 10, new Random(9))).as("never more than there is").hasSize(6);
+    }
 }

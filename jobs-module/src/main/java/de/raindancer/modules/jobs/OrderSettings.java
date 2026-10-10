@@ -24,8 +24,12 @@ public record OrderSettings(
         @Describe("How many orders one player may take a day, done or not.")
         @Key("per-day") int perDay,
 
-        @In("orders") @Title("Other work offered, a day") @Range(min = 0, max = 50)
-        @Describe("How often a player may turn an offer down for another, a day.")
+        @In("orders") @Title("Offers to pick from") @Range(min = 1, max = 9)
+        @Describe("Different work offered for one amount — all paying it; the player takes one.")
+        @Key("choices") int choices,
+
+        @In("orders") @Title("Other offers, a day") @Range(min = 0, max = 50)
+        @Describe("How often a player may turn a set of offers down for a fresh one, a day.")
         @Key("rerolls-per-day") int rerollsPerDay,
 
         @In("orders") @Title("Smallest amount")
@@ -47,5 +51,5 @@ public record OrderSettings(
         @Describe("Of a skilled player's pace: 750 is seven hundred and fifty times faster than anybody can.")
         @Key("pace.hardest") double paceHardest) {
 
-    public static final OrderSettings DEFAULTS = new OrderSettings(true, 3, 5, "100", "1000", "100000000000", 0.15, 750);
+    public static final OrderSettings DEFAULTS = new OrderSettings(true, 3, 4, 5, "100", "1000", "100000000000", 0.15, 750);
 }

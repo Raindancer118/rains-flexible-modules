@@ -26,6 +26,11 @@ public final class AbilityRule implements IRolesRule {
         return roll < exact - whole ? whole + 1 : whole;
     }
 
+    /** Whether a block and what it dropped are ore giving its yield — not a silk-touched block, not anything else. */
+    public boolean lucky(String block, String dropped) {
+        return block.endsWith("_ORE") && !block.equals(dropped);
+    }
+
     @Override
     public String describe() {
         return "what a role's abilities do to hunger, falls, damage, chances and experience";

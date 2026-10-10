@@ -87,6 +87,21 @@ public final class OrderRule implements IJobsRule {
         return close.get(random.nextInt(close.size()));
     }
 
+    /**
+     * {@code how} different works for one order: those about as hard in random order, then the nearest others —
+     * so there is always a choice, and the choice is between things of about the same weight.
+     */
+    public List<Work> pickSome(List<Work> works, double difficulty, int how, Random random) {
+        List<Work> close = new java.util.ArrayList<>(works.stream()
+                .filter(each -> Math.abs(each.hardness() - difficulty) <= WINDOW).toList());
+        java.util.Collections.shuffle(close, random);
+        List<Work> picked = new java.util.ArrayList<>(close.subList(0, Math.min(Math.max(0, how), close.size())));
+        works.stream().filter(each -> !picked.contains(each))
+                .sorted(Comparator.comparingDouble(each -> Math.abs(each.hardness() - difficulty)))
+                .limit(Math.max(0, how - picked.size())).forEach(picked::add);
+        return picked;
+    }
+
     @Override
     public String describe() {
         return "what work an asked-for amount becomes: how hard, how many and how long";

@@ -12,6 +12,10 @@ public enum AbilityKind {
     HUNGER(30, "Hunger drains %d%% slower"),
     /** A chance of one more crop from a ripe one. */
     HARVEST(30, "%d%% chance of an extra crop from ripe crops"),
+    /** A chance of one more piece of food from an animal killed. */
+    BUTCHER(30, "%d%% chance of extra food from animals"),
+    /** A chance of one more drop from ore — a little fortune, never for silk touch. */
+    FORTUNE(20, "%d%% chance of an extra drop from ore"),
     /** Less fall damage. */
     FALLS(40, "%d%% less fall damage"),
     /** Faster on foot. */

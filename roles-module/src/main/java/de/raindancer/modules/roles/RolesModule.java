@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class RolesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.5.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.6.0")
             .describedAs("Pick a role with /role — a cook, a builder, an explorer… — pay less in the shop for what it works with, and do it a little better in the game")
             .by("Raindancer118");
 
@@ -90,6 +90,12 @@ public final class RolesModule implements FlexModule {
         service.onChange(abilities::refresh);
         settings.onChange(changed -> context.plugin().getServer().getOnlinePlayers().forEach(abilities::refresh));
         context.closeWith(abilities::strip);
+        // Ore a player put down brings no luck; Core remembers where ores are placed.
+        Object ores = de.raindancer.core.world.blocks.PlacedBlocks.watch(context.plugin(),
+                java.util.Arrays.stream(org.bukkit.Material.values())
+                        .filter(material -> !material.isLegacy() && material.isBlock() && material.name().endsWith("_ORE"))
+                        .toList());
+        context.closeWith(() -> de.raindancer.core.world.blocks.PlacedBlocks.unwatch(ores));
         RoleSource source = player -> service.roleOf(player)
                 .map(role -> new HeldRole(role.id(), role.title(), role.colour()));
         PlayerRoles.provide(context.plugin(), source);

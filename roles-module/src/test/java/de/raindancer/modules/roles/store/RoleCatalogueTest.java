@@ -199,4 +199,32 @@ class RoleCatalogueTest {
     void shippedHaveAbilities() throws Exception {
         assertThat(shipped()).isNotEmpty().allSatisfy(role -> assertThat(role.abilities()).as(role.id()).isNotEmpty());
     }
+
+    @Test
+    @DisplayName("an explorer gets hungry slower; a cook gets more from crops and from the animals they kill")
+    void explorerAndCook() throws Exception {
+        var kind = (java.util.function.Function<Role, java.util.List<de.raindancer.modules.roles.model.AbilityKind>>)
+                role -> role.abilities().stream().map(de.raindancer.modules.roles.model.Ability::kind).toList();
+        Role explorer = shipped().stream().filter(role -> role.id().equals("explorer")).findFirst().orElseThrow();
+        Role cook = shipped().stream().filter(role -> role.id().equals("cook")).findFirst().orElseThrow();
+        assertThat(kind.apply(explorer)).contains(de.raindancer.modules.roles.model.AbilityKind.HUNGER,
+                de.raindancer.modules.roles.model.AbilityKind.SPEED);
+        assertThat(kind.apply(cook)).contains(de.raindancer.modules.roles.model.AbilityKind.HARVEST,
+                de.raindancer.modules.roles.model.AbilityKind.BUTCHER);
+    }
+
+    @Test
+    @DisplayName("a farmer gets the most extra crops there is; a miner a little luck with ore")
+    void farmerAndMiner() throws Exception {
+        Role farmer = shipped().stream().filter(role -> role.id().equals("farmer")).findFirst().orElseThrow();
+        Role miner = shipped().stream().filter(role -> role.id().equals("miner")).findFirst().orElseThrow();
+        assertThat(farmer.abilities()).anySatisfy(ability -> {
+            assertThat(ability.kind()).isEqualTo(de.raindancer.modules.roles.model.AbilityKind.HARVEST);
+            assertThat(ability.percent()).isEqualTo(de.raindancer.modules.roles.model.AbilityKind.HARVEST.most());
+        });
+        assertThat(miner.abilities()).anySatisfy(ability -> {
+            assertThat(ability.kind()).isEqualTo(de.raindancer.modules.roles.model.AbilityKind.FORTUNE);
+            assertThat(ability.percent()).isBetween(5, 15);
+        });
+    }
 }

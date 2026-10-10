@@ -43,11 +43,20 @@ public final class OrderService {
     public record Offer(Work work, int units, Duration time, Money pay, String says) {
     }
 
-    /** An offer, or why there is none: a message key, with the amount that matters to it. */
-    public record Answer(Offer offer, String refusal, Money amount) {
+    /** Offers to pick from, or why there are none: a message key, with the amount that matters to it. */
+    public record Answer(java.util.List<Offer> offers, String refusal, Money amount) {
+
+        public Answer {
+            offers = offers == null ? java.util.List.of() : java.util.List.copyOf(offers);
+        }
 
         static Answer no(String key, Money amount) {
             return new Answer(null, key, amount);
+        }
+
+        /** The first offer, or null when refused. */
+        public Offer offer() {
+            return offers.isEmpty() ? null : offers.getFirst();
         }
     }
 
@@ -61,8 +70,8 @@ public final class OrderService {
     private final Random random;
     private final OrderRule rule = new OrderRule();
     private final Map<UUID, BossBar> bars = new ConcurrentHashMap<>();
-    /** The offer each player was last made, so only that one can be taken. */
-    private final Map<UUID, Offer> offered = new ConcurrentHashMap<>();
+    /** The offers each player was last made, so only one of those can be taken. */
+    private final Map<UUID, java.util.List<Offer>> offered = new ConcurrentHashMap<>();
     private volatile OrderSettings settings;
 
     public OrderService(Server server, WorkCatalogue works, OrderBook book, Messages messages, LogChannel log,
@@ -166,12 +175,16 @@ public final class OrderService {
             return Answer.no("jobs.order.not-saved", asked);
         }
         double difficulty = rule.difficulty(asked, Fees.amount(live.easyUpTo()), most);
-        Work work = rule.pick(works.all(), difficulty, random);
-        int units = rule.units(asked, rule.perUnit(Fees.amount(work.value()), difficulty), 0.8 + random.nextDouble() * 0.45);
-        Duration time = rule.time(units, work.rate(), rule.pressure(difficulty, live.paceEasiest(), live.paceHardest()));
-        Offer offer = new Offer(work, units, time, asked, work.says(units));
-        offered.put(player, offer);
-        return new Answer(offer, null, asked);
+        java.util.List<Offer> offers = new java.util.ArrayList<>();
+        for (Work work : rule.pickSome(works.all(), difficulty, live.choices(), random)) {
+            int units = rule.units(asked, rule.perUnit(Fees.amount(work.value()), difficulty),
+                    0.8 + random.nextDouble() * 0.45);
+            Duration time = rule.time(units, work.rate(),
+                    rule.pressure(difficulty, live.paceEasiest(), live.paceHardest()));
+            offers.add(new Offer(work, units, time, asked, work.says(units)));
+        }
+        offered.put(player, java.util.List.copyOf(offers));
+        return new Answer(offers, null, asked);
     }
 
     /** Re-rolls left today. */
@@ -191,8 +204,8 @@ public final class OrderService {
             messages.send(player, "jobs.order.none-left");
             return false;
         }
-        // Only the offer last made, and only once: an old screen cannot take work that was turned down or done.
-        if (!ledger.offered() || offered.get(id) != offer) {
+        // Only one of the offers last made, and only once: an old screen cannot take work turned down or done.
+        if (!ledger.offered() || offered.getOrDefault(id, java.util.List.of()).stream().noneMatch(each -> each == offer)) {
             messages.send(player, "jobs.order.stale");
             return false;
         }

@@ -25,7 +25,7 @@
         <plugin.name>RainsJobs</plugin.name>
         <!-- 0.1.0: server goals on a job board (/jobs) — deliveries and fishing, paid by share of the median balance, sizes that learn.
              0.3.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
-        <plugin.version>0.5.1</plugin.version>
+        <plugin.version>0.6.0</plugin.version>
     </properties>
 
     <dependencies>

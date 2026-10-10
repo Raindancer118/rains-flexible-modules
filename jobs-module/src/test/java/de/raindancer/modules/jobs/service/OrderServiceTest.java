@@ -133,7 +133,7 @@ class OrderServiceTest {
     void refusals() {
         assertThat(service.ask(ana, coins("5")).refusal()).isEqualTo("jobs.order.too-little");
         assertThat(service.ask(ana, coins("200000000000")).refusal()).isEqualTo("jobs.order.too-much");
-        service.settings(new OrderSettings(false, 3, 5, "100", "1000", "100000000000", 0.15, 750));
+        service.settings(new OrderSettings(false, 3, 4, 5, "100", "1000", "100000000000", 0.15, 750));
         assertThat(service.ask(ana, coins("1000")).refusal()).isEqualTo("jobs.order.switched-off");
     }
 
@@ -193,6 +193,17 @@ class OrderServiceTest {
         OrderService restarted = new OrderService(server, works, reread, messages, Log.of("jobs"), now::get,
                 ZoneOffset.UTC, new Random(4), OrderSettings.DEFAULTS);
         assertThat(restarted.ask(ana, coins("1000")).refusal()).isEqualTo("jobs.order.no-rerolls");
+    }
+
+    @Test
+    @DisplayName("an amount brings several different offers to pick from, all paying it; once one is taken the rest are gone")
+    void severalToPickFrom() {
+        OrderService.Answer answer = service.ask(ana, coins("100000000000"));
+        assertThat(answer.offers()).hasSize(3).extracting(each -> each.work().id()).doesNotHaveDuplicates();
+        assertThat(answer.offers()).allMatch(each -> each.pay().equals(coins("100000000000")));
+        assertThat(service.accept(player, answer.offers().get(1))).isTrue();
+        service.cancel(player);
+        assertThat(service.accept(player, answer.offers().get(2))).as("the others went with the first").isFalse();
     }
 
     @Test

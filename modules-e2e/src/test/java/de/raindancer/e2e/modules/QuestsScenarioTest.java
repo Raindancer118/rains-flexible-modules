@@ -40,6 +40,12 @@ class QuestsScenarioTest {
                 .map(item -> String.join(" | ", item.lore())).orElse("(none)");
     }
 
+    /** How many offers the open window holds. */
+    private static long offers(Bot bot) {
+        return bot.window().map(window -> window.top().values().stream()
+                .filter(item -> item.lore().stream().anyMatch(line -> line.contains("Click to take it"))).count()).orElse(0L);
+    }
+
     private static double speed(Server server) {
         String answer = server.console("attribute Mia minecraft:movement_speed get");
         Matcher number = Pattern.compile("is (-?[0-9.]+)").matcher(answer);
@@ -134,15 +140,19 @@ class QuestsScenarioTest {
             mia.run("quests ask 200b");
             mia.expectChat("Nobody pays more than");
             mia.run("quests ask 100m");
-            mia.awaitWindow("Take this order?");
-            Await.until(() -> "the offer names the pay (" + loreOf(mia, "What this does") + ")", WAIT,
-                    () -> lore(mia, "What this does", "⛃100,000,000"));
+            mia.awaitWindow("Pick your work");
+            Await.until(() -> "several offers, all paying a hundred million (" + mia.window().map(window -> window.top()
+                    .toString()).orElse("none") + ")", WAIT, () -> offers(mia) >= 3
+                    && mia.window().orElseThrow().slotNamed("⛃100,000,000").isPresent());
             mia.closeWindow();
             mia.forgetChat();
             mia.run("quests ask 2k");
-            mia.awaitWindow("Take this order?");
+            mia.awaitWindow("Pick your work");
+            Await.until("offers are shown", WAIT, () -> offers(mia) >= 3);
             Await.ticks(10);
-            mia.clickSlot(mia.window().orElseThrow().slotNamed("Yes, do it").orElseThrow());
+            mia.clickSlot(mia.window().orElseThrow().top().entrySet().stream()
+                    .filter(entry -> entry.getValue().lore().stream().anyMatch(line -> line.contains("Click to take it")))
+                    .map(java.util.Map.Entry::getKey).findFirst().orElseThrow());
             Await.until(() -> "the order starts (heard " + mia.chatText() + ")", WAIT,
                     () -> said(mia, "You have") && said(mia, "Go!"));
             mia.run("quests ask 2k");

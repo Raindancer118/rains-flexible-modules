@@ -15,6 +15,8 @@
 #   abilities      what the role does a little better in the game, at full strength (each has a ceiling):
 #     hunger: 20     hunger drains that much slower                       (at most 30)
 #     harvest: 20    that chance of one more crop from a ripe one          (at most 30)
+#     butcher: 20    that chance of more food from an animal killed        (at most 30)
+#     fortune: 10    that chance of one more drop from ore, not placed ore (at most 20)
 #     falls: 25      that much less fall damage                            (at most 40)
 #     speed: 6       that much faster on foot                              (at most 10)
 #     reach: 20      reaches blocks that much further                      (at most 25)
@@ -40,7 +42,8 @@ roles:
     description:
       - "Keeps the server fed."
     abilities:
-      - hunger: 20
+      - harvest: 20
+      - butcher: 20
     perks:
       - buy: 15
         categories: [ food ]
@@ -58,7 +61,7 @@ roles:
     description:
       - "Grows what the cook cooks."
     abilities:
-      - harvest: 20
+      - harvest: 30
     perks:
       - buy: 15
         items: [ "*_seeds", pitcher_pod, "*_sapling", "*_hoe", bone_meal, composter, hay_block, wheat, carrot,
@@ -98,6 +101,7 @@ roles:
       - "Always somewhere else."
     abilities:
       - speed: 6
+      - hunger: 25
     perks:
       - buy: 20
         items: [ firework_rocket ]
@@ -116,6 +120,7 @@ roles:
     abilities:
       - tools: 20
         items: [ "*_pickaxe", "*_shovel" ]
+      - fortune: 10
     perks:
       - buy: 12
         items: [ "*_pickaxe", "*_shovel", torch, ladder, tnt, rail, minecart ]

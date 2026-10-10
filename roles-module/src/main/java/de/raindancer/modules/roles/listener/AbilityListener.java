@@ -137,6 +137,40 @@ public final class AbilityListener implements IRolesListener {
         }
     }
 
+    /** Ore mined by somebody lucky this time, until its drops appear — keyed by where it was. */
+    private final java.util.Set<String> lucky = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    private static String where(org.bukkit.block.Block block) {
+        return block.getWorld().getUID() + ":" + block.getX() + ":" + block.getY() + ":" + block.getZ();
+    }
+
+    // Before MONITOR, where Core's PlacedBlocks takes the mark off: ore a player put there brings no luck.
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onOre(org.bukkit.event.block.BlockBreakEvent event) {
+        org.bukkit.block.Block block = event.getBlock();
+        if (!block.getType().name().endsWith("_ORE") || event.getPlayer().getGameMode() == org.bukkit.GameMode.CREATIVE
+                || !event.isDropItems() || de.raindancer.core.world.blocks.PlacedBlocks.isPlaced(block)) {
+            return;
+        }
+        int percent = size(event.getPlayer(), AbilityKind.FORTUNE);
+        if (percent > 0 && rule.happens(percent, roll())) {
+            lucky.add(where(block));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onOreDrops(BlockDropItemEvent event) {
+        if (!lucky.remove(where(event.getBlock())) || event.getItems().isEmpty()) {
+            return;
+        }
+        ItemStack first = event.getItems().getFirst().getItemStack();
+        if (rule.lucky(event.getBlockState().getType().name(), first.getType().name())) {
+            ItemStack one = first.clone();
+            one.setAmount(1);
+            event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation().add(0.5, 0.25, 0.5), one);
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onHarvest(BlockDropItemEvent event) {
         Material extra = CROPS.get(event.getBlockState().getType());
@@ -149,6 +183,32 @@ public final class AbilityListener implements IRolesListener {
             event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation().add(0.5, 0.25, 0.5),
                     new ItemStack(extra));
         }
+    }
+
+    /** Animals bought as eggs, hatched by spawners or summoned are no butcher's work. */
+    private static final java.util.Set<org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason> NOT_RAISED = java.util.Set.of(
+            org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.SPAWNER,
+            org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.SPAWNER_EGG,
+            org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.DISPENSE_EGG,
+            org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.COMMAND,
+            org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.CUSTOM);
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onButcher(org.bukkit.event.entity.EntityDeathEvent event) {
+        if (!(event.getEntity() instanceof org.bukkit.entity.Animals animal) || animal.getKiller() == null
+                || NOT_RAISED.contains(animal.getEntitySpawnReason())) {
+            return;
+        }
+        int percent = size(animal.getKiller(), AbilityKind.BUTCHER);
+        if (percent <= 0 || !rule.happens(percent, roll())) {
+            return;
+        }
+        event.getDrops().stream().filter(drop -> drop != null && drop.getType().isEdible()).findFirst()
+                .ifPresent(food -> {
+                    ItemStack one = food.clone();
+                    one.setAmount(1);
+                    event.getDrops().add(one);
+                });
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

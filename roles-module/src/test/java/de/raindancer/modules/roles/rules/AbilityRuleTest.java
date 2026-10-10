@@ -39,6 +39,17 @@ class AbilityRuleTest {
     }
 
     @Test
+    @DisplayName("ore luck is for ore that drops something else: not a silk-touched block, not stone")
+    void fortune() {
+        assertThat(rule.lucky("IRON_ORE", "RAW_IRON")).isTrue();
+        assertThat(rule.lucky("DEEPSLATE_DIAMOND_ORE", "DIAMOND")).isTrue();
+        assertThat(rule.lucky("NETHER_QUARTZ_ORE", "QUARTZ")).isTrue();
+        assertThat(rule.lucky("IRON_ORE", "IRON_ORE")).as("silk touch").isFalse();
+        assertThat(rule.lucky("STONE", "COBBLESTONE")).isFalse();
+        assertThat(rule.lucky("ANCIENT_DEBRIS", "ANCIENT_DEBRIS")).isFalse();
+    }
+
+    @Test
     @DisplayName("every kind has a ceiling that keeps it a flavour, whatever roles.yml says")
     void ceilings() {
         for (AbilityKind kind : AbilityKind.values()) {
@@ -53,5 +64,7 @@ class AbilityRuleTest {
     void says() {
         assertThat(new Ability(AbilityKind.HUNGER, 20, null).says(8)).isEqualTo("Hunger drains 8% slower");
         assertThat(new Ability(AbilityKind.MONSTERS, 10, null).says(10)).isEqualTo("10% more damage to monsters");
+        assertThat(new Ability(AbilityKind.BUTCHER, 20, null).says(20)).isEqualTo("20% chance of extra food from animals");
+        assertThat(new Ability(AbilityKind.FORTUNE, 10, null).says(10)).isEqualTo("10% chance of an extra drop from ore");
     }
 }
