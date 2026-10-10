@@ -147,6 +147,33 @@ public final class ShopService implements IEconomyService {
         return price.sellingChanged(lever, "Economy").sellingChanged(again, "Sold lately");
     }
 
+    /** Each change between the shop's sell price and this player's, for the lines under "Sell:". */
+    public de.raindancer.modules.economy.model.SellBreakdown sellBreakdown(UUID player, Material material) {
+        PriceTag tag = tag(material);
+        if (!tag.sellable()) {
+            return de.raindancer.modules.economy.model.SellBreakdown.NONE;
+        }
+        YourPrice own = personal.forPlayer(player, tag, bulkFor(material.name()));
+        int lever = de.raindancer.core.social.economy.EconomyLevers.faucetPercent(SELL_SOURCE);
+        int again = soldAgainPercent(player, material);
+        de.raindancer.modules.economy.SupplySettings live = supplied();
+        int stacks = again == 0 ? 0 : sold.soldLately(player, material.name(), live.diminishingMinutes())
+                / Math.max(1, prices.stackSizeOf(material.name()));
+        YourPrice yours = own.sellingChanged(lever, "Economy").sellingChanged(again, "Sold lately");
+        Money uncapped = de.raindancer.core.social.economy.PriceModifiers.scale(tag.sell(),
+                yours.sellChange().percent(), de.raindancer.core.social.economy.TradeSide.SELL);
+        Optional<Money> left = Optional.empty();
+        Money mine = live.sellBudgets()
+                ? de.raindancer.modules.economy.SupplySettings.money(live.sellBudgetPerPlayer(), settings.currency())
+                : Money.ZERO;
+        if (mine.isPositive()) {
+            left = Optional.of(mine.minus(economy.book().today(player, SELL_SOURCE)).max(Money.ZERO));
+        }
+        return new de.raindancer.modules.economy.model.SellBreakdown(own.sellChange().percent(),
+                own.sellChange().reasons(), lever, again, stacks, live.diminishingMinutes(),
+                uncapped.isMoreThan(yours.sell()), left);
+    }
+
     static final String SELL_SOURCE = de.raindancer.modules.economy.model.Sources.SELL;
     private final SaleMemory sold = new SaleMemory(System::currentTimeMillis);
 

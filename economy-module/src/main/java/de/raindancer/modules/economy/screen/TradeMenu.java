@@ -147,16 +147,13 @@ public final class TradeMenu extends Menu implements IEconomyScreen {
         lines.add(tag.buyable() ? "<gray>Buy one: " + PriceLines.amount(currency, tag.buy(), yours.buy())
                 : services.shop().saleStopped(material).map(why -> "<gold>Not sold now: "
                 + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(why)).orElse("<dark_gray>Not sold"));
+        lines.addAll(PriceLines.buyNotes(yours));
         lines.add(tag.sellable() ? "<gray>Sell one: " + PriceLines.amount(currency, tag.sell(), yours.sell())
                 : "<dark_gray>Not bought");
+        lines.addAll(PriceLines.sellNotes(currency, services.shop().sellBreakdown(viewer.getUniqueId(), material)));
         String trend = ShopItemsMenu.trend(services.shop().prices().multiplier(material.name()));
         if (!trend.isEmpty()) {
             lines.add(trend);
-        }
-        lines.addAll(PriceLines.why(yours));
-        String bulk = PriceLines.bulk(yours.bulk());
-        if (!bulk.isEmpty()) {
-            lines.add(bulk);
         }
         lines.add("<dark_gray>Priced from: " + tag.source().name().toLowerCase());
         return lines;
