@@ -10,6 +10,8 @@ import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.economy.EconomySettings;
+import de.raindancer.modules.economy.model.EnchantKey;
+import de.raindancer.modules.economy.model.EnchantKind;
 import de.raindancer.modules.economy.model.PriceTag;
 import de.raindancer.modules.economy.model.PricedNames;
 import de.raindancer.modules.economy.model.RecipeShape;
@@ -21,8 +23,6 @@ import de.raindancer.modules.economy.model.Bulk;
 import de.raindancer.core.ui.choose.ItemSelection;
 import de.raindancer.modules.economy.rules.TradePriceRule;
 import de.raindancer.modules.economy.model.YourPrice;
-import de.raindancer.core.social.economy.PersonalPrice;
-import de.raindancer.core.social.economy.PriceModifiers;
 import de.raindancer.core.social.economy.SaleStops;
 import de.raindancer.modules.economy.store.CashTags;
 import de.raindancer.modules.economy.store.MarketBook;
@@ -100,7 +100,31 @@ public final class ShopService implements IEconomyService {
     @Override
     public void settings(EconomySettings updated) {
         this.settings = updated == null ? EconomySettings.DEFAULTS : updated;
-        prices.recompute(this.settings, knownRecipes, spawnEggs());
+        prices.recompute(this.settings, knownRecipes, spawnEggs(), enchantKinds());
+    }
+
+    /** Every enchantment the server knows, for the price book; none outside a running server. */
+    static List<EnchantKind> enchantKinds() {
+        try {
+            List<EnchantKind> kinds = new ArrayList<>();
+            io.papermc.paper.registry.RegistryAccess.registryAccess()
+                    .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT)
+                    .forEach(enchantment -> kinds.add(new EnchantKind(id(enchantment), enchantment.getMaxLevel(),
+                            isTreasure(enchantment), enchantment.isCursed())));
+            return kinds;
+        } catch (RuntimeException | LinkageError noServer) {
+            return List.of();
+        }
+    }
+
+    private static String id(org.bukkit.enchantments.Enchantment enchantment) {
+        org.bukkit.NamespacedKey key = enchantment.getKey();
+        return key.getNamespace().equals(org.bukkit.NamespacedKey.MINECRAFT) ? key.getKey() : key.toString();
+    }
+
+    /** The book an enchantment on an item is priced as: past its normal maximum, as its maximum. */
+    public static EnchantKey keyOf(org.bukkit.enchantments.Enchantment enchantment, int level) {
+        return new EnchantKey(id(enchantment), Math.max(1, Math.min(level, Math.max(1, enchantment.getMaxLevel()))));
     }
 
     /** Every spawn egg this server knows. */
@@ -121,7 +145,7 @@ public final class ShopService implements IEconomyService {
     /** Reads the server's recipes again and reprices everything. On the global thread. */
     public int reprice() {
         knownRecipes = recipes.get();
-        prices.recompute(settings, knownRecipes, spawnEggs());
+        prices.recompute(settings, knownRecipes, spawnEggs(), enchantKinds());
         return knownRecipes.size();
     }
 
@@ -132,6 +156,15 @@ public final class ShopService implements IEconomyService {
     public PriceTag tag(Material material) {
         PriceTag tag = prices.tag(material.name());
         return tag.buyable() && SaleStops.reason(material.name()).isPresent() ? tag.notSold() : tag;
+    }
+
+    /** An item by material name, or an enchanted book by its key. */
+    public PriceTag tag(String name) {
+        if (EnchantKey.isKey(name)) {
+            return prices.tag(name);
+        }
+        Material material = Material.matchMaterial(name);
+        return material == null ? prices.tag(name) : tag(material);
     }
 
     /** Why the shop does not sell this right now, though it normally would — a server goal collecting it. */
@@ -147,18 +180,43 @@ public final class ShopService implements IEconomyService {
         return price.sellingChanged(lever, "Economy").sellingChanged(again, "Sold lately");
     }
 
+    /**
+     * What this player pays and is paid for one enchanted book: priced like an item, roles changing it as they
+     * change enchanted books.
+     */
+    public YourPrice priceFor(UUID player, EnchantKey key) {
+        YourPrice price = personal.forPlayer(player, prices.tag(key.name()), de.raindancer.modules.economy.model.Bulk.NONE,
+                Material.ENCHANTED_BOOK.name());
+        int lever = de.raindancer.core.social.economy.EconomyLevers.faucetPercent(SELL_SOURCE);
+        int again = soldAgainPercent(player, key.name());
+        return price.sellingChanged(lever, "Economy").sellingChanged(again, "Sold lately");
+    }
+
     /** Each change between the shop's sell price and this player's, for the lines under "Sell:". */
     public de.raindancer.modules.economy.model.SellBreakdown sellBreakdown(UUID player, Material material) {
         PriceTag tag = tag(material);
         if (!tag.sellable()) {
             return de.raindancer.modules.economy.model.SellBreakdown.NONE;
         }
-        YourPrice own = personal.forPlayer(player, tag, bulkFor(material.name()));
+        return breakdown(player, tag, personal.forPlayer(player, tag, bulkFor(material.name())), material.name());
+    }
+
+    public de.raindancer.modules.economy.model.SellBreakdown sellBreakdown(UUID player, EnchantKey key) {
+        PriceTag tag = prices.tag(key.name());
+        if (!tag.sellable()) {
+            return de.raindancer.modules.economy.model.SellBreakdown.NONE;
+        }
+        return breakdown(player, tag, personal.forPlayer(player, tag, de.raindancer.modules.economy.model.Bulk.NONE,
+                Material.ENCHANTED_BOOK.name()), key.name());
+    }
+
+    private de.raindancer.modules.economy.model.SellBreakdown breakdown(UUID player, PriceTag tag, YourPrice own,
+                                                                       String name) {
         int lever = de.raindancer.core.social.economy.EconomyLevers.faucetPercent(SELL_SOURCE);
-        int again = soldAgainPercent(player, material);
+        int again = soldAgainPercent(player, name);
         de.raindancer.modules.economy.SupplySettings live = supplied();
-        int stacks = again == 0 ? 0 : sold.soldLately(player, material.name(), live.diminishingMinutes())
-                / Math.max(1, prices.stackSizeOf(material.name()));
+        int stacks = again == 0 ? 0 : sold.soldLately(player, name, live.diminishingMinutes())
+                / Math.max(1, prices.stackSizeOf(name));
         YourPrice yours = own.sellingChanged(lever, "Economy").sellingChanged(again, "Sold lately");
         Money uncapped = de.raindancer.core.social.economy.PriceModifiers.scale(tag.sell(),
                 yours.sellChange().percent(), de.raindancer.core.social.economy.TradeSide.SELL);
@@ -179,12 +237,16 @@ public final class ShopService implements IEconomyService {
 
     /** How much less selling this again pays: a stack's worth sold lately is one step down. Zero when switched off. */
     int soldAgainPercent(UUID player, Material material) {
+        return soldAgainPercent(player, material.name());
+    }
+
+    int soldAgainPercent(UUID player, String name) {
         de.raindancer.modules.economy.SupplySettings live = supplied();
         if (!live.diminishing() || live.diminishingPercent() <= 0) {
             return 0;
         }
-        int stacks = sold.soldLately(player, material.name(), live.diminishingMinutes())
-                / Math.max(1, prices.stackSizeOf(material.name()));
+        int stacks = sold.soldLately(player, name, live.diminishingMinutes())
+                / Math.max(1, prices.stackSizeOf(name));
         long factor = new de.raindancer.modules.economy.rules.DiminishingRule()
                 .payout(Money.of(10_000), stacks, live.diminishingPercent()).minor();
         return (int) Math.floorDiv(factor - 10_000, 100);
@@ -236,11 +298,6 @@ public final class ShopService implements IEconomyService {
     private record BulkSetup(EconomySettings from, ItemSelection items, List<Bulk.Tier> tiers) {
     }
 
-    /** What this player pays for an enchanted book the shop offers at {@code price}. */
-    public PersonalPrice enchantPriceFor(UUID player, EnchantOffer offer) {
-        return PriceModifiers.buy(player, Material.ENCHANTED_BOOK.name(), offer.price());
-    }
-
     // ---------------------------------------------------------------------------- buying
 
     public void buy(Player player, Material material, int quantity) {
@@ -286,46 +343,49 @@ public final class ShopService implements IEconomyService {
                 "item", Catalogue.readable(material.name()), "amount", currency.render(total.get()));
     }
 
-    /** One enchanted book the shop sells. */
-    public record EnchantOffer(org.bukkit.enchantments.Enchantment enchantment, int level, Money price) {
+    /** One enchanted book in the shop's drawer. */
+    public record EnchantOffer(org.bukkit.enchantments.Enchantment enchantment, EnchantKey key) {
+
+        public int level() {
+            return key.level();
+        }
     }
 
-    /** Every enchanted book on sale: each enchantment the server knows, each level up to its normal maximum. */
+    /** Every enchanted book the shop sells or buys, most useful first — the Enchantments drawer. */
     public List<EnchantOffer> enchantOffers() {
-        EconomySettings live = settings;
-        if (!live.enchantBooks()) {
+        if (!settings.enchantBooks() && !settings.enchantedSelling()) {
             return List.of();
         }
-        Money book = tag(Material.BOOK).buy();
+        Map<String, org.bukkit.enchantments.Enchantment> known = new java.util.HashMap<>();
+        try {
+            io.papermc.paper.registry.RegistryAccess.registryAccess()
+                    .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT)
+                    .forEach(enchantment -> known.put(id(enchantment), enchantment));
+        } catch (RuntimeException | LinkageError noServer) {
+            return List.of();
+        }
         List<EnchantOffer> offers = new ArrayList<>();
-        var registry = io.papermc.paper.registry.RegistryAccess.registryAccess()
-                .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT);
-        List<org.bukkit.enchantments.Enchantment> all = new ArrayList<>();
-        registry.forEach(all::add);
-        var worth = live.enchantWorthTable();
-        // Most useful first, so the drawer opens on what players come for.
-        all.sort(java.util.Comparator.<org.bukkit.enchantments.Enchantment>comparingDouble(enchantment -> -worth.best(
-                        enchantment.getKey().getKey(), enchantment.getMaxLevel(), isTreasure(enchantment), enchantment.isCursed()))
-                .thenComparing(enchantment -> enchantment.getKey().getKey()));
-        for (org.bukkit.enchantments.Enchantment enchantment : all) {
-            for (int level = 1; level <= enchantment.getMaxLevel(); level++) {
-                var each = new de.raindancer.modules.economy.model.EnchantLevel(enchantment.getKey().getKey(), level,
-                        enchantment.getMaxLevel(), isTreasure(enchantment), enchantment.isCursed());
-                if (enchants.offered(each, live.enchantTreasure(), live.enchantClosed())) {
-                    offers.add(new EnchantOffer(enchantment, level,
-                            enchants.buyPrice(book, each, live.enchantPriceMoney(), live.enchantValueMoney(), worth)));
-                }
+        for (String name : prices.tradableEnchants()) {
+            EnchantKey key = EnchantKey.parse(name).orElseThrow();
+            org.bukkit.enchantments.Enchantment enchantment = known.get(key.enchantment());
+            if (enchantment != null) {
+                offers.add(new EnchantOffer(enchantment, key));
             }
         }
         return offers;
     }
 
-    /** Sells one enchanted book: paid first, then handed over — the same order as anything else bought here. */
-    public void buyEnchant(Player player, EnchantOffer offer) {
-        Currency currency = settings.currency();
-        boolean stillOffered = enchantOffers().stream().anyMatch(each -> each.enchantment().equals(offer.enchantment())
-                && each.level() == offer.level() && each.price().equals(offer.price()));
-        if (!stillOffered) {
+    /**
+     * Sells one enchanted book: paid first, then handed over — the same order as anything else bought here.
+     *
+     * @param shown what the drawer showed this player; a different price now refuses, nothing taken
+     */
+    public void buyEnchant(Player player, EnchantOffer offer, Money shown) {
+        EconomySettings live = settings;
+        Currency currency = live.currency();
+        PriceTag tag = prices.tag(offer.key().name());
+        Optional<Money> price = tag.buyable() ? priceFor(player.getUniqueId(), offer.key()).buyFor(1) : Optional.empty();
+        if (price.isEmpty() || shown != null && !price.get().equals(shown)) {
             refuse(player, "economy.shop.enchant-gone");
             return;
         }
@@ -336,21 +396,83 @@ public final class ShopService implements IEconomyService {
             refuse(player, "economy.shop.no-room");
             return;
         }
-        String name = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
-                .serialize(offer.enchantment().displayName(offer.level()));
-        Money price = enchantPriceFor(player.getUniqueId(), offer).price();
-        EconomyResult result = economy.move(player.getUniqueId(), price.negate(), TransactionKind.BUY,
+        String name = offer.key().readable();
+        EconomyResult result = economy.move(player.getUniqueId(), price.get().negate(), TransactionKind.BUY,
                 "Enchanted book: " + name);
         if (!result.succeeded()) {
-            Outcomes.tell(messages, effects, player, EconomyResult.failed(result.outcome(), price,
+            Outcomes.tell(messages, effects, player, EconomyResult.failed(result.outcome(), price.get(),
                     result.balance()), currency, "");
             return;
         }
         player.getInventory().addItem(book).values()
                 .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+        if (live.dynamicPrices() && tag.source() != PriceTag.Source.CUSTOM) {
+            market.traded(offer.key().name(), 1, 1, live.pressurePerStackClamped(), true, live.recoveryHoursClamped());
+        }
         effects.play(player.getUniqueId(), Cues.REWARD);
         messages.send(player, "economy.shop.bought", "count", "1", "item", "Enchanted Book (" + name + ")",
-                "amount", currency.render(price));
+                "amount", currency.render(price.get()));
+    }
+
+    /** Selling or stripping these enchantments pushes each one's price down, as selling an item does. */
+    private void soldEnchantments(UUID player, List<EnchantKey> keys, int count, boolean remember) {
+        EconomySettings live = settings;
+        for (EnchantKey key : keys) {
+            if (remember && supplied().diminishing() && supplied().diminishingPercent() > 0) {
+                sold.sold(player, key.name(), count);
+            }
+            if (live.dynamicPrices() && prices.tag(key.name()).source() != PriceTag.Source.CUSTOM) {
+                market.traded(key.name(), count, 1, live.pressurePerStackClamped(), false, live.recoveryHoursClamped());
+            }
+        }
+    }
+
+    /** Everything enchanted on an item or stored in a book. */
+    private static Map<org.bukkit.enchantments.Enchantment, Integer> enchantsOf(ItemStack stack) {
+        org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
+        Map<org.bukkit.enchantments.Enchantment, Integer> all = new java.util.LinkedHashMap<>();
+        if (meta == null) {
+            return all;
+        }
+        all.putAll(meta.getEnchants());
+        if (meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta stored) {
+            all.putAll(stored.getStoredEnchants());
+        }
+        return all;
+    }
+
+    /** The enchantments on it the shop buys, as their books — curses and closed ones left out. */
+    private List<EnchantKey> sellableKeys(ItemStack stack) {
+        List<EnchantKey> keys = new ArrayList<>();
+        enchantsOf(stack).forEach((enchantment, level) -> {
+            EnchantKey key = keyOf(enchantment, level);
+            if (!enchantment.isCursed() && prices.tag(key.name()).sellable()) {
+                keys.add(key);
+            }
+        });
+        return keys;
+    }
+
+    /** What its curses take off a sale. */
+    private Money curses(ItemStack stack) {
+        Money total = Money.ZERO;
+        for (Map.Entry<org.bukkit.enchantments.Enchantment, Integer> each : enchantsOf(stack).entrySet()) {
+            if (each.getKey().isCursed()) {
+                total = total.plus(enchants.cursePenalty(prices.cursePart(keyOf(each.getKey(), each.getValue())),
+                        settings.sellRatioClamped()));
+            }
+        }
+        return total;
+    }
+
+    /** What its enchantments add to anything they are on: each book's sell price over a plain book's. */
+    private Money parts(List<EnchantKey> keys) {
+        Money book = prices.tag(Material.BOOK.name()).sell();
+        Money total = Money.ZERO;
+        for (EnchantKey key : keys) {
+            total = total.plus(enchants.part(prices.tag(key.name()).sell(), book));
+        }
+        return total;
     }
 
     /** What the shop hands over: a spawn egg it sold hatches a mob but never sets a spawner. */
@@ -452,15 +574,9 @@ public final class ShopService implements IEconomyService {
             refuse(player, "economy.shop.no-enchantments");
             return;
         }
-        org.bukkit.inventory.meta.ItemMeta meta = held.getItemMeta();
-        java.util.Map<org.bukkit.enchantments.Enchantment, Integer> all = new java.util.HashMap<>(meta.getEnchants());
-        if (meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta stored) {
-            all.putAll(stored.getStoredEnchants());
-        }
-        java.util.List<de.raindancer.modules.economy.model.EnchantLevel> levels = new ArrayList<>();
-        all.forEach((enchantment, level) -> levels.add(new de.raindancer.modules.economy.model.EnchantLevel(
-                enchantment.getKey().getKey(), level, enchantment.getMaxLevel(), isTreasure(enchantment), enchantment.isCursed())));
-        Money each = enchants.enchantsOff(levels, live.enchantValueMoney(), live.enchantWorthTable(), live.sellRatioClamped());
+        Map<org.bukkit.enchantments.Enchantment, Integer> all = enchantsOf(held);
+        List<EnchantKey> keys = sellableKeys(held);
+        Money each = parts(keys);
         if (!each.isPositive()) {
             refuse(player, "economy.shop.no-enchantments");
             return;
@@ -496,6 +612,7 @@ public final class ShopService implements IEconomyService {
             Outcomes.tell(messages, effects, player, result, live.currency(), "");
             return;
         }
+        soldEnchantments(player.getUniqueId(), keys, before.getAmount(), false);
         effects.play(player.getUniqueId(), Cues.EARNED);
         messages.send(player, "economy.shop.sold-enchantments", "what", label, "amount", live.currency().render(total.get()));
     }
@@ -527,21 +644,31 @@ public final class ShopService implements IEconomyService {
         if (!tag.sellable() || !live.sellingEnabled()) {
             return Optional.empty();
         }
-        java.util.List<de.raindancer.modules.economy.model.EnchantLevel> levels = new ArrayList<>();
-        org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
-        java.util.Map<org.bukkit.enchantments.Enchantment, Integer> all = new java.util.HashMap<>(meta.getEnchants());
-        if (meta instanceof org.bukkit.inventory.meta.EnchantmentStorageMeta stored) {
-            all.putAll(stored.getStoredEnchants());
+        Map<org.bukkit.enchantments.Enchantment, Integer> all = enchantsOf(stack);
+        List<EnchantKey> keys = sellableKeys(stack);
+        Money curses = curses(stack);
+        Money each;
+        String label;
+        if (material == Material.ENCHANTED_BOOK) {
+            List<Money> books = new ArrayList<>();
+            for (EnchantKey key : keys) {
+                priceFor(seller, key).sellFor(1).ifPresent(books::add);
+            }
+            each = enchants.bookSell(tag.sell(), books, curses);
+            List<String> names = new ArrayList<>();
+            // Not the display name: plain text of a translatable name is its translation key.
+            all.forEach((enchantment, level) -> names.add(new EnchantKey(id(enchantment), level).readable()));
+            label = Catalogue.readable(material.name()) + (names.isEmpty() ? "" : " (" + String.join(", ", names) + ")");
+        } else {
+            org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
+            int damage = meta instanceof org.bukkit.inventory.meta.Damageable worn ? worn.getDamage() : 0;
+            each = enchants.itemSell(tag.sell(), enchants.durabilityLeft(material.getMaxDurability(), damage),
+                    parts(keys), curses);
+            label = Catalogue.readable(material.name()) + (all.isEmpty() ? " (worn)" : " (enchanted)");
         }
-        all.forEach((enchantment, level) -> levels.add(new de.raindancer.modules.economy.model.EnchantLevel(
-                enchantment.getKey().getKey(), level, enchantment.getMaxLevel(), isTreasure(enchantment), enchantment.isCursed())));
-        int damage = meta instanceof org.bukkit.inventory.meta.Damageable worn ? worn.getDamage() : 0;
-        Money each = enchants.sellValue(tag.sell(), enchants.durabilityLeft(material.getMaxDurability(), damage),
-                enchants.bonus(levels, live.enchantValueMoney(), live.enchantWorthTable()), live.sellRatioClamped());
         if (!each.isPositive()) {
             return Optional.empty();
         }
-        String label = Catalogue.readable(material.name()) + (levels.isEmpty() ? " (worn)" : " (enchanted)");
         return trade.total(each, stack.getAmount()).map(total -> new SaleLot(material, slot, stack.getAmount(), total,
                 label));
     }
@@ -641,6 +768,7 @@ public final class ShopService implements IEconomyService {
             return;
         }
         ItemStack taken = there.clone();
+        List<EnchantKey> keys = sellableKeys(taken);
         inventory.setItem(lot.slot(), null);
         Currency currency = settings.currency();
         EconomyResult result = economy.move(player.getUniqueId(), lot.total(), TransactionKind.SELL, lot.label(),
@@ -651,6 +779,7 @@ public final class ShopService implements IEconomyService {
             Outcomes.tell(messages, effects, player, result, currency, "");
             return;
         }
+        soldEnchantments(player.getUniqueId(), keys, lot.count(), taken.getType() == Material.ENCHANTED_BOOK);
         effects.play(player.getUniqueId(), Cues.EARNED);
         messages.send(player, "economy.shop.sold", "count", String.valueOf(lot.count()), "what", lot.label(),
                 "amount", currency.render(lot.total()));
@@ -752,6 +881,11 @@ public final class ShopService implements IEconomyService {
 
     /** Writes one item's custom price into the settings file — the same list an owner edits by hand. */
     public boolean setCustom(String key, Material material, Money price) {
+        return setCustom(key, material.name(), price);
+    }
+
+    /** The same for anything priced by name — an item, or an enchanted book by its key. */
+    public boolean setCustom(String key, String name, Money price) {
         EconomySettings live = settings;
         List<String> lines = switch (key) {
             case "shop.buy-prices" -> live.buyPrices();
@@ -764,19 +898,23 @@ public final class ShopService implements IEconomyService {
         }
         Currency currency = live.currency();
         PricedNames current = PricedNames.parse(lines, currency);
-        PricedNames next = price == null ? current.without(material.name()) : current.with(material.name(), price);
+        PricedNames next = price == null ? current.without(name) : current.with(name, price);
         return writeList(key, next.lines(currency));
     }
 
     /** Puts an item on or off one of the closed lists. */
     public boolean setListed(String key, Material material, boolean listed) {
+        return setListed(key, material.name(), listed);
+    }
+
+    public boolean setListed(String key, String item, boolean listed) {
         EconomySettings live = settings;
         List<String> lines = new ArrayList<>(switch (key) {
             case "shop.not-sold" -> live.notSold();
             case "shop.not-bought" -> live.notBought();
             default -> List.<String>of();
         });
-        String name = material.name().toLowerCase(Locale.ROOT);
+        String name = item.toLowerCase(Locale.ROOT);
         lines.removeIf(line -> line.strip().equalsIgnoreCase(name));
         if (listed) {
             lines.add(name);

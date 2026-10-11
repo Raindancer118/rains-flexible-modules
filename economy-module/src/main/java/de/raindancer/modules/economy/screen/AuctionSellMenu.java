@@ -8,7 +8,6 @@ import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.economy.EconomyServices;
 import de.raindancer.modules.economy.EconomySettings;
-import de.raindancer.modules.economy.model.PriceTag;
 import de.raindancer.modules.economy.util.Mini;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -41,8 +40,9 @@ public final class AuctionSellMenu extends Menu implements IEconomyScreen {
         this.slot = slot;
         this.picked = picked.clone();
         EconomySettings live = services.config();
-        PriceTag tag = services.shop().tag(picked.getType());
-        Money shop = tag.sellable() ? tag.sell().times(picked.getAmount()) : Money.ZERO;
+        // What the shop would pay for it as it is — an enchanted book or sword at its enchantments' prices too.
+        Money shop = services.shop().appraise(viewer.getUniqueId(), picked, -1)
+                .map(de.raindancer.modules.economy.model.SaleLot::total).orElse(Money.ZERO);
         this.start = shop.max(live.auctionSmallestStartMoney());
         this.seconds = live.auctionDefaultSeconds();
     }

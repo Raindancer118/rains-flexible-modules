@@ -64,6 +64,16 @@ class EconomyScenarioTest {
         return Long.parseLong(amount);
     }
 
+    /** A buy or sell price out of what {@code /eco price} printed, by the book's key. */
+    private static long printed(String output, String key, String side) {
+        String plain = output.replaceAll("§.", "");
+        String line = java.util.Arrays.stream(plain.split("(?=Enchanted Book \\()|\n"))
+                .filter(each -> each.contains(key + " ")).findFirst()
+                .orElseThrow(() -> new AssertionError(key + " is not in: " + plain));
+        String after = line.substring(line.indexOf(side + " ") + side.length() + 1);
+        return Long.parseLong(after.split(" ")[0].replaceAll("[^0-9]", ""));
+    }
+
     @Test
     @DisplayName("accounts, paying, cash, a caught duplicate, the shop, the casino and the staff tools")
     void economy() {
@@ -185,14 +195,45 @@ class EconomyScenarioTest {
             ada.run("sell enchantments");
             Await.until("Mending is sold", WAIT, () -> said(ada, "sold the enchantments off your Enchanted Book for"));
             Await.until("a plain book is left", WAIT, () -> ada.carrying(item -> item.is("book")).isPresent());
-            // ---- and an enchanted book sells whole, for more than a plain one
+            // ---- and an enchanted book sells whole, at its own price — which moves that book's price and no other
+            String pricesBefore = server.console("eco price protection") + server.console("eco price mending");
             server.console("give Ada minecraft:enchanted_book[minecraft:stored_enchantments={\"minecraft:protection\":4}] 1");
             Await.until("the protection book arrives", WAIT, () -> ada.carrying(item -> item.is("enchanted_book")).isPresent());
             ada.hold(ada.hotbarSlotOf(item -> item.is("enchanted_book")));
             Await.ticks(5);
             ada.forgetChat();
             ada.run("sell hand");
-            Await.until("the enchanted book is sold", WAIT, () -> said(ada, "Enchanted Book (enchanted) for"));
+            Await.until("the enchanted book is sold", WAIT, () -> said(ada, "Enchanted Book (Protection IV) for"));
+            assertThat(soldFor(ada)).as("what /eco price said it sells for").isEqualTo(printed(pricesBefore, "enchanted_book:protection:4", "sell"));
+            String pricesAfter = server.console("eco price protection") + server.console("eco price mending");
+            assertThat(printed(pricesAfter, "enchanted_book:protection:4", "sell")).as("sold: cheaper")
+                    .isLessThan(printed(pricesBefore, "enchanted_book:protection:4", "sell"));
+            assertThat(printed(pricesAfter, "enchanted_book:protection:3", "sell")).as("another level untouched")
+                    .isEqualTo(printed(pricesBefore, "enchanted_book:protection:3", "sell"));
+            assertThat(printed(pricesAfter, "enchanted_book:mending:1", "sell")).as("another enchantment untouched")
+                    .isEqualTo(printed(pricesBefore, "enchanted_book:mending:1", "sell"));
+
+            // ---- a book from the Enchantments drawer, at the price it shows; buying makes that book dearer
+            server.console("eco give Ada 20000");
+            long mendingBefore = printed(server.console("eco price mending"), "enchanted_book:mending:1", "buy");
+            ada.run("shop");
+            ada.awaitWindow("Shop");
+            ada.click("Enchantments");
+            ada.awaitWindow("Enchantments");
+            int mending = Await.value("the drawer shows Mending", WAIT, () -> ada.window().flatMap(window -> window.top()
+                    .entrySet().stream().filter(entry -> entry.getValue().name().toLowerCase(java.util.Locale.ROOT)
+                            .contains("mending")).map(java.util.Map.Entry::getKey).findFirst()).orElse(null));
+            snapshot(ada, "enchantments");
+            ada.forgetChat();
+            ada.clickSlot(mending);
+            Await.until("the book is bought", WAIT, () -> said(ada, "You bought 1 × Enchanted Book (Mending I)"));
+            Await.until("and carried", WAIT, () -> ada.carrying(item -> item.is("enchanted_book")).isPresent());
+            ada.closeWindow();
+            assertThat(printed(server.console("eco price mending"), "enchanted_book:mending:1", "buy"))
+                    .as("bought: dearer").isGreaterThan(mendingBefore);
+            assertThat(printed(server.console("eco price protection"), "enchanted_book:protection:3", "buy"))
+                    .isEqualTo(printed(pricesBefore, "enchanted_book:protection:3", "buy"));
+            server.console("clear Ada minecraft:enchanted_book");
 
             // ---- the statement, printed as a book to keep
             ada.run("bank");
@@ -418,8 +459,10 @@ class EconomyScenarioTest {
             ada.forgetChat();
             ada.run("race");
             ada.awaitWindow("Horse race");
-            Await.until("the gate is closed", Duration.ofSeconds(40), () -> ada.window()
-                    .flatMap(window -> window.slotNamed("Gate opens")).isPresent());
+            // With a few seconds to go: a click at "Gate opens in 0 s" can land after the gate opened.
+            Await.until("the gate is closed for a while yet", Duration.ofSeconds(40), () -> ada.window()
+                    .flatMap(window -> window.top().values().stream().map(Bot.Item::name)
+                            .filter(name -> name.matches("Gate opens in ([3-9]|\\d{2,}) s")).findFirst()).isPresent());
             ada.click("Thunder");
             Await.until("the race is run", Duration.ofSeconds(60), () -> said(ada, "wins"));
             ada.closeWindow();

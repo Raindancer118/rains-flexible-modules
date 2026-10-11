@@ -68,4 +68,16 @@ class EnchantWorthRuleTest {
         assertThat(worth.best("mending", 1, true, false)).isGreaterThan(worth.best("protection", 4, false, false));
         assertThat(worth.best("vanishing_curse", 1, true, true)).isNegative();
     }
+
+    @Test
+    @DisplayName("usefulness per level: the best spread over its levels, an ordinary enchantment 1, treasure 2, curses negative")
+    void factor() {
+        assertThat(worth.factor("mending", 1, true, false)).isCloseTo(12, within(1e-9));
+        assertThat(worth.factor("sharpness", 5, false, false)).isCloseTo(1.8, within(1e-9));
+        assertThat(worth.factor("protection", 4, false, false)).isCloseTo(2.5, within(1e-9));
+        assertThat(worth.factor("someplugin_magic", 3, false, false)).isCloseTo(1, within(1e-9));
+        assertThat(worth.factor("someplugin_relic", 2, true, false)).isCloseTo(2, within(1e-9));
+        assertThat(worth.factor("vanishing_curse", 1, true, true)).isCloseTo(-4, within(1e-9));
+        assertThat(new EnchantWorthRule(List.of("mending 24")).factor("mending", 1, true, false)).isCloseTo(24, within(1e-9));
+    }
 }

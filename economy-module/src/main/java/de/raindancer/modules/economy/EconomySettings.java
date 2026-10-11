@@ -259,13 +259,13 @@ public record EconomySettings(
         @Key("shop.recovery-hours") double recoveryHours,
 
         @In("economy/shop") @Title("Enchanted books for sale")
-        @Describe("An Enchantments drawer in the shop: any enchantment at any level up to its normal maximum, as a book.")
+        @Describe("An Enchantments drawer in the shop: every enchantment at every level up to its normal maximum, "
+                + "each priced like an item — with supply and demand, the buy markup and sell ratio, roles. A book "
+                + "is worth a plain book plus what making it costs, times how useful the enchantment is: level I "
+                + "a full enchanting-table roll (3 lapis and levels 27 to 30, experience at the bottle's price), "
+                + "each level above two of the level below, a book and the anvil's levels. Priced by hand like "
+                + "any item: 'enchanted_book:mending:1 20000' in the custom values, buy or sell prices.")
         @Key("shop.enchant-books") boolean enchantBooks,
-
-        @In("economy/shop") @Title("A level of enchantment costs")
-        @Describe("A level of an ordinary enchantment, on a book bought from the shop. Useful ones cost more "
-                + "(see 'How useful each enchantment is').")
-        @Key("shop.enchant-price") String enchantPrice,
 
         @In("economy/shop") @Title("Treasure enchantments for sale")
         @Describe("Mending, Frost Walker, Soul Speed and the others otherwise found only as loot, priced by how "
@@ -273,23 +273,23 @@ public record EconomySettings(
         @Key("shop.enchant-treasure") boolean enchantTreasure,
 
         @In("economy/shop") @Title("Enchantments not for sale")
-        @Describe("Their keys, like sharpness or mending, comma separated.")
+        @Describe("Their keys, like sharpness or mending, comma separated. One level alone: "
+                + "'enchanted_book:sharpness:5' in 'Never sold to players'.")
         @Key("shop.enchant-closed") List<String> enchantClosed,
 
         @In("economy/shop") @Title("Sell enchanted items")
-        @Describe("Enchanted tools, armour and books sell for more than plain ones; worn ones for less.")
+        @Describe("Enchanted books sell at their price; enchanted tools and armour for their plain price plus "
+                + "what each enchantment's book sells for over a plain book, worn ones for less. Curses take away.")
         @Key("shop.enchanted-selling") boolean enchantedSelling,
-
-        @In("economy/shop") @Title("Each enchantment level is worth")
-        @Describe("What the shop pays for a level of an ordinary enchantment. Useful ones are worth more "
-                + "(see 'How useful each enchantment is'); curses take value away.")
-        @Key("shop.enchant-value") String enchantValue,
 
         @In("economy/shop") @Title("How useful each enchantment is")
         @Describe("Changes to the built-in ranking, one per line like 'mending 12': what an enchantment is worth "
-                + "at its highest level, in levels of an ordinary one. Built in: Mending 12, Protection and "
-                + "Efficiency 10, Sharpness, Unbreaking and Fortune 9 … down to Knockback, Punch and Bane of "
-                + "Arthropods 2. Buying and selling prices both follow it; the shop's drawer is sorted by it.")
+                + "at its highest level, in levels of an ordinary one. Spread over its levels it multiplies what "
+                + "the book costs to make: Protection, 10 over four levels, costs 2.5 times an ordinary "
+                + "enchantment at every level; Mending, 12 at one level, twelve times. Built in: Mending 12, "
+                + "Protection and Efficiency 10, Sharpness, Unbreaking and Fortune 9 … down to Knockback, Punch "
+                + "and Bane of Arthropods 2; unranked ones a level per level, treasure double. The shop's drawer "
+                + "is sorted by it.")
         @Key("shop.enchant-worth") List<String> enchantWorth,
 
         @In("economy/shop/spawn-eggs") @Title("Spawn eggs for sale")
@@ -842,7 +842,7 @@ public record EconomySettings(
             true, Material.GOLD_NUGGET, "", true, true, 0.0, 2304,
             // shop
             true, true, 1.0, 0.4, SellPricing.AUTOMATIC, List.of(), List.of(), List.of(), List.of(), List.of(),
-            true, 0.1, 0.15, true, 0.5, 2.0, 0.02, 12.0, true, "500", true, List.of(), true, "40", List.of(),
+            true, 0.1, 0.15, true, 0.5, 2.0, 0.02, 12.0, true, true, List.of(), true, List.of(),
             true, "2000", List.of("ender_dragon", "wither"),
             true, true, true, true, true, true, true, true, true,
             // earning
@@ -942,10 +942,6 @@ public record EconomySettings(
         return new de.raindancer.modules.economy.rules.EnchantWorthRule(enchantWorth);
     }
 
-    public Money enchantValueMoney() {
-        return money(enchantValue, DEFAULTS.enchantValue);
-    }
-
     private Money settingOrZero(String written) {
         return currency().parse(written).orElse(Money.ZERO);
     }
@@ -1011,10 +1007,6 @@ public record EconomySettings(
 
     public Money raffleSmallestTicketMoney() {
         return money(raffleSmallestTicket, DEFAULTS.raffleSmallestTicket);
-    }
-
-    public Money enchantPriceMoney() {
-        return money(enchantPrice, DEFAULTS.enchantPrice);
     }
 
     public Money xpBuyMoney() {

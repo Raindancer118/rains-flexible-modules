@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class EcoCommand extends EconomyCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("give", "take", "set", "reset", "freeze", "unfreeze",
-            "history", "menu", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle", "giveaway", "tax", "loan", "packs", "health", "fund", "season");
+            "history", "menu", "price", "reprice", "draw", "calm", "coin", "leaderboard", "dealer", "auction", "raffle", "giveaway", "tax", "loan", "packs", "health", "fund", "season");
 
     public EcoCommand(Supplier<EconomyServices> services) {
         super(services);
@@ -220,6 +220,7 @@ public final class EcoCommand extends EconomyCommand {
                             () -> live.messages().send(sender, "economy.loan.none", "player", name));
                 });
             }
+            case "price" -> price(live, sender, rest(args, 1));
             case "calm" -> {
                 live.market().calm();
                 live.messages().send(sender, "economy.admin.calmed");
@@ -346,6 +347,51 @@ public final class EcoCommand extends EconomyCommand {
                         live.currency().render(target));
             });
         }));
+    }
+
+    /**
+     * What the shop asks and pays right now, for the console as much as in game: an item, an enchanted book
+     * ({@code enchanted_book:sharpness:5}), every level of one enchantment ({@code sharpness}), or every book
+     * ({@code enchantments}).
+     */
+    private static void price(EconomyServices live, CommandSender sender, String typed) {
+        String what = typed.strip();
+        if (what.isEmpty()) {
+            live.messages().send(sender, "economy.usage.eco");
+            return;
+        }
+        var prices = live.shop().prices();
+        List<String> names;
+        String lower = what.toLowerCase(Locale.ROOT).replace(' ', '_');
+        if (lower.equals("enchantments") || lower.equals("books")) {
+            names = prices.enchantKeys();
+        } else if (de.raindancer.modules.economy.model.EnchantKey.isKey(lower)) {
+            names = List.of(de.raindancer.modules.economy.model.EnchantKey.parse(lower).orElseThrow().name());
+        } else if (prices.enchantment(lower).isPresent()) {
+            var kind = prices.enchantment(lower).get();
+            names = java.util.stream.IntStream.rangeClosed(1, Math.max(1, kind.maxLevel()))
+                    .mapToObj(level -> kind.at(level).name()).toList();
+        } else {
+            org.bukkit.Material material = org.bukkit.Material.matchMaterial(lower);
+            names = material == null ? List.of() : List.of(material.name());
+        }
+        if (names.isEmpty()) {
+            live.messages().send(sender, "economy.admin.price-none", "what", what);
+            return;
+        }
+        for (String name : names) {
+            var tag = live.shop().tag(name);
+            String label = de.raindancer.modules.economy.model.EnchantKey.parse(name)
+                    .map(key -> "Enchanted Book (" + key.readable() + ")")
+                    .orElseGet(() -> de.raindancer.core.ui.choose.Catalogue.readable(name));
+            long percent = Math.round((prices.multiplier(name) - 1) * 100);
+            live.messages().send(sender, "economy.admin.price-line", "item", label, "key", name.toLowerCase(Locale.ROOT),
+                    "value", live.currency().render(tag.value()),
+                    "buy", tag.buyable() ? live.currency().render(tag.buy()) : "not sold",
+                    "sell", tag.sellable() ? live.currency().render(tag.sell()) : "not bought",
+                    "trend", percent == 0 ? "" : (percent > 0 ? " ▲ " : " ▼ ") + Math.abs(percent) + "%",
+                    "source", tag.source().name().toLowerCase(Locale.ROOT));
+        }
     }
 
     @Override

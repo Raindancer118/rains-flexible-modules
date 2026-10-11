@@ -23,14 +23,19 @@ public final class PersonalPriceRule implements IEconomyRule {
     }
 
     public YourPrice forPlayer(UUID player, PriceTag shop, Bulk bulk) {
+        return forPlayer(player, shop, bulk, shop.material());
+    }
+
+    /** @param modifiedAs the item roles and events know it as — an enchanted book's key is just an enchanted book to them */
+    public YourPrice forPlayer(UUID player, PriceTag shop, Bulk bulk, String modifiedAs) {
         Bulk applied = shop.buyable() ? bulk : Bulk.NONE;
         if (player == null || !PriceModifiers.isAnyProvided()) {
             return new YourPrice(shop, PersonalPrice.unchanged(shop.buy()), PersonalPrice.unchanged(shop.sell()),
                     applied);
         }
-        PersonalPrice buy = shop.buyable() ? PriceModifiers.buy(player, shop.material(), shop.buy())
+        PersonalPrice buy = shop.buyable() ? PriceModifiers.buy(player, modifiedAs, shop.buy())
                 : PersonalPrice.unchanged(shop.buy());
-        PersonalPrice sell = shop.sellable() ? PriceModifiers.sell(player, shop.material(), shop.sell())
+        PersonalPrice sell = shop.sellable() ? PriceModifiers.sell(player, modifiedAs, shop.sell())
                 : PersonalPrice.unchanged(shop.sell());
         return new YourPrice(shop, buy, sell, applied);
     }

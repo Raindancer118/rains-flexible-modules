@@ -339,6 +339,30 @@ public final class EconomyModule implements FlexModule {
         EconomyCommands.ready(services);
         log.info("The economy is up: {} account(s), {} item(s) priced from {} recipe(s), money is {}.",
                 book.all().size(), prices.priced().size(), recipes, economy.currency().format(economy.currency().ofMajor(1)));
+        long books = prices.priced().stream().filter(de.raindancer.modules.economy.model.EnchantKey::isKey).count();
+        log.info("Enchanted books: {} priced, one per enchantment and level, from what making them costs: {}.",
+                books, enchantExamples(prices, economy.currency()));
+        try {
+            var file = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(settings.file().toFile());
+            de.raindancer.modules.economy.store.LegacyEnchantSettings.notice(file::get,
+                    enchantExamples(prices, economy.currency())).ifPresent(log::warn);
+        } catch (RuntimeException unreadable) {
+            log.warn("config.yml could not be read for old enchanted-book settings: {}", unreadable.getMessage());
+        }
+    }
+
+    /** A few book prices for the log, so an owner sees what the shop asks. */
+    private static String enchantExamples(PriceBook prices, de.raindancer.core.social.economy.Currency currency) {
+        List<String> shown = new java.util.ArrayList<>();
+        for (String key : List.of("ENCHANTED_BOOK:MENDING:1", "ENCHANTED_BOOK:SHARPNESS:5", "ENCHANTED_BOOK:PROTECTION:4",
+                "ENCHANTED_BOOK:UNBREAKING:3")) {
+            var tag = prices.tag(key);
+            if (tag.value().isPositive()) {
+                shown.add(de.raindancer.modules.economy.model.EnchantKey.parse(key).orElseThrow().readable() + " "
+                        + currency.format(tag.buy()));
+            }
+        }
+        return shown.isEmpty() ? "none (no price for experience)" : String.join(", ", shown);
     }
 
     private ProfileButton profileButton(Player viewer, org.bukkit.OfflinePlayer subject, de.raindancer.core.ui.menu.Menu parent) {

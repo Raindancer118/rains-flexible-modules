@@ -31,8 +31,11 @@
              0.27.1: back pay recorded per advancement in the ledger; not in creative/spectator or without earn.
              0.27.2: name tags are priced from their recipe (paper + iron nugget), no longer a rare find's 300.
              0.28.0: enchantments priced by usefulness (shop.enchant-worth), drawer sorted by it; /sell enchantments;
-                    enchanted books sell again; staff call off any auction (/eco auction cancel, menus). -->
-        <plugin.version>0.28.0</plugin.version>
+                    enchanted books sell again; staff call off any auction (/eco auction cancel, menus).
+             0.29.0: enchanted books priced like items, one key per enchantment and level (enchanted_book:mending:1):
+                    from making them (book, lapis, XP at the bottle's price, anvil) times usefulness, own supply and
+                    demand, custom prices; shop.enchant-price / shop.enchant-value no longer read; /eco price. -->
+        <plugin.version>0.29.0</plugin.version>
     </properties>
 
     <dependencies>

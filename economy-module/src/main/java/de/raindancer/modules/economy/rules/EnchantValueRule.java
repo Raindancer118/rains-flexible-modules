@@ -1,66 +1,55 @@
 package de.raindancer.modules.economy.rules;
 
 import de.raindancer.core.social.economy.Money;
-import de.raindancer.modules.economy.model.EnchantLevel;
+import de.raindancer.modules.economy.model.EnchantKind;
 
 import java.util.List;
 
 /**
- * What enchantments and wear do to what the shop pays: each enchantment adds what it is worth
- * ({@link EnchantWorthRule} — the useful ones more, curses take away), and the plain part of the price
- * shrinks with the durability used up.
+ * Enchanted things sold to the shop, from the prices of the books in them. Each enchantment and level has a
+ * book price of its own in the price book; what it adds to anything else is that price less a plain book's.
  */
 public final class EnchantValueRule implements IEconomyRule {
 
-    /** May be negative when curses outweigh the rest. */
-    public Money bonus(List<EnchantLevel> enchantments, Money perLevel, EnchantWorthRule worth) {
-        double total = 0;
-        for (EnchantLevel each : enchantments) {
-            total += perLevel.minor() * worth.worth(each);
-        }
-        return Money.of(Math.round(total));
+    /** What an enchantment adds: its book's sell price over a plain book's. */
+    public Money part(Money keySell, Money bookSell) {
+        return keySell.minus(bookSell).max(Money.ZERO);
+    }
+
+    /** What a curse takes away from a sale: the size of its part at the sell ratio. */
+    public Money cursePenalty(Money cursePart, double sellRatio) {
+        return Money.of((long) Math.floor(Math.max(0, cursePart.minor()) * Math.max(0, sellRatio) + 1e-9));
     }
 
     /**
-     * What one sells for.
-     *
-     * @param plainSell what the plain, unworn item sells for
-     * @param bonus     the enchantments' worth, before the sell ratio
+     * An enchanted or worn item: the plain item's sell price shrunk by the wear, its enchantments' parts on top,
+     * its curses' taken away — never below nothing.
      */
-    public Money sellValue(Money plainSell, double durabilityLeft, Money bonus, double sellRatio) {
+    public Money itemSell(Money plainSell, double durabilityLeft, Money parts, Money curses) {
         if (Double.isNaN(durabilityLeft)) {
             return Money.ZERO;
         }
-        double worn = plainSell.minor() * Math.max(0, Math.min(1, durabilityLeft));
-        double enchanted = bonus.minor() * Math.max(0, sellRatio);
-        return Money.of(Math.max(0, (long) Math.floor(worn + enchanted + 1e-9)));
+        long worn = (long) Math.floor(plainSell.minor() * Math.max(0, Math.min(1, durabilityLeft)) + 1e-9);
+        return Money.of(Math.max(0, worn + parts.minor() - curses.minor()));
     }
 
     /**
-     * What an enchanted book costs in the shop: the book, plus what the enchantment is worth at the buying
-     * price per level — and never less per level than the shop pays, so buying and selling back cannot make money.
+     * An enchanted book: each enchantment as a book of its own, less the books used up combining them into
+     * one, its curses taken away.
      */
-    public Money buyPrice(Money book, EnchantLevel enchantment, Money buyPerLevel, Money sellPerLevel, EnchantWorthRule worth) {
-        long perLevel = Math.max(buyPerLevel.minor(), sellPerLevel.minor());
-        long value = Math.round(perLevel * Math.max(0, worth.worth(enchantment)));
-        return book.max(Money.ZERO).plus(Money.of(value));
-    }
-
-    /**
-     * What the shop pays for taking the enchantments off an item, the item kept: what they would add to its
-     * sale. Curses cannot be sold off — they stay on, and take nothing away.
-     */
-    public Money enchantsOff(List<EnchantLevel> enchantments, Money perLevel, EnchantWorthRule worth, double sellRatio) {
-        List<EnchantLevel> sellable = enchantments.stream().filter(each -> !each.curse()).toList();
-        return sellValue(Money.ZERO, 1.0, bonus(sellable, perLevel, worth), sellRatio);
+    public Money bookSell(Money bookSell, List<Money> keySells, Money curses) {
+        long total = keySells.isEmpty() ? bookSell.minor()
+                : keySells.stream().mapToLong(Money::minor).sum() - (keySells.size() - 1L) * bookSell.minor();
+        return Money.of(Math.max(0, total - curses.minor()));
     }
 
     /** Whether the shop sells it: never a curse, treasure only when allowed, nothing an owner closed. */
-    public boolean offered(EnchantLevel enchantment, boolean treasureAllowed, List<String> closed) {
-        if (enchantment.curse() || enchantment.treasure() && !treasureAllowed) {
+    public boolean offered(EnchantKind kind, boolean treasureAllowed, List<String> closed) {
+        if (kind.curse() || kind.treasure() && !treasureAllowed) {
             return false;
         }
-        return closed.stream().noneMatch(key -> key.strip().equalsIgnoreCase(enchantment.key()));
+        return closed == null || closed.stream().map(key -> key.strip().toLowerCase(java.util.Locale.ROOT)
+                .replace("minecraft:", "")).noneMatch(kind.id()::equals);
     }
 
     public double durabilityLeft(int maxDurability, int damage) {
@@ -72,6 +61,6 @@ public final class EnchantValueRule implements IEconomyRule {
 
     @Override
     public String describe() {
-        return "what enchantments and wear do to what the shop pays for an item";
+        return "what enchantments, curses and wear do to what the shop pays";
     }
 }

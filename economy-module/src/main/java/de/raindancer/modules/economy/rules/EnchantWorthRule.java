@@ -9,8 +9,9 @@ import java.util.Map;
 
 /**
  * How useful each enchantment is, as what it is worth at its highest level — counted in levels of an
- * ordinary enchantment, so 10 means ten times the shop's price per level. A level below the highest is
- * its share of that: Protection I is a quarter of Protection IV.
+ * ordinary enchantment. Spread over its levels ({@link #factor}) it is what the cost of making the
+ * enchantment ({@link EnchantCostRule}) is multiplied by: Protection, 10 over four levels, costs 2.5 times an
+ * ordinary enchantment at every level.
  *
  * <p>An enchantment not ranked here (a datapack's, a future version's) is worth a level per level,
  * treasure double. Curses are worth their number taken away.
@@ -79,6 +80,14 @@ public final class EnchantWorthRule implements IEconomyRule {
         Double known = ranked.get(key.toLowerCase(Locale.ROOT));
         double value = known != null ? known : Math.max(1, maxLevel) * (treasure ? 2.0 : 1.0);
         return curse ? -value : value;
+    }
+
+    /**
+     * Usefulness per level, against an ordinary enchantment's 1: the best spread over the levels. What the
+     * shop's price ladder for the enchantment is multiplied by; negative for a curse.
+     */
+    public double factor(String key, int maxLevel, boolean treasure, boolean curse) {
+        return best(key, maxLevel, treasure, curse) / Math.max(1, maxLevel);
     }
 
     @Override

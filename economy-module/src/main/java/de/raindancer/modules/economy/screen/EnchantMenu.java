@@ -4,6 +4,9 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.PriceTag;
+import de.raindancer.modules.economy.model.YourPrice;
+import de.raindancer.modules.economy.util.PermissionNodes;
 import de.raindancer.modules.economy.service.ShopService;
 import de.raindancer.modules.economy.util.Mini;
 import de.raindancer.modules.economy.util.PriceLines;
@@ -16,9 +19,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
 
-/** The shop's Enchantments drawer: one book per enchantment and level, click to buy it. */
+/** The shop's Enchantments drawer: one book per enchantment and level, each with its live price; click to buy it. */
 public final class EnchantMenu extends PaginatedMenu<ShopService.EnchantOffer> implements IEconomyScreen {
 
     private final EconomyServices services;
@@ -53,22 +57,50 @@ public final class EnchantMenu extends PaginatedMenu<ShopService.EnchantOffer> i
     @Override
     protected ItemStack icon(ShopService.EnchantOffer offer) {
         ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
+        YourPrice yours = services.shop().priceFor(viewer.getUniqueId(), offer.key());
+        PriceTag tag = yours.shop();
+        List<String> lore = new ArrayList<>();
+        lore.add(tag.buyable() ? "<gray>Buy: " + PriceLines.amount(services.currency(), tag.buy(), yours.buy())
+                : "<dark_gray>Not sold");
+        lore.addAll(PriceLines.buyNotes(yours));
+        lore.add(tag.sellable() ? "<gray>Sell: " + PriceLines.amount(services.currency(), tag.sell(), yours.sell())
+                : "<dark_gray>Not bought");
+        lore.addAll(PriceLines.sellNotes(services.currency(), services.shop().sellBreakdown(viewer.getUniqueId(), offer.key())));
+        String trend = ShopItemsMenu.trend(services.shop().prices().multiplier(offer.key().name()));
+        if (!trend.isEmpty()) {
+            lore.add(trend);
+        }
+        lore.add("");
+        if (tag.buyable()) {
+            lore.add("<yellow>Click<gray> to buy the book");
+        }
+        if (viewer.hasPermission(PermissionNodes.ADMIN)) {
+            lore.add("<yellow>Right click<gray> to change its prices");
+        }
         book.editMeta(org.bukkit.inventory.meta.EnchantmentStorageMeta.class, meta -> {
             meta.addStoredEnchant(offer.enchantment(), offer.level(), false);
             meta.displayName(offer.enchantment().displayName(offer.level()).color(NamedTextColor.LIGHT_PURPLE)
                     .decoration(TextDecoration.ITALIC, false));
-            var yours = services.shop().enchantPriceFor(viewer.getUniqueId(), offer);
-            meta.lore(List.of(line("<gray>" + PriceLines.amount(services.currency(), offer.price(), yours.price())
-                            + (yours.changed() ? " <dark_aqua>" + String.join(", ", yours.reasons()) + " discount: "
-                            + -yours.percent() + "%" : "")),
-                    line("<yellow>Click<gray> to buy the book")));
+            meta.lore(lore.stream().map(EnchantMenu::line).toList());
         });
         return book;
     }
 
     @Override
     protected void onClick(ShopService.EnchantOffer offer, InventoryClickEvent event) {
-        services.shop().buyEnchant(viewer, offer);
+        if (event.isRightClick() && viewer.hasPermission(PermissionNodes.ADMIN)) {
+            ItemStack icon = new ItemStack(Material.ENCHANTED_BOOK);
+            icon.editMeta(org.bukkit.inventory.meta.EnchantmentStorageMeta.class,
+                    meta -> meta.addStoredEnchant(offer.enchantment(), offer.level(), false));
+            new PriceEditMenu(services, viewer, this, offer.key().name(), icon,
+                    "Enchanted Book (" + offer.key().readable() + ")").open();
+            return;
+        }
+        if (!services.shop().prices().tag(offer.key().name()).buyable()) {
+            return;
+        }
+        services.shop().buyEnchant(viewer, offer,
+                services.shop().priceFor(viewer.getUniqueId(), offer.key()).buyFor(1).orElse(null));
         refresh();
     }
 
@@ -78,7 +110,9 @@ public final class EnchantMenu extends PaginatedMenu<ShopService.EnchantOffer> i
 
     @Override
     protected List<String> helpLines() {
-        return List.of("An enchantment as a book, to put on with an anvil.", "Higher levels cost more; treasure double.");
+        return List.of("An enchantment as a book, to put on with an anvil.",
+                "Priced like any item: what making it costs, times how useful it is,",
+                "moving with supply and demand.");
     }
 
     @Override

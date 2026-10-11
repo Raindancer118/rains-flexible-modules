@@ -3,6 +3,7 @@ package de.raindancer.modules.economy.store;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.EconomySettingsTest;
+import de.raindancer.modules.economy.model.EnchantKind;
 import de.raindancer.modules.economy.model.PriceTag;
 import de.raindancer.modules.economy.model.RecipeShape;
 import de.raindancer.modules.economy.model.SellPricing;
@@ -231,5 +232,150 @@ class PriceBookTest {
         PriceTag owners = book(EconomySettingsTest.with("shop.values", "experience_bottle 500"), PLANKS)
                 .tag("EXPERIENCE_BOTTLE");
         assertThat(owners.value()).as("an owner's own value wins").isEqualTo(Money.of(500));
+    }
+
+    // ---------------------------------------------------------------------------- enchanted books
+
+    private static final List<EnchantKind> ENCHANTMENTS = List.of(
+            new EnchantKind("sharpness", 5, false, false), new EnchantKind("mending", 1, true, false),
+            new EnchantKind("bane_of_arthropods", 5, false, false), new EnchantKind("unbreaking", 3, false, false),
+            new EnchantKind("vanishing_curse", 1, true, true));
+
+    private PriceBook enchanting(String... settings) {
+        String[] all = new String[settings.length + 2];
+        all[0] = "xp.buy-per-point";
+        all[1] = "3";
+        System.arraycopy(settings, 0, all, 2, settings.length);
+        byte[] raw = """
+                book: 70
+                lapis_lazuli: 40
+                """.getBytes(StandardCharsets.UTF_8);
+        PriceBook book = new PriceBook(currency -> BasePrices.parse(new ByteArrayInputStream(raw), currency),
+                material -> pressure.getOrDefault(material, 0.0), material -> 64);
+        book.recompute(EconomySettingsTest.with(all), List.of(), List.of(), ENCHANTMENTS);
+        return book;
+    }
+
+    @Test
+    @DisplayName("each enchantment and level is an item of its own: a book plus making it — a table roll, the anvil — times its usefulness")
+    void enchantedBooks() {
+        PriceBook book = enchanting();
+        // A table roll: 3 lapis (120) and levels 27 to 30 (306 points at 3) = 1038; sharpness is 9 over 5 levels = 1.8.
+        PriceTag sharpness1 = book.tag("ENCHANTED_BOOK:SHARPNESS:1");
+        assertThat(sharpness1.value()).isEqualTo(Money.of(70 + 1868));
+        assertThat(sharpness1.source()).isEqualTo(PriceTag.Source.RECIPE);
+        assertThat(sharpness1.buy()).isEqualTo(Money.of(70 + 1868));
+        assertThat(sharpness1.sell()).isEqualTo(Money.of((long) Math.floor((70 + 1868) * 0.4)));
+        assertThat(sharpness1.buyable()).isTrue();
+        assertThat(sharpness1.sellable()).isTrue();
+        assertThat(book.tag("enchanted_book:minecraft:sharpness:5").value()).as("as an owner writes it")
+                .isEqualTo(Money.of(70 + Math.round(1.8 * 18771)));
+        assertThat(book.tag("ENCHANTED_BOOK:MENDING:1").value()).as("twelve ordinary levels").isEqualTo(Money.of(70 + 12456));
+        assertThat(book.tag("ENCHANTED_BOOK:SHARPNESS:6").tradable()).as("past the maximum: no such book").isFalse();
+        assertThat(book.tag("ENCHANTED_BOOK:NOTHING:1").tradable()).isFalse();
+        assertThat(book.stackSizeOf("ENCHANTED_BOOK:MENDING:1")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("whatever supply and demand does: higher levels dearer, buying above selling, no level sold for more than two lower ones combined")
+    void enchantedBooksNoMoneyLoop() {
+        java.util.Random random = new java.util.Random(3);
+        for (int round = 0; round < 200; round++) {
+            pressure.clear();
+            for (EnchantKind kind : ENCHANTMENTS) {
+                for (int level = 1; level <= kind.maxLevel(); level++) {
+                    pressure.put(kind.at(level).name(), random.nextDouble() * 10 - 5);
+                }
+            }
+            PriceBook book = enchanting("shop.lowest-multiplier", "0.05", "shop.highest-multiplier", "10");
+            for (EnchantKind kind : ENCHANTMENTS) {
+                for (int level = 1; level <= kind.maxLevel(); level++) {
+                    PriceTag tag = book.tag(kind.at(level).name());
+                    if (tag.sellable()) {
+                        assertThat(tag.sell()).isLessThan(tag.buy());
+                    }
+                    if (level > 1 && tag.sellable()) {
+                        PriceTag lower = book.tag(kind.at(level - 1).name());
+                        long anvil = new de.raindancer.modules.economy.rules.EnchantCostRule().anvil(level, 3.0);
+                        assertThat(tag.sell().minor()).isLessThan(2 * lower.buy().minor() + anvil);
+                    }
+                }
+            }
+        }
+        pressure.clear();
+        PriceBook calm = enchanting();
+        for (EnchantKind kind : ENCHANTMENTS) {
+            for (int level = 2; level <= kind.maxLevel(); level++) {
+                assertThat(calm.tag(kind.at(level).name()).value()).isGreaterThan(calm.tag(kind.at(level - 1).name()).value());
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("supply and demand moves one enchantment and level, nothing else")
+    void enchantedBooksOwnPressure() {
+        PriceBook before = enchanting();
+        Money sharpness5 = before.tag("ENCHANTED_BOOK:SHARPNESS:5").buy();
+        Money sharpness4 = before.tag("ENCHANTED_BOOK:SHARPNESS:4").buy();
+        Money mending = before.tag("ENCHANTED_BOOK:MENDING:1").buy();
+        pressure.put("ENCHANTED_BOOK:SHARPNESS:5", 1.0);
+        PriceBook after = enchanting();
+        assertThat(after.multiplier("ENCHANTED_BOOK:SHARPNESS:5")).isGreaterThan(1);
+        assertThat(after.tag("ENCHANTED_BOOK:SHARPNESS:5").buy()).isGreaterThan(sharpness5);
+        assertThat(after.tag("ENCHANTED_BOOK:SHARPNESS:4").buy()).isEqualTo(sharpness4);
+        assertThat(after.tag("ENCHANTED_BOOK:MENDING:1").buy()).isEqualTo(mending);
+        pressure.clear();
+    }
+
+    @Test
+    @DisplayName("an owner prices a book by hand like any item: a value, a buy price, a sell price")
+    void enchantedBooksCustom() {
+        PriceBook book = enchanting("shop.buy-prices", "enchanted_book:mending:1 99999",
+                "shop.sell-prices", "enchanted_book:minecraft:sharpness:5 100",
+                "shop.values", "enchanted_book:unbreaking:1 5000");
+        pressure.put("ENCHANTED_BOOK:MENDING:1", 3.0);
+        assertThat(book.tag("ENCHANTED_BOOK:MENDING:1").buy()).as("exact, no supply and demand").isEqualTo(Money.of(99_999));
+        assertThat(book.tag("ENCHANTED_BOOK:MENDING:1").source()).isEqualTo(PriceTag.Source.CUSTOM);
+        assertThat(book.tag("ENCHANTED_BOOK:SHARPNESS:5").sell()).isEqualTo(Money.of(100));
+        assertThat(book.tag("ENCHANTED_BOOK:UNBREAKING:1").value()).isEqualTo(Money.of(5000));
+        assertThat(book.tag("ENCHANTED_BOOK:UNBREAKING:2").value().minor())
+                .as("the level above still never under two of it combined").isGreaterThanOrEqualTo(2 * 5000 + 48);
+        pressure.clear();
+    }
+
+    @Test
+    @DisplayName("books follow the shop's switches: curses never, treasure when allowed, closed ones not sold, selling gated")
+    void enchantedBooksGates() {
+        PriceBook open = enchanting();
+        assertThat(open.tag("ENCHANTED_BOOK:VANISHING_CURSE:1").tradable()).isFalse();
+        assertThat(open.cursePart(new de.raindancer.modules.economy.model.EnchantKey("vanishing_curse", 1)).isPositive()).isTrue();
+        assertThat(open.tag("ENCHANTED_BOOK:MENDING:1").buyable()).isTrue();
+
+        PriceTag noTreasure = enchanting("shop.enchant-treasure", "false").tag("ENCHANTED_BOOK:MENDING:1");
+        assertThat(noTreasure.buyable()).isFalse();
+        assertThat(noTreasure.sellable()).as("selling them works either way").isTrue();
+        assertThat(enchanting("shop.enchant-closed", "sharpness").tag("ENCHANTED_BOOK:SHARPNESS:3").buyable()).isFalse();
+        assertThat(enchanting("shop.enchant-books", "false").tag("ENCHANTED_BOOK:SHARPNESS:3").buyable()).isFalse();
+        assertThat(enchanting("shop.enchanted-selling", "false").tag("ENCHANTED_BOOK:SHARPNESS:3").sellable()).isFalse();
+        assertThat(enchanting("shop.not-sold", "enchanted_book:sharpness:3").tag("ENCHANTED_BOOK:SHARPNESS:3").buyable()).isFalse();
+        assertThat(enchanting("shop.not-bought", "enchanted_book:sharpness:3").tag("ENCHANTED_BOOK:SHARPNESS:3").sellable()).isFalse();
+        assertThat(enchanting("shop.not-bought", "book").tag("ENCHANTED_BOOK:SHARPNESS:3").sellable())
+                .as("what the shop does not buy, it does not buy the enchantments of").isFalse();
+        assertThat(enchanting("xp.buy-per-point", "0").tag("ENCHANTED_BOOK:SHARPNESS:3").tradable())
+                .as("experience without a price: nothing to work a book out from").isFalse();
+    }
+
+    @Test
+    @DisplayName("the Enchantments drawer: most useful first, each from level I up; and no book in the item drawers")
+    void enchantedBooksDrawer() {
+        PriceBook book = enchanting();
+        List<String> drawer = book.tradableEnchants();
+        assertThat(drawer.getFirst()).isEqualTo("ENCHANTED_BOOK:MENDING:1");
+        assertThat(drawer).containsSubsequence("ENCHANTED_BOOK:SHARPNESS:1", "ENCHANTED_BOOK:SHARPNESS:5",
+                "ENCHANTED_BOOK:BANE_OF_ARTHROPODS:1");
+        assertThat(drawer).doesNotContain("ENCHANTED_BOOK:VANISHING_CURSE:1");
+        for (de.raindancer.core.ui.choose.Category category : de.raindancer.core.ui.choose.Category.values()) {
+            assertThat(book.tradableIn(category)).noneMatch(name -> name.startsWith("ENCHANTED_BOOK:"));
+        }
     }
 }
