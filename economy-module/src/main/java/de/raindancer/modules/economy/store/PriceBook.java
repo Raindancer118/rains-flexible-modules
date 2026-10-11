@@ -50,6 +50,8 @@ public final class PriceBook {
     private static final String BOTTLE = "EXPERIENCE_BOTTLE";
     private static final String BOOK = "BOOK";
     private static final String LAPIS = "LAPIS_LAZULI";
+    /** Beyond this a price means nothing; sums of a few of them stay far from overflow. */
+    private static final long MOST = Long.MAX_VALUE / 64;
 
     private record Snapshot(EconomySettings settings, Map<String, Money> values, Set<String> custom,
                             PricedNames buyPrices, PricedNames sellPrices, Set<String> notSold,
@@ -153,7 +155,7 @@ public final class PriceBook {
      */
     private void priceEnchantments(Map<String, Money> values, Map<String, Money> base, Iterable<EnchantKind> kinds,
                                    EnchantWorthRule worth, double pointValue) {
-        long book = values.getOrDefault(BOOK, Money.ZERO).minor();
+        long book = Math.min(MOST, Math.max(0, values.getOrDefault(BOOK, Money.ZERO).minor()));
         double roll = enchantCost.roll(pointValue, values.getOrDefault(LAPIS, Money.ZERO).minor());
         for (EnchantKind kind : kinds) {
             double factor = Math.abs(worth.factor(kind.id(), kind.maxLevel(), kind.treasure(), kind.curse()));
@@ -164,11 +166,11 @@ public final class PriceBook {
                 Money own = base.get(key);
                 long value;
                 if (own != null) {
-                    value = own.minor();
+                    value = Math.min(MOST, own.minor());
                 } else if (ladder != null) {
-                    value = book + ladder[level - 1];
+                    value = Math.min(MOST, book + ladder[level - 1]);
                     if (previous >= 0) {
-                        value = Math.max(value, 2 * previous + enchantCost.anvil(level, pointValue));
+                        value = Math.max(value, Math.min(MOST, 2 * previous + enchantCost.anvil(level, pointValue)));
                     }
                 } else {
                     previous = -1;
@@ -261,27 +263,34 @@ public final class PriceBook {
         if (raw == null || kind == null || key.level() > Math.max(1, kind.maxLevel())) {
             return PriceTag.unpriced(name);
         }
+        // Never cheaper than the plain book inside sells for: bought, stripped and the bare book sold, it would pay.
+        Money buy = raw.buy();
+        PriceTag plain = tag(BOOK);
+        if (buy != null && plain.sellable() && !buy.isMoreThan(plain.sell())) {
+            buy = plain.sell().plus(Money.of(1));
+        }
+        Money sell = raw.sell() == null || buy == null ? raw.sell() : trade.capSellBelowBuy(raw.sell(), buy);
+        raw = new Raw(raw.value(), buy, sell, raw.custom());
         boolean buyable = enchantBuyable(kind, name, raw, now);
-        Money sell = raw.sell();
         if (sell != null && key.level() > 1) {
             int levels = key.level();
-            long[] buy = new long[levels];
+            long[] lowerBuy = new long[levels];
             boolean[] open = new boolean[levels];
             long[] anvil = new long[levels];
             for (int level = 1; level < levels; level++) {
                 String lower = kind.at(level).name();
                 Raw below = raw(lower, now);
                 open[level - 1] = below != null && enchantBuyable(kind, lower, below, now);
-                buy[level - 1] = open[level - 1] ? below.buy().minor() : Long.MAX_VALUE;
+                lowerBuy[level - 1] = open[level - 1] ? below.buy().minor() : Long.MAX_VALUE;
                 anvil[level] = enchantCost.anvil(level + 1, now.pointValue());
             }
-            long most = enchantCost.sellCaps(buy, open, anvil)[levels - 1];
+            long most = enchantCost.sellCaps(lowerBuy, open, anvil)[levels - 1];
             if (sell.minor() > most) {
                 sell = Money.of(Math.max(0, most));
             }
         }
         boolean sellable = !kind.curse() && settings.sellingEnabled() && settings.enchantedSelling()
-                && sell != null && sell.isPositive() && !now.notBought().contains(name) && tag(BOOK).sellable();
+                && sell != null && sell.isPositive() && !now.notBought().contains(name) && plain.sellable();
         return new Raw(raw.value(), raw.buy(), sell, raw.custom()).tag(name, buyable, sellable,
                 raw.custom() ? PriceTag.Source.CUSTOM : PriceTag.Source.RECIPE);
     }
@@ -365,6 +374,11 @@ public final class PriceBook {
         }
         Money value = now.values().get(new EnchantKey(key.enchantment(), Math.min(key.level(), kind.maxLevel())).name());
         return value == null ? Money.ZERO : value.minus(now.values().getOrDefault(BOOK, Money.ZERO)).max(Money.ZERO);
+    }
+
+    /** The anvil's levels for combining two books into {@code level}, in money at today's experience price. */
+    public long anvil(int level) {
+        return enchantCost.anvil(level, snapshot.pointValue());
     }
 
     /** The enchantment as this server knows it, if it does. */

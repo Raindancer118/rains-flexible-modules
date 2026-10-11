@@ -71,4 +71,37 @@ class EnchantValueRuleTest {
         assertThat(rule.offered(sharpness, true, List.of("Sharpness"))).as("closed, whatever the case").isFalse();
         assertThat(rule.offered(sharpness, true, List.of("minecraft:sharpness"))).isFalse();
     }
+
+    @Test
+    @DisplayName("bought, stripped, the bare book sold: never more than the book cost, with buying above the plain book and selling under buying")
+    void noStripLoop() {
+        java.util.Random random = new java.util.Random(11);
+        for (int i = 0; i < 5000; i++) {
+            long plainBook = random.nextInt(200);
+            // As EnchantTradeRule keeps them: buying above the plain book's sell price, selling under buying.
+            long buy = plainBook + 1 + random.nextInt(100_000);
+            long sell = random.nextInt((int) buy);
+            Money paid = rule.part(Money.of(sell), Money.of(plainBook));
+            assertThat(paid.minor() + plainBook).as("strip, then sell the plain book left").isLessThan(buy);
+            Money whole = rule.bookSell(Money.of(plainBook), List.of(Money.of(sell), Money.of(sell)), Money.ZERO);
+            assertThat(whole.minor()).as("two bought books combined into one, sold").isLessThan(2 * buy);
+        }
+    }
+
+    @Test
+    @DisplayName("only real levels count: a level below I adds nothing, one above the maximum counts as the maximum")
+    void levels() {
+        assertThat(rule.level(0, 5)).isEmpty();
+        assertThat(rule.level(-3, 5)).isEmpty();
+        assertThat(rule.level(3, 5)).hasValue(3);
+        assertThat(rule.level(255, 5)).hasValue(5);
+    }
+
+    @Test
+    @DisplayName("something that does not stack is valued once: a stack of them is not an item the shop knows")
+    void stacks() {
+        assertThat(rule.countable(1, 1)).isTrue();
+        assertThat(rule.countable(2, 1)).isFalse();
+        assertThat(rule.countable(64, 64)).isTrue();
+    }
 }

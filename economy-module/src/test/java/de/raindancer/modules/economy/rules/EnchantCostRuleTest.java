@@ -83,4 +83,17 @@ class EnchantCostRuleTest {
         assertThat(closed[1]).as("what the shop does not sell cannot be combined").isEqualTo(Long.MAX_VALUE);
         assertThat(closed[2]).isEqualTo(2 * 1000 + 20 - 1);
     }
+
+    @Test
+    @DisplayName("a player's sell price is capped by their own cheapest route: with a discount on lower books, lower")
+    void capSell() {
+        long[] anvil = {0, 10, 20};
+        boolean[] open = {true, true, false};
+        assertThat(rule.capSell(5000, new long[] {1000, 3000, 0}, open, anvil)).as("shop prices: two level I combined twice")
+                .isEqualTo(Math.min(2 * (2 * 1000 + 10) + 20 - 1, 2 * 3000 + 20 - 1));
+        assertThat(rule.capSell(5000, new long[] {850, 2550, 0}, open, anvil)).as("15% off the books: lower still")
+                .isEqualTo(2 * (2 * 850 + 10) + 20 - 1);
+        assertThat(rule.capSell(100, new long[] {850, 2550, 0}, open, anvil)).as("under the cap: unchanged").isEqualTo(100);
+        assertThat(rule.capSell(5000, new long[] {0}, new boolean[] {false}, new long[] {0})).isEqualTo(5000);
+    }
 }

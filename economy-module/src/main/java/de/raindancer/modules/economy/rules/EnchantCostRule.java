@@ -86,6 +86,17 @@ public final class EnchantCostRule implements IEconomyRule {
         return caps;
     }
 
+    /**
+     * {@code sell} kept a cent under the cheapest way to the last level from the lower ones at these buy prices —
+     * a player's own, with their discounts, so a discount cannot be combined into profit.
+     */
+    public long capSell(long sell, long[] buy, boolean[] buyable, long[] anvil) {
+        if (buy.length == 0) {
+            return Math.max(0, sell);
+        }
+        return Math.max(0, Math.min(sell, sellCaps(buy, buyable, anvil)[buy.length - 1]));
+    }
+
     private static long cap(long value) {
         return Math.max(0, Math.min(MOST, value));
     }

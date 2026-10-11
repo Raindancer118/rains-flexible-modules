@@ -378,4 +378,39 @@ class PriceBookTest {
             assertThat(book.tradableIn(category)).noneMatch(name -> name.startsWith("ENCHANTED_BOOK:"));
         }
     }
+
+    @Test
+    @DisplayName("an absurd price for a plain book does not overflow into a one-coin enchanted book")
+    void enchantedBooksNoOverflow() {
+        PriceBook book = enchanting("shop.values", "book 9000000000000000000");
+        for (String key : List.of("ENCHANTED_BOOK:SHARPNESS:5", "ENCHANTED_BOOK:MENDING:1")) {
+            PriceTag tag = book.tag(key);
+            assertThat(tag.value().minor()).isPositive();
+            assertThat(tag.buy()).isGreaterThan(book.tag("BOOK").sell());
+            assertThat(tag.sell()).isLessThan(tag.buy());
+        }
+    }
+
+    @Test
+    @DisplayName("a book bought up and an enchanted one sold off: the enchanted one still costs more than the bare book fetches")
+    void enchantedBooksAboveThePlainBook() {
+        pressure.put("BOOK", 5.0);
+        pressure.put("ENCHANTED_BOOK:BANE_OF_ARTHROPODS:1", -5.0);
+        PriceBook book = enchanting("shop.lowest-multiplier", "0.05", "shop.highest-multiplier", "10",
+                "shop.sell-ratio", "0.9", "shop.enchant-worth", "bane_of_arthropods 0");
+        PriceTag bane = book.tag("ENCHANTED_BOOK:BANE_OF_ARTHROPODS:1");
+        assertThat(bane.buy()).isGreaterThan(book.tag("BOOK").sell());
+        assertThat(bane.sell()).isLessThan(bane.buy());
+        pressure.clear();
+    }
+
+    @Test
+    @DisplayName("an owner's sell price above the buy price, or a cheap lower level, is held under what buying costs")
+    void enchantedBooksCustomClamped() {
+        PriceBook book = enchanting("shop.sell-prices", "enchanted_book:sharpness:2 999999, enchanted_book:mending:1 999999",
+                "shop.buy-prices", "enchanted_book:sharpness:1 100");
+        assertThat(book.tag("ENCHANTED_BOOK:MENDING:1").sell()).isLessThan(book.tag("ENCHANTED_BOOK:MENDING:1").buy());
+        assertThat(book.tag("ENCHANTED_BOOK:SHARPNESS:2").sell().minor())
+                .as("two level-I books at 100 and the anvil").isLessThan(2 * 100 + book.anvil(2));
+    }
 }

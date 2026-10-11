@@ -65,6 +65,8 @@ public final class ShopService implements IEconomyService {
     private volatile BulkSetup bulkSetup = new BulkSetup(null, ItemSelection.NOTHING, List.of());
     private final de.raindancer.modules.economy.rules.EnchantValueRule enchants =
             new de.raindancer.modules.economy.rules.EnchantValueRule();
+    private final de.raindancer.modules.economy.rules.EnchantTradeRule enchantTrade =
+            new de.raindancer.modules.economy.rules.EnchantTradeRule();
     private final Supplier<List<RecipeShape>> recipes;
     private volatile EconomySettings settings;
 
@@ -161,7 +163,8 @@ public final class ShopService implements IEconomyService {
     /** An item by material name, or an enchanted book by its key. */
     public PriceTag tag(String name) {
         if (EnchantKey.isKey(name)) {
-            return prices.tag(name);
+            PriceTag tag = prices.tag(name);
+            return tag.buyable() && SaleStops.reason(Material.ENCHANTED_BOOK.name()).isPresent() ? tag.notSold() : tag;
         }
         Material material = Material.matchMaterial(name);
         return material == null ? prices.tag(name) : tag(material);
@@ -185,11 +188,43 @@ public final class ShopService implements IEconomyService {
      * change enchanted books.
      */
     public YourPrice priceFor(UUID player, EnchantKey key) {
-        YourPrice price = personal.forPlayer(player, prices.tag(key.name()), de.raindancer.modules.economy.model.Bulk.NONE,
+        YourPrice price = personal.forPlayer(player, tag(key.name()), de.raindancer.modules.economy.model.Bulk.NONE,
                 Material.ENCHANTED_BOOK.name());
         int lever = de.raindancer.core.social.economy.EconomyLevers.faucetPercent(SELL_SOURCE);
         int again = soldAgainPercent(player, key.name());
         return price.sellingChanged(lever, "Economy").sellingChanged(again, "Sold lately");
+    }
+
+    /** What this player is paid for a plain book; zero when the shop takes none. */
+    private Money plainBookSell(UUID player) {
+        PriceTag plain = tag(Material.BOOK);
+        if (!plain.sellable()) {
+            return Money.ZERO;
+        }
+        return priceFor(player, Material.BOOK).sellFor(1).orElse(Money.ZERO).max(plain.sell());
+    }
+
+    /**
+     * What this player pays for one book, if the shop sells it: their price, never under what the plain book
+     * inside fetches them ({@link de.raindancer.modules.economy.rules.EnchantTradeRule}).
+     */
+    public Optional<Money> enchantBuy(UUID player, EnchantKey key) {
+        return enchantTrade.buy(priceFor(player, key), plainBookSell(player));
+    }
+
+    /**
+     * What this player is paid for one book, if the shop takes it: their price, under their own buy price and
+     * under their own cheapest way to it from lower books combined. Every sale of an enchantment goes through
+     * this — a book, an enchanted item, enchantments sold off.
+     */
+    public Optional<Money> enchantSell(UUID player, EnchantKey key) {
+        List<Optional<Money>> lower = new ArrayList<>();
+        long[] anvil = new long[key.level()];
+        for (int level = 1; level < key.level(); level++) {
+            lower.add(enchantBuy(player, new EnchantKey(key.enchantment(), level)));
+            anvil[level] = prices.anvil(level + 1);
+        }
+        return enchantTrade.sell(priceFor(player, key), lower, anvil);
     }
 
     /** Each change between the shop's sell price and this player's, for the lines under "Sell:". */
@@ -383,9 +418,10 @@ public final class ShopService implements IEconomyService {
     public void buyEnchant(Player player, EnchantOffer offer, Money shown) {
         EconomySettings live = settings;
         Currency currency = live.currency();
-        PriceTag tag = prices.tag(offer.key().name());
-        Optional<Money> price = tag.buyable() ? priceFor(player.getUniqueId(), offer.key()).buyFor(1) : Optional.empty();
-        if (price.isEmpty() || shown != null && !price.get().equals(shown)) {
+        // Worked out again now: the drawer's price may be stale (supply and demand, settings, a role ended).
+        PriceTag tag = tag(offer.key().name());
+        Optional<Money> price = enchantBuy(player.getUniqueId(), offer.key());
+        if (price.isEmpty() || shown == null || !price.get().equals(shown)) {
             refuse(player, "economy.shop.enchant-gone");
             return;
         }
@@ -415,10 +451,10 @@ public final class ShopService implements IEconomyService {
     }
 
     /** Selling or stripping these enchantments pushes each one's price down, as selling an item does. */
-    private void soldEnchantments(UUID player, List<EnchantKey> keys, int count, boolean remember) {
+    private void soldEnchantments(UUID player, java.util.Collection<EnchantKey> keys, int count) {
         EconomySettings live = settings;
         for (EnchantKey key : keys) {
-            if (remember && supplied().diminishing() && supplied().diminishingPercent() > 0) {
+            if (supplied().diminishing() && supplied().diminishingPercent() > 0) {
                 sold.sold(player, key.name(), count);
             }
             if (live.dynamicPrices() && prices.tag(key.name()).source() != PriceTag.Source.CUSTOM) {
@@ -441,36 +477,53 @@ public final class ShopService implements IEconomyService {
         return all;
     }
 
-    /** The enchantments on it the shop buys, as their books — curses and closed ones left out. */
-    private List<EnchantKey> sellableKeys(ItemStack stack) {
-        List<EnchantKey> keys = new ArrayList<>();
-        enchantsOf(stack).forEach((enchantment, level) -> {
-            EnchantKey key = keyOf(enchantment, level);
-            if (!enchantment.isCursed() && prices.tag(key.name()).sellable()) {
-                keys.add(key);
+    /**
+     * What this player is paid for each enchantment on it as a book of its own, curses left out — or empty when
+     * one of them is not bought (closed, not bought, selling off), or a level is one no game makes.
+     */
+    private Optional<Map<EnchantKey, Money>> enchantSells(UUID player, ItemStack stack, boolean everyOne) {
+        Map<EnchantKey, Money> sells = new java.util.LinkedHashMap<>();
+        for (Map.Entry<org.bukkit.enchantments.Enchantment, Integer> each : enchantsOf(stack).entrySet()) {
+            if (each.getKey().isCursed()) {
+                continue;
             }
-        });
-        return keys;
+            java.util.OptionalInt level = enchants.level(each.getValue(), each.getKey().getMaxLevel());
+            if (level.isEmpty()) {
+                if (everyOne) {
+                    return Optional.empty();
+                }
+                continue;
+            }
+            EnchantKey key = new EnchantKey(id(each.getKey()), level.getAsInt());
+            Optional<Money> sell = enchantSell(player, key);
+            if (sell.isPresent()) {
+                sells.put(key, sell.get());
+            } else if (everyOne) {
+                return Optional.empty();
+            }
+        }
+        return Optional.of(sells);
     }
 
     /** What its curses take off a sale. */
     private Money curses(ItemStack stack) {
         Money total = Money.ZERO;
         for (Map.Entry<org.bukkit.enchantments.Enchantment, Integer> each : enchantsOf(stack).entrySet()) {
-            if (each.getKey().isCursed()) {
-                total = total.plus(enchants.cursePenalty(prices.cursePart(keyOf(each.getKey(), each.getValue())),
-                        settings.sellRatioClamped()));
+            java.util.OptionalInt level = enchants.level(each.getValue(), each.getKey().getMaxLevel());
+            if (each.getKey().isCursed() && level.isPresent()) {
+                total = total.plus(enchants.cursePenalty(prices.cursePart(new EnchantKey(id(each.getKey()),
+                        level.getAsInt())), settings.sellRatioClamped()));
             }
         }
         return total;
     }
 
-    /** What its enchantments add to anything they are on: each book's sell price over a plain book's. */
-    private Money parts(List<EnchantKey> keys) {
-        Money book = prices.tag(Material.BOOK.name()).sell();
+    /** What its enchantments add to anything they are on: each one's book price over a plain book's, to this player. */
+    private Money parts(UUID player, Map<EnchantKey, Money> sells) {
+        Money book = plainBookSell(player);
         Money total = Money.ZERO;
-        for (EnchantKey key : keys) {
-            total = total.plus(enchants.part(prices.tag(key.name()).sell(), book));
+        for (Money sell : sells.values()) {
+            total = total.plus(enchants.part(sell, book));
         }
         return total;
     }
@@ -575,8 +628,14 @@ public final class ShopService implements IEconomyService {
             return;
         }
         Map<org.bukkit.enchantments.Enchantment, Integer> all = enchantsOf(held);
-        List<EnchantKey> keys = sellableKeys(held);
-        Money each = parts(keys);
+        Map<EnchantKey, Money> sells = enchantSells(player.getUniqueId(), held, false).orElse(Map.of());
+        Money each;
+        try {
+            each = enchants.countable(held.getAmount(), held.getMaxStackSize()) ? parts(player.getUniqueId(), sells)
+                    : Money.ZERO;
+        } catch (ArithmeticException tooMuch) {
+            each = Money.ZERO;
+        }
         if (!each.isPositive()) {
             refuse(player, "economy.shop.no-enchantments");
             return;
@@ -612,7 +671,7 @@ public final class ShopService implements IEconomyService {
             Outcomes.tell(messages, effects, player, result, live.currency(), "");
             return;
         }
-        soldEnchantments(player.getUniqueId(), keys, before.getAmount(), false);
+        soldEnchantments(player.getUniqueId(), sells.keySet(), before.getAmount());
         effects.play(player.getUniqueId(), Cues.EARNED);
         messages.send(player, "economy.shop.sold-enchantments", "what", label, "amount", live.currency().render(total.get()));
     }
@@ -644,27 +703,35 @@ public final class ShopService implements IEconomyService {
         if (!tag.sellable() || !live.sellingEnabled()) {
             return Optional.empty();
         }
+        if (!enchants.countable(stack.getAmount(), stack.getMaxStackSize())) {
+            return Optional.empty();
+        }
         Map<org.bukkit.enchantments.Enchantment, Integer> all = enchantsOf(stack);
-        List<EnchantKey> keys = sellableKeys(stack);
-        Money curses = curses(stack);
+        boolean book = material == Material.ENCHANTED_BOOK;
+        // A book is its enchantments: one the shop does not buy, and it does not buy the book.
+        Optional<Map<EnchantKey, Money>> sells = enchantSells(seller, stack, book);
+        if (sells.isEmpty()) {
+            return Optional.empty();
+        }
         Money each;
         String label;
-        if (material == Material.ENCHANTED_BOOK) {
-            List<Money> books = new ArrayList<>();
-            for (EnchantKey key : keys) {
-                priceFor(seller, key).sellFor(1).ifPresent(books::add);
+        try {
+            Money curses = curses(stack);
+            if (book) {
+                each = enchants.bookSell(plainBookSell(seller), List.copyOf(sells.get().values()), curses);
+                List<String> names = new ArrayList<>();
+                // Not the display name: plain text of a translatable name is its translation key.
+                all.forEach((enchantment, level) -> names.add(new EnchantKey(id(enchantment), level).readable()));
+                label = Catalogue.readable(material.name()) + (names.isEmpty() ? "" : " (" + String.join(", ", names) + ")");
+            } else {
+                org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
+                int damage = meta instanceof org.bukkit.inventory.meta.Damageable worn ? worn.getDamage() : 0;
+                each = enchants.itemSell(tag.sell(), enchants.durabilityLeft(material.getMaxDurability(), damage),
+                        parts(seller, sells.get()), curses);
+                label = Catalogue.readable(material.name()) + (all.isEmpty() ? " (worn)" : " (enchanted)");
             }
-            each = enchants.bookSell(tag.sell(), books, curses);
-            List<String> names = new ArrayList<>();
-            // Not the display name: plain text of a translatable name is its translation key.
-            all.forEach((enchantment, level) -> names.add(new EnchantKey(id(enchantment), level).readable()));
-            label = Catalogue.readable(material.name()) + (names.isEmpty() ? "" : " (" + String.join(", ", names) + ")");
-        } else {
-            org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
-            int damage = meta instanceof org.bukkit.inventory.meta.Damageable worn ? worn.getDamage() : 0;
-            each = enchants.itemSell(tag.sell(), enchants.durabilityLeft(material.getMaxDurability(), damage),
-                    parts(keys), curses);
-            label = Catalogue.readable(material.name()) + (all.isEmpty() ? " (worn)" : " (enchanted)");
+        } catch (ArithmeticException tooMuch) {
+            return Optional.empty();
         }
         if (!each.isPositive()) {
             return Optional.empty();
@@ -768,7 +835,8 @@ public final class ShopService implements IEconomyService {
             return;
         }
         ItemStack taken = there.clone();
-        List<EnchantKey> keys = sellableKeys(taken);
+        java.util.Set<EnchantKey> keys = enchantSells(player.getUniqueId(), taken, false).map(Map::keySet)
+                .orElse(java.util.Set.of());
         inventory.setItem(lot.slot(), null);
         Currency currency = settings.currency();
         EconomyResult result = economy.move(player.getUniqueId(), lot.total(), TransactionKind.SELL, lot.label(),
@@ -779,7 +847,7 @@ public final class ShopService implements IEconomyService {
             Outcomes.tell(messages, effects, player, result, currency, "");
             return;
         }
-        soldEnchantments(player.getUniqueId(), keys, lot.count(), taken.getType() == Material.ENCHANTED_BOOK);
+        soldEnchantments(player.getUniqueId(), keys, lot.count());
         effects.play(player.getUniqueId(), Cues.EARNED);
         messages.send(player, "economy.shop.sold", "count", String.valueOf(lot.count()), "what", lot.label(),
                 "amount", currency.render(lot.total()));

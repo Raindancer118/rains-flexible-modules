@@ -3,6 +3,7 @@ package de.raindancer.modules.economy.screen;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.PaginatedMenu;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.EconomyServices;
 import de.raindancer.modules.economy.model.PriceTag;
 import de.raindancer.modules.economy.model.YourPrice;
@@ -27,6 +28,8 @@ public final class EnchantMenu extends PaginatedMenu<ShopService.EnchantOffer> i
 
     private final EconomyServices services;
     private final List<ShopService.EnchantOffer> offers;
+    /** What each book's icon last showed this player: buying charges exactly that, or refuses. */
+    private final java.util.Map<de.raindancer.modules.economy.model.EnchantKey, Money> shown = new java.util.HashMap<>();
 
     EnchantMenu(EconomyServices services, Player viewer, Menu parent) {
         super(viewer, services.brand(), parent);
@@ -60,18 +63,21 @@ public final class EnchantMenu extends PaginatedMenu<ShopService.EnchantOffer> i
         YourPrice yours = services.shop().priceFor(viewer.getUniqueId(), offer.key());
         PriceTag tag = yours.shop();
         List<String> lore = new ArrayList<>();
-        lore.add(tag.buyable() ? "<gray>Buy: " + PriceLines.amount(services.currency(), tag.buy(), yours.buy())
-                : "<dark_gray>Not sold");
+        java.util.Optional<Money> buy = services.shop().enchantBuy(viewer.getUniqueId(), offer.key());
+        java.util.Optional<Money> sell = services.shop().enchantSell(viewer.getUniqueId(), offer.key());
+        buy.ifPresentOrElse(price -> shown.put(offer.key(), price), () -> shown.remove(offer.key()));
+        lore.add(buy.map(price -> "<gray>Buy: " + PriceLines.amount(services.currency(), tag.buy(), price))
+                .orElse("<dark_gray>Not sold"));
         lore.addAll(PriceLines.buyNotes(yours));
-        lore.add(tag.sellable() ? "<gray>Sell: " + PriceLines.amount(services.currency(), tag.sell(), yours.sell())
-                : "<dark_gray>Not bought");
+        lore.add(sell.map(price -> "<gray>Sell: " + PriceLines.amount(services.currency(), tag.sell(), price))
+                .orElse("<dark_gray>Not bought"));
         lore.addAll(PriceLines.sellNotes(services.currency(), services.shop().sellBreakdown(viewer.getUniqueId(), offer.key())));
         String trend = ShopItemsMenu.trend(services.shop().prices().multiplier(offer.key().name()));
         if (!trend.isEmpty()) {
             lore.add(trend);
         }
         lore.add("");
-        if (tag.buyable()) {
+        if (buy.isPresent()) {
             lore.add("<yellow>Click<gray> to buy the book");
         }
         if (viewer.hasPermission(PermissionNodes.ADMIN)) {
@@ -96,11 +102,11 @@ public final class EnchantMenu extends PaginatedMenu<ShopService.EnchantOffer> i
                     "Enchanted Book (" + offer.key().readable() + ")").open();
             return;
         }
-        if (!services.shop().prices().tag(offer.key().name()).buyable()) {
+        Money price = shown.get(offer.key());
+        if (price == null) {
             return;
         }
-        services.shop().buyEnchant(viewer, offer,
-                services.shop().priceFor(viewer.getUniqueId(), offer.key()).buyFor(1).orElse(null));
+        services.shop().buyEnchant(viewer, offer, price);
         refresh();
     }
 

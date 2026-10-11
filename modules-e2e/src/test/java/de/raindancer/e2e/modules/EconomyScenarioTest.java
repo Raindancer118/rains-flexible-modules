@@ -64,6 +64,13 @@ class EconomyScenarioTest {
         return Long.parseLong(amount);
     }
 
+    /** The amount on the last line that said {@code text}. */
+    private static long amountIn(Bot bot, String text) {
+        String line = bot.chatText().stream().filter(each -> each.contains(text)).reduce((a, b) -> b).orElseThrow();
+        String after = line.substring(line.indexOf(text) + text.length());
+        return Long.parseLong(after.substring(after.indexOf('⛃') + 1).split("[^0-9,]")[0].replace(",", ""));
+    }
+
     /** A buy or sell price out of what {@code /eco price} printed, by the book's key. */
     private static long printed(String output, String key, String side) {
         String plain = output.replaceAll("§.", "");
@@ -224,13 +231,54 @@ class EconomyScenarioTest {
                     .entrySet().stream().filter(entry -> entry.getValue().name().toLowerCase(java.util.Locale.ROOT)
                             .contains("mending")).map(java.util.Map.Entry::getKey).findFirst()).orElse(null));
             snapshot(ada, "enchantments");
+            // The price shown is checked again on the click: changed meanwhile, nothing is sold or taken.
+            server.console("settings set economy:shop.buy-markup 2");
+            ada.forgetChat();
+            ada.clickSlot(mending);
+            Await.until("a stale price is refused", WAIT, () -> said(ada, "no longer for sale at that price"));
+            assertThat(ada.carrying(item -> item.is("enchanted_book"))).isEmpty();
+            server.console("settings reset economy:shop.buy-markup");
+            ada.closeWindow();
+            ada.run("shop");
+            ada.awaitWindow("Shop");
+            ada.click("Enchantments");
+            ada.awaitWindow("Enchantments");
             ada.forgetChat();
             ada.clickSlot(mending);
             Await.until("the book is bought", WAIT, () -> said(ada, "You bought 1 × Enchanted Book (Mending I)"));
             Await.until("and carried", WAIT, () -> ada.carrying(item -> item.is("enchanted_book")).isPresent());
             ada.closeWindow();
+            long paid = amountIn(ada, "You bought 1 × Enchanted Book (Mending I)");
             assertThat(printed(server.console("eco price mending"), "enchanted_book:mending:1", "buy"))
                     .as("bought: dearer").isGreaterThan(mendingBefore);
+            // ---- bought, its enchantment sold off, the bare book sold: less than it cost, never a profit
+            ada.hold(ada.hotbarSlotOf(item -> item.is("enchanted_book")));
+            Await.ticks(5);
+            ada.forgetChat();
+            ada.run("sell enchantments");
+            Await.until("Mending is sold off the bought book", WAIT, () -> said(ada, "sold the enchantments off your Enchanted Book for"));
+            long strippedFor = amountIn(ada, "sold the enchantments off your Enchanted Book for");
+            Await.until("a plain book is left", WAIT, () -> ada.carrying(item -> item.is("book")).isPresent());
+            ada.hold(ada.hotbarSlotOf(item -> item.is("book")));
+            Await.ticks(5);
+            ada.forgetChat();
+            ada.run("sell hand");
+            Await.until("the bare book is sold", WAIT, () -> said(ada, "You sold 1 × Book for"));
+            assertThat(strippedFor + soldFor(ada)).as("stripped and sold back").isLessThan(paid);
+            // ---- a level past the maximum is worth the maximum, not more
+            server.console("give Ada minecraft:enchanted_book[minecraft:stored_enchantments={\"minecraft:sharpness\":10}] 1");
+            Await.until("the overlevelled book arrives", WAIT, () -> ada.carrying(item -> item.is("enchanted_book")).isPresent());
+            long sharpness5 = printed(server.console("eco price sharpness"), "enchanted_book:sharpness:5", "sell");
+            ada.hold(ada.hotbarSlotOf(item -> item.is("enchanted_book")));
+            Await.ticks(5);
+            ada.forgetChat();
+            ada.run("sell hand");
+            Await.until("the overlevelled book is sold", WAIT, () -> said(ada, "Enchanted Book (Sharpness X) for"));
+            assertThat(soldFor(ada)).as("valued as Sharpness V").isEqualTo(sharpness5);
+            // ---- a closed enchantment is not sold
+            server.console("settings set economy:shop.enchant-closed sharpness");
+            assertThat(server.console("eco price enchanted_book:sharpness:1")).contains("not sold");
+            server.console("settings reset economy:shop.enchant-closed");
             assertThat(printed(server.console("eco price protection"), "enchanted_book:protection:3", "buy"))
                     .isEqualTo(printed(pricesBefore, "enchanted_book:protection:3", "buy"));
             server.console("clear Ada minecraft:enchanted_book");

@@ -52,6 +52,16 @@ public final class EnchantValueRule implements IEconomyRule {
                 .replace("minecraft:", "")).noneMatch(kind.id()::equals);
     }
 
+    /** The level an enchantment is priced at: none below I (only commands make those), the maximum above it. */
+    public java.util.OptionalInt level(int level, int maxLevel) {
+        return level < 1 ? java.util.OptionalInt.empty() : java.util.OptionalInt.of(Math.min(level, Math.max(1, maxLevel)));
+    }
+
+    /** Whether a stack of this many is one the game makes: more than one of a thing that does not stack is not. */
+    public boolean countable(int amount, int maxStackSize) {
+        return amount >= 1 && amount <= Math.max(1, maxStackSize);
+    }
+
     public double durabilityLeft(int maxDurability, int damage) {
         if (maxDurability <= 0) {
             return 1.0;
