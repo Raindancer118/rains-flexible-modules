@@ -92,6 +92,12 @@ public final class ShopMenu extends Menu implements IEconomyScreen {
                 "<gray>Any enchantment as a book, for an anvil.",
                 "<gray>" + books + " book(s), prices move with", "<gray>supply and demand."), BankMenu.OFF,
                 click -> new EnchantMenu(services, viewer, this).open());
+        int bottles = live.potions() ? services.shop().prices().tradablePotions().size() : 0;
+        band(MenuLayout.LAND, 2, live.potions(), Icons.of(Material.POTION, "<aqua>Potions",
+                "<gray>Potions, splash and lingering ones,",
+                "<gray>and ominous bottles.",
+                "<gray>" + bottles + " bottle(s), prices move with", "<gray>supply and demand."), BankMenu.OFF,
+                click -> new PotionMenu(services, viewer, this).open());
         band(MenuLayout.LAND, 4, services.packs().enabled(), Icons.of(Material.BUNDLE, "<gold>Packs",
                 "<gray>Ready-made bundles, cheaper than",
                 "<gray>buying it all one by one.",

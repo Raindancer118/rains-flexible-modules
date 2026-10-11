@@ -361,7 +361,8 @@ public final class EcoCommand extends EconomyCommand {
     /**
      * What the shop asks and pays right now, for the console as much as in game: an item, an enchanted book
      * ({@code enchanted_book:sharpness:5}), every level of one enchantment ({@code sharpness}), or every book
-     * ({@code enchantments}).
+     * ({@code enchantments}), a potion ({@code potion:healing}, {@code splash_potion:strong_swiftness}), an ominous
+     * bottle ({@code ominous_bottle:3}) or every bottle ({@code potions}).
      */
     private static void price(EconomyServices live, CommandSender sender, String typed) {
         String what = typed.strip();
@@ -374,6 +375,10 @@ public final class EcoCommand extends EconomyCommand {
         String lower = what.toLowerCase(Locale.ROOT).replace(' ', '_');
         if (lower.equals("enchantments") || lower.equals("books")) {
             names = prices.enchantKeys();
+        } else if (lower.equals("potions") || lower.equals("bottles")) {
+            names = prices.potionKeys();
+        } else if (de.raindancer.modules.economy.model.PotionKey.isKey(lower)) {
+            names = List.of(de.raindancer.modules.economy.model.PotionKey.parse(lower).orElseThrow().name());
         } else if (de.raindancer.modules.economy.model.EnchantKey.isKey(lower)) {
             names = List.of(de.raindancer.modules.economy.model.EnchantKey.parse(lower).orElseThrow().name());
         } else if (prices.enchantment(lower).isPresent()) {
@@ -392,6 +397,8 @@ public final class EcoCommand extends EconomyCommand {
             var tag = live.shop().tag(name);
             String label = de.raindancer.modules.economy.model.EnchantKey.parse(name)
                     .map(key -> "Enchanted Book (" + key.readable() + ")")
+                    .or(() -> de.raindancer.modules.economy.model.PotionKey.parse(name)
+                            .map(de.raindancer.modules.economy.model.PotionKey::readable))
                     .orElseGet(() -> de.raindancer.core.ui.choose.Catalogue.readable(name));
             long percent = Math.round((prices.multiplier(name) - 1) * 100);
             live.messages().send(sender, "economy.admin.price-line", "item", label, "key", name.toLowerCase(Locale.ROOT),

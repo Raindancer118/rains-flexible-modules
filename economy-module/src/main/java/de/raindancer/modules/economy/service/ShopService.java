@@ -11,6 +11,7 @@ import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.model.EnchantKey;
+import de.raindancer.modules.economy.model.PotionKey;
 import de.raindancer.modules.economy.model.EnchantKind;
 import de.raindancer.modules.economy.model.PriceTag;
 import de.raindancer.modules.economy.model.PricedNames;
@@ -102,7 +103,7 @@ public final class ShopService implements IEconomyService {
     @Override
     public void settings(EconomySettings updated) {
         this.settings = updated == null ? EconomySettings.DEFAULTS : updated;
-        prices.recompute(this.settings, knownRecipes, spawnEggs(), enchantKinds());
+        prices.recompute(this.settings, knownRecipes, spawnEggs(), enchantKinds(), potionTypes());
     }
 
     /** Every enchantment the server knows, for the price book; none outside a running server. */
@@ -116,6 +117,83 @@ public final class ShopService implements IEconomyService {
             return kinds;
         } catch (RuntimeException | LinkageError noServer) {
             return List.of();
+        }
+    }
+
+    /** Every potion type the server knows, by key; none outside a running server. */
+    static List<String> potionTypes() {
+        try {
+            List<String> types = new ArrayList<>();
+            io.papermc.paper.registry.RegistryAccess.registryAccess()
+                    .getRegistry(io.papermc.paper.registry.RegistryKey.POTION)
+                    .forEach(type -> types.add(id(type.getKey())));
+            return types;
+        } catch (RuntimeException | LinkageError noServer) {
+            return List.of();
+        }
+    }
+
+    private static String id(org.bukkit.NamespacedKey key) {
+        return key.getNamespace().equals(org.bukkit.NamespacedKey.MINECRAFT) ? key.getKey() : key.toString();
+    }
+
+    /** One bottle as the shop hands it over, exactly as the game makes it; empty for a type this server lacks. */
+    public static Optional<ItemStack> stackOf(PotionKey key) {
+        try {
+            if (key.isOminous()) {
+                ItemStack bottle = new ItemStack(Material.OMINOUS_BOTTLE);
+                bottle.editMeta(org.bukkit.inventory.meta.OminousBottleMeta.class,
+                        meta -> meta.setAmplifier(key.level() - 1));
+                return Optional.of(bottle);
+            }
+            org.bukkit.NamespacedKey type = key.type().contains(":")
+                    ? org.bukkit.NamespacedKey.fromString(key.type()) : org.bukkit.NamespacedKey.minecraft(key.type());
+            org.bukkit.potion.PotionType found = type == null ? null : io.papermc.paper.registry.RegistryAccess
+                    .registryAccess().getRegistry(io.papermc.paper.registry.RegistryKey.POTION).get(type);
+            if (found == null) {
+                return Optional.empty();
+            }
+            ItemStack bottle = new ItemStack(Material.valueOf(key.item()));
+            bottle.editMeta(org.bukkit.inventory.meta.PotionMeta.class, meta -> meta.setBasePotionType(found));
+            return Optional.of(bottle);
+        } catch (RuntimeException | LinkageError noServer) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Which bottle a stack is, if it is one the shop prices: a potion of one type, nothing else on it — no extra
+     * effects, colour, name or lore — or an ominous bottle with its level. Checked against a bottle freshly made
+     * for that key, so whatever differs from the real thing is not sold as it.
+     */
+    public static Optional<PotionKey> potionKeyOf(ItemStack stack) {
+        if (stack == null || !PotionKey.ITEMS.contains(stack.getType().name())) {
+            return Optional.empty();
+        }
+        try {
+            PotionKey key;
+            if (stack.getType() == Material.OMINOUS_BOTTLE) {
+                org.bukkit.inventory.meta.OminousBottleMeta meta =
+                        (org.bukkit.inventory.meta.OminousBottleMeta) stack.getItemMeta();
+                if (meta == null || !meta.hasAmplifier() || meta.getAmplifier() < 0
+                        || meta.getAmplifier() >= PotionKey.MOST_OMINOUS) {
+                    return Optional.empty();
+                }
+                key = PotionKey.ominous(meta.getAmplifier() + 1);
+            } else {
+                org.bukkit.inventory.meta.PotionMeta meta = (org.bukkit.inventory.meta.PotionMeta) stack.getItemMeta();
+                org.bukkit.potion.PotionType type = meta == null ? null : meta.getBasePotionType();
+                if (type == null || meta.hasCustomEffects()) {
+                    return Optional.empty();
+                }
+                key = new PotionKey(stack.getType().name(), id(type.getKey()));
+            }
+            ItemStack plain = stackOf(key).orElse(null);
+            ItemStack one = stack.clone();
+            one.setAmount(1);
+            return plain != null && one.isSimilar(plain) ? Optional.of(key) : Optional.empty();
+        } catch (RuntimeException | LinkageError noServer) {
+            return Optional.empty();
         }
     }
 
@@ -147,7 +225,7 @@ public final class ShopService implements IEconomyService {
     /** Reads the server's recipes again and reprices everything. On the global thread. */
     public int reprice() {
         knownRecipes = recipes.get();
-        prices.recompute(settings, knownRecipes, spawnEggs(), enchantKinds());
+        prices.recompute(settings, knownRecipes, spawnEggs(), enchantKinds(), potionTypes());
         return knownRecipes.size();
     }
 
@@ -165,6 +243,11 @@ public final class ShopService implements IEconomyService {
         if (EnchantKey.isKey(name)) {
             PriceTag tag = prices.tag(name);
             return tag.buyable() && SaleStops.reason(Material.ENCHANTED_BOOK.name()).isPresent() ? tag.notSold() : tag;
+        }
+        if (PotionKey.isKey(name)) {
+            PriceTag tag = prices.tag(name);
+            String item = PotionKey.parse(name).orElseThrow().item();
+            return tag.buyable() && SaleStops.reason(item).isPresent() ? tag.notSold() : tag;
         }
         Material material = Material.matchMaterial(name);
         return material == null ? prices.tag(name) : tag(material);
@@ -193,6 +276,24 @@ public final class ShopService implements IEconomyService {
         int lever = de.raindancer.core.social.economy.EconomyLevers.faucetPercent(SELL_SOURCE);
         int again = soldAgainPercent(player, key.name());
         return price.sellingChanged(lever, "Economy").sellingChanged(again, "Sold lately");
+    }
+
+    /** What this player pays and is paid for one potion or ominous bottle — priced like an item, roles as the item. */
+    public YourPrice priceFor(UUID player, PotionKey key) {
+        YourPrice price = personal.forPlayer(player, tag(key.name()), de.raindancer.modules.economy.model.Bulk.NONE,
+                key.item());
+        int lever = de.raindancer.core.social.economy.EconomyLevers.faucetPercent(SELL_SOURCE);
+        int again = soldAgainPercent(player, key.name());
+        return price.sellingChanged(lever, "Economy").sellingChanged(again, "Sold lately");
+    }
+
+    public de.raindancer.modules.economy.model.SellBreakdown sellBreakdown(UUID player, PotionKey key) {
+        PriceTag tag = tag(key.name());
+        if (!tag.sellable()) {
+            return de.raindancer.modules.economy.model.SellBreakdown.NONE;
+        }
+        return breakdown(player, tag, personal.forPlayer(player, tag, de.raindancer.modules.economy.model.Bulk.NONE,
+                key.item()), key.name());
     }
 
     /** What this player is paid for a plain book; zero when the shop takes none. */
@@ -451,6 +552,81 @@ public final class ShopService implements IEconomyService {
     }
 
     /** Selling or stripping these enchantments pushes each one's price down, as selling an item does. */
+    /** One bottle in the shop's Potions drawer. */
+    public record PotionOffer(PotionKey key) {
+    }
+
+    /** Every potion and ominous bottle the shop sells or buys — the Potions drawer. */
+    public List<PotionOffer> potionOffers() {
+        if (!settings.potions() && !settings.sellingEnabled()) {
+            return List.of();
+        }
+        return prices.tradablePotions().stream().map(name -> PotionKey.parse(name).orElseThrow())
+                .filter(key -> stackOf(key).isPresent()).map(PotionOffer::new).toList();
+    }
+
+    /**
+     * Sells {@code count} bottles of one kind: paid first, then handed over — the order of anything else bought
+     * here. A potion does not stack, so five are five slots.
+     *
+     * @param shown what the drawer showed this player for one; a different price now refuses, nothing taken
+     */
+    public void buyPotion(Player player, PotionKey key, int count, Money shown) {
+        EconomySettings live = settings;
+        Currency currency = live.currency();
+        PriceTag tag = tag(key.name());
+        Optional<Money> one = tag.buyable() ? priceFor(player.getUniqueId(), key).buyFor(1) : Optional.empty();
+        if (one.isEmpty() || shown == null || !one.get().equals(shown)) {
+            refuse(player, "economy.shop.potion-gone");
+            return;
+        }
+        int amount = Math.max(1, count);
+        Optional<Money> total = priceFor(player.getUniqueId(), key).buyFor(amount);
+        Optional<ItemStack> made = stackOf(key);
+        if (total.isEmpty() || made.isEmpty()) {
+            refuse(player, "economy.shop.potion-gone");
+            return;
+        }
+        List<ItemStack> stacks = new ArrayList<>();
+        int max = Math.max(1, made.get().getMaxStackSize());
+        for (int left = amount; left > 0; left -= max) {
+            ItemStack stack = made.get().clone();
+            stack.setAmount(Math.min(max, left));
+            stacks.add(stack);
+        }
+        if (!CashService.fits(player.getInventory(), stacks)) {
+            refuse(player, "economy.shop.no-room");
+            return;
+        }
+        EconomyResult result = economy.move(player.getUniqueId(), total.get().negate(), TransactionKind.BUY,
+                amount + " × " + key.readable());
+        if (!result.succeeded()) {
+            Outcomes.tell(messages, effects, player, EconomyResult.failed(result.outcome(), total.get(),
+                    result.balance()), currency, "");
+            return;
+        }
+        player.getInventory().addItem(stacks.toArray(ItemStack[]::new)).values()
+                .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+        if (live.dynamicPrices() && tag.source() != PriceTag.Source.CUSTOM) {
+            market.traded(key.name(), amount, prices.stackSizeOf(key.name()), live.pressurePerStackClamped(), true,
+                    live.recoveryHoursClamped());
+        }
+        effects.play(player.getUniqueId(), Cues.REWARD);
+        messages.send(player, "economy.shop.bought", "count", String.valueOf(amount), "item", key.readable(),
+                "amount", currency.render(total.get()));
+    }
+
+    private void soldPotion(UUID player, PotionKey key, int count) {
+        EconomySettings live = settings;
+        if (supplied().diminishing() && supplied().diminishingPercent() > 0) {
+            sold.sold(player, key.name(), count);
+        }
+        if (live.dynamicPrices() && prices.tag(key.name()).source() != PriceTag.Source.CUSTOM) {
+            market.traded(key.name(), count, prices.stackSizeOf(key.name()), live.pressurePerStackClamped(), false,
+                    live.recoveryHoursClamped());
+        }
+    }
+
     private void soldEnchantments(UUID player, java.util.Collection<EnchantKey> keys, int count) {
         EconomySettings live = settings;
         for (EnchantKey key : keys) {
@@ -688,6 +864,15 @@ public final class ShopService implements IEconomyService {
             return Optional.empty();
         }
         Material material = stack.getType();
+        Optional<PotionKey> potion = potionKeyOf(stack);
+        if (potion.isPresent()) {
+            // A bottle is its contents: priced by the key, never as the bare material, and one stack at a time.
+            if (!tag(potion.get().name()).sellable()) {
+                return Optional.empty();
+            }
+            return priceFor(seller, potion.get()).sellFor(stack.getAmount()).map(total ->
+                    new SaleLot(material, slot, stack.getAmount(), total, potion.get().readable()));
+        }
         if (sellableStack(stack, material)) {
             PriceTag tag = tag(material);
             return tag.sellable()
@@ -835,6 +1020,7 @@ public final class ShopService implements IEconomyService {
             return;
         }
         ItemStack taken = there.clone();
+        Optional<PotionKey> bottle = potionKeyOf(taken);
         java.util.Set<EnchantKey> keys = enchantSells(player.getUniqueId(), taken, false).map(Map::keySet)
                 .orElse(java.util.Set.of());
         inventory.setItem(lot.slot(), null);
@@ -848,6 +1034,7 @@ public final class ShopService implements IEconomyService {
             return;
         }
         soldEnchantments(player.getUniqueId(), keys, lot.count());
+        bottle.ifPresent(key -> soldPotion(player.getUniqueId(), key, lot.count()));
         effects.play(player.getUniqueId(), Cues.EARNED);
         messages.send(player, "economy.shop.sold", "count", String.valueOf(lot.count()), "what", lot.label(),
                 "amount", currency.render(lot.total()));

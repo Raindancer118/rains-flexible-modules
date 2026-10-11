@@ -8,6 +8,7 @@ import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.model.EnchantKey;
 import de.raindancer.modules.economy.model.EnchantKind;
 import de.raindancer.modules.economy.model.PriceTag;
+import de.raindancer.modules.economy.model.PotionKey;
 import de.raindancer.modules.economy.model.PricedNames;
 import de.raindancer.modules.economy.model.RecipeShape;
 import de.raindancer.modules.economy.model.SellPricing;
@@ -15,9 +16,11 @@ import de.raindancer.modules.economy.rules.EnchantCostRule;
 import de.raindancer.modules.economy.rules.EnchantValueRule;
 import de.raindancer.modules.economy.rules.EnchantWorthRule;
 import de.raindancer.modules.economy.rules.MarketRule;
+import de.raindancer.modules.economy.rules.PotionCostRule;
 import de.raindancer.modules.economy.rules.PriceSolverRule;
 import de.raindancer.modules.economy.rules.TradePriceRule;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -28,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 import java.util.function.ToIntFunction;
 
@@ -56,7 +60,8 @@ public final class PriceBook {
     private record Snapshot(EconomySettings settings, Map<String, Money> values, Set<String> custom,
                             PricedNames buyPrices, PricedNames sellPrices, Set<String> notSold,
                             Set<String> notBought, List<String> eggs, Map<String, EnchantKind> enchantments,
-                            EnchantWorthRule worth, double pointValue) {
+                            EnchantWorthRule worth, double pointValue, List<String> potionTypes,
+                            Set<String> potionsClosed) {
     }
 
     private static final String EGG = "_SPAWN_EGG";
@@ -70,6 +75,7 @@ public final class PriceBook {
     private final MarketRule market = new MarketRule();
     private final EnchantCostRule enchantCost = new EnchantCostRule();
     private final EnchantValueRule enchantValue = new EnchantValueRule();
+    private final PotionCostRule potionCost = new PotionCostRule();
     private volatile Snapshot snapshot;
 
     /**
@@ -83,7 +89,8 @@ public final class PriceBook {
         this.pressure = pressure;
         this.stackSize = stackSize;
         this.snapshot = new Snapshot(EconomySettings.DEFAULTS, this.shipped, Set.of(), PricedNames.NONE,
-                PricedNames.NONE, Set.of(), Set.of(), List.of(), Map.of(), new EnchantWorthRule(List.of()), 0);
+                PricedNames.NONE, Set.of(), Set.of(), List.of(), Map.of(), new EnchantWorthRule(List.of()), 0, List.of(),
+                Set.of());
     }
 
     /** Works every price out again — on start, on a settings change, on {@code /eco reprice}. */
@@ -102,6 +109,12 @@ public final class PriceBook {
     /** @param enchantments every enchantment this server knows — each level of each gets a price of its own */
     public void recompute(EconomySettings settings, List<RecipeShape> recipes, List<String> eggs,
                           List<EnchantKind> enchantments) {
+        recompute(settings, recipes, eggs, enchantments, snapshot.potionTypes());
+    }
+
+    /** @param potionTypes every potion type this server knows, by key — each is a potion, a splash and a lingering one */
+    public void recompute(EconomySettings settings, List<RecipeShape> recipes, List<String> eggs,
+                          List<EnchantKind> enchantments, List<String> potionTypes) {
         Currency currency = settings.currency();
         // Read again in the current currency: the same "2" is 200 minor units with two decimals and 2 with none.
         shipped = Map.copyOf(shippedIn.apply(currency));
@@ -143,10 +156,13 @@ public final class PriceBook {
         EnchantWorthRule worth = settings.enchantWorthTable();
         double pointValue = values.containsKey(BOTTLE) ? values.get(BOTTLE).minor() / (double) POINTS_PER_BOTTLE : 0;
         priceEnchantments(values, base, kinds.values(), worth, pointValue);
+        List<String> types = potionTypes == null ? List.of() : potionTypes.stream()
+                .map(type -> type.toLowerCase(Locale.ROOT).replace("minecraft:", "")).distinct().toList();
+        pricePotions(values, types, settings);
         snapshot = new Snapshot(settings, Map.copyOf(values), Set.copyOf(customValues.amounts().keySet()),
                 PricedNames.parse(settings.buyPrices(), currency), PricedNames.parse(settings.sellPrices(), currency),
                 names(settings.notSold()), names(settings.notBought()), List.copyOf(openEggs), Map.copyOf(kinds),
-                worth, pointValue);
+                worth, pointValue, types, names(settings.potionsClosed()));
     }
 
     /**
@@ -182,6 +198,47 @@ public final class PriceBook {
         }
     }
 
+    /**
+     * Every potion type in each of its three forms, brewed from what the ingredients are worth, and the ominous
+     * bottles. An owner's own value for one stands (it is already in {@code values}), and the forms above it are
+     * made from it. Brewing is a recipe: with recipes off only what an owner priced by hand is left.
+     */
+    private void pricePotions(Map<String, Money> values, List<String> types, EconomySettings settings) {
+        if (settings.deriveFromRecipes()) {
+            Function<String, Long> priceOf = name -> {
+                Money value = values.get(name);
+                return value == null ? null : Math.min(MOST, value.minor());
+            };
+            double markup = settings.craftMarkupClamped();
+            for (String type : types) {
+                String key = new PotionKey(PotionKey.POTION, type).name();
+                Optional<Long> potion = values.containsKey(key) ? Optional.of(values.get(key).minor())
+                        : potionCost.value(type, priceOf, markup);
+                potion.ifPresent(value -> values.putIfAbsent(key, Money.of(Math.min(MOST, value))));
+                Optional<Long> splash = potion.flatMap(value -> values.containsKey(splashKey(type))
+                        ? Optional.of(values.get(splashKey(type)).minor()) : potionCost.splash(value, priceOf, markup));
+                splash.ifPresent(value -> values.putIfAbsent(splashKey(type), Money.of(Math.min(MOST, value))));
+                splash.flatMap(value -> values.containsKey(lingeringKey(type))
+                        ? Optional.of(values.get(lingeringKey(type)).minor()) : potionCost.lingering(value, priceOf, markup))
+                        .ifPresent(value -> values.putIfAbsent(lingeringKey(type), Money.of(Math.min(MOST, value))));
+            }
+        }
+        Money ominous = settings.ominousBottleValueMoney();
+        if (ominous.isPositive()) {
+            for (int level = 1; level <= PotionKey.MOST_OMINOUS; level++) {
+                values.putIfAbsent(PotionKey.ominous(level).name(), Money.of(Math.min(MOST, ominous.minor() * level)));
+            }
+        }
+    }
+
+    private static String splashKey(String type) {
+        return new PotionKey(PotionKey.SPLASH, type).name();
+    }
+
+    private static String lingeringKey(String type) {
+        return new PotionKey(PotionKey.LINGERING, type).name();
+    }
+
     private static Set<String> names(List<String> list) {
         Set<String> read = new HashSet<>();
         for (String name : list == null ? List.<String>of() : list) {
@@ -197,6 +254,10 @@ public final class PriceBook {
         Optional<EnchantKey> enchant = EnchantKey.parse(material);
         if (enchant.isPresent()) {
             return enchantTag(enchant.get(), snapshot);
+        }
+        Optional<PotionKey> potion = PotionKey.parse(material);
+        if (potion.isPresent()) {
+            return potionTag(potion.get(), snapshot);
         }
         String name = material.toUpperCase(Locale.ROOT);
         Snapshot now = snapshot;
@@ -295,6 +356,31 @@ public final class PriceBook {
                 raw.custom() ? PriceTag.Source.CUSTOM : PriceTag.Source.RECIPE);
     }
 
+    /**
+     * A potion's tag: priced like any item, sold while the Potions switch is on and the type is not closed,
+     * bought when the shop buys at all. A key that was never priced — a type nobody can brew — is not traded.
+     */
+    private PriceTag potionTag(PotionKey key, Snapshot now) {
+        String name = key.name();
+        EconomySettings settings = now.settings();
+        Raw raw = raw(name, now);
+        if (raw == null) {
+            return PriceTag.unpriced(name);
+        }
+        boolean buyable = settings.shopEnabled() && settings.potions() && raw.buy() != null && raw.buy().isPositive()
+                && !potionClosed(key, now) && !now.notSold().contains(name);
+        boolean sellable = settings.sellingEnabled() && raw.sell() != null && raw.sell().isPositive()
+                && !now.notBought().contains(name);
+        return raw.tag(name, buyable, sellable, raw.custom() ? PriceTag.Source.CUSTOM
+                : shipped.containsKey(name) ? PriceTag.Source.BASE : PriceTag.Source.RECIPE);
+    }
+
+    private static boolean potionClosed(PotionKey key, Snapshot now) {
+        Set<String> closed = now.potionsClosed();
+        return closed.contains(key.name())
+                || (key.isOminous() ? closed.contains(PotionKey.OMINOUS) : closed.contains(key.type().toUpperCase(Locale.ROOT)));
+    }
+
     private boolean enchantBuyable(EnchantKind kind, String name, Raw raw, Snapshot now) {
         EconomySettings settings = now.settings();
         return settings.shopEnabled() && settings.enchantBooks() && raw.buy() != null && raw.buy().isPositive()
@@ -323,7 +409,8 @@ public final class PriceBook {
         candidates.addAll(now.buyPrices().amounts().keySet());
         candidates.addAll(now.sellPrices().amounts().keySet());
         return candidates.stream()
-                .filter(name -> !name.endsWith(EGG) && !EnchantKey.isKey(name) && Catalogue.categoryOf(name) == category)
+                .filter(name -> !name.endsWith(EGG) && !EnchantKey.isKey(name) && !PotionKey.isKey(name)
+                        && Catalogue.categoryOf(name) == category)
                 .filter(name -> tag(name).tradable())
                 .toList();
     }
@@ -343,6 +430,10 @@ public final class PriceBook {
     }
 
     public int stackSizeOf(String material) {
+        Optional<PotionKey> potion = PotionKey.parse(material);
+        if (potion.isPresent()) {
+            return potion.get().isOminous() ? Math.max(1, stackSize.applyAsInt(PotionKey.OMINOUS)) : 1;
+        }
         return EnchantKey.isKey(material) ? 1 : Math.max(1, stackSize.applyAsInt(material));
     }
 
@@ -363,6 +454,28 @@ public final class PriceBook {
                 .flatMap(kind -> java.util.stream.IntStream.rangeClosed(1, Math.max(1, kind.maxLevel()))
                         .mapToObj(level -> kind.at(level).name()))
                 .toList();
+    }
+
+    /**
+     * Every potion and ominous bottle the shop sells or buys — the Potions drawer: each type as a potion, a splash
+     * and a lingering one together, the ominous bottles last.
+     */
+    public List<String> tradablePotions() {
+        return potionKeys().stream().filter(name -> tag(name).tradable()).toList();
+    }
+
+    /** Every potion key there is, traded or not, in the drawer's order. */
+    public List<String> potionKeys() {
+        List<String> keys = new ArrayList<>();
+        for (String type : snapshot.potionTypes()) {
+            keys.add(new PotionKey(PotionKey.POTION, type).name());
+            keys.add(splashKey(type));
+            keys.add(lingeringKey(type));
+        }
+        for (int level = 1; level <= PotionKey.MOST_OMINOUS; level++) {
+            keys.add(PotionKey.ominous(level).name());
+        }
+        return keys;
     }
 
     /** What a curse takes off anything it is on, before the sell ratio: its book's value over a plain book's. */

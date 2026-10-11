@@ -37,8 +37,15 @@
                     demand, custom prices; shop.enchant-price / shop.enchant-value no longer read; /eco price.
              0.29.1: no money from books: every sale of an enchantment at the player's own capped price (roles,
                     lever, sold lately), a book never under the plain book inside, prices kept from overflowing,
-                    level 0 and stacked unstackables not bought, server goals stop book sales, version agrees. -->
-        <plugin.version>0.30.0</plugin.version>
+                    level 0 and stacked unstackables not bought, server goals stop book sales, version agrees.
+             0.31.0: potions of every kind and ominous bottles are shop items, priced like enchanted books are:
+                    one key per bottle and type (potion:healing, splash_potion:strong_swiftness,
+                    lingering_potion:weakness, ominous_bottle:3), brewed from a glass bottle and a third of each
+                    ingredient (+ gunpowder, + dragon's breath), own supply and demand, custom prices, roles; a
+                    Potions drawer (click buys one, shift click five), bought back by hand, from /sell and at
+                    auctions only as the game makes them; shop.potions, shop.potions-closed,
+                    shop.ominous-bottle-value; /eco price potion:healing. -->
+        <plugin.version>0.31.0</plugin.version>
     </properties>
 
     <dependencies>

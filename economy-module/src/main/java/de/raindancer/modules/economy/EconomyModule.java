@@ -85,7 +85,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.30.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.31.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -346,6 +346,9 @@ public final class EconomyModule implements FlexModule {
         long books = prices.priced().stream().filter(de.raindancer.modules.economy.model.EnchantKey::isKey).count();
         log.info("Enchanted books: {} priced, one per enchantment and level, from what making them costs: {}.",
                 books, enchantExamples(prices, economy.currency()));
+        long bottles = prices.tradablePotions().size();
+        log.info("Potions: {} bottle(s) for sale or bought, one per potion type and form, brewed from their ingredients' "
+                + "prices, and the ominous bottles.", bottles);
         try {
             var file = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(settings.file().toFile());
             de.raindancer.modules.economy.store.LegacyEnchantSettings.notice(file::get,

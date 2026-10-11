@@ -292,6 +292,27 @@ public record EconomySettings(
                 + "is sorted by it.")
         @Key("shop.enchant-worth") List<String> enchantWorth,
 
+        @In("economy/shop") @Title("Potions for sale")
+        @Describe("A Potions drawer in the shop: every potion type as a drinkable, a splash and a lingering "
+                + "potion, and the ominous bottles Bad Omen I to V, each priced like an item — with supply and "
+                + "demand, the buy markup and sell ratio, roles. A potion is worth what brewing it costs: a glass "
+                + "bottle and a third of each ingredient (one fills three bottles) plus the crafting markup, "
+                + "gunpowder for splash and dragon's breath for lingering. Bought and sold one stack at a time, "
+                + "only as the game makes them. Priced by hand like any item: 'potion:strong_healing 500' in the "
+                + "custom values, buy or sell prices.")
+        @Key("shop.potions") boolean potions,
+
+        @In("economy/shop") @Title("Potions not for sale")
+        @Describe("Potion types, comma separated, like luck or turtle_master — every form of them. One alone: "
+                + "'splash_potion:healing' in 'Never sold to players'. Selling them to the shop works either way.")
+        @Key("shop.potions-closed") List<String> potionsClosed,
+
+        @In("economy/shop") @Title("An ominous bottle is worth")
+        @Describe("Before the shop's markup, for Bad Omen I; each level above is worth that again, so Bad Omen V "
+                + "is five times as much. No recipe makes one, so this is all it has. A single level can be "
+                + "priced on its own: 'ominous_bottle:3 5000'.")
+        @Key("shop.ominous-bottle-value") String ominousBottleValue,
+
         @In("economy/shop/spawn-eggs") @Title("Spawn eggs for sale")
         @Describe("A Spawn eggs drawer in the shop: every mob's egg at the price below.")
         @Key("shop.spawn-eggs") boolean spawnEggs,
@@ -849,6 +870,7 @@ public record EconomySettings(
             // shop
             true, true, 1.0, 0.4, SellPricing.AUTOMATIC, List.of(), List.of(), List.of(), List.of(), List.of(),
             true, 0.1, 0.15, true, 0.5, 2.0, 0.02, 12.0, true, true, List.of(), true, List.of(),
+            true, List.of(), "800",
             true, "2000", List.of("ender_dragon", "wither"),
             true, true, true, true, true, true, true, true, true,
             // earning
@@ -1059,6 +1081,10 @@ public record EconomySettings(
 
     public double loanLate() {
         return percent(loanLatePercent, 50);
+    }
+
+    public Money ominousBottleValueMoney() {
+        return money(ominousBottleValue, DEFAULTS.ominousBottleValue);
     }
 
     public Money spawnEggValueMoney() {
