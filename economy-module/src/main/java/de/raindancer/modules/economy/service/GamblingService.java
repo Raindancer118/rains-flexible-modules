@@ -1,5 +1,7 @@
 package de.raindancer.modules.economy.service;
 
+import de.raindancer.modules.economy.model.DealerGame;
+
 import de.raindancer.modules.economy.model.Game;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.platform.util.Scheduling;
@@ -355,7 +357,7 @@ public final class GamblingService implements IEconomyService {
             refuse(from, "economy.gamble.duel-yourself");
             return;
         }
-        if (!mayBet(from, stake, Game.COINFLIP)) {
+        if (!mayBet(from, stake, Game.COINFLIP) || !atTable(from)) {
             return;
         }
         if (!economy.has(from.getUniqueId(), stake)) {
@@ -387,6 +389,16 @@ public final class GamblingService implements IEconomyService {
             refuse(to, "economy.gamble.off");
             return;
         }
+        if (live.dealersOnly() && !DealerService.near(to, DealerGame.COINFLIP)) {
+            // Still theirs to take once they have walked over; the buttons they clicked are spent, so new ones.
+            challenges.putIfAbsent(to.getUniqueId(), challenge);
+            Duration left = Duration.ofMillis(Math.max(1000, challenge.expiresAt() - clock.millis()));
+            refuse(to, "economy.gamble.duel-walk-over", "dealer", DealerGame.COINFLIP.dealer(),
+                    "buttons", buttons.ask(to.getUniqueId(), left,
+                            clicker -> Scheduling.entity(plugin, to, () -> accept(to, challenge)),
+                            clicker -> decline(to, challenge)));
+            return;
+        }
         economy.open(to.getUniqueId(), to.getName());
         boolean challengerWins = random.nextBoolean();
         UUID winner = challengerWins ? challenge.from() : to.getUniqueId();
@@ -415,6 +427,15 @@ public final class GamblingService implements IEconomyService {
                     "player", winnerName, "amount", currency.render(won ? gain : challenge.stake()));
             sounds.play(each.getUniqueId(), won ? GameSounds.WIN : GameSounds.LOSE);
         }
+    }
+
+    /** With dealers-only on, a duel is called and taken at a coin flip dealer. */
+    private boolean atTable(Player player) {
+        if (!settings.dealersOnly() || DealerService.near(player, DealerGame.COINFLIP)) {
+            return true;
+        }
+        refuse(player, "economy.gamble.duel-at-table", "dealer", DealerGame.COINFLIP.dealer());
+        return false;
     }
 
     private void decline(Player to, Challenge challenge) {
@@ -604,6 +625,23 @@ public final class GamblingService implements IEconomyService {
     public void forget(UUID player) {
         challenges.remove(player);
         challenges.values().removeIf(challenge -> challenge.from().equals(player));
+    }
+
+    /** Whether games are only played at their dealers. */
+    public boolean dealersOnly() {
+        return settings.dealersOnly();
+    }
+
+    /**
+     * For anything that would start a game away from its dealer — a command, the casino screen: with
+     * dealers-only on, tells the player who deals it and answers true, and the caller stops.
+     */
+    public boolean refuseRemote(Player player, DealerGame game) {
+        if (!settings.dealersOnly()) {
+            return false;
+        }
+        refuse(player, "economy.gamble.dealers-only", "dealer", game.dealer());
+        return true;
     }
 
     private void refuse(Player player, String key, Object... values) {

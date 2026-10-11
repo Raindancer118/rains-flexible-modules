@@ -1,6 +1,7 @@
 package de.raindancer.modules.economy.command;
 
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.DealerGame;
 import de.raindancer.modules.economy.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
@@ -29,7 +30,7 @@ public final class GambleCommand extends EconomyCommand {
     @Override
     void run(EconomyServices live, CommandSender sender, String[] args) {
         player(live, sender).ifPresent(player -> {
-            if (!allowed(live, sender, PermissionNodes.GAMBLE)) {
+            if (!allowed(live, sender, PermissionNodes.GAMBLE) || awayFromDealer(live, player, args)) {
                 return;
             }
             switch (game) {
@@ -100,15 +101,15 @@ public final class GambleCommand extends EconomyCommand {
                     } else if (args.length >= 1 && args[0].equalsIgnoreCase("info")) {
                         live.lottery().status(player);
                     } else {
-                        live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.LOTTERY);
+                        live.screens().table(player, DealerGame.LOTTERY);
                     }
                 }
-                case BLACKJACK -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.BLACKJACK);
-                case BACCARAT -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.BACCARAT);
-                case HILO -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.HILO);
-                case MINES -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.MINES);
-                case CRASH -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.CRASH);
-                case RACE -> live.screens().table(player, de.raindancer.modules.economy.model.DealerGame.RACE);
+                case BLACKJACK -> live.screens().table(player, DealerGame.BLACKJACK);
+                case BACCARAT -> live.screens().table(player, DealerGame.BACCARAT);
+                case HILO -> live.screens().table(player, DealerGame.HILO);
+                case MINES -> live.screens().table(player, DealerGame.MINES);
+                case CRASH -> live.screens().table(player, DealerGame.CRASH);
+                case RACE -> live.screens().table(player, DealerGame.RACE);
                 case SCRATCH -> {
                     int count = 1;
                     if (args.length >= 2 && args[0].equalsIgnoreCase("buy")) {
@@ -122,6 +123,32 @@ public final class GambleCommand extends EconomyCommand {
                 }
             }
         });
+    }
+
+    /**
+     * With dealers-only on, every game is played at its dealer. Two things stay commands: a coin flip duel
+     * (which asks for the coin flip table itself) and reading the lottery's pot.
+     */
+    private boolean awayFromDealer(EconomyServices live, org.bukkit.entity.Player player, String[] args) {
+        boolean duel = game == Game.COINFLIP && args.length >= 2 && live.currency().parse(args[0]).isEmpty();
+        boolean info = game == Game.LOTTERY && args.length >= 1 && args[0].equalsIgnoreCase("info");
+        return !duel && !info && live.gambling().refuseRemote(player, dealer());
+    }
+
+    private DealerGame dealer() {
+        return switch (game) {
+            case COINFLIP -> DealerGame.COINFLIP;
+            case DICE -> DealerGame.DICE;
+            case ROULETTE -> DealerGame.ROULETTE;
+            case LOTTERY -> DealerGame.LOTTERY;
+            case BLACKJACK -> DealerGame.BLACKJACK;
+            case BACCARAT -> DealerGame.BACCARAT;
+            case HILO -> DealerGame.HILO;
+            case MINES -> DealerGame.MINES;
+            case CRASH -> DealerGame.CRASH;
+            case RACE -> DealerGame.RACE;
+            case SCRATCH -> DealerGame.SCRATCH;
+        };
     }
 
     @Override

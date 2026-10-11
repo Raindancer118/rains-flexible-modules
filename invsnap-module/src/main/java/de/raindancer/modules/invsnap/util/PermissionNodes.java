@@ -29,6 +29,9 @@ public final class PermissionNodes {
     /** Insuring one's own inventory against death — for everybody, unlike the admin nodes. */
     public static final String INSURE = "rainsinvsnap.insurance.use";
 
+    /** Placing and removing insurance agents in the world. */
+    public static final String AGENTS = "rainsinvsnap.insurance.agents";
+
     private PermissionNodes() {
     }
 
@@ -39,7 +42,9 @@ public final class PermissionNodes {
                 new Permission(RESTORE, "Restore a player's inventory from a snapshot",
                         PermissionDefault.OP),
                 new Permission(INSURE, "Opt in to death insurance with /insurance",
-                        PermissionDefault.TRUE));
+                        PermissionDefault.TRUE),
+                new Permission(AGENTS, "Place and remove insurance agents (/insurance agent place|remove)",
+                        PermissionDefault.OP));
     }
 
     /**

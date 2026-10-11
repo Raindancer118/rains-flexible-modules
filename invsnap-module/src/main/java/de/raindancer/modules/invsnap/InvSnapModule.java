@@ -1,5 +1,7 @@
 package de.raindancer.modules.invsnap;
 
+import de.raindancer.core.social.desk.ServiceDesk;
+import de.raindancer.core.social.desk.ServiceDesks;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.platform.util.Scheduling;
@@ -48,7 +50,7 @@ import java.util.UUID;
  */
 public final class InvSnapModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.5.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.6.0")
             .describedAs("Periodic inventory snapshots for every online player, with an admin "
                     + "screen to browse a player's history and restore one.")
             .by("Raindancer118");
@@ -120,6 +122,10 @@ public final class InvSnapModule implements FlexModule {
                 snapshotService, insurance, itemInsurance, new LiveScreens());
 
         InvSnapCommands.ready(services);
+
+        InsuranceDeskOffer atAgent = new InsuranceDeskOffer(() -> services);
+        ServiceDesks.offer(ServiceDesk.INSURANCE, atAgent);
+        context.closeWith(() -> ServiceDesks.withdraw(atAgent));
 
         InsuranceProfileExtension profile = new InsuranceProfileExtension(() -> services);
         ProfileExtensions.register(profile);

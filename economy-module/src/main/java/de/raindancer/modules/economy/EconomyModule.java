@@ -85,7 +85,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.29.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.30.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -337,6 +337,10 @@ public final class EconomyModule implements FlexModule {
         startSupplyClocks(context, supply, funds);
 
         EconomyCommands.ready(services);
+        BetInsuranceOffer betInsurance =
+                new BetInsuranceOffer(() -> services);
+        de.raindancer.core.social.desk.ServiceDesks.offer(de.raindancer.core.social.desk.ServiceDesk.INSURANCE, betInsurance);
+        context.closeWith(() -> de.raindancer.core.social.desk.ServiceDesks.withdraw(betInsurance));
         log.info("The economy is up: {} account(s), {} item(s) priced from {} recipe(s), money is {}.",
                 book.all().size(), prices.priced().size(), recipes, economy.currency().format(economy.currency().ofMajor(1)));
         long books = prices.priced().stream().filter(de.raindancer.modules.economy.model.EnchantKey::isKey).count();
@@ -620,6 +624,9 @@ public final class EconomyModule implements FlexModule {
         @Override
         public void table(Player viewer, de.raindancer.modules.economy.model.DealerGame game) {
             switch (game) {
+                case COINFLIP -> CoinFlipMenu.open(services, viewer, null, null, null);
+                case DICE -> DiceMenu.open(services, viewer, null, null, null, null);
+                case SCRATCH -> new de.raindancer.modules.economy.screen.ScratchDealerMenu(services, viewer, null).open();
                 case BLACKJACK -> de.raindancer.modules.economy.screen.BlackjackMenu.open(services, viewer, null);
                 case BACCARAT -> de.raindancer.modules.economy.screen.BaccaratMenu.open(services, viewer, null);
                 case HILO -> de.raindancer.modules.economy.screen.HiLoMenu.open(services, viewer, null);

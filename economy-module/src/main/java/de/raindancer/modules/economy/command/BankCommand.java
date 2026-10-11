@@ -1,6 +1,9 @@
 package de.raindancer.modules.economy.command;
 
+import de.raindancer.core.social.desk.ServiceDesk;
+import de.raindancer.core.social.desk.ServiceDesks;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.DealerGame;
 import de.raindancer.modules.economy.util.PermissionNodes;
 import org.bukkit.command.CommandSender;
 
@@ -42,7 +45,12 @@ public final class BankCommand extends EconomyCommand {
                         return;
                     }
                     if (door == Door.CASINO && args.length > 0 && args[0].equalsIgnoreCase("insure")) {
-                        live.gambling().toggleInsurance(player);
+                        if (!ServiceDesks.refuseRemote(player, ServiceDesk.INSURANCE)) {
+                            live.gambling().toggleInsurance(player);
+                        }
+                        return;
+                    }
+                    if (door == Door.SLOTS && live.gambling().refuseRemote(player, DealerGame.SLOTS)) {
                         return;
                     }
                     if (door == Door.SLOTS) {

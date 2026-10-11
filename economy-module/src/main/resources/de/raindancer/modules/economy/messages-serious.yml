@@ -1,6 +1,8 @@
 # The serious wording for this module, for a server whose Message tone is SERIOUS. Only lines that differ.
 economy:
   gamble:
+    dealers-only: "<red>This game is played in person. <gray>Please go to the <white><dealer></white>."
+    duel-at-table: "<red>Duels are played at a coin flip table. <gray>Please stand by a <white><dealer></white> first."
     duel-won: "<green>You won the coin flip: <amount><green>."
     duel-lost: "<red><player> won the coin flip. You lost <amount><red>."
     wait: "<red>Please wait a moment before the next game."

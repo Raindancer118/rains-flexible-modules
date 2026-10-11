@@ -427,6 +427,12 @@ public record EconomySettings(
         @Describe("A player name. Empty: a black suit with a red tie.")
         @Key("casino.dealer-skin") String dealerSkin,
 
+        @In("economy/gambling") @Title("Play only at a dealer")
+        @Describe("No game by command or from the casino screen: every game is played at its own dealer "
+                + "standing in the world (/eco dealer place <game>), and coin flip duels at a coin flip dealer. "
+                + "/casino still shows balances and the games, and says which dealer deals each.")
+        @Key("casino.dealers-only") boolean dealersOnly,
+
         @In("economy/gambling/coinflip") @Title("Coin flips") @Describe("/coinflip: against the house, or a duel between two players.")
         @Key("features.coinflip") boolean coinflipEnabled,
 
@@ -852,7 +858,7 @@ public record EconomySettings(
             // interest
             true, 0.25, 60, "250",
             // gambling
-            true, "1", 3.0, "0", 0, "",
+            true, "1", 3.0, "0", 0, "", false,
             true, "", "", 60,
             true, "", "",
             true, "", "",

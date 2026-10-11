@@ -38,7 +38,7 @@
              0.29.1: no money from books: every sale of an enchantment at the player's own capped price (roles,
                     lever, sold lately), a book never under the plain book inside, prices kept from overflowing,
                     level 0 and stacked unstackables not bought, server goals stop book sales, version agrees. -->
-        <plugin.version>0.29.1</plugin.version>
+        <plugin.version>0.30.0</plugin.version>
     </properties>
 
     <dependencies>

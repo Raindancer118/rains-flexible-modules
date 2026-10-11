@@ -16,6 +16,10 @@ invsnap:
     no-permission: "<red>You may browse this, but not restore from it."
     offline: "<red><player> is not online right now — a restore is written into a live inventory. Try again once they are back."
 
+  agent:
+    placed: "<green>An <white>insurance agent</white> stands here now. Players right click them for their insurance. <gray>/insurance agent remove takes them away."
+    removed: "<green>The nearest insurance agent is gone."
+    none: "<red>There is no insurance agent within four blocks of you."
   insurance:
     disabled: "<yellow>Death insurance is not offered on this server."
     usage: "<gray>/insurance [on|off|item [cancel]]"

@@ -1,5 +1,7 @@
 package de.raindancer.modules.invsnap;
 
+import de.raindancer.core.social.desk.ServiceDesk;
+import de.raindancer.core.social.desk.ServiceDesks;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.profile.ProfileButton;
@@ -10,6 +12,8 @@ import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 
 /** "Insurance" on a player's own profile page — nothing on anybody else's. */
@@ -30,13 +34,15 @@ public final class InsuranceProfileExtension implements ProfileExtension {
                 || live.itemInsurance().pendingCount(viewer.getUniqueId()) > 0)) {
             return null;
         }
-        int insured = live.itemInsurance().policiesOf(viewer.getUniqueId()).size();
-        int waiting = live.itemInsurance().pendingCount(viewer.getUniqueId());
-        return new ProfileButton(Icons.of(Material.SHIELD, "<aqua>Insurance",
-                "<gray>Death insurance: " + (live.insurance().isInsured(viewer.getUniqueId()) ? "<green>on" : "<red>off"),
-                "<gray>Insured items: <white>" + insured,
-                waiting > 0 ? "<yellow>" + waiting + " waiting to collect" : "<gray>Nothing to collect",
-                "", "<yellow>Click: open"),
-                click -> new InsuranceMenu(live, viewer, parent).open());
+        boolean atAgent = ServiceDesks.inPersonOnly(ServiceDesk.INSURANCE);
+        List<String> lore = new ArrayList<>(InsuranceDeskOffer.summary(live, viewer));
+        lore.add("");
+        lore.add(atAgent ? "<gray>Arranged with an " + ServiceDesk.INSURANCE.title() : "<yellow>Click: open");
+        return new ProfileButton(Icons.of(Material.SHIELD, "<aqua>Insurance", lore),
+                click -> {
+                    if (!ServiceDesks.refuseRemote(viewer, ServiceDesk.INSURANCE)) {
+                        new InsuranceMenu(live, viewer, parent).open();
+                    }
+                });
     }
 }

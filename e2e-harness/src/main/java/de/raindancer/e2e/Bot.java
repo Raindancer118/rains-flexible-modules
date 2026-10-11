@@ -41,6 +41,7 @@ import org.geysermc.mcprotocollib.protocol.data.game.entity.object.Direction;
 import org.cloudburstmc.math.vector.Vector3i;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundClientTickEndPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundAttackPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundInteractPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundMovePlayerRotPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPunchPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundBossEventPacket;
@@ -948,6 +949,12 @@ public final class Bot {
     /** Hits whatever has this UUID, wherever it is — reach and walls are the server's to judge. */
     public Bot attack(UUID target) {
         session.send(new ServerboundAttackPacket(entityIdOf(target)));
+        return this;
+    }
+
+    /** Right clicks whatever has this UUID, at its feet, with the main hand — talking to a villager, say. */
+    public Bot interact(UUID target) {
+        session.send(new ServerboundInteractPacket(entityIdOf(target), Vector3d.ZERO, false));
         return this;
     }
 

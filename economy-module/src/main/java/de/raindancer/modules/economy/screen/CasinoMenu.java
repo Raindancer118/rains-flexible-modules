@@ -6,6 +6,7 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.economy.EconomyServices;
+import de.raindancer.modules.economy.model.DealerGame;
 import de.raindancer.modules.economy.model.Game;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.util.Mini;
@@ -70,16 +71,14 @@ public final class CasinoMenu extends Menu implements IEconomyScreen, Bet.BetMen
             refresh();
         });
         boolean offered = services.gambling().insuranceOffered();
-        boolean insured = services.gambling().insures(viewer.getUniqueId());
-        var supplied = services.supply().current();
-        toolbar(6, offered, Icons.of(insured ? Material.TOTEM_OF_UNDYING : Material.ARMOR_STAND,
-                "<white>Insure my bets: " + (insured ? "<green>on" : "<gray>off"),
-                "<gray>Every stake costs " + supplied.gambleInsurancePremium() + "% more;",
-                "<gray>a lost stake pays " + supplied.gambleInsurancePayback() + "% of it back.",
-                "<yellow>Click<gray> to switch it " + (insured ? "off" : "on")), BankMenu.OFF, click -> {
-            services.gambling().toggleInsurance(viewer);
-            refresh();
-        });
+        boolean atAgent = de.raindancer.core.social.desk.ServiceDesks.inPersonOnly(
+                de.raindancer.core.social.desk.ServiceDesk.INSURANCE);
+        toolbar(6, offered && !atAgent, de.raindancer.modules.economy.BetInsuranceOffer.button(services, viewer),
+                offered ? "Arranged with an " + de.raindancer.core.social.desk.ServiceDesk.INSURANCE.title() : BankMenu.OFF,
+                click -> {
+                    services.gambling().toggleInsurance(viewer);
+                    refresh();
+                });
         game(MenuLayout.LAND, 6, Game.LOTTERY, "Pot: " + Mini.of(currency.render(services.lottery().pot())),
                 () -> new LotteryMenu(services, viewer, this).open());
     }
@@ -87,8 +86,10 @@ public final class CasinoMenu extends Menu implements IEconomyScreen, Bet.BetMen
     private void game(int band, int column, Game game, String line, Runnable open) {
         EconomySettings live = services.config();
         String keeps = game.edge() ? "<dark_gray>The house keeps " + percent(live.edge(game)) + "%" : "";
-        band(band, column, live.gameOn(game), Icons.of(game.icon(), "<yellow>" + game.title(), "<gray>" + line, keeps),
-                BankMenu.OFF, click -> open.run());
+        // Dealers only: the casino screen is the floor plan — every game shown, none dealt here.
+        boolean dealt = live.gameOn(game) && !live.dealersOnly();
+        band(band, column, dealt, Icons.of(game.icon(), "<yellow>" + game.title(), "<gray>" + line, keeps),
+                live.gameOn(game) ? "Played at the " + DealerGame.of(game).dealer() : BankMenu.OFF, click -> open.run());
     }
 
     static String percent(double fraction) {
@@ -108,6 +109,10 @@ public final class CasinoMenu extends Menu implements IEconomyScreen, Bet.BetMen
 
     @Override
     protected List<String> helpLines() {
+        if (services.config().dealersOnly()) {
+            return List.of("Every game here is dealt by its own dealer:",
+                    "find them in the casino and right click one.");
+        }
         return List.of("Set your bet in the top row; every game uses it.",
                 "Each game is decided and paid the moment you play;",
                 "the spinning is only the show.");

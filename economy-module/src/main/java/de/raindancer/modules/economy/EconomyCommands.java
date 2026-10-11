@@ -114,7 +114,7 @@ public final class EconomyCommands {
                         new de.raindancer.modules.economy.command.SeasonCommand(EconomyCommands::require)),
                 ModuleCommand.of("eco", "Staff: run the economy", new EcoCommand(EconomyCommands::require))
                         .taking("give|take|set <player> <amount> [reason]", "reset|freeze|unfreeze|history <player>",
-                                "menu|reprice|draw|calm|coin", "leaderboard place|remove", "dealer place <game>|remove",
+                                "menu|reprice|draw|calm|coin", "leaderboard place|remove", "dealer place <game>|remove", "agent place|remove",
                                 "auction stop|clear", "raffle <prize> <ticket price> [length] | cancel <number>",
                                 "giveaway <prize> [length]", "tax <percent> [confirm]", "packs [give <player> <pack>]")
                         .auditUsage());

@@ -1,8 +1,11 @@
 package de.raindancer.modules.invsnap.command;
 
+import de.raindancer.core.social.desk.ServiceDesk;
+import de.raindancer.core.social.desk.ServiceDesks;
 import de.raindancer.core.social.economy.Fees;
 import de.raindancer.modules.invsnap.InvSnapServices;
 import de.raindancer.modules.invsnap.service.InsuranceService;
+import de.raindancer.modules.invsnap.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -14,7 +17,8 @@ import java.util.function.Supplier;
 
 /**
  * {@code /insurance}: the Insurance screen. {@code on|off} switches death insurance; {@code item} offers the
- * item in hand, {@code item cancel} ends the policy on it.
+ * item in hand, {@code item cancel} ends the policy on it. With Core's insurance-in-person switch on, all of it
+ * is done at an insurance agent instead; staff place those with {@code agent place|remove}.
  */
 public final class InsuranceCommand implements IInvSnapCommand {
 
@@ -29,6 +33,13 @@ public final class InsuranceCommand implements IInvSnapCommand {
         InvSnapServices live = services.get();
         if (!(source.getSender() instanceof Player player)) {
             live.messages().send(source.getSender(), "invsnap.only-a-player");
+            return;
+        }
+        if (args.length >= 1 && args[0].equalsIgnoreCase("agent")) {
+            agent(live, player, args);
+            return;
+        }
+        if (ServiceDesks.refuseRemote(player, ServiceDesk.INSURANCE)) {
             return;
         }
         InsuranceService insurance = live.insurance();
@@ -70,6 +81,21 @@ public final class InsuranceCommand implements IInvSnapCommand {
         }
     }
 
+    /** Staff: an insurance agent where they stand, or the nearest one taken away. */
+    private static void agent(InvSnapServices live, Player player, String[] args) {
+        if (!player.hasPermission(PermissionNodes.AGENTS)) {
+            live.messages().send(player, "invsnap.insurance.usage");
+            return;
+        }
+        if (args.length >= 2 && args[1].equalsIgnoreCase("remove")) {
+            live.messages().send(player, ServiceDesks.removeNearest(player)
+                    ? "invsnap.agent.removed" : "invsnap.agent.none");
+            return;
+        }
+        ServiceDesks.place(player, ServiceDesk.INSURANCE);
+        live.messages().send(player, "invsnap.agent.placed");
+    }
+
     private static String price(InvSnapServices live, Player player) {
         return Fees.format(Fees.quote(InsuranceService.SOURCE, live.insurance().premiumFor(player)));
     }
@@ -77,7 +103,11 @@ public final class InsuranceCommand implements IInvSnapCommand {
     @Override
     public @NotNull Collection<String> suggest(@NotNull CommandSourceStack source, String @NotNull [] args) {
         if (args.length == 1) {
-            return List.of("on", "off", "item");
+            return source.getSender().hasPermission(PermissionNodes.AGENTS)
+                    ? List.of("on", "off", "item", "agent") : List.of("on", "off", "item");
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("agent")) {
+            return List.of("place", "remove");
         }
         return args.length == 2 && args[0].equalsIgnoreCase("item") ? List.of("cancel") : List.of();
     }
