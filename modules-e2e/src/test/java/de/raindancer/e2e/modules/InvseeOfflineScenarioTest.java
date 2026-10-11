@@ -35,10 +35,11 @@ class InvseeOfflineScenarioTest {
             server.console("give Bo diamond 7");
             Await.until("Bo holds diamonds", WAIT, () -> bo.carrying(item -> item.is("diamond")).isPresent());
 
-            // The moderation page shows how long they have played.
+            // The moderation page shows how long they have played, on their head.
             ada.run("mod Bo");
-            Await.until(() -> "the moderation page has a playtime clock (window " + ada.window() + ")", WAIT,
-                    () -> ada.window().flatMap(window -> window.slotNamed("Playtime")).isPresent());
+            Await.until(() -> "the moderation page shows their playtime (window " + ada.window() + ")", WAIT,
+                    () -> ada.window().map(window -> window.items().values().stream()
+                            .anyMatch(item -> item.lore().stream().anyMatch(line -> line.contains("Played")))).orElse(false));
             ada.closeWindow();
 
             bo.leave();

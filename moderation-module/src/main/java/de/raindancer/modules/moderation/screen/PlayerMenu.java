@@ -10,7 +10,10 @@ import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.model.Sentence;
-import de.raindancer.modules.moderation.util.PlayerStats;
+import de.raindancer.core.platform.util.Scheduling;
+import de.raindancer.modules.moderation.model.PlayerOverview;
+import de.raindancer.modules.moderation.service.LogSearchService;
+import de.raindancer.modules.moderation.service.PlayerOverviewService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
@@ -42,6 +45,8 @@ public final class PlayerMenu extends ModerationScreen {
 
     private final UUID subject;
     private final String subjectName;
+    /** Null until gathered; see {@link #open()}. */
+    private volatile PlayerOverview overview;
 
     public PlayerMenu(ModerationServices services, Player viewer, Menu parent, UUID subject,
                       String subjectName) {
@@ -60,138 +65,176 @@ public final class PlayerMenu extends ModerationScreen {
         return subjectName;
     }
 
+    /**
+     * Gathers the overview first — part of it lives in databases, read off the server's threads, and where an
+     * online player stands is read on their own — then opens on the viewer's thread. Asked afresh on every open,
+     * so coming Back from a punishment shows it.
+     */
+    @Override
+    public void open() {
+        new PlayerOverviewService(services()).gather(subject, subjectName, gathered -> Scheduling.entity(
+                services().plugin(), viewer, () -> {
+                    overview = gathered;
+                    super.open();
+                }));
+    }
+
+    /**
+     * The same slots every time, so a hand learns them:
+     * <pre>
+     *  row 0   ·  [status] [standing]  ·  [head]  ·  [record] [x-ray]  ·
+     *  row 1  Look into: record, reports, mining, attempts, chat, notes, audit
+     *  row 2  Punish:    warn, kick, mute, freeze, ban, fine, broke a rule
+     *  row 3  Practical: inventory, go to them, fines, tools, staff rank, ·, refresh
+     *  row 5  back · home · · [ban for ever] · · help · close
+     * </pre>
+     * Every band row is filled in all seven columns, which keeps Core from centring a shorter one.
+     */
     @Override
     protected void render() {
-        // The head in the middle, where the eye lands first: this page is about a person, and the
-        // person is the heading. What is in force is on the head itself, so the answer to "what is
-        // going on with them" is read without a click.
-        band(MenuLayout.WHO, 2, may(ModerationPermission.NOTES),
-                Icons.of(Material.WRITABLE_BOOK, "<yellow>Staff notes",
-                        "<gray>" + services().noteService().countAbout(subject) + " written.",
-                        "<dark_gray>They never see these."),
-                "For whoever may read the notes",
-                click -> new NotesMenu(services(), viewer, this, subject, subjectName).open());
+        PlayerOverview seen = overview != null ? overview : PlayerOverview.of(subject, subjectName).build();
+        Instant now = Instant.now();
+        java.time.ZoneId zone = LogSearchService.ZONE;
 
-        band(MenuLayout.WHO, 4, Icons.head(subject, "<white>" + subjectName, whatIsInForce()));
-        // Playtime on its own, at a glance: what "full diamond already?" is weighed against.
-        org.bukkit.OfflinePlayer them = services().server().getOfflinePlayer(subject);
-        if (them.hasPlayedBefore() || them.isOnline()) {
-            set(MenuLayout.HEADER_RIGHT, Icons.of(Material.CLOCK, "<white>Playtime",
-                    de.raindancer.modules.moderation.util.PlayerStats.playtime(them)));
+        List<String> presence = new ArrayList<>(seen.presenceLore(zone, now));
+        if (services().vanish().isVanished(subject)) {
+            presence.add("<dark_gray>Vanished");
         }
+        set(1, Icons.of(seen.presence().icon(), seen.presence().title(), presence));
+        set(2, Icons.of(seen.standing().icon(), seen.standing().title(), seen.standingLore(now)));
+        set(MenuLayout.HEADER_SUBJECT, Icons.head(subject, "<white>" + subjectName, seen.identityLore(zone)));
+        set(6, Icons.of(Material.WRITABLE_BOOK, "<yellow>Record", seen.recordLore()));
+        set(7, Icons.of(Material.DIAMOND_ORE, "<yellow>X-ray", seen.xrayLore()));
 
-        band(MenuLayout.WHO, 6, may(ModerationPermission.REPORTS),
-                Icons.of(Material.PAPER, "<yellow>Reported",
-                        "<gray>" + services().reportService().about(subject).size()
-                                + " report(s) about them."),
+        section(MenuLayout.WHO, Material.LIGHT_BLUE_STAINED_GLASS_PANE, "<aqua>Look into");
+        section(MenuLayout.RULES, Material.RED_STAINED_GLASS_PANE, "<red>Punish");
+        section(MenuLayout.LAND, Material.LIME_STAINED_GLASS_PANE, "<green>Practical");
+
+        // ── look into ──────────────────────────────────────────────────────────────────────────
+        band(MenuLayout.WHO, 1, may(ModerationPermission.HISTORY),
+                Icons.of(Material.BOOK, "<yellow>Record", "<gray>" + seen.recordEntries() + " entries, every kind.",
+                        "<dark_gray>Newest first."),
+                "For whoever may read a record",
+                click -> new HistoryMenu(services(), viewer, this, subject, subjectName).open());
+        band(MenuLayout.WHO, 2, may(ModerationPermission.REPORTS),
+                Icons.of(Material.PAPER, "<yellow>Reports",
+                        "<gray>" + seen.openReports() + " open of " + seen.reports() + " about them."),
                 "For whoever may read reports",
                 click -> new ReportsMenu(services(), viewer, this).open());
-
-        band(MenuLayout.WHO, 7, may(ModerationPermission.CHATLOG),
-                Icons.of(Material.BOOK, "<yellow>What they said", "<gray>Their public chat, newest first,",
-                        "<gray>and a search through it.", "<dark_gray>/chatlog searches everybody's."),
-                "For whoever may read the chat log",
-                click -> new ChatLogMenu(services(), viewer, this, subject, subjectName, "").open());
-
-        band(MenuLayout.WHO, 1, may(ModerationPermission.ATTEMPTS),
+        band(MenuLayout.WHO, 3, may(ModerationPermission.REPORTS),
+                Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Mining evidence",
+                        "<gray>" + seen.xray().finds() + " vein(s) and bait(s) on record.",
+                        "<dark_gray>The x-ray tests, and where each find was."),
+                "For whoever may read reports",
+                click -> new XrayReviewMenu(services(), viewer, this, subject, subjectName).open());
+        band(MenuLayout.WHO, 4, may(ModerationPermission.ATTEMPTS),
                 Icons.of(Material.TRIPWIRE_HOOK, "<yellow>Attempts while punished",
-                        "<gray>Joining while banned, talking while", "<gray>muted, building while frozen.",
+                        "<gray>" + seen.attempts() + " kept: joins, chat, building.",
                         "<dark_gray>/attempts searches everybody's."),
                 "For whoever may see attempts",
                 click -> new AttemptsMenu(services(), viewer, this, subject, subjectName).open());
+        band(MenuLayout.WHO, 5, may(ModerationPermission.CHATLOG),
+                Icons.of(Material.OAK_HANGING_SIGN, "<yellow>Chat", "<gray>Their public chat, newest first,",
+                        "<gray>and a search through it."),
+                "For whoever may read the chat log",
+                click -> new ChatLogMenu(services(), viewer, this, subject, subjectName, "").open());
+        band(MenuLayout.WHO, 6, may(ModerationPermission.NOTES),
+                Icons.of(Material.WRITABLE_BOOK, "<yellow>Staff notes", "<gray>" + seen.notes() + " written.",
+                        "<dark_gray>They never see these."),
+                "For whoever may read the notes",
+                click -> new NotesMenu(services(), viewer, this, subject, subjectName).open());
+        band(MenuLayout.WHO, 7, may(ModerationPermission.HISTORY),
+                Icons.of(Material.OAK_SIGN, "<yellow>Audit trail", "<gray>Joins, teleports, gamemode,",
+                        "<gray>every moderation action.", "<dark_gray>Newest first."),
+                "For whoever may read a record",
+                click -> new AuditMenu(services(), viewer, this, subject, subjectName).open());
 
-        // ── what may be done, one door per kind ───────────────────────────────────────────────
-        // Grouped rather than flat. The flat version put nine verbs on one page — ban, tempban,
-        // unban, mute, tempmute, unmute, kick, warn, freeze — and somebody looking for "unban" had
-        // to read all nine. Each door asks one question, and behind it are only the answers that
-        // belong together, handing out and lifting side by side.
+        // ── punish: one door per kind, what is in force on each ────────────────────────────────
         category(1, PunishmentKind.WARNING, ModerationPermission.WARN);
         category(2, PunishmentKind.KICK, ModerationPermission.KICK);
         category(3, PunishmentKind.MUTE, ModerationPermission.MUTE);
         category(4, PunishmentKind.FREEZE, ModerationPermission.FREEZE);
         category(5, PunishmentKind.BAN, ModerationPermission.BAN);
         fineDoor();
+        boolean rules = !services().ruleBreaches().rules().isEmpty();
+        band(MenuLayout.RULES, 7, may(ModerationPermission.WARN) && rules,
+                Icons.of(Material.IRON_BARS, "<yellow>Broke a rule", "<gray>Pick the rule; its next",
+                        "<gray>punishment is handed out.", "<dark_gray>The same everybody reads in /rules."),
+                rules ? "For whoever may hand out punishments" : "This server has no rules written down",
+                click -> new RuleBreachMenu(services(), viewer, this, subject, subjectName).open());
 
-        // ── the practical ─────────────────────────────────────────────────────────────────────
-        band(MenuLayout.LAND, 2, may(ModerationPermission.INVSEE),
-                Icons.of(Material.CHEST, "<yellow>Look in their inventory",
-                        may(ModerationPermission.INVSEE_EDIT)
-                                ? "<gray>You may change what is in it."
-                                : "<gray>Looking only."),
+        // ── practical ───────────────────────────────────────────────────────────────────────────
+        band(MenuLayout.LAND, 1, may(ModerationPermission.INVSEE),
+                Icons.of(Material.CHEST, "<yellow>Inventory & ender chest",
+                        may(ModerationPermission.INVSEE_EDIT) ? "<gray>You may change what is in it."
+                                : "<gray>Looking only.", "<dark_gray>Offline too."),
                 "For whoever may look in inventories",
                 click -> lookInside());
-
-        band(MenuLayout.LAND, 4, may(ModerationPermission.HISTORY),
-                Icons.of(Material.BOOK, "<yellow>Their whole record",
-                        "<gray>" + services().punishmentService().history(subject).size()
-                                + " entries.",
-                        "<dark_gray>Every kind, newest first."),
-                "For whoever may read a record",
-                click -> new HistoryMenu(services(), viewer, this, subject, subjectName).open());
-
-        // The server's own rules, each with the punishment everybody can read in /rules.
-        if (!services().ruleBreaches().rules().isEmpty()) {
-            band(MenuLayout.RULES, 7, may(ModerationPermission.WARN),
-                    Icons.of(Material.IRON_BARS, "<yellow>Broke a rule",
-                            "<gray>Pick the rule; its punishment",
-                            "<gray>for their next offence is handed out.",
-                            "<dark_gray>The same everybody reads in /rules."),
-                    "For whoever may hand out punishments",
-                    click -> new RuleBreachMenu(services(), viewer, this, subject, subjectName).open());
-        }
-
-        band(MenuLayout.LAND, 1, may(ModerationPermission.HISTORY),
-                Icons.of(Material.GOLD_NUGGET, "<yellow>Their fines",
-                        "<gray>Owes <white>" + de.raindancer.core.social.economy.Fees.format(
-                                services().fines().owed(subject)) + "</white>.",
-                        "<dark_gray>Revoke one, or forgive their debt."),
+        boolean here = seen.where() != null;
+        band(MenuLayout.LAND, 2, here && viewer.hasPermission(TELEPORT),
+                Icons.of(Material.ENDER_PEARL, "<yellow>Go to them",
+                        here ? "<gray>" + seen.where().world() + " " + seen.where().x() + " " + seen.where().y()
+                                + " " + seen.where().z() : "<gray>Only while they are online."),
+                here ? "For whoever may teleport" : "They are not online",
+                click -> goTo());
+        band(MenuLayout.LAND, 3, may(ModerationPermission.HISTORY),
+                Icons.of(Material.GOLD_NUGGET, "<yellow>Fines", "<gray>Owes <white>"
+                                + de.raindancer.core.social.economy.Fees.format(services().fines().owed(subject))
+                                + "</white>.", "<dark_gray>Revoke one, or forgive the debt."),
                 "For whoever may read a record",
                 click -> new FinesMenu(services(), viewer, this, subject, subjectName).open());
-
-        band(MenuLayout.LAND, 3, may(ModerationPermission.HISTORY),
-                Icons.of(Material.OAK_SIGN, "<yellow>Audit trail",
-                        "<gray>Joins, teleports, gamemode changes,",
-                        "<gray>and every moderation action — both directions.",
-                        "<dark_gray>Newest first."),
-                "For whoever may read a record",
-                click -> new AuditMenu(services(), viewer, this, subject, subjectName).open());
-
-        band(MenuLayout.LAND, 5, may(ModerationPermission.REPORTS),
-                Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Mining evidence",
-                        "<gray>" + services().xrayDetection().findsFor(subject).size()
-                                + " vein(s) and bait ore(s) on record.",
-                        "<dark_gray>The x-ray tests, and where each find was."),
-                "For whoever may read reports",
-                click -> new XrayReviewMenu(services(), viewer, this, subject, subjectName).open());
-
-        // Staff rank. Drawn for everybody, greyed for anybody who is not the server owner — so a
-        // moderator can see that ranks exist and that handing them out is not theirs.
-        band(MenuLayout.LAND, 7, viewer.isOp()
-                        || viewer.hasPermission(de.raindancer.modules.moderation.command
-                        .PromoteCommand.USE),
-                Icons.of(Material.IRON_HELMET, "<yellow>Staff rank",
-                        "<gray>" + services().roster().rankOf(subject)
-                                .map(rank -> rank.title()).orElse("Not staff") + ".",
-                        "<dark_gray>Promote, demote, or change one permission."),
-                "Only the server owner may hand out ranks",
-                click -> new RankMenu(services(), viewer, this, subject, subjectName).open());
-
-        // No "put them right" here, deliberately. Healing and feeding live on the tools page below,
-        // one button each, where the rest of the things that are not punishments are. This slot used
-        // to hold a third way of doing the same two things — with its own permission check, which is
-        // how it came to be guarded by the wrong node — and the page is easier to read without it.
-
-        // Flight, invulnerability, one-hit-kill. Their own page because none of them is a punishment
-        // and none goes on anybody's record as something they did wrong.
-        band(MenuLayout.LAND, 6, may(ModerationPermission.FLY) || may(ModerationPermission.GOD)
+        // Flight, invulnerability, one-hit-kill: none is a punishment, so they live apart from them.
+        band(MenuLayout.LAND, 4, may(ModerationPermission.FLY) || may(ModerationPermission.GOD)
                         || may(ModerationPermission.INSTAKILL),
-                Icons.of(Material.FEATHER, "<yellow>Tools",
-                        "<gray>Flight, invulnerability, one-hit-kill.",
-                        "<dark_gray>Working tools, not punishments."),
+                Icons.of(Material.FEATHER, "<yellow>Tools", "<gray>Flight, invulnerability,",
+                        "<gray>heal, feed, one-hit-kill."),
                 "For whoever holds one of those",
                 click -> new ToolsMenu(services(), viewer, this, subject, subjectName).open());
+        // Drawn for everybody, greyed for anybody but the owner: ranks exist, and are not theirs to give.
+        band(MenuLayout.LAND, 5, viewer.isOp()
+                        || viewer.hasPermission(de.raindancer.modules.moderation.command.PromoteCommand.USE),
+                Icons.of(Material.IRON_HELMET, "<yellow>Staff rank", "<gray>" + services().roster().rankOf(subject)
+                        .map(rank -> rank.title()).orElse("Not staff") + ".", "<dark_gray>Promote, demote, permissions."),
+                "Only the server owner may hand out ranks",
+                click -> new RankMenu(services(), viewer, this, subject, subjectName).open());
+        band(MenuLayout.LAND, 6, Icons.filler(Material.BLACK_STAINED_GLASS_PANE));
+        band(MenuLayout.LAND, 7, Icons.of(Material.CLOCK, "<yellow>Refresh", "<gray>Read everything again."),
+                click -> open());
 
         permanentBan();
+    }
+
+    @Override
+    protected List<String> helpLines() {
+        return List.of("<gray>Top: online (green), away (orange) or offline (red),",
+                "<gray>what is in force, who they are, their record, x-ray.",
+                "<gray>Rows: look into · punish · practical — always the same slots.");
+    }
+
+    /** Vanilla's own node: going to somebody is the teleport command's power, not a moderation one. */
+    static final String TELEPORT = "minecraft.command.teleport";
+
+    /** A coloured pane at the start of a row, naming the group. */
+    private void section(int band, Material pane, String title) {
+        set(band * 9, Icons.of(pane, title));
+    }
+
+    /** To where they stand, read on their thread and gone to on ours. */
+    private void goTo() {
+        Player target = services().server().getPlayer(subject);
+        if (target == null) {
+            tell("moderation.not-here", "player", subjectName);
+            return;
+        }
+        if (!viewer.hasPermission(TELEPORT)) {
+            tell("moderation.no-permission");
+            return;
+        }
+        viewer.closeInventory();
+        Scheduling.entity(services().plugin(), target, () -> {
+            org.bukkit.Location at = target.getLocation();
+            Scheduling.entity(services().plugin(), viewer, () -> viewer.teleportAsync(at));
+        });
     }
 
     /**
@@ -330,46 +373,6 @@ public final class PlayerMenu extends ModerationScreen {
             return true;
         }
         return false;
-    }
-
-    /**
-     * The header's lore: what is in force right now, and what they are carrying otherwise.
-     *
-     * <p>Everything a moderator would otherwise have to open three pages to find out. A line per state
-     * that applies, and one saying so when none does — an empty lore reads as a page that failed to
-     * load rather than as a player with nothing against them.
-     */
-    private List<String> whatIsInForce() {
-        List<String> lore = new ArrayList<>();
-        for (PunishmentKind kind : PunishmentKind.values()) {
-            if (!kind.isLasting()) {
-                continue;   // a kick and a warning are over the moment they land
-            }
-            services().punishments().active(subject, kind).ifPresent(one ->
-                    lore.add("<red>" + kind.past() + " <gray>— " + one.reason()
-                            + " <dark_gray>(" + remaining(one) + ")"));
-        }
-        if (lore.isEmpty()) {
-            lore.add("<green>Nothing in force.");
-        }
-        lore.add("");
-        lore.addAll(PlayerStats.summarize(services().server().getOfflinePlayer(subject)));
-        if (may(ModerationPermission.REPORTS)) {
-            int probability = services().xrayDetection().probabilityFor(subject);
-            // Inlined rather than a helper of its own: WordingTest holds every module to never
-            // returning a literal String of markup from a method, precisely because a value that
-            // looks like ordinary text at its call site is how markup ends up somewhere it is
-            // escaped instead of rendered — see XrayReviewMenu's own note on the same rule.
-            String colour = probability >= 80 ? "<red>" : probability >= 50 ? "<yellow>" : "<green>";
-            lore.add("<gray>X-ray probability: " + colour + probability + "%");
-        }
-        lore.add("");
-        lore.add("<dark_gray>" + services().punishmentService().history(subject).size()
-                + " entr(ies) on record");
-        if (services().vanish().isVanished(subject)) {
-            lore.add("<dark_gray>Vanished");
-        }
-        return lore;
     }
 
     private static String remaining(Punishment one) {

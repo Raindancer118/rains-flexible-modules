@@ -21,7 +21,8 @@ moderation:
     ambiguous: "<red><white><selector></white> matches <white><count></white> players, and this needs exactly one."
   not-here: "<gray><player> is not on the server right now."
   only-a-player: "<gray>This one is for somebody standing in the world."
-  console-use-commands: "<gray>The console has no screens. Try <white>/history</white>, <white>/reports list</white> or <white>/ban</white>."
+  console-use-commands: "<gray>The console has no screens. Try <white>/mod Name</white> for a player's overview, <white>/history</white>, <white>/reports list</white> or <white>/ban</white>."
+  overview-heading: "<gray>── <white><player></white> ──"
 
   # ── the tools a moderator points at themselves ───────────────────────────
   # NB: the keys are "turned-on" and not "on". YAML resolves a bare `on:` key to the boolean true, so

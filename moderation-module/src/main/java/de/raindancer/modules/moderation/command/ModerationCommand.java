@@ -61,8 +61,12 @@ public final class ModerationCommand extends StaffCommand {
         ModerationServices moderation = services();
 
         if (!(sender instanceof Player viewer)) {
-            // The console has no screen. Rather than failing, it is pointed at the commands that do
-            // the same jobs in text.
+            // The console has no screen: a player's page is printed as text, the rest pointed at the
+            // commands that do the same jobs.
+            if (args.length == 1 && !CONSOLE_KEEPS_OUT.contains(args[0].toLowerCase(Locale.ROOT))) {
+                printOverview(sender, args[0]);
+                return;
+            }
             moderation.messages().send(sender, "moderation.console-use-commands");
             return;
         }
@@ -90,6 +94,44 @@ public final class ModerationCommand extends StaffCommand {
      * while doing something else: a name comes up in staff chat and somebody wants one line back. A
      * menu for that is four clicks and a closed inventory.
      */
+    /** Subcommands that need a screen; a name is anything else. */
+    private static final java.util.Set<String> CONSOLE_KEEPS_OUT =
+            java.util.Set.of("info", "config", "reports", "staff", "xray", "audit", "note", "notes");
+
+    /** The player page's top row, as text — gathered the same way, off the server's threads where it reads files. */
+    private void printOverview(CommandSender sender, String typed) {
+        ModerationServices moderation = services();
+        Optional<OfflinePlayer> found = subject(sender, typed);
+        if (found.isEmpty()) {
+            return;
+        }
+        String name = Players.nameOf(found.get());
+        new de.raindancer.modules.moderation.service.PlayerOverviewService(moderation)
+                .gather(found.get().getUniqueId(), name, overview -> de.raindancer.core.platform.util.Scheduling
+                        .global(moderation.plugin(), () -> {
+                            Instant now = Instant.now();
+                            java.time.ZoneId zone = de.raindancer.modules.moderation.service.LogSearchService.ZONE;
+                            List<CommandSender> readers = new java.util.ArrayList<>(List.of(sender));
+                            if (sender instanceof org.bukkit.command.RemoteConsoleCommandSender) {
+                                readers.add(moderation.server().getConsoleSender());
+                            }
+                            for (CommandSender reader : readers) {
+                                moderation.messages().send(reader, "moderation.overview-heading", "player", name);
+                                List<String> lines = new java.util.ArrayList<>();
+                                lines.add(overview.presence().title());
+                                lines.addAll(overview.presenceLore(zone, now));
+                                lines.add(overview.standing().title());
+                                lines.addAll(overview.standingLore(now));
+                                lines.addAll(overview.identityLore(zone));
+                                lines.addAll(overview.recordLore());
+                                lines.addAll(overview.xrayLore());
+                                for (String line : lines) {
+                                    moderation.chat().row(reader, "  " + line);
+                                }
+                            }
+                        }));
+    }
+
     private void tellStanding(CommandSender sender, String[] args) {
         ModerationServices moderation = services();
         if (args.length < 2) {
