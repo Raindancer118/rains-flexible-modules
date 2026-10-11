@@ -190,6 +190,7 @@ public final class SendService implements ISendsService {
                     messages.send(by, "sends.save-failed");
                     return;
                 }
+                book.unlock(returning.id());
                 boolean cancelled = by.getUniqueId().equals(returning.sender());
                 Player sender = server.getPlayer(returning.sender());
                 Player recipient = server.getPlayer(returning.recipient());
@@ -252,6 +253,7 @@ public final class SendService implements ISendsService {
                         log.error("A send that ran out could not be saved as such; it will run out again at the "
                                 + "next start.");
                     }
+                    book.unlock(ran.id());
                     Player sender = server.getPlayer(ran.sender());
                     if (sender != null) {
                         messages.send(sender, "sends.ran-out", "player", ran.recipientName());

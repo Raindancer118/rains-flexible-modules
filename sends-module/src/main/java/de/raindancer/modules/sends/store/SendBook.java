@@ -51,6 +51,12 @@ public final class SendBook {
     private final Map<UUID, Send> open = new LinkedHashMap<>();
     /** Made but not yet on disk: nobody can see, accept or cancel these, because they may yet not exist. */
     private final Map<UUID, Send> saving = new LinkedHashMap<>();
+    /**
+     * Sends whose last change is not on disk yet. Nothing else may change them until it is: a change that is
+     * undone after a failed write must not undo something somebody else did to the send in the meantime — a
+     * collected send put back to pending would be given twice.
+     */
+    private final java.util.Set<UUID> locked = new java.util.HashSet<>();
     private final SendStorage storage;
     private final Executor writer;
     private final LongSupplier clock;
@@ -108,7 +114,7 @@ public final class SendBook {
         if (!send.recipient().equals(recipient)) {
             return Result.refused(Outcome.NOT_YOURS, send);
         }
-        if (send.state() != Send.State.PENDING) {
+        if (send.state() != Send.State.PENDING || locked.contains(id)) {
             return Result.refused(Outcome.WRONG_STATE, send);
         }
         long now = clock.getAsLong();
@@ -132,11 +138,12 @@ public final class SendBook {
         if (!send.sender().equals(by) && !send.recipient().equals(by)) {
             return Result.refused(Outcome.NOT_YOURS, send);
         }
-        if (send.state() != Send.State.PENDING) {
+        if (send.state() != Send.State.PENDING || locked.contains(id)) {
             return Result.refused(Outcome.WRONG_STATE, send);
         }
         Send returning = send.withState(Send.State.RETURNING, clock.getAsLong());
         open.put(id, returning);
+        locked.add(id);
         return new Result(Outcome.DONE, returning, send);
     }
 
@@ -149,7 +156,7 @@ public final class SendBook {
         if (!send.sender().equals(sender)) {
             return Result.refused(Outcome.NOT_YOURS, send);
         }
-        if (send.state() != Send.State.RETURNING) {
+        if (send.state() != Send.State.RETURNING || locked.contains(id)) {
             return Result.refused(Outcome.WRONG_STATE, send);
         }
         if (!room.test(send)) {
@@ -168,6 +175,7 @@ public final class SendBook {
             if (send.isExpiredAt(now)) {
                 Send returning = send.withState(Send.State.RETURNING, now);
                 open.put(send.id(), returning);
+                locked.add(send.id());
                 ran.add(returning);
             }
         }
@@ -178,11 +186,18 @@ public final class SendBook {
     public synchronized void discard(UUID id) {
         saving.remove(id);
         open.remove(id);
+        locked.remove(id);
     }
 
     /** Puts a send back as it was, after a change that could not be written or delivered. */
     public synchronized void revert(Send before) {
         open.put(before.id(), before);
+        locked.remove(before.id());
+    }
+
+    /** The last change of this send is on disk (or given up on): it may change again. */
+    public synchronized void unlock(UUID id) {
+        locked.remove(id);
     }
 
     // ------------------------------------------------------------------------------ asking

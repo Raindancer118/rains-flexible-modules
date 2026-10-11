@@ -312,6 +312,25 @@ class SendServiceTest {
     }
 
     @Test
+    @DisplayName("a cancel whose write fails cannot be undone after the sender collected: nobody gets it twice")
+    void failedCancelCannotDuplicate() {
+        java.util.ArrayDeque<Runnable> held = new java.util.ArrayDeque<>();
+        Send send = makeOne();
+        book = new SendBook(storage, held::add, now::get);
+        book.load();
+        service = new SendService(mock(Plugin.class), server, Log.of("test"), messages, mock(Effects.class), book,
+                new SendableItemsRule(stack -> false), now::get, SendsSettings.DEFAULTS.withCooldownSeconds(0));
+
+        service.release(alice.player, send.id());
+        service.collectAll(alice.player, true);
+        assertThat(alice.received).as("nothing is given while the cancel is unwritten").isEmpty();
+        storage.failing = true;
+        held.poll().run();
+        service.accept(bob.player, send.id());
+        assertThat(bob.received.size() + alice.received.size()).isLessThanOrEqualTo(1);
+    }
+
+    @Test
     @DisplayName("declining sends it back and tells the sender")
     void decline() {
         Send send = makeOne();

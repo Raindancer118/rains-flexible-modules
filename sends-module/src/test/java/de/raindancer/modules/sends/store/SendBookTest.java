@@ -181,12 +181,41 @@ class SendBookTest {
     void collect() {
         Send send = made();
         book.release(send.id(), ALICE);
+        book.unlock(send.id());
         assertThat(book.collect(send.id(), BOB, any -> true).outcome()).isEqualTo(SendBook.Outcome.NOT_YOURS);
         assertThat(book.collect(send.id(), ALICE, any -> false).outcome()).isEqualTo(SendBook.Outcome.NO_ROOM);
         SendBook.Result done = book.collect(send.id(), ALICE, any -> true);
         assertThat(done.outcome()).isEqualTo(SendBook.Outcome.DONE);
         assertThat(done.send().state()).isEqualTo(Send.State.RETURNED);
         assertThat(book.collect(send.id(), ALICE, any -> true).outcome()).isEqualTo(SendBook.Outcome.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("a send whose change is not on disk yet cannot be changed again — a failed write must not undo it later")
+    void lockedUntilWritten() {
+        Send send = made();
+        SendBook.Result released = book.release(send.id(), ALICE);
+        assertThat(book.collect(send.id(), ALICE, any -> true).outcome()).isEqualTo(SendBook.Outcome.WRONG_STATE);
+        assertThat(book.release(send.id(), BOB).outcome()).isEqualTo(SendBook.Outcome.WRONG_STATE);
+        book.unlock(send.id());
+        assertThat(book.collect(send.id(), ALICE, any -> true).outcome()).isEqualTo(SendBook.Outcome.DONE);
+
+        Send second = made();
+        SendBook.Result again = book.release(second.id(), ALICE);
+        book.revert(again.before());
+        assertThat(book.claim(second.id(), BOB, any -> true).outcome()).as("a revert unlocks").isEqualTo(SendBook.Outcome.DONE);
+        assertThat(released.done()).isTrue();
+    }
+
+    @Test
+    @DisplayName("what the sweep moved is locked until its write is done")
+    void sweepLocks() {
+        Send send = made();
+        now.addAndGet(10 * MINUTE);
+        book.expire();
+        assertThat(book.collect(send.id(), ALICE, any -> true).outcome()).isEqualTo(SendBook.Outcome.WRONG_STATE);
+        book.unlock(send.id());
+        assertThat(book.collect(send.id(), ALICE, any -> true).outcome()).isEqualTo(SendBook.Outcome.DONE);
     }
 
     @Test
