@@ -13,7 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Staff search public chat with /chatlog — by player, words, a phrase and today in Berlin time, a page at a time
- * with clickable pages and names.
+ * with clickable pages and names — and see what punished players tried anyway: a muted player talking, a banned
+ * one knocking, told as it happens and found with /attempts.
  */
 @Tag("e2e")
 class ChatSearchScenarioTest {
@@ -25,8 +26,8 @@ class ChatSearchScenarioTest {
     }
 
     @Test
-    @DisplayName("chat is searched by player, words, phrase and day with pages")
-    void chatSearch() {
+    @DisplayName("chat is searched by player, words, phrase and day with pages; blocked attempts are told and found")
+    void chatSearchAndAttempts() {
         try (Server server = Server.start("chat-search", List.of("moderation-standalone:RainsModeration-.*"),
                 List.of("Moderation is up"))) {
             Bot ada = server.admin("Ada");
@@ -64,6 +65,39 @@ class ChatSearchScenarioTest {
             Await.until("an unknown name is said back", WAIT, () -> said(ada, "Nobody called Nobody123"));
             ada.run("chatlog from:soon");
             Await.until("an unreadable time is said back", WAIT, () -> said(ada, "Could not read from:soon"));
+
+            // A muted player talking: blocked, kept, told.
+            ada.run("mute Bo 2h spam");
+            Await.until("Bo is muted", WAIT, () -> said(bo, "You have been muted"));
+            ada.forgetChat();
+            bo.say("let me talk please");
+            Await.until(() -> "staff are told (Ada saw " + ada.chatText() + ")", WAIT,
+                    () -> said(ada, "Bo tried to talk") && said(ada, "let me talk please"));
+            ada.forgetChat();
+            bo.say("still muted?");
+            Await.ticks(20);
+            assertThat(said(ada, "still muted?")).as("the second attempt within the quiet time is held back").isFalse();
+
+            // A banned player knocking.
+            cy.leave();
+            ada.run("ban Cy griefing");
+            Await.until("Cy is banned", WAIT, () -> server.console("banlist players").contains("Cy"));
+            ada.forgetChat();
+            Bot again = server.paper.bot("Cy");
+            assertThat(again.joinRefused()).isNotBlank();
+            Await.until(() -> "staff are told Cy knocked (Ada saw " + ada.chatText() + ")", WAIT,
+                    () -> said(ada, "Cy tried to join"));
+
+            ada.forgetChat();
+            ada.run("attempts type:join");
+            Await.until(() -> "the join is found (Ada saw " + ada.chatText() + ")", WAIT, () -> said(ada, "Cy") && said(ada, "tried to join (banned: Griefing)"));
+            ada.forgetChat();
+            ada.run("attempts player:Bo");
+            Await.until("both of Bo's lines are kept", WAIT,
+                    () -> said(ada, "let me talk please") && said(ada, "still muted?"));
+
+            ada.run("attempts alerts off");
+            Await.until("alerts can be switched off", WAIT, () -> said(ada, "You are not told"));
 
             assertThat(server.paper.errorsFrom("RainsCore", "RainsModeration")).isEmpty();
         }

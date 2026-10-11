@@ -51,6 +51,14 @@ public final class AdCommand implements IChatCommand {
         var muted = live.core().punishmentGuard().speakRefusal(player.getUniqueId());
         if (muted.isPresent()) {
             player.sendMessage(muted.get());
+            var attempts = live.core().blockedAttempts();
+            if (attempts != null) {
+                attempts.record(player.getUniqueId(), player.getName(),
+                        de.raindancer.core.moderation.punishment.BlockedAttempts.Kind.COMMAND,
+                        live.core().punishmentGuard().stopping(player.getUniqueId(),
+                                de.raindancer.core.moderation.punishment.PunishmentKind.MUTE).orElse(null),
+                        "/ad " + typed, null);
+            }
             return;
         }
         String text = typed;

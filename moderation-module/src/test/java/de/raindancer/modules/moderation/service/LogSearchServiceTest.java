@@ -1,7 +1,12 @@
 package de.raindancer.modules.moderation.service;
 
+import de.raindancer.core.data.sql.CoreSchema;
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.moderation.audit.Audit;
 import de.raindancer.core.moderation.chatlog.ChatLog;
+import de.raindancer.core.moderation.punishment.BlockedAttempts;
+import de.raindancer.core.moderation.punishment.Punishment;
+import de.raindancer.core.moderation.punishment.PunishmentKind;
 import de.raindancer.modules.moderation.model.LogQuery;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,15 +37,21 @@ class LogSearchServiceTest {
     private final UUID mushy = UUID.fromString("e392eece-9274-4560-8672-32185a9b2f55");
     private final UUID bo = UUID.randomUUID();
     private Database chatDb;
+    private Database auditDb;
     private ChatLog chatLog;
+    private Audit audit;
+    private BlockedAttempts attempts;
     private LogSearchService search;
 
     @BeforeEach
     void open() {
         chatDb = Database.open(folder.resolve("chatlog.db"), ChatLog.SCHEMA, () -> false);
+        auditDb = Database.open(folder.resolve("audit.db"), CoreSchema.AUDIT, () -> false);
         chatLog = new ChatLog(chatDb, clock::get);
+        audit = new Audit(auditDb, clock::get);
+        attempts = new BlockedAttempts(audit, clock::get);
         Map<String, UUID> current = Map.of("mushythefish", mushy, "bo", bo);
-        search = new LogSearchService(() -> chatLog,
+        search = new LogSearchService(() -> chatLog, () -> attempts,
                 typed -> Optional.ofNullable(current.get(typed.toLowerCase(java.util.Locale.ROOT))));
         say(17, 20, mushy, "MushyTheFish", "before the window");
         say(17, 35, mushy, "MushyTheFish", "did you read the RULES");
@@ -57,6 +68,7 @@ class LogSearchServiceTest {
     @AfterEach
     void close() {
         chatDb.close();
+        auditDb.close();
     }
 
     private LogQuery query(String typed) {
@@ -102,4 +114,26 @@ class LogSearchServiceTest {
         assertThat(search.chat(query("day:2026-10-09"), 2).total()).isZero();
     }
 
+    @Test
+    @DisplayName("blocked attempts are found by player, kind, Berlin time and words in what was tried")
+    void attempts() {
+        Punishment ban = new Punishment("b", mushy, PunishmentKind.BAN, null, "griefing", Instant.EPOCH, null,
+                null, null, null);
+        Punishment mute = new Punishment("m", bo, PunishmentKind.MUTE, null, "spam", Instant.EPOCH, null,
+                null, null, null);
+        clock.set(berlin(11, 12, 54));
+        attempts.record(mushy, "MushyTheFish", BlockedAttempts.Kind.JOIN, ban, "", "abc");
+        clock.set(berlin(11, 12, 56));
+        attempts.record(bo, "Bo", BlockedAttempts.Kind.CHAT, mute, "let me talk", null);
+        clock.set(berlin(11, 13, 10));
+        attempts.record(mushy, "MushyTheFish", BlockedAttempts.Kind.JOIN, ban, "", "abc");
+
+        assertThat(search.attempts(query("player:MushyTheFish"), 10).total()).isEqualTo(2);
+        assertThat(search.attempts(query("type:chat"), 10).items()).singleElement()
+                .extracting(BlockedAttempts.Attempt::detail).isEqualTo("let me talk");
+        assertThat(search.attempts(query("from:2026-10-11 12:50 to:2026-10-11 13:00"), 10).total()).isEqualTo(2);
+        assertThat(search.attempts(query("talk"), 10).total()).isEqualTo(1);
+        assertThat(search.attempts(query("griefing"), 10).total()).isEqualTo(2);
+        assertThat(search.unknownTypes(query("type:join type:fly"))).containsExactly("fly");
+    }
 }

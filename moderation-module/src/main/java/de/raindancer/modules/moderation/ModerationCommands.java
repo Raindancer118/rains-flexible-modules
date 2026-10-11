@@ -130,6 +130,13 @@ public final class ModerationCommands {
                                 new HistoryCommand(ModerationCommands::require))
                         .taking("<player>")
                         .needing(ModerationPermission.HISTORY.node()),
+                ModuleCommand.of("attempts", "What punished players tried to do anyway",
+                                new de.raindancer.modules.moderation.command.AttemptsCommand(ModerationCommands::require))
+                        .aliased("blockedattempts")
+                        .taking("[player:<name>] [type:join|chat|command|build] [from:<time>] [to:<time>] "
+                                        + "[day:<day>] [last:<2h>] [words] [page:<n>]",
+                                "alerts on|off — whether you are told when somebody tries")
+                        .needing(ModerationPermission.ATTEMPTS.node()),
                 ModuleCommand.of("audit", "The audit journal — joins, teleports, gamemode, moderation",
                                 new AuditCommand(ModerationCommands::require))
                         .taking("[player] [feature] — nothing shows the newest across the server")

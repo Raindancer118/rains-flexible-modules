@@ -68,7 +68,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.34.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.35.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -297,10 +297,20 @@ public final class ModerationModule implements FlexModule {
             }
         }
 
-        // Chat search reads Core's own chat log, never a copy of it.
+        // Chat search and what punished players tried: both read Core's own records (the chat log, the audit
+        // journal), never a copy of them.
         de.raindancer.modules.moderation.service.LogSearchService logSearch =
                 new de.raindancer.modules.moderation.service.LogSearchService(() -> context.core().chatLog(),
+                        () -> context.core().blockedAttempts(),
                         typed -> de.raindancer.core.platform.command.PlayerTargets.idOf(server, typed));
+        de.raindancer.modules.moderation.service.AttemptAlertService attemptAlerts =
+                new de.raindancer.modules.moderation.service.AttemptAlertService(
+                        new de.raindancer.modules.moderation.rules.AttemptAlertRule(),
+                        alert -> tellStaffAbout(context, alert), System::currentTimeMillis, settings.current());
+        java.util.function.Consumer<de.raindancer.core.moderation.punishment.BlockedAttempts.Attempt> attemptWatcher =
+                attemptAlerts::onAttempt;
+        de.raindancer.core.moderation.punishment.BlockedAttempts.watch(attemptWatcher);
+        context.closeWith(() -> de.raindancer.core.moderation.punishment.BlockedAttempts.unwatch(attemptWatcher));
 
         services = new ModerationServices(context.plugin(), server, log, context.core().messages(),
                 context.chat(), context.chat().brand(), context.core().prompts(),
@@ -315,7 +325,7 @@ public final class ModerationModule implements FlexModule {
                 staffService, worldTools, banhammer, vaults,
                 new de.raindancer.modules.moderation.service.RuleBreachService(punishmentService,
                         ruleOffences(context), staffRule, this::banLimitRule, context.core().messages(), fineService),
-                fineService, buyoffService, logSearch,
+                fineService, buyoffService, logSearch, attemptAlerts,
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
 
@@ -349,6 +359,7 @@ public final class ModerationModule implements FlexModule {
             fineService.settings(fresh);
             buyoffService.settings(fresh);
             logSearch.settings(fresh);
+            attemptAlerts.settings(fresh);
             context.core().punishmentGuard().appealMessage(fresh.appealMessage());
         });
 
@@ -387,6 +398,43 @@ public final class ModerationModule implements FlexModule {
 
         log.info("Moderation is up: {} reason(s), {} report(s) waiting, {} staff.", reasons.size(),
                 reports.waitingCount(), roster.size());
+    }
+
+    /**
+     * Tells staff online who may see attempts, and have not switched alerts off, that a punished player tried
+     * anyway — each on their own thread, since the switch lives on the player. The console hears it too.
+     */
+    private void tellStaffAbout(ModuleContext context,
+                                de.raindancer.modules.moderation.service.AttemptAlertService.Alert alert) {
+        ModerationServices live = services;
+        if (live == null) {
+            return;
+        }
+        var attempt = alert.attempt();
+        net.kyori.adventure.text.Component line = live.chat().mm(live.messages().raw("moderation.attempts.alert"),
+                de.raindancer.core.ui.chat.Chat.arg("player", attempt.name()),
+                de.raindancer.core.ui.chat.Chat.arg("kind",
+                        de.raindancer.modules.moderation.command.AttemptsCommand.kindWord(live, attempt.kind())),
+                de.raindancer.core.ui.chat.Chat.arg("punishment",
+                        de.raindancer.modules.moderation.command.AttemptsCommand.punishmentWords(attempt)),
+                de.raindancer.core.ui.chat.Chat.arg("detail", attempt.detail()),
+                de.raindancer.core.ui.chat.Chat.formatted("more", alert.heldBack() == 0
+                        ? net.kyori.adventure.text.Component.empty()
+                        : live.messages().get("moderation.attempts.more", "count", alert.heldBack())),
+                de.raindancer.core.ui.chat.Chat.formatted("show", live.messages().get("moderation.attempts.show")
+                        .clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand(
+                                "/attempts player:" + attempt.player()))));
+        de.raindancer.modules.moderation.util.AttemptAlertSwitch alerts =
+                new de.raindancer.modules.moderation.util.AttemptAlertSwitch(context.plugin());
+        String node = de.raindancer.modules.moderation.model.ModerationPermission.ATTEMPTS.node();
+        for (org.bukkit.entity.Player staff : live.server().getOnlinePlayers()) {
+            Scheduling.entity(context.plugin(), staff, () -> {
+                if (staff.hasPermission(node) && alerts.isOn(staff)) {
+                    staff.sendMessage(line);
+                }
+            });
+        }
+        Scheduling.global(context.plugin(), () -> live.server().getConsoleSender().sendMessage(line));
     }
 
     /**

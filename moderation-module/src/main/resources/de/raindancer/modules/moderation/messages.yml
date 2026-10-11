@@ -217,11 +217,11 @@ moderation:
   # built from a player's own name and goes through the ordinary escaping every value here gets.
   audit-line-chat: "<dark_gray>(<when>)</dark_gray> <white><feature></white> <gray>— <saying>"
 
-  # ── /chatlog: searching what was said ──────────────────────────────────
+  # ── /chatlog and /attempts: searching what was said, and what punished players tried ──
   # Times are Berlin time. <what> is the search as read back; the page buttons and names are clickable.
   logsearch:
     unreadable: "<red>Could not read <white><part></white>. <gray>Times look like 2026-10-10 17:30, 10.10.2026, today, yesterday or 9:05 (Berlin time); last: takes 30m, 2h or 3d; page: a number."
-    unknown-type: "<red>There is no kind called <white><part></white>."
+    unknown-type: "<red>There is no kind of attempt called <white><part></white>. <gray>Kinds: join, chat, command, build."
     nobody: "<red>Nobody called <white><player></white> has joined or chatted here. <gray>An old name works too, if they chatted under it."
     none: "<gray>Nothing found for <white><what></white>."
     pages: "<newer> <gray>page <white><page></white> of <white><pages></white></gray> <older>"
@@ -237,6 +237,21 @@ moderation:
     line: "<time> <player><dark_gray>:</dark_gray> <white><text>"
     help: "<gray>Try <white>/chatlog player:Name from:2026-10-10 17:30 to:18:00 rules \"a phrase\"</white> — or day:yesterday, last:2h, page:2."
     type-search: "<gray>Type what to look for — every word must be in the line, \"quotes\" for a phrase. <dark_gray>You have a minute."
+  attempts:
+    heading: "<gray>Attempts while punished · <white><what></white> — <white><count></white>, page <page> of <pages>:"
+    line: "<time> <player> <gray>tried to <yellow><kind></yellow> <dark_gray>(<punishment>)</dark_gray> <white><detail>"
+    help: "<gray>Try <white>/attempts player:Name type:join day:today</white> — kinds: join, chat, command, build."
+    alert: "<gray>[<red>Attempt</red>] <white><player></white> tried to <yellow><kind></yellow> <dark_gray>(<punishment>)</dark_gray> <white><detail></white><more> <show>"
+    more: " <dark_gray>— and <count> more since the last alert"
+    show: "<dark_gray>[show all]"
+    alerts-on: "<green>You are told when a punished player tries anyway. <dark_gray>/attempts alerts off to stop."
+    alerts-off: "<gray>You are not told when a punished player tries anyway. <dark_gray>/attempts alerts on to start again."
+    alerts-players-only: "<gray>Alerts are switched per member of staff in game; the console always hears them."
+    kinds:
+      join: "join"
+      chat: "talk"
+      command: "use a command"
+      build: "build"
 
   # ── inventories ──────────────────────────────────────────────────────────
   invsee:

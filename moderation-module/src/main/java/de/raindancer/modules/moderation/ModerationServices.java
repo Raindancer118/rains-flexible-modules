@@ -110,6 +110,7 @@ public record ModerationServices(
         de.raindancer.modules.moderation.service.FineService fines,
         de.raindancer.modules.moderation.service.BuyoffService buyoffs,
         de.raindancer.modules.moderation.service.LogSearchService logSearch,
+        de.raindancer.modules.moderation.service.AttemptAlertService attemptAlerts,
         Supplier<de.raindancer.modules.moderation.listener.StaffChatListener> staffChatSpeaker,
 
         Supplier<ModerationSettings> settings,
