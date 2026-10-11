@@ -27,6 +27,7 @@ public final class ViolationService implements IAntiCheatService {
     private volatile AntiCheatSettings settings = AntiCheatSettings.DEFAULTS;
 
     private volatile de.raindancer.modules.anticheat.store.ReplayStore replays;
+    private volatile AutoReportService reports;
     private final java.util.Map<String, Long> lastReplay = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ViolationService(ActionRule rule, AlertService alerts, PunishService punishments, EvidenceLog evidence) {
@@ -77,7 +78,25 @@ public final class ViolationService implements IAntiCheatService {
         if (check != CheckType.IMPROBABLE) {
             judgeImprobable(player, track);
         }
+        AutoReportService toReport = reports;
+        if (toReport != null && de.raindancer.modules.anticheat.rules.ConfidenceRule.counts(check)) {
+            Location at = player.getLocation();
+            toReport.flagged(player.getUniqueId(), player.getName(), check, flag.weight(), flag.detail(), movementLevel(track),
+                    track.ping, Bukkit.getTPS()[0], (at.getWorld() == null ? "?" : at.getWorld().getName())
+                            + " " + at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ());
+        }
         return decision;
+    }
+
+    /** What the movement checks hold against them together, after decay. */
+    private static double movementLevel(PlayerTrack track) {
+        double sum = 0;
+        for (java.util.Map.Entry<CheckType, Double> entry : track.violations().snapshot().entrySet()) {
+            if (de.raindancer.modules.anticheat.rules.ConfidenceRule.counts(entry.getKey())) {
+                sum += entry.getValue();
+            }
+        }
+        return sum;
     }
 
     private void judgeImprobable(Player player, PlayerTrack track) {
@@ -95,6 +114,10 @@ public final class ViolationService implements IAntiCheatService {
 
     public void forget(java.util.UUID player) {
         lastImprobable.remove(player);
+        AutoReportService toReport = reports;
+        if (toReport != null) {
+            toReport.forget(player);
+        }
         lastReplay.keySet().removeIf(key -> key.startsWith(player.toString()));
     }
 
@@ -115,6 +138,11 @@ public final class ViolationService implements IAntiCheatService {
             punishments.forgive(player);
         }
         forget(player);
+    }
+
+    /** Where movement flags go to be weighed for a staff report; without one, none is filed. */
+    public void reportsTo(AutoReportService service) {
+        this.reports = service;
     }
 
     /** Where frozen replays go; without one, alerts keep no replay. */

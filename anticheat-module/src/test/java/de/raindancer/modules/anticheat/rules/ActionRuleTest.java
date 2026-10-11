@@ -12,7 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ActionRuleTest {
 
     private final ActionRule rule = new ActionRule();
-    private final AntiCheatSettings defaults = AntiCheatSettings.DEFAULTS;
+    /** An owner who switched setbacks, cancels and kicks on: the defaults leave all three off. */
+    private final AntiCheatSettings defaults = with(false, List.of(), List.of(), 100);
 
     private static AntiCheatSettings with(boolean autoBan, List<String> disabled, List<String> silent, int scale) {
         return with(autoBan, AntiCheatSettings.DEFAULTS.punishByRules(), disabled, silent, scale);
@@ -21,11 +22,12 @@ class ActionRuleTest {
     private static AntiCheatSettings with(boolean autoBan, boolean byRules, List<String> disabled, List<String> silent, int scale) {
         AntiCheatSettings d = AntiCheatSettings.DEFAULTS;
         return new AntiCheatSettings(d.enabled(), d.packetTap(), d.minTps(), d.maxPing(), d.exemptBedrock(), d.exemptTranslated(),
-                d.alerts(), d.setbacks(), d.cancel(), d.autoKick(), autoBan, d.banLength(), byRules, d.cheatingRule(),
+                d.alerts(), true, true, true, autoBan, d.banLength(), byRules, d.cheatingRule(),
                 scale, d.evidence(),
                 d.evidencePerPlayer(), disabled, silent, d.experimentalChecks(), d.reachLeniency(), d.timerLeniency(),
                 d.maxCps(), d.blockedBrands(), d.blockedChannels(), d.kickBlockedClients(), d.announceBrands(), d.antiEsp(),
-                d.antiEspRange(), d.dampenSuspects(), d.dampenPercent());
+                d.antiEspRange(), d.dampenSuspects(), d.dampenPercent(), d.autoReport(), d.autoReportFlags(), d.autoReportSeconds(),
+                d.autoReportLevel(), d.autoReportMaxPing());
     }
 
     @Test
@@ -89,5 +91,20 @@ class ActionRuleTest {
         }
         assertThat(java.util.Arrays.stream(CheckType.values()).map(CheckType::key).distinct().count())
                 .isEqualTo(CheckType.values().length);
+    }
+
+    @Test
+    @DisplayName("out of the box nothing is ever set back, cancelled, kicked or banned: checks only alert, staff decide")
+    void defaultsNeverPunish() {
+        AntiCheatSettings fresh = AntiCheatSettings.DEFAULTS;
+        for (CheckType check : CheckType.values()) {
+            for (double level : new double[]{1, check.alertAt(), 10, 100, 10_000}) {
+                ActionRule.Decision decision = rule.decide(check, level, fresh);
+                assertThat(decision.act()).as("%s at %.0f acts", check, level).isFalse();
+                assertThat(decision.kick()).as("%s at %.0f kicks", check, level).isFalse();
+                assertThat(decision.ban()).as("%s at %.0f bans", check, level).isFalse();
+            }
+        }
+        assertThat(rule.decide(CheckType.FLY, CheckType.FLY.alertAt(), fresh).alert()).isTrue();
     }
 }

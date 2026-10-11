@@ -4,6 +4,7 @@ import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.modules.anticheat.AntiCheatSettings;
 import de.raindancer.modules.anticheat.model.CheckType;
 import de.raindancer.modules.anticheat.model.Flag;
+import de.raindancer.modules.anticheat.model.Inputs;
 import de.raindancer.modules.anticheat.model.MoveSample;
 import de.raindancer.modules.anticheat.model.PlayerTrack;
 import io.netty.channel.Channel;
@@ -159,7 +160,7 @@ public final class PacketTap implements IAntiCheatService {
 
     // ------------------------------------------------------------------------------ reading
 
-    private enum Kind { MOVE, TICK_END, ATTACK, SWING, ACTION, COMMAND, USE, INTERACT, CARRIED, HELD_SLOT_OUT, MOTION_OUT, BLOCK_OUT, BLOCKS_OUT, PONG, UNLIST_OUT, OTHER }
+    private enum Kind { MOVE, INPUT, TICK_END, ATTACK, SWING, ACTION, COMMAND, USE, INTERACT, CARRIED, HELD_SLOT_OUT, MOTION_OUT, BLOCK_OUT, BLOCKS_OUT, PONG, UNLIST_OUT, OTHER }
 
     private volatile EspShield shield;
     private volatile MethodHandle newUnlist;
@@ -196,6 +197,16 @@ public final class PacketTap implements IAntiCheatService {
                         LOOKUP.findVirtual(type, "horizontalCollision", MethodType.methodType(boolean.class))});
             }
             return switch (name) {
+                case "net.minecraft.network.protocol.game.ServerboundPlayerInputPacket" -> {
+                    Class<?> input = type.getMethod("input").getReturnType();
+                    MethodHandle[] keys = new MethodHandle[8];
+                    keys[0] = LOOKUP.findVirtual(type, "input", MethodType.methodType(input));
+                    String[] names = {"forward", "backward", "left", "right", "jump", "shift", "sprint"};
+                    for (int i = 0; i < names.length; i++) {
+                        keys[i + 1] = LOOKUP.findVirtual(input, names[i], MethodType.methodType(boolean.class));
+                    }
+                    yield new Reader(Kind.INPUT, keys);
+                }
                 case "net.minecraft.network.protocol.game.ServerboundClientTickEndPacket" -> new Reader(Kind.TICK_END, new MethodHandle[0]);
                 case "net.minecraft.network.protocol.game.ServerboundAttackPacket" -> new Reader(Kind.ATTACK, new MethodHandle[]{
                         LOOKUP.findVirtual(type, "entityId", MethodType.methodType(int.class))});
@@ -401,8 +412,14 @@ public final class PacketTap implements IAntiCheatService {
                             track.samples.add(new MoveSample(
                                     (double) g[2].invoke(msg, Double.NaN), (double) g[3].invoke(msg, Double.NaN),
                                     (double) g[4].invoke(msg, Double.NaN), yaw, pitch, hasPos, hasRot,
-                                    (boolean) g[7].invoke(msg), (boolean) g[8].invoke(msg), ticks, nanos, true));
+                                    (boolean) g[7].invoke(msg), (boolean) g[8].invoke(msg), ticks, nanos, true, p.input));
                         }
+                    }
+                    case INPUT -> {
+                        Object input = g[0].invoke(msg);
+                        p.input = Inputs.of((boolean) g[1].invoke(input), (boolean) g[2].invoke(input), (boolean) g[3].invoke(input),
+                                (boolean) g[4].invoke(input), (boolean) g[5].invoke(input), (boolean) g[6].invoke(input),
+                                (boolean) g[7].invoke(input));
                     }
                     case TICK_END -> {
                         p.sendsTickEnd = true;

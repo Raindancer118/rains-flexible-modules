@@ -132,8 +132,10 @@
           2.27.0: sneak-right-click with an empty hand takes the Banhammer back out of the vault; the
           vault's model and file are RainsCore's Stash (1.66.0) — same files, same format.
              2.31.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
-             2.33.0: hands out a rule's next punishment for other plugins (the anti-cheat) through Core's RuleBreaches. -->
-        <plugin.version>2.36.2</plugin.version>
+             2.33.0: hands out a rule's next punishment for other plugins (the anti-cheat) through Core's RuleBreaches.
+             2.37.0: files reports other plugins make on their own (the anti-cheat's movement hacks) through Core's AutoReports,
+                    one open per player and kind. -->
+        <plugin.version>2.37.0</plugin.version>
     </properties>
 
     <dependencies>

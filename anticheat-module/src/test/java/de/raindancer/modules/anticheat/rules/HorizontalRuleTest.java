@@ -110,4 +110,24 @@ class HorizontalRuleTest {
         HorizontalRule.Move both = new HorizontalRule.Move(0.2864, first + second, 2, true, true, 0.6, 0.6, 0.1, false, true, 1, false, Double.NaN, 0);
         assertThat(rule.judge(both).failed()).isFalse();
     }
+
+    @Test
+    @DisplayName("with no key held, nothing accelerates them: only friction carries on")
+    void noKeys() {
+        double sliding = 0.2864 * 0.546;
+        HorizontalRule.Move coasting = new HorizontalRule.Move(0.2864, sliding, 1, true, true, 0.6, 0.6, 0.1, false, true, 1, false, Double.NaN, 0, false);
+        assertThat(rule.judge(coasting).passed()).isTrue();
+        HorizontalRule.Move pushing = new HorizontalRule.Move(0.2864, sliding + 0.1, 1, true, true, 0.6, 0.6, 0.1, false, true, 1, false, Double.NaN, 0, false);
+        assertThat(rule.judge(pushing).failed()).as("0.1 more than friction leaves, with every key up").isTrue();
+        HorizontalRule.Move keyed = new HorizontalRule.Move(0.2864, sliding + 0.1, 1, true, true, 0.6, 0.6, 0.1, false, true, 1, false, Double.NaN, 0, true);
+        assertThat(rule.judge(keyed).passed()).as("the same move with a key down").isTrue();
+    }
+
+    @Test
+    @DisplayName("a jump with every key up still gets the sprint boost the lingering flag may give")
+    void jumpWithoutKeys() {
+        double jumpTick = 0.2864 * 0.546 + 0.2;
+        HorizontalRule.Move jumping = new HorizontalRule.Move(0.2864, jumpTick, 1, true, true, 0.6, 0.6, 0.1, false, true, 1, true, Double.NaN, 0, false);
+        assertThat(rule.judge(jumping).passed()).isTrue();
+    }
 }

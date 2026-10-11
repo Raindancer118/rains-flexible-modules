@@ -22,10 +22,21 @@ public final class HorizontalRule implements IAntiCheatRule {
      * @param jumped            jumped off the ground this tick
      * @param velocity          horizontal speed of a push the client may apply this tick, or NaN
      * @param push              extra allowance for entities pushing them
+     * @param keysHeld          false when the client held no direction key: then nothing accelerates it and only
+     *                          friction carries the last move on
      */
     public record Move(double lastHd, double hd, int ticks, boolean wasOnGround, boolean wasOnGroundBefore,
                        double friction, double frictionBefore, double movementSpeed, boolean sprintCounted,
-                       boolean maySprint, double slowdown, boolean jumped, double velocity, double push) {
+                       boolean maySprint, double slowdown, boolean jumped, double velocity, double push,
+                       boolean keysHeld) {
+
+        /** With a key down, or without knowing about the keys. */
+        public Move(double lastHd, double hd, int ticks, boolean wasOnGround, boolean wasOnGroundBefore,
+                    double friction, double frictionBefore, double movementSpeed, boolean sprintCounted,
+                    boolean maySprint, double slowdown, boolean jumped, double velocity, double push) {
+            this(lastHd, hd, ticks, wasOnGround, wasOnGroundBefore, friction, frictionBefore, movementSpeed,
+                    sprintCounted, maySprint, slowdown, jumped, velocity, push, true);
+        }
     }
 
     public enum Outcome { PASS, SPEED, NO_SLOW }
@@ -59,8 +70,9 @@ public final class HorizontalRule implements IAntiCheatRule {
     /** The farthest {@code ticks} ticks can go, assuming the best input every tick. */
     public double limit(Move move, double slowdown, boolean maySprint) {
         double speed = move.movementSpeed() * (move.sprintCounted() || !maySprint ? 1 : Physics.SPRINT_MULTIPLIER);
-        double ground = Physics.groundAcceleration(speed, move.friction()) * slowdown;
-        double air = (maySprint ? Physics.AIR_ACCELERATION_SPRINTING : Physics.AIR_ACCELERATION) * slowdown;
+        double keys = move.keysHeld() ? 1 : 0;
+        double ground = Physics.groundAcceleration(speed, move.friction()) * slowdown * keys;
+        double air = (maySprint ? Physics.AIR_ACCELERATION_SPRINTING : Physics.AIR_ACCELERATION) * slowdown * keys;
         double accel = move.wasOnGround() ? ground : air;
 
         double carried = move.lastHd() * (move.wasOnGroundBefore() ? move.frictionBefore() * Physics.AIR_FRICTION : Physics.AIR_FRICTION);

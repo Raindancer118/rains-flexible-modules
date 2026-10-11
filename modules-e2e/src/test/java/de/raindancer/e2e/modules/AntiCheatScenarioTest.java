@@ -46,6 +46,9 @@ class AntiCheatScenarioTest {
     void cheaters() {
         try (Server server = Server.start("anticheat",
                 List.of("anticheat-standalone:RainsAntiCheat-.*"), List.of("Anti-cheat is up"))) {
+            // Nothing is undone or cancelled out of the box; NoFall's fall damage below is the opt-in doing its work.
+            assertThat(server.console("settings set setbacks true")).contains("is now");
+            assertThat(server.console("settings set cancel true")).contains("is now");
             server.console("forceload add -16 -16 16 16");
             server.console("fill -12 100 -12 12 100 12 minecraft:stone");
             server.console("fill -12 101 -12 12 125 12 minecraft:air");

@@ -199,6 +199,11 @@ public final class PlayerTrack {
         public boolean sprint;
         public long inputChangedMillis;
         public boolean inputSeen;
+        /** Consecutive judged moves made with the sneak key down (0: up), and while using an item. */
+        public int sneakMoves;
+        public int usingMoves;
+        /** Consecutive judged moves made with no direction key down, as the client itself reported them. */
+        public int idleMoves;
 
         public void forget() {
             known = false;
@@ -212,6 +217,9 @@ public final class PlayerTrack {
             jesusTicks = 0;
             glideClimbTicks = 0;
             vehicleClimbTicks = 0;
+            sneakMoves = 0;
+            usingMoves = 0;
+            idleMoves = 0;
         }
 
         public boolean moving() {
@@ -281,6 +289,8 @@ public final class PlayerTrack {
         public volatile boolean sendsTickEnd;
         public int movesThisTick;
         public boolean movedThisTick;
+        /** The keys the client last reported on the wire, {@link Inputs}; stamped onto every move after it. */
+        public int input = Inputs.UNKNOWN;
         public float lastYaw = Float.NaN;
         public float lastPitch = Float.NaN;
         public int lastSlot = -1;

@@ -18,6 +18,7 @@ import java.util.Locale;
         @Topic(path = "anticheat/actions", title = "What a failed check does", icon = Material.IRON_BARS),
         @Topic(path = "anticheat/checks", title = "Checks", icon = Material.COMPARATOR),
         @Topic(path = "anticheat/clients", title = "Clients", icon = Material.NAME_TAG),
+        @Topic(path = "anticheat/reports", title = "Staff reports", icon = Material.WRITABLE_BOOK),
 })
 public record AntiCheatSettings(
 
@@ -209,16 +210,64 @@ public record AntiCheatSettings(
         @In("anticheat/actions") @Title("Suspects' damage, in percent") @Range(min = 0, max = 100)
         @Describe("How much of their damage a dampened suspect still deals.")
         @Key("dampen-percent")
-        int dampenPercent) {
+        int dampenPercent,
+
+        // ─────────────────────────────────────────────────────────── reports
+
+        @In("anticheat/reports") @Title("Report movement hacks")
+        @Describe("When the movement checks keep failing over a stretch of time — not a burst, a pattern — "
+                + "the anti-cheat files one report in the moderation queue, from 'the console', with what it "
+                + "saw. It never punishes: staff decide. Needs the moderation module; without it nothing is "
+                + "filed. Not filed again while an open one about the same player waits.")
+        @Key("auto-report")
+        boolean autoReport,
+
+        @In("anticheat/reports") @Title("Flags needed") @Range(min = 5, max = 500)
+        @Describe("How many movement flags in the window, when two different checks agree. One check on its "
+                + "own needs twice as many. Flags made at a bad ping or while the server lagged never count.")
+        @Key("auto-report-flags")
+        int autoReportFlags,
+
+        @In("anticheat/reports") @Title("Window, in seconds") @Range(min = 30, max = 900)
+        @Describe("How far back flags count towards a report. They must fall into at least three separate "
+                + "five-second stretches of it.")
+        @Key("auto-report-seconds")
+        int autoReportSeconds,
+
+        @In("anticheat/reports") @Title("Violation level still standing") @Range(min = 1, max = 200)
+        @Describe("The movement checks' levels, after their decay, must still add up to this: a hack that "
+                + "stopped a minute ago has decayed away.")
+        @Key("auto-report-level")
+        int autoReportLevel,
+
+        @In("anticheat/reports") @Title("Highest ping that counts") @Range(min = 50, max = 2000)
+        @Describe("Flags made above this ping are put down to the connection and are not counted.")
+        @Key("auto-report-max-ping")
+        int autoReportMaxPing) {
 
     public static final AntiCheatSettings DEFAULTS = new AntiCheatSettings(
             true, true, 17.0, 600, true, false,
-            true, true, true, true, false, "7d", true, "auto", 100, true, 200,
+            true, false, false, false, false, "7d", true, "auto", 100, true, 200,
             List.of(), List.of(), true, 0.3, 150, 20,
             List.of("wurst", "meteor", "liquidbounce", "aristois", "rusherhack", "konas", "bleachhack",
                     "inertia", "novoline", "tenacity"),
             List.of("wurst", "meteor-client", "liquidbounce", "aristois", "bleachhack"),
-            true, false, false, 64, false, 50);
+            true, false, false, 64, false, 50,
+            true, 20, 120, 15, 300);
+
+    public AntiCheatSettings withAutoReport(boolean on) {
+        return new AntiCheatSettings(enabled, packetTap, minTps, maxPing, exemptBedrock, exemptTranslated, alerts, setbacks,
+                cancel, autoKick, autoBan, banLength, punishByRules, cheatingRule, punishScale, evidence, evidencePerPlayer,
+                disabledChecks, silentChecks, experimentalChecks, reachLeniency, timerLeniency, maxCps, blockedBrands,
+                blockedChannels, kickBlockedClients, announceBrands, antiEsp, antiEspRange, dampenSuspects, dampenPercent,
+                on, autoReportFlags, autoReportSeconds, autoReportLevel, autoReportMaxPing);
+    }
+
+    /** What the confidence rule needs, from the owner's numbers. */
+    public de.raindancer.modules.anticheat.rules.ConfidenceRule.Policy reportPolicy() {
+        return new de.raindancer.modules.anticheat.rules.ConfidenceRule.Policy(autoReportSeconds * 1000L, autoReportFlags,
+                autoReportLevel, autoReportMaxPing, minTps, 3, 5_000);
+    }
 
     public boolean disabled(String checkKey) {
         return contains(disabledChecks, checkKey);

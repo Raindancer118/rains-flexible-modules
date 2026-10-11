@@ -29,8 +29,11 @@
              0.8.0: at a check's ban level the server's rule about cheating decides the punishment (via moderation).
              0.8.1: only with auto-ban on; punish-by-rules says what a ban level costs, not that it costs anything.
              0.9.0: false positives from Lilly's SMP fixed (steps, ladders, NoFall without a fall, mined ground,
-                    sprint flag, punches, passengers); ViaVersion-translated clients left to combat/world checks. -->
-        <plugin.version>0.9.0</plugin.version>
+                    sprint flag, punches, passengers); ViaVersion-translated clients left to combat/world checks.
+             0.10.0: sneaking along an edge is ground (vanilla's own collision epsilon), sneak/use slowdown follows the
+                    client's tick, input-aware speed and air control, level moves through walls, movement hacks reported to
+                    staff (never punished; setbacks, cancels and kicks are off by default). -->
+        <plugin.version>0.10.0</plugin.version>
     </properties>
 
     <dependencies>

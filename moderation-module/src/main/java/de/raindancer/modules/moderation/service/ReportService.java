@@ -110,12 +110,31 @@ public final class ReportService implements IModerationService {
             // reporting a mod must not out itself in the very chat line meant to tell the rest of staff.
             tellTheStaff(subject, "<white><reporter></white> reported <white><subject></white> "
                             + "<gray>(<id>)</gray><gray>: <text>",
-                    Chat.arg("reporter", reporterName),
+                    Chat.arg("reporter", filed.reporterName()),
                     Chat.arg("subject", subjectName),
                     Chat.arg("id", filed.id()),
                     Chat.arg("text", text));
         }
         return Optional.of(filed);
+    }
+
+    private final de.raindancer.modules.moderation.rules.AutoReportRule automatic = new de.raindancer.modules.moderation.rules.AutoReportRule();
+
+    /**
+     * Files a report a machine made, as "the console": {@code "<kind>: <what>"}. Never a second while an unfinished
+     * one of the same kind about the same player exists. Handed to Core's {@code AutoReports}.
+     */
+    public synchronized de.raindancer.core.moderation.reports.AutoReports.Result fileAutomatic(UUID subject, String subjectName,
+                                                                                                String kind, String text) {
+        if (!settings.reportsEnabled()) {
+            return de.raindancer.core.moderation.reports.AutoReports.Result.REFUSED;
+        }
+        if (automatic.alreadyWaiting(subject, kind, reports.about(subject))) {
+            return de.raindancer.core.moderation.reports.AutoReports.Result.DUPLICATE;
+        }
+        return file(null, null, subject, subjectName, automatic.text(kind, text)).isPresent()
+                ? de.raindancer.core.moderation.reports.AutoReports.Result.FILED
+                : de.raindancer.core.moderation.reports.AutoReports.Result.REFUSED;
     }
 
     /** Somebody is on it. @return whether there was an open report to pick up */

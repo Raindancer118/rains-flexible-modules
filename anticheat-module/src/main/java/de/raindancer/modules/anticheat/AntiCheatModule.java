@@ -10,6 +10,7 @@ import de.raindancer.modules.anticheat.listener.MovementListener;
 import de.raindancer.modules.anticheat.listener.WorldListener;
 import de.raindancer.modules.anticheat.rules.ActionRule;
 import de.raindancer.modules.anticheat.service.AlertService;
+import de.raindancer.modules.anticheat.service.AutoReportService;
 import de.raindancer.modules.anticheat.service.ClickService;
 import de.raindancer.modules.anticheat.service.CombatService;
 import de.raindancer.modules.anticheat.service.EspShield;
@@ -38,7 +39,7 @@ import java.util.List;
  */
 public final class AntiCheatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.9.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.10.0")
             .describedAs("Server-side anti-cheat: movement, combat, world, inventory and packet checks")
             .by("Raindancer118");
 
@@ -72,6 +73,8 @@ public final class AntiCheatModule implements FlexModule {
         PunishService punishments = new PunishService(context.plugin(), context.core(), messages, alerts);
         ViolationService violations = new ViolationService(new ActionRule(), alerts, punishments, evidence);
         violations.replaysTo(replays);
+        AutoReportService autoReports = new AutoReportService(System::currentTimeMillis);
+        violations.reportsTo(autoReports);
         MovementEngine engine = new MovementEngine(context.plugin(), context.log(), tracks, violations);
         CombatService combat = new CombatService(tracks, violations);
         WorldService world = new WorldService(tracks, violations);
@@ -83,7 +86,7 @@ public final class AntiCheatModule implements FlexModule {
         shield.tapWith(tap);
         tap.shieldWith(shield);
 
-        List<IAntiCheatService> all = List.of(tracks, alerts, punishments, violations, engine, combat, world, clicks, tap, shield);
+        List<IAntiCheatService> all = List.of(tracks, alerts, punishments, violations, autoReports, engine, combat, world, clicks, tap, shield);
         all.forEach(service -> service.settings(settings.current()));
         settings.onChange(fresh -> all.forEach(service -> service.settings(fresh)));
 

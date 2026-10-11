@@ -1,0 +1,116 @@
+package de.raindancer.modules.anticheat.rules;
+
+import de.raindancer.modules.anticheat.model.CheckType;
+
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Whether the movement flags of one player add up to somebody who is using a movement hack, sure enough
+ * to ask staff to look. One honest hiccup (a lag spike, a block the client was told about late, a
+ * quirk nobody modelled) produces a burst of flags and then nothing; a hack produces flags for as long
+ * as it is on. So the rule wants all of:
+ *
+ * <ul>
+ *   <li>enough flags in the window, counting only those made at a fair ping and server speed;</li>
+ *   <li>flags in several separate stretches of the window, not one burst;</li>
+ *   <li>a violation level, after decay, that is still high — the hack is still going on;</li>
+ *   <li>more flags if only one check saw it than if independent checks agree.</li>
+ * </ul>
+ */
+public final class ConfidenceRule implements IAntiCheatRule {
+
+    /** Movement checks that mean a hack when they keep failing. Sprint (starving) is a food state, not a hack. */
+    public static boolean counts(CheckType check) {
+        return check.category() == de.raindancer.modules.anticheat.model.Category.MOVEMENT && check != CheckType.SPRINT;
+    }
+
+    /** One counted flag. */
+    public record Hit(long millis, CheckType check, double weight, int ping, double tps, String detail) {
+    }
+
+    /**
+     * @param windowMillis how far back flags count
+     * @param minFlags     flags needed when two or more checks agree; one check alone needs {@link #SOLO_FACTOR} times that
+     * @param minLevel     the violation level of the movement checks that must still stand, after decay
+     * @param maxPing      flags made above this ping are not evidence
+     * @param minTps       nor are flags made while the server ran slower than this
+     * @param minStretches how many separate stretches of {@code stretchMillis} must hold a flag
+     */
+    public record Policy(long windowMillis, int minFlags, double minLevel, int maxPing, double minTps, int minStretches,
+                         long stretchMillis) {
+
+        public static final Policy DEFAULT = new Policy(120_000, 20, 15, 300, 17, 3, 5_000);
+
+        public Policy {
+            windowMillis = Math.max(1000, windowMillis);
+            minFlags = Math.max(1, minFlags);
+            minStretches = Math.max(1, minStretches);
+            stretchMillis = Math.max(100, stretchMillis);
+        }
+    }
+
+    public record Verdict(boolean confident, String summary) {
+
+        public static final Verdict NOT_SURE = new Verdict(false, "");
+    }
+
+    /** One check alone must show this many times the flags that independent checks would need together. */
+    public static final int SOLO_FACTOR = 2;
+
+    /** A check that saw it too, to count as independent: this many flags of its own. */
+    public static final int INDEPENDENT_AT = 3;
+
+    public Verdict judge(List<Hit> hits, double level, long now, Policy policy) {
+        if (level < policy.minLevel()) {
+            return Verdict.NOT_SURE;
+        }
+        long from = now - policy.windowMillis();
+        Map<CheckType, Integer> perCheck = new EnumMap<>(CheckType.class);
+        Set<Long> stretches = new HashSet<>();
+        List<Hit> counted = new ArrayList<>();
+        for (Hit hit : hits) {
+            if (hit.millis() < from || !counts(hit.check()) || hit.ping() > policy.maxPing() || hit.tps() < policy.minTps()) {
+                continue;
+            }
+            counted.add(hit);
+            perCheck.merge(hit.check(), 1, Integer::sum);
+            stretches.add(hit.millis() / policy.stretchMillis());
+        }
+        if (counted.isEmpty() || stretches.size() < policy.minStretches()) {
+            return Verdict.NOT_SURE;
+        }
+        long independent = perCheck.values().stream().filter(count -> count >= INDEPENDENT_AT).count();
+        int needed = independent >= 2 ? policy.minFlags() : policy.minFlags() * SOLO_FACTOR;
+        if (counted.size() < needed) {
+            return Verdict.NOT_SURE;
+        }
+        long first = counted.get(0).millis();
+        long lastAt = first;
+        for (Hit hit : counted) {
+            first = Math.min(first, hit.millis());
+            lastAt = Math.max(lastAt, hit.millis());
+        }
+        // Stretches counted by the clock can touch three of them within eight seconds: it has to last as well.
+        if (lastAt - first < (policy.minStretches() - 1) * policy.stretchMillis()) {
+            return Verdict.NOT_SURE;
+        }
+        Hit last = counted.get(counted.size() - 1);
+        StringBuilder checks = new StringBuilder();
+        perCheck.entrySet().stream()
+                .sorted(Map.Entry.<CheckType, Integer>comparingByValue().reversed())
+                .forEach(entry -> checks.append(checks.isEmpty() ? "" : ", ").append(entry.getKey().key()).append(" x").append(entry.getValue()));
+        return new Verdict(true, String.format(Locale.ROOT, "%s · %d flags in %d s · level %.0f · last: %s",
+                checks, counted.size(), Math.max(1, Math.round((now - first) / 1000.0)), level, last.detail()));
+    }
+
+    @Override
+    public String describe() {
+        return "whether movement flags are sustained and agreed on enough to be a hack";
+    }
+}

@@ -16,6 +16,11 @@ public final class AirControlRule implements IAntiCheatRule {
 
     /** The previous and current sideways move, both while airborne the whole time. */
     public Judgement judge(double lastDx, double lastDz, double dx, double dz, int ticks) {
+        return judge(lastDx, lastDz, dx, dz, ticks, true);
+    }
+
+    /** @param steering false when no direction key was down: then there is nothing to steer with */
+    public Judgement judge(double lastDx, double lastDz, double dx, double dz, int ticks, boolean steering) {
         int n = Math.max(1, ticks);
         double carriedX = lastDx;
         double carriedZ = lastDz;
@@ -34,7 +39,7 @@ public final class AirControlRule implements IAntiCheatRule {
             weight = weight * Physics.AIR_FRICTION + 1;
             allowance += weight;
         }
-        allowance *= Physics.AIR_ACCELERATION_SPRINTING;
+        allowance *= steering ? Physics.AIR_ACCELERATION_SPRINTING : 0;
         double offset = Math.hypot(dx - predictedX, dz - predictedZ) - allowance;
         if (offset > TOLERANCE) {
             return Judgement.fail(offset, String.format(Locale.ROOT,

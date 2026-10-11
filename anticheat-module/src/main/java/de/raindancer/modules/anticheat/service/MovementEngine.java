@@ -6,6 +6,7 @@ import de.raindancer.modules.anticheat.AntiCheatSettings;
 import de.raindancer.modules.anticheat.model.Buffer;
 import de.raindancer.modules.anticheat.model.CheckType;
 import de.raindancer.modules.anticheat.model.Flag;
+import de.raindancer.modules.anticheat.model.Inputs;
 import de.raindancer.modules.anticheat.model.MoveSample;
 import de.raindancer.modules.anticheat.model.PlayerTrack;
 import de.raindancer.modules.anticheat.rules.ActionRule;
@@ -60,6 +61,8 @@ public final class MovementEngine implements IAntiCheatService {
     private final MotionRule motion = new MotionRule();
     private final CombatRule combat = new CombatRule();
     private final AimRule aim = new AimRule();
+    private final de.raindancer.modules.anticheat.rules.SlowdownRule slowdown = new de.raindancer.modules.anticheat.rules.SlowdownRule();
+    private final de.raindancer.modules.anticheat.rules.PhaseRule phase = new de.raindancer.modules.anticheat.rules.PhaseRule();
     private final de.raindancer.modules.anticheat.rules.AirControlRule airControl = new de.raindancer.modules.anticheat.rules.AirControlRule();
     private final de.raindancer.modules.anticheat.rules.PingRule pings = new de.raindancer.modules.anticheat.rules.PingRule();
     private volatile PacketTap tap;
@@ -233,6 +236,7 @@ public final class MovementEngine implements IAntiCheatService {
         double dz = sample.z() - m.z;
         double hd = Math.hypot(dx, dz);
         int ticks = Math.max(1, sample.ticks());
+        countStates(player, m, sample, ticks);
         Surroundings here = Surroundings.at(world, sample.x(), sample.y(), sample.z(), player.getWidth(), player.getHeight());
         // A block the client has not been told about yet is still there for it — mined away under its
         // feet by a vein miner, another player, an explosion. Its own word is all there is until then.
@@ -259,6 +263,14 @@ public final class MovementEngine implements IAntiCheatService {
         if (here.inside() && !m.inside && !blocksInFlux && run(track, CheckType.PHASE)) {
             failed |= report(player, track, CheckType.PHASE, 1, 1, 0.1, String.format(Locale.ROOT,
                     "moved %.2f blocks into a solid block", Math.sqrt(hd * hd + dy * dy)));
+        }
+
+        if (!here.inside() && !m.inside && !blocksInFlux && ticks == 1 && hd <= 8 && !Double.isNaN(m.x) && run(track, CheckType.PHASE)) {
+            Judgement through = phase.judge((x0, y0, z0, x1, y1, z1) -> world.hasCollisionsIn(new BoundingBox(x0, y0, z0, x1, y1, z1)),
+                    m.x, m.y, m.z, sample.x(), sample.y(), sample.z(), player.getWidth(), player.getHeight());
+            if (through.failed() && !Surroundings.nearRideableGround(world, sample.x(), sample.y(), sample.z())) {
+                failed |= report(player, track, CheckType.PHASE, 1, 1, 0.1, through.reason());
+            }
         }
 
         boolean levitating = player.hasPotionEffect(PotionEffectType.LEVITATION);
@@ -317,7 +329,7 @@ public final class MovementEngine implements IAntiCheatService {
         // Air control: two ticks fully airborne, nothing to bump into, nothing pushing.
         if (!gliding && !specialNow && !m.onGround && !m.onGroundBefore && !here.ground() && Double.isNaN(velocityH)
                 && !Double.isNaN(m.lastDx) && !sample.horizontalCollision() && !m.lastCollided && run(track, CheckType.STRAFE)) {
-            Judgement steered = airControl.judge(m.lastDx, m.lastDz, dx, dz, ticks);
+            Judgement steered = airControl.judge(m.lastDx, m.lastDz, dx, dz, ticks, m.idleMoves < IDLE_MOVES);
             if (steered.failed() && !nearWall(world, sample, player) && Surroundings.pushers(world, sample.x(), sample.y(), sample.z(), player) == 0) {
                 failed |= report(player, track, CheckType.STRAFE, 1, 2, 0.04, steered.reason());
             } else if (steered.passed()) {
@@ -348,6 +360,18 @@ public final class MovementEngine implements IAntiCheatService {
             return;
         }
         remember(world, m, sample, dy, hd, here, false);
+    }
+
+    /** Moves with every direction key up, in a row, before the client's own word on it is held against them. */
+    private static final int IDLE_MOVES = 3;
+
+    /** Keeps count of how long the sneak key, an item and the keys have been in their state, move by move. */
+    private static void countStates(Player player, PlayerTrack.Movement m, MoveSample sample, int ticks) {
+        boolean known = Inputs.known(sample.input());
+        boolean sneakKey = known ? Inputs.sneak(sample.input()) : player.isSneaking() || m.sneak;
+        m.sneakMoves = sneakKey ? m.sneakMoves + 1 : 0;
+        m.usingMoves = player.isHandRaised() ? m.usingMoves + 1 : 0;
+        m.idleMoves = known && !Inputs.walking(sample.input()) ? m.idleMoves + 1 : 0;
     }
 
     /** Margin on top of the ping for when a client made a move and when the server read it. */
@@ -387,10 +411,12 @@ public final class MovementEngine implements IAntiCheatService {
         ItemStack using = player.isHandRaised() ? player.getActiveItem() : null;
         UseEffects effects = using == null || using.getType() == Material.AIR ? null
                 : using.getDataOrDefault(DataComponentTypes.USE_EFFECTS, null);
-        double useSlowdown = using == null ? 1 : effects == null ? Physics.USING_ITEM_MULTIPLIER : effects.speedMultiplier();
-        boolean useMaySprint = using == null || effects != null && effects.canSprint();
-        boolean sneaking = player.isSneaking() || m.sneak;
-        double sneakSlowdown = sneaking ? attribute(player, Attribute.SNEAKING_SPEED, 0.3) : 1;
+        double useSlowdown = using == null ? 1 : slowdown.use(m.usingMoves,
+                effects == null ? Physics.USING_ITEM_MULTIPLIER : effects.speedMultiplier());
+        boolean useMaySprint = using == null || useSlowdown >= 1 || effects != null && effects.canSprint();
+        double sneakSlowdown = m.sneakMoves > 0 ? slowdown.sneak(m.sneakMoves, attribute(player, Attribute.SNEAKING_SPEED, 0.3)) : 1;
+        boolean sneaking = sneakSlowdown < 1;
+        boolean keysHeld = m.idleMoves < IDLE_MOVES;
         boolean maySprint = (player.getFoodLevel() > 6 || player.getAllowFlight()) && !sneaking && useMaySprint
                 && !player.hasPotionEffect(PotionEffectType.BLINDNESS);
         double speed = attribute(player, Attribute.MOVEMENT_SPEED, 0.1);
@@ -407,14 +433,14 @@ public final class MovementEngine implements IAntiCheatService {
         boolean jumped = m.onGround && dy > 0.1;
         HorizontalRule.Move move = new HorizontalRule.Move(m.lastHd, hd, ticks, m.onGround, m.onGroundBefore,
                 m.friction, m.frictionBefore, speed, sprintCounted, maySprint, useSlowdown * sneakSlowdown,
-                jumped, velocityH, 0);
+                jumped, velocityH, 0, keysHeld);
         HorizontalRule.Result result = horizontal.judge(move);
         if (result.failed()) {
             int pushers = Surroundings.pushers(player.getWorld(), sample.x(), sample.y(), sample.z(), player);
             if (pushers > 0) {
                 result = horizontal.judge(new HorizontalRule.Move(m.lastHd, hd, ticks, m.onGround, m.onGroundBefore,
                         m.friction, m.frictionBefore, speed, sprintCounted, maySprint,
-                        useSlowdown * sneakSlowdown, jumped, velocityH, 0.05 * Math.min(3, pushers)));
+                        useSlowdown * sneakSlowdown, jumped, velocityH, 0.05 * Math.min(3, pushers), keysHeld));
             }
         }
         if (m.sprintHitThisTick && result.passed() && run(track, CheckType.KEEP_SPRINT) && m.onGround) {
@@ -436,7 +462,7 @@ public final class MovementEngine implements IAntiCheatService {
                 return false;
             }
             return report(player, track, CheckType.NO_SLOW, 1, 3, 0.05, String.format(Locale.ROOT,
-                    "%.3f while %s, at most %.3f", hd, using != null ? "using " + using.getType().name().toLowerCase(Locale.ROOT) : "sneaking",
+                    "%.3f while %s, at most %.3f", hd, using != null && useSlowdown < 1 ? "using " + using.getType().name().toLowerCase(Locale.ROOT) : "sneaking",
                     result.limit()));
         }
         return report(player, track, CheckType.SPEED, Math.min(3, 1 + result.offset() * 4), 2, 0.04,

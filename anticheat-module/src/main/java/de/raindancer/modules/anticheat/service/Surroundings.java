@@ -27,10 +27,31 @@ public record Surroundings(boolean ground, boolean ceiling, boolean inside, bool
 
     private static final double SKIN = 0.001;
 
+    /**
+     * The game's own collision epsilon: a block counts under a box only when it overlaps it by more than
+     * this. The sneak back-off lets a box hang over an edge by far less than {@link #SKIN}.
+     */
+    public static final double COLLISION_EPSILON = 1e-7;
+
+    /** How far below the feet a block still holds a player up. */
+    public static final double GROUND_REACH = 0.03;
+
+    /** Whether anything solid is in a box. */
+    @FunctionalInterface
+    public interface Collisions {
+        boolean solid(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
+    }
+
+    /** Ground the way the game finds it: the whole box, shrunk only by the collision epsilon. */
+    public static boolean groundUnder(Collisions space, double x, double y, double z, double width) {
+        double half = width / 2 - COLLISION_EPSILON;
+        return space.solid(x - half, y - GROUND_REACH, z - half, x + half, y, z + half);
+    }
+
     public static Surroundings at(World world, double x, double y, double z, double width, double height) {
         double half = width / 2;
-        boolean ground = world.hasCollisionsIn(new BoundingBox(x - half + SKIN, y - 0.03, z - half + SKIN,
-                x + half - SKIN, y, z + half - SKIN));
+        boolean ground = groundUnder((x0, y0, z0, x1, y1, z1) -> world.hasCollisionsIn(new BoundingBox(x0, y0, z0, x1, y1, z1)),
+                x, y, z, width);
         boolean ceiling = world.hasCollisionsIn(new BoundingBox(x - half + SKIN, y + height, z - half + SKIN,
                 x + half - SKIN, y + height + 0.15, z + half - SKIN));
         boolean inside = world.hasCollisionsIn(new BoundingBox(x - half + 0.06, y + 0.06, z - half + 0.06,

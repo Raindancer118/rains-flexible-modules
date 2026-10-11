@@ -68,7 +68,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.36.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.37.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -333,6 +333,11 @@ public final class ModerationModule implements FlexModule {
         de.raindancer.core.moderation.rules.RuleBreaches.Judge ruleJudge = services.ruleBreaches().judge(server.getConsoleSender());
         de.raindancer.core.moderation.rules.RuleBreaches.provide(ruleJudge);
         context.closeWith(() -> de.raindancer.core.moderation.rules.RuleBreaches.withdraw(ruleJudge));
+
+        // Reports a machine files (the anti-cheat's movement hacks) land in the same queue as the x-ray ones.
+        de.raindancer.core.moderation.reports.AutoReports.Sink autoReports = reportService::fileAutomatic;
+        de.raindancer.core.moderation.reports.AutoReports.provide(autoReports);
+        context.closeWith(() -> de.raindancer.core.moderation.reports.AutoReports.withdraw(autoReports));
 
         staffChatListener = new StaffChatListener(services);
         staffChannel = new de.raindancer.modules.moderation.util.StaffChannel(server, staffChatListener::say);

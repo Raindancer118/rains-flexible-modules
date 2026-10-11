@@ -54,4 +54,12 @@ class AirControlRuleTest {
         assertThat(rule.climb(0.2481, 0.3332, false, 0.42).passed()).isTrue();
         assertThat(rule.climb(0.42, 0.2, false, 0.42).failed()).as("no second jump in mid-air").isTrue();
     }
+
+    @Test
+    @DisplayName("with every key up there is no steering at all: a nudge sideways in mid-air is strafe")
+    void noKeys() {
+        assertThat(rule.judge(0.3, 0, 0.273, 0, 1, false).passed()).as("pure friction").isTrue();
+        assertThat(rule.judge(0.3, 0, 0.273, 0.026, 1, false).failed()).as("a nudge the keys cannot have made").isTrue();
+        assertThat(rule.judge(0.3, 0, 0.273, 0.026, 1, true).passed()).as("with a key down the same nudge is vanilla").isTrue();
+    }
 }
