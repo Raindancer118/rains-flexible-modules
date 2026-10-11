@@ -199,9 +199,9 @@ public final class PlayerTrack {
         public boolean sprint;
         public long inputChangedMillis;
         public boolean inputSeen;
-        /** Consecutive judged moves made with the sneak key down (0: up), and while using an item. */
-        public int sneakMoves;
-        public int usingMoves;
+        /** The sneak key and item use, move by move; never reset by a teleport, their budget is the client's own doing. */
+        public final SlowState sneakState = new SlowState();
+        public final SlowState usingState = new SlowState();
         /** Consecutive judged moves made with no direction key down, as the client itself reported them. */
         public int idleMoves;
 
@@ -217,8 +217,6 @@ public final class PlayerTrack {
             jesusTicks = 0;
             glideClimbTicks = 0;
             vehicleClimbTicks = 0;
-            sneakMoves = 0;
-            usingMoves = 0;
             idleMoves = 0;
         }
 

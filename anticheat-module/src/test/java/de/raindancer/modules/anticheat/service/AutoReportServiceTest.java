@@ -68,7 +68,7 @@ class AutoReportServiceTest {
     }
 
     @Test
-    @DisplayName("lag is no evidence: flags at a high ping never add up to a report")
+    @DisplayName("lag is weak evidence: two minutes of flags at a high ping do not add up to a report")
     void lag() {
         flyFor(200, 900, 19.8);
         assertThat(filed).isEmpty();

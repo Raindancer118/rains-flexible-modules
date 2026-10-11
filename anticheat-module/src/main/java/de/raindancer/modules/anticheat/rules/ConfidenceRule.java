@@ -17,7 +17,7 @@ import java.util.Set;
  * as it is on. So the rule wants all of:
  *
  * <ul>
- *   <li>enough flags in the window, counting only those made at a fair ping and server speed;</li>
+ *   <li>enough flags in the window, those made at a bad ping or server speed count for a quarter (ping can be faked);</li>
  *   <li>flags in several separate stretches of the window, not one burst;</li>
  *   <li>a violation level, after decay, that is still high — the hack is still going on;</li>
  *   <li>more flags if only one check saw it than if independent checks agree.</li>
@@ -38,8 +38,8 @@ public final class ConfidenceRule implements IAntiCheatRule {
      * @param windowMillis how far back flags count
      * @param minFlags     flags needed when two or more checks agree; one check alone needs {@link #SOLO_FACTOR} times that
      * @param minLevel     the violation level of the movement checks that must still stand, after decay
-     * @param maxPing      flags made above this ping are not evidence
-     * @param minTps       nor are flags made while the server ran slower than this
+     * @param maxPing      flags made above this ping count for a quarter
+     * @param minTps       so do flags made while the server ran slower than this
      * @param minStretches how many separate stretches of {@code stretchMillis} must hold a flag
      */
     public record Policy(long windowMillis, int minFlags, double minLevel, int maxPing, double minTps, int minStretches,
@@ -66,20 +66,30 @@ public final class ConfidenceRule implements IAntiCheatRule {
     /** A check that saw it too, to count as independent: this many flags of its own. */
     public static final int INDEPENDENT_AT = 3;
 
+    /** What a flag made at a bad ping or on a lagging server is worth, against 1 for a fair one. */
+    public static final double LAGGED_WORTH = 0.25;
+
     public Verdict judge(List<Hit> hits, double level, long now, Policy policy) {
         if (level < policy.minLevel()) {
             return Verdict.NOT_SURE;
         }
         long from = now - policy.windowMillis();
-        Map<CheckType, Integer> perCheck = new EnumMap<>(CheckType.class);
+        Map<CheckType, Double> perCheck = new EnumMap<>(CheckType.class);
+        Map<CheckType, Integer> raw = new EnumMap<>(CheckType.class);
         Set<Long> stretches = new HashSet<>();
         List<Hit> counted = new ArrayList<>();
+        double weighed = 0;
         for (Hit hit : hits) {
-            if (hit.millis() < from || !counts(hit.check()) || hit.ping() > policy.maxPing() || hit.tps() < policy.minTps()) {
+            if (hit.millis() < from || !counts(hit.check())) {
                 continue;
             }
+            // A client can fake any ping by holding back its answers, so a bad ping never exempts: it only makes
+            // each flag count for less. Honest lag is a burst; a faker has to keep it up and is reported later.
+            double worth = hit.ping() > policy.maxPing() || hit.tps() < policy.minTps() ? LAGGED_WORTH : 1;
             counted.add(hit);
-            perCheck.merge(hit.check(), 1, Integer::sum);
+            weighed += worth;
+            perCheck.merge(hit.check(), worth, Double::sum);
+            raw.merge(hit.check(), 1, Integer::sum);
             stretches.add(hit.millis() / policy.stretchMillis());
         }
         if (counted.isEmpty() || stretches.size() < policy.minStretches()) {
@@ -87,7 +97,7 @@ public final class ConfidenceRule implements IAntiCheatRule {
         }
         long independent = perCheck.values().stream().filter(count -> count >= INDEPENDENT_AT).count();
         int needed = independent >= 2 ? policy.minFlags() : policy.minFlags() * SOLO_FACTOR;
-        if (counted.size() < needed) {
+        if (weighed < needed) {
             return Verdict.NOT_SURE;
         }
         long first = counted.get(0).millis();
@@ -102,7 +112,7 @@ public final class ConfidenceRule implements IAntiCheatRule {
         }
         Hit last = counted.get(counted.size() - 1);
         StringBuilder checks = new StringBuilder();
-        perCheck.entrySet().stream()
+        raw.entrySet().stream()
                 .sorted(Map.Entry.<CheckType, Integer>comparingByValue().reversed())
                 .forEach(entry -> checks.append(checks.isEmpty() ? "" : ", ").append(entry.getKey().key()).append(" x").append(entry.getValue()));
         return new Verdict(true, String.format(Locale.ROOT, "%s · %d flags in %d s · level %.0f · last: %s",

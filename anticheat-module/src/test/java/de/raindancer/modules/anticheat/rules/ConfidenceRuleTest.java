@@ -74,7 +74,7 @@ class ConfidenceRuleTest {
     }
 
     @Test
-    @DisplayName("flags made while the player lagged or the server did do not count")
+    @DisplayName("flags made while the player lagged or the server did count for little: a lag burst is not a report")
     void lagExcused() {
         List<ConfidenceRule.Hit> laggy = new ArrayList<>();
         for (int i = 0; i < 60; i++) {
@@ -86,6 +86,16 @@ class ConfidenceRuleTest {
             slowServer.add(new ConfidenceRule.Hit(i * SECOND, CheckType.FLY, 1, 40, policy.minTps() - 2, "d"));
         }
         assertThat(rule.judge(slowServer, 60, 60 * SECOND, policy).confident()).as("a slow server").isFalse();
+    }
+
+    @Test
+    @DisplayName("a client faking a bad ping to hide still gets reported: ping never exempts, it only devalues")
+    void pingFaker() {
+        List<ConfidenceRule.Hit> hits = new ArrayList<>();
+        for (int i = 0; i < 400; i++) {
+            hits.add(new ConfidenceRule.Hit(i * 250L, CheckType.FLY, 1, 900, 19.8, "hovering"));
+        }
+        assertThat(rule.judge(hits, 100, 100 * SECOND, policy).confident()).isTrue();
     }
 
     @Test

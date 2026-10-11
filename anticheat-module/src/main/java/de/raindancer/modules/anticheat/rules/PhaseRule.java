@@ -21,6 +21,9 @@ public final class PhaseRule implements IAntiCheatRule {
     /** Rises and falls up to this are level: a hair of float noise on the way. */
     public static final double LEVEL = 0.01;
     private static final double STEP = 0.1;
+    /** Far clips are swept coarser (the box is 0.48 wide, so nothing thinner than a block slips through 0.35). */
+    private static final double FAR_STEP = 0.35;
+    private static final double FAR = 8;
     private static final double SHRINK = 0.06;
 
     public Judgement judge(Space space, double fromX, double fromY, double fromZ, double toX, double toY, double toZ,
@@ -32,7 +35,7 @@ public final class PhaseRule implements IAntiCheatRule {
             return Judgement.PASS;
         }
         double half = width / 2 - SHRINK;
-        int steps = (int) Math.ceil(distance / STEP);
+        int steps = (int) Math.ceil(distance / (distance > FAR ? FAR_STEP : STEP));
         for (int i = 1; i < steps; i++) {
             double t = (double) i / steps;
             double x = fromX + dx * t;

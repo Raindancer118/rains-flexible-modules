@@ -32,8 +32,11 @@
                     sprint flag, punches, passengers); ViaVersion-translated clients left to combat/world checks.
              0.10.0: sneaking along an edge is ground (vanilla's own collision epsilon), sneak/use slowdown follows the
                     client's tick, input-aware speed and air control, level moves through walls, movement hacks reported to
-                    staff (never punished; setbacks, cancels and kicks are off by default). -->
-        <plugin.version>0.10.0</plugin.version>
+                    staff (never punished; setbacks, cancels and kicks are off by default).
+             0.10.1: the sneak/use grace is a budget (three presses per two seconds), flicking the key or the item eight times in two
+                    seconds is NoSlow; the wall sweep also covers far clips and moves with any tick count; a faked bad ping devalues
+                    flags towards a report instead of exempting them. -->
+        <plugin.version>0.10.1</plugin.version>
     </properties>
 
     <dependencies>

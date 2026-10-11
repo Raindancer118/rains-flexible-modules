@@ -236,7 +236,7 @@ public final class MovementEngine implements IAntiCheatService {
         double dz = sample.z() - m.z;
         double hd = Math.hypot(dx, dz);
         int ticks = Math.max(1, sample.ticks());
-        countStates(player, m, sample, ticks);
+        countStates(player, track, m, sample, ticks);
         Surroundings here = Surroundings.at(world, sample.x(), sample.y(), sample.z(), player.getWidth(), player.getHeight());
         // A block the client has not been told about yet is still there for it — mined away under its
         // feet by a vein miner, another player, an explosion. Its own word is all there is until then.
@@ -265,8 +265,12 @@ public final class MovementEngine implements IAntiCheatService {
                     "moved %.2f blocks into a solid block", Math.sqrt(hd * hd + dy * dy)));
         }
 
-        if (!here.inside() && !m.inside && !blocksInFlux && ticks == 1 && hd <= 8 && !Double.isNaN(m.x) && run(track, CheckType.PHASE)) {
-            Judgement through = phase.judge((x0, y0, z0, x1, y1, z1) -> world.hasCollisionsIn(new BoundingBox(x0, y0, z0, x1, y1, z1)),
+        // Nothing the client reports (ticks in the move, how far it went) switches the sweep off; a chunk not loaded
+        // along a far clip counts as blocked, as no honest move leaves the loaded world.
+        if (!m.inside && !blocksInFlux && !Double.isNaN(m.x) && hd <= 64 && run(track, CheckType.PHASE)) {
+            Judgement through = phase.judge((x0, y0, z0, x1, y1, z1) -> !world.isChunkLoaded((int) Math.floor((x0 + x1) / 2) >> 4,
+                            (int) Math.floor((z0 + z1) / 2) >> 4)
+                            || world.hasCollisionsIn(new BoundingBox(x0, y0, z0, x1, y1, z1)),
                     m.x, m.y, m.z, sample.x(), sample.y(), sample.z(), player.getWidth(), player.getHeight());
             if (through.failed() && !Surroundings.nearRideableGround(world, sample.x(), sample.y(), sample.z())) {
                 failed |= report(player, track, CheckType.PHASE, 1, 1, 0.1, through.reason());
@@ -366,11 +370,17 @@ public final class MovementEngine implements IAntiCheatService {
     private static final int IDLE_MOVES = 3;
 
     /** Keeps count of how long the sneak key, an item and the keys have been in their state, move by move. */
-    private static void countStates(Player player, PlayerTrack.Movement m, MoveSample sample, int ticks) {
+    private void countStates(Player player, PlayerTrack track, PlayerTrack.Movement m, MoveSample sample, int ticks) {
         boolean known = Inputs.known(sample.input());
         boolean sneakKey = known ? Inputs.sneak(sample.input()) : player.isSneaking() || m.sneak;
-        m.sneakMoves = sneakKey ? m.sneakMoves + 1 : 0;
-        m.usingMoves = player.isHandRaised() ? m.usingMoves + 1 : 0;
+        m.sneakState.move(sneakKey, ticks);
+        m.usingState.move(player.isHandRaised(), ticks);
+        // Flicking the key or the item faster than a hand does is how the slowdown is dodged tick by tick.
+        if ((m.sneakState.rapid() || m.usingState.rapid()) && run(track, CheckType.NO_SLOW) && track.exemption() == null) {
+            boolean sneak = m.sneakState.rapid();
+            report(player, track, CheckType.NO_SLOW, 1, 3, 0.05, String.format(Locale.ROOT, "%s pressed %d times in two seconds",
+                    sneak ? "sneak" : "item use", sneak ? m.sneakState.presses() : m.usingState.presses()));
+        }
         m.idleMoves = known && !Inputs.walking(sample.input()) ? m.idleMoves + 1 : 0;
     }
 
@@ -411,10 +421,10 @@ public final class MovementEngine implements IAntiCheatService {
         ItemStack using = player.isHandRaised() ? player.getActiveItem() : null;
         UseEffects effects = using == null || using.getType() == Material.AIR ? null
                 : using.getDataOrDefault(DataComponentTypes.USE_EFFECTS, null);
-        double useSlowdown = using == null ? 1 : slowdown.use(m.usingMoves,
+        double useSlowdown = using == null ? 1 : slowdown.use(m.usingState,
                 effects == null ? Physics.USING_ITEM_MULTIPLIER : effects.speedMultiplier());
         boolean useMaySprint = using == null || useSlowdown >= 1 || effects != null && effects.canSprint();
-        double sneakSlowdown = m.sneakMoves > 0 ? slowdown.sneak(m.sneakMoves, attribute(player, Attribute.SNEAKING_SPEED, 0.3)) : 1;
+        double sneakSlowdown = slowdown.sneak(m.sneakState, attribute(player, Attribute.SNEAKING_SPEED, 0.3));
         boolean sneaking = sneakSlowdown < 1;
         boolean keysHeld = m.idleMoves < IDLE_MOVES;
         boolean maySprint = (player.getFoodLevel() > 6 || player.getAllowFlight()) && !sneaking && useMaySprint

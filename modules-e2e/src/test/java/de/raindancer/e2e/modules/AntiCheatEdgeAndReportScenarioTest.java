@@ -54,9 +54,11 @@ class AntiCheatEdgeAndReportScenarioTest {
             Bot ada = server.admin("Ada");
             Bot edge = server.player("Edge");
             Bot floater = server.player("Floater");
+            Bot flicker = server.player("Flicker");
             server.console("tp Ada -8.5 101 -8.5 0 0");
             server.console("tp Edge " + EDGE_X + " " + TOP + " 2.5 0 0");
             server.console("tp Floater 6.5 101 6.5 0 0");
+            server.console("tp Flicker -6.5 101 -6.5 0 0");
             Await.ticks(80);
             ada.forgetChat();
             // The report is in this test's assertions, not a punishment: with every action at its default (off).
@@ -72,9 +74,9 @@ class AntiCheatEdgeAndReportScenarioTest {
                 double at = z;
                 tick(edge, () -> edge.moveTo(EDGE_X, TOP, at, true));
             }
-            // Tapping shift: one tick down, one up; the first tick of a press not yet slowed.
-            for (int t = 0; t < 40; t++) {
-                boolean down = t % 2 == 0;
+            // Tapping shift now and then: the first tick of a press not yet slowed. (Every other tick is flicking, which is flagged.)
+            for (int t = 0; t < 60; t++) {
+                boolean down = t % 15 == 0;
                 edge.keys(true, false, false, false, false, down, false);
                 v = v * 0.546 + (down ? 0.1 : 0.1 * 0.3);
                 z += v;
@@ -106,6 +108,19 @@ class AntiCheatEdgeAndReportScenarioTest {
             }
             assertThat(server.console("anticheat info Edge")).as("an edge walker is clean").contains("Squeaky clean");
             assertThat(server.console("anticheat log Edge")).contains("No evidence");
+
+            // Flicking sneak every other tick while walking at full pace: the slowdown is dodged tick by tick.
+            double fx = -6.5;
+            double fv = 0;
+            for (int t = 0; t < 120; t++) {
+                boolean down = t % 2 == 0;
+                flicker.keys(true, false, false, false, false, down, false);
+                fv = fv * 0.546 + 0.1;
+                fx += fv;
+                double at = fx;
+                tick(flicker, () -> flicker.moveTo(at, 101, -6.5, true));
+            }
+            assertThat(server.console("anticheat info Flicker")).as("a sneak flicker is NoSlow").contains("NoSlow");
 
             // Hovering two blocks up for twenty seconds.
             for (int t = 0; t < 400; t++) {

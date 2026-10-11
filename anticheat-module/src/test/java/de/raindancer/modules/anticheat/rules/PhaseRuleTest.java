@@ -46,4 +46,12 @@ class PhaseRuleTest {
         PhaseRule.Space pane = (minX, minY, minZ, maxX, maxY, maxZ) -> minX < 5.5625 && maxX > 5.4375 && maxY > 0;
         assertThat(rule.judge(pane, 4.3, 1, 0.5, 6.9, 1, 0.5, 0.6, 1.8).failed()).isTrue();
     }
+
+    @Test
+    @DisplayName("a far clip is swept too: twenty blocks through a pane in one move")
+    void farClip() {
+        PhaseRule.Space pane = (minX, minY, minZ, maxX, maxY, maxZ) -> minX < 11.5625 && maxX > 11.4375 && maxY > 0;
+        assertThat(rule.judge(pane, 2.0, 1, 0.5, 24.0, 1, 0.5, 0.6, 1.8).failed()).isTrue();
+        assertThat(rule.judge(pane, 12.0, 1, 0.5, 33.0, 1, 0.5, 0.6, 1.8).passed()).isTrue();
+    }
 }
