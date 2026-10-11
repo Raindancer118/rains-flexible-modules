@@ -1,0 +1,41 @@
+# Rain's Sends — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins. See
+# Messages.defineFrom. Every placeholder a line asks for is supplied where it is sent, and nothing
+# here is YAML's idea of a truth value.
+sends:
+
+  usage: "<gray>/send create [player]  ·  /send accept [id]  ·  /send decline [id]  ·  /send cancel [id]  ·  /sends"
+  only-a-player: "<red>Only a player can send things."
+  not-allowed: "<red>You may not send items."
+
+  refuse:
+    self: "<red>You cannot send things to yourself."
+    offline: "<red>That player is not online. A send has to be accepted, so they need to be here."
+    unknown: "<red>Nobody called <white><player></white> is online."
+    empty: "<red>Put something in the window first."
+    limit: "<red>You already have <white><most></white> sends waiting. Wait for one to be accepted, or take one back with /send cancel."
+    unsendable: "<red>Something in there is bound to you and cannot be sent. Take it out and try again."
+    cooldown: "<red>Wait <white><seconds></white> second(s) before sending again."
+
+  created: "<green>Sent <white><items></white> to <white><player></white>. They have <white><minutes></white> minute(s) to accept. <click:run_command:'/send cancel <id>'><yellow>[Take it back]</yellow></click>"
+  incoming: "<white><player></white> wants to send you <white><items></white>. <click:run_command:'/send accept <id>'><green>[Accept]</green></click> <click:run_command:'/send decline <id>'><red>[Decline]</red></click> <gray>Open for <minutes> minute(s)."
+  received: "<green>You got <white><items></white> from <white><player></white>."
+  dropped: "<yellow><white><count></white> item(s) did not fit and were dropped at your feet."
+  accepted: "<green><white><player></white> accepted your send."
+  declined-by-you: "<gray>Declined. <white><player></white> gets their items back."
+  declined: "<yellow><white><player></white> declined your send. Your items are coming back."
+  cancelled-by-you: "<gray>Cancelled. Your items are coming back."
+  cancelled: "<yellow><white><player></white> took their send back."
+  ran-out: "<yellow>Your send to <white><player></white> was not accepted in time. Your items are coming back."
+  ran-out-recipient: "<gray>The send from <white><player></white> ran out."
+  ran-out-just-now: "<red>That send just ran out."
+  returned: "<green>Your items from the send to <white><player></white> are back: <white><items></white>."
+  returned-no-room: "<yellow>Your items from the send to <white><player></white> are waiting for you. Make room, then collect them in <click:run_command:'/sends'><yellow>/sends</yellow></click>."
+  no-room: "<red>You have no room for that. Make some and try again — it waits another <white><left></white>. <click:run_command:'/sends'><yellow>/sends</yellow></click> lists what is waiting."
+  none-waiting: "<gray>Nothing is waiting for you."
+  none-out: "<gray>You have nothing out that anybody could still accept."
+  several: "<yellow>You have <white><count></white> sends — pick one in /sends, or give its id."
+  gone: "<red>That send is no longer there. It may have been accepted, taken back or run out."
+  save-failed: "<red>That could not be saved, so nothing was changed. Try again."
+  reminder: "<gray>You have <white><count></white> send(s) waiting for you. <click:run_command:'/sends'><yellow>[Open /sends]</yellow></click>"

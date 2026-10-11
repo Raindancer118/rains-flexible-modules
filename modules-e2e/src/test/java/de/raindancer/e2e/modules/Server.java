@@ -34,6 +34,12 @@ final class Server implements AutoCloseable {
 
     /** @param others plugins from elsewhere — another author's plugin a module works alongside */
     static Server start(String scenario, List<String> plugins, List<Path> others, List<String> upLines) {
+        return start(scenario, plugins, others, java.util.Map.of(), upLines);
+    }
+
+    /** @param files written under the server folder before it starts: relative path to content */
+    static Server start(String scenario, List<String> plugins, List<Path> others,
+                        java.util.Map<String, String> files, List<String> upLines) {
         PaperServer.Builder builder = PaperServer.forRun()
                 .seed(1)
                 .in(E2e.serverFolder(scenario))
@@ -43,6 +49,7 @@ final class Server implements AutoCloseable {
             builder.plugin(jar(parts[0], parts[1]));
         }
         others.forEach(builder::plugin);
+        files.forEach(builder::file);
         Server server = new Server(scenario, builder.build());
         try {
             server.paper.start();
