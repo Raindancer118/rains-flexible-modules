@@ -95,16 +95,19 @@ public final class PlayerMenu extends ModerationScreen {
         PlayerOverview seen = overview != null ? overview : PlayerOverview.of(subject, subjectName).build();
         Instant now = Instant.now();
         java.time.ZoneId zone = LogSearchService.ZONE;
+        // Each part of the overview only for whoever may already read it behind its own door.
+        de.raindancer.modules.moderation.model.OverviewAccess access = de.raindancer.modules.moderation.model
+                .OverviewAccess.of(this::may, viewer.hasPermission(TELEPORT), viewer.isOp());
 
-        List<String> presence = new ArrayList<>(seen.presenceLore(zone, now));
+        List<String> presence = new ArrayList<>(seen.presenceLore(zone, now, access));
         if (services().vanish().isVanished(subject)) {
             presence.add("<dark_gray>Vanished");
         }
         set(1, Icons.of(seen.presence().icon(), seen.presence().title(), presence));
         set(2, Icons.of(seen.standing().icon(), seen.standing().title(), seen.standingLore(now)));
-        set(MenuLayout.HEADER_SUBJECT, Icons.head(subject, "<white>" + subjectName, seen.identityLore(zone)));
-        set(6, Icons.of(Material.WRITABLE_BOOK, "<yellow>Record", seen.recordLore()));
-        set(7, Icons.of(Material.DIAMOND_ORE, "<yellow>X-ray", seen.xrayLore()));
+        set(MenuLayout.HEADER_SUBJECT, Icons.head(subject, "<white>" + subjectName, seen.identityLore(zone, access)));
+        set(6, Icons.of(Material.WRITABLE_BOOK, "<yellow>Record", seen.recordLore(access)));
+        set(7, Icons.of(Material.DIAMOND_ORE, "<yellow>X-ray", seen.xrayLore(access)));
 
         section(MenuLayout.WHO, Material.LIGHT_BLUE_STAINED_GLASS_PANE, "<aqua>Look into");
         section(MenuLayout.RULES, Material.RED_STAINED_GLASS_PANE, "<red>Punish");
@@ -112,24 +115,28 @@ public final class PlayerMenu extends ModerationScreen {
 
         // ── look into ──────────────────────────────────────────────────────────────────────────
         band(MenuLayout.WHO, 1, may(ModerationPermission.HISTORY),
-                Icons.of(Material.BOOK, "<yellow>Record", "<gray>" + seen.recordEntries() + " entries, every kind.",
+                Icons.of(Material.BOOK, "<yellow>Record", access.record() ? "<gray>" + seen.recordEntries()
+                                + " entries, every kind." : "<gray>Every kind of entry.",
                         "<dark_gray>Newest first."),
                 "For whoever may read a record",
                 click -> new HistoryMenu(services(), viewer, this, subject, subjectName).open());
         band(MenuLayout.WHO, 2, may(ModerationPermission.REPORTS),
                 Icons.of(Material.PAPER, "<yellow>Reports",
-                        "<gray>" + seen.openReports() + " open of " + seen.reports() + " about them."),
+                        access.reports() ? "<gray>" + seen.openReports() + " open of " + seen.reports() + " about them."
+                                : "<gray>Reports about them."),
                 "For whoever may read reports",
                 click -> new ReportsMenu(services(), viewer, this).open());
         band(MenuLayout.WHO, 3, may(ModerationPermission.REPORTS),
                 Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Mining evidence",
-                        "<gray>" + seen.xray().finds() + " vein(s) and bait(s) on record.",
+                        access.reports() ? "<gray>" + seen.xray().finds() + " vein(s) and bait(s) on record."
+                                : "<gray>Veins and baits on record.",
                         "<dark_gray>The x-ray tests, and where each find was."),
                 "For whoever may read reports",
                 click -> new XrayReviewMenu(services(), viewer, this, subject, subjectName).open());
         band(MenuLayout.WHO, 4, may(ModerationPermission.ATTEMPTS),
                 Icons.of(Material.TRIPWIRE_HOOK, "<yellow>Attempts while punished",
-                        "<gray>" + seen.attempts() + " kept: joins, chat, building.",
+                        access.attempts() ? "<gray>" + seen.attempts() + " kept: joins, chat, building."
+                                : "<gray>Joins, chat, building while punished.",
                         "<dark_gray>/attempts searches everybody's."),
                 "For whoever may see attempts",
                 click -> new AttemptsMenu(services(), viewer, this, subject, subjectName).open());
@@ -139,7 +146,8 @@ public final class PlayerMenu extends ModerationScreen {
                 "For whoever may read the chat log",
                 click -> new ChatLogMenu(services(), viewer, this, subject, subjectName, "").open());
         band(MenuLayout.WHO, 6, may(ModerationPermission.NOTES),
-                Icons.of(Material.WRITABLE_BOOK, "<yellow>Staff notes", "<gray>" + seen.notes() + " written.",
+                Icons.of(Material.WRITABLE_BOOK, "<yellow>Staff notes",
+                        access.notes() ? "<gray>" + seen.notes() + " written." : "<gray>What staff wrote.",
                         "<dark_gray>They never see these."),
                 "For whoever may read the notes",
                 click -> new NotesMenu(services(), viewer, this, subject, subjectName).open());
@@ -173,14 +181,14 @@ public final class PlayerMenu extends ModerationScreen {
         boolean here = seen.where() != null;
         band(MenuLayout.LAND, 2, here && viewer.hasPermission(TELEPORT),
                 Icons.of(Material.ENDER_PEARL, "<yellow>Go to them",
-                        here ? "<gray>" + seen.where().world() + " " + seen.where().x() + " " + seen.where().y()
-                                + " " + seen.where().z() : "<gray>Only while they are online."),
+                        here && access.location() ? "<gray>" + seen.where().world() + " " + seen.where().x() + " " + seen.where().y()
+                                + " " + seen.where().z() : here ? "<gray>To where they stand." : "<gray>Only while they are online."),
                 here ? "For whoever may teleport" : "They are not online",
                 click -> goTo());
         band(MenuLayout.LAND, 3, may(ModerationPermission.HISTORY),
-                Icons.of(Material.GOLD_NUGGET, "<yellow>Fines", "<gray>Owes <white>"
+                Icons.of(Material.GOLD_NUGGET, "<yellow>Fines", access.record() ? "<gray>Owes <white>"
                                 + de.raindancer.core.social.economy.Fees.format(services().fines().owed(subject))
-                                + "</white>.", "<dark_gray>Revoke one, or forgive the debt."),
+                                + "</white>." : "<gray>What they were fined.", "<dark_gray>Revoke one, or forgive the debt."),
                 "For whoever may read a record",
                 click -> new FinesMenu(services(), viewer, this, subject, subjectName).open());
         // Flight, invulnerability, one-hit-kill: none is a punishment, so they live apart from them.

@@ -50,6 +50,11 @@ public final class ChatLogMenu extends ModerationList<ChatLog.Line> {
 
     @Override
     public void open() {
+        // Asked again here, not only by the door that led here.
+        if (!may(de.raindancer.modules.moderation.model.ModerationPermission.CHATLOG)) {
+            tell("moderation.no-permission");
+            return;
+        }
         if (lines != null) {
             super.open();
             return;
@@ -98,7 +103,11 @@ public final class ChatLogMenu extends ModerationList<ChatLog.Line> {
 
     @Override
     protected void onClick(ChatLog.Line line, InventoryClickEvent event) {
-        // Reading only.
+        // Reading only — but a page can stay open while the right to read it is taken away.
+        if (!may(de.raindancer.modules.moderation.model.ModerationPermission.CHATLOG)) {
+            tell("moderation.no-permission");
+            viewer.closeInventory();
+        }
     }
 
     @Override

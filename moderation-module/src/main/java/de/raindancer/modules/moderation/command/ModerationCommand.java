@@ -119,12 +119,12 @@ public final class ModerationCommand extends StaffCommand {
                                 moderation.messages().send(reader, "moderation.overview-heading", "player", name);
                                 List<String> lines = new java.util.ArrayList<>();
                                 lines.add(overview.presence().title());
-                                lines.addAll(overview.presenceLore(zone, now));
+                                lines.addAll(overview.presenceLore(zone, now, de.raindancer.modules.moderation.model.OverviewAccess.EVERYTHING));
                                 lines.add(overview.standing().title());
                                 lines.addAll(overview.standingLore(now));
-                                lines.addAll(overview.identityLore(zone));
-                                lines.addAll(overview.recordLore());
-                                lines.addAll(overview.xrayLore());
+                                lines.addAll(overview.identityLore(zone, de.raindancer.modules.moderation.model.OverviewAccess.EVERYTHING));
+                                lines.addAll(overview.recordLore(de.raindancer.modules.moderation.model.OverviewAccess.EVERYTHING));
+                                lines.addAll(overview.xrayLore(de.raindancer.modules.moderation.model.OverviewAccess.EVERYTHING));
                                 for (String line : lines) {
                                     moderation.chat().row(reader, "  " + line);
                                 }

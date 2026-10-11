@@ -127,9 +127,9 @@ public record PlayerOverview(UUID id, String name, List<String> oldNames, Presen
 
     // ------------------------------------------------------------------ the cards
 
-    public List<String> presenceLore(ZoneId zone, Instant now) {
+    public List<String> presenceLore(ZoneId zone, Instant now, OverviewAccess access) {
         List<String> lore = new ArrayList<>();
-        if (where != null) {
+        if (where != null && access.location()) {
             lore.add("<gray>In <white>" + safe(where.world()) + "</white> at <white>" + where.x() + " " + where.y() + " "
                     + where.z());
             lore.add("<gray>Ping <white>" + where.ping() + " ms</white>"
@@ -159,12 +159,12 @@ public record PlayerOverview(UUID id, String name, List<String> oldNames, Presen
         return lore;
     }
 
-    public List<String> identityLore(ZoneId zone) {
+    public List<String> identityLore(ZoneId zone, OverviewAccess access) {
         List<String> lore = new ArrayList<>();
         lore.add("<dark_gray>" + id);
         lore.add("<gray>" + (bedrock() ? "Bedrock" : "Java") + " edition");
         List<String> before = oldNames.stream().filter(old -> !old.equalsIgnoreCase(name)).toList();
-        if (!before.isEmpty()) {
+        if (!before.isEmpty() && access.chat()) {
             lore.add("<gray>Also known as <white>" + safe(String.join(", ", before.subList(0, Math.min(4, before.size())))));
         }
         if (firstJoined != null) {
@@ -176,24 +176,43 @@ public record PlayerOverview(UUID id, String name, List<String> oldNames, Presen
         return lore;
     }
 
-    public List<String> recordLore() {
+    public List<String> recordLore(OverviewAccess access) {
         List<String> lore = new ArrayList<>();
+        if (access.record()) {
+            recordLines(lore);
+        }
+        if (access.reports()) {
+            lore.add("<gray>Reports: <white>" + openReports + "</white> open of <white>" + reports);
+        }
+        if (access.notes()) {
+            lore.add("<gray>Notes: <white>" + notes);
+        }
+        if (access.attempts()) {
+            lore.add("<gray>Attempts while punished: <white>" + attempts);
+        }
+        if (access.record() && balance != null) {
+            lore.add("<gray>Balance: <white>" + balance + (owed == null ? "" : "</white> · owes <white>" + owed));
+        }
+        if (lore.isEmpty()) {
+            lore.add("<dark_gray>Nothing here you may read.");
+        }
+        return lore;
+    }
+
+    private void recordLines(List<String> lore) {
         lore.add("<gray>On record: <white>" + recordEntries + "</white> · recent warnings: <white>" + recentWarnings);
         ruleOffences.entrySet().stream()
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()))
                 .limit(4)
                 .forEach(rule -> lore.add("<gray>· " + safe(rule.getKey()) + ": <white>" + rule.getValue() + "×"));
-        lore.add("<gray>Reports: <white>" + openReports + "</white> open of <white>" + reports);
-        lore.add("<gray>Notes: <white>" + notes);
-        lore.add("<gray>Attempts while punished: <white>" + attempts);
-        if (balance != null) {
-            lore.add("<gray>Balance: <white>" + balance + (owed == null ? "" : "</white> · owes <white>" + owed));
-        }
-        return lore;
     }
 
-    public List<String> xrayLore() {
+    public List<String> xrayLore(OverviewAccess access) {
         List<String> lore = new ArrayList<>();
+        if (!access.reports()) {
+            lore.add("<dark_gray>For whoever may read reports.");
+            return lore;
+        }
         Xray ledger = xray == null ? Xray.NONE : xray;
         String colour = ledger.percent() >= 80 ? "<red>" : ledger.percent() >= 50 ? "<yellow>" : "<green>";
         lore.add("<gray>Suspicion " + colour + ledger.percent() + "%");

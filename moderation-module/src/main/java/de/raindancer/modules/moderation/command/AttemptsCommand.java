@@ -84,9 +84,20 @@ public final class AttemptsCommand extends LogSearchCommand<BlockedAttempts.Atte
 
     @Override
     protected Component line(BlockedAttempts.Attempt attempt, LogQuery query) {
+        return line(attempt, query, false);
+    }
+
+    /** An address hash is shown to operators and the console only: it links accounts, which is an admin's question. */
+    @Override
+    protected Component line(BlockedAttempts.Attempt attempt, LogQuery query, CommandSender reader) {
+        boolean addresses = !(reader instanceof Player player) || player.isOp();
+        return line(attempt, query, addresses);
+    }
+
+    private Component line(BlockedAttempts.Attempt attempt, LogQuery query, boolean addresses) {
         return services().chat().mm(services().messages().raw("moderation.attempts.line"),
                 Chat.formatted("time", time(attempt.at().toEpochMilli(),
-                        attempt.address() == null ? "" : " · address #" + attempt.address())),
+                        attempt.address() == null || !addresses ? "" : " · address #" + attempt.address())),
                 Chat.formatted("player", name(attempt.name(), attempt.player(), query)),
                 Chat.arg("kind", kindWord(services(), attempt.kind())),
                 Chat.arg("punishment", punishmentWords(attempt)),

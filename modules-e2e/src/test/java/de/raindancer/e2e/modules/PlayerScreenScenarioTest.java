@@ -65,6 +65,27 @@ class PlayerScreenScenarioTest {
             assertThat(slot(online, 29)).contains("Go to them");
             ada.closeWindow();
 
+            // A trial mod: the same page, but what is not theirs is locked, says so, and does nothing when clicked;
+            // where Bo stands is not shown to somebody who may not teleport to him.
+            Bot dee = server.player("Dee");
+            assertThat(server.console("promote Dee trial")).containsIgnoringCase("trial");
+            Await.ticks(10);
+            dee.run("mod Bo");
+            Await.until("Dee's page is filled", WAIT, () -> dee.window().map(w -> slot(w, 1)).orElse("").contains("Online"));
+            Bot.Window trial = dee.window().orElseThrow();
+            dump("Bo, seen by trial mod Dee", trial);
+            assertThat(slot(trial, 1)).doesNotContain("Ping").doesNotContain(" at ");
+            assertThat(slot(trial, 29)).contains("Go to them").contains("For whoever may teleport").doesNotContain("world ");
+            assertThat(slot(trial, 32)).contains("Only the server owner");
+            assertThat(slot(trial, 6)).doesNotContain("Notes");
+            dee.clickSlot(32);
+            Await.ticks(20);
+            assertThat(dee.window().map(w -> slot(w, 4)).orElse("")).as("a locked door opens nothing").contains("Bo");
+            dee.clickSlot(29);
+            Await.ticks(20);
+            assertThat(dee.window()).as("nor does going to him").isPresent();
+            dee.closeWindow();
+
             cy.leave();
             Await.ticks(40);
             ada.forgetChat();

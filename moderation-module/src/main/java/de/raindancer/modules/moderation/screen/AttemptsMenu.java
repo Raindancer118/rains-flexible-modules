@@ -45,6 +45,11 @@ public final class AttemptsMenu extends ModerationList<BlockedAttempts.Attempt> 
 
     @Override
     public void open() {
+        // Asked again here, not only by the door that led here: a menu can be reached from more than one page.
+        if (!may(de.raindancer.modules.moderation.model.ModerationPermission.ATTEMPTS)) {
+            tell("moderation.no-permission");
+            return;
+        }
         if (attempts != null) {
             super.open();
             return;
@@ -91,7 +96,7 @@ public final class AttemptsMenu extends ModerationList<BlockedAttempts.Attempt> 
         }
         lore.add("");
         lore.add("<dark_gray>" + WHEN.format(attempt.at()) + " (Berlin)");
-        if (attempt.address() != null) {
+        if (attempt.address() != null && viewer.isOp()) {
             lore.add("<dark_gray>address #" + attempt.address());
         }
         return Icons.of(material, "<yellow>Tried to " + escaped(AttemptsCommand.kindWord(services(), attempt.kind())),
@@ -100,7 +105,11 @@ public final class AttemptsMenu extends ModerationList<BlockedAttempts.Attempt> 
 
     @Override
     protected void onClick(BlockedAttempts.Attempt attempt, InventoryClickEvent event) {
-        // Reading only.
+        // Reading only — but a page can stay open while the right to read it is taken away.
+        if (!may(de.raindancer.modules.moderation.model.ModerationPermission.ATTEMPTS)) {
+            tell("moderation.no-permission");
+            viewer.closeInventory();
+        }
     }
 
     private static String escaped(String text) {

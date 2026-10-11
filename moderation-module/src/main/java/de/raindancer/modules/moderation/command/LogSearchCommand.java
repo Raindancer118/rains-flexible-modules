@@ -59,6 +59,11 @@ abstract class LogSearchCommand<T> extends StaffCommand {
     /** One line of the answer. */
     protected abstract Component line(T item, LogQuery query);
 
+    /** One line of the answer for this reader; the same for everybody unless a command says otherwise. */
+    protected Component line(T item, LogQuery query, CommandSender reader) {
+        return line(item, query);
+    }
+
     /** Parts of the query this command does not understand, as typed; empty when it is fine. */
     protected List<String> refused(LogQuery query) {
         return List.of();
@@ -125,7 +130,7 @@ abstract class LogSearchCommand<T> extends StaffCommand {
                 Chat.arg("what", what), Chat.arg("count", page.total()),
                 Chat.arg("page", page.page()), Chat.arg("pages", page.pages()));
         for (T item : page.items()) {
-            chat.raw(sender, line(item, query));
+            chat.raw(sender, line(item, query, sender));
         }
         if (page.pages() > 1) {
             chat.row(sender, moderation.messages().raw("moderation.logsearch.pages"),

@@ -51,7 +51,7 @@ class PlayerOverviewTest {
     @DisplayName("offline: last seen in Berlin time and how long ago")
     void offlineLore() {
         PlayerOverview overview = mushy().presence(PlayerOverview.Presence.OFFLINE).build();
-        assertThat(String.join("\n", overview.presenceLore(BERLIN, NOW)))
+        assertThat(String.join("\n", overview.presenceLore(BERLIN, NOW, OverviewAccess.EVERYTHING)))
                 .contains("Last seen <white>2026-10-11 12:54").contains("2h 6m ago");
     }
 
@@ -60,7 +60,7 @@ class PlayerOverviewTest {
     void onlineLore() {
         PlayerOverview overview = mushy().presence(PlayerOverview.Presence.ONLINE)
                 .where(new PlayerOverview.Where("world", 120, 64, -30, 45, "26.3")).build();
-        String lore = String.join("\n", overview.presenceLore(BERLIN, NOW));
+        String lore = String.join("\n", overview.presenceLore(BERLIN, NOW, OverviewAccess.EVERYTHING));
         assertThat(lore).contains("world").contains("120 64 -30").contains("45 ms").contains("26.3");
     }
 
@@ -87,12 +87,12 @@ class PlayerOverviewTest {
     @Test
     @DisplayName("who: id, edition, old names without the current one, first joined, playtime")
     void identity() {
-        String lore = String.join("\n", mushy().build().identityLore(BERLIN));
+        String lore = String.join("\n", mushy().build().identityLore(BERLIN, OverviewAccess.EVERYTHING));
         assertThat(lore).contains(MUSHY.toString()).contains("Java").contains("OldMushy")
                 .doesNotContain("MushyTheFish,").contains("2026-10-01").contains("12h 34m");
         assertThat(PlayerOverview.isBedrock(new UUID(0, 2535412345678L), ".Steve")).isTrue();
         assertThat(PlayerOverview.isBedrock(MUSHY, "MushyTheFish")).isFalse();
-        assertThat(String.join("\n", PlayerOverview.of(new UUID(0, 1), ".Steve").build().identityLore(BERLIN)))
+        assertThat(String.join("\n", PlayerOverview.of(new UUID(0, 1), ".Steve").build().identityLore(BERLIN, OverviewAccess.EVERYTHING)))
                 .contains("Bedrock");
     }
 
@@ -102,13 +102,42 @@ class PlayerOverviewTest {
         PlayerOverview overview = mushy().record(7, 3, Map.of("No griefing", 2, "Be kind", 1))
                 .reports(1, 4).notes(2).attempts(5).money("⛃120", "⛃0")
                 .xray(new PlayerOverview.Xray(87, 6.0, 1.5, 9)).build();
-        String record = String.join("\n", overview.recordLore());
+        String record = String.join("\n", overview.recordLore(OverviewAccess.EVERYTHING));
         assertThat(record).contains("7").contains("No griefing: <white>2×").contains("1</white> open of <white>4")
                 .contains("Attempts while punished: <white>5").contains("⛃120");
         assertThat(record.lines().filter(line -> line.contains("×")).toList()).first().asString().contains("No griefing");
-        String xray = String.join("\n", overview.xrayLore());
+        String xray = String.join("\n", overview.xrayLore(OverviewAccess.EVERYTHING));
         assertThat(xray).contains("<red>87%").contains("6 of 1.5").contains("9");
-        assertThat(String.join("\n", mushy().xray(new PlayerOverview.Xray(10, 0, 0, 0)).build().xrayLore()))
+        assertThat(String.join("\n", mushy().xray(new PlayerOverview.Xray(10, 0, 0, 0)).build().xrayLore(OverviewAccess.EVERYTHING)))
                 .contains("<green>10%");
+    }
+
+    @Test
+    @DisplayName("a viewer without the right sees none of what that right guards elsewhere: evidence, attempts, chat, location, money")
+    void lowerRanksSeeLess() {
+        PlayerOverview overview = mushy().presence(PlayerOverview.Presence.ONLINE)
+                .where(new PlayerOverview.Where("world", 120, 64, -30, 45, "26.3"))
+                .record(7, 3, Map.of("No griefing", 2)).reports(1, 4).notes(2).attempts(5).money("⛃120", "⛃0")
+                .xray(new PlayerOverview.Xray(87, 6.0, 1.5, 9)).build();
+        java.util.Set<ModerationPermission> held = java.util.EnumSet.of(ModerationPermission.WARN);
+        OverviewAccess trial = OverviewAccess.of(held::contains, false, false);
+
+        String everything = String.join("\n", overview.presenceLore(BERLIN, NOW, trial))
+                + String.join("\n", overview.identityLore(BERLIN, trial))
+                + String.join("\n", overview.recordLore(trial))
+                + String.join("\n", overview.xrayLore(trial));
+        assertThat(everything).doesNotContain("120 64 -30").doesNotContain("45 ms").doesNotContain("26.3")
+                .doesNotContain("OldMushy").doesNotContain("87%").doesNotContain("Baits")
+                .doesNotContain("Attempts").doesNotContain("open of").doesNotContain("Notes")
+                .doesNotContain("⛃120").doesNotContain("No griefing").doesNotContain("On record");
+        assertThat(trial.addresses()).isFalse();
+
+        OverviewAccess mod = OverviewAccess.of(java.util.EnumSet.of(ModerationPermission.REPORTS,
+                ModerationPermission.HISTORY, ModerationPermission.ATTEMPTS)::contains, true, false);
+        String more = String.join("\n", overview.recordLore(mod)) + String.join("\n", overview.xrayLore(mod))
+                + String.join("\n", overview.presenceLore(BERLIN, NOW, mod));
+        assertThat(more).contains("87%").contains("Attempts while punished: <white>5").contains("1</white> open of")
+                .contains("120 64 -30").doesNotContain("Notes");
+        assertThat(OverviewAccess.of(held::contains, false, true).addresses()).as("operators see address hashes").isTrue();
     }
 }
