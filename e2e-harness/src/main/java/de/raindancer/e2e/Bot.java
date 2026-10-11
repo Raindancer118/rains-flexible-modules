@@ -29,6 +29,7 @@ import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.ObjectiveAction;
 import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.ScoreboardPosition;
 import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.TeamAction;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundAddEntityPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundSetTimePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundBlockUpdatePacket;
 import org.geysermc.mcprotocollib.protocol.packet.common.clientbound.ClientboundPingPacket;
 import org.geysermc.mcprotocollib.protocol.packet.common.serverbound.ServerboundPongPacket;
@@ -198,6 +199,8 @@ public final class Bot {
     /** Sound keys heard and particle types seen, since the last {@link #forgetEffects}. */
     private final List<String> soundsHeard = new CopyOnWriteArrayList<>();
     private final List<String> particlesSeen = new CopyOnWriteArrayList<>();
+    /** Every time of day the server set on this client's clocks, in ticks of the day (0–23999). */
+    private final List<Long> timesOfDay = new CopyOnWriteArrayList<>();
     private final Map<String, Map<String, Integer>> scores = new ConcurrentHashMap<>();
     private final Map<String, Map<String, String>> scoreTexts = new ConcurrentHashMap<>();
     private final Map<String, String[]> teams = new ConcurrentHashMap<>();
@@ -385,6 +388,8 @@ public final class Bot {
                 loaded = true;
             }
             case ClientboundAddEntityPacket added -> entityIds.put(added.getUuid(), added.getEntityId());
+            case ClientboundSetTimePacket time -> time.getClockUpdates().values()
+                    .forEach(clock -> timesOfDay.add(Math.floorMod(clock.totalTicks(), 24000L)));
             case ClientboundRemoveEntitiesPacket removed -> {
                 for (int id : removed.getEntityIds()) {
                     entityIds.values().removeIf(known -> known == id);
@@ -1104,6 +1109,11 @@ public final class Bot {
     }
 
     /** Every particle type it was shown since the last {@link #forgetEffects}, like PORTAL. */
+    /** The times of day the server has shown this client, oldest first. */
+    public List<Long> timesOfDay() {
+        return List.copyOf(timesOfDay);
+    }
+
     public List<String> particlesSeen() {
         return List.copyOf(particlesSeen);
     }

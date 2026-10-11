@@ -1,7 +1,9 @@
 package de.raindancer.modules.claims.screen;
 
 import de.raindancer.modules.claims.model.Claim;
+import de.raindancer.modules.claims.model.ClaimAtmosphere;
 import de.raindancer.modules.claims.model.ClaimFeature;
+import de.raindancer.core.ui.choose.AmountChooser;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
@@ -54,9 +56,12 @@ public final class PerksMenu extends ClaimScreen {
                 () -> claim.atmosphere().weather(claim.atmosphere().weather().next()));
 
         perk(MenuLayout.RULES, 5, ClaimFeature.CLAIM_TIME, Material.CLOCK, "Its own time of day",
-                claim.atmosphere().timePreset().displayName(),
-                () -> claim.atmosphere().timePreset(
-                        nextTime(claim.atmosphere().timePreset())));
+                claim.atmosphere().overridesTime()
+                        ? ClaimAtmosphere.clock(claim.atmosphere().effectiveTicks()) + " · "
+                                + claim.atmosphere().timePreset().displayName()
+                        : "follows the world",
+                () -> claim.atmosphere().timePreset(ClaimAtmosphere.TimePreset.INHERIT),
+                this::pickTime);
 
         toolbar(1, Icons.of(Material.BREWING_STAND, "<white>Choose the effects",
                         "<gray>" + claim.effects().size() + " granted, up to "
@@ -78,11 +83,60 @@ public final class PerksMenu extends ClaimScreen {
                 click -> new EquipMenu(services(), viewer, claim, this).open());
     }
 
-    /** The next time preset round the list. TimePreset has no next() of its own, and the order is the list's. */
-    private static de.raindancer.modules.claims.model.ClaimAtmosphere.TimePreset nextTime(
-            de.raindancer.modules.claims.model.ClaimAtmosphere.TimePreset current) {
-        var all = de.raindancer.modules.claims.model.ClaimAtmosphere.TimePreset.values();
-        return all[(current.ordinal() + 1) % all.length];
+    /**
+     * The claim's time of day on Core's number picker: an hour, ten minutes, a minute or a single tick either way,
+     * round midnight. Everybody standing in the claim sees each step as it is clicked; leaving without Accept
+     * puts the time back as it was.
+     */
+    private void pickTime() {
+        Claim claim = claim();
+        ClaimAtmosphere atmosphere = claim.atmosphere();
+        ClaimAtmosphere.TimePreset preset = atmosphere.timePreset();
+        int custom = atmosphere.customTicks();
+        org.bukkit.World world = services().server().getWorld(claim.worldId());
+        long worldTicks = world == null ? viewer.getWorld().getTime() : world.getTime();
+        int start = atmosphere.effectiveTicks() >= 0 ? atmosphere.effectiveTicks()
+                : (int) Math.floorMod(worldTicks, (long) ClaimAtmosphere.DAY);
+        new AmountChooser(viewer, services().brand(), this, "Time of day", start, 0, ClaimAtmosphere.DAY - 1,
+                ticks -> {
+                    atmosphere.customTicks(ticks);
+                    claim.markDirty();
+                    services().claimService().saveAsync(claim);
+                    services().ambience().refreshClaim(claim);
+                })
+                .stepsOf(TIME_STEPS)
+                .namingSteps(PerksMenu::timeStep)
+                .wrapping()
+                .showing(ticks -> ClaimAtmosphere.clock(ticks) + " (" + ticks + " ticks)")
+                .previewing(ticks -> {
+                    if (ticks == start) {
+                        // Back where it opened: as it was, which for a claim following the world is following it.
+                        if (custom >= 0) {
+                            atmosphere.customTicks(custom);
+                        } else {
+                            atmosphere.timePreset(preset);
+                        }
+                    } else {
+                        atmosphere.customTicks(ticks);
+                    }
+                    services().ambience().refreshClaim(claim);
+                })
+                .open();
+    }
+
+    /** An hour, ten minutes, a minute, a tick — a Minecraft day is 24000 ticks. */
+    static final int[] TIME_STEPS = {1, 17, 167, 1000};
+
+    /** "+1 hour", "-10 min", "+1 tick". */
+    static String timeStep(int step) {
+        String sign = step > 0 ? "+" : "-";
+        return sign + switch (Math.abs(step)) {
+            case 1000 -> "1 hour";
+            case 167 -> "10 min";
+            case 17 -> "1 min";
+            case 1 -> "1 tick";
+            default -> Math.abs(step) + " ticks";
+        };
     }
 
     /**
@@ -100,6 +154,12 @@ public final class PerksMenu extends ClaimScreen {
      */
     private void perk(int band, int column, ClaimFeature feature, Material icon, String name,
                       String detail, Runnable toggle) {
+        perk(band, column, feature, icon, name, detail, toggle, null);
+    }
+
+    /** With {@code pick}: a click opens it, a shift click runs {@code toggle} instead. */
+    private void perk(int band, int column, ClaimFeature feature, Material icon, String name,
+                      String detail, Runnable toggle, Runnable pick) {
         boolean offered = services().features().isOffered(feature);
         boolean forced = services().features().isForced(feature);
         boolean on = services().features().isEnabled(claim(), feature);
@@ -110,7 +170,8 @@ public final class PerksMenu extends ClaimScreen {
                 "",
                 on ? "<green>✔ running" : "<red>✘ off",
                 forced ? "<gold>the server keeps this on"
-                        : offered ? "<dark_gray>click to change" : "<red>the server has switched this off"));
+                        : !offered ? "<red>the server has switched this off"
+                        : pick != null ? "<dark_gray>click to pick · shift click to switch off" : "<dark_gray>click to change"));
         if (offered && !forced && feature.audienceAware()) {
             lore.add("<dark_gray>right click for owners / trusted / visitors");
         }
@@ -128,6 +189,10 @@ public final class PerksMenu extends ClaimScreen {
         band(band, column, Icons.of(icon, (on ? "<green>" : "<gray>") + name, lore), click -> {
             if (opensAudiencePage(click.getClick(), feature.audienceAware())) {
                 new AudiencePage(services(), viewer, claim(), this, feature, name).open();
+                return;
+            }
+            if (pick != null && !click.isShiftClick()) {
+                pick.run();
                 return;
             }
             toggle.run();

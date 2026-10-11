@@ -169,6 +169,9 @@ public final class ClaimAtmosphere {
         }
     }
 
+    /** Ticks in a Minecraft day. */
+    public static final int DAY = 24000;
+
     private WeatherMode weather = WeatherMode.INHERIT;
     private TimePreset timePreset = TimePreset.INHERIT;
     /** Exact tick value when the owner picked one; {@code -1} means use the preset. */
@@ -203,6 +206,47 @@ public final class ClaimAtmosphere {
         }
         this.customTicks = ticks % 24000;
         this.timePreset = TimePreset.closest(this.customTicks);
+    }
+
+    /**
+     * Moves the claim's time by {@code deltaTicks}, either way and round midnight. A claim following the world
+     * starts from the world's time ({@code worldTicks}), so the first nudge does not jump somewhere else.
+     */
+    public void shiftTime(int deltaTicks, long worldTicks) {
+        int from = effectiveTicks() >= 0 ? effectiveTicks() : (int) Math.floorMod(worldTicks, (long) DAY);
+        customTicks(Math.floorMod(from + deltaTicks, DAY));
+    }
+
+    /** Ticks as a clock, "14:30" — tick 0 is six in the morning. */
+    public static String clock(int ticks) {
+        int minutes = (int) ((Math.floorMod(ticks, DAY) * 1440L) / DAY);
+        int hour = (minutes / 60 + 6) % 24;
+        return String.format(Locale.ROOT, "%02d:%02d", hour, minutes % 60);
+    }
+
+    /** What somebody typed — "14:30" or a tick count from 0 to 23999 — as ticks. */
+    public static Optional<Integer> parseTime(String typed) {
+        if (typed == null) {
+            return Optional.empty();
+        }
+        String text = typed.strip();
+        try {
+            int colon = text.indexOf(':');
+            if (colon < 0) {
+                int ticks = Integer.parseInt(text);
+                return ticks >= 0 && ticks < DAY ? Optional.of(ticks) : Optional.empty();
+            }
+            int hour = Integer.parseInt(text.substring(0, colon));
+            int minute = Integer.parseInt(text.substring(colon + 1));
+            if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+                return Optional.empty();
+            }
+            int sinceSix = Math.floorMod(hour - 6, 24) * 60 + minute;
+            // Rounded to the nearest tick, so a typed time reads back as the same clock.
+            return Optional.of((int) Math.round(sinceSix * (double) DAY / 1440) % DAY);
+        } catch (NumberFormatException notANumber) {
+            return Optional.empty();
+        }
     }
 
     public boolean overridesWeather() {

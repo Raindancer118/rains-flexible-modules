@@ -30,4 +30,11 @@ class PerksMenuTest {
     void everyOtherClickLeavesItAlone(ClickType click) {
         assertThat(PerksMenu.opensAudiencePage(click, true)).isFalse();
     }
+
+    @org.junit.jupiter.api.Test
+    void theTimeStepsReadAsClockTime() {
+        assertThat(java.util.Arrays.stream(PerksMenu.TIME_STEPS).mapToObj(PerksMenu::timeStep).toList())
+                .containsExactly("+1 tick", "+1 min", "+10 min", "+1 hour");
+        assertThat(PerksMenu.timeStep(-167)).isEqualTo("-10 min");
+    }
 }
