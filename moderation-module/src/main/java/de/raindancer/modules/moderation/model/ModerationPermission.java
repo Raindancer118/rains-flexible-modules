@@ -27,6 +27,7 @@ public enum ModerationPermission {
     STAFF_CHAT("staffchat", "Talk in the staff channel", Material.OAK_SIGN, 1, true),
     REPORTS("reports", "Read the report queue and deal with what is in it", Material.BELL, 1, true),
     INVSEE("invsee", "Look inside somebody's inventory", Material.CHEST, 1, true),
+    CHATLOG("chatlog", "Read and search everything said in public chat", Material.BOOK, 1, true),
 
     // ── from a mod upward: the full working set ────────────────────────────────────────────
     MUTE("mute", "Stop somebody talking, and let them talk again", Material.PAPER, 2, false),

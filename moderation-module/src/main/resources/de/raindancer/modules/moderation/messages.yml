@@ -217,6 +217,27 @@ moderation:
   # built from a player's own name and goes through the ordinary escaping every value here gets.
   audit-line-chat: "<dark_gray>(<when>)</dark_gray> <white><feature></white> <gray>— <saying>"
 
+  # ── /chatlog: searching what was said ──────────────────────────────────
+  # Times are Berlin time. <what> is the search as read back; the page buttons and names are clickable.
+  logsearch:
+    unreadable: "<red>Could not read <white><part></white>. <gray>Times look like 2026-10-10 17:30, 10.10.2026, today, yesterday or 9:05 (Berlin time); last: takes 30m, 2h or 3d; page: a number."
+    unknown-type: "<red>There is no kind called <white><part></white>."
+    nobody: "<red>Nobody called <white><player></white> has joined or chatted here. <gray>An old name works too, if they chatted under it."
+    none: "<gray>Nothing found for <white><what></white>."
+    pages: "<newer> <gray>page <white><page></white> of <white><pages></white></gray> <older>"
+    newer: "<yellow>[« Newer]"
+    older: "<yellow>[Older »]"
+    no-newer: "<dark_gray>[« Newer]"
+    no-older: "<dark_gray>[Older »]"
+    page-hover: "<gray>Page <white><page></white>"
+    time-hover: "<gray><when> <dark_gray>Berlin time<extra>"
+    name-hover: "<gray>Only <white><player></white>, the rest of this search kept"
+  chatlog:
+    heading: "<gray>Chat log · <white><what></white> — <white><count></white> line(s), page <page> of <pages>:"
+    line: "<time> <player><dark_gray>:</dark_gray> <white><text>"
+    help: "<gray>Try <white>/chatlog player:Name from:2026-10-10 17:30 to:18:00 rules \"a phrase\"</white> — or day:yesterday, last:2h, page:2."
+    type-search: "<gray>Type what to look for — every word must be in the line, \"quotes\" for a phrase. <dark_gray>You have a minute."
+
   # ── inventories ──────────────────────────────────────────────────────────
   invsee:
     refused: "<red>That inventory could not be opened: <gray><reason>"

@@ -68,7 +68,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.33.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.34.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -297,6 +297,11 @@ public final class ModerationModule implements FlexModule {
             }
         }
 
+        // Chat search reads Core's own chat log, never a copy of it.
+        de.raindancer.modules.moderation.service.LogSearchService logSearch =
+                new de.raindancer.modules.moderation.service.LogSearchService(() -> context.core().chatLog(),
+                        typed -> de.raindancer.core.platform.command.PlayerTargets.idOf(server, typed));
+
         services = new ModerationServices(context.plugin(), server, log, context.core().messages(),
                 context.chat(), context.chat().brand(), context.core().prompts(),
                 context.core().settingsNavigation(),
@@ -310,7 +315,7 @@ public final class ModerationModule implements FlexModule {
                 staffService, worldTools, banhammer, vaults,
                 new de.raindancer.modules.moderation.service.RuleBreachService(punishmentService,
                         ruleOffences(context), staffRule, this::banLimitRule, context.core().messages(), fineService),
-                fineService, buyoffService,
+                fineService, buyoffService, logSearch,
                 () -> staffChatListener,
                 settings::current, new LiveScreens());
 
@@ -343,6 +348,7 @@ public final class ModerationModule implements FlexModule {
             vaults.settings(fresh);
             fineService.settings(fresh);
             buyoffService.settings(fresh);
+            logSearch.settings(fresh);
             context.core().punishmentGuard().appealMessage(fresh.appealMessage());
         });
 

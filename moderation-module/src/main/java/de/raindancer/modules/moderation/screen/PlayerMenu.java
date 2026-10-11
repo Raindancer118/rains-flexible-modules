@@ -87,6 +87,12 @@ public final class PlayerMenu extends ModerationScreen {
                 "For whoever may read reports",
                 click -> new ReportsMenu(services(), viewer, this).open());
 
+        band(MenuLayout.WHO, 7, may(ModerationPermission.CHATLOG),
+                Icons.of(Material.BOOK, "<yellow>What they said", "<gray>Their public chat, newest first,",
+                        "<gray>and a search through it.", "<dark_gray>/chatlog searches everybody's."),
+                "For whoever may read the chat log",
+                click -> new ChatLogMenu(services(), viewer, this, subject, subjectName, "").open());
+
         // ── what may be done, one door per kind ───────────────────────────────────────────────
         // Grouped rather than flat. The flat version put nine verbs on one page — ban, tempban,
         // unban, mute, tempmute, unmute, kick, warn, freeze — and somebody looking for "unban" had

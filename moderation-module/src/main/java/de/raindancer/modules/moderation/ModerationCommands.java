@@ -147,6 +147,13 @@ public final class ModerationCommands {
                 ModuleCommand.of("vault", "Opens your personal vault",
                                 new VaultCommand(ModerationCommands::require))
                         .needing(VaultCommand.USE),
+                ModuleCommand.of("chatlog", "Searches everything said in public chat",
+                                new de.raindancer.modules.moderation.command.ChatLogCommand(ModerationCommands::require))
+                        .aliased("chatsearch")
+                        .taking("[player:<name>] [from:<time>] [to:<time>] [day:<day>] [last:<2h>] [words] "
+                                + "[\"a phrase\"] [page:<n>] — times in Berlin time, e.g. from:2026-10-10 17:30")
+                        .needing(ModerationPermission.CHATLOG.node())
+                        .auditUsage(),
                 ModuleCommand.of("invsee", "Opens somebody's inventory, online or not",
                                 new InvseeCommand(ModerationCommands::require))
                         .taking("<player>")

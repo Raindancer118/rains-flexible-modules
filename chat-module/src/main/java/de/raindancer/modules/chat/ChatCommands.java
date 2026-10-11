@@ -50,7 +50,7 @@ public final class ChatCommands {
 
                 ModuleCommand.of("chathistory", "Shows chat that happened while you were away",
                                 new ChatHistoryCommand(ChatCommands::require))
-                        .aliased("chatlog")
+                        // Not "chatlog": that is moderation's staff search through Core's chat log.
                         .taking("(nothing) — what you missed since you last left",
                                 "<count> — the last count lines, regardless of when you left"),
 
