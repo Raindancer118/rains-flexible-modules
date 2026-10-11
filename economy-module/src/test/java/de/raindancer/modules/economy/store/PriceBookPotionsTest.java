@@ -133,6 +133,21 @@ class PriceBookPotionsTest {
     }
 
     @Test
+    @DisplayName("the bottle's item closes every potion of that form, in either list or by its drawer")
+    void itemLevelClosing() {
+        assertThat(book("shop.not-sold", "splash_potion").tag("SPLASH_POTION:HEALING").buyable()).isFalse();
+        assertThat(book("shop.not-sold", "splash_potion").tag("POTION:HEALING").buyable()).isTrue();
+        assertThat(book("shop.not-bought", "potion").tag("POTION:HEALING").sellable()).isFalse();
+        assertThat(book("shop.not-bought", "potion").tag("SPLASH_POTION:HEALING").sellable()).isTrue();
+        assertThat(book("shop.not-sold", "ominous_bottle").tag("OMINOUS_BOTTLE:2").buyable()).isFalse();
+        String drawer = de.raindancer.modules.economy.EconomySettings.categoryKey(
+                de.raindancer.core.ui.choose.Catalogue.categoryOf("POTION"));
+        PriceTag closed = book(drawer, "false").tag("POTION:HEALING");
+        assertThat(closed.buyable()).isFalse();
+        assertThat(closed.sellable()).isFalse();
+    }
+
+    @Test
     @DisplayName("a potion bottle does not stack, an ominous bottle does")
     void stacks() {
         PriceBook book = book();

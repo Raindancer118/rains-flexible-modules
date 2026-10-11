@@ -367,10 +367,14 @@ public final class PriceBook {
         if (raw == null) {
             return PriceTag.unpriced(name);
         }
-        boolean buyable = settings.shopEnabled() && settings.potions() && raw.buy() != null && raw.buy().isPositive()
-                && !potionClosed(key, now) && !now.notSold().contains(name);
-        boolean sellable = settings.sellingEnabled() && raw.sell() != null && raw.sell().isPositive()
-                && !now.notBought().contains(name);
+        // The bottle's own item counts as it does for any item: its drawer closed, or its name in either list, closes
+        // every potion of that form — "potion" in the not-sold list is not just a bare water bottle.
+        boolean open = settings.categoryOpen(Catalogue.categoryOf(key.item()));
+        boolean buyable = settings.shopEnabled() && settings.potions() && open && raw.buy() != null
+                && raw.buy().isPositive() && !potionClosed(key, now) && !now.notSold().contains(name)
+                && !now.notSold().contains(key.item());
+        boolean sellable = settings.sellingEnabled() && open && raw.sell() != null && raw.sell().isPositive()
+                && !now.notBought().contains(name) && !now.notBought().contains(key.item());
         return raw.tag(name, buyable, sellable, raw.custom() ? PriceTag.Source.CUSTOM
                 : shipped.containsKey(name) ? PriceTag.Source.BASE : PriceTag.Source.RECIPE);
     }

@@ -44,8 +44,10 @@
                     ingredient (+ gunpowder, + dragon's breath), own supply and demand, custom prices, roles; a
                     Potions drawer (click buys one, shift click five), bought back by hand, from /sell and at
                     auctions only as the game makes them; shop.potions, shop.potions-closed,
-                    shop.ominous-bottle-value; /eco price potion:healing. -->
-        <plugin.version>0.31.0</plugin.version>
+                    shop.ominous-bottle-value; /eco price potion:healing.
+             0.31.1: a bottle's item closes every potion of its form: "potion" or "splash_potion" in not-sold or
+                    not-bought, or the item's drawer shut, as for any item. -->
+        <plugin.version>0.31.1</plugin.version>
     </properties>
 
     <dependencies>
