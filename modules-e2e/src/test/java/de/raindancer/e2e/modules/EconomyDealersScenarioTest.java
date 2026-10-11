@@ -101,10 +101,15 @@ class EconomyDealersScenarioTest {
             bo.awaitWindow("Coin flip");
             bo.closeWindow();
 
-            // ---- a dice dealer and a scratch card seller exist too
+            // ---- a dice dealer and a scratch card seller exist too; a dealer looks the way it was placed looking
+            server.console("execute as Ada at @s run tp @s ~ ~ ~ 123 30");
+            Await.ticks(10);
             ada.forgetChat();
             ada.run("eco dealer place dice");
             Await.until("a dice dealer", WAIT, () -> said(ada, "Dice"));
+            assertThat(server.console("data get entity @e[type=minecraft:mannequin,limit=1,nbt={BukkitValues:"
+                    + "{\"rainseconomy:dealer\":\"DICE\"}}] Rotation"))
+                    .as("the dice dealer looks where Ada looked, level").contains("123.0f, 0.0f");
             ada.forgetChat();
             ada.run("eco dealer place scratch");
             Await.until("a scratch card seller", WAIT, () -> said(ada, "Scratch"));
