@@ -105,7 +105,8 @@ public final class ModerationCommand extends StaffCommand {
         if (found.isEmpty()) {
             return;
         }
-        String name = Players.nameOf(found.get());
+        // A player the server has no file for has no name of its own; the one typed is the best there is.
+        String name = found.get().getName() == null ? typed : Players.nameOf(found.get());
         new de.raindancer.modules.moderation.service.PlayerOverviewService(moderation)
                 .gather(found.get().getUniqueId(), name, overview -> de.raindancer.core.platform.util.Scheduling
                         .global(moderation.plugin(), () -> {
@@ -185,7 +186,7 @@ public final class ModerationCommand extends StaffCommand {
         ModerationServices moderation = services();
         Optional<OfflinePlayer> found = subject(viewer, name);
         found.ifPresent(them -> moderation.screens().player(viewer, them.getUniqueId(),
-                Players.nameOf(them)));
+                them.getName() == null ? name : Players.nameOf(them)));
     }
 
     private void openNotes(Player viewer, String[] args) {

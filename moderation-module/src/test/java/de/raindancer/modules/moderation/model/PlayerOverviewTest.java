@@ -140,4 +140,14 @@ class PlayerOverviewTest {
                 .contains("120 64 -30").doesNotContain("Notes");
         assertThat(OverviewAccess.of(held::contains, false, true).addresses()).as("operators see address hashes").isTrue();
     }
+
+    @Test
+    @DisplayName("a reason written as a paragraph is cut to one readable line")
+    void longReasons() {
+        String paragraph = "PERMANENT BAN. Reasons: 1) X-ray / cheating (Rule 4 'No cheating'): 11 automatic x-ray reports";
+        String lore = String.join("\n", mushy().inForce(List.of(active(PunishmentKind.BAN, paragraph, null))).build()
+                .standingLore(NOW));
+        assertThat(lore).contains("PERMANENT BAN. Reasons").contains("…").doesNotContain("automatic x-ray reports");
+        assertThat(PlayerOverview.shortened("short")).isEqualTo("short");
+    }
 }

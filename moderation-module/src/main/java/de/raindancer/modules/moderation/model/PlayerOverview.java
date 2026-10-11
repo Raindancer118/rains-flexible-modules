@@ -151,7 +151,7 @@ public record PlayerOverview(UUID id, String name, List<String> oldNames, Presen
                     .map(rest -> Times.brief(rest.toMinutes() > 0 ? Duration.ofMinutes((rest.toSeconds() + 59) / 60) : rest) + " left")
                     .orElse(one.isPermanent() ? "for ever" : "over");
             lore.add(Standing.of(one.kind()).title() + " <dark_gray>· <gray>" + left);
-            lore.add("<dark_gray>  " + safe(one.reason()));
+            lore.add("<dark_gray>  " + safe(shortened(one.reason())));
         }
         if (lore.isEmpty()) {
             lore.add("<green>Nothing in force.");
@@ -221,6 +221,14 @@ public record PlayerOverview(UUID id, String name, List<String> oldNames, Presen
         lore.add("<gray>Veins and baits on record: <white>" + ledger.finds());
         return lore;
     }
+
+    /** A reason can be a paragraph; a lore line is not. The full text is one click away, on the record. */
+    static String shortened(String reason) {
+        String text = reason == null ? "" : reason.strip();
+        return text.length() <= REASON_SHOWN ? text : text.substring(0, REASON_SHOWN - 1).strip() + "…";
+    }
+
+    private static final int REASON_SHOWN = 60;
 
     /** Text somebody typed — a reason, a name — kept out of the markup. */
     private static String safe(String typed) {

@@ -86,7 +86,7 @@ public final class PlayerOverviewService implements IModerationService {
                 ? de.raindancer.core.RainsCore.get().playtime() : null;
         return PlayerOverview.of(subject, name)
                 .presence(PlayerOverview.Presence.of(online, online && Away.isAway(subject),
-                        them.hasPlayedBefore() || online))
+                        them.hasPlayedBefore() || online || (playtime != null && playtime.isKnown(subject))))
                 .seen(them.getFirstPlayed() > 0 ? Instant.ofEpochMilli(them.getFirstPlayed()) : null,
                         them.getLastSeen() > 0 ? Instant.ofEpochMilli(them.getLastSeen()) : null)
                 .playtime(playtime != null && playtime.isKnown(subject)

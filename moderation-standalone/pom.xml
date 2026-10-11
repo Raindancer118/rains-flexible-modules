@@ -133,7 +133,7 @@
           vault's model and file are RainsCore's Stash (1.66.0) — same files, same format.
              2.31.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
              2.33.0: hands out a rule's next punishment for other plugins (the anti-cheat) through Core's RuleBreaches. -->
-        <plugin.version>2.36.1</plugin.version>
+        <plugin.version>2.36.2</plugin.version>
     </properties>
 
     <dependencies>
