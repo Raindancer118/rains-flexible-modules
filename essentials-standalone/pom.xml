@@ -72,8 +72,9 @@
           1.6.1: /msg answers to /m instead of /w — /w is RainsWorldUtils' world switch, and two plugins
           registering one name leaves Paper to decide which one a player gets.
              1.18.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
-             1.21.0: tells other plugins who is in admin mode through Core's AdminModes (RainsCore 1.109.0). -->
-        <plugin.version>1.21.0</plugin.version>
+             1.21.0: tells other plugins who is in admin mode through Core's AdminModes (RainsCore 1.109.0).
+             1.22.0: admin mode switches on the admin bypass and Core's claim bypass, and off again on the way out. -->
+        <plugin.version>1.22.0</plugin.version>
     </properties>
 
     <dependencies>

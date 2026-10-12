@@ -199,7 +199,7 @@ essentials:
 
   # ── /admin ────────────────────────────────────────────────────────────────
   admin:
-    entered: "<green>Admin mode on. <gray>Your own things are packed away safely; <white>/admin</white> brings them back."
+    entered: "<green>Admin mode on. <gray>Your own things are packed away safely; <white>/admin</white> brings them back. <dark_gray>Bypass and claim bypass are on."
     left: "<green>Admin mode off. <gray>Everything is back exactly where you left it."
     already-in: "<gray>You are already in admin mode. Any more admin and you would be the server."
     not-in: "<gray>You are not in admin mode."

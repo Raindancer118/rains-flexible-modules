@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.21.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.22.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, a nickname, /rules, and /admin for staff")
             .by("Raindancer118");
@@ -158,7 +158,17 @@ public final class EssentialsModule implements FlexModule {
                                 who.teleportAsync(new org.bukkit.Location(world, place.x(), place.y(), place.z(),
                                         place.yaw(), place.pitch()));
                             }
-                        }, settings.current());
+                        }, settings.current(), new de.raindancer.modules.essentials.service.AdminModeService.LandBypass() {
+                            @Override
+                            public boolean isOn(org.bukkit.entity.Player player) {
+                                return context.core().land().isBypassing(player);
+                            }
+
+                            @Override
+                            public boolean toggle(org.bukkit.entity.Player player) {
+                                return context.core().land().toggleBypass(player);
+                            }
+                        });
         de.raindancer.core.moderation.players.AdminModes.Source inAdminMode = adminMode::isInAdminMode;
         de.raindancer.core.moderation.players.AdminModes.provide(inAdminMode);
         context.closeWith(() -> de.raindancer.core.moderation.players.AdminModes.withdraw(inAdminMode));

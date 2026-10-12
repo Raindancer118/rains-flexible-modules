@@ -46,6 +46,23 @@ class AdminModeServiceTest {
 
     private LoadoutStore store;
     private AdminModeService service;
+    /** Core's claim bypass, as a switch the test can watch. */
+    private final java.util.Set<UUID> landBypass = new java.util.HashSet<>();
+    private final AdminModeService.LandBypass land = new AdminModeService.LandBypass() {
+        @Override
+        public boolean isOn(Player who) {
+            return landBypass.contains(who.getUniqueId());
+        }
+
+        @Override
+        public boolean toggle(Player who) {
+            if (!landBypass.remove(who.getUniqueId())) {
+                landBypass.add(who.getUniqueId());
+                return true;
+            }
+            return false;
+        }
+    };
 
     private static final Loadout SURVIVAL = new Loadout(List.of("c3dvcmQ="), List.of(), 12, 0.5f, 18, 15, 2f,
             "SURVIVAL", false, false, List.of(), new Loadout.Place("world", 1, 70, 2, 0, 0));
@@ -56,7 +73,7 @@ class AdminModeServiceTest {
     void setUp() {
         store = new LoadoutStore(folder);
         service = new AdminModeService(store, loadouts, messages, actionBars, vanish, powers,
-                (who, place) -> movedTo.add(place), EssentialsSettings.DEFAULTS);
+                (who, place) -> movedTo.add(place), EssentialsSettings.DEFAULTS, land);
         when(player.getUniqueId()).thenReturn(id);
         when(player.getName()).thenReturn("Tom");
         when(player.hasPermission(PermissionNodes.ADMIN_MODE)).thenReturn(true);
@@ -91,6 +108,40 @@ class AdminModeServiceTest {
         } finally {
             de.raindancer.core.moderation.players.AdminModes.unlisten(listener);
         }
+    }
+
+    @Test
+    @DisplayName("going in switches on the admin bypass and the claim bypass; coming out switches both off")
+    void bypassesComeWithIt() {
+        when(player.hasPermission(PermissionNodes.ADMIN_BYPASS)).thenReturn(true);
+        when(loadouts.capture(player)).thenReturn(SURVIVAL, ADMIN_NOW);
+
+        service.toggle(player);
+        assertThat(service.bypassing(id)).isTrue();
+        assertThat(landBypass).contains(id);
+
+        service.toggle(player);
+        assertThat(service.bypassing(id)).isFalse();
+        assertThat(landBypass).doesNotContain(id);
+    }
+
+    @Test
+    @DisplayName("a claim bypass somebody had before going in is still on after coming out")
+    void ownClaimBypassStays() {
+        landBypass.add(id);
+        when(loadouts.capture(player)).thenReturn(SURVIVAL, ADMIN_NOW);
+        service.toggle(player);
+        service.toggle(player);
+        assertThat(landBypass).contains(id);
+    }
+
+    @Test
+    @DisplayName("without the right to the admin bypass, going in does not give it")
+    void noRightNoBypass() {
+        when(player.hasPermission(PermissionNodes.ADMIN_BYPASS)).thenReturn(false);
+        when(loadouts.capture(player)).thenReturn(SURVIVAL);
+        service.toggle(player);
+        assertThat(service.bypassing(id)).isFalse();
     }
 
     @Test
@@ -209,7 +260,7 @@ class AdminModeServiceTest {
         service.toggle(player);
 
         AdminModeService afterRestart = new AdminModeService(store, loadouts, messages, actionBars, vanish, powers,
-                (who, place) -> movedTo.add(place), EssentialsSettings.DEFAULTS);
+                (who, place) -> movedTo.add(place), EssentialsSettings.DEFAULTS, land);
         afterRestart.joined(player);
 
         assertThat(afterRestart.isInAdminMode(id)).isTrue();
@@ -289,19 +340,18 @@ class AdminModeServiceTest {
     }
 
     @Test
-    @DisplayName("bypass lifts keeping admin items apart for whoever switches it on, only in admin mode, until they leave")
+    @DisplayName("bypass is on in admin mode for whoever may have it, can be switched off and on, and goes with admin mode")
     void bypass() {
         when(loadouts.capture(player)).thenReturn(SURVIVAL);
         when(player.hasPermission(PermissionNodes.ADMIN_BYPASS)).thenReturn(true);
         assertThat(service.toggleBypass(player)).as("not in admin mode").isFalse();
         service.toggle(player);
-        assertThat(service.keepsItemsApart(id)).isTrue();
-        assertThat(service.toggleBypass(player)).isTrue();
-        assertThat(service.bypassing(id)).isTrue();
+        assertThat(service.bypassing(id)).as("on from the start").isTrue();
         assertThat(service.keepsItemsApart(id)).isFalse();
         assertThat(service.toggleBypass(player)).isTrue();
-        assertThat(service.keepsItemsApart(id)).as("switched off again").isTrue();
-        service.toggleBypass(player);
+        assertThat(service.keepsItemsApart(id)).as("switched off by hand").isTrue();
+        assertThat(service.toggleBypass(player)).isTrue();
+        assertThat(service.keepsItemsApart(id)).as("and on again").isFalse();
         when(loadouts.capture(player)).thenReturn(ADMIN_NOW);
         service.leave(player);
         assertThat(service.bypassing(id)).as("gone with admin mode").isFalse();

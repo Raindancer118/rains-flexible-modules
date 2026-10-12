@@ -42,6 +42,29 @@ public final class AdminModeService implements IEssentialsService {
     private final de.raindancer.core.moderation.players.PlayerPowers powers;
     private final BiConsumer<Player, Loadout.Place> moveTo;
     private volatile EssentialsSettings settings;
+    private final LandBypass land;
+    /** The claim bypass, switched on by going in — so coming out switches off only what going in switched on. */
+    private final Set<UUID> landBypassByUs = ConcurrentHashMap.newKeySet();
+
+    /** Core's bypass of every protected piece of ground — claims, arenas — as admin mode needs it. */
+    public interface LandBypass {
+        boolean isOn(Player player);
+
+        /** @return whether it is now on */
+        boolean toggle(Player player);
+
+        LandBypass NONE = new LandBypass() {
+            @Override
+            public boolean isOn(Player player) {
+                return false;
+            }
+
+            @Override
+            public boolean toggle(Player player) {
+                return false;
+            }
+        };
+    }
 
     private final Set<UUID> inAdminMode = ConcurrentHashMap.newKeySet();
     /** Vanished by going in, so coming out shows them again; anybody vanished before stays vanished. */
@@ -51,7 +74,8 @@ public final class AdminModeService implements IEssentialsService {
 
     public AdminModeService(LoadoutStore store, Loadouts loadouts, Messages messages, ActionBars actionBars,
                             Vanish vanish, de.raindancer.core.moderation.players.PlayerPowers powers,
-                            BiConsumer<Player, Loadout.Place> moveTo, EssentialsSettings settings) {
+                            BiConsumer<Player, Loadout.Place> moveTo, EssentialsSettings settings, LandBypass land) {
+        this.land = land == null ? LandBypass.NONE : land;
         this.store = store;
         this.loadouts = loadouts;
         this.messages = messages;
@@ -190,6 +214,9 @@ public final class AdminModeService implements IEssentialsService {
         inAdminMode.remove(id);
         player.saveData();
         powersOff(id);
+        if (landBypassByUs.remove(id) && land.isOn(player)) {
+            land.toggle(player);
+        }
         de.raindancer.core.moderation.players.AdminModes.switched(id, false);
         actionBars.clear(id, BAR);
         if (settings.adminReturnToPlace() && survival.place() != null) {
@@ -244,6 +271,13 @@ public final class AdminModeService implements IEssentialsService {
         }
         if (settings.adminVanish() && !vanish.isVanished(id) && vanish.vanish(id)) {
             vanishedByUs.add(id);
+        }
+        // Admin mode is for working: through claims and with admin items, without a second and third command.
+        if (player.hasPermission(de.raindancer.modules.essentials.util.PermissionNodes.ADMIN_BYPASS)) {
+            bypassing.add(id);
+        }
+        if (!land.isOn(player) && land.toggle(player)) {
+            landBypassByUs.add(id);
         }
     }
 

@@ -34,7 +34,7 @@ essentials:
     blank: "<red>That is empty."
     too-long: "<red>Too long — <white><limit></white> characters at most."
   admin:
-    entered: "<green>Admin mode on. <gray>Your own inventory is stored; <white>/admin</white> brings it back."
+    entered: "<green>Admin mode on. <gray>Your own inventory is stored; <white>/admin</white> brings it back. <dark_gray>Bypass and claim bypass are on."
     left: "<green>Admin mode off. <gray>Your own inventory is back."
     already-in: "<gray>You are already in admin mode."
   fun:
