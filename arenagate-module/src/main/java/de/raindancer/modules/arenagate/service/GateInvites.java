@@ -40,13 +40,36 @@ public final class GateInvites {
         return open.values().stream().filter(pending -> pending.to().equals(player)).toList();
     }
 
-    /** The invite meant, removed: the one named, or the latest. */
+    /**
+     * The invite meant, removed: the one named — or, with no id, the only one there is. With several and no id it is
+     * none: taking "the latest" would let somebody slip a different invite in just before the other types accept.
+     */
     public Optional<Pending> take(UUID player, String id) {
         List<Pending> mine = forPlayer(player);
-        Optional<Pending> found = id == null ? mine.stream().reduce((first, second) -> second)
+        Optional<Pending> found = id == null ? (mine.size() == 1 ? Optional.of(mine.getFirst()) : Optional.empty())
                 : mine.stream().filter(pending -> pending.id().equalsIgnoreCase(id)).findFirst();
         found.ifPresent(pending -> open.remove(pending.id()));
         return found;
+    }
+
+    private final Map<String, Outgoing> outgoing = new ConcurrentHashMap<>();
+
+    private record Outgoing(UUID from, long expires) {
+    }
+
+    /** An invite somebody here made to somebody in the arena — what a summon from the arena has to match. */
+    public void outgoing(String id, UUID from) {
+        outgoing.put(id, new Outgoing(from, clock.getAsLong() + LIFETIME * 2));
+    }
+
+    /** Whether this player made this invite from here (and it is not used yet). Used up by asking. */
+    public boolean madeBy(String id, UUID player) {
+        Outgoing found = outgoing.get(id == null ? "" : id);
+        if (found == null || !found.from().equals(player) || found.expires() < clock.getAsLong()) {
+            return false;
+        }
+        outgoing.remove(id);
+        return true;
     }
 
     public boolean asked(UUID from, UUID to) {

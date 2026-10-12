@@ -36,6 +36,7 @@ import de.raindancer.modules.arena.service.KitService;
 import de.raindancer.modules.arena.service.MatchService;
 import de.raindancer.modules.arena.service.NetworkService;
 import de.raindancer.modules.arena.service.NpcService;
+import de.raindancer.modules.arena.service.PitSweeper;
 import de.raindancer.modules.arena.service.QueueService;
 import de.raindancer.modules.arena.service.StakeService;
 import de.raindancer.modules.arena.service.WaveService;
@@ -64,7 +65,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.2.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.2.3")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -113,6 +114,7 @@ public final class ArenaModule implements FlexModule {
         var database = context.core().databases().of(StatsDatabase.NAME, StatsDatabase.SCHEMA);
         StatsStore stats = new StatsStore(database);
 
+        NpcService npcs = new NpcService(context.plugin(), role -> settings.current().npcSkin());
         link = new ArenaLink(context.core()::link);
         arena.returning(player -> link.tell(de.raindancer.modules.arena.api.ArenaProtocol.RETURNING,
                 java.util.Map.of("player", player.toString())));
@@ -123,9 +125,18 @@ public final class ArenaModule implements FlexModule {
                 kits, stakes, link, stats, settings.current());
         waves = new WaveService(context.plugin(), server, matches);
         matches.waves(waves);
+        PitSweeper sweeper = new PitSweeper(context.plugin(), server, entity -> npcs.role(entity).isPresent());
+        matches.sweeper(sweeper);
         queue = new QueueService(context.plugin(), server, context.core().messages(), context.core().actionBars(), arena,
                 matches, System::currentTimeMillis, settings.current(), id -> kits.get(id).isPresent(), link::isUp);
         matches.afterFight(queue::tick);
+        queue.consent((player, spec) -> {
+            if (spec.stake() > 0 || spec.isOwnGear()) {
+                link.tell(de.raindancer.modules.arena.api.ArenaProtocol.CONSENT, java.util.Map.of(
+                        "player", player.toString(), "stake", String.valueOf(spec.stake()),
+                        "gear", String.valueOf(spec.isOwnGear())));
+            }
+        });
 
         AgreedFights agreed = new AgreedFights(System::currentTimeMillis);
         IntentBook intents = new IntentBook(System::currentTimeMillis);
@@ -133,8 +144,6 @@ public final class ArenaModule implements FlexModule {
                 matches::inFight, id -> kits.get(id).isPresent(), System::currentTimeMillis,
                 settings.current().mostStake());
         new NetworkService(link, intents, invites, agreed).listen();
-
-        NpcService npcs = new NpcService(context.plugin(), role -> settings.current().npcSkin());
 
         settings.onChange(fresh -> {
             worlds.settings(fresh);
@@ -192,6 +201,9 @@ public final class ArenaModule implements FlexModule {
             stakes.retry();
             intents.sweep();
             agreed.sweep();
+            // The safety net: every pit nobody fights in is cleared once a minute, whatever got there.
+            java.util.Set<String> busy = matches.busyPits();
+            layout.current().pits().stream().filter(pit -> !busy.contains(pit.id())).forEach(sweeper::sweep);
         });
         if (housekeeping != null) {
             context.closeWith(housekeeping::cancel);

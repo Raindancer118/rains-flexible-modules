@@ -56,27 +56,35 @@ public final class GateService implements IGateService {
      * the countdown, then the proxy. Told nothing, they simply arrive in the hub.
      */
     public void go(Player player, java.util.Map<String, String> intent) {
-        if (intent != null) {
-            if (link == null || !link.isConnected()) {
-                messages.send(player, "arenagate.unreachable");
-                return;
-            }
-            java.util.Map<String, String> data = new java.util.HashMap<>(intent);
-            data.put("player", player.getUniqueId().toString());
-            link.request(de.raindancer.modules.arena.api.ArenaProtocol.INTENT, data, java.time.Duration.ofSeconds(8)).whenComplete((answer, failure) ->
-                    de.raindancer.core.platform.util.Scheduling.entity(plugin, player, () -> {
-                        if (failure != null || !"true".equals(answer.get("ok"))) {
-                            messages.send(player, "arenagate.unreachable");
-                        } else {
-                            countdown(player);
-                        }
-                    }));
+        if (intent != null && (link == null || !link.isConnected())) {
+            messages.send(player, "arenagate.unreachable");
             return;
         }
-        countdown(player);
+        countdown(player, intent);
     }
 
-    private void countdown(Player player) {
+    /**
+     * The arena is told what somebody wants only once the countdown is through, right before the proxy takes them —
+     * a countdown called off leaves nothing waiting over there.
+     */
+    private void sendWith(Player player, java.util.Map<String, String> intent, GateSettings now) {
+        if (intent == null) {
+            send(player, now);
+            return;
+        }
+        java.util.Map<String, String> data = new java.util.HashMap<>(intent);
+        data.put("player", player.getUniqueId().toString());
+        link.request(de.raindancer.modules.arena.api.ArenaProtocol.INTENT, data, java.time.Duration.ofSeconds(8))
+                .whenComplete((answer, failure) -> de.raindancer.core.platform.util.Scheduling.entity(plugin, player, () -> {
+                    if (failure != null || !"true".equals(answer.get("ok"))) {
+                        messages.send(player, "arenagate.unreachable");
+                    } else {
+                        send(player, now);
+                    }
+                }));
+    }
+
+    private void countdown(Player player, java.util.Map<String, String> intent) {
         Optional<String> refusal = rule.refusal(player.hasPermission(PermissionNodes.USE),
                 travel.isTravelling(player.getUniqueId()));
         if (refusal.isPresent()) {
@@ -85,7 +93,7 @@ public final class GateService implements IGateService {
         }
         GateSettings now = settings;
         if (now.warmupClamped() == 0) {
-            send(player, now);
+            sendWith(player, intent, now);
             return;
         }
         Location here = player.getLocation();
@@ -98,7 +106,7 @@ public final class GateService implements IGateService {
 
                     @Override
                     public void arrived(Player traveller, Location where, Trip trip) {
-                        send(traveller, now);
+                        sendWith(traveller, intent, now);
                     }
 
                     @Override

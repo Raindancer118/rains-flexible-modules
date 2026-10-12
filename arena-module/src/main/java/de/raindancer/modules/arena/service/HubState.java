@@ -36,5 +36,7 @@ public final class HubState {
         player.setFireTicks(0);
         player.setFreezeTicks(0);
         player.setFallDistance(0);
+        player.setArrowsInBody(0);
+        player.setBeeStingersInBody(0);
     }
 }

@@ -60,7 +60,11 @@ public final class PvpGateCommand implements IGateCommand {
             case "accept" -> live.network().accept(player, args.length > 1 ? args[1] : null);
             case "deny" -> live.network().deny(player, args.length > 1 ? args[1] : null);
             case "queue" -> {
-                Map<String, String> intent = new HashMap<>(SpecCodec.encode(SpecArgs.parse(args, 1, Mode.DUEL)));
+                MatchSpec queued = SpecArgs.parse(args, 1, Mode.DUEL);
+                if (live.consents() != null) {
+                    live.consents().agree(player.getUniqueId(), queued.stake(), queued.isOwnGear());
+                }
+                Map<String, String> intent = new HashMap<>(SpecCodec.encode(queued));
                 intent.put("kind", "QUEUE");
                 live.gate().go(player, intent);
             }

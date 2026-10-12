@@ -31,11 +31,12 @@ import java.util.List;
  */
 public final class GateModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arenagate", "Arena Gate", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("arenagate", "Arena Gate", "0.2.1")
             .describedAs("/arena and /pvp: off to the arena server, invites across both servers, stakes held here.")
             .by("Raindancer118");
 
     private GateNetwork network;
+    private de.raindancer.modules.arenagate.service.GateConsents consents;
 
     @Override
     public ModuleInfo info() {
@@ -65,10 +66,12 @@ public final class GateModule implements FlexModule {
                         return name == null ? id.toString().substring(0, 8) : name;
                     }, settings.current());
             settings.onChange(escrow::settings);
+            consents = new de.raindancer.modules.arenagate.service.GateConsents(System::currentTimeMillis);
+            escrow.consents(consents::takeStake);
             GearService gear = new GearService(context.plugin(), context.plugin().getServer(),
                     context.core().inventories(), ItemText.ofTheServer());
             network = new GateNetwork(context.plugin(), context.plugin().getServer(), context.core().messages(), link,
-                    escrow, gear, new GateInvites(System::currentTimeMillis), gate);
+                    escrow, gear, new GateInvites(System::currentTimeMillis), gate, consents);
             network.listen();
             var sweep = Scheduling.asyncTimer(context.plugin(), 300, 300, task -> escrow.sweep());
             if (sweep != null) {
@@ -80,7 +83,7 @@ public final class GateModule implements FlexModule {
         }
         settings.onChange(gate::settings);
 
-        GateServices services = new GateServices(context.plugin(), context.core().messages(), gate, network);
+        GateServices services = new GateServices(context.plugin(), context.core().messages(), gate, network, consents);
         context.listener(new ArrivalListener(services));
         GateCommands.ready(services);
         context.log().info("Arena gate is up: /arena goes to '{}', link {}.", settings.current().arenaOrDefault(),

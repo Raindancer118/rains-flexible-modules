@@ -31,7 +31,11 @@
              cut setting, stale stakes go back after two hours); copies of gear for own-gear fights, from the live
              inventory or the saved player file; "went to the arena" / "is back from the arena" instead of quit and
              join. -->
-        <plugin.version>0.2.0</plugin.version>
+        <!-- 0.2.1: a stake is taken and a copy of gear handed out only for a player who agreed to it (here, or
+             announced by the arena as they queued or accepted there), payouts only to those who staked, a summon only
+             for an invite really made from here, a bare /pvp accept only with exactly one invite open, and the arena is
+             told what somebody wants only after the countdown. -->
+        <plugin.version>0.2.1</plugin.version>
     </properties>
 
     <dependencies>

@@ -42,6 +42,7 @@ public final class EscrowService implements IGateService {
     private final EscrowStore store;
     private final LongSupplier clock;
     private final Function<UUID, String> names;
+    private volatile java.util.function.BiPredicate<UUID, Long> consented = (player, amount) -> true;
     private volatile GateSettings settings;
 
     public EscrowService(Supplier<Optional<Economy>> economy, EscrowStore store, LongSupplier clock,
@@ -51,6 +52,11 @@ public final class EscrowService implements IGateService {
         this.clock = clock;
         this.names = names;
         this.settings = settings;
+    }
+
+    /** Who agreed to what — asked, and used up, for each player before their stake is taken. */
+    public void consents(java.util.function.BiPredicate<UUID, Long> agreed) {
+        this.consented = agreed;
     }
 
     @Override
@@ -70,6 +76,11 @@ public final class EscrowService implements IGateService {
         if (!store.held(fight).isEmpty()) {
             // Asked again for a fight already held: it is held.
             return Optional.empty();
+        }
+        for (UUID player : players) {
+            if (!consented.test(player, amount)) {
+                return Optional.of(names.apply(player) + " (did not agree to that stake)");
+            }
         }
         List<UUID> taken = new ArrayList<>();
         for (UUID player : players) {
@@ -102,6 +113,12 @@ public final class EscrowService implements IGateService {
         }
         long pot = held.stream().mapToLong(Held::amount).sum();
         long asked = payouts.values().stream().mapToLong(amount -> Math.max(0, amount)).sum();
+        java.util.Set<UUID> staked = new java.util.HashSet<>();
+        held.forEach(row -> staked.add(row.player()));
+        if (!staked.containsAll(payouts.keySet())) {
+            log.error("Fight {} asked to pay somebody who put no stake in; it is given back instead.", fight);
+            return refund(fight);
+        }
         if (asked > pot) {
             log.error("Fight {} asked to pay out {} from a pot of {}; it is given back instead.", fight, asked, pot);
             return refund(fight);

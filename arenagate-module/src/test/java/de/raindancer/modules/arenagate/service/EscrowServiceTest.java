@@ -199,4 +199,16 @@ class EscrowServiceTest {
         assertThat(without.hold("f1", List.of(ada, bo), 100)).contains("the economy");
         assertThat(ledger.total()).isEqualTo(1000);
     }
+
+    @Test
+    @DisplayName("a payout to somebody who did not put a stake in is never made — the stakes go back instead")
+    void onlyToThoseWhoStaked() {
+        UUID stranger = UUID.randomUUID();
+        escrow.hold("f1", List.of(ada, bo), 100);
+
+        escrow.pay("f1", Map.of(stranger, 200L));
+
+        assertThat(ledger.balances).doesNotContainKey(stranger);
+        assertThat(ledger.balances).containsEntry(ada, 500L).containsEntry(bo, 500L);
+    }
 }

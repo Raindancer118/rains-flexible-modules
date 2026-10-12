@@ -41,7 +41,11 @@
         <!-- 0.2.1: one gate for every way into a fight (queue, invite, arrival): the stake limit, a known kit, and
              survival reachable for stakes or own gear; survival is told before somebody is sent back. -->
         <!-- 0.2.2: gladiators can be placed from the console at coordinates (RainsCore 1.116.0). -->
-        <plugin.version>0.2.2</plugin.version>
+        <!-- 0.2.3: survival is told whenever somebody agrees here to a stake or to their own gear; a bare
+             /pvp accept with several invites open picks none; every pit is swept of what a fight leaves (arrows,
+             tridents, clouds, experience, fireworks, fangs, stray mobs) before each round, after each fight and once
+             a minute while empty, and fighters come home without arrows stuck in them. -->
+        <plugin.version>0.2.3</plugin.version>
     </properties>
 
     <dependencies>

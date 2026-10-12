@@ -121,8 +121,17 @@ class ArenaFightsScenarioTest {
                     "execute in minecraft:arena if entity @a[x=-12,y=64,z=-12,dx=24,dy=14,dz=20]").contains("2"));
             // Past the two-second countdown, so the blow lands in a running fight.
             Await.ticks(80);
+            // What a fight leaves lying about: an arrow, a lingering cloud, a little experience.
+            arena.console("execute in minecraft:arena run summon arrow 2 65 2");
+            arena.console("execute in minecraft:arena run summon area_effect_cloud 0 65 -3 {Duration:6000,Radius:2f}");
+            arena.console("execute in minecraft:arena run summon experience_orb -2 65 2 {Value:5}");
+            assertThat(arena.console("execute in minecraft:arena if entity @e[type=area_effect_cloud]")).contains("passed");
             arena.console("kill Bo");
             Await.until("Ada won", WAIT, () -> said(ada, "Victory"));
+            Await.until("the pit is clear again", WAIT, () ->
+                    arena.console("execute in minecraft:arena if entity @e[type=arrow]").contains("failed")
+                            && arena.console("execute in minecraft:arena if entity @e[type=area_effect_cloud]").contains("failed")
+                            && arena.console("execute in minecraft:arena if entity @e[type=experience_orb]").contains("failed"));
             Await.until("Ada was told she won the pot", WAIT, () -> said(ada, "You won"));
             assertThat(arena.console("list")).as("a defeat is not a death: Bo is still here").contains("Bo");
 

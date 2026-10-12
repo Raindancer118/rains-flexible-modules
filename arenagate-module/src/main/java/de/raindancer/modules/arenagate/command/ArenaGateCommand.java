@@ -33,15 +33,22 @@ public final class ArenaGateCommand implements IGateCommand {
                 if (spec.mode() != de.raindancer.modules.arena.api.Mode.WAVES) {
                     spec = de.raindancer.modules.arena.api.MatchSpec.waves(null, spec.kit());
                 }
+                if (live.consents() != null) {
+                    live.consents().agree(player.getUniqueId(), 0, spec.isOwnGear());
+                }
                 java.util.Map<String, String> intent = new java.util.HashMap<>(
                         de.raindancer.modules.arena.api.SpecCodec.encode(spec));
                 intent.put("kind", "WAVES");
                 live.gate().go(player, intent);
             }
             case "queue" -> {
-                java.util.Map<String, String> intent = new java.util.HashMap<>(de.raindancer.modules.arena.api.SpecCodec
-                        .encode(de.raindancer.modules.arena.api.SpecArgs.parse(args, 1,
-                                de.raindancer.modules.arena.api.Mode.DUEL)));
+                de.raindancer.modules.arena.api.MatchSpec queued = de.raindancer.modules.arena.api.SpecArgs.parse(args, 1,
+                        de.raindancer.modules.arena.api.Mode.DUEL);
+                if (live.consents() != null) {
+                    live.consents().agree(player.getUniqueId(), queued.stake(), queued.isOwnGear());
+                }
+                java.util.Map<String, String> intent = new java.util.HashMap<>(
+                        de.raindancer.modules.arena.api.SpecCodec.encode(queued));
                 intent.put("kind", "QUEUE");
                 live.gate().go(player, intent);
             }

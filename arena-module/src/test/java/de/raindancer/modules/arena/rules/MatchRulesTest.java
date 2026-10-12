@@ -263,4 +263,19 @@ class MatchRulesTest {
         assertThat(rule.refusal(new QueueRule.Facts(false, false, true, 0, 0, false, true)))
                 .contains("arena.queue.no-pits");
     }
+
+    @Test
+    @DisplayName("after a fight the pit loses whatever the fight left, and keeps players, gladiators and the map's own things")
+    void sweep() {
+        SweepRule rule = new SweepRule();
+
+        for (String left : List.of("ARROW", "SPECTRAL_ARROW", "TRIDENT", "SPLASH_POTION", "LINGERING_POTION",
+                "AREA_EFFECT_CLOUD", "EXPERIENCE_ORB", "ITEM", "FIREWORK_ROCKET", "EVOKER_FANGS", "WIND_CHARGE",
+                "ENDER_PEARL", "FISHING_BOBBER", "SNOWBALL", "VEX", "ZOMBIE", "SLIME", "TNT", "FALLING_BLOCK")) {
+            assertThat(rule.clears(left)).as(left).isTrue();
+        }
+        for (String kept : List.of("PLAYER", "MANNEQUIN", "ARMOR_STAND", "PAINTING", "ITEM_FRAME", "GLOW_ITEM_FRAME")) {
+            assertThat(rule.clears(kept)).as(kept).isFalse();
+        }
+    }
 }

@@ -36,6 +36,12 @@ public final class ArenaProtocol {
     /** Arena → survival: a copy of what this player carries there, for a fight in their own gear. Answer: {@code items}. */
     public static final String GEAR = "gear.copy";
 
+    /**
+     * Arena → survival: this player agreed, in the arena, to a stake of up to {@code stake} and/or to fighting in their own
+     * {@code gear}. Survival takes a stake or hands out a copy of gear only for an agreement it has seen.
+     */
+    public static final String CONSENT = "arena.consent";
+
     private ArenaProtocol() {
     }
 }

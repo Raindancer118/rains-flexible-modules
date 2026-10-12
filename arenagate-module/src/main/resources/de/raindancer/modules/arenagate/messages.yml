@@ -29,3 +29,4 @@ arenagate:
     you-declined: "<gray>You said no to <white><player></white>."
     gone: "<red>That invite is no longer there."
     none: "<gray>Nobody has asked you to a fight."
+    which: "<yellow>More than one invite is open — click the one you mean, or type /pvp accept <id>."

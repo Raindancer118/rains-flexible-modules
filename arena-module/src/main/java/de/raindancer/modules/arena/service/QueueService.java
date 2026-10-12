@@ -49,6 +49,18 @@ public final class QueueService implements IArenaService {
     private final LongSupplier clock;
     private volatile ArenaSettings settings;
     private ScheduledTask timer;
+    private volatile java.util.function.BiConsumer<UUID, MatchSpec> consent = (player, spec) -> {
+    };
+
+    /** Told whenever somebody agrees here to a stake or to their own gear — survival takes neither without it. */
+    public void consent(java.util.function.BiConsumer<UUID, MatchSpec> announce) {
+        this.consent = announce;
+    }
+
+    /** That somebody agreed to this fight, for survival to know. */
+    public void agreed(UUID player, MatchSpec spec) {
+        consent.accept(player, spec);
+    }
 
     public QueueService(Plugin plugin, Server server, Messages messages, ActionBars bars, ArenaService arena,
                         MatchService matches, LongSupplier clock, ArenaSettings settings,
@@ -88,6 +100,7 @@ public final class QueueService implements IArenaService {
         if (refused(player, spec)) {
             return;
         }
+        consent.accept(id, spec);
         synchronized (this) {
             waiting.removeIf(entry -> entry.player().equals(id));
             waiting.add(new QueueEntry(id, spec, clock.getAsLong()));

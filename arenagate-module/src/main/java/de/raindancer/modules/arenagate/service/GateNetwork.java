@@ -37,10 +37,12 @@ public final class GateNetwork {
     private final GearService gear;
     private final GateInvites invites;
     private final GateService gate;
+    private final GateConsents consents;
     private final Set<UUID> returning = ConcurrentHashMap.newKeySet();
 
     public GateNetwork(Plugin plugin, Server server, Messages messages, ServerLink link, EscrowService escrow,
-                       GearService gear, GateInvites invites, GateService gate) {
+                       GearService gear, GateInvites invites, GateService gate, GateConsents consents) {
+        this.consents = consents;
         this.plugin = plugin;
         this.server = server;
         this.messages = messages;
@@ -55,7 +57,22 @@ public final class GateNetwork {
         link.on(ArenaProtocol.STAKE_HOLD, this::hold);
         link.on(ArenaProtocol.STAKE_PAY, this::pay);
         link.on(ArenaProtocol.STAKE_REFUND, data -> Map.of("ok", String.valueOf(escrow.refund(data.get("fight")))));
-        link.on(ArenaProtocol.GEAR, gear::copy);
+        link.on(ArenaProtocol.GEAR, data -> {
+            try {
+                return consents.takeGear(UUID.fromString(data.get("player"))) ? gear.copy(data) : Map.of("ok", "false");
+            } catch (RuntimeException garbled) {
+                return Map.of("ok", "false");
+            }
+        });
+        link.on(ArenaProtocol.CONSENT, data -> {
+            try {
+                consents.agree(UUID.fromString(data.get("player")), Long.parseLong(data.getOrDefault("stake", "0")),
+                        "true".equals(data.get("gear")));
+            } catch (RuntimeException garbled) {
+                // An agreement that cannot be read is no agreement; whatever needs it is refused.
+            }
+            return null;
+        });
         link.on(ArenaProtocol.WHERE, this::where);
         link.on(ArenaProtocol.INVITE, this::inviteFromArena);
         link.on(ArenaProtocol.SUMMON, this::summon);
@@ -72,7 +89,7 @@ public final class GateNetwork {
     public void stop() {
         for (String topic : List.of(ArenaProtocol.STAKE_HOLD, ArenaProtocol.STAKE_PAY, ArenaProtocol.STAKE_REFUND,
                 ArenaProtocol.GEAR, ArenaProtocol.WHERE, ArenaProtocol.INVITE, ArenaProtocol.SUMMON,
-                ArenaProtocol.RETURNING)) {
+                ArenaProtocol.RETURNING, ArenaProtocol.CONSENT)) {
             link.off(topic);
         }
     }
@@ -136,7 +153,7 @@ public final class GateNetwork {
     private Map<String, String> summon(Map<String, String> data) {
         try {
             Player player = server.getPlayer(UUID.fromString(data.get("player")));
-            if (player == null) {
+            if (player == null || !invites.madeBy(data.get("agreed"), player.getUniqueId())) {
                 return Map.of("ok", "false");
             }
             Map<String, String> intent = new HashMap<>();
@@ -154,7 +171,12 @@ public final class GateNetwork {
 
     /** Says yes to an invite: one from the arena is answered there; one from here sends both over, agreed. */
     public void accept(Player player, String id) {
+        if (id == null && invites.forPlayer(player.getUniqueId()).size() > 1) {
+            messages.send(player, "arenagate.invite.which");
+            return;
+        }
         invites.take(player.getUniqueId(), id).ifPresentOrElse(pending -> {
+            consents.agree(player.getUniqueId(), pending.spec().stake(), pending.spec().isOwnGear());
             if (pending.fromArena()) {
                 link.request(ArenaProtocol.INVITE_ANSWER, Map.of("id", pending.id(), "accepted", "true",
                         "player", player.getUniqueId().toString()), java.time.Duration.ofSeconds(8))
@@ -173,6 +195,7 @@ public final class GateNetwork {
                 return;
             }
             messages.send(inviter, "arenagate.invite.accepted", "player", player.getName());
+            consents.agree(inviter.getUniqueId(), pending.spec().stake(), pending.spec().isOwnGear());
             Map<String, String> intent = agreed(pending);
             gate.go(inviter, intent);
             gate.go(player, intent);
@@ -195,6 +218,7 @@ public final class GateNetwork {
 
     /** {@code /pvp invite} here: somebody here gets the buttons; somebody in the arena is asked over there. */
     public void invite(Player from, String targetName, MatchSpec spec) {
+        consents.agree(from.getUniqueId(), spec.stake(), spec.isOwnGear());
         Player target = server.getPlayerExact(targetName);
         if (target != null) {
             if (target.equals(from)) {
@@ -216,7 +240,9 @@ public final class GateNetwork {
             return;
         }
         Map<String, String> data = new HashMap<>(SpecCodec.encode(spec));
-        data.put("id", UUID.randomUUID().toString().substring(0, 6));
+        String id = UUID.randomUUID().toString().substring(0, 6);
+        invites.outgoing(id, from.getUniqueId());
+        data.put("id", id);
         data.put("from", from.getUniqueId().toString());
         data.put("fromName", from.getName());
         // Only the name: the arena knows its own players and finds them by it.

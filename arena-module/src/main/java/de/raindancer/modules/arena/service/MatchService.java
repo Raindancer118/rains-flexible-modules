@@ -80,6 +80,7 @@ public final class MatchService implements IArenaService {
     private final Map<UUID, Map<UUID, List<String>>> gear = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> deaths = new ConcurrentHashMap<>();
     private volatile WaveService waves;
+    private volatile PitSweeper sweeper;
     private volatile Runnable afterFight = () -> {
     };
     private volatile ArenaSettings settings;
@@ -108,6 +109,11 @@ public final class MatchService implements IArenaService {
     /** Wired after construction: the waves need this service and this one the waves. */
     public void waves(WaveService waves) {
         this.waves = waves;
+    }
+
+    /** Wired after construction: clears a pit before each round and after each fight. */
+    public void sweeper(PitSweeper sweeper) {
+        this.sweeper = sweeper;
     }
 
     /** Told whenever a fight ends and its pit is free — the queue starts the next. */
@@ -257,6 +263,10 @@ public final class MatchService implements IArenaService {
         synchronized (fight) {
             if (fight.state() == Fight.State.OVER) {
                 return;
+            }
+            if (sweeper != null) {
+                // Whatever the last round left — or the last fight in this pit — is gone before anybody arrives.
+                sweeper.sweep(fight.pit());
             }
             List<Place> spawns = fight.pit().spawns();
             int side = 0;
@@ -480,6 +490,9 @@ public final class MatchService implements IArenaService {
         Set<UUID> home = new HashSet<>(fight.players());
         home.addAll(spectators.getOrDefault(fight.id(), Set.of()));
         Scheduling.globalLater(plugin, HOME_AFTER_TICKS, () -> {
+            if (sweeper != null && !busyPits().contains(fight.pit().id())) {
+                sweeper.sweep(fight.pit());
+            }
             for (UUID member : home) {
                 Player player = server.getPlayer(member);
                 if (player != null && byPlayer.get(member) == null) {

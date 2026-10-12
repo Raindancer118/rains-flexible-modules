@@ -69,6 +69,7 @@ public final class InviteService {
                 return;
             }
             Invite invite = create(from, here.getUniqueId(), here.getName(), spec);
+            queue.agreed(from.getUniqueId(), spec);
             messages.send(from, "arena.invite.sent", "player", here.getName());
             offer(here, invite);
             return;
@@ -88,6 +89,7 @@ public final class InviteService {
                 return;
             }
             Invite invite = create(from, target, name, spec);
+            queue.agreed(from.getUniqueId(), spec);
             Map<String, String> data = new HashMap<>(SpecCodec.encode(spec));
             data.put("id", invite.id());
             data.put("from", from.getUniqueId().toString());
@@ -155,6 +157,7 @@ public final class InviteService {
         }
         Invite invite = found.get();
         open.remove(invite.id());
+        queue.agreed(player.getUniqueId(), invite.spec());
         if (busy.test(player.getUniqueId())) {
             messages.send(player, "arena.invite.refuse.you-busy");
             return;
@@ -213,7 +216,12 @@ public final class InviteService {
             messages.send(player, "arena.invite.none");
             return Optional.empty();
         }
-        return Optional.of(mine.getLast());
+        if (mine.size() > 1) {
+            // "The latest" would let somebody slip a different invite in just before the other types accept.
+            messages.send(player, "arena.invite.which");
+            return Optional.empty();
+        }
+        return Optional.of(mine.getFirst());
     }
 
     private Invite create(Player from, UUID to, String toName, MatchSpec spec) {
