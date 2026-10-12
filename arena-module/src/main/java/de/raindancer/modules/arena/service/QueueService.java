@@ -8,6 +8,7 @@ import de.raindancer.modules.arena.ArenaSettings;
 import de.raindancer.modules.arena.api.MatchSpec;
 import de.raindancer.modules.arena.model.Pit;
 import de.raindancer.modules.arena.model.QueueEntry;
+import de.raindancer.modules.arena.rules.OpenQueueRule;
 import de.raindancer.modules.arena.rules.PairingRule;
 import de.raindancer.modules.arena.rules.PitRule;
 import de.raindancer.modules.arena.rules.QueueRule;
@@ -42,6 +43,7 @@ public final class QueueService implements IArenaService {
     private final PairingRule pairing = new PairingRule();
     private final PitRule pits = new PitRule();
     private final QueueRule gate = new QueueRule();
+    private final OpenQueueRule openRule = new OpenQueueRule();
     private final java.util.function.Predicate<String> kitKnown;
     private final java.util.function.BooleanSupplier survivalUp;
     private final List<QueueEntry> waiting = new ArrayList<>();
@@ -107,7 +109,60 @@ public final class QueueService implements IArenaService {
         }
         messages.send(player, "arena.queue.joined", "mode", spec.mode().title(), "kit", kitName(spec),
                 "stake", spec.stake());
+        announce(spec);
         Scheduling.global(plugin, this::tick);
+    }
+
+    /** The fights in the queue that still wait for more people. */
+    public List<OpenQueueRule.Open> openQueues() {
+        List<QueueEntry> snapshot;
+        synchronized (this) {
+            snapshot = List.copyOf(waiting);
+        }
+        return openRule.open(snapshot);
+    }
+
+    /** Tells somebody arriving in the hub which fights they could join right now. @return how many */
+    public int tellOpen(Player viewer) {
+        List<OpenQueueRule.Open> open = openRule.forViewer(openQueues(), viewer.getUniqueId());
+        open.forEach(each -> sendOpen(viewer, each));
+        return open.size();
+    }
+
+    /** Somebody joined a fight that still waits for more: everybody free in the hub hears they can join. */
+    private void announce(MatchSpec spec) {
+        openQueues().stream().filter(each -> each.spec().queueKey().equals(spec.queueKey())).findFirst()
+                .ifPresent(open -> server.getOnlinePlayers().stream()
+                        .filter(viewer -> !open.waiting().contains(viewer.getUniqueId()))
+                        .filter(viewer -> !matches.inFight(viewer.getUniqueId()))
+                        .forEach(viewer -> sendOpen(viewer, open)));
+    }
+
+    private void sendOpen(Player viewer, OpenQueueRule.Open open) {
+        Player first = server.getPlayer(open.waiting().getFirst());
+        if (first == null) {
+            return;
+        }
+        MatchSpec spec = open.spec();
+        messages.send(viewer, spec.stake() > 0 ? "arena.queue.open-stake" : "arena.queue.open",
+                "player", first.getName(), "mode", spec.mode().title(), "kit", kitName(spec), "stake", spec.stake(),
+                "waiting", open.waiting().size(), "needed", open.needed());
+    }
+
+    /** Joins the same fight somebody is waiting for — the [Join] button. @return false when they are not waiting */
+    public boolean joinLike(Player player, String name) {
+        Player other = name == null ? null : server.getPlayerExact(name);
+        Optional<QueueEntry> theirs = other == null ? Optional.empty() : entryOf(other.getUniqueId());
+        if (theirs.isEmpty()) {
+            messages.send(player, "arena.queue.join-gone", "player", name == null ? "?" : name);
+            return false;
+        }
+        if (other.getUniqueId().equals(player.getUniqueId())) {
+            messages.send(player, "arena.queue.join-yourself");
+            return false;
+        }
+        join(player, theirs.get().spec());
+        return true;
     }
 
     /** Whether this fight may not be waited for; says why when it may not. */

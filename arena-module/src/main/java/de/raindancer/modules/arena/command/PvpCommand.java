@@ -17,11 +17,12 @@ import java.util.stream.Stream;
 
 /**
  * {@code /pvp invite <player> [mode] [kit|own] [stake] [bo3]}, {@code accept [id]}, {@code deny [id]},
- * {@code queue [mode] [kit]}, {@code leave}. An invite works for somebody here and for somebody on survival.
+ * {@code queue [mode] [kit]}, {@code join <player>} (the fight they wait for), {@code leave}, {@code rematch}. An invite works for somebody here and for somebody on survival.
  */
 public final class PvpCommand implements IArenaCommand {
 
-    private static final List<String> SUBCOMMANDS = List.of("invite", "accept", "deny", "cancel", "queue", "leave");
+    private static final List<String> SUBCOMMANDS = List.of("invite", "accept", "deny", "cancel", "queue", "join", "leave",
+            "rematch");
 
     private final Supplier<ArenaServices> services;
 
@@ -56,6 +57,14 @@ public final class PvpCommand implements IArenaCommand {
             case "queue" -> live.queue().join(player, SpecArgs.parse(args, 1, Mode.DUEL));
             case "leave" -> live.messages().send(player, live.queue().leave(player.getUniqueId())
                     ? "arena.queue.left" : "arena.queue.not-in");
+            case "join" -> {
+                if (args.length < 2) {
+                    live.messages().send(player, "arena.pvp.usage");
+                    return;
+                }
+                live.queue().joinLike(player, args[1]);
+            }
+            case "rematch" -> live.rematches().ask(player);
             default -> live.messages().send(player, "arena.pvp.usage");
         }
     }
@@ -71,6 +80,14 @@ public final class PvpCommand implements IArenaCommand {
             return Stream.concat(live.server().getOnlinePlayers().stream().map(Player::getName),
                             live.core().playersElsewhere().stream()).distinct()
                     .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(last)).sorted().toList();
+        }
+        if (args[0].equalsIgnoreCase("join") && args.length == 2) {
+            return live.queue().openQueues().stream().map(open -> live.server().getPlayer(open.waiting().getFirst()))
+                    .filter(java.util.Objects::nonNull).map(Player::getName)
+                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(last)).toList();
+        }
+        if (args[0].equalsIgnoreCase("rematch")) {
+            return List.of();
         }
         if (args[0].equalsIgnoreCase("cancel") && source.getSender() instanceof Player player) {
             return live.invites().madeBy(player.getUniqueId()).stream().map(invite -> invite.id()).toList();

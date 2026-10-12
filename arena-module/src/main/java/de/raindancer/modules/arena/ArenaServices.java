@@ -40,7 +40,8 @@ public record ArenaServices(
         ArenaLink link,
         IntentBook intents,
         IArenaScreensOpener screens,
-        de.raindancer.modules.arena.service.BoardService boards) {
+        de.raindancer.modules.arena.service.BoardService boards,
+        de.raindancer.modules.arena.service.RematchService rematches) {
 
     public ArenaSettings config() {
         return settings.get();

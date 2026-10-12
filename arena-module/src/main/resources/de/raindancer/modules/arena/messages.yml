@@ -25,6 +25,10 @@ arena:
     no-survival: "<red>Stakes and own gear need the survival server, which cannot be reached right now."
     bar-agreed: "<gold><mode></gold> <gray>·</gray> <white><kit></white> <gray>· with <white><others></white> · waiting for a free pit"
     bar: "<gold><mode></gold> <gray>·</gray> <white><kit></white> <gray>· place <white><place></white> of <white><waiting></white>, <white><needed></white> make a fight"
+    open: "<gold><white><player></white> waits for a <white><mode></white> fight with <white><kit></white> <gray>(<white><waiting></white>/<white><needed></white>)</gray>. They won't wait forever. <click:run_command:'/pvp join <player>'><green>[Join]</green></click>"
+    open-stake: "<gold><white><player></white> waits for a <white><mode></white> fight with <white><kit></white>, stake <white><stake></white> <gray>(<white><waiting></white>/<white><needed></white>)</gray>. <click:run_command:'/pvp join <player>'><green>[Join]</green></click>"
+    join-gone: "<red><white><player></white> is not waiting any more. Somebody was quicker."
+    join-yourself: "<gray>That is your own queue. You are already in it — patience."
 
   fight:
     called-off: "<red>The fight is off: <white><who></white> could not be got ready (stake or gear). Nobody lost anything."
@@ -96,8 +100,18 @@ arena:
     none: "<gray><white><player></white> has not fought in the arena yet."
 
   pvp:
-    usage: "<gray>/pvp invite <player> [duel|sumo|waves] [kit|own] [stake] [bo3]  ·  /pvp accept  ·  /pvp deny  ·  /pvp queue [mode] [kit]  ·  /pvp leave"
+    usage: "<gray>/pvp invite <player> [duel|sumo|waves] [kit|own] [stake] [bo3]  ·  /pvp accept  ·  /pvp deny  ·  /pvp queue [mode] [kit]  ·  /pvp join <player>  ·  /pvp leave  ·  /pvp rematch"
     only-duels: "<red>An invite is for a duel, sumo or a mob run together. Teams and free for all come from the queue."
+
+  rematch:
+    offer: "<gray>Again against <white><others></white>? Same kit, same rounds, same stake. <click:run_command:'/pvp rematch'><gold>[Rematch]</gold></click> <dark_gray>(a minute to decide)"
+    waiting: "<green>Rematch asked. Now <white><others></white> has to want it too."
+    asked: "<gold><white><player></white> wants a rematch. Revenge, or a second humiliation? <click:run_command:'/pvp rematch'><gold>[Rematch]</gold></click>"
+    starting: "<green>Rematch! It starts as soon as a pit is free."
+    none: "<gray>There is no fight to have again. Lose one first."
+    expired: "<gray>Too late — the rematch offer ran out. <white>/pvp invite</white> asks again."
+    gone: "<red>Somebody from that fight is gone, so there is no rematch."
+    left: "<gray>Your opponent left. No rematch — call it a win."
 
   invite:
     sent: "<green>Asked <white><player></white>. They have a minute to answer. <click:run_command:'/pvp cancel <id>'><red>[Cancel]</red></click>"

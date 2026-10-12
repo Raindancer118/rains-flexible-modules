@@ -18,12 +18,19 @@ import java.util.List;
 public final class FightOptionsMenu extends Menu implements IArenaScreen {
 
     private final ArenaServices services;
+    private final String challenged;
     private MatchSpec spec;
 
     public FightOptionsMenu(ArenaServices services, Player viewer, Menu parent, MatchSpec spec) {
+        this(services, viewer, parent, spec, null);
+    }
+
+    /** @param challenged somebody already picked at the lanista: the last step sends them the challenge */
+    public FightOptionsMenu(ArenaServices services, Player viewer, Menu parent, MatchSpec spec, String challenged) {
         super(viewer, services.brand(), parent);
         this.services = services;
         this.spec = spec;
+        this.challenged = challenged;
     }
 
     @Override
@@ -52,6 +59,15 @@ public final class FightOptionsMenu extends Menu implements IArenaScreen {
                             spec = spec.withStake(value);
                             reopen();
                         }).open());
+        if (challenged != null) {
+            toolbar(4, Icons.of(Material.IRON_SWORD, "<gold>Challenge " + MiniMessage.miniMessage().escapeTags(challenged),
+                    "<gray>They get a minute to accept.", "<gray>Somebody on survival is brought over if they do."),
+                    click -> {
+                        viewer.closeInventory();
+                        services.invites().invite(viewer, challenged, spec);
+                    });
+            return;
+        }
         toolbar(3, Icons.of(Material.COMPASS, "<green>Find an opponent",
                 "<gray>Wait in the queue for somebody who wants the same."), click -> {
                     viewer.closeInventory();
@@ -59,9 +75,10 @@ public final class FightOptionsMenu extends Menu implements IArenaScreen {
                 });
         boolean invitable = spec.mode() == Mode.DUEL || spec.mode() == Mode.SUMO;
         toolbar(5, invitable, Icons.of(Material.PAPER, "<aqua>Ask somebody",
-                        "<gray>Somebody here in the arena.", "<gray>For somebody on survival: /pvp invite <name>"),
+                        "<gray>Somebody here in the arena, or on survival."),
                 "Teams and free for all come together in the queue.",
-                click -> new PlayerChooser(viewer, services.brand(), this, "Ask whom?", de.raindancer.modules.arena.util.OnlinePlayers.of(services.server()),
+                click -> new PlayerChooser(viewer, services.brand(), this, "Ask whom?",
+                        de.raindancer.modules.arena.util.OnlinePlayers.reachable(services.server(), services.core()::playersElsewhere),
                         List.of(viewer.getUniqueId()), entry -> {
                             viewer.closeInventory();
                             services.invites().invite(viewer, entry.name(), spec);

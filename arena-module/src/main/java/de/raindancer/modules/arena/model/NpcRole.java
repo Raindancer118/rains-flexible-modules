@@ -5,7 +5,7 @@ import java.util.Optional;
 
 /** The gladiators standing in the hub, and what each of them is for. */
 public enum NpcRole {
-    LANISTA("Lanista", "Fights against other players"),
+    LANISTA("Lanista", "Fights and challenges against players"),
     BEASTMASTER("Beast Master", "Waves of mobs"),
     ARMORER("Armorer", "The kits"),
     HERALD("Herald", "Who is the best"),

@@ -84,6 +84,8 @@ public final class MatchService implements IArenaService {
     private volatile PitSweeper sweeper;
     private volatile Runnable afterFight = () -> {
     };
+    private volatile java.util.function.Consumer<Fight> finished = fight -> {
+    };
     private volatile ArenaSettings settings;
     private ScheduledTask clock;
 
@@ -115,6 +117,11 @@ public final class MatchService implements IArenaService {
     /** Wired after construction: clears a pit before each round and after each fight. */
     public void sweeper(PitSweeper sweeper) {
         this.sweeper = sweeper;
+    }
+
+    /** Told about every fight that ended with a result, after its result was said — for the rematch. */
+    public void onFinished(java.util.function.Consumer<Fight> told) {
+        this.finished = told;
     }
 
     /** Told whenever a fight ends and its pit is free — the queue starts the next. */
@@ -524,6 +531,11 @@ public final class MatchService implements IArenaService {
             }
         });
         dissolve(fight);
+        try {
+            finished.accept(fight);
+        } catch (RuntimeException failed) {
+            log.error(failed, "Offering the rematch failed; the fight itself ended normally.");
+        }
     }
 
     /** The fight is gone: its players are free, its pit is free, and the queue may start the next. */

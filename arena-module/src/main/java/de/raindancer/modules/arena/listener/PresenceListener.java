@@ -36,6 +36,12 @@ public final class PresenceListener implements IArenaListener {
             services.arena().arrived(player);
             services.intents().take(player.getUniqueId()).ifPresent(intent -> act(player, intent));
         });
+        // Later, so it is not lost among the arrival lines: the fights waiting for more people.
+        Scheduling.entityLater(services.plugin(), player, 40L, () -> {
+            if (player.isOnline() && !services.matches().inFight(player.getUniqueId())) {
+                services.queue().tellOpen(player);
+            }
+        });
     }
 
     private void act(Player player, IntentBook.Intent intent) {
@@ -55,6 +61,7 @@ public final class PresenceListener implements IArenaListener {
         UUID id = event.getPlayer().getUniqueId();
         services.queue().forget(id);
         services.invites().forget(id);
+        services.rematches().forget(id);
         services.arena().release(id);
     }
 

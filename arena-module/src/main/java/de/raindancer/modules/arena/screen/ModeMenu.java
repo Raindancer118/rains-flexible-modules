@@ -38,6 +38,12 @@ public final class ModeMenu extends Menu implements IArenaScreen {
         band(0, 4, Icons.of(Material.NETHERITE_SWORD, "<red>Free for all",
                 "<gray>Three to eight, everybody against everybody.", "<gray>The last one standing wins."),
                 click -> pickKit(new MatchSpec(Mode.FFA, null, 1, 0, 1, null)));
+        band(2, 4, Icons.of(Material.PLAYER_HEAD, "<gold><bold>Challenge a player",
+                        "<gray>Pick somebody — here or on survival —", "<gray>then the fight, the kit and the stake.",
+                        "<gray>They get a minute to accept."),
+                click -> new de.raindancer.core.ui.choose.PlayerChooser(viewer, services.brand(), this, "Challenge whom?",
+                        de.raindancer.modules.arena.util.OnlinePlayers.reachable(services.server(), services.core()::playersElsewhere),
+                        java.util.List.of(viewer.getUniqueId()), entry -> new ChallengeMenu(services, viewer, this, entry.name()).open()).open());
     }
 
     private void pickKit(MatchSpec spec) {

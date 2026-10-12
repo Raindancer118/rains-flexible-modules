@@ -64,7 +64,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.4.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.5.0")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -141,6 +141,9 @@ public final class ArenaModule implements FlexModule {
             }
         });
 
+        de.raindancer.modules.arena.service.RematchService rematches = new de.raindancer.modules.arena.service.RematchService(
+                server, context.core().messages(), queue, System::currentTimeMillis);
+        matches.onFinished(rematches::finished);
         AgreedFights agreed = new AgreedFights(System::currentTimeMillis);
         IntentBook intents = new IntentBook(System::currentTimeMillis);
         InviteService invites = new InviteService(server, context.core().messages(), link, queue, agreed,
@@ -196,7 +199,7 @@ public final class ArenaModule implements FlexModule {
         };
         ArenaServices services = new ArenaServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core(), settings::current, arena, matches, queue, invites, kits, waves,
-                npcs, stats, link, intents, screens, boards);
+                npcs, stats, link, intents, screens, boards, rematches);
         built[0] = services;
 
         FightRule fights = new FightRule();
