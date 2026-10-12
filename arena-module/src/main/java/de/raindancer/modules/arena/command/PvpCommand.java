@@ -46,7 +46,7 @@ public final class PvpCommand implements IArenaCommand {
                 }
                 MatchSpec spec = SpecArgs.parse(args, 2, Mode.DUEL);
                 if (spec.mode() != Mode.DUEL && spec.mode() != Mode.SUMO && spec.mode() != Mode.WAVES
-                        && spec.mode() != Mode.NAVAL && spec.mode() != Mode.MOUNTED) {
+                        && spec.mode() != Mode.NAVAL && spec.mode() != Mode.MOUNTED && spec.mode() != Mode.HORSEBACK) {
                     live.messages().send(player, "arena.pvp.only-duels");
                     return;
                 }

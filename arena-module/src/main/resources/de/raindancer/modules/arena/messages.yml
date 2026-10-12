@@ -104,8 +104,8 @@ arena:
     none: "<gray><white><player></white> has not fought in the arena yet."
 
   pvp:
-    usage: "<gray>/pvp invite <player> [duel|sumo|naval|mounted|waves] [kit|own] [stake] [bo3]  ·  /pvp accept  ·  /pvp deny  ·  /pvp queue [mode] [kit]  ·  /pvp join <player>  ·  /pvp leave  ·  /pvp rematch"
-    only-duels: "<red>An invite is for a duel, sumo, a naval battle, mounted combat or a mob run together. Teams and free for all come from the queue."
+    usage: "<gray>/pvp invite <player> [duel|sumo|naval|mounted|horse|waves] [kit|own] [stake] [bo3]  ·  /pvp accept  ·  /pvp deny  ·  /pvp queue [mode] [kit]  ·  /pvp join <player>  ·  /pvp leave  ·  /pvp rematch"
+    only-duels: "<red>An invite is for a duel, sumo, a naval battle, mounted or horseback combat, or a mob run together. Teams and free for all come from the queue."
 
   naval:
     flood-title: "<aqua><bold>⚓ THE FLOOD"

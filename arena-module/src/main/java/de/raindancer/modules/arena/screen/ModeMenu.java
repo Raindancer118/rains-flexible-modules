@@ -38,14 +38,17 @@ public final class ModeMenu extends Menu implements IArenaScreen {
         band(0, 4, Icons.of(Material.NETHERITE_SWORD, "<red>Free for all",
                 "<gray>Three to eight, everybody against everybody.", "<gray>The last one standing wins."),
                 click -> pickKit(new MatchSpec(Mode.FFA, null, 1, 0, 1, null)));
-        band(1, 4, Icons.of(Material.CARROT_ON_A_STICK, "<light_purple>Mounted combat",
+        band(1, 3, Icons.of(Material.CARROT_ON_A_STICK, "<light_purple>Mounted combat",
                         "<gray>Everybody on a pig, spear in hand.", "<gray>Steer with the carrot on a stick —",
                         "<gray>nobody gets off. Two to eight."),
                 click -> new FightOptionsMenu(services, viewer, this, new MatchSpec(Mode.MOUNTED, null, 1, 0, 1, null)).open());
-        band(1, 2, Icons.of(Material.WHITE_BANNER, "<gold>Guild war",
+        band(1, 5, Icons.of(Material.SADDLE, "<gold>Horseback combat",
+                        "<gray>Everybody on a horse, spear and shield.", "<gray>Nobody gets off. Two to eight."),
+                click -> new FightOptionsMenu(services, viewer, this, new MatchSpec(Mode.HORSEBACK, null, 1, 0, 1, null)).open());
+        band(1, 1, Icons.of(Material.WHITE_BANNER, "<gold>Guild war",
                         "<gray>Your guild against another guild,", "<gray>a side each — from two to five a side."),
                 click -> pickKit(new MatchSpec(Mode.GUILD_WAR, null, 1, 0, 2, null)));
-        band(1, 6, Icons.of(Material.TARGET, "<yellow>Guild training",
+        band(1, 7, Icons.of(Material.TARGET, "<yellow>Guild training",
                         "<gray>Your own guild, split into two sides.", "<gray>Practice before the next war."),
                 click -> pickKit(new MatchSpec(Mode.GUILD_TRAINING, null, 1, 0, 2, null)));
         band(0, 5, Icons.of(Material.OAK_BOAT, "<aqua>Naval battle",

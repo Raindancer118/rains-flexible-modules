@@ -27,7 +27,7 @@ public final class KitDefaults {
     }
 
     public List<Kit> all() {
-        return List.of(gladiator(), knight(), netherite(), archer(), axe(), mace(), potion(), uhc(), sumo(), naval(), lancer());
+        return List.of(gladiator(), knight(), netherite(), archer(), axe(), mace(), potion(), uhc(), sumo(), naval(), lancer(), rider());
     }
 
     private Kit gladiator() {
@@ -160,6 +160,16 @@ public final class KitDefaults {
         slots.offHand(stick);
         slots.hotbar(1, item(Material.COOKED_PORKCHOP, 8));
         return kit("lancer", "Lancer", Material.IRON_SPEAR, slots, false);
+    }
+
+    /** For horseback combat: a spear that lunges and a shield — the horse does the rest. */
+    private Kit rider() {
+        Slots slots = new Slots().armour(Material.IRON_HELMET, Material.IRON_CHESTPLATE, Material.IRON_LEGGINGS,
+                Material.IRON_BOOTS, 1);
+        slots.hotbar(0, enchanted(Material.IRON_SPEAR, Enchantment.LUNGE, 2));
+        slots.hotbar(1, item(Material.COOKED_BEEF, 8));
+        slots.offHand(item(Material.SHIELD, 1));
+        return kit("rider", "Rider", Material.SADDLE, slots, false);
     }
 
     // ── making items ───────────────────────────────────────────────────────────────────────────────

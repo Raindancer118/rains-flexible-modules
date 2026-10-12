@@ -295,8 +295,9 @@ public final class MatchService implements IArenaService {
                 floods.plan(fight.pit()).thenAccept(basin -> Scheduling.global(plugin, () -> launch(fight, basin)));
                 return;
             }
-            if (fight.spec().mode() == Mode.MOUNTED && floods != null) {
-                floods.planFloor(fight.pit()).thenAccept(floor -> Scheduling.global(plugin, () -> mount(fight, floor)));
+            if ((fight.spec().mode() == Mode.MOUNTED || fight.spec().mode() == Mode.HORSEBACK) && floods != null) {
+                Ride mount = fight.spec().mode() == Mode.MOUNTED ? Ride.PIG : Ride.HORSE;
+                floods.planFloor(fight.pit()).thenAccept(floor -> Scheduling.global(plugin, () -> mount(fight, floor, mount)));
                 return;
             }
             List<Place> spawns = fight.pit().spawns();
@@ -410,7 +411,7 @@ public final class MatchService implements IArenaService {
     }
 
     /** Mounted combat: everybody on a saddled pig round a ring on the floor, then the countdown. */
-    private void mount(Fight fight, Optional<de.raindancer.modules.arena.rules.BasinRule.Basin> floorPlan) {
+    private void mount(Fight fight, Optional<de.raindancer.modules.arena.rules.BasinRule.Basin> floorPlan, Ride mount) {
         synchronized (fight) {
             if (fight.state() == Fight.State.OVER) {
                 return;
@@ -433,7 +434,7 @@ public final class MatchService implements IArenaService {
                 de.raindancer.modules.arena.rules.NavalSpotsRule.Spot spot = spots.get(index);
                 if (player != null) {
                     Places.location(server, FloodService.spot(pit, spot.x(), spot.z(), spot.yaw())).ifPresent(at ->
-                            Scheduling.entity(plugin, player, () -> equip(fight, player, at, Ride.PIG)));
+                            Scheduling.entity(plugin, player, () -> equip(fight, player, at, mount)));
                 }
             }
             countdowns.put(fight.id(), settings.countdownClamped());
@@ -460,7 +461,7 @@ public final class MatchService implements IArenaService {
     }
 
     /** What a fighter starts the round sitting on. */
-    private enum Ride { NONE, BOAT, PIG }
+    private enum Ride { NONE, BOAT, PIG, HORSE }
 
     private void equip(Fight fight, Player player, Location spawn) {
         equip(fight, player, spawn, Ride.NONE);
@@ -494,6 +495,18 @@ public final class MatchService implements IArenaService {
                     made.setRemoveWhenFarAway(false);
                 });
                 pig.addPassenger(player);
+            } else if (ride == Ride.HORSE) {
+                org.bukkit.entity.Horse horse = spawn.getWorld().spawn(spawn, org.bukkit.entity.Horse.class, made -> {
+                    made.setTamed(true);
+                    made.setOwner(player);
+                    made.setAdult();
+                    made.setInvulnerable(true);
+                    made.setRemoveWhenFarAway(false);
+                    made.getInventory().setSaddle(new org.bukkit.inventory.ItemStack(org.bukkit.Material.SADDLE));
+                    made.getInventory().setArmor(new org.bukkit.inventory.ItemStack(org.bukkit.Material.IRON_HORSE_ARMOR));
+                    made.setJumpStrength(0.7);
+                });
+                horse.addPassenger(player);
             }
         }));
     }

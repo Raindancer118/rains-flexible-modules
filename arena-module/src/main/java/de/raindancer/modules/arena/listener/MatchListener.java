@@ -191,14 +191,15 @@ public final class MatchListener implements IArenaListener {
         }
     }
 
-    /** A rider in mounted combat stays on the pig until they are out or the fight is over. */
+    /** A rider in mounted or horseback combat stays on their mount until they are out or the fight is over. */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDismount(org.bukkit.event.entity.EntityDismountEvent event) {
-        if (!(event.getEntity() instanceof Player player) || !(event.getDismounted() instanceof org.bukkit.entity.Pig)) {
+        if (!(event.getEntity() instanceof Player player) || !(event.getDismounted() instanceof org.bukkit.entity.Pig
+                || event.getDismounted() instanceof org.bukkit.entity.AbstractHorse)) {
             return;
         }
         Optional<Fight> fight = services.matches().fightOf(player.getUniqueId());
-        if (fight.isEmpty() || fight.get().spec().mode() != Mode.MOUNTED) {
+        if (fight.isEmpty() || (fight.get().spec().mode() != Mode.MOUNTED && fight.get().spec().mode() != Mode.HORSEBACK)) {
             return;
         }
         boolean still;

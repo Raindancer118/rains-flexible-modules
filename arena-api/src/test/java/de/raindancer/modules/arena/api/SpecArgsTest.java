@@ -65,7 +65,7 @@ class SpecArgsTest {
     @org.junit.jupiter.api.Test
     @org.junit.jupiter.api.DisplayName("mounted, joust, pigs and cavalry mean mounted combat: the lancer kit, one round, two to eight")
     void mounted() {
-        for (String word : java.util.List.of("mounted", "joust", "pigs", "cavalry")) {
+        for (String word : java.util.List.of("mounted", "joust", "pigs")) {
             MatchSpec spec = SpecArgs.parse(new String[]{word}, 0, Mode.DUEL);
             org.assertj.core.api.Assertions.assertThat(spec.mode()).as(word).isEqualTo(Mode.MOUNTED);
             org.assertj.core.api.Assertions.assertThat(spec.kit()).isEqualTo("lancer");
@@ -75,5 +75,17 @@ class SpecArgsTest {
         org.assertj.core.api.Assertions.assertThat(Mode.MOUNTED.isRidden()).isTrue();
         org.assertj.core.api.Assertions.assertThat(Mode.NAVAL.isRidden()).isTrue();
         org.assertj.core.api.Assertions.assertThat(Mode.DUEL.isRidden()).isFalse();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("horse, horseback, cavalry and knights mean horseback combat: the rider kit, ridden, two to eight")
+    void horseback() {
+        for (String word : java.util.List.of("horse", "horseback", "cavalry", "knights")) {
+            MatchSpec spec = SpecArgs.parse(new String[]{word}, 0, Mode.DUEL);
+            org.assertj.core.api.Assertions.assertThat(spec.mode()).as(word).isEqualTo(Mode.HORSEBACK);
+            org.assertj.core.api.Assertions.assertThat(spec.kit()).isEqualTo("rider");
+        }
+        org.assertj.core.api.Assertions.assertThat(Mode.HORSEBACK.isRidden()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(Mode.HORSEBACK.isFreeForAll()).isTrue();
     }
 }

@@ -19,6 +19,8 @@ public enum Mode {
     NAVAL("Naval battle", 2, 8),
     /** Everybody on a saddled pig, steered with a carrot on a stick, spear in hand; the last rider standing wins. */
     MOUNTED("Mounted combat", 2, 8),
+    /** Everybody on a horse, spear and shield; the last rider standing wins. */
+    HORSEBACK("Horseback combat", 2, 8),
     /** Your guild against another guild, a side each. */
     GUILD_WAR("Guild war", 4, 10),
     /** Your own guild split into two sides. */
@@ -44,7 +46,7 @@ public enum Mode {
 
     /** Whether everybody fights from something they ride — a boat, a pig — so nobody is held still at the start. */
     public boolean isRidden() {
-        return this == NAVAL || this == MOUNTED;
+        return this == NAVAL || this == MOUNTED || this == HORSEBACK;
     }
 
     /** Whether the sides are made of guilds — the queue has to know who is in which. */
@@ -54,7 +56,7 @@ public enum Mode {
 
     /** Whether everybody fights everybody, the queue waiting a while for more before it starts. */
     public boolean isFreeForAll() {
-        return this == FFA || this == NAVAL || this == MOUNTED;
+        return this == FFA || this == NAVAL || this == MOUNTED || this == HORSEBACK;
     }
 
     public int most() {
@@ -80,8 +82,11 @@ public enum Mode {
         if (name.equals("BOATS") || name.equals("SHIPS") || name.equals("NAVY") || name.equals("FLOOD")) {
             return Optional.of(NAVAL);
         }
-        if (name.equals("JOUST") || name.equals("PIGS") || name.equals("CAVALRY") || name.equals("LANCE")) {
+        if (name.equals("JOUST") || name.equals("PIGS") || name.equals("PIG") || name.equals("LANCE")) {
             return Optional.of(MOUNTED);
+        }
+        if (name.equals("HORSE") || name.equals("HORSES") || name.equals("CAVALRY") || name.equals("KNIGHTS")) {
+            return Optional.of(HORSEBACK);
         }
         if (name.equals("GUILDWAR") || name.equals("GW") || name.equals("WAR")) {
             return Optional.of(GUILD_WAR);
