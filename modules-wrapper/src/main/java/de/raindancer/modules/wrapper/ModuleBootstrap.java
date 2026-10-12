@@ -31,6 +31,9 @@ public final class ModuleBootstrap implements PluginBootstrap {
         // Discovery is idempotent, so onEnable calling it again costs nothing.
         Modules.discover(getClass().getClassLoader());
 
+        // Paper freezes the enchantment registry before onEnable, so this is the only moment for it too.
+        de.raindancer.core.content.enchant.CustomEnchantments.register(context, Modules.registry().enchantments());
+
         LifecycleEventManager<BootstrapContext> lifecycle = context.getLifecycleManager();
         lifecycle.registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             for (ModuleCommand command : Modules.registry().commands()) {

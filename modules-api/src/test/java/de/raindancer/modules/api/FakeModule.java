@@ -1,5 +1,7 @@
 package de.raindancer.modules.api;
 
+import de.raindancer.core.content.enchant.EnchantDef;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,6 +18,9 @@ final class FakeModule implements FlexModule {
     private final ModuleInfo info;
     private final List<String> journal;
     private final List<ModuleCommand> commands = new ArrayList<>();
+
+    private final List<EnchantDef> enchantments = new ArrayList<>();
+    private RuntimeException failEnchantments;
 
     private RuntimeException failEnable;
     private RuntimeException failDisable;
@@ -54,6 +59,24 @@ final class FakeModule implements FlexModule {
     FakeModule offering(ModuleCommand command) {
         commands.add(command);
         return this;
+    }
+
+    FakeModule bringing(EnchantDef enchantment) {
+        enchantments.add(enchantment);
+        return this;
+    }
+
+    FakeModule failingToDeclareEnchantments(RuntimeException cause) {
+        this.failEnchantments = cause;
+        return this;
+    }
+
+    @Override
+    public List<EnchantDef> enchantments() {
+        if (failEnchantments != null) {
+            throw failEnchantments;
+        }
+        return List.copyOf(enchantments);
     }
 
     @Override

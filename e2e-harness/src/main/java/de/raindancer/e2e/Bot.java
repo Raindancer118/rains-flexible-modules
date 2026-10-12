@@ -842,6 +842,12 @@ public final class Bot {
         return this;
     }
 
+    /** Tells the server the player toggled flight: what a double tap on the jump key sends. */
+    public Bot flying(boolean on) {
+        session.send(new org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerAbilitiesPacket(on));
+        return this;
+    }
+
     /** Starts or stops sprinting. */
     public Bot sprinting(boolean on) {
         session.send(new org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerCommandPacket(

@@ -7,6 +7,7 @@ veintoggle:
   others-on: "<green>Vein mining is on for <white><player></white>."
   others-off: "<yellow>Vein mining is off for <white><player></white>."
   held-back: "<gray>Vein mining is off for you — just this block. <white>/vein</white> turns it back on."
+  needs-enchantment: "<gray>This tool has no Veinminer enchantment — just this block. <white>Veinminer</white> on a pickaxe, axe or shovel does the rest."
   no-veinminer: "<yellow>Veinminer is not installed here, so this does nothing until it is."
   not-online: "<red><white><player></white> is not online right now."
   only-a-player: "<red>Only a player mines veins."

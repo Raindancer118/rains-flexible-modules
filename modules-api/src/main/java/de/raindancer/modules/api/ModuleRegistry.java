@@ -1,5 +1,7 @@
 package de.raindancer.modules.api;
 
+import de.raindancer.core.content.enchant.EnchantDef;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -42,6 +44,7 @@ public final class ModuleRegistry {
     /** Rebuilt whenever the plan is; kept apart so recomputing cannot duplicate them. */
     private final List<String> planProblems = new ArrayList<>();
     private final List<String> commandProblems = new ArrayList<>();
+    private final List<String> enchantmentProblems = new ArrayList<>();
     /** Things that happened once and are never recomputed: failures to start, failures to stop. */
     private final List<String> runtimeProblems = new ArrayList<>();
 
@@ -142,6 +145,21 @@ public final class ModuleRegistry {
         }
         commands = List.copyOf(collected);
         return commands;
+    }
+
+    /** Every enchantment the runnable modules bring, in plan order — asked at bootstrap like commands. */
+    public List<EnchantDef> enchantments() {
+        List<EnchantDef> collected = new ArrayList<>();
+        enchantmentProblems.clear();
+        for (FlexModule module : plan().order()) {
+            try {
+                collected.addAll(module.enchantments());
+            } catch (Throwable caught) {
+                enchantmentProblems.add("module '" + module.info().id()
+                        + "' failed while declaring its enchantments: " + describe(caught));
+            }
+        }
+        return List.copyOf(collected);
     }
 
     /**
@@ -246,6 +264,7 @@ public final class ModuleRegistry {
     public List<String> problems() {
         List<String> all = new ArrayList<>(planProblems);
         all.addAll(commandProblems);
+        all.addAll(enchantmentProblems);
         all.addAll(runtimeProblems);
         return List.copyOf(all);
     }

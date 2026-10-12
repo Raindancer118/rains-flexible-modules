@@ -30,12 +30,22 @@ public final class VeinRule {
                 && VEIN_EVENT.equals(event.getClass().getName());
     }
 
+    /** Why a vein block is refused, or {@link #NONE}. */
+    public enum Refusal { NONE, NO_ENCHANTMENT, SWITCHED_OFF }
+
     /**
-     * Whether to refuse it: a vein block, for a player who switched vein mining off. The block they
-     * broke by hand is ordinary mining and never refused here.
+     * Whether to refuse it, and why: a vein block for a tool without the enchantment, or for a player
+     * who switched vein mining off. The block they broke by hand is ordinary mining and never refused
+     * here. The tool is named first because it is the thing they can fix by getting one.
      */
-    public boolean refuse(boolean veinBlock, boolean wantsVeins) {
-        return veinBlock && !wantsVeins;
+    public Refusal refusal(boolean veinBlock, boolean wantsVeins, boolean enchantedTool) {
+        if (!veinBlock) {
+            return Refusal.NONE;
+        }
+        if (!enchantedTool) {
+            return Refusal.NO_ENCHANTMENT;
+        }
+        return wantsVeins ? Refusal.NONE : Refusal.SWITCHED_OFF;
     }
 
     /** Whether this is Veinminer saying what one of its blocks drops. */

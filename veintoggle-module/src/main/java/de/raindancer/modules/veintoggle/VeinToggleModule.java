@@ -1,5 +1,7 @@
 package de.raindancer.modules.veintoggle;
 
+import de.raindancer.core.content.enchant.CustomEnchantments;
+import de.raindancer.core.content.enchant.RainsEnchants;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.social.economy.Economies;
 import de.raindancer.core.social.economy.ItemValues;
@@ -33,7 +35,7 @@ public final class VeinToggleModule implements FlexModule {
     /** How long the undoer has to agree to pay for what nobody could give back. */
     private static final long BILL_SECONDS = 60;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.4.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("veintoggle", "Vein Toggle", "0.5.0")
             .describedAs("Switch Veinminer on or off for yourself with /vein, and undo a vein with /ctrl-z")
             .by("Raindancer118");
 
@@ -64,11 +66,16 @@ public final class VeinToggleModule implements FlexModule {
                         new ServerThreads(context.plugin()), Economies::current, ItemValues::valueOf,
                         new UndoNotices(context.core().messages()), BILL_SECONDS));
         context.listener(new VeinListener(new VeinRule(), services::wantsVeins,
+                player -> !settings.current().requireEnchantment()
+                        || CustomEnchantments.find(RainsEnchants.VEINMINER).isEmpty()
+                        || CustomEnchantments.levelOn(player.getInventory().getItemInMainHand(),
+                                RainsEnchants.VEINMINER) > 0,
                 player -> {
                     if (settings.current().sayWhenHeldBack()) {
                         player.sendActionBar(services.messages().get("veintoggle.held-back"));
                     }
                 },
+                player -> player.sendActionBar(services.messages().get("veintoggle.needs-enchantment")),
                 System::currentTimeMillis));
         context.listener(new VeinUndoListener(new VeinRule(), history, restored, System::currentTimeMillis,
                 server::getCurrentTick));

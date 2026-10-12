@@ -27,8 +27,17 @@ class VeinRuleTest {
     @Test
     @DisplayName("refused only for a player who switched it off, and never the block they broke by hand")
     void refusesOnlyTheVein() {
-        assertThat(rule.refuse(true, false)).isTrue();
-        assertThat(rule.refuse(true, true)).isFalse();
-        assertThat(rule.refuse(false, false)).as("their own break is ordinary mining").isFalse();
+        assertThat(rule.refusal(true, false, true)).isEqualTo(VeinRule.Refusal.SWITCHED_OFF);
+        assertThat(rule.refusal(true, true, true)).isEqualTo(VeinRule.Refusal.NONE);
+        assertThat(rule.refusal(false, false, false)).as("their own break is ordinary mining")
+                .isEqualTo(VeinRule.Refusal.NONE);
+    }
+
+    @Test
+    @DisplayName("without the enchantment on the tool there is no vein, whatever the switch says")
+    void needsTheEnchantment() {
+        assertThat(rule.refusal(true, true, false)).isEqualTo(VeinRule.Refusal.NO_ENCHANTMENT);
+        assertThat(rule.refusal(true, false, false)).as("the missing tool is the first thing to say")
+                .isEqualTo(VeinRule.Refusal.NO_ENCHANTMENT);
     }
 }

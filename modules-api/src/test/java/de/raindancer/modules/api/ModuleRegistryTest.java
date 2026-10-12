@@ -333,6 +333,23 @@ class ModuleRegistryTest {
         }
 
         @Test
+        void enchantmentsAreCollectedInPlanOrderAndOneBrokenDeclarationDropsOnlyItsModule() {
+            // Paper freezes the enchantment registry before onEnable, so — like commands — they are
+            // asked for at bootstrap, and one module failing to answer must not cost the others theirs.
+            de.raindancer.core.content.enchant.EnchantDef a = de.raindancer.core.content.enchant.EnchantDef
+                    .builder("t:a").name("A").gear(de.raindancer.core.content.enchant.Gear.BOOTS).build();
+            de.raindancer.core.content.enchant.EnchantDef b = de.raindancer.core.content.enchant.EnchantDef
+                    .builder("t:b").name("B").gear(de.raindancer.core.content.enchant.Gear.HELMET).build();
+            ModuleRegistry registry = registryOf(
+                    FakeModule.requiring("second", journal, "first").bringing(b),
+                    FakeModule.named("first", journal).bringing(a),
+                    FakeModule.named("broken", journal).failingToDeclareEnchantments(new IllegalStateException("no")));
+
+            assertThat(registry.enchantments()).containsExactly(a, b);
+            assertThat(registry.problems()).anyMatch(p -> p.contains("broken") && p.contains("enchantments"));
+        }
+
+        @Test
         void areAvailableBeforeAnythingIsEnabled() {
             // Paper wants commands during bootstrap, which is before onEnable. A registry that only
             // knew its commands after enabling would register none at all — silently.

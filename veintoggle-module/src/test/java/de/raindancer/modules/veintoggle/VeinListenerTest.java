@@ -25,6 +25,7 @@ class VeinListenerTest {
     private final Block block = mock(Block.class);
     private final AtomicLong clock = new AtomicLong(1_000_000L);
     private final List<Player> told = new ArrayList<>();
+    private final List<Player> toldNoEnchant = new ArrayList<>();
 
     private Player player(UUID id) {
         Player player = mock(Player.class);
@@ -33,8 +34,12 @@ class VeinListenerTest {
     }
 
     private VeinListener listener(Set<UUID> switchedOff) {
-        return new VeinListener(new VeinRule(), who -> !switchedOff.contains(who.getUniqueId()), told::add,
-                clock::get);
+        return listener(switchedOff, who -> true);
+    }
+
+    private VeinListener listener(Set<UUID> switchedOff, java.util.function.Predicate<Player> enchantedTool) {
+        return new VeinListener(new VeinRule(), who -> !switchedOff.contains(who.getUniqueId()), enchantedTool,
+                told::add, toldNoEnchant::add, clock::get);
     }
 
     @Test
@@ -78,5 +83,35 @@ class VeinListenerTest {
         clock.addAndGet(VeinListener.QUIET_FOR_MILLIS + 1);
         listener.onBreak(new VeinMinerEvent.VeinminerEvent(block, off));
         assertThat(told).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("a tool without the enchantment gets no extra blocks, and its holder is told what is missing")
+    void needsTheEnchantment() {
+        Player miner = player(UUID.randomUUID());
+        VeinListener listener = listener(Set.of(), who -> false);
+        VeinMinerEvent.VeinminerEvent extra = new VeinMinerEvent.VeinminerEvent(block, miner);
+        BlockBreakEvent own = new BlockBreakEvent(block, miner);
+
+        listener.onBreak(extra);
+        listener.onBreak(own);
+
+        assertThat(extra.isCancelled()).isTrue();
+        assertThat(own.isCancelled()).isFalse();
+        assertThat(toldNoEnchant).containsExactly(miner);
+        assertThat(told).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the enchantment and the switch both have to say yes")
+    void bothMustAgree() {
+        Player off = player(UUID.randomUUID());
+        VeinMinerEvent.VeinminerEvent extra = new VeinMinerEvent.VeinminerEvent(block, off);
+
+        listener(Set.of(off.getUniqueId()), who -> true).onBreak(extra);
+
+        assertThat(extra.isCancelled()).isTrue();
+        assertThat(told).containsExactly(off);
+        assertThat(toldNoEnchant).isEmpty();
     }
 }

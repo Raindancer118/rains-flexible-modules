@@ -1,0 +1,3 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+enchants:
+  flight-empty: "<gray>Flight charge used up. Land to recharge."

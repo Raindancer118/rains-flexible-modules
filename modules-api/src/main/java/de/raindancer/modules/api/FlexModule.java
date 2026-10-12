@@ -1,5 +1,7 @@
 package de.raindancer.modules.api;
 
+import de.raindancer.core.content.enchant.EnchantDef;
+
 import java.util.List;
 
 /**
@@ -56,6 +58,17 @@ public interface FlexModule {
      * anything the module sets up in {@link #enable}.
      */
     default List<ModuleCommand> commands() {
+        return List.of();
+    }
+
+    /**
+     * The enchantments this module adds to the game, if any.
+     *
+     * <p>Asked for during bootstrap for the same reason as {@link #commands()}: Paper freezes the
+     * enchantment registry before {@code onEnable}, so a registration made there is too late. Same rules
+     * too — cheap, repeatable, and independent of anything {@link #enable} sets up.
+     */
+    default List<EnchantDef> enchantments() {
         return List.of();
     }
 }

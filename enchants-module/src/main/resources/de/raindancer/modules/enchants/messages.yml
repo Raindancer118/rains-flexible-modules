@@ -1,0 +1,10 @@
+# This module's wording. Every line can be rewritten in plugins/RainsCore/messages.yml.
+enchants:
+  flight-empty: "<gray>Flight ran out. <white>Land and it recharges."
+  usage: "<gray>/enchants <dark_gray>— list · <gray>/enchants give <player> <enchantment> [level] <dark_gray>— staff"
+  list-header: "<gold>Rain's enchantments:"
+  list-line: "<gray>- <white><name></white> <dark_gray>(up to <max>, on <gear>)"
+  not-online: "<red><white><player></white> is not online right now."
+  unknown: "<red>There is no enchantment <white><name></white>. <gray>/enchants list shows them."
+  bad-level: "<red>The level has to be a number from 1 to <white><max></white>."
+  given: "<green>Gave <white><player></white> a book of <white><name></white> <level>."

@@ -30,8 +30,10 @@
              0.2.2: an item counts as the vein's only if it is exactly a stack Veinminer announced.
              0.3.0: /ctrl-z and /veinundo; whoever picked up the drops gives them back, or pays their
                     shop buy price; the undoer may pay the rest.
-             0.4.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
-        <plugin.version>0.4.0</plugin.version>
+             0.4.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
+             0.5.0: with the enchants module installed, vein blocks only come from a tool carrying the
+                    Veinminer enchantment (require-enchantment, on by default). -->
+        <plugin.version>0.5.0</plugin.version>
     </properties>
 
     <dependencies>

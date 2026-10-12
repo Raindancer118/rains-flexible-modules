@@ -34,7 +34,14 @@ public record VeinToggleSettings(
                 + "go back only for the items they dropped, taken from the ground and the inventory, "
                 + "and a block put back drops the same again with no experience. Zero switches undo off.")
         @Key("undo-within-seconds")
-        int undoWithinSeconds) {
+        int undoWithinSeconds,
 
-    public static final VeinToggleSettings DEFAULTS = new VeinToggleSettings(true, true, 120);
+        @In("veintoggle") @Title("Needs the Veinminer enchantment")
+        @Describe("Whether Veinminer only works with a tool that carries the Veinminer enchantment. Only "
+                + "enforced while the enchants module is installed, so switching it on without the "
+                + "enchantment existing cannot lock everybody out of veins.")
+        @Key("require-enchantment")
+        boolean requireEnchantment) {
+
+    public static final VeinToggleSettings DEFAULTS = new VeinToggleSettings(true, true, 120, true);
 }

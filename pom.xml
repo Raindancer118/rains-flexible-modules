@@ -24,13 +24,13 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.3.build.169-beta</paper.api.version>
-        <rainscore.version>1.123.0</rainscore.version>
+        <rainscore.version>1.124.0</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
         <!-- The end-to-end harness and its headless client: one timestamped 26.3 build, never the moving SNAPSHOT. -->
-        <e2e-harness.version>0.5.0</e2e-harness.version>
+        <e2e-harness.version>0.6.0</e2e-harness.version>
         <mcprotocollib.version>26.3-20260925.105100-9</mcprotocollib.version>
         <!-- Which tests run: everything but the e2e ones, unless -Pe2e turns it round. -->
         <e2e.excluded>e2e,screenshots</e2e.excluded>
@@ -40,8 +40,8 @@
         <!-- One property per library module, each its own version — independent of the reactor's
              <version> and of each other. Bumping one of these is what a <module>-vX.Y.Z release tag
              is checked against; nothing else in this file ties a module's version to another's. -->
-        <modules-api.version>1.2.0</modules-api.version>
-        <modules-wrapper.version>1.4.0</modules-wrapper.version>
+        <modules-api.version>1.3.0</modules-api.version>
+        <modules-wrapper.version>1.5.0</modules-wrapper.version>
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
         <claims-module.version>2.10.0</claims-module.version>
@@ -67,7 +67,8 @@
         <arena-api.version>0.1.3</arena-api.version>
         <arena-module.version>0.4.0</arena-module.version>
         <arenagate-module.version>0.3.1</arenagate-module.version>
-        <veintoggle-module.version>0.4.0</veintoggle-module.version>
+        <veintoggle-module.version>0.5.0</veintoggle-module.version>
+        <enchants-module.version>0.1.0</enchants-module.version>
         <performance-module.version>0.1.0</performance-module.version>
         <economy-module.version>0.35.0</economy-module.version>
         <roles-module.version>0.7.3</roles-module.version>
@@ -134,6 +135,8 @@
         <module>arenagate-standalone</module>
         <module>veintoggle-module</module>
         <module>veintoggle-standalone</module>
+        <module>enchants-module</module>
+        <module>enchants-standalone</module>
         <module>performance-module</module>
         <module>performance-standalone</module>
         <module>economy-module</module>
@@ -331,6 +334,11 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>veintoggle-module</artifactId>
                 <version>${veintoggle-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>enchants-module</artifactId>
+                <version>${enchants-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>

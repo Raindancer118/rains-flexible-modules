@@ -1,0 +1,24 @@
+# Same shape as every other standalone here — see rtp-standalone's copy for why each line matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '26.3'
+description: 'Veinminer, Night Vision, Flight and Double Jump as real enchantments, with advancements.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Per-player work runs on the player's own scheduler through Core's Scheduling.
+folia-supported: true
+
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
