@@ -18,6 +18,10 @@ public final class JoinListener implements ICosmeticsListener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
+        if (services.core().linkFollows()) {
+            // What they may wear is decided on survival; their choices come over from there (RainsCore's link).
+            return;
+        }
         try {
             services.names().revalidate(event.getPlayer());
             services.particles().revalidate(event.getPlayer());

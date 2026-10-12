@@ -42,12 +42,16 @@ public final class ReplyCommand implements IEssentialsCommand {
             return;
         }
         Player to = live.server().getPlayer(target);
+        String text = String.join(" ", args);
+        if (to == null && live.messaging().acrossName(target).isPresent()) {
+            live.messaging().sendAcross(from, live.messaging().acrossName(target).get(), text);
+            return;
+        }
         if (to == null) {
             live.messages().send(from, "essentials.player.offline", "player",
                     PlayerTargets.shownName(live.server().getOfflinePlayer(target)));
             return;
         }
-        String text = String.join(" ", args);
         live.messaging().send(from, to, text);
     }
 

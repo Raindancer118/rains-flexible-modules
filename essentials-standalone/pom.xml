@@ -74,7 +74,9 @@
              1.18.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
              1.21.0: tells other plugins who is in admin mode through Core's AdminModes (RainsCore 1.109.0).
              1.22.0: admin mode switches on the admin bypass and Core's claim bypass, and off again on the way out. -->
-        <plugin.version>1.22.0</plugin.version>
+        <!-- 1.23.0: /msg and /r reach players on the other server of RainsCore's link (the arena), tab completion
+             names them too; their ignore list and vanish decide there as here. Needs RainsCore 1.118.0. -->
+        <plugin.version>1.23.0</plugin.version>
     </properties>
 
     <dependencies>

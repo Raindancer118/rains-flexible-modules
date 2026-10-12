@@ -188,11 +188,24 @@ class PriceBookTest {
         List<String> shelved = java.util.Arrays.stream(de.raindancer.core.ui.choose.Category.values())
                 .flatMap(category -> book.tradableIn(category).stream()).toList();
         for (String item : List.of("SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE", "COAST_ARMOR_TRIM_SMITHING_TEMPLATE",
-                "OCHRE_FROGLIGHT", "VERDANT_FROGLIGHT", "PEARLESCENT_FROGLIGHT")) {
+                "OCHRE_FROGLIGHT", "VERDANT_FROGLIGHT", "PEARLESCENT_FROGLIGHT", "FIREFLY_BUSH")) {
             assertThat(shelved).as(item + " is on a shelf").contains(item);
             assertThat(book.tag(item).buyable()).as(item + " can be bought").isTrue();
             assertThat(book.tag(item).sellable()).as(item + " can be sold").isTrue();
         }
+    }
+
+    @Test
+    @DisplayName("the mace: the shipped list prices the heavy core, so the mace is priced from its recipe and sold")
+    void mace() {
+        PriceBook book = new PriceBook(currency -> BasePrices.parse(
+                EconomySettings.class.getResourceAsStream("base-prices.yml"), currency), material -> 0.0, material -> 64);
+        book.recompute(EconomySettings.DEFAULTS, List.of(new RecipeShape("MACE", 1,
+                List.of(List.of("HEAVY_CORE"), List.of("BREEZE_ROD")), RecipeShape.Process.CRAFT)));
+        assertThat(book.tag("MACE").buyable()).isTrue();
+        assertThat(book.tag("MACE").buy()).isGreaterThan(book.tag("HEAVY_CORE").buy());
+        assertThat(java.util.Arrays.stream(de.raindancer.core.ui.choose.Category.values())
+                .flatMap(category -> book.tradableIn(category).stream())).contains("MACE");
     }
 
     @Test

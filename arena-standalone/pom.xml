@@ -53,7 +53,10 @@
         <!-- 0.3.0: a Watcher gladiator opens the fights going on to watch; whoever accepts an invite is told so, a second
              click on [Accept] too, and both are told when every pit is busy; a newer agreed fight replaces an older one
              of the same players; stats are read off the server thread. -->
-        <plugin.version>0.3.0</plugin.version>
+        <!-- 0.4.0: /balance and /pay with the survival server's money (RainsCore's linked economy); a fall is a flash of
+             lightning, soul fire and thunder, a win a title and a burst; congratulations in many wordings; 64 wind
+             charges in the mace kit. Needs RainsCore 1.120.0. -->
+        <plugin.version>0.4.0</plugin.version>
     </properties>
 
     <dependencies>

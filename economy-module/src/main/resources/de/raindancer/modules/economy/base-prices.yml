@@ -130,6 +130,8 @@ wither_rose: 100
 sunflower: 20
 lilac: 20
 rose_bush: 20
+# Swamps and rivers at night; no recipe makes it.
+firefly_bush: 40
 peony: 20
 torchflower: 50
 pitcher_plant: 50
@@ -194,6 +196,9 @@ netherite_upgrade_smithing_template: 5000
 ochre_froglight: 250
 verdant_froglight: 250
 pearlescent_froglight: 250
+
+# Ominous vault loot, one in a long while; with a breeze rod it is the mace, which is priced from that recipe.
+heavy_core: 6000
 
 # ---- armour trims
 # Loot only; each template's own copying recipe needs one already, so nothing can price it from a recipe. Priced by

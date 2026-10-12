@@ -27,8 +27,14 @@ public final class ArenaCommands {
                                 "admin kit save|remove <id>", "admin npc place <role>|remove", "admin info"),
                 ModuleCommand.of("pvp", "Ask somebody to a fight, answer, or wait in the queue",
                                 new de.raindancer.modules.arena.command.PvpCommand(ArenaCommands::require))
-                        .taking("invite <player> [mode] [kit] [stake]", "accept [id]", "deny [id]", "queue [mode] [kit]",
-                                "leave"));
+                        .taking("invite <player> [mode] [kit] [stake]", "accept [id]", "deny [id]", "cancel [id]",
+                                "queue [mode] [kit]", "leave"),
+                ModuleCommand.of("balance", "Your balance — the same money as on survival",
+                                new de.raindancer.modules.arena.command.WalletCommand(ArenaCommands::require, false))
+                        .aliased("bal", "money"),
+                ModuleCommand.of("pay", "Pay somebody, here or on survival",
+                                new de.raindancer.modules.arena.command.WalletCommand(ArenaCommands::require, true))
+                        .taking("<player> <amount>"));
     }
 
     static void ready(ArenaServices live) {

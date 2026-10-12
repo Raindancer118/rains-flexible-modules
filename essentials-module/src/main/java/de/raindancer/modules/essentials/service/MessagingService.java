@@ -28,6 +28,11 @@ public final class MessagingService implements IEssentialsService {
     private final Vanish vanish;
 
     private final java.util.Map<UUID, UUID> lastPartner = new ConcurrentHashMap<>();
+    /** Partners on the other server of the link, by id — their name is what a reply is addressed to over there. */
+    private final java.util.Map<UUID, String> across = new ConcurrentHashMap<>();
+
+    public static final String TOPIC = "essentials.msg";
+    private volatile de.raindancer.core.platform.link.ServerLink link;
 
     private volatile EssentialsSettings settings;
 
@@ -69,7 +74,79 @@ public final class MessagingService implements IEssentialsService {
                 Chat.arg("player", from.getName()), Chat.arg("text", text));
         lastPartner.put(to.getUniqueId(), from.getUniqueId());
         lastPartner.put(from.getUniqueId(), to.getUniqueId());
+        across.remove(to.getUniqueId());
+        across.remove(from.getUniqueId());
         return true;
+    }
+
+    /**
+     * Listens for messages from the other server of the link. There, as here, the receiver's ignore list and whether
+     * they are vanished decide — the sender is told "offline" either way.
+     */
+    public void connect(de.raindancer.core.platform.link.ServerLink link, java.util.function.Function<String, Player> byName) {
+        this.link = link;
+        link.on(TOPIC, data -> {
+            Player to = byName.apply(data.getOrDefault("to", ""));
+            UUID from;
+            try {
+                from = UUID.fromString(data.get("from"));
+            } catch (RuntimeException garbled) {
+                return java.util.Map.of("ok", "false");
+            }
+            String fromName = data.getOrDefault("fromName", "?");
+            String text = data.getOrDefault("text", "");
+            if (to == null || store.isIgnoring(to.getUniqueId(), from) || !vanish.canSee(from, to.getUniqueId())) {
+                return java.util.Map.of("ok", "false");
+            }
+            chat.tell(to, messages.raw("essentials.msg.received"), Chat.arg("player", fromName), Chat.arg("text", text));
+            lastPartner.put(to.getUniqueId(), from);
+            across.put(from, fromName);
+            return java.util.Map.of("ok", "true", "toId", to.getUniqueId().toString(), "to", to.getName());
+        });
+    }
+
+    public void disconnect() {
+        de.raindancer.core.platform.link.ServerLink current = link;
+        if (current != null) {
+            current.off(TOPIC);
+        }
+        link = null;
+    }
+
+    public boolean linked() {
+        de.raindancer.core.platform.link.ServerLink current = link;
+        return current != null && current.isConnected();
+    }
+
+    /** The name a reply to this partner goes to on the other server, when they were over there. */
+    public Optional<String> acrossName(UUID partner) {
+        return Optional.ofNullable(across.get(partner));
+    }
+
+    /** To somebody on the other server: the answer decides what the sender is told. */
+    public void sendAcross(Player from, String toName, String text) {
+        de.raindancer.core.platform.link.ServerLink current = link;
+        if (current == null) {
+            messages.send(from, "essentials.player.offline", "player", toName);
+            return;
+        }
+        current.request(TOPIC, java.util.Map.of("from", from.getUniqueId().toString(), "fromName", from.getName(),
+                        "to", toName, "text", text), java.time.Duration.ofSeconds(4))
+                .whenComplete((answer, failure) -> {
+                    if (failure != null || !"true".equals(answer.get("ok"))) {
+                        messages.send(from, "essentials.player.offline", "player", toName);
+                        return;
+                    }
+                    String name = answer.getOrDefault("to", toName);
+                    chat.tell(from, messages.raw("essentials.msg.sent"), Chat.arg("player", name), Chat.arg("text", text));
+                    try {
+                        UUID partner = UUID.fromString(answer.get("toId"));
+                        lastPartner.put(from.getUniqueId(), partner);
+                        across.put(partner, name);
+                    } catch (RuntimeException ignored) {
+                        // An answer without an id still delivered; there is just nobody to /r to.
+                    }
+                });
     }
 
     /** Who a reply would go to, if anybody. */

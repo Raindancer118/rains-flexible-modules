@@ -16,7 +16,7 @@ class ArenaCommandsTest {
     void declaringNeedsNothingLive() {
         List<ModuleCommand> declared = ArenaCommands.declared();
 
-        assertThat(declared).extracting(ModuleCommand::name).containsExactly("arena", "pvp");
+        assertThat(declared).extracting(ModuleCommand::name).containsExactly("arena", "pvp", "balance", "pay");
         assertThat(declared.getFirst().options()).contains("leave", "hub");
     }
 

@@ -50,6 +50,11 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
         CommandSender sender = source.getSender();
         String first = args.length > 0 ? args[0].toLowerCase(Locale.ROOT) : "";
 
+        if (live.core().linkFollows() && sender instanceof Player) {
+            // Chosen here, it would be overwritten from survival within half a minute.
+            live.messages().send(sender, "cosmetics.chosen-on-survival");
+            return;
+        }
         if (first.equals("reload")) {
             if (!sender.hasPermission(PermissionNodes.ADMIN)) {
                 live.messages().send(sender, "cosmetics.no-permission");

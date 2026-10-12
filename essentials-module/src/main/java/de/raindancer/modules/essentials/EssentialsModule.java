@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.22.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.23.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, a nickname, /rules, and /admin for staff")
             .by("Raindancer118");
@@ -105,6 +105,10 @@ public final class EssentialsModule implements FlexModule {
         context.closeWith(() -> de.raindancer.core.social.presence.Away.unwatch(away));
         MessagingService messaging = new MessagingService(store, context.core().messages(),
                 context.chat(), context.core().vanish(), settings.current());
+        context.core().link().ifPresent(link -> {
+            messaging.connect(link, server::getPlayerExact);
+            context.closeWith(messaging::disconnect);
+        });
         NicknameService nicknames = new NicknameService(store, blocklist,
                 context.core().identities(), context.core().nicknames(), context.core().messages(),
                 context.chat(), server, context.core().punishments(), context.core().audit(),

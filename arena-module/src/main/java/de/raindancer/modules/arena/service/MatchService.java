@@ -65,6 +65,7 @@ public final class MatchService implements IArenaService {
     private final Server server;
     private final Messages messages;
     private final Effects effects;
+    private Drama drama;
     private final ArenaService arena;
     private final KitService kits;
     private final StakeService stakes;
@@ -359,8 +360,11 @@ public final class MatchService implements IArenaService {
             deaths.merge(player.getUniqueId(), 1, Integer::sum);
             Optional<Fight.Outcome> outcome = fight.beaten(player.getUniqueId(), by);
             String killer = by == null ? null : server.getPlayer(by) != null ? server.getPlayer(by).getName() : null;
-            tellAll(fight, killer == null ? "arena.fight.down" : "arena.fight.down-by", "player", player.getName(),
+            tellAllOne(fight, killer == null ? "arena.fight.down" : "arena.fight.down-by", "player", player.getName(),
                     "by", killer == null ? "" : killer);
+            drama().fall(player, messages.get("arena.fight.defeated-title"),
+                    killer == null ? Component.empty() : messages.get("arena.fight.defeated-by", "by", killer),
+                    audience(fight), outcome.isPresent());
             if (outcome.isEmpty()) {
                 watch(fight, player);
                 return;
@@ -451,8 +455,13 @@ public final class MatchService implements IArenaService {
         if (spec.mode() == Mode.WAVES) {
             boolean cleared = outcome.side() == 0;
             int reached = cleared ? fight.wave() : Math.max(0, fight.wave() - 1);
-            tellAll(fight, cleared ? "arena.waves.won" : "arena.waves.lost", "wave", reached,
+            tellAllOne(fight, cleared ? "arena.waves.won" : "arena.waves.lost", "wave", reached,
                     "waves", fight.wave());
+            if (cleared) {
+                everybody.stream().map(server::getPlayer).filter(java.util.Objects::nonNull).forEach(winner ->
+                        drama().triumph(winner, messages.get("arena.waves.victory-title"),
+                                messages.get("arena.waves.victory-subtitle", "waves", fight.wave())));
+            }
             for (UUID player : everybody) {
                 record(player, cleared ? 1 : 0, cleared ? 0 : 1, 0, fight.kills(player), reached);
             }
@@ -460,7 +469,17 @@ public final class MatchService implements IArenaService {
             tellAll(fight, "arena.fight.draw", "why", outcome.why());
             everybody.forEach(player -> record(player, 0, 0, 1, fight.kills(player), 0));
         } else {
-            tellAll(fight, "arena.fight.won", "winners", names(new HashSet<>(winners)), "score", score(fight));
+            String winnerNames = names(new HashSet<>(winners));
+            Component forWinners = messages.variant("arena.fight.you-won", "winners", winnerNames, "score", score(fight));
+            Component forLosers = messages.variant("arena.fight.you-lost", "winners", winnerNames, "score", score(fight));
+            Component forWatchers = messages.variant("arena.fight.won", "winners", winnerNames, "score", score(fight));
+            for (Player member : audience(fight)) {
+                UUID id = member.getUniqueId();
+                member.sendMessage(winners.contains(id) ? forWinners : everybody.contains(id) ? forLosers : forWatchers);
+            }
+            winners.stream().map(server::getPlayer).filter(java.util.Objects::nonNull).forEach(winner ->
+                    drama().triumph(winner, messages.get("arena.fight.victory-title"),
+                            messages.get("arena.fight.victory-subtitle", "score", score(fight))));
             for (UUID player : everybody) {
                 record(player, winners.contains(player) ? 1 : 0, winners.contains(player) ? 0 : 1, 0,
                         fight.kills(player), 0);
@@ -567,6 +586,27 @@ public final class MatchService implements IArenaService {
     }
 
     // ── words ──────────────────────────────────────────────────────────────────────────────────────
+
+    private Drama drama() {
+        if (drama == null) {
+            drama = new Drama(plugin, effects);
+        }
+        return drama;
+    }
+
+    /** Everybody in the fight and everybody watching it who is online. */
+    private List<Player> audience(Fight fight) {
+        Set<UUID> ids = new HashSet<>();
+        fight.sides().forEach(ids::addAll);
+        ids.addAll(spectators.getOrDefault(fight.id(), Set.of()));
+        return ids.stream().map(server::getPlayer).filter(java.util.Objects::nonNull).toList();
+    }
+
+    /** One wording, picked once, the same for everybody in the fight and watching it. */
+    private void tellAllOne(Fight fight, String key, Object... values) {
+        Component line = messages.variant(key, values);
+        audience(fight).forEach(player -> player.sendMessage(line));
+    }
 
     private void tellAll(Fight fight, String key, Object... values) {
         Set<UUID> audience = new HashSet<>();

@@ -37,14 +37,21 @@ public final class MsgCommand implements IEssentialsCommand {
             live.messages().send(from, "essentials.usage", "usage", "/msg <player> <message>");
             return;
         }
+        String text = String.join(" ", List.of(args).subList(1, args.length));
+        if (live.server().getPlayerExact(args[0]) == null) {
+            java.util.Optional<String> there = live.core().playersElsewhere().stream()
+                    .filter(name -> name.equalsIgnoreCase(args[0])).findFirst();
+            if (there.isPresent()) {
+                live.messaging().sendAcross(from, there.get(), text);
+                return;
+            }
+        }
         List<Player> found = Players.online(live.messages(), live.server(), from, args[0], true,
                 "essentials.no-such-player");
         if (found.isEmpty()) {
             return;
         }
-        Player to = found.getFirst();
-        String text = String.join(" ", List.of(args).subList(1, args.length));
-        live.messaging().send(from, to, text);
+        live.messaging().send(from, found.getFirst(), text);
     }
 
     @Override
@@ -52,7 +59,12 @@ public final class MsgCommand implements IEssentialsCommand {
         if (args.length <= 1) {
             EssentialsServices live = services.get();
             String typed = args.length == 1 ? args[0] : "";
-            return Players.suggest(live.server(), source.getSender(), typed, live.core().vanish());
+            List<String> here = Players.suggest(live.server(), source.getSender(), typed, live.core().vanish());
+            List<String> all = new java.util.ArrayList<>(here);
+            live.core().playersElsewhere().stream()
+                    .filter(name -> name.toLowerCase(java.util.Locale.ROOT).startsWith(typed.toLowerCase(java.util.Locale.ROOT)))
+                    .filter(name -> !all.contains(name)).sorted().forEach(all::add);
+            return all;
         }
         return List.of();
     }

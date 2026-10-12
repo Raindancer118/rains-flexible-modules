@@ -49,6 +49,9 @@ class ArenaNetworkScenarioTest {
                 .plugin(Path.of(System.getProperty("e2e.rainscore")))
                 .plugin(jar("chat-standalone", "RainsChat-.*"))
                 .plugin(jar("arenagate-standalone", "RainsArenaGate-.*"))
+                .plugin(jar("essentials-standalone", "RainsEssentials-.*"))
+                .plugin(jar("economy-standalone", "RainsEconomy-.*"))
+                .plugin(jar("cosmetics-standalone", "RainsCosmetics-.*"))
                 .file("config/paper-global.yml", paperGlobal)
                 .file("plugins/RainsCore/link.yml", "role: guest\nhost-url: http://127.0.0.1:" + linkPort
                         + "\nsecret: " + LINK_SECRET + "\n")
@@ -59,9 +62,11 @@ class ArenaNetworkScenarioTest {
                 .plugin(Path.of(System.getProperty("e2e.rainscore")))
                 .plugin(jar("chat-standalone", "RainsChat-.*"))
                 .plugin(jar("arena-standalone", "RainsArena-.*"))
+                .plugin(jar("essentials-standalone", "RainsEssentials-.*"))
+                .plugin(jar("cosmetics-standalone", "RainsCosmetics-.*"))
                 .file("config/paper-global.yml", paperGlobal)
                 .file("plugins/RainsCore/link.yml", "role: host\nlisten-address: 127.0.0.1\nlisten-port: " + linkPort
-                        + "\nsecret: " + LINK_SECRET + "\n")
+                        + "\nsecret: " + LINK_SECRET + "\nfollows: true\n")
                 .file("plugins/RainsChat/config.yml", "network:\n  enabled: true\n  tag: Arena\n")
                 .file("plugins/RainsArena/config.yml", "lobby-server: lobby\n")
                 .build();
@@ -106,6 +111,41 @@ class ArenaNetworkScenarioTest {
             bo.say("hello from the arena");
             Await.until("Ada, on survival, reads Bo", WAIT, () -> ada.chatText().stream()
                     .anyMatch(line -> line.contains("Arena") && line.contains("hello from the arena")));
+
+            // ── a private message across, and the answer back ───────────────────────────────────────
+            Await.until("survival knows who is in the arena", WAIT, () -> {
+                ada.run("msg Bo psst from survival");
+                return bo.chatText().stream().anyMatch(line -> line.contains("psst from survival"));
+            });
+            bo.run("r hi back from the arena");
+            Await.until("Ada, on survival, reads Bo's answer", WAIT, () -> ada.chatText().stream()
+                    .anyMatch(line -> line.contains("hi back from the arena")));
+
+            // ── cosmetics chosen on survival are worn in the arena ──────────────────────────────────────
+            lobby.console("op Ada");
+            ada.run("cosmetics particle flame");
+            Await.until("Ada wears a flame on survival (was sent " + ada.chatText().subList(Math.max(0, ada.chatText().size() - 4),
+                    ada.chatText().size()) + "; data " + lobby.console("data get entity Ada BukkitValues") + ")", WAIT,
+                    () -> lobby.console("data get entity Ada BukkitValues").toLowerCase(java.util.Locale.ROOT).contains("flame"));
+            proxy.command("send Ada arena");
+            Await.until("Ada's flame came with her to the arena", WAIT, () -> arena.console(
+                    "data get entity Ada BukkitValues").toLowerCase(java.util.Locale.ROOT).contains("flame"));
+            proxy.command("send Ada lobby");
+            Await.until("Ada is back on survival", WAIT, () -> lobby.console("list").contains("Ada"));
+
+            // ── one balance on both servers: Bo, in the arena, pays Ada on survival ────────────────────────
+            arena.awaitLog("money is the other server's", WAIT);
+            Await.until("the economy knows them", WAIT, () -> !lobby.console("eco set Ada 1000").contains("unknown")
+                    && !lobby.console("eco set Bo 500").contains("unknown"));
+            bo.run("balance");
+            Await.until("Bo sees his survival balance in the arena (was sent " + bo.chatText() + ")", WAIT, () -> bo.chatText().stream()
+                    .anyMatch(line -> line.contains("500") && line.contains("same money")));
+            bo.run("pay Ada 120");
+            Await.until("Bo is told it went through", WAIT, () -> bo.chatText().stream()
+                    .anyMatch(line -> line.contains("You paid") && line.contains("Ada")));
+            ada.run("balance");
+            Await.until("the money arrived on survival", WAIT, () -> ada.chatText().stream()
+                    .anyMatch(line -> line.contains("1,120")));
 
             // ── and back ────────────────────────────────────────────────────────────────────────────
             bo.run("arena leave");

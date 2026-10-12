@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.15.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.16.0")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -143,6 +143,8 @@ public final class CosmeticsModule implements FlexModule {
         });
 
         context.listener(new JoinListener(services));
+        context.core().sharePlayerData("rainscosmetics");
+        context.closeWith(() -> context.core().profiles().ifPresent(parts -> parts.forget("data:rainscosmetics")));
         CosmeticsCommands.ready(services);
 
         log.info("Cosmetics is up: {} palette colour(s), {} preset(s).",

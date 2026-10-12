@@ -6,6 +6,7 @@
 cosmetics:
 
   no-permission: "<red>You may not do that."
+  chosen-on-survival: "<gray>Your cosmetics come with you from survival — change them there."
 
   only-a-player: "<red>This command can only be used by a player."
 

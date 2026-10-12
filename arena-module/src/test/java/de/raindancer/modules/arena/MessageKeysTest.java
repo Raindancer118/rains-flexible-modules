@@ -29,7 +29,7 @@ class MessageKeysTest {
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(MESSAGES.toFile());
         List<String> used = new ArrayList<>(new TreeSet<>(keysUsed()));
         assertThat(used).hasSizeGreaterThan(15);
-        List<String> missing = used.stream().filter(key -> !yaml.isString(key)).toList();
+        List<String> missing = used.stream().filter(key -> !yaml.isString(key) && !yaml.isList(key)).toList();
         assertThat(missing).as("used in the code, absent from messages.yml").isEmpty();
     }
 

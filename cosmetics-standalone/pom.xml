@@ -26,7 +26,10 @@
 
         <!-- 0.x until the first complete version is signed off.
              0.14.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
-        <plugin.version>0.15.0</plugin.version>
+        <!-- 0.16.0: on a server that follows another over RainsCore's link (the arena), cosmetics come from there:
+             the rainscosmetics data is carried over, nothing is taken off on join, and they are chosen there. Needs
+             RainsCore 1.120.0. -->
+        <plugin.version>0.16.0</plugin.version>
     </properties>
 
     <dependencies>

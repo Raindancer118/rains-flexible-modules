@@ -30,11 +30,36 @@ arena:
     called-off: "<red>The fight is off: <white><who></white> could not be got ready (stake or gear). Nobody lost anything."
     round: "<gold>Round <white><round></white></gold> <gray>— <mode>"
     go: "<red><bold>FIGHT!"
-    down: "<gray><white><player></white> is out."
-    down-by: "<gray><white><player></white> was beaten by <white><by></white>."
+    down:
+      - "<gray><white><player></white> is out."
+      - "<gray><white><player></white> hits the sand and stays there."
+      - "<gray>The crowd groans — <white><player></white> is down."
+    down-by:
+      - "<gray><white><player></white> was beaten by <white><by></white>."
+      - "<gray><white><by></white> sends <white><player></white> into the sand."
+      - "<gray><white><player></white> never saw <white><by></white> coming."
+      - "<gray>One clean blow from <white><by></white> and <white><player></white> is done."
+      - "<gray><white><by></white> takes <white><player></white> down. The crowd roars."
+    defeated-title: "<dark_red><bold>DEFEATED"
+    defeated-by: "<gray>by <white><by></white>"
+    victory-title: "<gold><bold>VICTORY"
+    victory-subtitle: "<yellow><score>"
     left: "<gray><white><player></white> left the fight."
     round-won: "<yellow>Round to <white><winners></white>. <gray>(<score>)"
-    won: "<gold><bold>Victory</bold></gold> <gray>— <white><winners></white> won. <gray>(<score>)"
+    won:
+      - "<gold><bold>Victory</bold></gold> <gray>— <white><winners></white> won. <gray>(<score>)"
+      - "<gold><bold>Victory</bold></gold> <gray>— the sand belongs to <white><winners></white>. <gray>(<score>)"
+      - "<gold><bold>Victory</bold></gold> <gray>— <white><winners></white> leave the pit as champions. <gray>(<score>)"
+    you-won:
+      - "<gold><bold>Victory!</bold></gold> <yellow>The crowd is on its feet for you. <gray>(<score>)"
+      - "<gold><bold>Victory!</bold></gold> <yellow>That was a fight they will talk about. <gray>(<score>)"
+      - "<gold><bold>Victory!</bold></gold> <yellow>Not a scratch worth mentioning. Well fought. <gray>(<score>)"
+      - "<gold><bold>Victory!</bold></gold> <yellow>The pit has a new name to fear: yours. <gray>(<score>)"
+      - "<gold><bold>Victory!</bold></gold> <yellow>Glory, gold and bragging rights. <gray>(<score>)"
+    you-lost:
+      - "<red>Defeat.</red> <gray><white><winners></white> took this one. Next time, gladiator. <gray>(<score>)"
+      - "<red>Defeat.</red> <gray>The sand was not on your side today. <gray>(<score>)"
+      - "<red>Defeat.</red> <gray>Get up, dust off, go again. <gray>(<score>)"
     draw: "<yellow>A draw (<why>). Every stake goes back."
     time-left: "<yellow><white><seconds></white> seconds left — then it is a draw."
     watching: "<gray>You are out for this round. Watch until it is decided."
@@ -44,8 +69,25 @@ arena:
   waves:
     title: "<red>Wave <white><wave></white>"
     cleared: "<green>Wave <white><wave></white> cleared! The next one comes in five seconds."
-    won: "<gold><bold>Every wave beaten!</bold></gold> <gray>You cleared all <white><waves></white>."
+    won:
+      - "<gold><bold>Every wave beaten!</bold></gold> <gray>You cleared all <white><waves></white>."
+      - "<gold><bold>Every wave beaten!</bold></gold> <gray>All <white><waves></white> waves, and still standing. Legendary."
+      - "<gold><bold>Every wave beaten!</bold></gold> <gray>The beasts are done. You are not. (<white><waves></white> waves)"
+    victory-title: "<gold><bold>SURVIVED"
+    victory-subtitle: "<yellow>all <waves> waves"
     lost: "<red>The mobs won.</red> <gray>You got to wave <white><wave></white>."
+
+  wallet:
+    balance: "<gray>You have <amount><gray>. It is the same money as on survival."
+    pay-usage: "<gray>/pay <player> <amount>"
+    bad-amount: "<red><white><typed></white> is not an amount."
+    nobody: "<red>Nobody called <white><player></white> is online, here or on survival."
+    not-yourself: "<red>You cannot pay yourself."
+    not-enough: "<red>You do not have <amount><red>."
+    failed: "<red>That payment could not be confirmed — check /balance before trying again."
+    paid: "<green>You paid <white><player></white> <amount><green>."
+    got: "<green><white><player></white> paid you <amount><green>."
+    unavailable: "<red>Money lives on survival, and survival cannot be reached right now."
 
   spectate:
     watching: "<gray>Watching. <click:run_command:'/arena hub'><yellow>[Back to the hub]</yellow></click>"

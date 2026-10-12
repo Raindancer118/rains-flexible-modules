@@ -90,7 +90,7 @@ public final class KitDefaults {
         ItemStack mace = enchanted(Material.MACE, Enchantment.DENSITY, 3);
         mace.addUnsafeEnchantment(Enchantment.WIND_BURST, 1);
         slots.hotbar(0, mace);
-        slots.hotbar(1, item(Material.WIND_CHARGE, 16));
+        slots.hotbar(1, item(Material.WIND_CHARGE, 64));
         slots.hotbar(2, enchanted(Material.DIAMOND_SWORD, Enchantment.SHARPNESS, 2));
         slots.hotbar(3, item(Material.GOLDEN_APPLE, 3));
         slots.hotbar(4, item(Material.COOKED_BEEF, 8));
