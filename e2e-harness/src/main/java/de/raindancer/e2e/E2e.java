@@ -15,6 +15,9 @@ public final class E2e {
     public static final String PAPER_VERSION = "26.3";
     /** 26.3 has no stable build yet; 169 is the BETA Lilly's SMP runs. */
     public static final int PAPER_BUILD = 169;
+    /** The proxy the arena network runs behind — Lilly's own version. */
+    public static final String VELOCITY_VERSION = "4.2.0";
+    public static final int VELOCITY_BUILD = 30;
     public static final String MINECRAFT_VERSION = "26.3";
     /**
      * Folia of the same game version — the bots speak exactly one protocol. Folia 26.3 is not out yet

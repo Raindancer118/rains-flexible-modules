@@ -55,6 +55,11 @@ public final class Downloads {
         return server("paper", version, build);
     }
 
+    /** Velocity {@code version} build {@code build} — the proxy, from the same API. */
+    public static Path velocity(String version, int build) {
+        return server("velocity", version, build);
+    }
+
     /** Folia {@code version} build {@code build} — Paper's regionised fork, from the same API. */
     public static Path folia(String version, int build) {
         return server("folia", version, build);

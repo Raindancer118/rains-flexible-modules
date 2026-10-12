@@ -166,6 +166,8 @@ public final class Bot {
     }
 
     private final PaperServer server;
+    /** A port to connect to instead of the server's own — a proxy in front of it. 0 is the server's own. */
+    private volatile int through;
     private final String name;
     private final UUID id;
     private final String version;
@@ -237,6 +239,15 @@ public final class Bot {
         return name;
     }
 
+    /**
+     * Connects through {@code port} instead of straight to the server — a proxy in front of it, which then decides
+     * where the bot ends up. The bot still belongs to its server for everything the server is asked about it.
+     */
+    public Bot through(int port) {
+        this.through = port;
+        return this;
+    }
+
     public UUID id() {
         return id;
     }
@@ -288,7 +299,7 @@ public final class Bot {
         reset();
         MinecraftProtocol protocol = new MinecraftProtocol(new GameProfile(id, name), null);
         ClientSession client = ClientNetworkSessionFactory.factory()
-                .setAddress("127.0.0.1", server.port())
+                .setAddress("127.0.0.1", through > 0 ? through : server.port())
                 .setProtocol(protocol)
                 .create();
         client.addListener(new SessionAdapter() {

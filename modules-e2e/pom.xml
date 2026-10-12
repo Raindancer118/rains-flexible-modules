@@ -33,6 +33,30 @@
         <!-- Only for the build order: the scenarios start the shaded jars these produce. -->
         <dependency>
             <groupId>de.raindancer.modules</groupId>
+            <artifactId>arena-standalone</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
+            <artifactId>arenagate-standalone</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
             <artifactId>economy-standalone</artifactId>
             <version>${project.parent.version}</version>
             <scope>test</scope>
