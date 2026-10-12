@@ -29,7 +29,7 @@ class ScreenGrammarTest {
 
     /** The interface and the abstract screens: extended rather than opened, so nothing constructs them. */
     private static final List<String> BASE_CLASSES =
-            List.of("IModerationScreen", "ModerationScreen", "ModerationList");
+            List.of("IModerationScreen", "ModerationScreen", "ModerationList", "PlayerScreen");
 
     private record Screen(String name, String body) {
     }
@@ -224,7 +224,10 @@ class ScreenGrammarTest {
             boolean refuses = screen.body().contains("canAct(") || screen.body().contains("may(");
             boolean speaks = screen.body().contains("tell(")
                     || screen.body().contains("messages().send(")
-                    || screen.body().contains("Icons.locked(");
+                    || screen.body().contains("Icons.locked(")
+                    // Core's band(band, column, allowed, item, reason, handler) greys the button with the reason.
+                    || java.util.regex.Pattern.compile("band\\([^;]*may\\(", java.util.regex.Pattern.DOTALL)
+                    .matcher(screen.body()).find();
             if (refuses && !speaks) {
                 mute.add(screen.name());
             }
