@@ -41,7 +41,8 @@ public record ArenaServices(
         IntentBook intents,
         IArenaScreensOpener screens,
         de.raindancer.modules.arena.service.BoardService boards,
-        de.raindancer.modules.arena.service.RematchService rematches) {
+        de.raindancer.modules.arena.service.RematchService rematches,
+        de.raindancer.modules.arena.service.FloodService floods) {
 
     public ArenaSettings config() {
         return settings.get();

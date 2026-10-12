@@ -65,7 +65,7 @@
         <sends-module.version>0.1.0</sends-module.version>
         <!-- 0.x until duels, mob waves, stakes, own gear and the gladiators are all in. -->
         <arena-api.version>0.2.0</arena-api.version>
-        <arena-module.version>0.6.0</arena-module.version>
+        <arena-module.version>0.6.1</arena-module.version>
         <arenagate-module.version>0.4.0</arenagate-module.version>
         <veintoggle-module.version>0.5.0</veintoggle-module.version>
         <enchants-module.version>0.1.0</enchants-module.version>

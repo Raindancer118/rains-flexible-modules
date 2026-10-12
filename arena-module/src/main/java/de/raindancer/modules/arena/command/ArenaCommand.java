@@ -30,7 +30,8 @@ import java.util.function.Supplier;
 public final class ArenaCommand implements IArenaCommand {
 
     private static final List<String> PLAYER = List.of("hub", "leave", "queue", "wave", "spectate", "stats", "menu");
-    private static final List<String> ADMIN = List.of("build", "sethub", "pit", "info", "kit", "npc", "board", "hold", "return");
+    private static final List<String> ADMIN = List.of("build", "sethub", "pit", "info", "kit", "npc", "board", "hold", "return",
+            "flood", "drain");
     private static final List<String> PIT_ACTIONS = List.of("floor", "spawn", "clearspawns", "remove");
 
     private final Supplier<ArenaServices> services;
@@ -140,6 +141,7 @@ public final class ArenaCommand implements IArenaCommand {
             case "return" -> live.messages().send(sender, "arena.admin.returned", "count", live.arena().returnHeld());
             case "kit" -> kit(live, sender, args);
             case "npc" -> npc(live, sender, args);
+            case "flood", "drain" -> flood(live, sender, args);
             case "board" -> {
                 if (!(sender instanceof Player admin)) {
                     live.messages().send(sender, "arena.only-a-player");
@@ -202,6 +204,51 @@ public final class ArenaCommand implements IArenaCommand {
                     : "arena.invite.refuse.no-kit", "kit", id);
             default -> live.messages().send(sender, "arena.admin.usage");
         }
+    }
+
+    /**
+     * {@code flood <pit>} plays a naval battle's flood without a fight — to watch the scene, or to check a new pit
+     * holds water — and {@code drain <pit>} puts it back. The pit counts as busy meanwhile.
+     */
+    private void flood(ArenaServices live, CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            live.messages().send(sender, "arena.admin.flood-usage");
+            return;
+        }
+        java.util.Optional<de.raindancer.modules.arena.model.Pit> found = live.arena().layout().pit(args[1]);
+        if (found.isEmpty()) {
+            live.messages().send(sender, "arena.admin.no-such-pit", "pit", args[1]);
+            return;
+        }
+        de.raindancer.modules.arena.model.Pit pit = found.get();
+        java.util.function.Supplier<java.util.Collection<Player>> watching = () -> live.server().getOnlinePlayers()
+                .stream().filter(player -> player.getWorld().getName().equalsIgnoreCase(pit.world()))
+                .map(player -> (Player) player).toList();
+        if (args[0].equalsIgnoreCase("drain")) {
+            live.floods().drain(pit, watching.get().stream().map(Player::getUniqueId).toList(), () -> {
+                live.log().info("NAVAL-DRAIN {} done", pit.id());
+                live.messages().send(sender, "arena.admin.drained", "pit", pit.id());
+            });
+            return;
+        }
+        if (live.matches().busyPits().contains(pit.id())) {
+            live.messages().send(sender, "arena.admin.pit-busy", "pit", pit.id());
+            return;
+        }
+        live.floods().plan(pit).thenAccept(planned -> {
+            if (planned.isEmpty()) {
+                live.log().info("NAVAL-FLOOD {} refused", pit.id());
+                live.messages().send(sender, "arena.naval.no-water");
+                return;
+            }
+            de.raindancer.modules.arena.rules.BasinRule.Basin basin = planned.get();
+            int water = basin.water().size();
+            int seals = basin.cells() - water;
+            live.floods().rise(pit, basin, watching, () -> {
+                live.log().info("NAVAL-FLOOD {} water={} seals={} layers={}", pit.id(), water, seals, basin.layers().size());
+                live.messages().send(sender, "arena.admin.flooded", "pit", pit.id(), "water", water, "seals", seals);
+            }, () -> live.messages().send(sender, "arena.naval.no-water"));
+        });
     }
 
     /** {@code npc place <role>} where the admin stands, {@code npc remove} the nearest. */
