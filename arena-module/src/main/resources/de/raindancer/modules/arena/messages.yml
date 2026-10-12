@@ -12,6 +12,16 @@ arena:
   not-set-up: "<yellow>The arena is still being built. <click:run_command:'/arena leave'><yellow>[Back to survival]</yellow></click>"
   leaving: "<gray>Back to <white><server></white>…"
 
+  invite:
+    refuse:
+      self: "<red>You cannot fight yourself."
+      unknown: "<red>Nobody called <white><player></white> is online, here or on survival."
+      no-kit: "<red>There is no kit called <white><kit></white>."
+      you-busy: "<red>Finish your fight first."
+      busy: "<red><white><player></white> is in a fight right now."
+      already: "<yellow>You have already asked <white><player></white>."
+      stake: "<red>A stake has to be between nothing and <white><most></white>."
+
   admin:
     usage: "<gray>/arena admin build <world> <map>  ·  sethub [world x y z yaw pitch]  ·  pit <name> floor <world x1 y1 z1 x2 y2 z2> | spawn [world x y z yaw pitch] | clearspawns | remove  ·  info"
     bad-place: "<red>A place is <white>world x y z</white>, optionally yaw and pitch — or stand where you mean and give none."
