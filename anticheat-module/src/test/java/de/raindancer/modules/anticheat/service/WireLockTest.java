@@ -76,4 +76,31 @@ class WireLockTest {
             engine.join();
         }
     }
+
+    @Test
+    @DisplayName("exemptions are read on the packet thread while the engine holds the player's track")
+    void exemptionsDoNotWaitForTheEngine() throws Exception {
+        PlayerTrack track = new PlayerTrack(UUID.randomUUID(), "Busy", System::currentTimeMillis);
+        track.exempt(PlayerTrack.Exemption.ELYTRA, 5000);
+        CountDownLatch held = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        Thread engine = new Thread(() -> {
+            synchronized (track) {
+                held.countDown();
+                try {
+                    release.await();
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        engine.start();
+        held.await();
+        try {
+            assertTimeoutPreemptively(Duration.ofMillis(500), () -> track.exemption());
+        } finally {
+            release.countDown();
+            engine.join();
+        }
+    }
 }

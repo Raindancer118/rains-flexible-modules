@@ -39,8 +39,10 @@
              0.21.1: one move past the speed or height limit is one flag again: only moves within the tolerance are held to
                     the limit for the next tick (Lilly: one jump was Fly x13, Speed x16).
              0.21.2: what a flagged move carries on with is capped (0.2 sideways, 0.12 up past the limit), so one huge
-                    move buys no free glide. -->
-        <plugin.version>0.21.2</plugin.version>
+                    move buys no free glide.
+             0.21.3: no more server freeze — exemptions have their own lock, so the packet thread never waits for the
+                    movement engine (Lilly: deadlock, watchdog restarts). -->
+        <plugin.version>0.21.3</plugin.version>
     </properties>
 
     <dependencies>

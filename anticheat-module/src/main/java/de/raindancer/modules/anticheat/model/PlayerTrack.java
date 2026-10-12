@@ -18,7 +18,7 @@ import java.util.function.LongSupplier;
  *
  * <p>Written from two threads: the Netty thread (packets) and the player's own region thread (events
  * and the per-tick engine). The engine holds this object's monitor for its whole tick, so the Netty
- * thread never takes it — packet state is guarded by {@link #wire}, clicks by {@code combat}'s own
+ * thread never takes it (exemptions have their own lock for that reason) — packet state is guarded by {@link #wire}, clicks by {@code combat}'s own
  * monitor, and what both sides share is in concurrent collections.
  */
 public final class PlayerTrack {
@@ -31,6 +31,8 @@ public final class PlayerTrack {
     private final Violations violations;
     private final Map<CheckType, Buffer> buffers = new EnumMap<>(CheckType.class);
     private final Map<Exemption, Long> exemptUntil = new EnumMap<>(Exemption.class);
+    /** Its own lock: the Netty thread reads exemptions, and must never take this object's monitor. */
+    private final Object exemptions = new Object();
 
     /** Failures found on a packet thread, raised on the player's own thread at the next tick. */
     public final ConcurrentLinkedQueue<Flag> pendingFlags = new ConcurrentLinkedQueue<>();
@@ -152,61 +154,71 @@ public final class PlayerTrack {
         };
     }
 
-    public synchronized void exempt(Exemption why, long millis) {
-        long now = now();
-        long until = now + Math.max(0, millis);
-        if (budgeted(why)) {
-            long already = Math.max(now, exemptUntil.getOrDefault(why, 0L));
-            long fresh = Math.max(0, until - already);
-            // New cover counts only beyond what any budgeted kind already gives.
-            long coveredByAny = already;
-            for (Exemption other : Exemption.values()) {
-                if (budgeted(other)) {
-                    coveredByAny = Math.max(coveredByAny, exemptUntil.getOrDefault(other, 0L));
+    public void exempt(Exemption why, long millis) {
+        synchronized (exemptions) {
+            long now = now();
+            long until = now + Math.max(0, millis);
+            if (budgeted(why)) {
+                long already = Math.max(now, exemptUntil.getOrDefault(why, 0L));
+                long fresh = Math.max(0, until - already);
+                // New cover counts only beyond what any budgeted kind already gives.
+                long coveredByAny = already;
+                for (Exemption other : Exemption.values()) {
+                    if (budgeted(other)) {
+                        coveredByAny = Math.max(coveredByAny, exemptUntil.getOrDefault(other, 0L));
+                    }
                 }
+                fresh = Math.max(0, until - coveredByAny);
+                java.util.ArrayDeque<long[]> spent = granted;
+                while (!spent.isEmpty() && now - spent.peekFirst()[0] > BUDGET_WINDOW) {
+                    spent.removeFirst();
+                }
+                long used = spent.stream().mapToLong(grant -> grant[1]).sum();
+                fresh = Math.min(fresh, Math.max(0, BUDGET - used));
+                if (fresh <= 0) {
+                    return;
+                }
+                spent.addLast(new long[]{now, fresh});
+                until = already + fresh;
             }
-            fresh = Math.max(0, until - coveredByAny);
-            java.util.ArrayDeque<long[]> spent = granted;
-            while (!spent.isEmpty() && now - spent.peekFirst()[0] > BUDGET_WINDOW) {
-                spent.removeFirst();
-            }
-            long used = spent.stream().mapToLong(grant -> grant[1]).sum();
-            fresh = Math.min(fresh, Math.max(0, BUDGET - used));
-            if (fresh <= 0) {
-                return;
-            }
-            spent.addLast(new long[]{now, fresh});
-            until = already + fresh;
+            exemptUntil.merge(why, until, Math::max);
         }
-        exemptUntil.merge(why, until, Math::max);
     }
 
-    public synchronized void unexempt(Exemption why) {
-        exemptUntil.remove(why);
+    public void unexempt(Exemption why) {
+        synchronized (exemptions) {
+            exemptUntil.remove(why);
+        }
     }
 
     /**
      * The first reason that still holds, or null. A firework boost is not among them: it excuses the elytra
      * check alone, and fireworks are cheap enough to keep one burning.
      */
-    public synchronized Exemption exemption() {
-        long now = now();
-        for (Map.Entry<Exemption, Long> entry : exemptUntil.entrySet()) {
-            if (entry.getKey() != Exemption.ELYTRA_BOOST && entry.getValue() > now) {
-                return entry.getKey();
+    public Exemption exemption() {
+        synchronized (exemptions) {
+            long now = now();
+            for (Map.Entry<Exemption, Long> entry : exemptUntil.entrySet()) {
+                if (entry.getKey() != Exemption.ELYTRA_BOOST && entry.getValue() > now) {
+                    return entry.getKey();
+                }
             }
+            return null;
         }
-        return null;
     }
 
-    public synchronized boolean isExempt(Exemption why) {
-        Long until = exemptUntil.get(why);
-        return until != null && until > now();
+    public boolean isExempt(Exemption why) {
+        synchronized (exemptions) {
+            Long until = exemptUntil.get(why);
+            return until != null && until > now();
+        }
     }
 
-    public synchronized long exemptMillisLeft(Exemption why) {
-        Long until = exemptUntil.get(why);
-        return until == null ? 0 : Math.max(0, until - now());
+    public long exemptMillisLeft(Exemption why) {
+        synchronized (exemptions) {
+            Long until = exemptUntil.get(why);
+            return until == null ? 0 : Math.max(0, until - now());
+        }
     }
 
     /** Where they are, as the checks last accepted it, and what they were doing. */
