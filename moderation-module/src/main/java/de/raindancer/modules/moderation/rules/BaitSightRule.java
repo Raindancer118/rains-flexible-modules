@@ -23,6 +23,7 @@ public final class BaitSightRule implements IModerationRule {
     static final int SERVER_DELAY_MILLIS = 75;
     /** After a block that was not instant, vanilla waits five ticks before the next one starts. */
     private static final int DELAY_AFTER_DIG_TICKS = 5;
+    private static final int[][] AXES = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
     /** Dig progress per tick, as vanilla works it out (mining fatigue, water and air left out: they only slow it). */
     public static double progress(double toolSpeed, int hasteLevel, double breakSpeedAttribute, float hardness,
@@ -76,18 +77,53 @@ public final class BaitSightRule implements IModerationRule {
      * The closed blocks that come within {@code distance} of open space because {@code (x, y, z)} opens,
      * and were not that near before. At distance 1 these are exactly the blocks the dig reveals.
      * Called while the block still stands.
+     *
+     * <p>Runs on every dig, and a player can push the distance to its maximum by faking ping, so the
+     * work is bounded whatever the cave looks like: every block within twice the distance is read
+     * once, then one breadth-first pass from the open ones gives each block its distance to open space.
      */
     public List<int[]> newlyNear(BlockGrid grid, int x, int y, int z, int distance) {
         int reach = 2 * distance;
-        List<int[]> open = new ArrayList<>();
+        int side = 2 * reach + 1;
+        int[] steps = new int[side * side * side];
+        java.util.Arrays.fill(steps, Integer.MAX_VALUE);
+        int[] queue = new int[steps.length];
+        int head = 0;
+        int tail = 0;
         for (int dx = -reach; dx <= reach; dx++) {
             int restY = reach - Math.abs(dx);
             for (int dy = -restY; dy <= restY; dy++) {
                 int restZ = restY - Math.abs(dy);
                 for (int dz = -restZ; dz <= restZ; dz++) {
                     if ((dx != 0 || dy != 0 || dz != 0) && grid.open(x + dx, y + dy, z + dz)) {
-                        open.add(new int[]{dx, dy, dz});
+                        int index = ((dx + reach) * side + dy + reach) * side + dz + reach;
+                        steps[index] = 0;
+                        queue[tail++] = index;
                     }
+                }
+            }
+        }
+        // Distances along the axes from the open blocks, as far as the given distance: no farther is needed.
+        while (head < tail) {
+            int index = queue[head++];
+            int d = steps[index];
+            if (d >= distance) {
+                continue;
+            }
+            int ix = index / (side * side);
+            int iy = index / side % side;
+            int iz = index % side;
+            for (int[] step : AXES) {
+                int nx = ix + step[0];
+                int ny = iy + step[1];
+                int nz = iz + step[2];
+                if (nx < 0 || ny < 0 || nz < 0 || nx >= side || ny >= side || nz >= side) {
+                    continue;
+                }
+                int next = (nx * side + ny) * side + nz;
+                if (steps[next] > d + 1) {
+                    steps[next] = d + 1;
+                    queue[tail++] = next;
                 }
             }
         }
@@ -97,17 +133,9 @@ public final class BaitSightRule implements IModerationRule {
             for (int dy = -restY; dy <= restY; dy++) {
                 int restZ = restY - Math.abs(dy);
                 for (int dz = -restZ; dz <= restZ; dz++) {
-                    if (dx == 0 && dy == 0 && dz == 0 || grid.open(x + dx, y + dy, z + dz)) {
-                        continue;
-                    }
-                    boolean wasNear = false;
-                    for (int[] o : open) {
-                        if (Math.abs(o[0] - dx) + Math.abs(o[1] - dy) + Math.abs(o[2] - dz) <= distance) {
-                            wasNear = true;
-                            break;
-                        }
-                    }
-                    if (!wasNear) {
+                    int index = ((dx + reach) * side + dy + reach) * side + dz + reach;
+                    // Open blocks have 0; the dug block itself was never a source, so skip it by position.
+                    if ((dx != 0 || dy != 0 || dz != 0) && steps[index] > distance) {
                         near.add(new int[]{x + dx, y + dy, z + dz});
                     }
                 }

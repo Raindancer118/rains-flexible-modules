@@ -157,4 +157,32 @@ class BaitSightRuleTest {
         assertThat(near).hasSize(13);
         assertThat(near).allSatisfy(c -> assertThat(Math.abs(c[0]) + Math.abs(c[1]) + Math.abs(c[2])).isEqualTo(2));
     }
+
+    @Test
+    @DisplayName("a dig in a huge cave at the largest distance does bounded work — a faked ping cannot make it lag the server")
+    void boundedWork() {
+        int distance = BaitSightRule.MAX_DISTANCE;
+        int[] reads = {0};
+        BlockGrid cave = new BlockGrid() {
+            @Override
+            public Material at(int x, int y, int z) {
+                return open(x, y, z) ? Material.AIR : Material.STONE;
+            }
+
+            @Override
+            public boolean open(int x, int y, int z) {
+                reads[0]++;
+                // Everything open except a sliver of rock around the dug block.
+                return Math.abs(x) + Math.abs(y) + Math.abs(z) > 1 && (x + y + z) % 3 != 0;
+            }
+        };
+        long started = System.nanoTime();
+        rule.newlyNear(cave, 0, 0, 0, distance);
+        long millis = (System.nanoTime() - started) / 1_000_000;
+
+        int ball = 2 * distance;
+        int ballSize = (2 * ball + 1) * (2 * ball * ball + 2 * ball + 3) / 3;
+        assertThat(reads[0]).as("each block in reach read once").isLessThanOrEqualTo(ballSize);
+        assertThat(millis).as("well under a tick").isLessThan(40);
+    }
 }
