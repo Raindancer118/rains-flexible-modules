@@ -890,6 +890,13 @@ public final class Bot {
         return this;
     }
 
+    /** The same, also claiming to have bumped into a wall — what a client may say to dodge knockback checks. */
+    public Bot moveTo(double x, double y, double z, boolean onGround, boolean horizontalCollision) {
+        sendPosition(new ServerboundMovePlayerPosPacket(onGround, horizontalCollision, x, y, z));
+        position = Vector3d.from(x, y, z);
+        return this;
+    }
+
     /** Turns the head without moving. */
     public Bot look(float yaw, float pitch) {
         this.yaw = yaw;

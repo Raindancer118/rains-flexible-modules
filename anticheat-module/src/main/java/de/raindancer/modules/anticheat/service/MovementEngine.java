@@ -25,6 +25,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
@@ -368,8 +369,8 @@ public final class MovementEngine implements IAntiCheatService {
             double push = Math.hypot(velocity[0], velocity[2]);
             if (velocity.length > 9 && push > 0) {
                 velocity[8] = Math.max(velocity[8], (stepX * velocity[0] + stepZ * velocity[2]) / push);
-                // A wall stops a push for honest players too.
-                if (sample.horizontalCollision()) {
+                // A wall stops a push for honest players too — judged by the server's blocks, never the client's word.
+                if (blockedToward(world, sample.x(), sample.y(), sample.z(), velocity[0] / push, velocity[2] / push)) {
                     velocity[5] = 1;
                 }
             }
@@ -807,6 +808,19 @@ public final class MovementEngine implements IAntiCheatService {
 
     private boolean run(PlayerTrack track, CheckType check) {
         return violations.runs(track, check);
+    }
+
+    /** Whether something solid stands just ahead of the feet or head in this direction. */
+    private static boolean blockedToward(World world, double x, double y, double z, double dirX, double dirZ) {
+        double aheadX = x + dirX * 0.6;
+        double aheadZ = z + dirZ * 0.6;
+        for (double up : new double[]{0.1, 1.0, 1.7}) {
+            Block block = world.getBlockAt((int) Math.floor(aheadX), (int) Math.floor(y + up), (int) Math.floor(aheadZ));
+            if (!block.isPassable()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static double pendingVelocity(PlayerTrack track, boolean vertical) {

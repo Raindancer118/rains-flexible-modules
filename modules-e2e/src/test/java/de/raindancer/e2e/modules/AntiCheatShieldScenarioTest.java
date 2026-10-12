@@ -48,15 +48,19 @@ class AntiCheatShieldScenarioTest {
         }
     }
 
-    /** Two bots taking their push in the same ticks, as two real clients would, each the moment it arrives. */
-    private static void takePushes(Bot first, double[] firstPush, Bot second, double[] secondPush) {
-        double[][] state = {
-                {first.position().getX(), FLOOR, first.position().getZ(), firstPush[0], firstPush[1], firstPush[2], 0},
-                {second.position().getX(), FLOOR, second.position().getZ(), secondPush[0], secondPush[1], secondPush[2], 0}};
-        Bot[] bots = {first, second};
+    /**
+     * Bots taking their push in the same ticks, as real clients would, each the moment it arrives;
+     * {@code claimWall} marks those that say they bumped into a wall in every move.
+     */
+    private static void takePushes(Bot[] bots, double[][] pushes, boolean[] claimWall) {
+        double[][] state = new double[bots.length][];
+        for (int i = 0; i < bots.length; i++) {
+            state[i] = new double[]{bots[i].position().getX(), FLOOR, bots[i].position().getZ(), pushes[i][0], pushes[i][1],
+                    pushes[i][2], 0};
+        }
         for (int tick = 0; tick < 30; tick++) {
             boolean moving = false;
-            for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < bots.length; i++) {
                 double[] b = state[i];
                 if (b[6] > 0) {
                     continue;
@@ -69,7 +73,7 @@ class AntiCheatShieldScenarioTest {
                 b[3] *= tick == 0 ? 0.546 : 0.91;
                 b[5] *= tick == 0 ? 0.546 : 0.91;
                 boolean landed = b[1] <= FLOOR;
-                bots[i].moveTo(b[0], landed ? FLOOR : b[1], b[2], landed).tickEnd();
+                bots[i].moveTo(b[0], landed ? FLOOR : b[1], b[2], landed, claimWall[i]).tickEnd();
                 if (landed) {
                     b[6] = 1;
                 }
@@ -98,6 +102,7 @@ class AntiCheatShieldScenarioTest {
             Bot clicker = server.player("Clicker");
             Bot dummy = server.player("Dummy");
             Bot sideways = server.player("Sideways");
+            Bot liar = server.player("Liar");
             server.console("tp Ada -20.5 101 -20.5");
             server.console("tp Stiff -10.5 101 10.5");
             server.console("tp Taker 10.5 101 10.5");
@@ -106,9 +111,10 @@ class AntiCheatShieldScenarioTest {
             server.console("tp Clicker 15.5 101 -15.5 0 0");
             server.console("tp Dummy 15.5 101 -14 180 0");
             server.console("tp Sideways 0.5 101 15.5");
+            server.console("tp Liar -15.5 101 0.5");
             Await.ticks(80);
             ada.forgetChat();
-            for (Bot bot : List.of(stiff, taker, seer, hider, clicker, dummy, sideways)) {
+            for (Bot bot : List.of(stiff, taker, seer, hider, clicker, dummy, sideways, liar)) {
                 for (int t = 0; t < 5; t++) {
                     bot.tickEnd();
                     sleep(50);
@@ -119,14 +125,21 @@ class AntiCheatShieldScenarioTest {
             for (int hit = 0; hit < 6; hit++) {
                 int before = taker.pushes().size();
                 int sidewaysBefore = sideways.pushes().size();
+                int liarBefore = liar.pushes().size();
                 server.console("damage Stiff 1 minecraft:player_attack by Ada");
                 server.console("damage Taker 1 minecraft:player_attack by Ada");
                 server.console("damage Sideways 1 minecraft:player_attack by Ada");
+                server.console("damage Liar 1 minecraft:player_attack by Ada");
                 Await.until("the push reaches Taker", Duration.ofSeconds(5), () -> taker.pushes().size() > before);
                 Await.until("the push reaches Sideways", Duration.ofSeconds(5), () -> sideways.pushes().size() > sidewaysBefore);
-                // Sideways rises with the hit like anybody, but cancels the sideways part: horizontal anti-knockback.
+                Await.until("the push reaches Liar", Duration.ofSeconds(5), () -> liar.pushes().size() > liarBefore);
                 double[] push = sideways.pushes().getLast();
-                takePushes(taker, taker.pushes().getLast(), sideways, new double[]{0, push[1], 0});
+                // Sideways rises with the hit but cancels the sideways part; Liar does the same and claims a wall
+                // in every move to have the push excused. There is no wall.
+                double[] liarPush = liar.pushes().getLast();
+                takePushes(new Bot[]{taker, sideways, liar},
+                        new double[][]{taker.pushes().getLast(), {0, push[1], 0}, {0, liarPush[1], 0}},
+                        new boolean[]{false, false, true});
                 for (int t = 0; t < 10; t++) {
                     stiff.moveTo(stiff.position().getX(), FLOOR, stiff.position().getZ(), true).tickEnd();
                     sleep(50);
@@ -134,6 +147,7 @@ class AntiCheatShieldScenarioTest {
                 server.console("effect give Stiff minecraft:instant_health 1 5 true");
                 server.console("effect give Taker minecraft:instant_health 1 5 true");
                 server.console("effect give Sideways minecraft:instant_health 1 5 true");
+                server.console("effect give Liar minecraft:instant_health 1 5 true");
                 sleep(600);
             }
             Await.until("staff hear that Stiff takes no knockback", Duration.ofSeconds(15), () ->
@@ -141,6 +155,8 @@ class AntiCheatShieldScenarioTest {
             Await.until("staff hear that Sideways cancels the sideways push", Duration.ofSeconds(15), () ->
                     ada.chatText().stream().anyMatch(line -> line.contains("Sideways") && line.contains("Velocity")));
             assertThat(server.console("anticheat log Sideways")).contains("sideways");
+            Await.until("claiming a wall that is not there excuses nothing", Duration.ofSeconds(15), () ->
+                    server.console("anticheat log Liar").contains("sideways"));
             assertThat(ada.chatText()).noneMatch(line -> line.contains("Taker") && line.contains("failed"));
 
             // Anti-ESP: a wall between Seer and Hider.

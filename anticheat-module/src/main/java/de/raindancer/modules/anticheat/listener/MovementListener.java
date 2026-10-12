@@ -85,7 +85,8 @@ public final class MovementListener implements IAntiCheatListener {
         Vector v = event.getVelocity();
         synchronized (track) {
             // {x, y, z, at, best rise, blocked, ping id, confirmed at, best sideways along the push, speed before}
-            double before = Double.isNaN(track.movement.lastHd) ? 0 : track.movement.lastHd;
+            // What they moved, held to what was legal: a faster move before a hit must not buy a smaller push.
+            double before = Double.isNaN(track.movement.carryHd) ? 0 : track.movement.carryHd;
             track.movement.velocities.addLast(new double[]{v.getX(), v.getY(), v.getZ(), track.now(), -100, 0, 0, 0, -100, before});
             while (track.movement.velocities.size() > 6) {
                 track.movement.velocities.removeFirst();
