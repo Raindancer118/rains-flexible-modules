@@ -65,6 +65,35 @@ public final class ClickRule implements IAntiCheatRule {
         return Judgement.PASS;
     }
 
+    /** Clicks the pattern question is asked over: ten seconds of fighting at least. */
+    public static final int PATTERN_SAMPLE = 100;
+    /** Below this a hand keeps rhythm easily, and nothing is judged. */
+    static final double PATTERN_CPS = 13;
+    /** A hand stops this long now and then — to aim, to move, to breathe. */
+    static final double PAUSE_MILLIS = 200;
+
+    /**
+     * A long fast run with no pause, no outlier, and a spread flatter than a hand's (negative excess
+     * kurtosis): the shape of a delay randomised within bounds. Statistical, so its check is experimental.
+     */
+    public Judgement tooRegular(double[] intervalsMillis) {
+        if (intervalsMillis.length < PATTERN_SAMPLE) {
+            return Judgement.PASS;
+        }
+        Stats stats = stats(intervalsMillis);
+        if (stats.cps() < PATTERN_CPS) {
+            return Judgement.PASS;
+        }
+        double longest = Arrays.stream(intervalsMillis).max().orElse(0);
+        long outliers = Arrays.stream(intervalsMillis).filter(value -> value > stats.mean() + 2.5 * stats.deviation()).count();
+        if (longest < PAUSE_MILLIS && outliers == 0 && stats.kurtosis() < -0.5) {
+            return Judgement.fail(-stats.kurtosis(), String.format(java.util.Locale.ROOT,
+                    "%d clicks at %.1f cps, no pause, no outlier, spread too flat (kurtosis %.2f, σ %.1f ms)",
+                    intervalsMillis.length + 1, stats.cps(), stats.kurtosis(), stats.deviation()));
+        }
+        return Judgement.PASS;
+    }
+
     @Override
     public String describe() {
         return "whether clicks come faster or more evenly than a hand manages";

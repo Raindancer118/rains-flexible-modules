@@ -290,7 +290,7 @@ public final class PlayerTrack {
         public final Samples pitchDeltas = new Samples(40);
         public double lastRawYawDelta;
         public float lastRawYaw = Float.NaN;
-        public final Samples clickIntervals = new Samples(60);
+        public final Samples clickIntervals = new Samples(de.raindancer.modules.anticheat.rules.ClickRule.PATTERN_SAMPLE);
         public final Deque<Long> clicks = new ArrayDeque<>();
         public long lastClickMillis;
         public long lastUseMillis;

@@ -39,10 +39,16 @@ public final class ClickService implements IAntiCheatService {
                 return Flag.of(CheckType.AUTOCLICKER, Math.min(3, fast.offset() / 3 + 1), fast.reason());
             }
             if (c.clickIntervals.full()) {
-                Judgement even = rule.tooEven(c.clickIntervals.toArray());
+                double[] intervals = c.clickIntervals.toArray();
+                Judgement even = rule.tooEven(intervals);
                 if (even.failed()) {
                     c.clickIntervals.clear();
                     return Flag.of(CheckType.AUTOCLICKER, 2, even.reason());
+                }
+                Judgement regular = rule.tooRegular(intervals);
+                if (regular.failed()) {
+                    c.clickIntervals.clear();
+                    return Flag.of(CheckType.CLICK_PATTERN, 1, regular.reason());
                 }
             }
             return null;
