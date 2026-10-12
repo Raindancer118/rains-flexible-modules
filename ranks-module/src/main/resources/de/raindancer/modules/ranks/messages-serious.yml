@@ -1,0 +1,11 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+ranks:
+  unknown: "<red>There is no rank called <white><name></white>. <gray><white>/rank list</white> shows them all."
+  only-a-player: "<red>Only a player can wear a rank."
+  choosing-off: "<red>Ranks are shown the way the server sets them; players cannot change this right now."
+  given-you: "<green>You are <rank> <green>now."
+  taken-you: "<gray>You are no longer <rank><gray>."
+  already-holds: "<gray><white><player></white> is <rank> <gray>already."
+  wear-none: "<gray>No rank in front of your name now. <white>/rank wear auto</white> puts it back."
+  none-yours: "<gray>You have no rank to wear."
+  not-yours: "<red><rank> <red>is not one of your ranks."

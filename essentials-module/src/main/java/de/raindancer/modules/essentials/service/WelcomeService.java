@@ -21,13 +21,21 @@ public final class WelcomeService implements IEssentialsService {
     private final Messages messages;
     private final Chat chat;
     private final ReactionService reactions;
+    private final java.util.function.Supplier<String> serverName;
 
     private volatile EssentialsSettings settings;
 
     public WelcomeService(Messages messages, Chat chat, ReactionService reactions, EssentialsSettings settings) {
+        this(messages, chat, reactions, settings, () -> "the server");
+    }
+
+    /** @param serverName what {@code <server>} says in the welcome — Core's server name */
+    public WelcomeService(Messages messages, Chat chat, ReactionService reactions, EssentialsSettings settings,
+                          java.util.function.Supplier<String> serverName) {
         this.messages = messages;
         this.chat = chat;
         this.reactions = reactions;
+        this.serverName = serverName;
         settings(settings);
     }
 
@@ -50,11 +58,12 @@ public final class WelcomeService implements IEssentialsService {
         } else {
             return;
         }
+        String server = serverName.get();
         if (!settings.sayHiButton() || !reactions.isClickable()) {
-            chat.broadcast(messages.raw(key), Chat.arg("player", who.getName()));
+            chat.broadcast(messages.raw(key), Chat.arg("player", who.getName()), Chat.arg("server", server));
             return;
         }
-        reactions.broadcast(messages.prefixed(key, "player", who.getName()), who, ReactionService.HI);
+        reactions.broadcast(messages.prefixed(key, "player", who.getName(), "server", server), who, ReactionService.HI);
     }
 
     /**

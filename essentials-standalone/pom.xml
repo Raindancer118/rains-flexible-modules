@@ -76,7 +76,8 @@
              1.22.0: admin mode switches on the admin bypass and Core's claim bypass, and off again on the way out. -->
         <!-- 1.23.0: /msg and /r reach players on the other server of RainsCore's link (the arena), tab completion
              names them too; their ignore list and vanish decide there as here. Needs RainsCore 1.118.0. -->
-        <plugin.version>1.23.0</plugin.version>
+        <!-- 1.24.0: the first-join welcome names the server (<server>, Core 1.125.0 serverName). -->
+        <plugin.version>1.24.0</plugin.version>
     </properties>
 
     <dependencies>

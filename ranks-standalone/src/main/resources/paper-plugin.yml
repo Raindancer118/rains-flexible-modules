@@ -1,0 +1,24 @@
+# Same shape as every other standalone here — see rtp-standalone's copy for why each line matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '26.3'
+description: 'Ranks like [OWNER] or [DEV] in front of names: in chat, above heads and in the tablist.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# A command, a menu and a badge Core asks for when it draws a name; nothing touches the world.
+folia-supported: true
+
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

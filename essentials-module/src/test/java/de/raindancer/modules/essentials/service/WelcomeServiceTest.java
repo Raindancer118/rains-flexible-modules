@@ -49,4 +49,18 @@ class WelcomeServiceTest {
         assertThat(welcome.seemsToArrive(ada, List.of())).isFalse();
         verify(chat, never()).broadcast(any(java.util.Collection.class), anyString(), any());
     }
+
+    @Test
+    @DisplayName("a first join is welcomed to the server by the name Core gives it")
+    void firstJoinNamesTheServer() {
+        when(ada.getName()).thenReturn("Ada");
+        ReactionService reactions = mock(ReactionService.class);
+        when(reactions.isClickable()).thenReturn(true);
+        WelcomeService welcome = new WelcomeService(messages, chat, reactions, EssentialsSettings.DEFAULTS,
+                () -> "Lilly's SMP");
+
+        welcome.joined(ada, true);
+
+        verify(messages).prefixed("essentials.welcome.first-join", "player", "Ada", "server", "Lilly's SMP");
+    }
 }

@@ -218,6 +218,12 @@ public final class Bot {
     private final List<double[]> pushes = new CopyOnWriteArrayList<>();
     /** Players taken off this client's tab list. */
     private final List<UUID> unlisted = new CopyOnWriteArrayList<>();
+    /** What the tab list shows for each player whose line the server named, as plain text. */
+    private final Map<UUID, String> tabNames = new ConcurrentHashMap<>();
+    /** Every text an entity was given (a custom name, a text display's text), as plain text, oldest first. */
+    private final List<String> entityTexts = new CopyOnWriteArrayList<>();
+    /** The tab list's header as last sent, plain. */
+    private volatile String tabHeader = "";
     /** Whether it answers the server's ping packets, as every vanilla client does. */
     private volatile boolean answersPings = true;
     /** Pings that came in while it held back its answers, oldest first. */
@@ -408,6 +414,28 @@ public final class Bot {
                 }
             }
             case ClientboundPlayerInfoRemovePacket gone -> unlisted.addAll(gone.getProfileIds());
+            case org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundPlayerInfoUpdatePacket info -> {
+                if (info.getActions().contains(org.geysermc.mcprotocollib.protocol.data.game.PlayerListEntryAction.UPDATE_DISPLAY_NAME)) {
+                    for (var entry : info.getEntries()) {
+                        if (entry.getDisplayName() == null) {
+                            tabNames.remove(entry.getProfileId());
+                        } else {
+                            tabNames.put(entry.getProfileId(), PLAIN.serialize(entry.getDisplayName()));
+                        }
+                    }
+                }
+            }
+            case org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundTabListPacket tab ->
+                    tabHeader = PLAIN.serialize(Objects.requireNonNullElse(tab.getHeader(), Component.empty()));
+            case org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundSetEntityDataPacket data -> {
+                for (var entry : data.getMetadata()) {
+                    if (entry.getValue() instanceof Component text) {
+                        entityTexts.add(PLAIN.serialize(text));
+                    } else if (entry.getValue() instanceof Optional<?> maybe && maybe.orElse(null) instanceof Component text) {
+                        entityTexts.add(PLAIN.serialize(text));
+                    }
+                }
+            }
             case ClientboundSetEntityMotionPacket motion -> {
                 if (motion.getEntityId() == ownEntityId) {
                     pushes.add(new double[]{motion.getMovement().getX(), motion.getMovement().getY(), motion.getMovement().getZ()});
@@ -932,6 +960,21 @@ public final class Bot {
     /** Whether this client is currently shown something with this UUID. */
     public boolean sees(UUID entity) {
         return entityIds.containsKey(entity);
+    }
+
+    /** What this client's tab list shows for a player, when the server named their line. */
+    public Optional<String> tabName(UUID player) {
+        return Optional.ofNullable(tabNames.get(player));
+    }
+
+    /** The tab list header as last sent, as plain text. */
+    public String tabHeader() {
+        return tabHeader;
+    }
+
+    /** Every text an entity was shown with — nametag displays, custom names — oldest first. */
+    public List<String> entityTexts() {
+        return List.copyOf(entityTexts);
     }
 
     /** Players this client was told to take off its tab list, oldest first. */

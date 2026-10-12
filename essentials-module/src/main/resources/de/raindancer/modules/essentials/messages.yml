@@ -145,7 +145,7 @@ essentials:
 
   # ── joining and leaving ───────────────────────────────────────────────────
   welcome:
-    first-join: "<gold>Welcome <white><player></white> to the server for the first time!"
+    first-join: "<gold>Welcome <white><player></white> to <white><server></white> for the first time!"
     joined: "<gray>+ <white><player></white> joined."
     hi-button: "<green>[Say Hi!]"
     hi-tooltip: "<gray>Says hello to them in chat"
