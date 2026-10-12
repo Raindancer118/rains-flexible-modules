@@ -35,7 +35,16 @@ public record RanksSettings(
 
         @In("ranks") @Title("Sort the tablist by rank")
         @Describe("Puts more senior ranks higher in the player list. Needs Core's 'Sort by rank' on too.")
-        @Key("sort-tablist") boolean sortTablist) {
+        @Key("sort-tablist") boolean sortTablist,
 
-    public static final RanksSettings DEFAULTS = new RanksSettings(true, true, true, true, true);
+        @In("ranks") @Title("The team on its own in the tablist")
+        @Describe("Whoever holds a rank marked team (in ranks.yml, or /rank edit <id> team on) is listed above "
+                + "everybody else, with its own count under the list.")
+        @Key("team.section") boolean teamSection,
+
+        @In("ranks") @Title("What the team is called")
+        @Describe("The name of that section in the tablist.")
+        @Key("team.name") String teamName) {
+
+    public static final RanksSettings DEFAULTS = new RanksSettings(true, true, true, true, true, true, "Team");
 }

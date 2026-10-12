@@ -65,14 +65,14 @@ class BadgeRuleTest {
         assertThat(rule.shown(ada, KNOWN, ALL, Place.NAMETAG)).isEmpty();
         assertThat(rule.shown(ada, KNOWN, ALL, Place.TABLIST)).contains(OWNER);
 
-        RanksSettings noChat = new RanksSettings(false, true, true, true, true);
+        RanksSettings noChat = new RanksSettings(false, true, true, true, true, true, "Team");
         assertThat(rule.shown(ada, KNOWN, noChat, Place.CHAT)).isEmpty();
     }
 
     @Test
     @DisplayName("with choosing off, a player's own switches are ignored rather than obeyed")
     void choosingOff() {
-        RanksSettings decided = new RanksSettings(true, true, true, false, true);
+        RanksSettings decided = new RanksSettings(true, true, true, false, true, true, "Team");
         Holder ada = holding("owner").showing(Place.CHAT, false);
         assertThat(rule.shown(ada, KNOWN, decided, Place.CHAT)).contains(OWNER);
     }
@@ -82,6 +82,6 @@ class BadgeRuleTest {
     void sorting() {
         assertThat(rule.sortWeight(holding("dev"), KNOWN, ALL)).isEqualTo(80);
         assertThat(rule.sortWeight(holding("owner").wearing(Holder.HIDDEN), KNOWN, ALL)).isZero();
-        assertThat(rule.sortWeight(holding("owner"), KNOWN, new RanksSettings(true, true, true, true, false))).isZero();
+        assertThat(rule.sortWeight(holding("owner"), KNOWN, new RanksSettings(true, true, true, true, false, true, "Team"))).isZero();
     }
 }

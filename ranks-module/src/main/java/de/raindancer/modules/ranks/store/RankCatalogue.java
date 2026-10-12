@@ -22,8 +22,9 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 /**
- * The ranks there are, from {@code ranks.yml}. Written out the first time; after that a newer version's ranks are
- * merged in without undoing the owner's edits, and a rank the owner deleted stays deleted.
+ * The ranks there are: {@code ranks.yml}, which the owner edits by hand — written out the first time, after that a
+ * newer version's ranks are merged in without undoing the owner's edits — and on top of it {@code custom-ranks.yml},
+ * what staff made, changed or deleted in game. The overlay keeps the owner's file (and its comments) untouched.
  */
 public final class RankCatalogue {
 
@@ -34,22 +35,83 @@ public final class RankCatalogue {
 
     private final YamlStore store;
     private final Supplier<InputStream> shipped;
+    private final YamlStore custom;
     private volatile Map<String, Rank> ranks = Map.of();
     private volatile List<String> problems = List.of();
     private volatile ShippedEntries.Merged lastMerge;
 
     public RankCatalogue(YamlStore store, Supplier<InputStream> shipped) {
+        this(store, shipped, null);
+    }
+
+    /** @param custom the in-game overlay; null for none (nothing can then be made in game) */
+    public RankCatalogue(YamlStore store, Supplier<InputStream> shipped, YamlStore custom) {
         this.store = store;
         this.shipped = shipped;
+        this.custom = custom;
     }
 
     /** Reads the file again. @return how many ranks it holds */
     public int reload() {
         lastMerge = ShippedEntries.bringUp(store.file(), shipped, "ranks", Set.of());
         List<String> found = new ArrayList<>(store.problems());
-        ranks = parse(store.read(), found);
+        Map<String, Rank> read = new LinkedHashMap<>(parse(store.read(), found));
+        if (custom != null) {
+            YamlConfiguration overlay = custom.read();
+            custom.problems().forEach(problem -> found.add("custom-ranks.yml: " + problem));
+            parse(overlay, found).forEach(read::put);
+            overlay.getStringList("deleted").forEach(read::remove);
+        }
+        ranks = Map.copyOf(read);
         problems = List.copyOf(found);
         return ranks.size();
+    }
+
+    /** Makes or replaces a rank in game. @return false when it could not be saved, or there is no overlay */
+    public synchronized boolean define(Rank rank) {
+        if (custom == null || tagProblem(rank.tag()).isPresent() || !ID.matcher(rank.id()).matches()) {
+            return false;
+        }
+        boolean saved = custom.update(yaml -> {
+            String path = "ranks." + rank.id();
+            yaml.set(path + ".title", rank.title());
+            yaml.set(path + ".tag", rank.tag());
+            yaml.set(path + ".weight", rank.weight());
+            yaml.set(path + ".description", rank.description());
+            yaml.set(path + ".team", rank.team());
+            List<String> deleted = new ArrayList<>(yaml.getStringList("deleted"));
+            deleted.remove(rank.id());
+            yaml.set("deleted", deleted);
+        });
+        if (saved) {
+            reload();
+        }
+        return saved;
+    }
+
+    /** Deletes a rank in game — one from ranks.yml as well. @return false when there was none or it was not saved */
+    public synchronized boolean remove(String id) {
+        if (custom == null || id == null || !ranks.containsKey(id.toLowerCase(Locale.ROOT))) {
+            return false;
+        }
+        String gone = id.toLowerCase(Locale.ROOT);
+        boolean saved = custom.update(yaml -> {
+            yaml.set("ranks." + gone, null);
+            List<String> deleted = new ArrayList<>(yaml.getStringList("deleted"));
+            if (!deleted.contains(gone)) {
+                deleted.add(gone);
+            }
+            yaml.set("deleted", deleted);
+        });
+        if (saved) {
+            reload();
+        }
+        return saved;
+    }
+
+    /** Whether an id may name a rank. */
+    public static boolean isId(String id) {
+        return id != null && ID.matcher(id).matches();
     }
 
     /** By id. */
@@ -107,7 +169,8 @@ public final class RankCatalogue {
                 weight = Math.clamp(weight, 1, 99);
             }
             String title = each.getString("title", "");
-            read.put(id, new Rank(id, title.isBlank() ? id : title, tag, weight, each.getStringList("description")));
+            read.put(id, new Rank(id, title.isBlank() ? id : title, tag, weight, each.getStringList("description"),
+                    each.getBoolean("team", false)));
         }
         return Map.copyOf(read);
     }

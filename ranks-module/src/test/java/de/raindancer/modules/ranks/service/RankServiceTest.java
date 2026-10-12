@@ -34,7 +34,7 @@ class RankServiceTest {
     @BeforeEach
     void setUp() {
         RankCatalogue catalogue = new RankCatalogue(new YamlStore(folder.resolve("ranks.yml")),
-                () -> RanksModule.class.getResourceAsStream("ranks.yml"));
+                () -> RanksModule.class.getResourceAsStream("ranks.yml"), new YamlStore(folder.resolve("custom-ranks.yml")));
         catalogue.reload();
         HolderBook book = new HolderBook(new YamlStore(folder.resolve("holders.yml")));
         book.load();
@@ -75,7 +75,7 @@ class RankServiceTest {
     @DisplayName("the server switching a place off wins over the player")
     void serverOff() {
         service.give(ADA, owner);
-        service.settings(new RanksSettings(true, true, false, true, true));
+        service.settings(new RanksSettings(true, true, false, true, true, true, "Team"));
         assertThat(badge(NameBadges.Place.TABLIST)).isEmpty();
         assertThat(badge(NameBadges.Place.CHAT)).isEqualTo("[OWNER]");
     }
@@ -112,9 +112,51 @@ class RankServiceTest {
     void choosingOff() {
         service.give(ADA, owner);
         service.show(ADA, Place.CHAT, false);
-        service.settings(new RanksSettings(true, true, true, false, true));
+        service.settings(new RanksSettings(true, true, true, false, true, true, "Team"));
         assertThat(service.show(ADA, Place.CHAT, true)).isEqualTo(Outcome.NOT_ALLOWED);
         assertThat(service.wear(ADA, Holder.HIDDEN)).isEqualTo(Outcome.NOT_ALLOWED);
         assertThat(badge(NameBadges.Place.CHAT)).isEqualTo("[OWNER]");
+    }
+
+    @Test
+    @DisplayName("staff make a rank, give it, restyle it and delete it — and a bad tag or id is refused")
+    void customRanks() {
+        assertThat(service.create("vip", "VIP", 40)).isEqualTo(Outcome.DONE);
+        assertThat(service.create("vip", "VIP", 40)).isEqualTo(Outcome.ALREADY);
+        assertThat(service.create("Bad Id", "X", 1)).isEqualTo(Outcome.INVALID);
+        assertThat(service.create("long", "THIS TAG IS FAR TOO LONG FOR IT", 1)).isEqualTo(Outcome.INVALID);
+        Rank vip = service.rank("vip").orElseThrow();
+        assertThat(vip.tag()).contains("[VIP]");
+        service.give(ADA, vip);
+        assertThat(badge(NameBadges.Place.CHAT)).isEqualTo("[VIP]");
+
+        de.raindancer.core.ui.text.NameStyle gradient = de.raindancer.core.ui.text.TypedStyles
+                .read(java.util.List.of("gold", "#ff0000", "bold"), word -> null).style().orElseThrow();
+        assertThat(service.restyle("vip", gradient)).isEqualTo(Outcome.DONE);
+        assertThat(badge(NameBadges.Place.CHAT)).as("same letters, new paint").isEqualTo("[VIP]");
+        assertThat(service.rank("vip").orElseThrow().tag()).contains("bold");
+
+        assertThat(service.retag("vip", "[V.I.P.]")).isEqualTo(Outcome.DONE);
+        assertThat(badge(NameBadges.Place.CHAT)).isEqualTo("[V.I.P.]");
+        assertThat(service.reweigh("vip", 120)).isEqualTo(Outcome.INVALID);
+        assertThat(service.reweigh("vip", 85)).isEqualTo(Outcome.DONE);
+        assertThat(service.rename("vip", "Very Important")).isEqualTo(Outcome.DONE);
+
+        assertThat(service.delete("vip")).isEqualTo(Outcome.DONE);
+        assertThat(badge(NameBadges.Place.CHAT)).as("a deleted rank shows nowhere").isEmpty();
+        assertThat(service.delete("vip")).isEqualTo(Outcome.NOT_HELD);
+    }
+
+    @Test
+    @DisplayName("holding a team rank lists somebody in the team section of the tablist, unless the server says no")
+    void teamSection() {
+        assertThat(service.section(ADA)).isEmpty();
+        service.give(ADA, service.rank("builder").orElseThrow());
+        assertThat(service.section(ADA)).as("builder is not team").isEmpty();
+        service.give(ADA, service.rank("team").orElseThrow());
+        assertThat(service.section(ADA)).contains("Team");
+        assertThat(service.team("builder", true)).isEqualTo(Outcome.DONE);
+        service.settings(new RanksSettings(true, true, true, true, true, false, "Team"));
+        assertThat(service.section(ADA)).isEmpty();
     }
 }

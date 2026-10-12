@@ -28,6 +28,12 @@ ranks:
   list-line: "<rank> <dark_gray>(<id>) <gray><count>: <white><players>"
   no-ranks: "<gray>There are no ranks. ranks.yml is empty."
   reloaded: "<green>ranks.yml read: <white><count></white> rank(s)."
+  usage-manage: "<gray>/rank create <id> <tag> · /rank edit <id> tag|title|weight|style|team <value> · /rank delete <id> confirm <dark_gray>— e.g. /rank create vip VIP, /rank edit vip style gold #ff5500 bold"
+  managed: "<green>Done. <gray>Kept in custom-ranks.yml; ranks.yml is left as you wrote it."
+  exists: "<red>There is a rank called <white><id></white> already. <gray>/rank edit changes it."
+  invalid: "<red>That will not do: ids are lowercase letters, digits, - and _; a tag shows at most 20 characters and no buttons; weights run 1–99; a title at most 32 characters."
+  delete-confirm: "<yellow>This deletes <white><id></white> everywhere — whoever holds it shows nothing for it. <gray>Type the same with <white>confirm</white> at the end."
+  style-unreadable: "<red><problem> <gray>Colours are chat colours (gold, aqua…) or #hex codes; add bold, italic or animated."
   problem: "<red>ranks.yml: <white><problem>"
   help:
     - "<gray>Your rank goes in front of your name."

@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Giving and taking ranks, what a player wears, and the badge Core draws in front of their name. */
 public final class RankService implements IRanksService {
 
-    public enum Outcome { DONE, ALREADY, NOT_HELD, NOT_ALLOWED, NOT_SAVED }
+    public enum Outcome { DONE, ALREADY, NOT_HELD, NOT_ALLOWED, NOT_SAVED, INVALID }
 
     private final RankCatalogue catalogue;
     private final HolderBook book;
@@ -79,6 +79,19 @@ public final class RankService implements IRanksService {
 
     public Holder holder(UUID player) {
         return book.of(player);
+    }
+
+    /** The tablist section somebody belongs in — the team — or empty. Safe from any thread. */
+    public Optional<String> section(UUID player) {
+        RanksSettings now = settings;
+        if (!now.teamSection() || player == null) {
+            return Optional.empty();
+        }
+        Map<String, Rank> known = catalogue.byId();
+        boolean team = book.find(player).map(holder -> holder.ranks().stream()
+                .map(known::get).anyMatch(rank -> rank != null && rank.team())).orElse(false);
+        String name = now.teamName() == null || now.teamName().isBlank() ? "Team" : now.teamName().strip();
+        return team ? Optional.of(name) : Optional.empty();
     }
 
     public int sortWeight(UUID player) {
@@ -157,6 +170,99 @@ public final class RankService implements IRanksService {
             return Outcome.ALREADY;
         }
         return book.change(player, holder -> holder.showing(place, on)) ? Outcome.DONE : Outcome.NOT_SAVED;
+    }
+
+    // ------------------------------------------------------------------------------- making ranks in game
+
+    /**
+     * A new rank. {@code tag} is what shows — plain text gets square brackets if it has none, markup is kept as
+     * written. Saved to custom-ranks.yml.
+     */
+    public Outcome create(String id, String tag, int weight) {
+        if (!RankCatalogue.isId(id) || weight < 1 || weight > 99) {
+            return Outcome.INVALID;
+        }
+        if (catalogue.find(id).isPresent()) {
+            return Outcome.ALREADY;
+        }
+        String shown = bracketed(tag);
+        if (RankCatalogue.tagProblem(shown).isPresent()) {
+            return Outcome.INVALID;
+        }
+        return saved(catalogue.define(new Rank(id, id.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + id.substring(1),
+                shown, weight, List.of())));
+    }
+
+    /** What the rank shows, as typed — this replaces its style too. */
+    public Outcome retag(String id, String tag) {
+        String shown = bracketed(tag);
+        if (RankCatalogue.tagProblem(shown).isPresent()) {
+            return Outcome.INVALID;
+        }
+        return change(id, rank -> rank.withTag(shown));
+    }
+
+    /** Paints the rank's tag — same letters, a colour, a gradient, bold. NONE leaves it plain white. */
+    public Outcome restyle(String id, de.raindancer.core.ui.text.NameStyle style) {
+        return change(id, rank -> {
+            String letters = Text.plain(Text.styleOnly().deserialize(rank.tag()));
+            Component painted = style == null || style.isEmpty() ? Component.text(letters)
+                    : de.raindancer.core.ui.text.Gradients.styled(letters, style);
+            return rank.withTag(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().serialize(painted));
+        });
+    }
+
+    public Outcome rename(String id, String title) {
+        if (title == null || title.isBlank() || title.length() > 32) {
+            return Outcome.INVALID;
+        }
+        return change(id, rank -> rank.withTitle(title.strip()));
+    }
+
+    public Outcome reweigh(String id, int weight) {
+        if (weight < 1 || weight > 99) {
+            return Outcome.INVALID;
+        }
+        return change(id, rank -> rank.withWeight(weight));
+    }
+
+    /** Whether holding the rank puts somebody in the server's team. */
+    public Outcome team(String id, boolean onTeam) {
+        return change(id, rank -> rank.withTeam(onTeam));
+    }
+
+    /** Deletes the rank everywhere; whoever held it simply shows nothing for it. */
+    public Outcome delete(String id) {
+        if (catalogue.find(id).isEmpty()) {
+            return Outcome.NOT_HELD;
+        }
+        Outcome outcome = saved(catalogue.remove(id));
+        parsed.clear();
+        return outcome;
+    }
+
+    private Outcome change(String id, java.util.function.UnaryOperator<Rank> how) {
+        Optional<Rank> rank = catalogue.find(id);
+        if (rank.isEmpty()) {
+            return Outcome.NOT_HELD;
+        }
+        Rank changed = how.apply(rank.get());
+        if (RankCatalogue.tagProblem(changed.tag()).isPresent()) {
+            return Outcome.INVALID;
+        }
+        return saved(catalogue.define(changed));
+    }
+
+    private Outcome saved(boolean saved) {
+        return saved ? Outcome.DONE : Outcome.NOT_SAVED;
+    }
+
+    private static String bracketed(String typed) {
+        String tag = typed == null ? "" : typed.strip();
+        if (tag.isEmpty() || tag.contains("<") || tag.startsWith("[")) {
+            return tag;
+        }
+        return "[" + tag + "]";
     }
 
     /** Reads ranks.yml again. @return how many ranks */

@@ -2,42 +2,56 @@
 #
 #   tag:    what goes in front of the name, in MiniMessage: colours and <bold> are fine, clicks are not.
 #           Keep it short — above a head everything past 32 characters is cut off.
+#   team:   true puts whoever holds it in the server's team — listed on its own at the top of the tablist.
 #   weight: 1–99, higher is more senior. Somebody holding several wears the highest unless they pick
 #           another, and the tablist puts higher ranks nearer the top.
 #
 # Ranks are given by staff: /rank give <player> <rank>.
 ranks:
   owner:
+    team: true
     title: "Owner"
     tag: "<dark_red><bold>[OWNER]</bold></dark_red>"
     weight: 99
     description:
       - "The person whose server it is."
   admin:
+    team: true
     title: "Admin"
     tag: "<red><bold>[ADMIN]</bold></red>"
     weight: 90
     description:
       - "Runs the server day to day."
   dev:
+    team: true
     title: "Developer"
     tag: "<aqua><bold>[DEV]</bold></aqua>"
     weight: 80
     description:
       - "Builds the plugins this server runs on."
+  team:
+    team: true
+    title: "Team"
+    tag: "<light_purple><bold>[TEAM]</bold></light_purple>"
+    weight: 75
+    description:
+      - "Part of the server's team."
   mod:
+    team: true
     title: "Moderator"
     tag: "<gold><bold>[MOD]</bold></gold>"
     weight: 70
     description:
       - "Keeps the peace."
   helper:
+    team: true
     title: "Helper"
     tag: "<green>[HELPER]</green>"
     weight: 60
     description:
       - "Answers questions and helps new players."
   builder:
+    team: false
     title: "Builder"
     tag: "<yellow>[BUILDER]</yellow>"
     weight: 50

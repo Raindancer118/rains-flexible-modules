@@ -16,5 +16,7 @@ class RanksSettingsTest {
         assertThat(d.tablist()).isTrue();
         assertThat(d.playersChoose()).isTrue();
         assertThat(d.sortTablist()).isTrue();
+        assertThat(d.teamSection()).isTrue();
+        assertThat(d.teamName()).isEqualTo("Team");
     }
 }

@@ -24,7 +24,7 @@ public final class RanksModule implements FlexModule {
 
     public static final String BADGE_OWNER = "ranks";
 
-    private static final ModuleInfo INFO = ModuleInfo.of("ranks", "Ranks", "0.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("ranks", "Ranks", "0.2.0")
             .describedAs("Ranks like [OWNER], [DEV] or [ADMIN] in front of a name — in chat, above the head and in the tablist, switchable for the server and by every player")
             .by("Raindancer118");
 
@@ -45,7 +45,8 @@ public final class RanksModule implements FlexModule {
         }
 
         RankCatalogue catalogue = new RankCatalogue(new YamlStore(context.dataFolder().resolve("ranks.yml")),
-                () -> RanksModule.class.getResourceAsStream("ranks.yml"));
+                () -> RanksModule.class.getResourceAsStream("ranks.yml"),
+                new YamlStore(context.dataFolder().resolve("custom-ranks.yml")));
         int ranks = catalogue.reload();
         catalogue.problems().forEach(problem -> context.log().warn("ranks.yml: {}", problem));
         catalogue.merged().forEach(change -> context.log().info("ranks.yml: {} from the shipped ranks.", change));
@@ -64,6 +65,8 @@ public final class RanksModule implements FlexModule {
         TablistModel tablist = context.core().tablists().model();
         tablist.rankOf(entry -> service.sortWeight(entry.player()));
         context.closeWith(() -> tablist.rankOf(null));
+        tablist.sectionOf(entry -> service.section(entry.player()));
+        context.closeWith(() -> tablist.sectionOf(null));
 
         RanksCommands.ready(new RanksServices(context.plugin(), context.plugin().getServer(), context.core(),
                 context.log(), context.core().messages(), context.chat().brand(), service));

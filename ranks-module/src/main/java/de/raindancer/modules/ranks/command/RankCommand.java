@@ -46,6 +46,7 @@ public final class RankCommand implements IRanksCommand {
             case "show" -> asPlayer(live, sender).ifPresent(player -> show(live, player, args));
             case "give", "take" -> staffChange(live, sender, args, first.equals("give"));
             case "list" -> list(live, sender, args);
+            case "create", "edit", "delete" -> manage(live, sender, first, args);
             case "reload" -> {
                 if (!sender.hasPermission(PermissionNodes.ADMIN)) {
                     live.messages().send(sender, "ranks.usage");
@@ -149,6 +150,82 @@ public final class RankCommand implements IRanksCommand {
         }
     }
 
+    /** {@code create <id> <tag…>}, {@code edit <id> tag|title|weight|style|team …}, {@code delete <id> confirm}. */
+    private static void manage(RanksServices live, CommandSender sender, String what, String[] args) {
+        if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+            live.messages().send(sender, "ranks.usage");
+            return;
+        }
+        String rest = args.length > 3 ? String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length)) : "";
+        Outcome outcome;
+        switch (what) {
+            case "create" -> {
+                if (args.length < 3) {
+                    live.messages().send(sender, "ranks.usage-manage");
+                    return;
+                }
+                outcome = live.ranks().create(args[1].toLowerCase(Locale.ROOT),
+                        String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)), 50);
+            }
+            case "delete" -> {
+                if (args.length < 2) {
+                    live.messages().send(sender, "ranks.usage-manage");
+                    return;
+                }
+                if (args.length < 3 || !args[2].equalsIgnoreCase("confirm")) {
+                    live.messages().send(sender, "ranks.delete-confirm", "id", args[1].toLowerCase(Locale.ROOT));
+                    return;
+                }
+                outcome = live.ranks().delete(args[1].toLowerCase(Locale.ROOT));
+            }
+            default -> {
+                if (args.length < 4) {
+                    live.messages().send(sender, "ranks.usage-manage");
+                    return;
+                }
+                String id = args[1].toLowerCase(Locale.ROOT);
+                outcome = switch (args[2].toLowerCase(Locale.ROOT)) {
+                    case "tag" -> live.ranks().retag(id, rest);
+                    case "title" -> live.ranks().rename(id, rest);
+                    case "weight" -> {
+                        try {
+                            yield live.ranks().reweigh(id, Integer.parseInt(args[3]));
+                        } catch (NumberFormatException notANumber) {
+                            yield Outcome.INVALID;
+                        }
+                    }
+                    case "team" -> live.ranks().team(id, List.of("on", "yes", "true").contains(args[3].toLowerCase(Locale.ROOT)));
+                    case "style" -> {
+                        if (args[3].equalsIgnoreCase("reset")) {
+                            yield live.ranks().restyle(id, de.raindancer.core.ui.text.NameStyle.NONE);
+                        }
+                        var read = de.raindancer.core.ui.text.TypedStyles.read(
+                                List.of(java.util.Arrays.copyOfRange(args, 3, args.length)), word -> null);
+                        if (read.style().isEmpty()) {
+                            live.messages().send(sender, "ranks.style-unreadable", "problem", read.problem());
+                            yield null;
+                        }
+                        yield live.ranks().restyle(id, read.style().get());
+                    }
+                    default -> {
+                        live.messages().send(sender, "ranks.usage-manage");
+                        yield null;
+                    }
+                };
+                if (outcome == null) {
+                    return;
+                }
+            }
+        }
+        switch (outcome) {
+            case DONE -> live.messages().send(sender, "ranks.managed");
+            case ALREADY -> live.messages().send(sender, "ranks.exists", "id", args[1]);
+            case NOT_HELD -> live.messages().send(sender, "ranks.unknown", "name", args[1]);
+            case INVALID -> live.messages().send(sender, "ranks.invalid");
+            default -> tellRefusal(live, sender, outcome);
+        }
+    }
+
     private static void list(RanksServices live, CommandSender sender, String[] args) {
         if (!sender.hasPermission(PermissionNodes.ADMIN)) {
             live.messages().send(sender, "ranks.usage");
@@ -235,7 +312,7 @@ public final class RankCommand implements IRanksCommand {
         if (args.length <= 1) {
             options.addAll(List.of("info", "wear", "show"));
             if (admin) {
-                options.addAll(List.of("give", "take", "list", "reload"));
+                options.addAll(List.of("give", "take", "list", "reload", "create", "edit", "delete"));
             }
         } else if (args.length == 2 && first.equals("wear") && sender instanceof Player player) {
             live.ranks().held(player.getUniqueId()).forEach(rank -> options.add(rank.id()));
@@ -248,8 +325,14 @@ public final class RankCommand implements IRanksCommand {
             options.addAll(List.of("on", "off"));
         } else if (args.length == 2 && (first.equals("info") || (admin && List.of("give", "take").contains(first)))) {
             return PlayerTargets.suggest(live.server(), sender, args[1], viewer -> true);
+        } else if (admin && args.length == 3 && first.equals("edit")) {
+            options.addAll(List.of("tag", "title", "weight", "style", "team"));
+        } else if (admin && args.length == 4 && first.equals("edit") && args[2].equalsIgnoreCase("team")) {
+            options.addAll(List.of("on", "off"));
+        } else if (admin && args.length == 3 && first.equals("delete")) {
+            options.add("confirm");
         } else if (admin && ((args.length == 3 && List.of("give", "take").contains(first))
-                || (args.length == 2 && first.equals("list")))) {
+                || (args.length == 2 && List.of("list", "edit", "delete").contains(first)))) {
             live.ranks().ranks().forEach(rank -> options.add(rank.id()));
         }
         return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(typed)).toList();
