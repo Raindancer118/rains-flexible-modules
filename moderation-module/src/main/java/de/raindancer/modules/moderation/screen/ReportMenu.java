@@ -219,8 +219,10 @@ public final class ReportMenu extends ModerationScreen {
         }
         boolean antiCheat = de.raindancer.core.moderation.players.CheatRecords.available();
         if (preset.group() == ReportGroup.CHEATING && antiCheat) {
-            band(MenuLayout.RULES, 6, viewer.hasPermission(PlayerLookIntoMenu.ANTICHEAT),
-                    Icons.of(Material.COMMAND_BLOCK, "<yellow>Anti-cheat", PlayerLookIntoMenu.antiCheatLore(report.subject())),
+            boolean mayUse = viewer.hasPermission(PlayerLookIntoMenu.ANTICHEAT);
+            band(MenuLayout.RULES, 6, mayUse,
+                    Icons.of(Material.COMMAND_BLOCK, "<yellow>Anti-cheat", mayUse
+                            ? PlayerLookIntoMenu.antiCheatLore(report.subject()) : List.of("<gray>What the checks saw of them.")),
                     "For whoever may use the anti-cheat",
                     click -> viewer.performCommand("anticheat " + report.subjectName()));
             return;

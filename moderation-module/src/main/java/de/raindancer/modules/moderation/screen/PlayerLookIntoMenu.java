@@ -98,8 +98,11 @@ public final class PlayerLookIntoMenu extends PlayerScreen {
             band(MenuLayout.RULES, 6, Icons.of(Material.COMMAND_BLOCK, "<gray>Anti-cheat", "<gray>None on this server."));
             return;
         }
-        band(MenuLayout.RULES, 6, viewer.hasPermission(ANTICHEAT),
-                Icons.of(Material.COMMAND_BLOCK, "<yellow>Anti-cheat", antiCheatLore(subject)),
+        boolean allowed = viewer.hasPermission(ANTICHEAT);
+        // The summary only for whoever may open the anti-cheat anyway: a greyed button still shows its lore.
+        band(MenuLayout.RULES, 6, allowed,
+                Icons.of(Material.COMMAND_BLOCK, "<yellow>Anti-cheat",
+                        allowed ? antiCheatLore(subject) : List.of("<gray>What the checks saw of them.")),
                 "For whoever may use the anti-cheat",
                 click -> viewer.performCommand("anticheat " + subjectName));
     }
