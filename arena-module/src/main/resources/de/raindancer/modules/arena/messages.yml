@@ -18,6 +18,7 @@ arena:
     not-in: "<gray>You are not waiting for a fight."
     in-fight: "<red>Finish your fight first."
     no-pits: "<red>No pit is set up yet. An admin has to mark one."
+    no-survival: "<red>Stakes and own gear need the survival server, which cannot be reached right now."
     bar: "<gold><mode></gold> <gray>·</gray> <white><kit></white> <gray>· place <white><place></white> of <white><waiting></white>, <white><needed></white> make a fight"
 
   fight:

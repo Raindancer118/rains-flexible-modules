@@ -39,6 +39,8 @@ public final class ArenaService implements IArenaService {
     private final ArenaWorldService worlds;
     private final LayoutBook layout;
     private volatile ArenaSettings settings;
+    private volatile java.util.function.Consumer<java.util.UUID> returning = player -> {
+    };
 
     public ArenaService(Plugin plugin, Server server, Messages messages, Effects effects, ArenaWorldService worlds,
                         LayoutBook layout, ArenaSettings settings) {
@@ -54,6 +56,11 @@ public final class ArenaService implements IArenaService {
     @Override
     public void settings(ArenaSettings settings) {
         this.settings = settings;
+    }
+
+    /** Told before somebody is sent back, so the survival server can welcome them back rather than announce a join. */
+    public void returning(java.util.function.Consumer<java.util.UUID> announce) {
+        this.returning = announce;
     }
 
     public ArenaSettings config() {
@@ -85,6 +92,7 @@ public final class ArenaService implements IArenaService {
     public void leave(Player player) {
         messages.send(player, "arena.leaving", "server", settings.lobbyOrDefault());
         effects.play(player.getUniqueId(), Cues.LEAVE);
+        returning.accept(player.getUniqueId());
         ProxyTransfer.send(plugin, player, settings.lobbyOrDefault());
     }
 

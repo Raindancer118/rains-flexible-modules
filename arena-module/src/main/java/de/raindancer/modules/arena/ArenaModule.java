@@ -64,7 +64,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.2.1")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -114,6 +114,8 @@ public final class ArenaModule implements FlexModule {
         StatsStore stats = new StatsStore(database);
 
         link = new ArenaLink(context.core()::link);
+        arena.returning(player -> link.tell(de.raindancer.modules.arena.api.ArenaProtocol.RETURNING,
+                java.util.Map.of("player", player.toString())));
         StakeService stakes = new StakeService(link,
                 new SettlementBook(context.dataFolder().resolve("settlements.yml")));
 
@@ -122,7 +124,7 @@ public final class ArenaModule implements FlexModule {
         waves = new WaveService(context.plugin(), server, matches);
         matches.waves(waves);
         queue = new QueueService(context.plugin(), server, context.core().messages(), context.core().actionBars(), arena,
-                matches, System::currentTimeMillis, settings.current());
+                matches, System::currentTimeMillis, settings.current(), id -> kits.get(id).isPresent(), link::isUp);
         matches.afterFight(queue::tick);
 
         AgreedFights agreed = new AgreedFights(System::currentTimeMillis);

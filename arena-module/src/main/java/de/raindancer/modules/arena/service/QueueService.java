@@ -10,6 +10,7 @@ import de.raindancer.modules.arena.model.Pit;
 import de.raindancer.modules.arena.model.QueueEntry;
 import de.raindancer.modules.arena.rules.PairingRule;
 import de.raindancer.modules.arena.rules.PitRule;
+import de.raindancer.modules.arena.rules.QueueRule;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -40,6 +41,9 @@ public final class QueueService implements IArenaService {
     private final MatchService matches;
     private final PairingRule pairing = new PairingRule();
     private final PitRule pits = new PitRule();
+    private final QueueRule gate = new QueueRule();
+    private final java.util.function.Predicate<String> kitKnown;
+    private final java.util.function.BooleanSupplier survivalUp;
     private final List<QueueEntry> waiting = new ArrayList<>();
     private final Deque<PairingRule.Group> agreed = new ArrayDeque<>();
     private final LongSupplier clock;
@@ -47,7 +51,10 @@ public final class QueueService implements IArenaService {
     private ScheduledTask timer;
 
     public QueueService(Plugin plugin, Server server, Messages messages, ActionBars bars, ArenaService arena,
-                        MatchService matches, LongSupplier clock, ArenaSettings settings) {
+                        MatchService matches, LongSupplier clock, ArenaSettings settings,
+                        java.util.function.Predicate<String> kitKnown, java.util.function.BooleanSupplier survivalUp) {
+        this.kitKnown = kitKnown;
+        this.survivalUp = survivalUp;
         this.plugin = plugin;
         this.server = server;
         this.messages = messages;
@@ -78,12 +85,7 @@ public final class QueueService implements IArenaService {
 
     public void join(Player player, MatchSpec spec) {
         UUID id = player.getUniqueId();
-        if (matches.inFight(id)) {
-            messages.send(player, "arena.queue.in-fight");
-            return;
-        }
-        if (arena.layout().pits().stream().noneMatch(Pit::isReady)) {
-            messages.send(player, "arena.queue.no-pits");
+        if (refused(player, spec)) {
             return;
         }
         synchronized (this) {
@@ -93,6 +95,15 @@ public final class QueueService implements IArenaService {
         messages.send(player, "arena.queue.joined", "mode", spec.mode().title(), "kit", kitName(spec),
                 "stake", spec.stake());
         Scheduling.global(plugin, this::tick);
+    }
+
+    /** Whether this fight may not be waited for; says why when it may not. */
+    public boolean refused(Player player, MatchSpec spec) {
+        Optional<String> refusal = gate.refusal(new QueueRule.Facts(matches.inFight(player.getUniqueId()),
+                arena.layout().pits().stream().anyMatch(Pit::isReady), spec.isOwnGear() || kitKnown.test(spec.kit()),
+                spec.stake(), settings.mostStake(), spec.stake() > 0 || spec.isOwnGear(), survivalUp.getAsBoolean()));
+        refusal.ifPresent(key -> messages.send(player, key, "kit", spec.kit(), "most", settings.mostStake()));
+        return refusal.isPresent();
     }
 
     public boolean leave(UUID player) {
@@ -110,6 +121,12 @@ public final class QueueService implements IArenaService {
 
     /** An agreed fight, ahead of the queue. */
     public void reserve(PairingRule.Group group) {
+        for (UUID member : group.players()) {
+            Player online = server.getPlayer(member);
+            if (online != null && refused(online, group.spec())) {
+                return;
+            }
+        }
         synchronized (this) {
             group.players().forEach(player -> waiting.removeIf(entry -> entry.player().equals(player)));
             agreed.add(group);

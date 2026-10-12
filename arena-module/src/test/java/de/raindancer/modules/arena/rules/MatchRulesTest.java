@@ -242,4 +242,25 @@ class MatchRulesTest {
         assertThat(Mode.parse("Team")).contains(Mode.TEAMS);
         assertThat(Mode.parse("chess")).isEmpty();
     }
+
+    @Test
+    @DisplayName("the queue refuses a stake over the limit, an unknown kit, and stakes or own gear without survival")
+    void queueGate() {
+        QueueRule rule = new QueueRule();
+        QueueRule.Facts ok = new QueueRule.Facts(false, true, true, 100, 1_000, true, true);
+
+        assertThat(rule.refusal(ok)).isEmpty();
+        assertThat(rule.refusal(new QueueRule.Facts(false, true, true, 5_000, 1_000, true, true)))
+                .contains("arena.invite.refuse.stake");
+        assertThat(rule.refusal(new QueueRule.Facts(false, true, true, 5_000, 0, true, true)))
+                .as("no limit set is no limit").isEmpty();
+        assertThat(rule.refusal(new QueueRule.Facts(false, true, false, 0, 0, false, true)))
+                .contains("arena.invite.refuse.no-kit");
+        assertThat(rule.refusal(new QueueRule.Facts(false, true, true, 100, 0, true, false)))
+                .contains("arena.queue.no-survival");
+        assertThat(rule.refusal(new QueueRule.Facts(true, true, true, 0, 0, false, true)))
+                .contains("arena.queue.in-fight");
+        assertThat(rule.refusal(new QueueRule.Facts(false, false, true, 0, 0, false, true)))
+                .contains("arena.queue.no-pits");
+    }
 }
