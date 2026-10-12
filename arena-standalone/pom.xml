@@ -40,7 +40,8 @@
              /pvp invite|accept|deny|queue|leave. -->
         <!-- 0.2.1: one gate for every way into a fight (queue, invite, arrival): the stake limit, a known kit, and
              survival reachable for stakes or own gear; survival is told before somebody is sent back. -->
-        <plugin.version>0.2.1</plugin.version>
+        <!-- 0.2.2: gladiators can be placed from the console at coordinates (RainsCore 1.116.0). -->
+        <plugin.version>0.2.2</plugin.version>
     </properties>
 
     <dependencies>

@@ -98,7 +98,7 @@ arena:
     kit-saved: "<green>Kit <white><kit></white> is saved from what you hold."
     kit-removed: "<green>Kit <white><kit></white> is gone."
     kit-reserved: "<red>'own' means fighting in one's own gear; it cannot be a kit."
-    npc-usage: "<gray>/arena admin npc place <lanista|beastmaster|armorer|herald|gatekeeper>  ·  /arena admin npc remove"
+    npc-usage: "<gray>/arena admin npc place <lanista|beastmaster|armorer|herald|gatekeeper> [world x y z yaw]  ·  /arena admin npc remove"
     npc-placed: "<green>The <white><role></white> stands where you stand."
     npc-removed: "<green>The <white><role></white> is gone."
     npc-none: "<red>No gladiator within five blocks."

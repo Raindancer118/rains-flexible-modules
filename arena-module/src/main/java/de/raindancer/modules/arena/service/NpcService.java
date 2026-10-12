@@ -41,8 +41,13 @@ public final class NpcService {
     }
 
     public Mannequin place(Player admin, NpcRole role) {
+        return place(admin.getLocation(), role);
+    }
+
+    /** At a place given — from the console. On the region thread that owns it. */
+    public Mannequin place(org.bukkit.Location at, NpcRole role) {
         ResolvableProfile look = Attendants.look(skinOf.apply(role));
-        Mannequin gladiator = Attendants.place(admin, MINI.deserialize("<gold><bold>" + role.title()),
+        Mannequin gladiator = Attendants.place(at, MINI.deserialize("<gold><bold>" + role.title()),
                 MINI.deserialize("<gray>" + role.purpose()), look,
                 entity -> entity.getPersistentDataContainer().set(mark, PersistentDataType.STRING, role.name()));
         dress(gladiator, role);

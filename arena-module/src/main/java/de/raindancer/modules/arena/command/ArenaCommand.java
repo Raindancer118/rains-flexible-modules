@@ -157,11 +157,27 @@ public final class ArenaCommand implements IArenaCommand {
 
     /** {@code npc place <role>} where the admin stands, {@code npc remove} the nearest. */
     private void npc(ArenaServices live, CommandSender sender, String[] args) {
+        String what = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        if (what.equals("place") && args.length > 3) {
+            // From anywhere, the console too: npc place <role> world x y z [yaw pitch]
+            java.util.Optional<de.raindancer.modules.arena.model.NpcRole> role =
+                    de.raindancer.modules.arena.model.NpcRole.parse(args[2]);
+            java.util.Optional<de.raindancer.modules.arena.model.Place> at = place(live, sender, args, 3);
+            if (role.isEmpty() || at.isEmpty()) {
+                live.messages().send(sender, "arena.admin.npc-usage");
+                return;
+            }
+            Places.location(live.server(), at.get()).ifPresentOrElse(location ->
+                    de.raindancer.core.platform.util.Scheduling.region(live.plugin(), location, () -> {
+                        live.npcs().place(location, role.get());
+                        live.messages().send(sender, "arena.admin.npc-placed", "role", role.get().title());
+                    }), () -> live.messages().send(sender, "arena.admin.not-an-arena-world", "world", at.get().world()));
+            return;
+        }
         if (!(sender instanceof Player player)) {
             live.messages().send(sender, "arena.only-a-player");
             return;
         }
-        String what = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
         if (what.equals("remove")) {
             live.npcs().removeNearest(player).ifPresentOrElse(
                     role -> live.messages().send(player, "arena.admin.npc-removed", "role", role.title()),
