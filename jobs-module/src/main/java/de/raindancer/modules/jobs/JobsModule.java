@@ -31,7 +31,7 @@ import java.util.List;
  */
 public final class JobsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.7.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.8.0")
             .describedAs("The job board — goals everybody delivers or fishes towards, paid by their share — personal daily quests, harder and better paid the richer you are, and orders: name what you want to earn and race the clock")
             .by("Raindancer118");
 
