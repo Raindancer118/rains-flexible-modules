@@ -291,6 +291,12 @@ class AntiCheatScenarioTest {
             ada.run("anticheat back");
             Await.until("staff are back", Duration.ofSeconds(10), () -> ada.position().distance(before) < 2);
 
+            // Measured afresh: the checks see somebody new, the evidence stays as marked history.
+            assertThat(server.console("anticheat fresh Far")).contains("measured afresh");
+            assertThat(server.console("anticheat info Far")).as("levels start over").contains("Squeaky clean");
+            String history = server.console("anticheat log Far");
+            assertThat(history).contains("Measured afresh since").contains("Reach").contains("before the fresh start");
+
             assertThat(server.console("anticheat info Miner")).as("standing on ground mined away a ping ago").contains("Squeaky clean");
             assertThat(server.console("anticheat info Climber")).as("jumping up a step").contains("Squeaky clean");
             String legitRecord = server.console("anticheat info Legit");

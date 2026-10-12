@@ -119,6 +119,11 @@ public final class AlertService implements IAntiCheatService {
         return true;
     }
 
+    /** Measured afresh: what was gathering for their next line goes; their own alert settings, if staff, stay. */
+    public void freshStart(UUID player) {
+        digest.forget(player);
+    }
+
     public void forget(UUID player) {
         wants.remove(player);
         verbose.remove(player);

@@ -20,6 +20,8 @@ public final class EvidenceLog {
     private final YamlStore store;
     private final Map<UUID, Deque<Evidence>> entries = new ConcurrentHashMap<>();
     private final Map<UUID, String> names = new ConcurrentHashMap<>();
+    /** When the anti-cheat started measuring a player afresh: what came before is history, not a measure. */
+    private final Map<UUID, Long> measuredFrom = new ConcurrentHashMap<>();
     private final AtomicBoolean dirty = new AtomicBoolean();
     private volatile int capacity;
 
@@ -59,6 +61,23 @@ public final class EvidenceLog {
         }
     }
 
+    /** Newest first, only what came after the last fresh start — what a measure of them is built on. */
+    public List<Evidence> since(UUID who) {
+        long from = measuredFrom(who);
+        return of(who).stream().filter(entry -> entry.atMillis() >= from).toList();
+    }
+
+    /** From now on the evidence before {@code millis} is history: kept, shown, never counted. */
+    public void measureFrom(UUID who, long millis) {
+        measuredFrom.put(who, millis);
+        dirty.set(true);
+    }
+
+    /** 0 when they were never started afresh. */
+    public long measuredFrom(UUID who) {
+        return measuredFrom.getOrDefault(who, 0L);
+    }
+
     public Set<UUID> everybody() {
         return Set.copyOf(entries.keySet());
     }
@@ -69,6 +88,7 @@ public final class EvidenceLog {
 
     public void clear(UUID who) {
         entries.remove(who);
+        measuredFrom.remove(who);
         dirty.set(true);
     }
 
@@ -88,6 +108,10 @@ public final class EvidenceLog {
             Deque<Evidence> theirs = new ArrayDeque<>();
             for (String line : root.getStringList(id + ".flags")) {
                 Evidence.decode(line).ifPresent(theirs::addLast);
+            }
+            long from = root.getLong(id + ".measured-from", 0);
+            if (from > 0) {
+                measuredFrom.put(who, from);
             }
             String name = root.getString(id + ".name");
             if (name != null) {
@@ -113,6 +137,18 @@ public final class EvidenceLog {
                 String key = "players." + entry.getKey();
                 yaml.set(key + ".name", names.getOrDefault(entry.getKey(), ""));
                 yaml.set(key + ".flags", lines);
+                Long from = measuredFrom.get(entry.getKey());
+                if (from != null) {
+                    yaml.set(key + ".measured-from", from);
+                }
+            }
+            // Started afresh with no evidence yet: the date still has to survive.
+            for (Map.Entry<UUID, Long> entry : measuredFrom.entrySet()) {
+                if (!entries.containsKey(entry.getKey())) {
+                    String key = "players." + entry.getKey();
+                    yaml.set(key + ".name", names.getOrDefault(entry.getKey(), ""));
+                    yaml.set(key + ".measured-from", entry.getValue());
+                }
             }
         });
         if (!written) {

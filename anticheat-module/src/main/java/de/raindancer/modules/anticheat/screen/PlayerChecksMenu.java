@@ -99,8 +99,14 @@ public final class PlayerChecksMenu extends PaginatedMenu<CheckType> implements 
         super.render();
         boolean manage = viewer.hasPermission(PermissionNodes.MANAGE);
         Player target = services.server().getPlayer(track.id());
-        toolbar(2, target != null, Icons.of(Material.ENDER_PEARL, "<yellow>Go to them", "<gray>Teleports you to " + track.name() + ".",
-                "<dark_gray>Watch them yourself."), "They are not online", click -> {
+        boolean teleport = viewer.hasPermission("minecraft.command.teleport");
+        toolbar(2, target != null && teleport, Icons.of(Material.ENDER_PEARL, "<yellow>Go to them", "<gray>Teleports you to " + track.name() + ".",
+                "<dark_gray>Watch them yourself."), target == null ? "They are not online" : "For whoever may teleport", click -> {
+            // Asked again on the click: this is no way round the teleport permission.
+            if (!viewer.hasPermission("minecraft.command.teleport")) {
+                services.messages().send(viewer, "anticheat.no-permission");
+                return;
+            }
             Player now = services.server().getPlayer(track.id());
             if (now == null) {
                 services.messages().send(viewer, "anticheat.not-online", "player", track.name());
@@ -114,6 +120,17 @@ public final class PlayerChecksMenu extends PaginatedMenu<CheckType> implements 
                     track.exempt(PlayerTrack.Exemption.MANUAL, 60_000);
                     services.messages().send(viewer, "anticheat.exempted", "player", track.name(), "seconds", 60);
                 });
+        toolbar(6, manage, Icons.of(Material.MILK_BUCKET, "<yellow>Measure afresh",
+                        "<gray>The checks see " + track.name() + " as new:", "<gray>levels and statistics start over.",
+                        "<dark_gray>Evidence, replays and punishments are kept;", "<dark_gray>the log marks what came before."),
+                "Needs rainsanticheat.manage", click -> new ConfirmMenu(viewer, services.chat().brand(), this,
+                        "Measure " + track.name() + " afresh?", List.of("<gray>Every check starts from zero for them.",
+                        "<gray>Their evidence, replays and punishments stay as history."),
+                        () -> {
+                            services.violations().measureAfresh(track.id(), track, System.currentTimeMillis());
+                            services.alerts().freshStart(track.id());
+                            services.messages().send(viewer, "anticheat.fresh", "player", track.name());
+                        }).open());
         if (manage) {
             danger(Icons.of(Material.LAVA_BUCKET, "<red>Clear their record", "<gray>A fresh start: violation levels,",
                     "<gray>evidence and replays are deleted.", "<dark_gray>Kicks and bans stay in their history."),

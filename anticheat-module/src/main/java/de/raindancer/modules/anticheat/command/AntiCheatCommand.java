@@ -31,7 +31,7 @@ public final class AntiCheatCommand implements BasicCommand {
 
     private static final int LOG_PAGE = 10;
     private static final List<String> SUBCOMMANDS = List.of("alerts", "verbose", "info", "log", "replay", "go", "back",
-            "exempt", "unexempt", "reset", "checks", "status");
+            "exempt", "unexempt", "fresh", "reset", "checks", "status");
 
     /** Where and how a staff member was before watching replays. */
     private record Watcher(org.bukkit.Location where, org.bukkit.GameMode mode) {
@@ -96,6 +96,11 @@ public final class AntiCheatCommand implements BasicCommand {
                     live.tracks().of(target).unexempt(PlayerTrack.Exemption.MANUAL);
                     live.messages().send(sender, "anticheat.unexempted", "player", target.getName());
                 });
+            }
+            case "fresh" -> {
+                if (manage(live, sender)) {
+                    fresh(live, sender, args);
+                }
             }
             case "reset" -> {
                 if (manage(live, sender)) {
@@ -201,6 +206,30 @@ public final class AntiCheatCommand implements BasicCommand {
                 "skewness", String.format(Locale.ROOT, "%.2f", clicks.skewness()));
     }
 
+    /**
+     * Measured afresh: the checks see somebody new from now on, for a player online or not. Evidence, replays
+     * and punishments stay as history; the log marks what came before.
+     */
+    private static void fresh(AntiCheatServices live, CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            live.messages().send(sender, "anticheat.usage");
+            return;
+        }
+        UUID who = resolve(live, args[1]);
+        if (who == null) {
+            Player online = Bukkit.getPlayerExact(args[1]);
+            who = online == null ? null : online.getUniqueId();
+        }
+        if (who == null) {
+            live.messages().send(sender, "anticheat.no-record", "player", args[1]);
+            return;
+        }
+        live.violations().measureAfresh(who, live.tracks().find(who).orElse(null), System.currentTimeMillis());
+        live.alerts().freshStart(who);
+        String name = live.evidence().nameOf(who);
+        live.messages().send(sender, "anticheat.fresh", "player", name == null ? args[1] : name);
+    }
+
     /** A fresh start: levels, evidence and replays, for a player online or not. */
     private static void reset(AntiCheatServices live, CommandSender sender, String[] args) {
         if (args.length < 2) {
@@ -236,9 +265,14 @@ public final class AntiCheatCommand implements BasicCommand {
         int page = Math.max(1, Math.min(pages, args.length >= 3 ? parse(args[2], 1) : 1));
         live.messages().send(sender, "anticheat.log-header", "player", args[1], "page", page, "pages", pages, "count", all.size());
         SimpleDateFormat time = new SimpleDateFormat("dd.MM HH:mm:ss", Locale.ROOT);
+        long measuredFrom = live.evidence().measuredFrom(who);
+        if (measuredFrom > 0) {
+            live.messages().send(sender, "anticheat.log-fresh", "time", time.format(new Date(measuredFrom)));
+        }
         for (Evidence entry : all.subList((page - 1) * LOG_PAGE, Math.min(all.size(), page * LOG_PAGE))) {
             String title = CheckType.find(entry.check()).map(CheckType::title).orElse(entry.check());
-            live.messages().send(sender, "anticheat.log-line", "time", time.format(new Date(entry.atMillis())),
+            live.messages().send(sender, entry.atMillis() < measuredFrom ? "anticheat.log-line-before" : "anticheat.log-line",
+                    "time", time.format(new Date(entry.atMillis())),
                     "check", title, "level", String.format(Locale.ROOT, "%.1f", entry.level()), "detail", entry.detail(),
                     "where", entry.world() + " " + entry.x() + " " + entry.y() + " " + entry.z(), "ping", entry.ping(),
                     "tps", String.format(Locale.ROOT, "%.1f", entry.tps()));
@@ -397,7 +431,7 @@ public final class AntiCheatCommand implements BasicCommand {
         } else if (args.length == 2 && !List.of("alerts", "verbose", "checks", "status", "back").contains(args[0].toLowerCase(Locale.ROOT))) {
             AntiCheatServices live = services.get();
             live.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
-            if (List.of("log", "replay", "reset").contains(args[0].toLowerCase(Locale.ROOT))) {
+            if (List.of("log", "replay", "reset", "fresh").contains(args[0].toLowerCase(Locale.ROOT))) {
                 // Offline players with a record can be looked up and cleared too.
                 live.evidence().everybody().stream().map(live.evidence()::nameOf)
                         .filter(name -> name != null && !options.contains(name)).forEach(options::add);

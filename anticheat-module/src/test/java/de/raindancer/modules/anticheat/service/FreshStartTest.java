@@ -82,4 +82,39 @@ class FreshStartTest {
         assertThat(evidence.of(cheater)).isEmpty();
         assertThat(replays.replays().of(cheater)).isEmpty();
     }
+
+    @Test
+    @DisplayName("measuring afresh: levels, buffers and click statistics start over, evidence and replays are kept")
+    void measureAfresh() {
+        EvidenceLog evidence = new EvidenceLog(folder, 50);
+        ReplayStore replays = new ReplayStore(folder, new Replays(5));
+        ViolationService violations = new ViolationService(new ActionRule(), null, null, evidence);
+        violations.replaysTo(replays);
+        long[] now = {5_000};
+        PlayerTrack track = new PlayerTrack(cheater, "Cheater", () -> now[0]);
+        track.violations().add(CheckType.FLY, 7);
+        track.buffer(CheckType.SPEED, 2, 0.04).fail(1);
+        track.combat.clickIntervals.add(80);
+        evidence.add(cheater, "Cheater", evidence("fly"));
+        replays.add(cheater, replay());
+
+        violations.measureAfresh(cheater, track, 4_000);
+
+        assertThat(track.violations().total()).isZero();
+        assertThat(track.buffer(CheckType.SPEED, 2, 0.04).value()).as("a fresh buffer").isZero();
+        assertThat(track.combat.clickIntervals.toArray()).isEmpty();
+        assertThat(evidence.of(cheater)).as("the history stays").hasSize(1);
+        assertThat(evidence.since(cheater)).as("but nothing counts from before").isEmpty();
+        assertThat(replays.replays().of(cheater)).hasSize(1);
+        assertThat(evidence.measuredFrom(cheater)).isEqualTo(4_000);
+        assertThat(evidence.flush()).isTrue();
+
+        EvidenceLog reread = new EvidenceLog(folder, 50);
+        reread.load();
+        assertThat(reread.measuredFrom(cheater)).as("kept across a restart").isEqualTo(4_000);
+        assertThat(reread.of(cheater)).hasSize(1);
+
+        evidence.add(cheater, "Cheater", new Evidence(4_500L, "reach", 2.0, "detail", "world", 1, 64, 2, 40, 20.0));
+        assertThat(evidence.since(cheater)).extracting(Evidence::check).containsExactly("reach");
+    }
 }

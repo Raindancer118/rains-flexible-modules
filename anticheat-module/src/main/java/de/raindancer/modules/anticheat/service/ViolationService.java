@@ -141,6 +141,19 @@ public final class ViolationService implements IAntiCheatService {
         forget(player);
     }
 
+    /**
+     * Measures a player afresh from {@code nowMillis}: the checks see somebody new — no levels, no buffers, no
+     * statistics, nothing building towards a staff report — while their evidence and replays stay as history
+     * and every punishment, and the memory of which rule offence they are on, stays as it is.
+     */
+    public void measureAfresh(java.util.UUID player, PlayerTrack track, long nowMillis) {
+        if (track != null) {
+            track.measureAfresh();
+        }
+        evidence.measureFrom(player, nowMillis);
+        forget(player);
+    }
+
     /** Where movement flags go to be weighed for a staff report; without one, none is filed. */
     public void reportsTo(AutoReportService service) {
         this.reports = service;

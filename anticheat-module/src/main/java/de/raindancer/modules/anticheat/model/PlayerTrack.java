@@ -113,6 +113,24 @@ public final class PlayerTrack {
     }
 
     /** The evidence buffer of one check, made the first time it is asked for. */
+    /**
+     * Everything the checks have measured on this player, started over — as if they had just joined for the
+     * first time. What they are excused from right now and where they stand are left as they are: those are
+     * facts about the moment, not about the player.
+     */
+    public synchronized void measureAfresh() {
+        violations.resetAll();
+        buffers.clear();
+        synchronized (combat) {
+            combat.clickIntervals.clear();
+            combat.clicks.clear();
+            combat.pitchDeltas.clear();
+            combat.fishReactions.clear();
+        }
+        movement.rises.clear();
+        recorder.clear();
+    }
+
     public synchronized Buffer buffer(CheckType check, double limit, double forgiveness) {
         return buffers.computeIfAbsent(check, ignored -> new Buffer(limit, forgiveness));
     }
