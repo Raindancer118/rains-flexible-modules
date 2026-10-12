@@ -17,6 +17,12 @@ class ArenaSettingsTest {
         assertThat(defaults.borderMargin()).isEqualTo(6);
         assertThat(defaults.gameMode()).isEqualTo(GameMode.ADVENTURE);
         assertThat(defaults.hubFed()).isTrue();
+        assertThat(defaults.fightMinutes()).isEqualTo(5);
+        assertThat(defaults.countdownSeconds()).isEqualTo(5);
+        assertThat(defaults.ffaWaitSeconds()).isEqualTo(20);
+        assertThat(defaults.sumoRadius()).isEqualTo(6);
+        assertThat(defaults.mostStake()).isZero();
+        assertThat(defaults.fightSeconds()).isEqualTo(300);
     }
 
     @Test
@@ -29,6 +35,9 @@ class ArenaSettingsTest {
         assertThat(defaults.withGameMode(null).gameModeOrDefault()).isEqualTo(GameMode.ADVENTURE);
         assertThat(defaults.withLobbyServer(" ").lobbyOrDefault()).isEqualTo("lobby");
         assertThat(defaults.withLobbyServer(" smp ").lobbyOrDefault()).isEqualTo("smp");
+        assertThat(defaults.withSumoRadius(1).sumoRadiusClamped()).isEqualTo(3);
+        assertThat(defaults.withCountdownSeconds(0).countdownClamped()).isEqualTo(1);
+        assertThat(defaults.withFightMinutes(500).fightSeconds()).isEqualTo(3600);
     }
 
     @Test

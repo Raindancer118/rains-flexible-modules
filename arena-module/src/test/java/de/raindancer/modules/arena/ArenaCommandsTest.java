@@ -16,7 +16,7 @@ class ArenaCommandsTest {
     void declaringNeedsNothingLive() {
         List<ModuleCommand> declared = ArenaCommands.declared();
 
-        assertThat(declared).extracting(ModuleCommand::name).containsExactly("arena");
+        assertThat(declared).extracting(ModuleCommand::name).containsExactly("arena", "pvp");
         assertThat(declared.getFirst().options()).contains("leave", "hub");
     }
 
@@ -26,8 +26,10 @@ class ArenaCommandsTest {
         ArenaCommands.stopped();
 
         assertThat(ArenaCommands.isRunning()).isFalse();
-        assertThatThrownBy(() -> ArenaCommands.declared().getFirst().handler().execute(null, new String[]{"leave"}))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("not running");
+        for (ModuleCommand command : ArenaCommands.declared()) {
+            assertThatThrownBy(() -> command.handler().execute(null, new String[]{"leave"}))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("not running");
+        }
     }
 }

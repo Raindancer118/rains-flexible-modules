@@ -19,10 +19,16 @@ public final class ArenaCommands {
 
     public static List<ModuleCommand> declared() {
         return List.of(
-                ModuleCommand.of("arena", "The arena: back to the hub, or back to the survival server",
+                ModuleCommand.of("arena", "The arena: fights, mob waves, kits, the best — and back to survival",
                                 new ArenaCommand(ArenaCommands::require))
-                        .taking("leave", "hub", "admin build <world> <map>", "admin sethub [world x y z yaw pitch]",
-                                "admin pit <name> floor|spawn|clearspawns|remove", "admin info"));
+                        .taking("menu", "hub", "leave", "queue [mode] [kit] [stake]", "wave [preset] [kit]",
+                                "spectate <player>", "stats [player]", "admin build <world> <map>",
+                                "admin sethub [world x y z yaw pitch]", "admin pit <name> floor|spawn|clearspawns|remove",
+                                "admin kit save|remove <id>", "admin npc place <role>|remove", "admin info"),
+                ModuleCommand.of("pvp", "Ask somebody to a fight, answer, or wait in the queue",
+                                new de.raindancer.modules.arena.command.PvpCommand(ArenaCommands::require))
+                        .taking("invite <player> [mode] [kit] [stake]", "accept [id]", "deny [id]", "queue [mode] [kit]",
+                                "leave"));
     }
 
     static void ready(ArenaServices live) {

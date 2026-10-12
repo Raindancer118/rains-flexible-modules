@@ -28,8 +28,8 @@ import java.util.function.Supplier;
  */
 public final class ArenaCommand implements IArenaCommand {
 
-    private static final List<String> PLAYER = List.of("hub", "leave");
-    private static final List<String> ADMIN = List.of("build", "sethub", "pit", "info");
+    private static final List<String> PLAYER = List.of("hub", "leave", "queue", "wave", "spectate", "stats", "menu");
+    private static final List<String> ADMIN = List.of("build", "sethub", "pit", "info", "kit", "npc");
     private static final List<String> PIT_ACTIONS = List.of("floor", "spawn", "clearspawns", "remove");
 
     private final Supplier<ArenaServices> services;
@@ -56,10 +56,55 @@ public final class ArenaCommand implements IArenaCommand {
             return;
         }
         switch (first) {
-            case "leave" -> live.arena().leave(player);
-            case "", "hub" -> live.arena().toHub(player);
+            case "", "menu" -> live.screens().main(player);
+            case "leave" -> {
+                live.matches().left(player.getUniqueId());
+                live.queue().leave(player.getUniqueId());
+                live.arena().leave(player);
+            }
+            case "hub" -> {
+                if (live.matches().inFight(player.getUniqueId())) {
+                    live.matches().left(player.getUniqueId());
+                }
+                live.matches().stopWatching(player.getUniqueId());
+                de.raindancer.modules.arena.service.HubState.apply(player, live.config());
+                live.arena().toHub(player);
+            }
+            case "queue" -> live.queue().join(player, SpecArgs.parse(args, 1, de.raindancer.modules.arena.api.Mode.DUEL));
+            case "wave", "waves" -> {
+                de.raindancer.modules.arena.api.MatchSpec spec = SpecArgs.parse(args, 1,
+                        de.raindancer.modules.arena.api.Mode.WAVES);
+                if (spec.mode() != de.raindancer.modules.arena.api.Mode.WAVES) {
+                    spec = de.raindancer.modules.arena.api.MatchSpec.waves(null, spec.kit());
+                }
+                live.queue().join(player, spec);
+            }
+            case "spectate" -> {
+                Player target = args.length > 1 ? live.server().getPlayerExact(args[1]) : null;
+                if (target == null || !live.matches().spectate(player, target.getUniqueId())) {
+                    live.messages().send(player, "arena.spectate.nothing");
+                } else {
+                    live.messages().send(player, "arena.spectate.watching");
+                }
+            }
+            case "stats" -> stats(live, player, args.length > 1 ? args[1] : player.getName());
             default -> live.messages().send(player, "arena.usage");
         }
+    }
+
+    private static void stats(ArenaServices live, Player player, String name) {
+        org.bukkit.OfflinePlayer whose = live.server().getOfflinePlayerIfCached(name);
+        java.util.UUID id = whose == null ? null : whose.getUniqueId();
+        java.util.Optional<de.raindancer.modules.arena.model.Stats> stats = id == null ? java.util.Optional.empty()
+                : live.stats().of(id);
+        if (stats.isEmpty()) {
+            live.messages().send(player, "arena.stats.none", "player", name);
+            return;
+        }
+        de.raindancer.modules.arena.model.Stats found = stats.get();
+        live.messages().send(player, "arena.stats.line", "player", found.name(), "wins", found.wins(),
+                "losses", found.losses(), "draws", found.draws(), "kills", found.kills(), "deaths", found.deaths(),
+                "wave", found.bestWave());
     }
 
     private void admin(ArenaServices live, CommandSender sender, String[] args) {
@@ -75,8 +120,61 @@ public final class ArenaCommand implements IArenaCommand {
             case "sethub" -> place(live, sender, args, 1).ifPresent(hub -> live.arena().setHub(sender, hub));
             case "pit" -> pit(live, sender, args);
             case "info" -> info(live, sender);
+            case "kit" -> kit(live, sender, args);
+            case "npc" -> npc(live, sender, args);
             default -> live.messages().send(sender, "arena.admin.usage");
         }
+    }
+
+    /** {@code kit save <id> [name…]} from what the admin holds, {@code kit remove <id>}. */
+    private void kit(ArenaServices live, CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            live.messages().send(sender, "arena.admin.usage");
+            return;
+        }
+        String id = args[2].toLowerCase(Locale.ROOT);
+        switch (args[1].toLowerCase(Locale.ROOT)) {
+            case "save" -> {
+                if (!(sender instanceof Player player)) {
+                    live.messages().send(sender, "arena.only-a-player");
+                    return;
+                }
+                if (id.equals(de.raindancer.modules.arena.api.MatchSpec.OWN_GEAR)) {
+                    live.messages().send(sender, "arena.admin.kit-reserved");
+                    return;
+                }
+                String name = args.length > 3 ? String.join(" ", Arrays.copyOfRange(args, 3, args.length)) : id;
+                org.bukkit.Material held = player.getInventory().getItemInMainHand().getType();
+                boolean saved = live.kits().saveFrom(player, id, name, held.isAir() ? "IRON_SWORD" : held.name());
+                live.messages().send(sender, saved ? "arena.admin.kit-saved" : "arena.admin.not-saved", "kit", id);
+            }
+            case "remove" -> live.messages().send(sender, live.kits().remove(id) ? "arena.admin.kit-removed"
+                    : "arena.invite.refuse.no-kit", "kit", id);
+            default -> live.messages().send(sender, "arena.admin.usage");
+        }
+    }
+
+    /** {@code npc place <role>} where the admin stands, {@code npc remove} the nearest. */
+    private void npc(ArenaServices live, CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            live.messages().send(sender, "arena.only-a-player");
+            return;
+        }
+        String what = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        if (what.equals("remove")) {
+            live.npcs().removeNearest(player).ifPresentOrElse(
+                    role -> live.messages().send(player, "arena.admin.npc-removed", "role", role.title()),
+                    () -> live.messages().send(player, "arena.admin.npc-none"));
+            return;
+        }
+        java.util.Optional<de.raindancer.modules.arena.model.NpcRole> role = args.length > 2
+                ? de.raindancer.modules.arena.model.NpcRole.parse(args[2]) : java.util.Optional.empty();
+        if (!what.equals("place") || role.isEmpty()) {
+            live.messages().send(player, "arena.admin.npc-usage");
+            return;
+        }
+        live.npcs().place(player, role.get());
+        live.messages().send(player, "arena.admin.npc-placed", "role", role.get().title());
     }
 
     private void pit(ArenaServices live, CommandSender sender, String[] args) {
@@ -149,8 +247,24 @@ public final class ArenaCommand implements IArenaCommand {
         boolean admin = sender.hasPermission(PermissionNodes.ADMIN);
         if (args.length <= 1) {
             String started = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
-            List<String> options = admin ? List.of("hub", "leave", "admin") : PLAYER;
+            List<String> options = admin ? java.util.stream.Stream.concat(PLAYER.stream(), java.util.stream.Stream.of("admin")).toList() : PLAYER;
             return options.stream().filter(option -> option.startsWith(started)).toList();
+        }
+        if (args[0].equalsIgnoreCase("wave") || args[0].equalsIgnoreCase("waves")) {
+            String last = args[args.length - 1].toLowerCase(Locale.ROOT);
+            return java.util.stream.Stream.concat(de.raindancer.modules.arena.api.WaveSpec.PRESETS.keySet().stream(),
+                    services.get().kits().all().stream().map(de.raindancer.modules.arena.model.Kit::id))
+                    .filter(option -> option.startsWith(last)).sorted().toList();
+        }
+        if (args[0].equalsIgnoreCase("queue")) {
+            String last = args[args.length - 1].toLowerCase(Locale.ROOT);
+            return java.util.stream.Stream.concat(java.util.stream.Stream.of("duel", "sumo", "2v2", "3v3", "ffa", "own", "bo3"),
+                    services.get().kits().all().stream().map(de.raindancer.modules.arena.model.Kit::id))
+                    .filter(option -> option.startsWith(last)).toList();
+        }
+        if (args[0].equalsIgnoreCase("spectate") && args.length == 2) {
+            return services.get().server().getOnlinePlayers().stream().map(Player::getName)
+                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         }
         if (!admin || !args[0].equalsIgnoreCase("admin")) {
             return List.of();
@@ -171,11 +285,21 @@ public final class ArenaCommand implements IArenaCommand {
         if (what.equals("pit") && args.length == 4) {
             return PIT_ACTIONS.stream().filter(option -> option.startsWith(last)).toList();
         }
+        if (what.equals("kit") && args.length == 3) {
+            return java.util.stream.Stream.of("save", "remove").filter(option -> option.startsWith(last)).toList();
+        }
+        if (what.equals("npc") && args.length == 3) {
+            return java.util.stream.Stream.of("place", "remove").filter(option -> option.startsWith(last)).toList();
+        }
+        if (what.equals("npc") && args.length == 4) {
+            return java.util.Arrays.stream(de.raindancer.modules.arena.model.NpcRole.values())
+                    .map(role -> role.name().toLowerCase(Locale.ROOT)).filter(option -> option.startsWith(last)).toList();
+        }
         return List.of();
     }
 
     @Override
     public String describe() {
-        return "the hub, leaving, and setting the arena up";
+        return "the arena menu, the hub, the queue, waves, watching, stats, and setting the arena up";
     }
 }

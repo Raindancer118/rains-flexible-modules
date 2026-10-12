@@ -32,7 +32,13 @@
              fighting gear, food and potions work), entity-shaped things placed or broken (boats, minecarts, stands,
              crystals, paintings), shears, leads, fish buckets, signs; mobs and falling blocks changing blocks; fire,
              burning, spreading, fading, forming, growing; arrows breaking pots or lighting TNT. -->
-        <plugin.version>0.1.1</plugin.version>
+        <!-- 0.2.0: the fights — duels and sumo by invite or queue, teams of two or three and free for all from
+             the queue, best of 1/3/5, nine kits (kits.yml, admins save their own), own gear as a copy fetched from
+             survival, stakes held on survival and paid out or given back (retried until done), mob waves with six
+             presets or set up by hand (mobs never burn, drop nothing, stay in their pit), a blow that would kill is a
+             defeat, countdown freeze, pit confinement, spectating, stats and leaderboards, gladiator NPCs, menus,
+             /pvp invite|accept|deny|queue|leave. -->
+        <plugin.version>0.2.0</plugin.version>
     </properties>
 
     <dependencies>

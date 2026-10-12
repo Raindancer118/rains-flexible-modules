@@ -2,14 +2,20 @@ package de.raindancer.modules.arena.listener;
 
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.arena.ArenaServices;
+import de.raindancer.modules.arena.service.IntentBook;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.UUID;
 
-/** Whoever arrives from the survival server starts in the hub with empty hands. */
+/**
+ * Whoever arrives from the survival server starts in the hub with empty hands, and then gets what they came for — the
+ * queue, a mob run, a fight they agreed to. Arriving and leaving are not announced: on a network they are going to and
+ * coming from the other server, not joining and quitting, and the survival side says that itself.
+ */
 public final class PresenceListener implements IArenaListener {
 
     private final ArenaServices services;
@@ -20,13 +26,35 @@ public final class PresenceListener implements IArenaListener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
+        event.joinMessage(null);
         Player player = event.getPlayer();
         // A tick later, on their own thread: the join is not the moment to teleport.
         Scheduling.entityLater(services.plugin(), player, 1L, () -> {
-            if (player.isOnline()) {
-                services.arena().arrived(player);
+            if (!player.isOnline()) {
+                return;
             }
+            services.arena().arrived(player);
+            services.intents().take(player.getUniqueId()).ifPresent(intent -> act(player, intent));
         });
+    }
+
+    private void act(Player player, IntentBook.Intent intent) {
+        switch (intent.kind()) {
+            case HUB -> {
+            }
+            case QUEUE, WAVES -> services.queue().join(player, intent.spec());
+            case AGREED -> services.invites().arrived(intent.agreed(), player.getUniqueId())
+                    .ifPresentOrElse(services.queue()::reserve,
+                            () -> services.messages().send(player, "arena.invite.waiting"));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onQuit(PlayerQuitEvent event) {
+        event.quitMessage(null);
+        UUID id = event.getPlayer().getUniqueId();
+        services.queue().forget(id);
+        services.invites().forget(id);
     }
 
     @Override

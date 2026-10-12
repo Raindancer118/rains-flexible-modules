@@ -4,7 +4,7 @@
 # Messages.defineFrom. Every placeholder a line asks for is supplied where it is sent.
 arena:
 
-  usage: "<gray>/arena hub  ·  /arena leave"
+  usage: "<gray>/arena  ·  /arena hub  ·  /arena queue [mode] [kit] [stake]  ·  /arena wave [preset] [kit]  ·  /arena spectate <player>  ·  /arena stats [player]  ·  /arena leave"
   only-a-player: "<red>Only a player can do that."
   not-allowed: "<red>You may not do that."
 
@@ -12,7 +12,60 @@ arena:
   not-set-up: "<yellow>The arena is still being built. <click:run_command:'/arena leave'><yellow>[Back to survival]</yellow></click>"
   leaving: "<gray>Back to <white><server></white>…"
 
+  queue:
+    joined: "<green>Waiting for a <white><mode></white> fight with <white><kit></white>. <click:run_command:'/pvp leave'><red>[Leave the queue]</red></click>"
+    left: "<gray>You left the queue."
+    not-in: "<gray>You are not waiting for a fight."
+    in-fight: "<red>Finish your fight first."
+    no-pits: "<red>No pit is set up yet. An admin has to mark one."
+    bar: "<gold><mode></gold> <gray>·</gray> <white><kit></white> <gray>· place <white><place></white> of <white><waiting></white>, <white><needed></white> make a fight"
+
+  fight:
+    called-off: "<red>The fight is off: <white><who></white> could not be got ready (stake or gear). Nobody lost anything."
+    round: "<gold>Round <white><round></white></gold> <gray>— <mode>"
+    go: "<red><bold>FIGHT!"
+    down: "<gray><white><player></white> is out."
+    down-by: "<gray><white><player></white> was beaten by <white><by></white>."
+    left: "<gray><white><player></white> left the fight."
+    round-won: "<yellow>Round to <white><winners></white>. <gray>(<score>)"
+    won: "<gold><bold>Victory</bold></gold> <gray>— <white><winners></white> won. <gray>(<score>)"
+    draw: "<yellow>A draw (<why>). Every stake goes back."
+    time-left: "<yellow><white><seconds></white> seconds left — then it is a draw."
+    watching: "<gray>You are out for this round. Watch until it is decided."
+    stakes-back: "<gray>Every stake is on its way back to its owner."
+    stakes-won: "<gold>You won <white><amount></white>! It is paid out on survival."
+
+  waves:
+    title: "<red>Wave <white><wave></white>"
+    cleared: "<green>Wave <white><wave></white> cleared! The next one comes in five seconds."
+    won: "<gold><bold>Every wave beaten!</bold></gold> <gray>You cleared all <white><waves></white>."
+    lost: "<red>The mobs won.</red> <gray>You got to wave <white><wave></white>."
+
+  spectate:
+    watching: "<gray>Watching. <click:run_command:'/arena hub'><yellow>[Back to the hub]</yellow></click>"
+    nothing: "<red>That player is not in a fight you can watch."
+
+  stats:
+    line: "<gold><player></gold> <gray>— wins <white><wins></white>, losses <white><losses></white>, draws <white><draws></white>, kills <white><kills></white>, defeats <white><deaths></white>, best wave <white><wave></white>"
+    none: "<gray><white><player></white> has not fought in the arena yet."
+
+  pvp:
+    usage: "<gray>/pvp invite <player> [duel|sumo|waves] [kit|own] [stake] [bo3]  ·  /pvp accept  ·  /pvp deny  ·  /pvp queue [mode] [kit]  ·  /pvp leave"
+    only-duels: "<red>An invite is for a duel, sumo or a mob run together. Teams and free for all come from the queue."
+
   invite:
+    sent: "<green>Asked <white><player></white>. They have a minute to answer."
+    sent-across: "<green>Asked <white><player></white> on survival. If they say yes, they are brought here."
+    received: "<gold><white><player></white> asks you to a <white><mode></white> with <white><kit></white>, best of <white><rounds></white>, stake <white><stake></white>. <click:run_command:'/pvp accept <id>'><green>[Accept]</green></click> <click:run_command:'/pvp deny <id>'><red>[Decline]</red></click>"
+    received-waves: "<gold><white><player></white> asks you to fight mob waves together with <white><kit></white>. <click:run_command:'/pvp accept <id>'><green>[Accept]</green></click> <click:run_command:'/pvp deny <id>'><red>[Decline]</red></click>"
+    accepted: "<green><white><player></white> said yes! The fight starts as soon as a pit is free."
+    accepted-across: "<green><white><player></white> said yes and is on the way from survival."
+    coming: "<green><white><player></white> is being brought over from survival. The fight starts when they are here."
+    waiting: "<gray>Your fight starts as soon as everybody in it is here."
+    declined: "<yellow><white><player></white> said no."
+    you-declined: "<gray>You said no to <white><player></white>."
+    gone: "<red>That invite is no longer there."
+    none: "<gray>Nobody has asked you to a fight."
     refuse:
       self: "<red>You cannot fight yourself."
       unknown: "<red>Nobody called <white><player></white> is online, here or on survival."
@@ -41,6 +94,13 @@ arena:
     pit-removed: "<green>Pit <white><pit></white> is gone."
     no-such-pit: "<red>There is no pit called <white><pit></white>."
     pit-elsewhere: "<red>Pit <white><pit></white> is in <white><world></white>; mark it there."
+    kit-saved: "<green>Kit <white><kit></white> is saved from what you hold."
+    kit-removed: "<green>Kit <white><kit></white> is gone."
+    kit-reserved: "<red>'own' means fighting in one's own gear; it cannot be a kit."
+    npc-usage: "<gray>/arena admin npc place <lanista|beastmaster|armorer|herald|gatekeeper>  ·  /arena admin npc remove"
+    npc-placed: "<green>The <white><role></white> stands where you stand."
+    npc-removed: "<green>The <white><role></white> is gone."
+    npc-none: "<red>No gladiator within five blocks."
     info:
       head: "<gold>Arena</gold> <gray>— <white><worlds></white> world(s), <white><pits></white> pit(s), hub in <white><hub></white>"
       world: "<gray> world <white><world></white> from <white><map></white>, <white><box></white>"
