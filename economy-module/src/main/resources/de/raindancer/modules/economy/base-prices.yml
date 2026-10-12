@@ -190,6 +190,11 @@ enchanted_golden_apple: 15000
 # smithing prices every netherite tool and armour piece.
 netherite_upgrade_smithing_template: 5000
 
+# A frog eating a small magma cube, one colour per frog; no recipe makes them.
+ochre_froglight: 250
+verdant_froglight: 250
+pearlescent_froglight: 250
+
 # ---- armour trims
 # Loot only; each template's own copying recipe needs one already, so nothing can price it from a recipe. Priced by
 # how hard it is to find: shipwrecks, temples and outposts first, the deep dark's silence last.

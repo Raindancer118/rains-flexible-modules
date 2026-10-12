@@ -180,6 +180,22 @@ class PriceBookTest {
     }
 
     @Test
+    @DisplayName("trims and froglights are in the shop's drawers like any other item, buyable and sellable")
+    void trimsAndFroglightsOnTheShelves() {
+        PriceBook book = new PriceBook(currency -> BasePrices.parse(
+                EconomySettings.class.getResourceAsStream("base-prices.yml"), currency), material -> 0.0, material -> 64);
+        book.recompute(EconomySettings.DEFAULTS, List.of());
+        List<String> shelved = java.util.Arrays.stream(de.raindancer.core.ui.choose.Category.values())
+                .flatMap(category -> book.tradableIn(category).stream()).toList();
+        for (String item : List.of("SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE", "COAST_ARMOR_TRIM_SMITHING_TEMPLATE",
+                "OCHRE_FROGLIGHT", "VERDANT_FROGLIGHT", "PEARLESCENT_FROGLIGHT")) {
+            assertThat(shelved).as(item + " is on a shelf").contains(item);
+            assertThat(book.tag(item).buyable()).as(item + " can be bought").isTrue();
+            assertThat(book.tag(item).sellable()).as(item + " can be sold").isTrue();
+        }
+    }
+
+    @Test
     @DisplayName("netherite: the shipped list prices the upgrade template, so smithing prices every netherite piece")
     void netherite() {
         var shipped = BasePrices.parse(EconomySettings.class.getResourceAsStream("base-prices.yml"),
