@@ -163,6 +163,9 @@ class GuildsScenarioTest {
             Await.until("and are in the vault", WAIT, () -> ada.window().map(window -> window.top().values().stream()
                     .anyMatch(item -> item.is("diamond"))).orElse(false));
             ada.closeWindow();
+            ada.forgetChat();
+            ada.run("guild disband confirm");
+            Await.until("a guild with things in its vault is not disbanded", WAIT, () -> told(ada, "Empty the guild vault first"));
 
             // ---- everything is still there after a restart
             server.paper.restartKeepingBots();

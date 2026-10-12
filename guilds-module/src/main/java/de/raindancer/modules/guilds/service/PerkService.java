@@ -3,7 +3,6 @@ package de.raindancer.modules.guilds.service;
 import de.raindancer.core.data.stash.ArmourPiece;
 import de.raindancer.core.data.stash.Stash;
 import de.raindancer.core.data.stash.StashStore;
-import de.raindancer.core.social.team.TeamId;
 import de.raindancer.modules.guilds.GuildProgressSettings;
 import de.raindancer.modules.guilds.GuildsSettings;
 import de.raindancer.modules.guilds.model.Guild;
@@ -53,6 +52,10 @@ public final class PerkService implements IGuildsService {
     private final CrownRule crowns = new CrownRule();
     private final Map<String, Stash> open = new HashMap<>();
     private final Set<String> vaultsDirty = new LinkedHashSet<>();
+    /** Whose vault each open one is — fixed by the guild's founding, see {@link #vaultOwner}. */
+    private final Map<String, UUID> owners = new HashMap<>();
+    /** Guilds being disbanded: their vault was empty when checked and takes nothing more until it is over. */
+    private final Set<String> sealed = new java.util.HashSet<>();
     private volatile GuildsSettings settings;
     private volatile GuildProgressSettings more;
     private volatile LevelRule levels;
@@ -301,8 +304,46 @@ public final class PerkService implements IGuildsService {
 
     // ------------------------------------------------------------------ the vault
 
-    private static UUID vaultOwner(TeamId guild) {
-        return UUID.nameUUIDFromBytes(("guild-vault:" + guild.value()).getBytes(StandardCharsets.UTF_8));
+    /**
+     * The vault's key on disk: the guild's id <em>and</em> when it was founded. By id alone, a guild founded again
+     * under a disbanded guild's name would open whatever that guild left behind.
+     */
+    static UUID vaultOwner(Guild guild) {
+        return UUID.nameUUIDFromBytes(("guild-vault:" + guild.id().value() + ":" + guild.founded())
+                .getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** The guild as it is now, if {@code player} is still in it — never the copy a screen was drawn from. */
+    private Optional<Guild> current(Guild guild, UUID player) {
+        return book.guild(guild.id()).filter(now -> now.isMember(player));
+    }
+
+    /**
+     * For a disband: says whether the vault is empty and, if it is, seals it in the same step, so nothing can be
+     * put in between this check and the guild being gone. {@link #unseal} if the disband does not happen.
+     */
+    public synchronized GuildOutcome sealForDisband(Guild guild) {
+        if (vaults == null) {
+            return GuildOutcome.SUCCESS;
+        }
+        Stash stash = vault(guild);
+        if (!stash.isEmpty() || !stash.contents().kept().isEmpty()) {
+            return GuildOutcome.VAULT_NOT_EMPTY;
+        }
+        sealed.add(guild.id().value());
+        return GuildOutcome.SUCCESS;
+    }
+
+    public synchronized void unseal(Guild guild) {
+        sealed.remove(guild.id().value());
+    }
+
+    /** The guild is gone: its open vault is let go. Its file stays, keyed to a founding no new guild can have. */
+    public synchronized void forgetVault(String guild) {
+        open.remove(guild);
+        owners.remove(guild);
+        vaultsDirty.remove(guild);
+        sealed.remove(guild);
     }
 
     /** How many stacks the vault takes now; what it already holds above that is kept, only deposits wait. */
@@ -315,7 +356,8 @@ public final class PerkService implements IGuildsService {
         int slots = Math.max(1, vaultSlots(guild));
         Stash stash = open.get(guild.id().value());
         if (stash == null) {
-            stash = vaults.load(vaultOwner(guild.id()), slots);
+            owners.put(guild.id().value(), vaultOwner(guild));
+            stash = vaults.load(vaultOwner(guild), slots);
         } else if (stash.capacity() != slots) {
             Stash.Contents contents = stash.contents();
             stash = Stash.restored(slots, contents.items(), contents.armour(), contents.kept(), contents.version());
@@ -347,10 +389,14 @@ public final class PerkService implements IGuildsService {
 
     /** @return how many of {@code item} went in; the caller takes exactly that many away */
     public synchronized int deposit(Guild guild, ItemStack item) {
-        if (vaults == null || vaultSlots(guild) <= 0 || item == null || item.isEmpty()) {
+        if (vaults == null || item == null || item.isEmpty() || sealed.contains(guild.id().value())) {
             return 0;
         }
-        int accepted = vault(guild).deposit(item);
+        Optional<Guild> now = book.guild(guild.id());
+        if (now.isEmpty() || vaultSlots(now.get()) <= 0) {
+            return 0;
+        }
+        int accepted = vault(now.get()).deposit(item);
         if (accepted > 0) {
             vaultsDirty.add(guild.id().value());
         }
@@ -359,10 +405,11 @@ public final class PerkService implements IGuildsService {
 
     /** Takes one entry out, if it is still what the page showed. Null when it is not, or they may not. */
     public synchronized ItemStack take(Guild guild, UUID player, int index, ItemStack shown) {
-        if (vaults == null || !guild.may(player, GuildPermission.VAULT)) {
+        Optional<Guild> now = current(guild, player).filter(each -> each.may(player, GuildPermission.VAULT));
+        if (vaults == null || now.isEmpty()) {
             return null;
         }
-        ItemStack taken = vault(guild).take(index, shown);
+        ItemStack taken = vault(now.get()).take(index, shown);
         if (taken != null) {
             vaultsDirty.add(guild.id().value());
         }
@@ -370,10 +417,11 @@ public final class PerkService implements IGuildsService {
     }
 
     public synchronized ItemStack takeArmour(Guild guild, UUID player, ArmourPiece piece) {
-        if (vaults == null || !guild.may(player, GuildPermission.VAULT)) {
+        Optional<Guild> now = current(guild, player).filter(each -> each.may(player, GuildPermission.VAULT));
+        if (vaults == null || now.isEmpty()) {
             return null;
         }
-        ItemStack taken = vault(guild).takeArmour(piece);
+        ItemStack taken = vault(now.get()).takeArmour(piece);
         if (taken != null) {
             vaultsDirty.add(guild.id().value());
         }
@@ -400,11 +448,14 @@ public final class PerkService implements IGuildsService {
             return;
         }
         Map<UUID, Stash.Contents> writing = new HashMap<>();
+        Map<UUID, String> guilds = new HashMap<>();
         synchronized (this) {
             for (String guild : vaultsDirty) {
                 Stash stash = open.get(guild);
-                if (stash != null) {
-                    writing.put(vaultOwner(new TeamId(guild)), stash.contents());
+                UUID owner = owners.get(guild);
+                if (stash != null && owner != null) {
+                    writing.put(owner, stash.contents());
+                    guilds.put(owner, guild);
                 }
             }
             vaultsDirty.clear();
@@ -412,11 +463,9 @@ public final class PerkService implements IGuildsService {
         writing.forEach((owner, contents) -> {
             if (!vaults.save(owner, contents)) {
                 synchronized (this) {
-                    open.forEach((guild, stash) -> {
-                        if (vaultOwner(new TeamId(guild)).equals(owner)) {
-                            vaultsDirty.add(guild);
-                        }
-                    });
+                    if (open.containsKey(guilds.get(owner))) {
+                        vaultsDirty.add(guilds.get(owner));
+                    }
                 }
             }
         });

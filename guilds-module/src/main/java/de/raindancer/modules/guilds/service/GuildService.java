@@ -116,6 +116,7 @@ public final class GuildService implements IGuildsService {
 
     private volatile java.util.function.ToIntFunction<Guild> extraMembers = guild -> 0;
     private volatile java.util.function.Function<Guild, GuildOutcome> disbandGuard = guild -> GuildOutcome.SUCCESS;
+    private volatile java.util.function.Consumer<Guild> disbandAborted = guild -> { };
 
     /** Members a guild may have beyond what its level gives — the Recruiter perk. */
     public void extraMembers(java.util.function.ToIntFunction<Guild> extra) {
@@ -124,7 +125,17 @@ public final class GuildService implements IGuildsService {
 
     /** Asked before a guild is disbanded; anything but success refuses it — a vault with items in it. */
     public void disbandGuard(java.util.function.Function<Guild, GuildOutcome> guard) {
+        disbandGuard(guard, guild -> { });
+    }
+
+    /**
+     * The same, for a guard that holds something once it says yes — the vault is sealed against deposits from the
+     * check to the end — and must let go when the disband does not go through after all.
+     */
+    public void disbandGuard(java.util.function.Function<Guild, GuildOutcome> guard,
+                             java.util.function.Consumer<Guild> aborted) {
         this.disbandGuard = guard == null ? guild -> GuildOutcome.SUCCESS : guard;
+        this.disbandAborted = aborted == null ? guild -> { } : aborted;
     }
 
     public Optional<Guild> guildOf(UUID player) {
@@ -213,9 +224,11 @@ public final class GuildService implements IGuildsService {
         }
         GuildOutcome paidOut = bank.shareOut(guild);
         if (!paidOut.isSuccess()) {
+            disbandAborted.accept(guild);
             return paidOut;
         }
         if (book.disband(id).isEmpty()) {
+            disbandAborted.accept(guild);
             return GuildOutcome.NOT_SAVED;
         }
         notify.members(guild, "guilds.disbanded", "guild", GuildNotifier.title(guild), "player", notify.name(actor));

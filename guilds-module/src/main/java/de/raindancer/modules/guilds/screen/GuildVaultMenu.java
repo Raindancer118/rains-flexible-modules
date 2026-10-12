@@ -116,18 +116,19 @@ public final class GuildVaultMenu extends Menu implements IGuildsScreen {
         Optional<Guild> found = guild();
         if (found.isPresent()) {
             Guild guild = found.get();
-            boolean mayTake = guild.may(viewer.getUniqueId(), GuildPermission.VAULT);
             int column = 2;
             for (ArmourPiece piece : ArmourPiece.values()) {
                 ItemStack shown = services.perks().vaultArmour(guild, piece).orElseGet(() -> Icons.of(
                         Material.LIGHT_GRAY_STAINED_GLASS_PANE, "<gray>" + piece.label() + " stand <dark_gray>— empty",
                         "<dark_gray>Armour put in goes onto its stand first."));
                 toolbar(column++, shown, click -> {
-                    if (!mayTake) {
+                    // Asked at the click, not when the page was drawn: a rank can lose the right while it is open.
+                    Optional<Guild> now = guild();
+                    if (now.isEmpty() || !now.get().may(viewer.getUniqueId(), GuildPermission.VAULT)) {
                         services.messages().send(viewer, "guilds.vault.no-taking");
                         return;
                     }
-                    hand(guild, services.perks().takeArmour(guild, viewer.getUniqueId(), piece));
+                    hand(now.get(), services.perks().takeArmour(now.get(), viewer.getUniqueId(), piece));
                 });
             }
         }
