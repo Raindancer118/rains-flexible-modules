@@ -62,6 +62,20 @@ public final class AskCommand implements ITpaCommand {
             return;
         }
 
+        if (de.raindancer.core.platform.command.PlayerGroups.isGroup(args[0])) {
+            // A group — a guild's @TAG: one request to each member who is here and whom the asker can see.
+            List<Player> members = de.raindancer.core.platform.command.PlayerTargets
+                    .resolve(live.server(), player, args[0]).stream()
+                    .filter(member -> !member.equals(player) && player.canSee(member)).toList();
+            if (members.isEmpty()) {
+                live.messages().send(player, "tpa.group-nobody", "group", args[0]);
+                return;
+            }
+            members.forEach(member -> live.asking().ask(player, member, kind));
+            live.messages().send(player, "tpa.group-asked", "group", args[0], "count", String.valueOf(members.size()));
+            return;
+        }
+
         // Never getOfflinePlayer(String), which blocks on a lookup against Mojang from what on Folia may be a
         // region thread. Somebody offline is found by the server's cache and told apart from a typo.
         Player them = Who.online(live.server(), live.messages(), player, args[0]).orElse(null);

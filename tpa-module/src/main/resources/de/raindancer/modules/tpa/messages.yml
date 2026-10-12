@@ -35,6 +35,8 @@ tpa:
   too-many: "<yellow><selector></yellow> matches <white><count></white> players, and a request goes to one. Pick one."
   selector-refused: "<red><selector></red> is not yours to use, or not written right. A name works just as well."
   selector-nobody: "<yellow><selector></yellow> did not match anybody."
+  group-nobody: "<yellow><group></yellow> has nobody here right now. A guild of ghosts."
+  group-asked: "<green>Asked everybody in <white><group></white> who is here: <white><count></white> request(s)."
 
   # ---------------------------------------------------------------- answering
   you-accepted: "<green>Accepted <white><player></white>'s request."

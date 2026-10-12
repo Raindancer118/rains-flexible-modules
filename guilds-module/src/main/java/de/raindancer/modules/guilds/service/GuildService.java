@@ -784,6 +784,17 @@ public final class GuildService implements IGuildsService {
         return changed;
     }
 
+    /** A guild's members by its tag, any case — for {@code @TAG} in commands. */
+    public Optional<java.util.List<UUID>> membersByTag(String tag) {
+        return book.all().stream().filter(guild -> guild.tag().equalsIgnoreCase(tag == null ? "" : tag.strip()))
+                .findFirst().map(guild -> java.util.List.copyOf(guild.members().keySet()));
+    }
+
+    /** Every guild's tag, for completing {@code @TAG}. */
+    public java.util.List<String> tags() {
+        return book.all().stream().map(Guild::tag).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+    }
+
     /** From which level a guild may paint its tag and name. */
     public int styleFromLevel() {
         return settings.get().styleFromLevel();

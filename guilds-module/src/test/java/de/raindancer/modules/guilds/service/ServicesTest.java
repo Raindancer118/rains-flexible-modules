@@ -706,6 +706,16 @@ class ServicesTest {
     }
 
     @Test
+    @DisplayName("a guild's tag names its members as a player group — @ELF — whatever the case typed")
+    void tagAsGroup() {
+        Guild elves = found(ALICE, "Elves", "ELF");
+        join(elves, BOB);
+        assertThat(guilds.membersByTag("elf")).hasValueSatisfying(members -> assertThat(members).containsExactlyInAnyOrder(ALICE, BOB));
+        assertThat(guilds.membersByTag("NOPE")).isEmpty();
+        assertThat(guilds.tags()).containsExactly("ELF");
+    }
+
+    @Test
     @DisplayName("everything a test did survives being read back")
     void persists() {
         Guild elves = found(ALICE, "Elves", "ELF");
