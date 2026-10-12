@@ -150,6 +150,13 @@ public final class FloodService implements IArenaService {
      */
     public void rise(Pit pit, BasinRule.Basin basin, Supplier<Collection<Player>> audience, Runnable then,
                      Runnable failed) {
+        rise(pit, basin, audience, y -> {
+        }, then, failed);
+    }
+
+    /** @param risen told the y of each layer the moment it stands — a boat has to be lifted onto it */
+    public void rise(Pit pit, BasinRule.Basin basin, Supplier<Collection<Player>> audience,
+                     java.util.function.IntConsumer risen, Runnable then, Runnable failed) {
         World world = server.getWorld(pit.floor().world());
         if (world == null) {
             Scheduling.global(plugin, failed);
@@ -176,7 +183,7 @@ public final class FloodService implements IArenaService {
                 }
                 flooded.put(pit.id(), List.copyOf(changes));
                 rising.add(pit.id());
-                Scheduling.global(plugin, () -> scene(pit, world, centre, basin, audience, then));
+                Scheduling.global(plugin, () -> scene(pit, world, centre, basin, audience, risen, then));
             });
         });
     }
@@ -187,7 +194,7 @@ public final class FloodService implements IArenaService {
     }
 
     private void scene(Pit pit, World world, Location centre, BasinRule.Basin basin,
-                       Supplier<Collection<Player>> audience, Runnable then) {
+                       Supplier<Collection<Player>> audience, java.util.function.IntConsumer risen, Runnable then) {
         Collection<Player> watching = audience.get();
         // The storm comes in.
         if (settings.navalRain()) {
@@ -223,6 +230,7 @@ public final class FloodService implements IArenaService {
                 layer.seals().forEach(cell -> world.getBlockAt(cell.x(), cell.y(), cell.z()).setType(Material.BARRIER, false));
                 layer.water().forEach(cell -> world.getBlockAt(cell.x(), cell.y(), cell.z()).setType(Material.WATER, false));
                 splash(world, layer);
+                risen.accept(layer.y());
                 Collection<Player> now = audience.get();
                 playAll(now, LAYER);
                 if (last) {

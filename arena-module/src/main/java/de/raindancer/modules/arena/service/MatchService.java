@@ -350,13 +350,55 @@ public final class MatchService implements IArenaService {
                             Scheduling.entity(plugin, player, () -> equip(fight, player, at, true)));
                 }
             }
-            floods.rise(pit, basin, () -> audience(fight), () -> {
+            int surface = basin.layers().getLast().y();
+            floods.rise(pit, basin, () -> audience(fight), y -> liftBoats(fight, y), () -> {
                 synchronized (fight) {
                     if (fight.state() != Fight.State.OVER) {
+                        reboard(fight, surface);
                         countdowns.put(fight.id(), settings.countdownClamped());
                     }
                 }
             }, () -> callOff(fight));
+        }
+    }
+
+    /**
+     * A layer of the flood stands: every boat still below it is lifted onto it, rider and all. A boat the water
+     * simply rose over would be under water — and the game throws a rider out of a sunken boat after three seconds.
+     */
+    private void liftBoats(Fight fight, int layerY) {
+        for (UUID member : fight.players()) {
+            Player player = server.getPlayer(member);
+            if (player == null || !(player.getVehicle() instanceof org.bukkit.entity.Boat boat)) {
+                continue;
+            }
+            Scheduling.entity(plugin, boat, () -> {
+                Location at = boat.getLocation();
+                if (at.getY() < layerY + 0.4) {
+                    Location lifted = at.clone();
+                    lifted.setY(layerY + 0.55);
+                    boat.teleportAsync(lifted, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN,
+                            io.papermc.paper.entity.TeleportFlag.EntityState.RETAIN_PASSENGERS);
+                }
+            });
+        }
+    }
+
+    /** The water is up: whoever is not in a boat — thrown out, or never in one — gets one on the surface. */
+    private void reboard(Fight fight, int surfaceY) {
+        for (UUID member : fight.players()) {
+            Player player = server.getPlayer(member);
+            if (player == null || !fight.has(member) || player.getVehicle() instanceof org.bukkit.entity.Boat) {
+                continue;
+            }
+            Scheduling.entity(plugin, player, () -> {
+                Location at = player.getLocation().clone();
+                at.setY(surfaceY + 0.55);
+                player.teleportAsync(at).thenAccept(moved -> Scheduling.entity(plugin, player, () -> {
+                    org.bukkit.entity.boat.OakBoat boat = player.getWorld().spawn(at, org.bukkit.entity.boat.OakBoat.class);
+                    boat.addPassenger(player);
+                }));
+            });
         }
     }
 

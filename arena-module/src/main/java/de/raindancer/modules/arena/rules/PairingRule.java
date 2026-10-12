@@ -36,6 +36,10 @@ public final class PairingRule implements IArenaRule {
         List<Group> groups = new ArrayList<>();
         for (List<QueueEntry> same : byKey.values()) {
             MatchSpec spec = same.getFirst().spec();
+            if (spec.mode().isGuild()) {
+                groups.addAll(guildGroups(spec, same));
+                continue;
+            }
             int taken = 0;
             while (true) {
                 List<QueueEntry> left = same.subList(taken, same.size());
@@ -46,6 +50,43 @@ public final class PairingRule implements IArenaRule {
                 groups.add(new Group(spec, sides(spec, left.subList(0, size))));
                 taken += size;
             }
+        }
+        return groups;
+    }
+
+    /**
+     * A guild war: the two longest-waiting guilds that each have a full side — a side each. Guild training: one
+     * guild with two full sides, split alternately by who came first. Nobody without a guild is ever placed.
+     */
+    private static List<Group> guildGroups(MatchSpec spec, List<QueueEntry> same) {
+        Map<String, List<QueueEntry>> byGuild = new LinkedHashMap<>();
+        same.stream().filter(entry -> entry.group() != null && !entry.group().isBlank())
+                .sorted(java.util.Comparator.comparingLong(QueueEntry::since))
+                .forEach(entry -> byGuild.computeIfAbsent(entry.group(), key -> new ArrayList<>()).add(entry));
+        int side = spec.teamSize();
+        List<Group> groups = new ArrayList<>();
+        if (spec.mode() == Mode.GUILD_TRAINING) {
+            for (List<QueueEntry> guild : byGuild.values()) {
+                for (int start = 0; start + 2 * side <= guild.size(); start += 2 * side) {
+                    Set<UUID> one = new HashSet<>();
+                    Set<UUID> two = new HashSet<>();
+                    for (int index = 0; index < 2 * side; index++) {
+                        (index % 2 == 0 ? one : two).add(guild.get(start + index).player());
+                    }
+                    groups.add(new Group(spec, List.of(one, two)));
+                }
+            }
+            return groups;
+        }
+        List<List<QueueEntry>> ready = new ArrayList<>(byGuild.values().stream().filter(guild -> guild.size() >= side).toList());
+        while (ready.size() >= 2) {
+            List<QueueEntry> first = ready.removeFirst();
+            List<QueueEntry> second = ready.removeFirst();
+            Set<UUID> one = new HashSet<>();
+            Set<UUID> two = new HashSet<>();
+            first.subList(0, side).forEach(entry -> one.add(entry.player()));
+            second.subList(0, side).forEach(entry -> two.add(entry.player()));
+            groups.add(new Group(spec, List.of(one, two)));
         }
         return groups;
     }

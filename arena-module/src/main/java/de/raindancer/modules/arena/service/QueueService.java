@@ -97,15 +97,46 @@ public final class QueueService implements IArenaService {
         }
     }
 
+    /** A guild as the survival server knows it: its lasting id, tag and name. */
+    public record GroupRef(String id, String tag, String name) {
+    }
+
+    private volatile java.util.function.Function<UUID, java.util.concurrent.CompletableFuture<Optional<GroupRef>>> groupOf =
+            player -> java.util.concurrent.CompletableFuture.completedFuture(Optional.empty());
+
+    /** How to ask which guild somebody fights for — over the link, from survival. */
+    public void groups(java.util.function.Function<UUID, java.util.concurrent.CompletableFuture<Optional<GroupRef>>> lookup) {
+        this.groupOf = lookup;
+    }
+
     public void join(Player player, MatchSpec spec) {
-        UUID id = player.getUniqueId();
         if (refused(player, spec)) {
             return;
         }
+        if (!spec.mode().isGuild()) {
+            enqueue(player, spec, null);
+            return;
+        }
+        // A guild fight: which guild they fight for is survival's to say.
+        groupOf.apply(player.getUniqueId()).whenComplete((found, failure) -> Scheduling.global(plugin, () -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            if (failure != null || found == null || found.isEmpty()) {
+                messages.send(player, failure != null ? "arena.queue.no-guild-info" : "arena.queue.no-guild");
+                return;
+            }
+            enqueue(player, spec, found.get().id());
+            messages.send(player, "arena.queue.for-guild", "guild", found.get().name(), "tag", found.get().tag());
+        }));
+    }
+
+    private void enqueue(Player player, MatchSpec spec, String group) {
+        UUID id = player.getUniqueId();
         consent.accept(id, spec);
         synchronized (this) {
             waiting.removeIf(entry -> entry.player().equals(id));
-            waiting.add(new QueueEntry(id, spec, clock.getAsLong()));
+            waiting.add(new QueueEntry(id, spec, clock.getAsLong(), group));
         }
         messages.send(player, "arena.queue.joined", "mode", spec.mode().title(), "kit", kitName(spec),
                 "stake", spec.stake());

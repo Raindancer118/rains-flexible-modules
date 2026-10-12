@@ -38,6 +38,12 @@ public final class ModeMenu extends Menu implements IArenaScreen {
         band(0, 4, Icons.of(Material.NETHERITE_SWORD, "<red>Free for all",
                 "<gray>Three to eight, everybody against everybody.", "<gray>The last one standing wins."),
                 click -> pickKit(new MatchSpec(Mode.FFA, null, 1, 0, 1, null)));
+        band(1, 2, Icons.of(Material.WHITE_BANNER, "<gold>Guild war",
+                        "<gray>Your guild against another guild,", "<gray>a side each — from two to five a side."),
+                click -> pickKit(new MatchSpec(Mode.GUILD_WAR, null, 1, 0, 2, null)));
+        band(1, 6, Icons.of(Material.TARGET, "<yellow>Guild training",
+                        "<gray>Your own guild, split into two sides.", "<gray>Practice before the next war."),
+                click -> pickKit(new MatchSpec(Mode.GUILD_TRAINING, null, 1, 0, 2, null)));
         band(0, 5, Icons.of(Material.OAK_BOAT, "<aqua>Naval battle",
                         "<gray>The pit floods. Everybody in a boat,", "<gray>tridents in hand — the last one afloat wins.",
                         "<gray>Two to eight, from the queue."),

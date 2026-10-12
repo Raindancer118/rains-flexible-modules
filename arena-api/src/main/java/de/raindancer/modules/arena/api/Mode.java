@@ -16,7 +16,11 @@ public enum Mode {
     /** Players together against waves of mobs. */
     WAVES("Mob waves", 1, 4),
     /** The pit is flooded; everybody in a boat, against everybody, the last one standing wins. */
-    NAVAL("Naval battle", 2, 8);
+    NAVAL("Naval battle", 2, 8),
+    /** Your guild against another guild, a side each. */
+    GUILD_WAR("Guild war", 4, 10),
+    /** Your own guild split into two sides. */
+    GUILD_TRAINING("Guild training", 4, 10);
 
     private final String title;
     private final int fewest;
@@ -34,6 +38,11 @@ public enum Mode {
 
     public int fewest() {
         return fewest;
+    }
+
+    /** Whether the sides are made of guilds — the queue has to know who is in which. */
+    public boolean isGuild() {
+        return this == GUILD_WAR || this == GUILD_TRAINING;
     }
 
     /** Whether everybody fights everybody, the queue waiting a while for more before it starts. */
@@ -63,6 +72,12 @@ public enum Mode {
         }
         if (name.equals("BOATS") || name.equals("SHIPS") || name.equals("NAVY") || name.equals("FLOOD")) {
             return Optional.of(NAVAL);
+        }
+        if (name.equals("GUILDWAR") || name.equals("GW") || name.equals("WAR")) {
+            return Optional.of(GUILD_WAR);
+        }
+        if (name.equals("TRAINING") || name.equals("GUILDTRAINING") || name.equals("SPARRING")) {
+            return Optional.of(GUILD_TRAINING);
         }
         for (Mode mode : values()) {
             if (mode.name().equals(name)) {

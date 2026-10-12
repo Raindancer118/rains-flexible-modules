@@ -297,4 +297,53 @@ class MatchRulesTest {
         }
         assertThat(rule.groups(eight, 100, 30_000).getFirst().sides()).hasSize(8);
     }
+
+    private static de.raindancer.modules.arena.model.QueueEntry waiting(MatchSpec spec, long since, String guild) {
+        return new de.raindancer.modules.arena.model.QueueEntry(java.util.UUID.randomUUID(), spec, since, guild);
+    }
+
+    @Test
+    @DisplayName("a guild war starts once two different guilds each have a side waiting — each guild one side")
+    void guildWar() {
+        MatchSpec war = new MatchSpec(Mode.GUILD_WAR, null, 1, 0, 2, null);
+        PairingRule rule = new PairingRule();
+        var a1 = waiting(war, 1, "guild:a");
+        var a2 = waiting(war, 2, "guild:a");
+        var a3 = waiting(war, 3, "guild:a");
+        var b1 = waiting(war, 4, "guild:b");
+        assertThat(rule.groups(java.util.List.of(a1, a2, a3, b1), 10, 30_000)).as("one guild alone is no war").isEmpty();
+        var b2 = waiting(war, 5, "guild:b");
+        java.util.List<PairingRule.Group> started = rule.groups(java.util.List.of(a1, a2, a3, b1, b2), 10, 30_000);
+        assertThat(started).hasSize(1);
+        assertThat(started.getFirst().sides()).containsExactly(
+                java.util.Set.of(a1.player(), a2.player()), java.util.Set.of(b1.player(), b2.player()));
+    }
+
+    @Test
+    @DisplayName("guild training: one guild split into two sides, alternating by who came first")
+    void guildTraining() {
+        MatchSpec training = new MatchSpec(Mode.GUILD_TRAINING, null, 1, 0, 2, null);
+        PairingRule rule = new PairingRule();
+        var a1 = waiting(training, 1, "guild:a");
+        var a2 = waiting(training, 2, "guild:a");
+        var a3 = waiting(training, 3, "guild:a");
+        var b1 = waiting(training, 4, "guild:b");
+        assertThat(rule.groups(java.util.List.of(a1, a2, a3, b1), 10, 30_000)).isEmpty();
+        var a4 = waiting(training, 5, "guild:a");
+        java.util.List<PairingRule.Group> started = rule.groups(java.util.List.of(a1, a2, a3, b1, a4), 10, 30_000);
+        assertThat(started).hasSize(1);
+        assertThat(started.getFirst().sides()).containsExactly(
+                java.util.Set.of(a1.player(), a3.player()), java.util.Set.of(a2.player(), a4.player()));
+    }
+
+    @Test
+    @DisplayName("guild modes take two to five a side; somebody without a guild never ends up in one")
+    void guildSizes() {
+        assertThat(new MatchSpec(Mode.GUILD_WAR, null, 1, 0, 9, null).teamSize()).isEqualTo(5);
+        assertThat(new MatchSpec(Mode.GUILD_TRAINING, null, 1, 0, 1, null).players()).isEqualTo(4);
+        PairingRule rule = new PairingRule();
+        MatchSpec war = new MatchSpec(Mode.GUILD_WAR, null, 1, 0, 2, null);
+        assertThat(rule.groups(java.util.List.of(waiting(war, 1, null), waiting(war, 2, null),
+                waiting(war, 3, "guild:b"), waiting(war, 4, "guild:b")), 10, 30_000)).isEmpty();
+    }
 }

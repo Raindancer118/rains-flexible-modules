@@ -161,4 +161,33 @@ public final class MatchListener implements IArenaListener {
         services.queue().forget(player);
         services.invites().forget(player);
     }
+
+    /**
+     * A boat item used on water in a naval battle puts the boat down. Adventure mode — what fighters play in — does
+     * not let the game do it, so the spare boats in the naval kit did nothing.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onBoatPlaced(org.bukkit.event.player.PlayerInteractEvent event) {
+        org.bukkit.inventory.ItemStack held = event.getItem();
+        if (held == null || !(held.getType().name().endsWith("_BOAT") || held.getType().name().endsWith("_RAFT"))
+                || !event.getAction().isRightClick()) {
+            return;
+        }
+        Player player = event.getPlayer();
+        Optional<Fight> fight = services.matches().fightOf(player.getUniqueId());
+        if (fight.isEmpty() || fight.get().spec().mode() != Mode.NAVAL || player.isInsideVehicle()) {
+            return;
+        }
+        org.bukkit.util.RayTraceResult hit = player.rayTraceBlocks(5, org.bukkit.FluidCollisionMode.ALWAYS);
+        if (hit == null || hit.getHitBlock() == null || hit.getHitBlock().getType() != Material.WATER) {
+            return;
+        }
+        event.setCancelled(true);
+        Location at = hit.getHitPosition().toLocation(player.getWorld());
+        at.setYaw(player.getLocation().getYaw());
+        player.getWorld().spawn(at, org.bukkit.entity.boat.OakBoat.class);
+        if (player.getGameMode() != GameMode.CREATIVE) {
+            held.setAmount(held.getAmount() - 1);
+        }
+    }
 }

@@ -22,7 +22,8 @@ public record MatchSpec(Mode mode, String kit, int bestOf, long stake, int teamS
                 : kit.toLowerCase(Locale.ROOT);
         bestOf = Math.max(1, Math.min(MOST_ROUNDS, bestOf | 1));
         stake = Math.max(0, Math.min(MOST_STAKE, stake));
-        teamSize = mode == Mode.TEAMS ? Math.max(2, Math.min(3, teamSize)) : 1;
+        teamSize = mode == Mode.TEAMS ? Math.max(2, Math.min(3, teamSize))
+                : mode.isGuild() ? Math.max(2, Math.min(5, teamSize)) : 1;
         if (mode == Mode.SUMO) {
             kit = "sumo";
         }
@@ -52,7 +53,7 @@ public record MatchSpec(Mode mode, String kit, int bestOf, long stake, int teamS
     public int players() {
         return switch (mode) {
             case DUEL, SUMO -> 2;
-            case TEAMS -> teamSize * 2;
+            case TEAMS, GUILD_WAR, GUILD_TRAINING -> teamSize * 2;
             case FFA, NAVAL -> mode.fewest();
             case WAVES -> 1;
         };

@@ -48,6 +48,14 @@ public final class FightOptionsMenu extends Menu implements IArenaScreen {
                     spec = spec.withBestOf(next < 1 ? MatchSpec.MOST_ROUNDS : next > MatchSpec.MOST_ROUNDS ? 1 : next);
                     refresh();
                 });
+        if (spec.mode().isGuild()) {
+            band(0, 2, Icons.of(Material.WHITE_BANNER, "<gold>" + spec.teamSize() + " a side",
+                    "<gray>Click for more, right click for fewer."), click -> {
+                        int next = spec.teamSize() + (click.isRightClick() ? -1 : 1);
+                        spec = spec.withTeamSize(next > 5 ? 2 : next < 2 ? 5 : next);
+                        refresh();
+                    });
+        }
         boolean money = services.link().isUp();
         int most = services.config().mostStake() > 0 ? services.config().mostStake() : 1_000_000;
         band(0, 1, money, Icons.of(Material.GOLD_INGOT, spec.stake() > 0 ? "<gold>Stake: " + spec.stake() : "<gold>No stake",

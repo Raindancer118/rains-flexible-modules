@@ -77,6 +77,15 @@ public final class GateNetwork {
             return null;
         });
         link.on(ArenaProtocol.WHERE, this::where);
+        link.on(ArenaProtocol.GROUP, data -> {
+            try {
+                return de.raindancer.core.social.team.Groups.of(UUID.fromString(data.get("player"))).stream().findFirst()
+                        .map(group -> Map.of("id", group.id(), "tag", group.tag(), "name", group.name()))
+                        .orElse(Map.of("id", ""));
+            } catch (RuntimeException garbled) {
+                return Map.of("id", "");
+            }
+        });
         link.on(ArenaProtocol.INVITE, this::inviteFromArena);
         link.on(ArenaProtocol.SUMMON, this::summon);
         link.on(ArenaProtocol.INVITE_CANCEL, data -> {

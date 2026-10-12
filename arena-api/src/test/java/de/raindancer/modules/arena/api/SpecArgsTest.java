@@ -51,4 +51,14 @@ class SpecArgsTest {
         org.assertj.core.api.Assertions.assertThat(spec.players()).isEqualTo(2);
         org.assertj.core.api.Assertions.assertThat(Mode.NAVAL.most()).isEqualTo(8);
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("war, guildwar and gw mean a guild war; training and sparring mean guild training")
+    void guildWords() {
+        org.assertj.core.api.Assertions.assertThat(SpecArgs.parse(new String[]{"guildwar"}, 0, Mode.DUEL).mode()).isEqualTo(Mode.GUILD_WAR);
+        org.assertj.core.api.Assertions.assertThat(SpecArgs.parse(new String[]{"war"}, 0, Mode.DUEL).mode()).isEqualTo(Mode.GUILD_WAR);
+        org.assertj.core.api.Assertions.assertThat(SpecArgs.parse(new String[]{"gw", "3v3"}, 0, Mode.DUEL).teamSize()).as("3v3 keeps the guild mode").isEqualTo(3);
+        org.assertj.core.api.Assertions.assertThat(SpecArgs.parse(new String[]{"gw", "3v3"}, 0, Mode.DUEL).mode()).isEqualTo(Mode.GUILD_WAR);
+        org.assertj.core.api.Assertions.assertThat(SpecArgs.parse(new String[]{"sparring"}, 0, Mode.DUEL).mode()).isEqualTo(Mode.GUILD_TRAINING);
+    }
 }

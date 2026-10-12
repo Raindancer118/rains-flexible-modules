@@ -65,7 +65,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.6.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.7.0")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -139,6 +139,16 @@ public final class ArenaModule implements FlexModule {
         queue = new QueueService(context.plugin(), server, context.core().messages(), context.core().actionBars(), arena,
                 matches, System::currentTimeMillis, settings.current(), id -> kits.get(id).isPresent(), link::isUp);
         matches.afterFight(queue::tick);
+        queue.groups(player -> link.ask(de.raindancer.modules.arena.api.ArenaProtocol.GROUP,
+                java.util.Map.of("player", player.toString())).thenApply(answer -> {
+                    String id = answer == null ? "" : answer.getOrDefault("id", "");
+                    if (answer == null || !answer.containsKey("id")) {
+                        throw new IllegalStateException("survival does not answer for guilds");
+                    }
+                    return id.isBlank() ? java.util.Optional.<QueueService.GroupRef>empty()
+                            : java.util.Optional.of(new QueueService.GroupRef(id, answer.getOrDefault("tag", ""),
+                                    answer.getOrDefault("name", "")));
+                }));
         queue.consent((player, spec) -> {
             if (spec.stake() > 0 || spec.isOwnGear()) {
                 link.tell(de.raindancer.modules.arena.api.ArenaProtocol.CONSENT, java.util.Map.of(

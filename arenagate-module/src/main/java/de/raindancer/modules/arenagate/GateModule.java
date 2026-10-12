@@ -31,7 +31,7 @@ import java.util.List;
  */
 public final class GateModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arenagate", "Arena Gate", "0.4.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("arenagate", "Arena Gate", "0.5.0")
             .describedAs("/arena and /pvp: off to the arena server, invites across both servers, stakes held here.")
             .by("Raindancer118");
 

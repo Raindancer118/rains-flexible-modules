@@ -25,7 +25,10 @@ public final class SpecArgs {
             if (word.matches("bo\\d")) {
                 bestOf = Integer.parseInt(word.substring(2));
             } else if (word.matches("\\dv\\d")) {
-                mode = Mode.TEAMS;
+                // A guild mode keeps its kind; anything else becomes teams of that size.
+                if (!mode.isGuild()) {
+                    mode = Mode.TEAMS;
+                }
                 teamSize = word.charAt(0) - '0';
             } else if (word.matches("\\d+")) {
                 stake = Long.parseLong(word);

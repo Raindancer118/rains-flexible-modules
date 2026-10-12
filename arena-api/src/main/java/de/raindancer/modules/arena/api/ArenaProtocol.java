@@ -51,6 +51,12 @@ public final class ArenaProtocol {
      */
     public static final String SMP_READY = "smp.ready";
 
+    /**
+     * Arena → survival: which lasting group (a guild) is this {@code player} in? Answer: {@code id}, {@code tag},
+     * {@code name} — all empty for none.
+     */
+    public static final String GROUP = "arena.group";
+
     private ArenaProtocol() {
     }
 }
