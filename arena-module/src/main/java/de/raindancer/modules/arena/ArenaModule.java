@@ -65,7 +65,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.9.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.10.0")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -111,7 +111,8 @@ public final class ArenaModule implements FlexModule {
                 context.core().effects(), worlds, layout, settings.current());
 
         KitService kits = new KitService(new KitBook(context.dataFolder().resolve("kits.yml")), ItemText.ofTheServer());
-        kits.seed(new KitDefaults(ItemText.ofTheServer()).all());
+        kits.seed(new KitDefaults(ItemText.ofTheServer()).all(),
+                new de.raindancer.modules.arena.store.ShippedKits(context.dataFolder().resolve("shipped-kits.yml")));
 
         var database = context.core().databases().of(StatsDatabase.NAME, StatsDatabase.SCHEMA);
         StatsStore stats = new StatsStore(database);

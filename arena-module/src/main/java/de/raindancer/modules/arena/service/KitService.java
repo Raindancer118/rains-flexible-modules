@@ -49,6 +49,29 @@ public final class KitService implements IArenaService {
         defaults.forEach(kits::putIfAbsent);
     }
 
+    /**
+     * Adds the built-in kits a server lacks, and replaces one an admin never touched with the plugin's newer version:
+     * {@code shipped} remembers each kit's fingerprint as seeded, and a stored copy still wearing it is untouched.
+     */
+    public void seed(List<Kit> defaults, de.raindancer.modules.arena.store.ShippedKits shipped) {
+        for (Kit fresh : defaults) {
+            java.util.Optional<Kit> stored = kits.get(fresh.id());
+            String now = de.raindancer.modules.arena.store.ShippedKits.fingerprint(fresh);
+            if (stored.isEmpty()) {
+                if (kits.putIfAbsent(fresh)) {
+                    shipped.remember(fresh);
+                }
+                continue;
+            }
+            java.util.Optional<String> seeded = shipped.seeded(fresh.id());
+            String storedPrint = de.raindancer.modules.arena.store.ShippedKits.fingerprint(stored.get());
+            if (seeded.isPresent() && seeded.get().equals(storedPrint) && !storedPrint.equals(now) && kits.put(fresh)) {
+                shipped.remember(fresh);
+            }
+        }
+    }
+
+
     /** Everything they hold is replaced by the kit. On the player's own thread. */
     public void give(Player player, Kit kit) {
         ItemStack[] contents = new ItemStack[player.getInventory().getContents().length];

@@ -65,7 +65,8 @@
         <!-- 0.7.0: naval: boats are lifted onto each new layer of the flood (a sunken boat throws its rider out), anybody boatless is seated on the surface when the water is up, spare boats can be placed on water (adventure mode cannot); guild wars (guild vs guild) and guild training (one guild in two sides), 2-5 a side, sides from the guilds survival reports. -->
         <!-- 0.8.0: mounted combat on saddled pigs (spear with lunge, carrot on a stick to steer, no dismounting while in the fight, pigs unhurtable); /rematch; no countdown freeze for riders (it fought the boats — the laggy start); the flood placed over ticks. -->
         <!-- 0.9.0: horseback combat: tamed, saddled, armoured horses that cannot be hurt, spear with lunge and shield (rider kit), nobody leaves their horse while in the fight. -->
-        <plugin.version>0.9.0</plugin.version>
+        <!-- 0.10.0: pig combat: lancer kit gains a bow (Power I, Infinity) and a trident (Loyalty II), pigs run at 0.6 (a farm pig 0.25); built-in kits nobody edited follow newer versions (shipped-kits.yml). -->
+        <plugin.version>0.10.0</plugin.version>
     </properties>
 
     <dependencies>

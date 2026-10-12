@@ -460,6 +460,9 @@ public final class MatchService implements IArenaService {
         }
     }
 
+    /** A mounted-combat pig's speed; a farm pig's is 0.25. */
+    private static final double PIG_SPEED = 0.6;
+
     /** What a fighter starts the round sitting on. */
     private enum Ride { NONE, BOAT, PIG, HORSE }
 
@@ -491,6 +494,11 @@ public final class MatchService implements IArenaService {
                 org.bukkit.entity.Pig pig = spawn.getWorld().spawn(spawn, org.bukkit.entity.Pig.class, made -> {
                     made.setSaddle(true);
                     made.setInvulnerable(true);
+                    // Far faster than a farm pig (0.25): a joust needs a charge, and the carrot's boost still adds.
+                    org.bukkit.attribute.AttributeInstance speed = made.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED);
+                    if (speed != null) {
+                        speed.setBaseValue(PIG_SPEED);
+                    }
                     made.setAdult();
                     made.setRemoveWhenFarAway(false);
                 });

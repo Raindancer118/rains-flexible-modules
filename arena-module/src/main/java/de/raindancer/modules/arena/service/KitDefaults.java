@@ -149,11 +149,19 @@ public final class KitDefaults {
         return kit("naval", "Naval", Material.TRIDENT, slots, false);
     }
 
-    /** For mounted combat: a spear that lunges, the only way to steer a pig, and armour for the hits that land. */
+    /**
+     * For mounted combat: a spear that lunges, a bow and a trident for the riders out of reach, the only way to steer a
+     * pig, and armour for the hits that land.
+     */
     private Kit lancer() {
         Slots slots = new Slots().armour(Material.IRON_HELMET, Material.IRON_CHESTPLATE, Material.IRON_LEGGINGS,
                 Material.IRON_BOOTS, 1);
         slots.hotbar(0, enchanted(Material.IRON_SPEAR, Enchantment.LUNGE, 2));
+        ItemStack bow = enchanted(Material.BOW, Enchantment.POWER, 1);
+        bow.addUnsafeEnchantment(Enchantment.INFINITY, 1);
+        slots.hotbar(2, bow);
+        slots.hotbar(3, enchanted(Material.TRIDENT, Enchantment.LOYALTY, 2));
+        slots.storage(0, item(Material.ARROW, 1));
         ItemStack stick = item(Material.CARROT_ON_A_STICK, 1);
         stick.editMeta(meta -> meta.setUnbreakable(true));
         // In the off hand: a pig obeys it from either hand, so the spear stays ready while steering.
