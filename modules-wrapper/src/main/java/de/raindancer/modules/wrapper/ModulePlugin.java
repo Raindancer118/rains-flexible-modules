@@ -49,6 +49,7 @@ public final class ModulePlugin extends JavaPlugin {
         brandTheMessages();
         wireUpButtons();
         reportTheCommands();
+        reportToTheHub();
         report();
     }
 
@@ -56,6 +57,7 @@ public final class ModulePlugin extends JavaPlugin {
     public void onDisable() {
         // Stops everything that started, newest first, and unwinds each one — then forgets the registry, so a
         // reload starts from nothing rather than from whatever the last run left behind.
+        forgetFromTheHub();
         Modules.shutdown();
     }
 
@@ -109,6 +111,28 @@ public final class ModulePlugin extends JavaPlugin {
      * description Paper already shows in its own help, which is a worse entry than a written one and
      * a far better one than none.
      */
+    /**
+     * One door in {@code /hub} per running module, built from what the module already says about itself
+     * ({@code info()} and {@code commands()}), so a new module appears with no line to remember.
+     */
+    private void reportToTheHub() {
+        var hub = RainsCore.get().hub();
+        for (FlexModule module : Modules.registry().enabled()) {
+            var info = module.info();
+            hub.declare(de.raindancer.core.ui.hub.HubEntry.of(info.id(), info.name(), info.version(),
+                    info.description(), module.commands().stream().map(ModuleCommand::name).toList()));
+        }
+    }
+
+    private void forgetFromTheHub() {
+        if (!RainsCore.isAvailable()) {
+            return;
+        }
+        for (FlexModule module : Modules.registry().enabled()) {
+            RainsCore.get().hub().forget(module.info().id());
+        }
+    }
+
     private void reportTheCommands() {
         var directory = RainsCore.get().commands();
         String plugin = Modules.registry().enabled().size() == 1
