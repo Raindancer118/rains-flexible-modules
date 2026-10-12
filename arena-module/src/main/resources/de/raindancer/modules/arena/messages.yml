@@ -101,8 +101,15 @@ arena:
     none: "<gray><white><player></white> has not fought in the arena yet."
 
   pvp:
-    usage: "<gray>/pvp invite <player> [duel|sumo|waves] [kit|own] [stake] [bo3]  ·  /pvp accept  ·  /pvp deny  ·  /pvp queue [mode] [kit]  ·  /pvp join <player>  ·  /pvp leave  ·  /pvp rematch"
-    only-duels: "<red>An invite is for a duel, sumo or a mob run together. Teams and free for all come from the queue."
+    usage: "<gray>/pvp invite <player> [duel|sumo|naval|waves] [kit|own] [stake] [bo3]  ·  /pvp accept  ·  /pvp deny  ·  /pvp queue [mode] [kit]  ·  /pvp join <player>  ·  /pvp leave  ·  /pvp rematch"
+    only-duels: "<red>An invite is for a duel, sumo, a naval battle or a mob run together. Teams and free for all come from the queue."
+
+  naval:
+    flood-title: "<aqua><bold>⚓ THE FLOOD"
+    flood-subtitle: "<gray>Hold on to your boat."
+    risen-title: "<dark_aqua><bold>The waters have risen"
+    risen-subtitle: "<gray>Last one afloat wins."
+    no-water: "<red>This pit cannot hold water, so the naval battle is off. Nobody lost anything. <gray>Staff: the pit needs a floor box and spawns."
 
   rematch:
     offer: "<gray>Again against <white><others></white>? Same kit, same rounds, same stake. <click:run_command:'/pvp rematch'><gold>[Rematch]</gold></click> <dark_gray>(a minute to decide)"

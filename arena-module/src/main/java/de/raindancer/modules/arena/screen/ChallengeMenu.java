@@ -37,6 +37,9 @@ public final class ChallengeMenu extends Menu implements IArenaScreen {
         band(0, 4, Icons.of(Material.STICK, "<yellow>Sumo", "<gray>No damage. Push them out of the ring."),
                 click -> new FightOptionsMenu(services, viewer, this, new MatchSpec(Mode.SUMO, null, 1, 0, 1, null),
                         target).open());
+        band(0, 5, Icons.of(Material.OAK_BOAT, "<aqua>Naval battle", "<gray>The pit floods; boats and tridents."),
+                click -> new FightOptionsMenu(services, viewer, this, new MatchSpec(Mode.NAVAL, null, 1, 0, 1, null),
+                        target).open());
         band(0, 6, Icons.of(Material.ZOMBIE_HEAD, "<dark_green>Mob waves together", "<gray>The two of you against the waves."),
                 click -> pickKit(MatchSpec.waves(WaveSpec.PRESETS.get("warmup"), null)));
     }

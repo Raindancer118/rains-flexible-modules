@@ -40,7 +40,8 @@
         <!-- 0.3.0: [Cancel] on a sent invite (here and across), names on the arena tab-complete, an expired invite no
              longer blocks asking again. Needs RainsCore 1.118.0. -->
         <!-- 0.3.1: a vanished player is not online as far as the arena is told (invites, payments). -->
-        <plugin.version>0.3.1</plugin.version>
+        <!-- 0.4.0: naval battles can be asked for from survival (/pvp invite <player> naval); arena-api 0.2.0. -->
+        <plugin.version>0.4.0</plugin.version>
     </properties>
 
     <dependencies>

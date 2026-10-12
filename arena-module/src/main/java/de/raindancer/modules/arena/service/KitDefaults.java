@@ -27,7 +27,7 @@ public final class KitDefaults {
     }
 
     public List<Kit> all() {
-        return List.of(gladiator(), knight(), netherite(), archer(), axe(), mace(), potion(), uhc(), sumo());
+        return List.of(gladiator(), knight(), netherite(), archer(), axe(), mace(), potion(), uhc(), sumo(), naval());
     }
 
     private Kit gladiator() {
@@ -131,6 +131,22 @@ public final class KitDefaults {
         Slots slots = new Slots();
         slots.hotbar(0, enchanted(Material.STICK, Enchantment.KNOCKBACK, 1));
         return kit("sumo", "Sumo", Material.STICK, slots, true);
+    }
+
+    /** For a naval battle: a trident that comes back, one that flings you out of the water, spare boats. */
+    private Kit naval() {
+        Slots slots = new Slots();
+        ItemStack helmet = leather(Material.LEATHER_HELMET);
+        helmet.addUnsafeEnchantment(Enchantment.RESPIRATION, 3);
+        ItemStack boots = leather(Material.LEATHER_BOOTS);
+        boots.addUnsafeEnchantment(Enchantment.DEPTH_STRIDER, 3);
+        slots.wear(helmet, leather(Material.LEATHER_CHESTPLATE), leather(Material.LEATHER_LEGGINGS), boots);
+        slots.hotbar(0, enchanted(Material.TRIDENT, Enchantment.LOYALTY, 3));
+        slots.hotbar(1, enchanted(Material.TRIDENT, Enchantment.RIPTIDE, 2));
+        slots.hotbar(2, item(Material.COOKED_COD, 8));
+        slots.hotbar(3, item(Material.OAK_BOAT, 2));
+        slots.offHand(item(Material.SHIELD, 1));
+        return kit("naval", "Naval", Material.TRIDENT, slots, false);
     }
 
     // ── making items ───────────────────────────────────────────────────────────────────────────────

@@ -13,8 +13,8 @@ arenagate:
   back: "<gray><white><player></white> is back from the arena."
 
   pvp:
-    usage: "<gray>/pvp invite <player> [duel|sumo|waves] [kit|own] [stake] [bo3]  ·  /pvp accept  ·  /pvp deny  ·  /pvp queue [mode] [kit] [stake]"
-    only-duels: "<red>An invite is for a duel, sumo or a mob run together. Teams and free for all come from the queue."
+    usage: "<gray>/pvp invite <player> [duel|sumo|naval|waves] [kit|own] [stake] [bo3]  ·  /pvp accept  ·  /pvp deny  ·  /pvp queue [mode] [kit] [stake]"
+    only-duels: "<red>An invite is for a duel, sumo, a naval battle or a mob run together. Teams and free for all come from the queue."
 
   invite:
     self: "<red>You cannot fight yourself."

@@ -60,7 +60,8 @@
         <!-- 0.5.0: [Rematch] after a fight; fights waiting for more people are announced in the hub (and on arrival) with [Join] (/pvp join); the lanista challenges a player directly, here or on survival. -->
         <!-- 0.5.1: [Join] carries the fight it showed; a player who switched queues since is not joined into a fight (or stake) the clicker never saw. -->
         <!-- 0.5.2: the [Join] fingerprint is SHA-256 (64 bits), not String.hashCode — a chosen stake cannot forge it. -->
-        <plugin.version>0.5.2</plugin.version>
+        <!-- 0.6.0: naval battles — the pit floods as a scene (horn, thunder, rain, waterfalls, rising water), everybody in a boat on a ring, tridents; sealed so no water leaves the pit, every block put back after (and after a crash, from floods/); the naval kit. -->
+        <plugin.version>0.6.0</plugin.version>
     </properties>
 
     <dependencies>

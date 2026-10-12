@@ -51,11 +51,12 @@ public final class PairingRule implements IArenaRule {
     }
 
     private static int sizeFor(MatchSpec spec, List<QueueEntry> left, long now, long ffaWaitMillis) {
-        if (spec.mode() == Mode.FFA) {
-            if (left.size() >= Mode.FFA.most()) {
-                return Mode.FFA.most();
+        if (spec.mode().isFreeForAll()) {
+            Mode mode = spec.mode();
+            if (left.size() >= mode.most()) {
+                return mode.most();
             }
-            if (left.size() >= Mode.FFA.fewest() && now - left.get(Mode.FFA.fewest() - 1).since() >= ffaWaitMillis) {
+            if (left.size() >= mode.fewest() && now - left.get(mode.fewest() - 1).since() >= ffaWaitMillis) {
                 return left.size();
             }
             return 0;

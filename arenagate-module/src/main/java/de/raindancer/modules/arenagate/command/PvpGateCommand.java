@@ -51,7 +51,8 @@ public final class PvpGateCommand implements IGateCommand {
                     return;
                 }
                 MatchSpec spec = SpecArgs.parse(args, 2, Mode.DUEL);
-                if (spec.mode() != Mode.DUEL && spec.mode() != Mode.SUMO && spec.mode() != Mode.WAVES) {
+                if (spec.mode() != Mode.DUEL && spec.mode() != Mode.SUMO && spec.mode() != Mode.WAVES
+                        && spec.mode() != Mode.NAVAL) {
                     live.messages().send(player, "arenagate.pvp.only-duels");
                     return;
                 }

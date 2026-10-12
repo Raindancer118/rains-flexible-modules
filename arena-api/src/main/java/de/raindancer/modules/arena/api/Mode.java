@@ -14,7 +14,9 @@ public enum Mode {
     /** One against one, no damage, pushed out of the ring is out. */
     SUMO("Sumo", 2, 2),
     /** Players together against waves of mobs. */
-    WAVES("Mob waves", 1, 4);
+    WAVES("Mob waves", 1, 4),
+    /** The pit is flooded; everybody in a boat, against everybody, the last one standing wins. */
+    NAVAL("Naval battle", 2, 8);
 
     private final String title;
     private final int fewest;
@@ -32,6 +34,11 @@ public enum Mode {
 
     public int fewest() {
         return fewest;
+    }
+
+    /** Whether everybody fights everybody, the queue waiting a while for more before it starts. */
+    public boolean isFreeForAll() {
+        return this == FFA || this == NAVAL;
     }
 
     public int most() {
@@ -53,6 +60,9 @@ public enum Mode {
         }
         if (name.equals("TEAM")) {
             return Optional.of(TEAMS);
+        }
+        if (name.equals("BOATS") || name.equals("SHIPS") || name.equals("NAVY") || name.equals("FLOOD")) {
+            return Optional.of(NAVAL);
         }
         for (Mode mode : values()) {
             if (mode.name().equals(name)) {

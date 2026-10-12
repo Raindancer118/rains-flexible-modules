@@ -74,10 +74,25 @@ public record ArenaSettings(
         @Describe("The name of a Minecraft account whose skin the gladiators in the hub wear under their armour. "
                 + "Empty is a plain suit. Applies to gladiators placed afterwards.")
         @Key("npc-skin")
-        String npcSkin) {
+        String npcSkin,
+
+        @In("arena") @Title("Naval battle: water depth") @Range(min = 2, max = 8)
+        @Describe("How many blocks of water a naval battle floods its pit with.")
+        @Key("naval.depth")
+        int navalDepth,
+
+        @In("arena") @Title("Naval battle: the flood takes") @Range(min = 3, max = 30)
+        @Describe("Seconds from the first wave to full water — the show before the countdown.")
+        @Key("naval.flood-seconds")
+        int navalFloodSeconds,
+
+        @In("arena") @Title("Naval battle: rain")
+        @Describe("Rain for everybody in a naval battle while it lasts. Only for them — the weather itself is untouched.")
+        @Key("naval.rain")
+        boolean navalRain) {
 
     public static final ArenaSettings DEFAULTS = new ArenaSettings("lillyxoxo", 6, GameMode.ADVENTURE, true, 5, 5, 20,
-            6, 0, "");
+            6, 0, "", 3, 8, true);
 
     public String lobbyOrDefault() {
         return lobbyServer == null || lobbyServer.isBlank() ? "lobby" : lobbyServer.strip();
@@ -103,47 +118,55 @@ public record ArenaSettings(
         return Math.max(3, Math.min(20, sumoRadius));
     }
 
+    public int navalDepthClamped() {
+        return Math.max(2, Math.min(8, navalDepth));
+    }
+
+    public int navalFloodTicks() {
+        return Math.max(3, Math.min(30, navalFloodSeconds)) * 20;
+    }
+
     public GameMode gameModeOrDefault() {
         return gameMode == null || gameMode == GameMode.SPECTATOR ? GameMode.ADVENTURE : gameMode;
     }
 
     public ArenaSettings withLobbyServer(String value) {
-        return new ArenaSettings(value, borderMargin, gameMode, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, npcSkin);
+        return new ArenaSettings(value, borderMargin, gameMode, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, npcSkin, navalDepth, navalFloodSeconds, navalRain);
     }
 
     public ArenaSettings withBorderMargin(int value) {
-        return new ArenaSettings(lobbyServer, value, gameMode, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, npcSkin);
+        return new ArenaSettings(lobbyServer, value, gameMode, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, npcSkin, navalDepth, navalFloodSeconds, navalRain);
     }
 
     public ArenaSettings withGameMode(GameMode value) {
-        return new ArenaSettings(lobbyServer, borderMargin, value, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, npcSkin);
+        return new ArenaSettings(lobbyServer, borderMargin, value, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, npcSkin, navalDepth, navalFloodSeconds, navalRain);
     }
 
     public ArenaSettings withHubFed(boolean value) {
-        return new ArenaSettings(lobbyServer, borderMargin, gameMode, value, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, npcSkin);
+        return new ArenaSettings(lobbyServer, borderMargin, gameMode, value, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, npcSkin, navalDepth, navalFloodSeconds, navalRain);
     }
 
     public ArenaSettings withFightMinutes(int value) {
-        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, value, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, npcSkin);
+        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, value, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, npcSkin, navalDepth, navalFloodSeconds, navalRain);
     }
 
     public ArenaSettings withCountdownSeconds(int value) {
-        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, fightMinutes, value, ffaWaitSeconds, sumoRadius, mostStake, npcSkin);
+        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, fightMinutes, value, ffaWaitSeconds, sumoRadius, mostStake, npcSkin, navalDepth, navalFloodSeconds, navalRain);
     }
 
     public ArenaSettings withFfaWaitSeconds(int value) {
-        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, fightMinutes, countdownSeconds, value, sumoRadius, mostStake, npcSkin);
+        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, fightMinutes, countdownSeconds, value, sumoRadius, mostStake, npcSkin, navalDepth, navalFloodSeconds, navalRain);
     }
 
     public ArenaSettings withSumoRadius(int value) {
-        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, value, mostStake, npcSkin);
+        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, value, mostStake, npcSkin, navalDepth, navalFloodSeconds, navalRain);
     }
 
     public ArenaSettings withMostStake(int value) {
-        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, value, npcSkin);
+        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, value, npcSkin, navalDepth, navalFloodSeconds, navalRain);
     }
 
     public ArenaSettings withNpcSkin(String value) {
-        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, value);
+        return new ArenaSettings(lobbyServer, borderMargin, gameMode, hubFed, fightMinutes, countdownSeconds, ffaWaitSeconds, sumoRadius, mostStake, value, navalDepth, navalFloodSeconds, navalRain);
     }
 }

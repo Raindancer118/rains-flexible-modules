@@ -38,6 +38,10 @@ public final class ModeMenu extends Menu implements IArenaScreen {
         band(0, 4, Icons.of(Material.NETHERITE_SWORD, "<red>Free for all",
                 "<gray>Three to eight, everybody against everybody.", "<gray>The last one standing wins."),
                 click -> pickKit(new MatchSpec(Mode.FFA, null, 1, 0, 1, null)));
+        band(0, 5, Icons.of(Material.OAK_BOAT, "<aqua>Naval battle",
+                        "<gray>The pit floods. Everybody in a boat,", "<gray>tridents in hand — the last one afloat wins.",
+                        "<gray>Two to eight, from the queue."),
+                click -> new FightOptionsMenu(services, viewer, this, new MatchSpec(Mode.NAVAL, null, 1, 0, 1, null)).open());
         band(2, 4, Icons.of(Material.PLAYER_HEAD, "<gold><bold>Challenge a player",
                         "<gray>Pick somebody — here or on survival —", "<gray>then the fight, the kit and the stake.",
                         "<gray>They get a minute to accept."),

@@ -114,6 +114,14 @@ public final class MatchService implements IArenaService {
         this.waves = waves;
     }
 
+    private volatile FloodService floods;
+    private final de.raindancer.modules.arena.rules.NavalSpotsRule navalSpots = new de.raindancer.modules.arena.rules.NavalSpotsRule();
+
+    /** Wired after construction: floods a pit for a naval battle and drains it after. */
+    public void floods(FloodService floods) {
+        this.floods = floods;
+    }
+
     /** Wired after construction: clears a pit before each round and after each fight. */
     public void sweeper(PitSweeper sweeper) {
         this.sweeper = sweeper;
@@ -167,6 +175,10 @@ public final class MatchService implements IArenaService {
     public Set<String> busyPits() {
         Set<String> busy = new HashSet<>();
         fights.values().forEach(fight -> busy.add(fight.pit().id()));
+        if (floods != null) {
+            // A pit with water still in it is not free, though its fight is over.
+            busy.addAll(floods.busyPits());
+        }
         return busy;
     }
 
@@ -276,6 +288,10 @@ public final class MatchService implements IArenaService {
                 // Whatever the last round left — or the last fight in this pit — is gone before anybody arrives.
                 sweeper.sweep(fight.pit());
             }
+            if (fight.spec().mode() == Mode.NAVAL && floods != null) {
+                floods.plan(fight.pit()).thenAccept(basin -> Scheduling.global(plugin, () -> launch(fight, basin)));
+                return;
+            }
             List<Place> spawns = fight.pit().spawns();
             int side = 0;
             for (Set<UUID> members : fight.sides()) {
@@ -300,7 +316,74 @@ public final class MatchService implements IArenaService {
         }
     }
 
+    /**
+     * A naval battle: everybody in a boat round a ring on the dry floor, then the flood as a scene, then the countdown.
+     * A pit that cannot hold water calls the fight off with every stake back.
+     */
+    private void launch(Fight fight, Optional<de.raindancer.modules.arena.rules.BasinRule.Basin> planned) {
+        synchronized (fight) {
+            if (fight.state() == Fight.State.OVER) {
+                return;
+            }
+            if (planned.isEmpty()) {
+                callOff(fight);
+                return;
+            }
+            de.raindancer.modules.arena.rules.BasinRule.Basin basin = planned.get();
+            Pit pit = fight.pit();
+            Place a = pit.spawns().getFirst();
+            Place b = pit.spawns().get(pit.spawns().size() > 1 ? 1 : 0);
+            List<UUID> boarding = fight.players().stream().filter(fight::has).toList();
+            Box floor = pit.floor();
+            List<de.raindancer.modules.arena.rules.NavalSpotsRule.Spot> spots = navalSpots.spots(boarding.size(),
+                    a.x(), a.z(), b.x(), b.z(), new HashSet<>(basin.layers().getFirst().water()),
+                    floor.minX(), floor.maxX(), floor.minZ(), floor.maxZ());
+            if (spots.size() < boarding.size()) {
+                callOff(fight);
+                return;
+            }
+            for (int index = 0; index < boarding.size(); index++) {
+                Player player = server.getPlayer(boarding.get(index));
+                de.raindancer.modules.arena.rules.NavalSpotsRule.Spot spot = spots.get(index);
+                if (player != null) {
+                    Places.location(server, FloodService.spot(pit, spot.x(), spot.z(), spot.yaw())).ifPresent(at ->
+                            Scheduling.entity(plugin, player, () -> equip(fight, player, at, true)));
+                }
+            }
+            floods.rise(pit, basin, () -> audience(fight), () -> {
+                synchronized (fight) {
+                    if (fight.state() != Fight.State.OVER) {
+                        countdowns.put(fight.id(), settings.countdownClamped());
+                    }
+                }
+            }, () -> callOff(fight));
+        }
+    }
+
+    private void callOff(Fight fight) {
+        tellAll(fight, "arena.naval.no-water");
+        if (fight.spec().stake() > 0) {
+            stakes.refund(fight.id());
+        }
+        Set<UUID> home = new HashSet<>(fight.players());
+        dissolve(fight);
+        for (UUID member : home) {
+            Player player = server.getPlayer(member);
+            if (player != null) {
+                Scheduling.entity(plugin, player, () -> {
+                    HubState.apply(player, settings);
+                    arena.toHub(player);
+                    arena.fightOver(member);
+                });
+            }
+        }
+    }
+
     private void equip(Fight fight, Player player, Location spawn) {
+        equip(fight, player, spawn, false);
+    }
+
+    private void equip(Fight fight, Player player, Location spawn, boolean boat) {
         HubState.apply(player, settings);
         player.setGameMode(GameMode.ADVENTURE);
         player.teleportAsync(spawn).thenAccept(moved -> Scheduling.entity(plugin, player, () -> {
@@ -312,6 +395,10 @@ public final class MatchService implements IArenaService {
                 kits.get(spec.kit()).ifPresent(kit -> kits.give(player, kit));
             }
             messages.send(player, "arena.fight.round", "round", fight.round(), "mode", spec.mode().title());
+            if (boat) {
+                org.bukkit.entity.boat.OakBoat ride = spawn.getWorld().spawn(spawn, org.bukkit.entity.boat.OakBoat.class);
+                ride.addPassenger(player);
+            }
         }));
     }
 
@@ -512,6 +599,17 @@ public final class MatchService implements IArenaService {
 
         if (waves != null) {
             waves.clear(fight);
+        }
+        if (spec.mode() == Mode.NAVAL && floods != null) {
+            Set<UUID> rained = new HashSet<>(fight.players());
+            rained.addAll(spectators.getOrDefault(fight.id(), Set.of()));
+            // After the winner's moment, before anybody is sent home: the whirlpool takes the water.
+            Scheduling.globalLater(plugin, 40L, () -> floods.drain(fight.pit(), rained, () -> {
+                if (sweeper != null) {
+                    sweeper.sweep(fight.pit());
+                }
+                afterFight.run();
+            }));
         }
         Set<UUID> home = new HashSet<>(fight.players());
         home.addAll(spectators.getOrDefault(fight.id(), Set.of()));

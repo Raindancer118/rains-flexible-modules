@@ -36,4 +36,19 @@ class SpecArgsTest {
         assertThat(SpecArgs.parse(new String[]{"queue"}, 1, Mode.DUEL)).isEqualTo(MatchSpec.duel(null));
         assertThat(SpecArgs.parse(new String[0], 0, Mode.WAVES).mode()).isEqualTo(Mode.WAVES);
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("naval, boats, ships and navy all mean a naval battle: its own kit, one round, two to eight")
+    void naval() {
+        for (String word : java.util.List.of("naval", "boats", "ships", "navy")) {
+            MatchSpec spec = SpecArgs.parse(new String[]{word}, 0, Mode.DUEL);
+            org.assertj.core.api.Assertions.assertThat(spec.mode()).as(word).isEqualTo(Mode.NAVAL);
+            org.assertj.core.api.Assertions.assertThat(spec.kit()).isEqualTo("naval");
+        }
+        MatchSpec spec = SpecArgs.parse(new String[]{"naval", "archer", "bo5"}, 0, Mode.DUEL);
+        org.assertj.core.api.Assertions.assertThat(spec.kit()).as("another kit may be chosen").isEqualTo("archer");
+        org.assertj.core.api.Assertions.assertThat(spec.bestOf()).as("one flood, one round").isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(spec.players()).isEqualTo(2);
+        org.assertj.core.api.Assertions.assertThat(Mode.NAVAL.most()).isEqualTo(8);
+    }
 }

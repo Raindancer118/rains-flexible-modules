@@ -35,6 +35,7 @@ import de.raindancer.modules.arena.service.KitService;
 import de.raindancer.modules.arena.service.MatchService;
 import de.raindancer.modules.arena.service.NetworkService;
 import de.raindancer.modules.arena.service.NpcService;
+import de.raindancer.modules.arena.service.FloodService;
 import de.raindancer.modules.arena.service.PitSweeper;
 import de.raindancer.modules.arena.service.QueueService;
 import de.raindancer.modules.arena.service.StakeService;
@@ -64,7 +65,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.5.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.6.0")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -130,6 +131,11 @@ public final class ArenaModule implements FlexModule {
         matches.waves(waves);
         PitSweeper sweeper = new PitSweeper(context.plugin(), server, entity -> npcs.role(entity).isPresent());
         matches.sweeper(sweeper);
+        FloodService floods = new FloodService(context.plugin(), server, context.core().effects(),
+                context.core().messages(), new de.raindancer.modules.arena.store.FloodLedger(
+                        context.dataFolder().resolve("floods")), log, settings.current());
+        matches.floods(floods);
+        context.closeWith(floods::drainNow);
         queue = new QueueService(context.plugin(), server, context.core().messages(), context.core().actionBars(), arena,
                 matches, System::currentTimeMillis, settings.current(), id -> kits.get(id).isPresent(), link::isUp);
         matches.afterFight(queue::tick);
@@ -166,6 +172,7 @@ public final class ArenaModule implements FlexModule {
             worlds.settings(fresh);
             arena.settings(fresh);
             matches.settings(fresh);
+            floods.settings(fresh);
             queue.settings(fresh);
             invites.mostStake(fresh.mostStake());
             Scheduling.global(context.plugin(), () -> worlds.loadAll(layout.current()));
@@ -208,6 +215,10 @@ public final class ArenaModule implements FlexModule {
 
         Scheduling.global(context.plugin(), () -> {
             worlds.loadAll(layout.current());
+            int dried = floods.recover();
+            if (dried > 0) {
+                log.warn("{} pit(s) were left flooded by a stop mid-battle and are put back as they were.", dried);
+            }
             log.info("Arena is up: {} world(s), {} pit(s), {} kit(s), hub {}.", layout.current().worlds().size(),
                     layout.current().pits().size(), kits.all().size(),
                     layout.current().hub().isPresent() ? "set" : "not set");

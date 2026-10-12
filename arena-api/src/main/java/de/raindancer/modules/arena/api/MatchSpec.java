@@ -18,7 +18,8 @@ public record MatchSpec(Mode mode, String kit, int bestOf, long stake, int teamS
 
     public MatchSpec {
         mode = mode == null ? Mode.DUEL : mode;
-        kit = kit == null || kit.isBlank() ? (mode == Mode.SUMO ? "sumo" : "gladiator") : kit.toLowerCase(Locale.ROOT);
+        kit = kit == null || kit.isBlank() ? (mode == Mode.SUMO ? "sumo" : mode == Mode.NAVAL ? "naval" : "gladiator")
+                : kit.toLowerCase(Locale.ROOT);
         bestOf = Math.max(1, Math.min(MOST_ROUNDS, bestOf | 1));
         stake = Math.max(0, Math.min(MOST_STAKE, stake));
         teamSize = mode == Mode.TEAMS ? Math.max(2, Math.min(3, teamSize)) : 1;
@@ -30,7 +31,7 @@ public record MatchSpec(Mode mode, String kit, int bestOf, long stake, int teamS
         } else if (waves == null) {
             waves = WaveSpec.PRESETS.get("warmup");
         }
-        if (mode == Mode.WAVES || mode == Mode.FFA) {
+        if (mode == Mode.WAVES || mode.isFreeForAll()) {
             bestOf = 1;
         }
     }
@@ -52,7 +53,7 @@ public record MatchSpec(Mode mode, String kit, int bestOf, long stake, int teamS
         return switch (mode) {
             case DUEL, SUMO -> 2;
             case TEAMS -> teamSize * 2;
-            case FFA -> mode.fewest();
+            case FFA, NAVAL -> mode.fewest();
             case WAVES -> 1;
         };
     }

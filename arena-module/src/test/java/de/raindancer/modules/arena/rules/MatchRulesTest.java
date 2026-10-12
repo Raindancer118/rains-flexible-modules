@@ -278,4 +278,23 @@ class MatchRulesTest {
             assertThat(rule.clears(kept)).as(kept).isFalse();
         }
     }
+
+    @Test
+    @DisplayName("a naval battle starts with two once the wait is over, at once with eight — everybody on their own side")
+    void navalPairing() {
+        MatchSpec spec = new MatchSpec(Mode.NAVAL, null, 1, 0, 1, null);
+        PairingRule rule = new PairingRule();
+        java.util.List<de.raindancer.modules.arena.model.QueueEntry> two = java.util.List.of(
+                new de.raindancer.modules.arena.model.QueueEntry(java.util.UUID.randomUUID(), spec, 0),
+                new de.raindancer.modules.arena.model.QueueEntry(java.util.UUID.randomUUID(), spec, 10));
+        assertThat(rule.groups(two, 1_000, 30_000)).as("still waiting for more").isEmpty();
+        java.util.List<PairingRule.Group> started = rule.groups(two, 40_000, 30_000);
+        assertThat(started).hasSize(1);
+        assertThat(started.getFirst().sides()).hasSize(2);
+        java.util.List<de.raindancer.modules.arena.model.QueueEntry> eight = new java.util.ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            eight.add(new de.raindancer.modules.arena.model.QueueEntry(java.util.UUID.randomUUID(), spec, i));
+        }
+        assertThat(rule.groups(eight, 100, 30_000).getFirst().sides()).hasSize(8);
+    }
 }
