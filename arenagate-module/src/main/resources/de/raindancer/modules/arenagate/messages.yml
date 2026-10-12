@@ -1,0 +1,10 @@
+# Rain's Arena Gate — every line this module says. Offered as a floor: an owner's own messages.yml wins.
+arenagate:
+  only-a-player: "<red>Only a player can go to the arena."
+  not-allowed: "<red>You may not go to the arena."
+  already-going: "<yellow>You are already on your way somewhere."
+  counting: "<gray>Off to the arena in <white><seconds></white>… <dark_gray>(stand still)"
+  cancelled-moved: "<yellow>You moved, so you are staying here."
+  cancelled-hurt: "<yellow>You were hurt, so you are staying here. Finish the fight first."
+  unreachable: "<red>The way to the arena is closed right now. Try again in a moment."
+  sending: "<gold>To the arena!</gold> <gray>Everything you own stays safely here."

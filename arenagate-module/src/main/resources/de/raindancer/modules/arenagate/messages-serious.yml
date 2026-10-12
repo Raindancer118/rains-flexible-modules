@@ -1,0 +1,3 @@
+# The serious wording for this module: only lines that differ from messages.yml.
+arenagate:
+  sending: "<gray>Connecting to the arena. Your inventory stays on this server."

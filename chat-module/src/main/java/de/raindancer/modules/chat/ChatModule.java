@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.14.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.15.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -55,6 +55,7 @@ public final class ChatModule implements FlexModule {
 
     /** What the Pelican panel's chat page shows. */
     private static final int PANEL_FEED_LINES = 100;
+    private de.raindancer.modules.chat.service.NetworkChatService network;
     private java.util.function.BiConsumer<java.util.UUID, String> channelWatcher;
 
     @Override
@@ -144,7 +145,19 @@ public final class ChatModule implements FlexModule {
             ads.settings(fresh);
         });
 
-        context.listener(new ChatListener(services));
+        var networkSettings = context.settings(NetworkChatSettings.class, NetworkChatSettings.DEFAULTS);
+        network = new de.raindancer.modules.chat.service.NetworkChatService(core::link,
+                who -> core.punishments().isActive(who, de.raindancer.core.moderation.punishment.PunishmentKind.MUTE),
+                server::sendMessage,
+                (tag, line) -> context.chat().mm(context.core().messages().raw("chat.network.line"),
+                        de.raindancer.core.ui.chat.Chat.arg("tag", tag),
+                        de.raindancer.core.ui.chat.Chat.formatted("line", line)),
+                networkSettings.current());
+        networkSettings.onChange(network::settings);
+        network.listen();
+        context.closeWith(network::stop);
+
+        context.listener(new ChatListener(services, network));
         // From here on this module routes channel lines, so a module that could say its channel alone
         // (moderation's staff chat) stands down and a line is said once.
         de.raindancer.core.ui.chat.ChatChannels.claimRouting(this);

@@ -102,6 +102,10 @@ chat:
     now: "<green>You are talking to <white><channel></white> now."
     unavailable: "<yellow>You have no <white><channel></white> chat to talk in right now."
     line: "<aqua><tag></aqua> <line>"
+
+  network:
+    # A public line from the linked server (Network chat in /settings), behind that server's tag.
+    line: "<dark_gray>[</dark_gray><gray><tag></gray><dark_gray>]</dark_gray> <line>"
   private:
     line: "<dark_purple>[Private]</dark_purple> <line>"
     started: "<light_purple>You are in a private chat now. <gray>/chat private [name] invites somebody, /chat public talks in public again, /chat private end closes it."

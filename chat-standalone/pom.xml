@@ -67,8 +67,11 @@
           1.14.0: /chat say <player> <message>, the console only — a public line in that player's name,
           online or not, drawn like one they typed (a mute still holds; the chat log keeps it as channel
           "panel"). plugins/RainsChat/panel-feed.json holds the last 100 public lines as players saw them,
-          for the Pelican panel's chat page. -->
-        <plugin.version>1.14.0</plugin.version>
+          for the Pelican panel's chat page.
+          1.15.0: network chat — public chat shared with the server this one is linked to through
+          RainsCore's link.yml (Chat → Network chat in /settings, a tag per server); private chats and
+          channels stay put, a mute on either server hides the muted player there. Needs RainsCore 1.115.0. -->
+        <plugin.version>1.15.0</plugin.version>
     </properties>
 
     <dependencies>

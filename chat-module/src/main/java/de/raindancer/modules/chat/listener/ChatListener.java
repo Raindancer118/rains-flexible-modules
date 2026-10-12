@@ -39,9 +39,16 @@ public final class ChatListener implements IChatListener {
     private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
 
     private final ChatServices services;
+    /** Public chat shared with the linked server; null where there is none. */
+    private final de.raindancer.modules.chat.service.NetworkChatService network;
 
     public ChatListener(ChatServices services) {
+        this(services, null);
+    }
+
+    public ChatListener(ChatServices services, de.raindancer.modules.chat.service.NetworkChatService network) {
         this.services = services;
+        this.network = network;
     }
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
@@ -95,12 +102,18 @@ public final class ChatListener implements IChatListener {
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onSaid(AsyncChatEvent event) {
-        if (services.feed() == null) {
+        if (services.feed() == null && network == null) {
             return;
         }
         Player sender = event.getPlayer();
         Component shown = event.renderer().render(sender, sender.displayName(), event.message(),
                 services.server().getConsoleSender());
+        if (network != null) {
+            network.said(sender.getUniqueId(), sender.getName(), PLAIN.serialize(event.message()), shown);
+        }
+        if (services.feed() == null) {
+            return;
+        }
         services.feed().add(System.currentTimeMillis(), sender.getUniqueId(), sender.getName(),
                 PLAIN.serialize(event.message()), shown, false);
     }

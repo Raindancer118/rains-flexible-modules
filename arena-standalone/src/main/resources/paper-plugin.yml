@@ -1,0 +1,29 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see rtp-standalone's own copy for
+# why every line here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '26.3'
+description: 'A PvP arena in worlds of its own — duels, mob waves, kits or your own gear, and nothing carried in is ever lost.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Each arena is a world of its own, so on Folia each fights on its own region thread. Everything that touches a
+# player runs on that player's scheduler; building a map runs chunk by chunk on the region that owns it.
+folia-supported: true
+
+dependencies:
+  # Both phases, and bootstrap is not belt-and-braces — see rtp-standalone's own copy of this file for the
+  # full reasoning: without it the module fails to link at bootstrap and the plugin reports that it contains
+  # no modules.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

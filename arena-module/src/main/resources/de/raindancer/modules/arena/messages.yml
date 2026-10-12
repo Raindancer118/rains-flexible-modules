@@ -1,0 +1,38 @@
+# Rain's Arena — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins. See
+# Messages.defineFrom. Every placeholder a line asks for is supplied where it is sent.
+arena:
+
+  usage: "<gray>/arena hub  ·  /arena leave"
+  only-a-player: "<red>Only a player can do that."
+  not-allowed: "<red>You may not do that."
+
+  welcome: "<gold>Welcome to the arena!</gold> <gray>Nothing you own on the survival server is at stake here. <click:run_command:'/arena leave'><yellow>[Back to survival]</yellow></click>"
+  not-set-up: "<yellow>The arena is still being built. <click:run_command:'/arena leave'><yellow>[Back to survival]</yellow></click>"
+  leaving: "<gray>Back to <white><server></white>…"
+
+  admin:
+    usage: "<gray>/arena admin build <world> <map>  ·  sethub [world x y z yaw pitch]  ·  pit <name> floor <world x1 y1 z1 x2 y2 z2> | spawn [world x y z yaw pitch] | clearspawns | remove  ·  info"
+    bad-place: "<red>A place is <white>world x y z</white>, optionally yaw and pitch — or stand where you mean and give none."
+    bad-box: "<red>A floor is <white>world x1 y1 z1 x2 y2 z2</white>."
+    not-an-arena-world: "<red><white><world></white> is not one of the arena's worlds. Build one with /arena admin build."
+    no-such-map: "<red>There is no <white><map></white> in plugins/RainsArena/maps."
+    map-unreadable: "<red><white><map></white> could not be read as a schematic. The console says why."
+    world-refused: "<red>The server would not make the world <white><world></white>."
+    building: "<gray>Building <white><map></white> into <white><world></white>…"
+    built: "<green><white><world></white> is built: <white><blocks></white> blocks."
+    left-out: "<yellow>Blocks from mods were left out: <white><blocks></white>."
+    not-saved: "<red>That could not be saved to layout.yml. It holds until the next restart."
+    hub-set: "<green>The hub is set."
+    floor-set: "<green>The floor of pit <white><pit></white> is set."
+    spawn-added: "<green>Pit <white><pit></white> has <white><spawns></white> spawn point(s)."
+    spawns-cleared: "<green>The spawn points of pit <white><pit></white> are cleared."
+    pit-removed: "<green>Pit <white><pit></white> is gone."
+    no-such-pit: "<red>There is no pit called <white><pit></white>."
+    pit-elsewhere: "<red>Pit <white><pit></white> is in <white><world></white>; mark it there."
+    info:
+      head: "<gold>Arena</gold> <gray>— <white><worlds></white> world(s), <white><pits></white> pit(s), hub in <white><hub></white>"
+      world: "<gray> world <white><world></white> from <white><map></white>, <white><box></white>"
+      pit: "<gray> pit <white><pit></white> in <white><world></white>, <white><spawns></white> spawn(s), <white><ready></white>"
+      maps: "<gray> maps: <white><maps></white>"
