@@ -4,6 +4,7 @@ import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.ui.profile.PlayerSwitch;
 import de.raindancer.modules.anticheat.AntiCheatSettings;
+import de.raindancer.modules.anticheat.model.AlertDigest;
 import de.raindancer.modules.anticheat.model.CheckType;
 import de.raindancer.modules.anticheat.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
@@ -19,19 +20,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
 
 /**
- * Telling staff. One line per player and check per second at most; anything in between is counted
- * into the next line ("×4"), so a flying cheater is one readable line a second, not twenty.
+ * Telling staff. A player's first flag at once, then one line per player every few seconds gathering
+ * everything since ("Fly ×12, Speed ×4") — a hacker is one readable line, not a scrolling wall.
  */
 public final class AlertService implements IAntiCheatService {
 
-    public static final long QUIET_MILLIS = 1000;
     public static final PlayerSwitch ALERTS = new PlayerSwitch("rainsanticheat", "alerts", true);
 
     private final Server server;
     private final Messages messages;
     private final LogChannel log;
     private final LongSupplier clock;
-    private final Map<String, long[]> recent = new ConcurrentHashMap<>();
+    private final AlertDigest digest;
     /** Whether each staff member wants alerts, read from their profile on join so no thread touches it later. */
     private final Map<UUID, Boolean> wants = new ConcurrentHashMap<>();
     private final Set<UUID> verbose = ConcurrentHashMap.newKeySet();
@@ -41,31 +41,31 @@ public final class AlertService implements IAntiCheatService {
         this.messages = messages;
         this.log = log;
         this.clock = clock;
+        this.digest = new AlertDigest(clock);
     }
 
-    /** A failed check past its alert level. */
+    /** A failed check past its alert level: the log hears every one, staff the first and then a line per window. */
     public void alert(Player subject, CheckType check, double level, String detail, int ping) {
-        String key = subject.getUniqueId() + ":" + check.key();
-        long now = clock.getAsLong();
-        long[] entry = recent.computeIfAbsent(key, ignored -> new long[]{0, 0});
-        int count;
-        synchronized (entry) {
-            if (now - entry[0] < QUIET_MILLIS) {
-                entry[1]++;
-                return;
-            }
-            count = (int) entry[1] + 1;
-            entry[0] = now;
-            entry[1] = 0;
+        log.info("{} failed {} (level {}): {} [{} ms]", subject.getName(), check.title(),
+                String.format(Locale.ROOT, "%.1f", level), detail, ping);
+        digest.offer(subject.getUniqueId(), subject.getName(), check, level, detail, ping).ifPresent(line -> toStaff(
+                messages.get(check.experimental() ? "anticheat.alert-experimental" : "anticheat.alert",
+                        "player", subject.getName(), "check", check.title(), "level", String.format(Locale.ROOT, "%.1f", level),
+                        "count", "", "detail", detail, "ping", ping,
+                        // The description sits inside a quoted hover; a plain apostrophe would end it early.
+                        "description", check.description().replace('\'', '’'), "alert-at", check.alertAt())));
+    }
+
+    /** What gathered since a player's first line: one line each. Called about once a second, from any thread. */
+    public void flushDigests() {
+        for (AlertDigest.Line line : digest.due()) {
+            StringBuilder checks = new StringBuilder();
+            line.counts().forEach((check, count) -> checks.append(checks.isEmpty() ? "" : ", ").append(check.title())
+                    .append(count > 1 ? " ×" + count : ""));
+            toStaff(messages.get("anticheat.alert-digest", "player", line.name(), "checks", checks.toString(),
+                    "level", String.format(Locale.ROOT, "%.1f", line.level()), "detail", line.detail() == null ? "" : line.detail(),
+                    "ping", line.ping()));
         }
-        Component line = messages.get(check.experimental() ? "anticheat.alert-experimental" : "anticheat.alert",
-                "player", subject.getName(), "check", check.title(), "level", String.format(Locale.ROOT, "%.1f", level),
-                "count", count > 1 ? " ×" + count : "", "detail", detail, "ping", ping,
-                // The description sits inside a quoted hover; a plain apostrophe would end it early.
-                "description", check.description().replace('\'', '’'), "alert-at", check.alertAt());
-        toStaff(line);
-        log.info("{} failed {}{} (level {}): {} [{} ms]", subject.getName(), check.title(),
-                count > 1 ? " x" + count : "", String.format(Locale.ROOT, "%.1f", level), detail, ping);
     }
 
     /** Every failure, unthrottled, to staff who asked for it with /anticheat verbose. */
@@ -122,7 +122,7 @@ public final class AlertService implements IAntiCheatService {
     public void forget(UUID player) {
         wants.remove(player);
         verbose.remove(player);
-        recent.keySet().removeIf(key -> key.startsWith(player.toString()));
+        digest.forget(player);
     }
 
     @Override

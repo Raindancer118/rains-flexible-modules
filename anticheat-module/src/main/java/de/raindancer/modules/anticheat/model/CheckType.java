@@ -179,6 +179,14 @@ public enum CheckType {
      * placed — false for what depends on Bedrock's movement physics, touch aiming and tapping, or packets
      * Geyser rewrites.
      */
+    /** Whether one flag is already proof: something a vanilla client can never send, so staff hear it at once. */
+    public boolean impossible() {
+        return switch (this) {
+            case MULTI_AURA, BAD_PACKETS, INVALID_ATTACK, CLIENT -> true;
+            default -> false;
+        };
+    }
+
     public boolean fitsBedrock() {
         return switch (this) {
             case REACH, HITBOX, WALL_HIT, MULTI_AURA, INVALID_ATTACK, NUKER, FAST_PLACE, BLOCK_REACH, GHOST_HAND,

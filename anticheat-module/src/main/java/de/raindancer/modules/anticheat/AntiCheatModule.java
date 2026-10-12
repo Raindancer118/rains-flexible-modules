@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class AntiCheatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.14.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.15.0")
             .describedAs("Server-side anti-cheat: movement, combat, world, inventory and packet checks")
             .by("Raindancer118");
 
@@ -112,6 +112,8 @@ public final class AntiCheatModule implements FlexModule {
             });
         }
 
+        var digests = Scheduling.asyncTimer(context.plugin(), 20, 20, task -> alerts.flushDigests());
+        context.closeWith(digests::cancel);
         var writing = Scheduling.asyncTimer(context.plugin(), 60, 60, task -> {
             evidence.flush();
             replays.flush();

@@ -255,6 +255,12 @@ class AntiCheatScenarioTest {
             assertThat(chat).anyMatch(line -> line.contains("Strafer") && line.contains("Strafe"));
             assertThat(faller.health()).as("NoFall still costs the fall damage").isLessThan(20);
 
+            // A cheater who keeps at it is one gathered line every few seconds, not a line per check per second.
+            Await.until("staff get Hover's gathered line", Duration.ofSeconds(15), () -> ada.chatText().stream()
+                    .anyMatch(line -> line.contains("Hover") && line.contains("still at it") && line.contains("Fly")));
+            assertThat(ada.chatText().stream().filter(line -> line.contains("Hover")).count())
+                    .as("a handful of lines for three seconds of flying, not one per tick").isLessThan(6);
+
             // From an alert straight to work: the name opens their checks (typed, as Bedrock staff do), [Go] takes
             // staff there and back.
             ada.run("ac Hover");
