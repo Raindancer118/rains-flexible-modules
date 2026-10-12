@@ -100,7 +100,7 @@ public final class MovementListener implements IAntiCheatListener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBoost(PlayerElytraBoostEvent event) {
-        services.tracks().of(event.getPlayer()).exempt(PlayerTrack.Exemption.ELYTRA, 3500);
+        services.tracks().of(event.getPlayer()).exempt(PlayerTrack.Exemption.ELYTRA_BOOST, 3500);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

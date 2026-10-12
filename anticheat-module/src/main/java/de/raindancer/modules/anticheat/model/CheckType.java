@@ -173,6 +173,20 @@ public enum CheckType {
      * Whether this check models the server's own game version — its physics or its packet order — so
      * a client of another version, translated by ViaVersion, fails it without cheating.
      */
+    /**
+     * Whether this check means the same for a Bedrock player coming through Geyser: true for what is
+     * judged on the server's own geometry — reach, hitboxes, walls, several targets, blocks broken and
+     * placed — false for what depends on Bedrock's movement physics, touch aiming and tapping, or packets
+     * Geyser rewrites.
+     */
+    public boolean fitsBedrock() {
+        return switch (this) {
+            case REACH, HITBOX, WALL_HIT, MULTI_AURA, INVALID_ATTACK, NUKER, FAST_PLACE, BLOCK_REACH, GHOST_HAND,
+                 AUTO_FISH -> true;
+            default -> false;
+        };
+    }
+
     public boolean versionBound() {
         return category == Category.MOVEMENT || category == Category.PACKETS || this == NO_SWING || this == KEEP_SPRINT;
     }

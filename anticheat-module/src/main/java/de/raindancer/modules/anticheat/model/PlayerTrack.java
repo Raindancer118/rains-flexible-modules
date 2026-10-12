@@ -80,7 +80,9 @@ public final class PlayerTrack {
     /** Why movement checks are off for a while. */
     public enum Exemption {
         JOINED, TELEPORTED, RESPAWNED, WORLD_CHANGED, GAME_MODE, VEHICLE, FLIGHT, ELYTRA, RIPTIDE,
-        PISTON, EFFECT, MANUAL, BLOCK_UNDERFOOT, BOUNCE
+        PISTON, EFFECT, MANUAL, BLOCK_UNDERFOOT, BOUNCE,
+        /** A firework under an elytra: each one is used up, so unlike the glide toggle it needs no budget. */
+        ELYTRA_BOOST
     }
 
     public PlayerTrack(UUID id, String name, LongSupplier clock) {
@@ -111,8 +113,41 @@ public final class PlayerTrack {
         return buffers.computeIfAbsent(check, ignored -> new Buffer(limit, forgiveness));
     }
 
+    /** How long a window the budget of a client-triggered exemption is counted over, and how much of it may be excused. */
+    static final long BUDGET_WINDOW = 10_000;
+    static final long BUDGET = 4_000;
+    /** Per budgeted kind: {granted at, millis newly covered} in the current window. */
+    private final Map<Exemption, java.util.ArrayDeque<long[]>> granted = new java.util.EnumMap<>(Exemption.class);
+
+    /**
+     * Exemptions the client can set off as often as it likes. Each is real once; repeated, they would
+     * cover a cheater for good, so only so much of each is granted per window.
+     */
+    private static boolean budgeted(Exemption why) {
+        return switch (why) {
+            case ELYTRA, VEHICLE, PISTON, RIPTIDE, BOUNCE -> true;
+            default -> false;
+        };
+    }
+
     public synchronized void exempt(Exemption why, long millis) {
-        long until = now() + Math.max(0, millis);
+        long now = now();
+        long until = now + Math.max(0, millis);
+        if (budgeted(why)) {
+            long already = Math.max(now, exemptUntil.getOrDefault(why, 0L));
+            long fresh = Math.max(0, until - already);
+            java.util.ArrayDeque<long[]> spent = granted.computeIfAbsent(why, ignored -> new java.util.ArrayDeque<>());
+            while (!spent.isEmpty() && now - spent.peekFirst()[0] > BUDGET_WINDOW) {
+                spent.removeFirst();
+            }
+            long used = spent.stream().mapToLong(grant -> grant[1]).sum();
+            fresh = Math.min(fresh, Math.max(0, BUDGET - used));
+            if (fresh <= 0) {
+                return;
+            }
+            spent.addLast(new long[]{now, fresh});
+            until = already + fresh;
+        }
         exemptUntil.merge(why, until, Math::max);
     }
 

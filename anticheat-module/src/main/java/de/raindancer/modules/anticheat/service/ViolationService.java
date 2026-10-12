@@ -46,7 +46,7 @@ public final class ViolationService implements IAntiCheatService {
         if (track.translatedFrom != null && now.exemptTranslated() && check.versionBound()) {
             return false;
         }
-        return !(track.bedrock && now.exemptBedrock());
+        return !(track.bedrock && now.exemptBedrock() && !check.fitsBedrock());
     }
 
     public ActionRule.Decision flag(Player player, PlayerTrack track, Flag flag) {

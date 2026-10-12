@@ -491,7 +491,8 @@ public final class MovementEngine implements IAntiCheatService {
 
     private boolean judgeGlide(Player player, PlayerTrack track, double dy, double hd) {
         PlayerTrack.Movement m = track.movement;
-        if (!run(track, CheckType.ELYTRA) || track.isExempt(PlayerTrack.Exemption.ELYTRA)) {
+        if (!run(track, CheckType.ELYTRA) || track.isExempt(PlayerTrack.Exemption.ELYTRA)
+                || track.isExempt(PlayerTrack.Exemption.ELYTRA_BOOST)) {
             m.glideClimbTicks = 0;
             return false;
         }

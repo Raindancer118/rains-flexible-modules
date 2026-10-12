@@ -49,8 +49,10 @@ public record AntiCheatSettings(
         int maxPing,
 
         @In("anticheat") @Title("Leave Bedrock players alone")
-        @Describe("Players joining through Geyser/Floodgate move by Bedrock's physics, which none of these "
-                + "checks model. On, they are not checked.")
+        @Describe("Players joining through Geyser/Floodgate move, aim and tap by Bedrock's rules, which the "
+                + "movement, aim, click and packet checks do not model. On, those are skipped for them; reach, "
+                + "hitboxes, hitting through walls, several targets, nuker, fast place, block reach, ghost hand "
+                + "and auto fish still run.")
         @Key("exempt-bedrock")
         boolean exemptBedrock,
 
