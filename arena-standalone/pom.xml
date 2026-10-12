@@ -28,7 +28,11 @@
         <!-- 0.1.0: arena worlds built from a schematic with a border just past the map, a hub, /arena in and
              /arena leave out; whatever a player carries is put away on the way in and handed back on every way out
              (leaving, quitting, any teleport out, a crash), deaths in the arena cost nothing. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.1.1: the protection closed where adventure mode alone left gaps — items used against blocks (only
+             fighting gear, food and potions work), entity-shaped things placed or broken (boats, minecarts, stands,
+             crystals, paintings), shears, leads, fish buckets, signs; mobs and falling blocks changing blocks; fire,
+             burning, spreading, fading, forming, growing; arrows breaking pots or lighting TNT. -->
+        <plugin.version>0.1.1</plugin.version>
     </properties>
 
     <dependencies>

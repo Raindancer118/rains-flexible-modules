@@ -89,4 +89,33 @@ class RulesTest {
         assertThat(rule.verdict(attack(Attack.Fighter.MOB, Attack.Fighter.MOB, "arena"), "arena"::equals,
                 (attacker, victim) -> false)).as("mobs fighting mobs are not the arena's business").isNull();
     }
+
+    // ── what may be used while aiming at a block ───────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("fighting gear and food work whatever the crosshair is on; anything that changes or makes things does not")
+    void itemsAgainstBlocks() {
+        ItemUseRule rule = new ItemUseRule();
+
+        for (String fighting : java.util.List.of("BOW", "CROSSBOW", "TRIDENT",
+                "MACE", "SHIELD", "COOKED_BEEF", "GOLDEN_APPLE", "ENCHANTED_GOLDEN_APPLE", "POTION", "SPLASH_POTION",
+                "LINGERING_POTION", "ENDER_PEARL", "SNOWBALL", "WIND_CHARGE", "TOTEM_OF_UNDYING", "MILK_BUCKET",
+                "FISHING_ROD", "AIR")) {
+            assertThat(rule.usableAgainstBlocks(fighting)).as(fighting).isTrue();
+        }
+        for (String changing : java.util.List.of("FLINT_AND_STEEL", "FIRE_CHARGE", "BONE_MEAL", "WATER_BUCKET",
+                "LAVA_BUCKET", "BUCKET", "ZOMBIE_SPAWN_EGG", "OAK_BOAT", "MINECART", "ARMOR_STAND", "ITEM_FRAME",
+                "PAINTING", "END_CRYSTAL", "STONE", "TNT", "IRON_HOE", "IRON_SHOVEL", "SHEARS", "EGG", "LEAD",
+                "BRUSH", "INK_SAC", "HONEYCOMB", "WRITABLE_BOOK")) {
+            assertThat(rule.usableAgainstBlocks(changing)).as(changing).isFalse();
+        }
+    }
+
+    @Test
+    @DisplayName("a right click with an axe or a sword does nothing in a fight, so neither works on a block — no stripping")
+    void axesAndSwordsDoNotWorkOnBlocks() {
+        assertThat(new ItemUseRule().usableAgainstBlocks("IRON_AXE")).isFalse();
+        assertThat(new ItemUseRule().usableAgainstBlocks("DIAMOND_SWORD")).isFalse();
+        assertThat(new ItemUseRule().usableAgainstBlocks("IRON_CHESTPLATE")).as("armour still goes on").isTrue();
+    }
 }

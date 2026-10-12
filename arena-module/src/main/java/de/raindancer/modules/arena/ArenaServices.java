@@ -22,6 +22,7 @@ public record ArenaServices(
         Supplier<ArenaSettings> settings,
         ArenaService arena,
         ProtectionRule protection,
+        de.raindancer.modules.arena.rules.ItemUseRule itemUse,
         /* Whether somebody is in a running fight — hurt, hunger and the like are theirs to have then. */
         Predicate<UUID> inFight) {
 

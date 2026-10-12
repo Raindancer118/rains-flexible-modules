@@ -96,7 +96,8 @@ public final class ProtectionListener implements IArenaListener {
             }
             return;
         }
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || !arena(block.getWorld())
+                || Builders.isBuilding(event.getPlayer())) {
             return;
         }
         ArenaAction action = block.getType() == Material.ENDER_CHEST ? ArenaAction.ENDER_CHEST
@@ -104,7 +105,159 @@ public final class ProtectionListener implements IArenaListener {
                 : block.getType().isInteractable() ? ArenaAction.USE_BLOCK
                 : null;
         if (action != null) {
-            judge(event.getPlayer(), action, event);
+            event.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
+        }
+        // What the held item would do to the block — light it, grow it, strip it, spawn something on it — is
+        // refused unless the item is something a fight uses whatever is behind the target.
+        org.bukkit.inventory.ItemStack held = event.getItem();
+        if (!services.itemUse().usableAgainstBlocks(held == null ? "AIR" : held.getType().name())) {
+            event.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+        }
+    }
+
+    /** Boats, minecarts, armour stands, end crystals — things an item places that are entities, not blocks. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onEntityPlace(org.bukkit.event.entity.EntityPlaceEvent event) {
+        judge(event.getPlayer(), ArenaAction.PLACE, event);
+        if (event.getPlayer() == null && arena(event.getEntity().getWorld())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onHangingPlace(org.bukkit.event.hanging.HangingPlaceEvent event) {
+        judge(event.getPlayer(), ArenaAction.PLACE, event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onVehicleBreak(org.bukkit.event.vehicle.VehicleDestroyEvent event) {
+        if (!arena(event.getVehicle().getWorld())) {
+            return;
+        }
+        if (event.getAttacker() instanceof Player player) {
+            judge(player, ArenaAction.BREAK, event);
+        } else {
+            event.setCancelled(true);
+        }
+    }
+
+    /** Clicking an armour stand's slot arrives as this, not as the plain entity click. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onEntityUseAt(org.bukkit.event.player.PlayerInteractAtEntityEvent event) {
+        onEntityUse(event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onShear(org.bukkit.event.player.PlayerShearEntityEvent event) {
+        judge(event.getPlayer(), ArenaAction.USE_BLOCK, event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onLeash(org.bukkit.event.entity.PlayerLeashEntityEvent event) {
+        judge(event.getPlayer(), ArenaAction.USE_BLOCK, event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onBucketEntity(org.bukkit.event.player.PlayerBucketEntityEvent event) {
+        judge(event.getPlayer(), ArenaAction.BUCKET, event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onSignChange(org.bukkit.event.block.SignChangeEvent event) {
+        judge(event.getPlayer(), ArenaAction.PLACE, event);
+    }
+
+    // ── the world itself: the map stays as it was built ───────────────────────────────────────────
+
+    /** Endermen, falling blocks, a mob trampling crops, a ravager breaking leaves — and a player only when building. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onEntityChangeBlock(org.bukkit.event.entity.EntityChangeBlockEvent event) {
+        if (!arena(event.getBlock().getWorld())) {
+            return;
+        }
+        if (!(event.getEntity() instanceof Player player) || !Builders.isBuilding(player)) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** A mob on farmland or a pressure plate it should not press. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onEntityInteract(org.bukkit.event.entity.EntityInteractEvent event) {
+        if (arena(event.getBlock().getWorld()) && event.getBlock().getType() == Material.FARMLAND) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onIgnite(org.bukkit.event.block.BlockIgniteEvent event) {
+        if (arena(event.getBlock().getWorld())
+                && !(event.getPlayer() != null && Builders.isBuilding(event.getPlayer()))) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onBurn(org.bukkit.event.block.BlockBurnEvent event) {
+        cancelInArena(event.getBlock(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onSpread(org.bukkit.event.block.BlockSpreadEvent event) {
+        cancelInArena(event.getBlock(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onFade(org.bukkit.event.block.BlockFadeEvent event) {
+        cancelInArena(event.getBlock(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onForm(org.bukkit.event.block.BlockFormEvent event) {
+        cancelInArena(event.getBlock(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onLeavesDecay(org.bukkit.event.block.LeavesDecayEvent event) {
+        cancelInArena(event.getBlock(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onGrow(org.bukkit.event.block.BlockGrowEvent event) {
+        cancelInArena(event.getBlock(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onFertilize(org.bukkit.event.block.BlockFertilizeEvent event) {
+        cancelInArena(event.getBlock(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onStructureGrow(org.bukkit.event.world.StructureGrowEvent event) {
+        if (arena(event.getWorld())) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** An arrow breaking a pot, lighting TNT or snapping dripstone — the hit stands, the block does not change. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onProjectileHit(org.bukkit.event.entity.ProjectileHitEvent event) {
+        Block hit = event.getHitBlock();
+        if (hit == null || !arena(hit.getWorld())) {
+            return;
+        }
+        switch (hit.getType()) {
+            case DECORATED_POT, CHORUS_FLOWER, POINTED_DRIPSTONE, TNT, BELL, TARGET -> event.setCancelled(true);
+            default -> {
+                if (hit.getType().name().endsWith("CANDLE") || hit.getType().name().endsWith("CAMPFIRE")) {
+                    event.setCancelled(true);
+                }
+            }
+        }
+    }
+
+    private void cancelInArena(Block block, Cancellable event) {
+        if (arena(block.getWorld())) {
+            event.setCancelled(true);
         }
     }
 

@@ -34,7 +34,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.1.1")
             .describedAs("A PvP arena server: worlds built from schematics, a hub, and pits to fight in.")
             .by("Raindancer118");
 
@@ -80,7 +80,8 @@ public final class ArenaModule implements FlexModule {
 
         // No fight runs yet in this version, so nobody is in one: the hub's "nobody is hurt" holds everywhere.
         ArenaServices services = new ArenaServices(context.plugin(), server, log, context.core().messages(),
-                context.core(), settings::current, arena, new ProtectionRule(), player -> false);
+                context.core(), settings::current, arena, new ProtectionRule(),
+                new de.raindancer.modules.arena.rules.ItemUseRule(), player -> false);
 
         FightRule fights = new FightRule();
         context.core().combat().alsoAsk(context.plugin().getName(), attack ->
