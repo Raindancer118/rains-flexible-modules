@@ -1,7 +1,7 @@
 # This module's wording. Every line can be rewritten in plugins/RainsCore/messages.yml.
 anticheat:
-  alert: "<red>⚠ <click:run_command:'/anticheat info <player>'><hover:show_text:'Click for their record'><white><player></white></hover></click> <gray>failed <yellow><check></yellow><count> <dark_gray>· <gray>level <white><level></white> <dark_gray>· <gray><detail> <dark_gray>(<ping> ms)"
-  alert-experimental: "<gold>◇ <click:run_command:'/anticheat info <player>'><white><player></white></click> <gray>looks off on <yellow><check></yellow><count> <dark_gray>(experimental) · <gray>level <white><level></white> <dark_gray>· <gray><detail>"
+  alert: "<red>⚠ <click:run_command:'/anticheat <player>'><hover:show_text:'<gray>Open their checks'><white><player></white></hover></click> <gray>failed <hover:show_text:'<gray><description>\n<dark_gray>Level <level> · staff are told from <alert-at>'><yellow><check></yellow></hover><count> <dark_gray>· <gray><detail> <dark_gray>(<ping> ms) <click:run_command:'/anticheat go <player>'><hover:show_text:'<gray>Go to them · /anticheat back returns you'><aqua>[Go]</aqua></hover></click> <click:run_command:'/anticheat replay <player>'><hover:show_text:'<gray>Draw what just happened around you'><light_purple>[Replay]</light_purple></hover></click> <click:run_command:'/anticheat log <player>'><hover:show_text:'<gray>Every flag on record, newest first'><gold>[Log]</gold></hover></click>"
+  alert-experimental: "<gold>◇ <click:run_command:'/anticheat <player>'><hover:show_text:'<gray>Open their checks'><white><player></white></hover></click> <gray>looks off on <hover:show_text:'<gray><description>\n<dark_gray>Experimental: alerts only'><yellow><check></yellow></hover><count> <dark_gray>· <gray><detail> <click:run_command:'/anticheat go <player>'><aqua>[Go]</aqua></click> <click:run_command:'/anticheat log <player>'><gold>[Log]</gold></click>"
   verbose: "<dark_gray>[verbose] <gray><player> <dark_gray>· <gray><check> <dark_gray><level> · <gray><detail>"
   kicked: "<red><white><player></white> was kicked for <yellow><check></yellow> <gray>(level <level>). The physics engine sends its regards."
   rule-punished: "<dark_red><white><player></white> broke rule <number> (<rule>) with <yellow><check></yellow> <gray>— <offence> offence: <white><penalty></white>."
@@ -15,7 +15,10 @@ anticheat:
   alerts-off: "<yellow>Anti-cheat alerts are off. Ignorance is bliss, briefly."
   verbose-on: "<green>Verbose is on: every single failure, unfiltered. You asked for this."
   verbose-off: "<yellow>Verbose is off."
-  usage: "<gray>/anticheat <dark_gray>[alerts | verbose | info <player> | log <player> [page] | replay <player> [n] | exempt <player> <seconds> | unexempt <player> | reset <player> | checks | status]"
+  usage: "<gray>/anticheat <dark_gray>[<player> | alerts | verbose | info <player> | log <player> [page] | replay <player> [n] | go <player> | back | exempt <player> <seconds> | unexempt <player> | reset <player> | checks | status]"
+  went: "<gray>You are with <white><player></white>. <click:run_command:'/anticheat back'><hover:show_text:'<gray>Back to where you were'><aqua>[Back]</aqua></hover></click>"
+  back: "<gray>Back where you were."
+  nowhere-to-go-back: "<gray>There is nowhere to go back to."
   not-online: "<red><white><player></white> is not online. Suspicious in itself, but not something to check."
   no-record: "<red>Nobody called <white><player></white> has a record here."
   only-a-player: "<red>Only a player can do that. Consoles do not get alerts, they get logs."

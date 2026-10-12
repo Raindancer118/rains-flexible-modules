@@ -255,6 +255,18 @@ class AntiCheatScenarioTest {
             assertThat(chat).anyMatch(line -> line.contains("Strafer") && line.contains("Strafe"));
             assertThat(faller.health()).as("NoFall still costs the fall damage").isLessThan(20);
 
+            // From an alert straight to work: the name opens their checks (typed, as Bedrock staff do), [Go] takes
+            // staff there and back.
+            ada.run("ac Hover");
+            ada.awaitWindow("Hover");
+            ada.closeWindow();
+            var before = ada.position();
+            ada.run("anticheat go Far");
+            Await.until("staff stand with Far", Duration.ofSeconds(10),
+                    () -> ada.position().distance(far.position()) < 2);
+            ada.run("anticheat back");
+            Await.until("staff are back", Duration.ofSeconds(10), () -> ada.position().distance(before) < 2);
+
             assertThat(server.console("anticheat info Miner")).as("standing on ground mined away a ping ago").contains("Squeaky clean");
             assertThat(server.console("anticheat info Climber")).as("jumping up a step").contains("Squeaky clean");
             String legitRecord = server.console("anticheat info Legit");

@@ -291,12 +291,17 @@ public final class MovementEngine implements IAntiCheatService {
                     level(player, PotionEffectType.JUMP_BOOST), m.jumpFactor);
             double step = attribute(player, Attribute.STEP_HEIGHT, Physics.STEP_HEIGHT);
             double bounce = m.bouncy && m.onGround ? m.fallSpeed + 0.1 : 0;
-            VerticalRule.Move move = new VerticalRule.Move(m.lastDy, dy, ticks, m.onGround, here.ground(),
+            VerticalRule.Move move = new VerticalRule.Move(m.carryDy, dy, ticks, m.onGround, here.ground(),
                     here.ceiling() || m.special, gravity, jump, step, velocityY, bounce);
             Judgement judged = vertical.judge(move);
+            m.dyBounds = Double.isNaN(m.carryDy) ? null : vertical.bounds(move);
             if (judged.failed() && player.hasPotionEffect(PotionEffectType.SLOW_FALLING)) {
-                judged = vertical.judge(new VerticalRule.Move(m.lastDy, dy, ticks, m.onGround, here.ground(),
-                        move.ceiling(), Math.min(gravity, Physics.SLOW_FALLING_GRAVITY), jump, step, velocityY, bounce));
+                VerticalRule.Move slowly = new VerticalRule.Move(m.carryDy, dy, ticks, m.onGround, here.ground(),
+                        move.ceiling(), Math.min(gravity, Physics.SLOW_FALLING_GRAVITY), jump, step, velocityY, bounce);
+                judged = vertical.judge(slowly);
+                VerticalRule.Bounds slow = vertical.bounds(slowly);
+                m.dyBounds = m.dyBounds == null ? null : new VerticalRule.Bounds(Math.min(m.dyBounds.lowest(), slow.lowest()),
+                        Math.max(m.dyBounds.highest(), slow.highest()));
             }
             if (judged.failed()) {
                 nearRideable = Surroundings.nearRideableGround(world, sample.x(), sample.y(), sample.z());
@@ -441,20 +446,22 @@ public final class MovementEngine implements IAntiCheatService {
             }
         }
         boolean jumped = m.onGround && dy > 0.1;
-        HorizontalRule.Move move = new HorizontalRule.Move(m.lastHd, hd, ticks, m.onGround, m.onGroundBefore,
+        HorizontalRule.Move move = new HorizontalRule.Move(m.carryHd, hd, ticks, m.onGround, m.onGroundBefore,
                 m.friction, m.frictionBefore, speed, sprintCounted, maySprint, useSlowdown * sneakSlowdown,
                 jumped, velocityH, 0, keysHeld);
         HorizontalRule.Result result = horizontal.judge(move);
+        HorizontalRule.Move judgedMove = move;
         if (result.failed()) {
             int pushers = Surroundings.pushers(player.getWorld(), sample.x(), sample.y(), sample.z(), player);
             if (pushers > 0) {
-                result = horizontal.judge(new HorizontalRule.Move(m.lastHd, hd, ticks, m.onGround, m.onGroundBefore,
+                judgedMove = new HorizontalRule.Move(m.carryHd, hd, ticks, m.onGround, m.onGroundBefore,
                         m.friction, m.frictionBefore, speed, sprintCounted, maySprint,
-                        useSlowdown * sneakSlowdown, jumped, velocityH, 0.05 * Math.min(3, pushers), keysHeld));
+                        useSlowdown * sneakSlowdown, jumped, velocityH, 0.05 * Math.min(3, pushers), keysHeld);
+                result = horizontal.judge(judgedMove);
             }
         }
         if (m.sprintHitThisTick && result.passed() && run(track, CheckType.KEEP_SPRINT) && m.onGround) {
-            HorizontalRule.Move slowed = new HorizontalRule.Move(m.lastHd * 0.6, hd, ticks, m.onGround, m.onGroundBefore,
+            HorizontalRule.Move slowed = new HorizontalRule.Move(m.carryHd * 0.6, hd, ticks, m.onGround, m.onGroundBefore,
                     m.friction, m.frictionBefore, speed / Physics.SPRINT_MULTIPLIER, false, false, 1, false, velocityH, 0.02);
             if (horizontal.judge(slowed).failed()) {
                 report(player, track, CheckType.KEEP_SPRINT, 1, 4, 0.2, String.format(Locale.ROOT,
@@ -462,6 +469,9 @@ public final class MovementEngine implements IAntiCheatService {
             }
         }
         m.sprintHitThisTick = false;
+        // The cap for what the next tick builds on is the most any input could have made legal: the slowdown
+        // and sprint guesses above lag the client by a ping, and a cap built on them would hold honest players back.
+        m.hdLimit = Double.isNaN(m.carryHd) ? Double.NaN : horizontal.limit(judgedMove, 1.0, true);
         if (result.passed()) {
             track.buffer(CheckType.SPEED, 2, 0.04).pass();
             track.buffer(CheckType.NO_SLOW, 3, 0.05).pass();
@@ -517,6 +527,10 @@ public final class MovementEngine implements IAntiCheatService {
         m.z = sample.z();
         m.lastDy = exempt ? Double.NaN : dy;
         m.lastHd = exempt ? Double.NaN : hd;
+        m.carryDy = exempt ? Double.NaN : VerticalRule.carry(dy, m.dyBounds);
+        m.carryHd = exempt ? Double.NaN : HorizontalRule.carry(hd, m.hdLimit);
+        m.dyBounds = null;
+        m.hdLimit = Double.NaN;
         m.onGroundBefore = wasGround;
         m.onGround = here.ground();
         m.frictionBefore = m.friction;

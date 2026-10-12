@@ -60,7 +60,9 @@ public final class AlertService implements IAntiCheatService {
         }
         Component line = messages.get(check.experimental() ? "anticheat.alert-experimental" : "anticheat.alert",
                 "player", subject.getName(), "check", check.title(), "level", String.format(Locale.ROOT, "%.1f", level),
-                "count", count > 1 ? " ×" + count : "", "detail", detail, "ping", ping);
+                "count", count > 1 ? " ×" + count : "", "detail", detail, "ping", ping,
+                // The description sits inside a quoted hover; a plain apostrophe would end it early.
+                "description", check.description().replace('\'', '’'), "alert-at", check.alertAt());
         toStaff(line);
         log.info("{} failed {}{} (level {}): {} [{} ms]", subject.getName(), check.title(),
                 count > 1 ? " x" + count : "", String.format(Locale.ROOT, "%.1f", level), detail, ping);

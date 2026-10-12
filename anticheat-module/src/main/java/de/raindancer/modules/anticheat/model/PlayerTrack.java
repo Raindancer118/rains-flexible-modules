@@ -152,6 +152,12 @@ public final class PlayerTrack {
         public float pitch;
         public double lastDy = Double.NaN;
         public double lastHd = Double.NaN;
+        /** The last moves as the next tick's limits build on them: no more than was allowed. NaN when unknown. */
+        public double carryDy = Double.NaN;
+        public double carryHd = Double.NaN;
+        /** This tick's limits, once judged; NaN or null when the check did not run. */
+        public double hdLimit = Double.NaN;
+        public de.raindancer.modules.anticheat.rules.VerticalRule.Bounds dyBounds;
         public double lastDx = Double.NaN;
         public double lastDz = Double.NaN;
         public boolean lastCollided;
@@ -209,6 +215,10 @@ public final class PlayerTrack {
             known = false;
             lastDy = Double.NaN;
             lastHd = Double.NaN;
+            carryDy = Double.NaN;
+            carryHd = Double.NaN;
+            hdLimit = Double.NaN;
+            dyBounds = null;
             lastDx = Double.NaN;
             lastDz = Double.NaN;
             airTicks = 0;

@@ -30,8 +30,11 @@ import java.util.function.Supplier;
 public final class AntiCheatCommand implements BasicCommand {
 
     private static final int LOG_PAGE = 10;
-    private static final List<String> SUBCOMMANDS = List.of("alerts", "verbose", "info", "log", "replay", "exempt", "unexempt",
-            "reset", "checks", "status");
+    private static final List<String> SUBCOMMANDS = List.of("alerts", "verbose", "info", "log", "replay", "go", "back",
+            "exempt", "unexempt", "reset", "checks", "status");
+
+    /** Where each staff member stood before {@code /anticheat go}, for {@code /anticheat back}. */
+    private final Map<UUID, org.bukkit.Location> before = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final Supplier<AntiCheatServices> services;
 
@@ -93,14 +96,70 @@ public final class AntiCheatCommand implements BasicCommand {
                     reset(live, sender, args);
                 }
             }
+            case "go" -> go(live, sender, args);
+            case "back" -> back(live, sender);
             case "checks" -> checks(live, sender);
             case "status" -> status(live, sender);
             default -> {
-                if (!MistypedCommand.subcommand(sender, "anticheat", args, 0, SUBCOMMANDS)) {
+                if (!player(live, sender, args[0]) && !MistypedCommand.subcommand(sender, "anticheat", args, 0, SUBCOMMANDS)) {
                     live.messages().send(sender, "anticheat.usage");
                 }
             }
         }
+    }
+
+    /**
+     * {@code /anticheat <player>}: straight to their checks — what an alert's name opens, and what a Bedrock
+     * staff member, who cannot click chat, types instead. Somebody offline with a record gets the log.
+     *
+     * @return whether the word was a player at all
+     */
+    private boolean player(AntiCheatServices live, CommandSender sender, String name) {
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) {
+            if (sender instanceof Player viewer) {
+                new de.raindancer.modules.anticheat.screen.PlayerChecksMenu(live, viewer, null, live.tracks().of(online)).open();
+            } else {
+                info(live, sender, online);
+            }
+            return true;
+        }
+        if (resolve(live, name) != null) {
+            log(live, sender, new String[]{"log", name});
+            return true;
+        }
+        return false;
+    }
+
+    /** {@code /anticheat go <player>}: to where they are, remembering where the staff member was. */
+    private void go(AntiCheatServices live, CommandSender sender, String[] args) {
+        if (!(sender instanceof Player viewer)) {
+            live.messages().send(sender, "anticheat.only-a-player");
+            return;
+        }
+        withPlayer(live, sender, args, target -> {
+            before.put(viewer.getUniqueId(), viewer.getLocation());
+            // Where they stand is read on their own thread, then gone to on ours: on Folia they may be elsewhere.
+            de.raindancer.core.platform.util.Scheduling.entity(live.plugin(), target, () -> {
+                org.bukkit.Location at = target.getLocation();
+                de.raindancer.core.platform.util.Scheduling.entity(live.plugin(), viewer, () -> viewer.teleportAsync(at)
+                        .thenRun(() -> live.messages().send(viewer, "anticheat.went", "player", target.getName())));
+            });
+        });
+    }
+
+    /** {@code /anticheat back}: to where they stood before the last {@code go}. */
+    private void back(AntiCheatServices live, CommandSender sender) {
+        if (!(sender instanceof Player viewer)) {
+            live.messages().send(sender, "anticheat.only-a-player");
+            return;
+        }
+        org.bukkit.Location where = before.remove(viewer.getUniqueId());
+        if (where == null) {
+            live.messages().send(sender, "anticheat.nowhere-to-go-back");
+            return;
+        }
+        viewer.teleportAsync(where).thenRun(() -> live.messages().send(viewer, "anticheat.back"));
     }
 
     private static void info(AntiCheatServices live, CommandSender sender, Player target) {
@@ -288,7 +347,8 @@ public final class AntiCheatCommand implements BasicCommand {
         List<String> options = new ArrayList<>();
         if (args.length <= 1) {
             options.addAll(SUBCOMMANDS);
-        } else if (args.length == 2 && !List.of("alerts", "verbose", "checks", "status").contains(args[0].toLowerCase(Locale.ROOT))) {
+            services.get().server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
+        } else if (args.length == 2 && !List.of("alerts", "verbose", "checks", "status", "back").contains(args[0].toLowerCase(Locale.ROOT))) {
             AntiCheatServices live = services.get();
             live.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
             if (List.of("log", "replay", "reset").contains(args[0].toLowerCase(Locale.ROOT))) {

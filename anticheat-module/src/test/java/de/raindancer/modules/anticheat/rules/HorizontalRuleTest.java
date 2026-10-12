@@ -130,4 +130,41 @@ class HorizontalRuleTest {
         HorizontalRule.Move jumping = new HorizontalRule.Move(0.2864, jumpTick, 1, true, true, 0.6, 0.6, 0.1, false, true, 1, true, Double.NaN, 0, false);
         assertThat(rule.judge(jumping).passed()).isTrue();
     }
+
+    /**
+     * A client moving just under the tolerance faster than allowed, every tick. The next tick's limit used
+     * to be built on the move as it was, tolerance included, so the excess piled up: about 0.03 a tick on
+     * the ground and far more in the air. Built on what was legal, it stays one tolerance at most.
+     */
+    @Test
+    @DisplayName("riding the tolerance every tick does not pile it up, on the ground or in the air")
+    void toleranceDoesNotPileUp() {
+        for (boolean onGround : new boolean[]{true, false}) {
+            double carry = 0;
+            double hd = 0;
+            double legal = 0;
+            for (int tick = 0; tick < 200; tick++) {
+                HorizontalRule.Move move = new HorizontalRule.Move(carry, 0, 1, onGround, onGround, 0.6, 0.6, 0.1,
+                        false, true, 1, false, Double.NaN, 0);
+                double limit = rule.limit(move, 1, true);
+                hd = limit + HorizontalRule.TOLERANCE * 0.95;
+                assertThat(rule.judge(new HorizontalRule.Move(carry, hd, 1, onGround, onGround, 0.6, 0.6, 0.1,
+                        false, true, 1, false, Double.NaN, 0)).passed()).isTrue();
+                carry = HorizontalRule.carry(hd, limit);
+                HorizontalRule.Move honest = new HorizontalRule.Move(legal, 0, 1, onGround, onGround, 0.6, 0.6, 0.1,
+                        false, true, 1, false, Double.NaN, 0);
+                legal = rule.limit(honest, 1, true);
+            }
+            assertThat(hd - legal).as("excess after 200 ticks, on ground %s", onGround)
+                    .isLessThanOrEqualTo(HorizontalRule.TOLERANCE + 1e-9);
+        }
+    }
+
+    @Test
+    @DisplayName("an unknown limit carries the move on as it was")
+    void carryWithoutLimit() {
+        assertThat(HorizontalRule.carry(0.3, Double.NaN)).isEqualTo(0.3);
+        assertThat(HorizontalRule.carry(0.3, 0.2)).isEqualTo(0.2);
+        assertThat(HorizontalRule.carry(0.1, 0.2)).isEqualTo(0.1);
+    }
 }

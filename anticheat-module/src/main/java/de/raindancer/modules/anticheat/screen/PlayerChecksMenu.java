@@ -38,7 +38,7 @@ public final class PlayerChecksMenu extends PaginatedMenu<CheckType> implements 
 
     @Override
     protected Component title() {
-        return MiniMessage.miniMessage().deserialize("<dark_gray>Anti-cheat — <white>" + track.name() + "</white>");
+        return MiniMessage.miniMessage().deserialize("<white>" + track.name() + "</white>");
     }
 
     @Override

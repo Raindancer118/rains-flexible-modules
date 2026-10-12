@@ -146,4 +146,31 @@ class VerticalRuleTest {
     void jumpAfterStep() {
         assertThat(rule.judge(fromGround(0.5, 0.42, false)).passed()).isTrue();
     }
+
+    /**
+     * A client rising just under the tolerance faster than gravity allows, every tick after a jump. With
+     * the next tick built on the move as it was, the excess grew under air drag until it flew; built on
+     * what was legal, it adds one tolerance a tick at most and they come down like everybody else.
+     */
+    @Test
+    @DisplayName("rising just under the tolerance every tick still comes down after a jump")
+    void toleranceDoesNotPileUp() {
+        double carry = 0.42;
+        double dy = 0.42;
+        for (int tick = 0; tick < 40; tick++) {
+            VerticalRule.Bounds bounds = rule.bounds(air(carry, 0));
+            dy = bounds.highest() + VerticalRule.TOLERANCE * 0.95;
+            assertThat(rule.judge(air(carry, dy)).failed()).as("tick %d", tick).isFalse();
+            carry = VerticalRule.carry(dy, bounds);
+        }
+        assertThat(dy).as("forty ticks after the jump they are falling").isLessThan(-0.5);
+    }
+
+    @Test
+    @DisplayName("after a teleport, with nothing to build on, the move is carried on as it was")
+    void unknownBoundsCarryTheMove() {
+        VerticalRule.Bounds unknown = rule.bounds(air(Double.NaN, 0));
+        assertThat(VerticalRule.carry(0, unknown)).isZero();
+        assertThat(VerticalRule.carry(0.1, null)).isEqualTo(0.1);
+    }
 }

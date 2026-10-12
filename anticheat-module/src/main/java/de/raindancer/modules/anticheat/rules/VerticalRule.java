@@ -26,10 +26,22 @@ public final class VerticalRule implements IAntiCheatRule {
                        double velocityY, double bounce) {
     }
 
-    public Judgement judge(Move move) {
-        if (Double.isNaN(move.lastDy()) || Double.isNaN(move.dy())) {
-            return Judgement.PASS;
+    /** The lowest and highest a move may go. */
+    public record Bounds(double lowest, double highest) {
+    }
+
+    /**
+     * What the next tick builds on: the move, held within what was allowed. Built on the move as it was, a
+     * client rising just under the tolerance too fast every tick piled the excess up under air drag.
+     */
+    public static double carry(double dy, Bounds bounds) {
+        if (bounds == null || Double.isNaN(dy) || Double.isNaN(bounds.lowest()) || Double.isNaN(bounds.highest())) {
+            return dy;
         }
+        return Math.max(bounds.lowest(), Math.min(bounds.highest(), dy));
+    }
+
+    public Bounds bounds(Move move) {
         int ticks = Math.max(1, move.ticks());
         // Standing, the ground has stopped them: a step up or a landing leaves no speed to carry on with.
         double speed = move.wasOnGround() ? 0 : move.lastDy();
@@ -52,7 +64,16 @@ public final class VerticalRule implements IAntiCheatRule {
         if (move.bounce() > 0) {
             highest = Math.max(highest, Physics.travelled(move.bounce(), ticks, move.gravity()));
         }
+        return new Bounds(lowest, highest);
+    }
 
+    public Judgement judge(Move move) {
+        if (Double.isNaN(move.lastDy()) || Double.isNaN(move.dy())) {
+            return Judgement.PASS;
+        }
+        Bounds bounds = bounds(move);
+        double highest = bounds.highest();
+        double lowest = bounds.lowest();
         double dy = move.dy();
         boolean landedOrStanding = move.onGroundNow() && dy <= TOLERANCE;
         if (!landedOrStanding && dy > highest + TOLERANCE) {

@@ -67,6 +67,14 @@ public final class HorizontalRule implements IAntiCheatRule {
         return new Result(Outcome.SPEED, unslowed, move.hd() - unslowed);
     }
 
+    /**
+     * What the next tick builds on: the move, but no more of it than was allowed. Built on the move as it
+     * was, a client moving just under the tolerance too fast every tick piled the excess up.
+     */
+    public static double carry(double hd, double limit) {
+        return Double.isNaN(limit) ? hd : Math.min(hd, limit);
+    }
+
     /** The farthest {@code ticks} ticks can go, assuming the best input every tick. */
     public double limit(Move move, double slowdown, boolean maySprint) {
         double speed = move.movementSpeed() * (move.sprintCounted() || !maySprint ? 1 : Physics.SPRINT_MULTIPLIER);
