@@ -39,6 +39,9 @@ public final class AutoSnapshotService implements IInvSnapService {
 
     /** Called once a second with who is online right now; takes a snapshot of whoever is due one. */
     public void tick(Iterable<? extends Player> online, Instant now) {
+        if (settings.onlyOnDeath()) {
+            return;
+        }
         for (Player player : online) {
             UUID id = player.getUniqueId();
             Instant last = lastSnapshotAt.getOrDefault(id, Instant.EPOCH);
@@ -47,6 +50,11 @@ public final class AutoSnapshotService implements IInvSnapService {
                 lastSnapshotAt.put(id, now);
             }
         }
+    }
+
+    /** False when only the death snapshot is wanted. */
+    public boolean snapshotsOnQuit() {
+        return !settings.onlyOnDeath();
     }
 
     /** So a player who leaves and rejoins is due one on their own schedule, not the server's uptime. */

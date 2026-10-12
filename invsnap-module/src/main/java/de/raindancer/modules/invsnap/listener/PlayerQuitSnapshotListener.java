@@ -28,7 +28,9 @@ public final class PlayerQuitSnapshotListener implements IInvSnapListener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        snapshots.takeAndStore(event.getPlayer());
+        if (autoSnapshots.snapshotsOnQuit()) {
+            snapshots.takeAndStore(event.getPlayer());
+        }
         forget(event.getPlayer().getUniqueId());
     }
 

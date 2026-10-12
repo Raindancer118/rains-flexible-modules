@@ -110,4 +110,21 @@ class AutoSnapshotServiceTest {
 
         verify(snapshots, never()).takeAndStore(any());
     }
+
+    @Test
+    @DisplayName("only-on-death: nobody is snapshotted on the timer, nor when they leave")
+    void onlyOnDeathStopsTheTimerAndTheLogoffSnapshot() {
+        service.settings(new InvSnapSettings(300, 24).withOnlyOnDeath(true));
+
+        service.tick(List.of(player), Instant.now());
+
+        verify(snapshots, never()).takeAndStore(any());
+        assertThat(service.snapshotsOnQuit()).isFalse();
+    }
+
+    @Test
+    @DisplayName("by default a player is snapshotted when they leave")
+    void snapshotsOnQuitByDefault() {
+        assertThat(service.snapshotsOnQuit()).isTrue();
+    }
 }
