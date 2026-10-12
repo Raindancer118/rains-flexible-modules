@@ -173,4 +173,36 @@ class VerticalRuleTest {
         assertThat(VerticalRule.carry(0, unknown)).isZero();
         assertThat(VerticalRule.carry(0.1, null)).isEqualTo(0.1);
     }
+
+    @Test
+    @DisplayName("a jump the server did not expect is one flag, not the whole arc (Lilly 12.10: Fly x13 for one jump)")
+    void oneUnexpectedJumpIsOneFlag() {
+        // The server thought they were a tick into a jump already; the client jumped (again) from there.
+        double carry = 0.42;
+        double dy = 0.42;
+        VerticalRule.Bounds bounds = rule.bounds(air(carry, dy));
+        assertThat(rule.judge(air(carry, dy)).failed()).isTrue();
+        carry = VerticalRule.carry(dy, bounds);
+        int flagged = 0;
+        for (int tick = 0; tick < 20; tick++) {
+            dy = (dy - 0.08) * 0.98;
+            bounds = rule.bounds(air(carry, dy));
+            if (rule.judge(air(carry, dy)).failed()) {
+                flagged++;
+            }
+            carry = VerticalRule.carry(dy, bounds);
+        }
+        assertThat(flagged).as("ticks of the honest arc flagged after the first").isZero();
+    }
+
+    @Test
+    @DisplayName("hovering is still caught every tick")
+    void hoverIsCaught() {
+        double carry = 0;
+        for (int tick = 0; tick < 20; tick++) {
+            VerticalRule.Bounds bounds = rule.bounds(air(carry, 0));
+            assertThat(rule.judge(air(carry, 0)).failed()).as("tick %d", tick).isTrue();
+            carry = VerticalRule.carry(0, bounds);
+        }
+    }
 }

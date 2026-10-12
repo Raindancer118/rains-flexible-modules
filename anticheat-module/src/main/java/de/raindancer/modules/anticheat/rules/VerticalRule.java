@@ -31,11 +31,15 @@ public final class VerticalRule implements IAntiCheatRule {
     }
 
     /**
-     * What the next tick builds on: the move, held within what was allowed. Built on the move as it was, a
-     * client rising just under the tolerance too fast every tick piled the excess up under air drag.
+     * What the next tick builds on: a move within the tolerance, held within what was allowed — built on the
+     * move as it was, a client rising just under the tolerance every tick piled the excess up under air drag.
      */
     public static double carry(double dy, Bounds bounds) {
         if (bounds == null || Double.isNaN(dy) || Double.isNaN(bounds.lowest()) || Double.isNaN(bounds.highest())) {
+            return dy;
+        }
+        // Past the tolerance it was flagged already: the arc goes on from where it really is.
+        if (dy > bounds.highest() + TOLERANCE || dy < bounds.lowest() - TOLERANCE * 1.5) {
             return dy;
         }
         return Math.max(bounds.lowest(), Math.min(bounds.highest(), dy));

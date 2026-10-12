@@ -164,7 +164,46 @@ class HorizontalRuleTest {
     @DisplayName("an unknown limit carries the move on as it was")
     void carryWithoutLimit() {
         assertThat(HorizontalRule.carry(0.3, Double.NaN)).isEqualTo(0.3);
-        assertThat(HorizontalRule.carry(0.3, 0.2)).isEqualTo(0.2);
+        assertThat(HorizontalRule.carry(0.21, 0.2)).isEqualTo(0.2);
+        assertThat(HorizontalRule.carry(0.3, 0.2)).as("past the tolerance: flagged, carried on as it was").isEqualTo(0.3);
         assertThat(HorizontalRule.carry(0.1, 0.2)).isEqualTo(0.1);
+    }
+
+    @Test
+    @DisplayName("one move past the limit is one flag: the ticks after it build on what really happened")
+    void oneOddMoveIsOneFlag() {
+        for (boolean onGround : new boolean[]{true, false}) {
+            HorizontalRule.Move first = new HorizontalRule.Move(0.2, 0, 1, onGround, onGround, 0.6, 0.6, 0.1,
+                    false, true, 1, false, Double.NaN, 0);
+            double limit = rule.limit(first, 1, true);
+            double hd = limit + 0.13;
+            assertThat(rule.judge(new HorizontalRule.Move(0.2, hd, 1, onGround, onGround, 0.6, 0.6, 0.1,
+                    false, true, 1, false, Double.NaN, 0)).passed()).isFalse();
+            double carry = HorizontalRule.carry(hd, limit);
+            for (int tick = 0; tick < 20; tick++) {
+                HorizontalRule.Move next = new HorizontalRule.Move(carry, 0, 1, onGround, onGround, 0.6, 0.6, 0.1,
+                        false, true, 1, false, Double.NaN, 0);
+                double nextLimit = rule.limit(next, 1, true);
+                // An honest client slowing down as the game slows it, from where it really was.
+                HorizontalRule.Move real = new HorizontalRule.Move(hd, 0, 1, onGround, onGround, 0.6, 0.6, 0.1,
+                        false, true, 1, false, Double.NaN, 0);
+                hd = Math.min(hd, rule.limit(real, 1, true));
+                assertThat(rule.judge(new HorizontalRule.Move(carry, hd, 1, onGround, onGround, 0.6, 0.6, 0.1,
+                        false, true, 1, false, Double.NaN, 0)).passed()).as("tick %d on ground %s", tick, onGround).isTrue();
+                carry = HorizontalRule.carry(hd, nextLimit);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("a speed hack held on is still caught every tick")
+    void heldSpeedIsCaught() {
+        double carry = 0.5;
+        for (int tick = 0; tick < 20; tick++) {
+            HorizontalRule.Move move = new HorizontalRule.Move(carry, 0.5, 1, true, true, 0.6, 0.6, 0.1,
+                    false, true, 1, false, Double.NaN, 0);
+            assertThat(rule.judge(move).passed()).as("tick %d", tick).isFalse();
+            carry = HorizontalRule.carry(0.5, rule.limit(move, 1, true));
+        }
     }
 }

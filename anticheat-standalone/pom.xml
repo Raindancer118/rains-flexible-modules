@@ -35,8 +35,10 @@
                     staff (never punished; setbacks, cancels and kicks are off by default).
              0.10.1: the sneak/use grace is a budget (three presses per two seconds), flicking the key or the item eight times in two
                     seconds is NoSlow; the wall sweep also covers far clips and moves with any tick count; a faked bad ping devalues
-                    flags towards a report instead of exempting them. -->
-        <plugin.version>0.21.0</plugin.version>
+                    flags towards a report instead of exempting them.
+             0.21.1: one move past the speed or height limit is one flag again: only moves within the tolerance are held to
+                    the limit for the next tick (Lilly: one jump was Fly x13, Speed x16). -->
+        <plugin.version>0.21.1</plugin.version>
     </properties>
 
     <dependencies>

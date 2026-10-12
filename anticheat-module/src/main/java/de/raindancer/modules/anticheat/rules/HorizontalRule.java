@@ -68,11 +68,12 @@ public final class HorizontalRule implements IAntiCheatRule {
     }
 
     /**
-     * What the next tick builds on: the move, but no more of it than was allowed. Built on the move as it
-     * was, a client moving just under the tolerance too fast every tick piled the excess up.
+     * What the next tick builds on: a move within the tolerance counts as no more than was allowed, so a
+     * client just under it every tick cannot pile the excess up. A move past it was flagged already and
+     * goes on as it was: capped, every tick of an honest slowdown after one odd move flagged again.
      */
     public static double carry(double hd, double limit) {
-        return Double.isNaN(limit) ? hd : Math.min(hd, limit);
+        return Double.isNaN(limit) || hd > limit + TOLERANCE ? hd : Math.min(hd, limit);
     }
 
     /** The farthest {@code ticks} ticks can go, assuming the best input every tick. */
