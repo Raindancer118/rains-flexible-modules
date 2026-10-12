@@ -217,10 +217,10 @@ public final class ReportMenu extends ModerationScreen {
                     click -> new XrayReviewMenu(services(), viewer, this, report.subject(), report.subjectName()).open());
             return;
         }
-        boolean antiCheat = Bukkit.getCommandMap().getCommand("anticheat") != null;
+        boolean antiCheat = de.raindancer.core.moderation.players.CheatRecords.available();
         if (preset.group() == ReportGroup.CHEATING && antiCheat) {
-            band(MenuLayout.RULES, 6, viewer.hasPermission("rainsanticheat.command"),
-                    Icons.of(Material.COMMAND_BLOCK, "<yellow>Anti-cheat", "<gray>What the checks saw of them."),
+            band(MenuLayout.RULES, 6, viewer.hasPermission(PlayerLookIntoMenu.ANTICHEAT),
+                    Icons.of(Material.COMMAND_BLOCK, "<yellow>Anti-cheat", PlayerLookIntoMenu.antiCheatLore(report.subject())),
                     "For whoever may use the anti-cheat",
                     click -> viewer.performCommand("anticheat " + report.subjectName()));
             return;

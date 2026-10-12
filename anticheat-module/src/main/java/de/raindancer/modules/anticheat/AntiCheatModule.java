@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class AntiCheatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.13.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.14.0")
             .describedAs("Server-side anti-cheat: movement, combat, world, inventory and packet checks")
             .by("Raindancer118");
 
@@ -120,6 +120,13 @@ public final class AntiCheatModule implements FlexModule {
         context.closeWith(evidence::flush);
         context.closeWith(replays::flush);
         context.closeWith(() -> context.plugin().getServer().getOnlinePlayers().forEach(tap::eject));
+
+        // What a player's page in moderation shows of them: the anti-cheat answers, moderation asks, neither knows the other.
+        de.raindancer.core.moderation.players.CheatRecords.Source records = who -> de.raindancer.modules.anticheat.model
+                .CheatSummary.of(tracks.find(who).orElse(null), evidence.of(who), replays.replays().of(who).size(),
+                        System.currentTimeMillis());
+        de.raindancer.core.moderation.players.CheatRecords.provide(records);
+        context.closeWith(() -> de.raindancer.core.moderation.players.CheatRecords.withdraw(records));
 
         shield.start();
         context.closeWith(shield::stop);

@@ -76,8 +76,9 @@ class PlayerScreenScenarioTest {
             assertThat(slot(look, 9)).as("each row says which group it is").contains("Record");
             assertThat(slot(look, 13)).contains("Audit trail");
             assertThat(slot(look, 15)).contains("Attempts");
-            assertThat(slot(look, 21)).contains("Reports");
-            assertThat(slot(look, 23)).contains("Mining evidence");
+            assertThat(slot(look, 20)).contains("Reports");
+            assertThat(slot(look, 22)).contains("Mining evidence");
+            assertThat(slot(look, 24)).contains("Anti-cheat").contains("None on this server");
             assertThat(slot(look, 30)).contains("Chat");
             assertThat(slot(look, 32)).contains("Staff notes");
             ada.closeWindow();

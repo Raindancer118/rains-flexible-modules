@@ -20,7 +20,7 @@ import java.util.UUID;
  * <pre>
  *  row 0   ·  ·  [record] [status] [head] [standing] [x-ray]  ·  ·
  *  row 1   Record              [record]  ·  [audit trail]  ·  [attempts]
- *  row 2   Reports & evidence        [reports]  ·  [mining]
+ *  row 2   Reports & evidence   [reports]  ·  [mining]  ·  [anti-cheat]
  *  row 3   What was said             [chat]  ·  [staff notes]
  * </pre>
  */
@@ -52,19 +52,20 @@ public final class PlayerLookIntoMenu extends PlayerScreen {
                         + " entries, every kind." : "<gray>Every kind of entry.", "<dark_gray>Newest first."),
                 "For whoever may read a record",
                 click -> new HistoryMenu(services(), viewer, this, subject, subjectName).open());
-        band(MenuLayout.RULES, 3, may(ModerationPermission.REPORTS),
+        band(MenuLayout.RULES, 2, may(ModerationPermission.REPORTS),
                 Icons.of(Material.PAPER, "<yellow>Reports",
                         access.reports() ? "<gray>" + seen.openReports() + " open of " + seen.reports() + " about them."
                                 : "<gray>Reports about them."),
                 "For whoever may read reports",
                 click -> new ReportsMenu(services(), viewer, this).open());
-        band(MenuLayout.RULES, 5, may(ModerationPermission.REPORTS),
+        band(MenuLayout.RULES, 4, may(ModerationPermission.REPORTS),
                 Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Mining evidence",
                         access.reports() ? "<gray>" + seen.xray().finds() + " vein(s) and bait(s) on record."
                                 : "<gray>Veins and baits on record.",
                         "<dark_gray>The x-ray tests, and where and when each find was."),
                 "For whoever may read reports",
                 click -> new XrayReviewMenu(services(), viewer, this, subject, subjectName).open());
+        antiCheat(viewer, subject, subjectName);
         band(MenuLayout.WHO, 6, may(ModerationPermission.ATTEMPTS),
                 Icons.of(Material.TRIPWIRE_HOOK, "<yellow>Attempts while punished",
                         access.attempts() ? "<gray>" + seen.attempts() + " kept: joins, chat, building."
@@ -90,6 +91,39 @@ public final class PlayerLookIntoMenu extends PlayerScreen {
                 "For whoever may read a record",
                 click -> new AuditMenu(services(), viewer, this, subject, subjectName).open());
     }
+
+    /** What the anti-cheat knows of them — when there is one, and only for whoever may use it. */
+    private void antiCheat(Player viewer, UUID subject, String subjectName) {
+        if (!de.raindancer.core.moderation.players.CheatRecords.available()) {
+            band(MenuLayout.RULES, 6, Icons.of(Material.COMMAND_BLOCK, "<gray>Anti-cheat", "<gray>None on this server."));
+            return;
+        }
+        band(MenuLayout.RULES, 6, viewer.hasPermission(ANTICHEAT),
+                Icons.of(Material.COMMAND_BLOCK, "<yellow>Anti-cheat", antiCheatLore(subject)),
+                "For whoever may use the anti-cheat",
+                click -> viewer.performCommand("anticheat " + subjectName));
+    }
+
+    /** The anti-cheat's summary of somebody, as lore lines — shared with the report card. */
+    static List<String> antiCheatLore(UUID subject) {
+        return de.raindancer.core.moderation.players.CheatRecords.of(subject).map(record -> {
+            List<String> lore = new java.util.ArrayList<>();
+            lore.add("<gray>Level <white>" + String.format(java.util.Locale.ROOT, "%.1f", record.level()) + "</white>"
+                    + (record.worstCheck() == null ? "" : ", mostly <white>" + record.worstCheck() + "</white>")
+                    + " <dark_gray>(" + record.flaggedChecks() + " check(s))");
+            if (record.lastCheck() != null) {
+                lore.add("<gray>Last flag: <white>" + record.lastCheck() + "</white>, "
+                        + ReportListMenu.ago(java.time.Instant.ofEpochMilli(record.lastAtMillis())));
+            }
+            lore.add("<gray>" + record.replays() + " replay(s) kept.");
+            lore.add("");
+            lore.add("<dark_gray>Click: their checks, log and replays.");
+            return lore;
+        }).orElse(List.of("<green>Nothing on record.", "", "<dark_gray>Click: their checks."));
+    }
+
+    /** The anti-cheat's own command node: its screens are its to guard. */
+    static final String ANTICHEAT = "rainsanticheat.command";
 
     @Override
     protected List<String> helpLines() {
