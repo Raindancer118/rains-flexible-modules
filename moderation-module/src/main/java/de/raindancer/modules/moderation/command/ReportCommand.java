@@ -1,5 +1,7 @@
 package de.raindancer.modules.moderation.command;
 
+import de.raindancer.modules.moderation.service.ReportService;
+
 import de.raindancer.core.platform.rule.Verdict;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.ModerationPermission;
@@ -96,7 +98,9 @@ public final class ReportCommand implements IModerationCommand {
             return;
         }
         moderation.reportService().file(reporter, sender.getName(), them.getUniqueId(),
-                        Players.nameOf(them), what)
+                        Players.nameOf(them), what, null,
+                        sender instanceof Player player ? ReportService.placeOf(player) : null,
+                        ReportService.placeOf(them.getPlayer()))
                 .ifPresentOrElse(
                         filed -> moderation.messages().send(sender, "moderation.report.filed",
                                 "id", filed.id(), "player", Players.nameOf(them)),

@@ -2,37 +2,35 @@ package de.raindancer.modules.moderation.screen;
 
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
+import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.moderation.ModerationServices;
-import de.raindancer.modules.moderation.store.Reasons;
+import de.raindancer.modules.moderation.model.ReportGroup;
+import de.raindancer.modules.moderation.model.ReportPreset;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.ItemStack;
 
-import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * What a player is reporting somebody for.
+ * What a player is reporting somebody for — first the kind of thing, then the exact reason.
  *
  * <h2>Why a player gets a menu at all</h2>
  * Because the commonest useless report is the one-word one — "griefing", nothing else, nobody knows
- * where — and asking for a category first turns that into a category <em>plus</em> whatever they add. It
- * also means the queue can be read at a glance, which nine lines of free text never allows.
+ * where — and asking for a reason first turns that into a reason <em>plus</em> whatever they add. The
+ * reason also tells staff how bad it looks before they read a word, and whether the chat around it matters.
  *
- * <p>These are <b>categories, not verdicts</b>. A player saying "this looks like cheating" is not the
- * server deciding that it was, which is why they map to no punishment: what a moderator does afterwards
- * comes from the punishment reasons and their own judgement.
+ * <p>These are <b>reasons, not verdicts</b>: what a moderator does afterwards is their own judgement.
+ * {@code /report <player> <anything>} bypasses this entirely and always will.
  *
- * <h2>Typing still works</h2>
- * {@code /report <player> <anything>} bypasses this entirely and always will. A player describing
- * something no list covers is the case a report system exists for — the menu is the fast path, not the
- * only one.
+ * <pre>
+ *  row 1      [cheating & exploits]  ·  [griefing & stealing]  ·  [chat & behaviour]
+ *  row 2              [builds & names]  ·  [something else]
+ * </pre>
  */
-public final class ReportCategoryMenu extends ModerationList<String> {
+public final class ReportCategoryMenu extends ModerationScreen {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
@@ -48,7 +46,7 @@ public final class ReportCategoryMenu extends ModerationList<String> {
 
     @Override
     protected Component title() {
-        return MINI.deserialize("<dark_gray>Report — <white>" + subjectName);
+        return MINI.deserialize("<white>Report " + subjectName);
     }
 
     @Override
@@ -57,47 +55,22 @@ public final class ReportCategoryMenu extends ModerationList<String> {
     }
 
     @Override
-    protected List<String> entries() {
-        return Reasons.reportCategories();
+    protected void render() {
+        set(MenuLayout.HEADER_SUBJECT, Icons.head(subject, "<white>" + subjectName, "<gray>Who you are reporting."));
+        door(MenuLayout.WHO, 2, ReportGroup.CHEATING);
+        door(MenuLayout.WHO, 4, ReportGroup.GRIEFING);
+        door(MenuLayout.WHO, 6, ReportGroup.CHAT);
+        door(MenuLayout.RULES, 3, ReportGroup.BUILDS);
+        door(MenuLayout.RULES, 5, ReportGroup.OTHER);
     }
 
-    @Override
-    protected ItemStack icon(String category) {
-        return Icons.of(Material.PAPER, "<yellow>" + category,
-                List.of("<gray>Report " + subjectName + " for this.",
-                        "",
-                        "<dark_gray>You will be asked what happened,",
-                        "<dark_gray>so the staff know where to look."));
-    }
-
-    @Override
-    protected void onClick(String category, InventoryClickEvent event) {
-        viewer.closeInventory();
-        tell("moderation.report.type-what-happened", "category", category, "player", subjectName);
-
-        services().prompts().ask(viewer.getUniqueId(), "moderation", Duration.ofSeconds(120),
-                typed -> {
-                    // The category in front of what they typed, so the queue reads as a category and
-                    // the detail survives. The rule still judges the whole thing, so a category alone
-                    // is not enough to file — which is the point of asking.
-                    String text = category + " — " + (typed == null ? "" : typed.trim());
-                    services().reportService()
-                            .file(viewer.getUniqueId(), viewer.getName(), subject, subjectName, text)
-                            .ifPresentOrElse(
-                                    filed -> tell("moderation.report.filed", "id", filed.id(),
-                                            "player", subjectName),
-                                    () -> tellWhyNot(text));
-                },
-                () -> tell("moderation.nothing-typed"));
-    }
-
-    /** Says which rule refused it, rather than leaving a player with a menu that did nothing. */
-    private void tellWhyNot(String text) {
-        var verdict = services().reportService().mayFile(viewer.getUniqueId(), subject, text);
-        verdict.refusal().ifPresentOrElse(
-                reason -> tell(reason, "detail",
-                        verdict.detail() == null ? "" : verdict.detail()),
-                () -> tell("moderation.report.not-taken", "player", subjectName));
+    private void door(int band, int column, ReportGroup group) {
+        List<String> lore = new ArrayList<>();
+        for (ReportPreset preset : ReportPreset.in(group)) {
+            lore.add("<gray>· " + preset.title());
+        }
+        band(band, column, Icons.of(group.icon(), "<yellow>" + group.title(), lore),
+                click -> new ReportPresetMenu(services(), viewer, this, subject, subjectName, group).open());
     }
 
     @Override
@@ -109,6 +82,6 @@ public final class ReportCategoryMenu extends ModerationList<String> {
 
     @Override
     public String describe() {
-        return "what a player is reporting somebody for, as categories rather than a blank line";
+        return "what a player is reporting somebody for, first the kind of thing";
     }
 }

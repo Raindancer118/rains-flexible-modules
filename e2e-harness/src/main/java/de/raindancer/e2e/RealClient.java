@@ -134,20 +134,24 @@ public final class RealClient implements AutoCloseable {
      * Robot on this display — no xdotool needed, the JDK is already here.
      */
     private void pointerAway() throws IOException, InterruptedException {
-        Path source = folder.resolve("PointerAway.java");
+        pointerTo(2, 2);
+    }
+
+    private void pointerTo(int x, int y) throws IOException, InterruptedException {
+        Path source = folder.resolve("PointerTo.java");
         if (!Files.exists(source)) {
             Files.writeString(source, """
-                    public class PointerAway {
+                    public class PointerTo {
                         public static void main(String[] args) throws Exception {
                             java.awt.Robot robot = new java.awt.Robot();
-                            robot.mouseMove(2, 2);
+                            robot.mouseMove(Integer.parseInt(args[0]), Integer.parseInt(args[1]));
                             robot.delay(100);
                         }
                     }
                     """);
         }
         ProcessBuilder builder = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
-                "-Djava.awt.headless=false", source.toString())
+                "-Djava.awt.headless=false", source.toString(), String.valueOf(x), String.valueOf(y))
                 .redirectErrorStream(true).redirectOutput(folder.resolve("pointer.log").toFile());
         builder.environment().put("DISPLAY", display);
         Process move = builder.start();
@@ -156,24 +160,46 @@ public final class RealClient implements AutoCloseable {
         }
     }
 
-    /** What the screen shows now, as a PNG at {@code target}. */
-    public Path screenshot(Path target) {
+    /**
+     * The same picture with the pointer resting on one slot of an open six-row chest window, so its tooltip
+     * is in it — where the words are. At GUI scale 2 on this display a slot is 36 pixels, the first one centred
+     * at (496, 190).
+     */
+    public Path screenshotHovering(Path target, int slot) {
         try {
-            pointerAway();
+            pointerTo(496 + 36 * (slot % 9), 190 + 36 * (slot / 9));
             Await.ticks(10);
-            Files.createDirectories(target.getParent());
-            Process capture = new ProcessBuilder("import", "-display", display, "-window", "root", target.toString())
-                    .redirectErrorStream(true).redirectOutput(folder.resolve("capture.log").toFile()).start();
-            if (!capture.waitFor(30, TimeUnit.SECONDS) || capture.exitValue() != 0 || !Files.exists(target)) {
-                throw new IllegalStateException("the screen could not be captured — see " + folder.resolve("capture.log"));
-            }
-            return target;
+            return capture(target);
         } catch (IOException failed) {
             throw new UncheckedIOException(failed);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(interrupted);
         }
+    }
+
+    /** What the screen shows now, as a PNG at {@code target}. */
+    public Path screenshot(Path target) {
+        try {
+            pointerAway();
+            Await.ticks(10);
+            return capture(target);
+        } catch (IOException failed) {
+            throw new UncheckedIOException(failed);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(interrupted);
+        }
+    }
+
+    private Path capture(Path target) throws IOException, InterruptedException {
+        Files.createDirectories(target.getParent());
+        Process capture = new ProcessBuilder("import", "-display", display, "-window", "root", target.toString())
+                .redirectErrorStream(true).redirectOutput(folder.resolve("capture.log").toFile()).start();
+        if (!capture.waitFor(30, TimeUnit.SECONDS) || capture.exitValue() != 0 || !Files.exists(target)) {
+            throw new IllegalStateException("the screen could not be captured — see " + folder.resolve("capture.log"));
+        }
+        return target;
     }
 
     public String name() {

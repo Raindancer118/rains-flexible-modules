@@ -78,6 +78,7 @@ public final class ModerationCommand extends StaffCommand {
             case "info" -> tellStanding(viewer, args);
             case "config" -> openConfig(viewer);
             case "reports" -> moderation.screens().reports(viewer);
+            case "report" -> openReport(viewer, args);
             case "staff" -> moderation.screens().staff(viewer);
             case "xray" -> moderation.screens().xraySuspicion(viewer);
             case "audit" -> moderation.screens().audit(viewer);
@@ -96,7 +97,7 @@ public final class ModerationCommand extends StaffCommand {
      */
     /** Subcommands that need a screen; a name is anything else. */
     private static final java.util.Set<String> CONSOLE_KEEPS_OUT =
-            java.util.Set.of("info", "config", "reports", "staff", "xray", "audit", "note", "notes");
+            java.util.Set.of("info", "config", "reports", "report", "staff", "xray", "audit", "note", "notes");
 
     /** The player page's top row, as text — gathered the same way, off the server's threads where it reads files. */
     private void printOverview(CommandSender sender, String typed) {
@@ -131,6 +132,21 @@ public final class ModerationCommand extends StaffCommand {
                                 }
                             }
                         }));
+    }
+
+    /** {@code /mod report <id>}: one report card — what the [Open] in a new report's staff line runs. */
+    private void openReport(Player viewer, String[] args) {
+        ModerationServices moderation = services();
+        if (args.length < 2) {
+            moderation.messages().send(viewer, "moderation.usage", "usage", "/mod report <id>");
+            return;
+        }
+        if (moderation.reports().byId(args[1]).isEmpty()) {
+            moderation.messages().send(viewer, "moderation.report.no-such-report", "id", args[1]);
+            return;
+        }
+        new de.raindancer.modules.moderation.screen.ReportMenu(moderation, viewer,
+                new de.raindancer.modules.moderation.screen.ReportsMenu(moderation, viewer, null), args[1]).open();
     }
 
     private void tellStanding(CommandSender sender, String[] args) {

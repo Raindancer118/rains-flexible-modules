@@ -100,6 +100,9 @@ public final class ReportStorage {
                 yaml.set(at + ".outcome", report.outcome());
                 yaml.set(at + ".closed-at", report.closedAt() == null ? null
                         : report.closedAt().toString());
+                yaml.set(at + ".preset", report.preset());
+                place(yaml, at + ".reporter-at", report.reporterAt());
+                place(yaml, at + ".subject-at", report.subjectAt());
             }
         });
     }
@@ -116,7 +119,30 @@ public final class ReportStorage {
                 uuid(entry.getString("handler")),
                 entry.getString("handler-name"),
                 entry.getString("outcome"),
-                optionalInstant(entry.getString("closed-at")));
+                optionalInstant(entry.getString("closed-at")),
+                entry.getString("preset"),
+                place(entry.getConfigurationSection("reporter-at")),
+                place(entry.getConfigurationSection("subject-at")));
+    }
+
+    private static void place(org.bukkit.configuration.ConfigurationSection yaml, String path,
+                              de.raindancer.modules.moderation.model.ReportPlace where) {
+        if (where == null) {
+            return;
+        }
+        yaml.set(path + ".world", where.world());
+        yaml.set(path + ".x", where.x());
+        yaml.set(path + ".y", where.y());
+        yaml.set(path + ".z", where.z());
+    }
+
+    /** Absent in reports from before places were kept; a broken one costs the place, not the report. */
+    private static de.raindancer.modules.moderation.model.ReportPlace place(ConfigurationSection section) {
+        if (section == null || section.getString("world") == null) {
+            return null;
+        }
+        return new de.raindancer.modules.moderation.model.ReportPlace(section.getString("world"),
+                section.getInt("x"), section.getInt("y"), section.getInt("z"));
     }
 
     private static String asText(UUID id) {

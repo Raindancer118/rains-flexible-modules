@@ -54,6 +54,22 @@ public final class LogSearchService implements IModerationService {
         // Nothing read from settings yet; the zone is the server's audience's, not an owner's choice so far.
     }
 
+    /**
+     * Everybody's public and channel lines around one moment, oldest first — the conversation a chat report
+     * was about, not only the reported player's half of it. Off the server's threads.
+     */
+    public List<ChatLog.Line> around(java.time.Instant moment, java.time.Duration before, java.time.Duration after, int most) {
+        ChatLog log = chatLog.get();
+        if (log == null) {
+            return List.of();
+        }
+        ChatLog.Search search = ChatLog.Search.everything()
+                .between(moment.minus(before).toEpochMilli(), moment.plus(after).toEpochMilli());
+        List<ChatLog.Line> lines = new ArrayList<>(log.search(search, Math.max(1, most), 0));
+        lines.sort(java.util.Comparator.comparingLong(ChatLog.Line::at));
+        return lines;
+    }
+
     public Page<ChatLog.Line> chat(LogQuery query, int pageSize) {
         ChatLog log = chatLog.get();
         List<String> nobody = new ArrayList<>();

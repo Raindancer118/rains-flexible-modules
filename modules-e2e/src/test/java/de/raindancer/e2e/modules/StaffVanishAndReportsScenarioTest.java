@@ -84,6 +84,8 @@ class StaffVanishAndReportsScenarioTest {
 
             ada.run("reports");
             ada.awaitWindow("Reports");
+            ada.clickSlot(slotNamed(ada, "Waiting"));
+            ada.awaitWindow("Waiting");
             int slot = slotNamed(ada, "Cy");
             assertThat(ada.window().orElseThrow().top().get(slot).lore())
                     .anyMatch(line -> line.contains("right click") && line.contains("dismiss"));

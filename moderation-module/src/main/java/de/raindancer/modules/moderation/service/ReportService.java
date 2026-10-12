@@ -96,11 +96,22 @@ public final class ReportService implements IModerationService {
      */
     public Optional<Report> file(UUID reporter, String reporterName, UUID subject, String subjectName,
                                  String text) {
+        return file(reporter, reporterName, subject, subjectName, text, null, null, null);
+    }
+
+    /**
+     * The same, filed under a preset and with where both stood — what the report card's severity, chat and
+     * "go there" buttons are built from.
+     */
+    public Optional<Report> file(UUID reporter, String reporterName, UUID subject, String subjectName,
+                                 String text, de.raindancer.modules.moderation.model.ReportPreset preset,
+                                 de.raindancer.modules.moderation.model.ReportPlace reporterAt,
+                                 de.raindancer.modules.moderation.model.ReportPlace subjectAt) {
         if (mayFile(reporter, subject, text).isRefused()) {
             return Optional.empty();
         }
         Report filed = Report.filed(reports.nextId(), reporter, reporterName, subject, subjectName,
-                text, Instant.now());
+                text, Instant.now()).withPreset(preset == null ? null : preset.name()).withPlaces(reporterAt, subjectAt);
         reports.add(filed);
         changed();
 
@@ -109,13 +120,27 @@ public final class ReportService implements IModerationService {
             // Excludes the subject even when they hold the reports permission themselves — a trial mod
             // reporting a mod must not out itself in the very chat line meant to tell the rest of staff.
             tellTheStaff(subject, "<white><reporter></white> reported <white><subject></white> "
-                            + "<gray>(<id>)</gray><gray>: <text>",
+                            + "<gray>(<id>)</gray><gray>: <text> <click:run_command:'/mod report <id>'>"
+                            + "<hover:show_text:'<gray>Open the report card'><aqua>[Open]</aqua></hover></click>",
                     Chat.arg("reporter", filed.reporterName()),
                     Chat.arg("subject", subjectName),
                     Chat.arg("id", filed.id()),
                     Chat.arg("text", text));
         }
         return Optional.of(filed);
+    }
+
+    /**
+     * Where a player stands, for a report — only when this thread may read them (on Folia an online player
+     * elsewhere belongs to another region), otherwise unknown.
+     */
+    public static de.raindancer.modules.moderation.model.ReportPlace placeOf(org.bukkit.entity.Player player) {
+        if (player == null || !org.bukkit.Bukkit.isOwnedByCurrentRegion(player)) {
+            return null;
+        }
+        org.bukkit.Location at = player.getLocation();
+        return at.getWorld() == null ? null : new de.raindancer.modules.moderation.model.ReportPlace(
+                at.getWorld().getName(), at.getBlockX(), at.getBlockY(), at.getBlockZ());
     }
 
     private final de.raindancer.modules.moderation.rules.AutoReportRule automatic = new de.raindancer.modules.moderation.rules.AutoReportRule();

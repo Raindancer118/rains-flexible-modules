@@ -40,6 +40,21 @@ class StorageTest {
     class Reports {
 
         @Test
+        @DisplayName("the preset and where both stood come back after a restart")
+        void presetAndPlaces(@TempDir Path folder) throws IOException {
+            ReportStorage storage = new ReportStorage(folder);
+            Report filed = Report.filed("R9", ayla, "Ayla", bram, "Bram", "Griefing — my house", when)
+                    .withPreset("GRIEFING")
+                    .withPlaces(new de.raindancer.modules.moderation.model.ReportPlace("world", 10, 64, -20),
+                            new de.raindancer.modules.moderation.model.ReportPlace("world_nether", 1, 2, 3));
+            storage.saveAll(java.util.List.of(filed.claimedBy(ayla, "Ayla")));
+            Report back = storage.load().getFirst();
+            assertThat(back.preset()).isEqualTo("GRIEFING");
+            assertThat(back.reporterAt()).isEqualTo(new de.raindancer.modules.moderation.model.ReportPlace("world", 10, 64, -20));
+            assertThat(back.subjectAt().world()).isEqualTo("world_nether");
+        }
+
+        @Test
         @DisplayName("an open report survives being written and read")
         void anOpenReport(@TempDir Path folder) throws IOException {
             ReportStorage storage = new ReportStorage(folder);

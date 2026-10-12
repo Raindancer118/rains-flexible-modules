@@ -22,10 +22,21 @@ import java.util.UUID;
  * @param handler  who picked it up, if anybody has
  * @param outcome  what they decided, once it is closed
  * @param closedAt when it was closed; null while it is still live
+ * @param preset     the {@link ReportPreset} it was filed under, by name; null when typed or from before presets
+ * @param reporterAt where whoever filed it stood at the time, when known
+ * @param subjectAt  where the reported player stood at the time, when known and online
  */
 public record Report(String id, UUID reporter, String reporterName, UUID subject, String subjectName,
                      String text, Instant at, ReportState state, UUID handler, String handlerName,
-                     String outcome, Instant closedAt) {
+                     String outcome, Instant closedAt, String preset, ReportPlace reporterAt, ReportPlace subjectAt) {
+
+    /** Without a preset or places: as reports were before, and as typed ones still are. */
+    public Report(String id, UUID reporter, String reporterName, UUID subject, String subjectName,
+                  String text, Instant at, ReportState state, UUID handler, String handlerName,
+                  String outcome, Instant closedAt) {
+        this(id, reporter, reporterName, subject, subjectName, text, at, state, handler, handlerName, outcome,
+                closedAt, null, null, null);
+    }
 
     public Report {
         if (id == null || id.isBlank()) {
@@ -63,13 +74,13 @@ public record Report(String id, UUID reporter, String reporterName, UUID subject
     /** Somebody is on it, so nobody else walks to the same grief. */
     public Report claimedBy(UUID who, String name) {
         return new Report(id, reporter, reporterName, subject, subjectName, text, at,
-                ReportState.CLAIMED, who, nameOr(name, "somebody"), outcome, null);
+                ReportState.CLAIMED, who, nameOr(name, "somebody"), outcome, null, preset, reporterAt, subjectAt);
     }
 
     /** Handed back to the queue — the moderator who claimed it had to go. */
     public Report released() {
         return new Report(id, reporter, reporterName, subject, subjectName, text, at,
-                ReportState.OPEN, null, null, outcome, null);
+                ReportState.OPEN, null, null, outcome, null, preset, reporterAt, subjectAt);
     }
 
     /** Looked at, and something was done about it. */
@@ -88,7 +99,19 @@ public record Report(String id, UUID reporter, String reporterName, UUID subject
                 // Recorded as something rather than as nothing: a closed report whose outcome is blank
                 // reads as one that was never actually looked at.
                 said == null || said.isBlank() ? "no reason given" : said.trim(),
-                when == null ? Instant.now() : when);
+                when == null ? Instant.now() : when, preset, reporterAt, subjectAt);
+    }
+
+    /** Filed through a preset. */
+    public Report withPreset(String presetName) {
+        return new Report(id, reporter, reporterName, subject, subjectName, text, at, state, handler, handlerName,
+                outcome, closedAt, presetName, reporterAt, subjectAt);
+    }
+
+    /** Where both stood when it was filed. */
+    public Report withPlaces(ReportPlace whereReporter, ReportPlace whereSubject) {
+        return new Report(id, reporter, reporterName, subject, subjectName, text, at, state, handler, handlerName,
+                outcome, closedAt, preset, whereReporter, whereSubject);
     }
 
     /** Waiting for somebody to pick it up. */
