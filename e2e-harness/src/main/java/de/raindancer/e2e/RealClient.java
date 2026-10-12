@@ -60,6 +60,11 @@ public final class RealClient implements AutoCloseable {
 
     /** Starts a display and the client, joins {@code server} as {@code name}, and waits until it is in. */
     public static RealClient join(PaperServer server, String name) {
+        return join(server, name, 2);
+    }
+
+    /** The same, drawing {@code renderDistance} chunks — more for a picture of the land, fewer for a menu. */
+    public static RealClient join(PaperServer server, String name, int renderDistance) {
         String version = E2e.MINECRAFT_VERSION;
         try {
             Path cache = Downloads.cache().resolve("client-" + version);
@@ -74,7 +79,7 @@ public final class RealClient implements AutoCloseable {
             // No first-start screens, no sound, the nearest chunks only — nothing a screenshot waits on.
             Files.writeString(folder.resolve("options.txt"), String.join("\n",
                     "onboardAccessibility:false", "skipMultiplayerWarning:true", "joinedFirstServer:true",
-                    "tutorialStep:none", "renderDistance:2", "simulationDistance:5", "soundCategory_master:0.0",
+                    "tutorialStep:none", "renderDistance:" + renderDistance, "simulationDistance:5", "soundCategory_master:0.0",
                     "narrator:0", "guiScale:2", "pauseOnLostFocus:false", "hideServerAddress:true", ""));
 
             String display = ":" + (90 + (int) (ProcessHandle.current().pid() % 9));
@@ -101,10 +106,16 @@ public final class RealClient implements AutoCloseable {
             env.put("DISPLAY", display);
             env.put("LIBGL_ALWAYS_SOFTWARE", "1");
             env.put("__GLX_VENDOR_LIBRARY_NAME", "mesa");
+            // Since 26.3 the client opens its window through SDL, which may go by EGL: without this a
+            // machine with an NVIDIA driver renders through it, and onto a virtual display that is black.
+            env.put("__EGL_VENDOR_LIBRARY_FILENAMES", "/usr/share/glvnd/egl_vendor.d/50_mesa.json");
+            env.put("GALLIUM_DRIVER", "llvmpipe");
+            env.put("SDL_VIDEODRIVER", "x11");
             Process game = builder.start();
             RealClient client = new RealClient(name, display, xvfb, game, folder);
             try {
-                server.awaitLog(name + " joined the game", Duration.ofMinutes(3));
+                // Paper's own line: a plugin replacing the join message (Essentials' welcome) cannot change it.
+                server.awaitLog(java.util.regex.Pattern.quote(name) + "\\[/[^]]*\\] logged in with entity id", Duration.ofMinutes(3));
                 // Terrain around the spawn, and the client done fading in.
                 Await.ticks(200);
             } catch (RuntimeException | AssertionError failed) {

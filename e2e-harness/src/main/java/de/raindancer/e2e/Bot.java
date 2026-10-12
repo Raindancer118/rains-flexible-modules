@@ -31,6 +31,7 @@ import org.geysermc.mcprotocollib.protocol.data.game.scoreboard.TeamAction;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.ClientboundAddEntityPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundSetTimePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundBlockUpdatePacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundSectionBlocksUpdatePacket;
 import org.geysermc.mcprotocollib.protocol.packet.common.clientbound.ClientboundPingPacket;
 import org.geysermc.mcprotocollib.protocol.packet.common.serverbound.ServerboundPongPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundPlayerInfoRemovePacket;
@@ -411,6 +412,12 @@ public final class Bot {
             case ClientboundBlockUpdatePacket update -> {
                 Vector3i at = update.getEntry().getPosition();
                 blockUpdates.add(new int[]{at.getX(), at.getY(), at.getZ(), update.getEntry().getBlock()});
+            }
+            case ClientboundSectionBlocksUpdatePacket section -> {
+                for (var entry : section.getEntries()) {
+                    Vector3i at = entry.getPosition();
+                    blockUpdates.add(new int[]{at.getX(), at.getY(), at.getZ(), entry.getBlock()});
+                }
             }
             case ClientboundChunkBatchFinishedPacket ignored -> from.send(new ServerboundChunkBatchReceivedPacket(64f));
             case ClientboundGameEventPacket event -> {
@@ -920,7 +927,7 @@ public final class Bot {
         return this;
     }
 
-    /** Every single-block update this client was sent, oldest first: {x, y, z, block state id}. */
+    /** Every block update this client was sent, single or as part of a section, oldest first: {x, y, z, block state id}. */
     public List<int[]> blockUpdates() {
         return List.copyOf(blockUpdates);
     }

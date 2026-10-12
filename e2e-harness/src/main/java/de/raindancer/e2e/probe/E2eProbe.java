@@ -285,6 +285,49 @@ public final class E2eProbe extends JavaPlugin implements Listener {
         write(command);
     }
 
+    /** Players whose client is shown the world as an x-ray shows it, from their next chunk on. */
+    private final java.util.Set<String> xrayFor = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * What an x-ray client does on its own side: plain rock is not drawn, so ore, water and lava hang in
+     * empty space. Sent as air to that one client, first thing when a chunk arrives — fake blocks other
+     * plugins send for the chunk come after and stay visible, as they would to a real x-ray.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void xray(io.papermc.paper.event.packet.PlayerChunkLoadEvent event) {
+        Player player = event.getPlayer();
+        if (!xrayFor.contains(player.getName())) {
+            return;
+        }
+        org.bukkit.Chunk chunk = event.getChunk();
+        org.bukkit.World world = chunk.getWorld();
+        org.bukkit.block.data.BlockData air = org.bukkit.Material.AIR.createBlockData();
+        java.util.Map<io.papermc.paper.math.Position, org.bukkit.block.data.BlockData> hidden = new java.util.HashMap<>();
+        int top = Math.min(world.getMaxHeight(), 48);
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                for (int y = world.getMinHeight() + 1; y < top; y++) {
+                    org.bukkit.block.Block block = chunk.getBlock(x, y, z);
+                    if (ROCK.contains(block.getType())) {
+                        hidden.put(io.papermc.paper.math.Position.block(block.getX(), y, block.getZ()), air);
+                    }
+                }
+            }
+        }
+        if (!hidden.isEmpty()) {
+            player.sendMultiBlockChange(hidden);
+        }
+    }
+
+    private static final java.util.Set<org.bukkit.Material> ROCK = java.util.EnumSet.of(
+            org.bukkit.Material.STONE, org.bukkit.Material.DEEPSLATE, org.bukkit.Material.TUFF,
+            org.bukkit.Material.GRANITE, org.bukkit.Material.DIORITE, org.bukkit.Material.ANDESITE,
+            org.bukkit.Material.CALCITE, org.bukkit.Material.DIRT, org.bukkit.Material.GRAVEL,
+            org.bukkit.Material.SMOOTH_BASALT, org.bukkit.Material.DRIPSTONE_BLOCK, org.bukkit.Material.CLAY,
+            org.bukkit.Material.COBBLED_DEEPSLATE, org.bukkit.Material.SAND, org.bukkit.Material.SANDSTONE,
+            org.bukkit.Material.NETHERRACK, org.bukkit.Material.BASALT, org.bukkit.Material.BLACKSTONE,
+            org.bukkit.Material.SOUL_SAND, org.bukkit.Material.SOUL_SOIL);
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof ConsoleCommandSender || sender instanceof RemoteConsoleCommandSender)) {
@@ -348,7 +391,17 @@ public final class E2eProbe extends JavaPlugin implements Listener {
             sender.sendMessage("used " + tag + " for " + player.getName());
             return true;
         }
-        sender.sendMessage("e2e as <player> <command...> | e2e click <player> <slot> | e2e use <player> <tag> [sneak]");
+        if (args.length >= 3 && args[0].equalsIgnoreCase("xray")) {
+            if (args[2].equalsIgnoreCase("on")) {
+                xrayFor.add(args[1]);
+            } else {
+                xrayFor.remove(args[1]);
+            }
+            sender.sendMessage("x-ray for " + args[1] + ": " + xrayFor.contains(args[1]));
+            return true;
+        }
+        sender.sendMessage("e2e as <player> <command...> | e2e click <player> <slot> | e2e use <player> <tag> [sneak]"
+                + " | e2e xray <player> on|off");
         return true;
     }
 
