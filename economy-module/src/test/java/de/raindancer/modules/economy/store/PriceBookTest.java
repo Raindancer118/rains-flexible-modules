@@ -166,6 +166,20 @@ class PriceBookTest {
     }
 
     @Test
+    @DisplayName("armour trims: every trim template is priced, so the shop sells them — rarer finds cost more")
+    void armourTrims() {
+        var shipped = BasePrices.parse(EconomySettings.class.getResourceAsStream("base-prices.yml"),
+                EconomySettings.DEFAULTS.currency());
+        List<String> trims = List.of("COAST", "DUNE", "SENTRY", "WILD", "TIDE", "SNOUT", "RIB", "WAYFINDER", "RAISER",
+                "SHAPER", "HOST", "FLOW", "BOLT", "VEX", "WARD", "EYE", "SPIRE", "SILENCE");
+        for (String trim : trims) {
+            assertThat(shipped).as(trim).containsKey(trim + "_ARMOR_TRIM_SMITHING_TEMPLATE");
+        }
+        assertThat(shipped.get("SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE").minor())
+                .as("the rarest trim is the dearest").isGreaterThan(shipped.get("COAST_ARMOR_TRIM_SMITHING_TEMPLATE").minor());
+    }
+
+    @Test
     @DisplayName("netherite: the shipped list prices the upgrade template, so smithing prices every netherite piece")
     void netherite() {
         var shipped = BasePrices.parse(EconomySettings.class.getResourceAsStream("base-prices.yml"),

@@ -189,3 +189,25 @@ enchanted_golden_apple: 15000
 # Bastion loot; its own copying recipe needs one already, so nothing can price it from a recipe. With it,
 # smithing prices every netherite tool and armour piece.
 netherite_upgrade_smithing_template: 5000
+
+# ---- armour trims
+# Loot only; each template's own copying recipe needs one already, so nothing can price it from a recipe. Priced by
+# how hard it is to find: shipwrecks, temples and outposts first, the deep dark's silence last.
+coast_armor_trim_smithing_template: 1500
+dune_armor_trim_smithing_template: 1500
+sentry_armor_trim_smithing_template: 1500
+wild_armor_trim_smithing_template: 1500
+tide_armor_trim_smithing_template: 1500
+snout_armor_trim_smithing_template: 1500
+rib_armor_trim_smithing_template: 1500
+wayfinder_armor_trim_smithing_template: 2000
+raiser_armor_trim_smithing_template: 2000
+shaper_armor_trim_smithing_template: 2000
+host_armor_trim_smithing_template: 2000
+flow_armor_trim_smithing_template: 2500
+bolt_armor_trim_smithing_template: 2500
+vex_armor_trim_smithing_template: 3000
+ward_armor_trim_smithing_template: 3000
+eye_armor_trim_smithing_template: 3000
+spire_armor_trim_smithing_template: 3000
+silence_armor_trim_smithing_template: 8000
