@@ -145,10 +145,13 @@ class WorldToolsTest {
     @DisplayName("the typed commands exist, and are guarded by what they do")
     void theTypedCommands() {
         var declared = ModerationCommands.declared();
-        var vein = declared.stream().filter(one -> one.name().equals("vein")).findFirst();
+        var vein = declared.stream().filter(one -> one.name().equals("orevein")).findFirst();
         var mob = declared.stream().filter(one -> one.name().equals("mob")).findFirst();
 
-        assertThat(vein).as("/vein is not declared").isPresent();
+        assertThat(vein).as("/orevein is not declared").isPresent();
+        // /vein is Vein Toggle's: players switch Veinminer with it, and a staff tool of the same name
+        // took the plain label on Lilly, so every player's /vein buried ore instead.
+        assertThat(declared).noneMatch(one -> one.name().equals("vein"));
         assertThat(mob).as("/mob is not declared").isPresent();
         // The same split as the page: ore is a mod's, creatures are an admin's. A typed form that
         // skipped the tier would be the whole permission decision undone by a second door.

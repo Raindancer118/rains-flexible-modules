@@ -179,9 +179,9 @@ public final class ModerationCommands {
                         .taking("[message] — or nothing, to stay in it")
                         .needing(ModerationPermission.STAFF_CHAT.node()),
 
-                // Typed, for the times somebody knows what they want: /vein diamond_ore 40 is one
+                // Typed, for the times somebody knows what they want: /orevein diamond_ore 40 is one
                 // line for four clicks and two screens, and an event is run twenty times over.
-                ModuleCommand.of("vein", "Bury a vein of ore where you are looking",
+                ModuleCommand.of("orevein", "Bury a vein of ore where you are looking",
                                 new WorldToolCommands.Vein(ModerationCommands::require))
                         .taking("[ore] [size] — iron_ore 12 by default")
                         .needing(ModerationPermission.SPAWN_ORE.node())

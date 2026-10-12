@@ -16,10 +16,10 @@ import java.util.Locale;
 import java.util.function.Supplier;
 
 /**
- * {@code /vein} and {@code /mob} — the world tools, typed.
+ * {@code /orevein} and {@code /mob} — the world tools, typed.
  *
  * <h2>Why these earn a place beside the page</h2>
- * Because they take arguments a menu is slow at. {@code /vein diamond_ore 40} is one line for what is
+ * Because they take arguments a menu is slow at. {@code /orevein diamond_ore 40} is one line for what is
  * four clicks and two screens, and somebody building an event runs it twenty times with different
  * numbers. The page stays for the times you do not know what you want yet — it shows the ore, the
  * creature and the numbers together, and lets you change one and look.
@@ -27,7 +27,7 @@ import java.util.function.Supplier;
  * <p>Everything still happens <b>where you are looking</b>, exactly as on the page. That is the one
  * argument neither form asks for, because a crosshair says it better than three numbers.
  *
- * <h2>Why {@code /mob} takes a subcommand and {@code /vein} does not</h2>
+ * <h2>Why {@code /mob} takes a subcommand and {@code /orevein} does not</h2>
  * A pack and a wave are the same decision with one difference — whether it arrives at once or over
  * time — so they belong under one word with that difference named. A vein has no second form.
  */
@@ -39,7 +39,7 @@ public final class WorldToolCommands {
     /** How far a moderator can point, the same as the page. */
     private static final int REACH = 64;
 
-    /** {@code /vein [ore] [size]} — bury one where you are looking. */
+    /** {@code /orevein [ore] [size]} — bury one where you are looking. */
     public static final class Vein extends StaffCommand {
 
         public Vein(Supplier<ModerationServices> services) {
