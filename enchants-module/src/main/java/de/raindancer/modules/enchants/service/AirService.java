@@ -76,7 +76,7 @@ public final class AirService {
         if (flight > 0) {
             state.budget.fitTo(capacity);
         }
-        boolean grounded = player.isOnGround() || player.isInWater() || player.isInsideVehicle();
+        boolean grounded = standing(player) || player.isInWater() || player.isInsideVehicle();
         if (grounded && now >= state.airborneUntilNanos) {
             state.jumpsUsed = 0;
         }
@@ -147,6 +147,16 @@ public final class AirService {
         player.setAllowFlight(false);
         effects.play(player.getUniqueId(), Cues.ABILITY);
         advancements.jumped(player.getUniqueId(), state.jumpsUsed);
+    }
+
+    /**
+     * On the ground, as the server sees it. {@code isOnGround} is what the client says, and a client that
+     * always says yes would never use a jump up and would recharge Flight in mid-air — so it must also be
+     * true that something solid is right under the feet.
+     */
+    private static boolean standing(Player player) {
+        return player.isOnGround()
+                && player.getWorld().hasCollisionsIn(player.getBoundingBox().shift(0, -0.2, 0));
     }
 
     private void land(Player player, EnchantsSettings config, boolean emptied) {
