@@ -16,18 +16,18 @@ import java.util.function.LongSupplier;
 /**
  * Who has asked whom.
  *
- * <h2>Keyed by the asker, and only by the asker</h2>
- * One map, keyed by whoever did the asking, because a player has at most one outgoing request. Incoming
- * is a scan of that map rather than a second index — which sounds wasteful and is not: there are as many
- * requests on a server as there are people mid-conversation, and a second index is a second thing to
- * keep in step. The old plugin did exactly this and it was right.
+ * <h2>Keyed by the pair</h2>
+ * One map, keyed by asker and asked. A player asks one person, or — with {@code /tpahere @a} — a whole
+ * batch at once; either way the batch is the asker's one outgoing "thing". Incoming is a scan of that map
+ * rather than a second index — which sounds wasteful and is not: there are as many requests on a server as
+ * there are people mid-conversation, and a second index is a second thing to keep in step.
  *
  * <h2>The two rules that are not symmetrical</h2>
  * <b>One outgoing, uncapped incoming.</b> Asking is something you do; being asked is something that
  * happens to you, and capping that would let one person block everybody else from reaching somebody by
- * asking first. And a second request to a <em>different</em> person displaces the first — a change of
- * mind — while a second to the <em>same</em> person is refused, because that is not a change of mind,
- * it is asking twice.
+ * asking first. And a second request to a <em>different</em> person displaces whatever the asker had
+ * standing — a change of mind — while a second to the <em>same</em> person is refused, because that is not a
+ * change of mind, it is asking twice.
  *
  * <h2>Expiry is asked, never swept</h2>
  * Every read filters out what has run out. {@link #expire} exists only to <em>report</em> what lapsed so
@@ -43,7 +43,10 @@ import java.util.function.LongSupplier;
  */
 public final class TpaRequests {
 
-    private final Map<UUID, TpaRequest> outgoing = new ConcurrentHashMap<>();
+    private record Key(UUID from, UUID to) {
+    }
+
+    private final Map<Key, TpaRequest> outgoing = new ConcurrentHashMap<>();
     /** Milliseconds; injected so expiry can be tested without waiting a minute. */
     private final LongSupplier clock;
 
@@ -105,7 +108,7 @@ public final class TpaRequests {
         return make(from, to, kind);
     }
 
-    /** What one asking came to: the request made, and whatever it pushed aside. */
+    /** What one asking came to: the request made, and the first one it pushed aside. */
     public record Outcome(Optional<TpaRequest> request, Optional<TpaRequest> displaced) {
 
         static Outcome refused() {
@@ -113,40 +116,90 @@ public final class TpaRequests {
         }
     }
 
-    private Outcome make(UUID from, UUID to, TpaKind kind) {
+    /** What asking several people at once came to: the requests made, and every one it pushed aside. */
+    public record Batch(List<TpaRequest> made, List<TpaRequest> displaced) {
+    }
+
+    private synchronized Outcome make(UUID from, UUID to, TpaKind kind) {
         if (from == null || to == null || kind == null || from.equals(to)) {
             return Outcome.refused();
         }
         long now = clock.getAsLong();
-        TpaRequest[] made = new TpaRequest[1];
-        TpaRequest[] pushedAside = new TpaRequest[1];
+        Key key = new Key(from, to);
+        TpaRequest held = outgoing.get(key);
+        if (held != null && !held.isExpired(now)) {
+            // Asking the same person again. Not a change of mind: the answer they have not given yet is
+            // still coming.
+            return new Outcome(Optional.empty(), Optional.empty());
+        }
+        List<TpaRequest> pushedAside = clearOthers(from, java.util.Set.of(to), now);
+        TpaRequest made = new TpaRequest(from, to, kind, now, now + standingFor.toMillis());
+        outgoing.put(key, made);
+        return new Outcome(Optional.of(made), pushedAside.stream().findFirst());
+    }
 
-        // One operation, so two commands arriving together cannot both make a request — on Folia they
-        // really can be two threads, and two outgoing requests is two teleports promised.
-        outgoing.compute(from, (ignored, held) -> {
+    /**
+     * Asks several people at once. Whoever was already asked and has not answered is left alone, whatever
+     * else this player had standing with people outside the batch is pushed aside — one asking, one change
+     * of mind, as with a single person.
+     */
+    public synchronized Batch askAll(UUID from, java.util.Collection<UUID> targets, TpaKind kind) {
+        if (from == null || targets == null || kind == null) {
+            return new Batch(List.of(), List.of());
+        }
+        long now = clock.getAsLong();
+        java.util.Set<UUID> wanted = new java.util.LinkedHashSet<>(targets);
+        wanted.remove(from);
+        wanted.remove(null);
+        List<TpaRequest> pushedAside = clearOthers(from, wanted, now);
+        List<TpaRequest> made = new ArrayList<>();
+        for (UUID to : wanted) {
+            Key key = new Key(from, to);
+            TpaRequest held = outgoing.get(key);
             if (held != null && !held.isExpired(now)) {
-                if (held.to().equals(to)) {
-                    // Asking the same person again. Not a change of mind: the answer they have not
-                    // given yet is still coming.
-                    return held;
-                }
-                pushedAside[0] = held;
+                continue;
             }
-            made[0] = new TpaRequest(from, to, kind, now, now + standingFor.toMillis());
-            return made[0];
-        });
-        return new Outcome(Optional.ofNullable(made[0]), Optional.ofNullable(pushedAside[0]));
+            TpaRequest request = new TpaRequest(from, to, kind, now, now + standingFor.toMillis());
+            outgoing.put(key, request);
+            made.add(request);
+        }
+        return new Batch(List.copyOf(made), List.copyOf(pushedAside));
+    }
+
+    /** Removes what {@code from} has standing with anybody outside {@code keep}; returns what was live. */
+    private List<TpaRequest> clearOthers(UUID from, java.util.Set<UUID> keep, long now) {
+        List<TpaRequest> pushedAside = new ArrayList<>();
+        for (TpaRequest request : List.copyOf(outgoing.values())) {
+            if (!request.from().equals(from) || keep.contains(request.to())) {
+                continue;
+            }
+            outgoing.remove(new Key(request.from(), request.to()), request);
+            if (!request.isExpired(now)) {
+                pushedAside.add(request);
+            }
+        }
+        return pushedAside;
     }
 
     // ------------------------------------------------------------------------ looking
 
-    /** What this player has asked, if it still stands. */
+    /** What this player has asked, if it still stands — the newest, when they asked several at once. */
     public Optional<TpaRequest> from(UUID asker) {
+        return allFrom(asker).stream().findFirst();
+    }
+
+    /** Everything this player has asked that still stands, newest first. */
+    public List<TpaRequest> allFrom(UUID asker) {
         if (asker == null) {
-            return Optional.empty();
+            return List.of();
         }
-        return Optional.ofNullable(outgoing.get(asker))
-                .filter(request -> !request.isExpired(clock.getAsLong()));
+        long now = clock.getAsLong();
+        return outgoing.values().stream()
+                .filter(request -> request.from().equals(asker))
+                .filter(request -> !request.isExpired(now))
+                .sorted(Comparator.comparingLong(TpaRequest::madeAt).reversed()
+                        .thenComparing(request -> request.to().toString()))
+                .toList();
     }
 
     /** Everything asked of this player, newest first — what a list shows and what bare accept takes. */
@@ -169,7 +222,11 @@ public final class TpaRequests {
 
     /** Whether this player has already asked that one. */
     public boolean has(UUID asker, UUID asked) {
-        return from(asker).map(request -> request.to().equals(asked)).orElse(false);
+        if (asker == null || asked == null) {
+            return false;
+        }
+        TpaRequest held = outgoing.get(new Key(asker, asked));
+        return held != null && !held.isExpired(clock.getAsLong());
     }
 
     /** How many stand right now, for a diagnostic and for the tests. */
@@ -194,19 +251,42 @@ public final class TpaRequests {
             return Optional.empty();
         }
         TpaRequest wanted = from != null
-                ? from(from).filter(request -> request.to().equals(asked)).orElse(null)
+                ? Optional.ofNullable(outgoing.get(new Key(from, asked)))
+                        .filter(request -> !request.isExpired(clock.getAsLong())).orElse(null)
                 : to(asked).stream().findFirst().orElse(null);
         if (wanted == null) {
             return Optional.empty();
         }
         // Only if it is still the one we looked at: between the read and here, they may have withdrawn
         // it and asked somebody else.
-        return outgoing.remove(wanted.from(), wanted) ? Optional.of(wanted) : Optional.empty();
+        return outgoing.remove(new Key(wanted.from(), wanted.to()), wanted) ? Optional.of(wanted) : Optional.empty();
     }
 
-    /** The asker taking their own request back. */
+    /** The asker taking their own request back — the newest, when they asked several. */
     public Optional<TpaRequest> withdraw(UUID asker) {
-        return from(asker).filter(request -> outgoing.remove(asker, request));
+        return from(asker).filter(request -> outgoing.remove(new Key(asker, request.to()), request));
+    }
+
+    /** The asker taking back what they asked of this one person. */
+    public Optional<TpaRequest> withdraw(UUID asker, UUID asked) {
+        if (asker == null || asked == null) {
+            return Optional.empty();
+        }
+        Key key = new Key(asker, asked);
+        return Optional.ofNullable(outgoing.get(key))
+                .filter(request -> !request.isExpired(clock.getAsLong()))
+                .filter(request -> outgoing.remove(key, request));
+    }
+
+    /** The asker taking back everything they asked. */
+    public List<TpaRequest> withdrawAll(UUID asker) {
+        List<TpaRequest> taken = new ArrayList<>();
+        for (TpaRequest request : allFrom(asker)) {
+            if (outgoing.remove(new Key(asker, request.to()), request)) {
+                taken.add(request);
+            }
+        }
+        return List.copyOf(taken);
     }
 
     // ------------------------------------------------------------------------ ending
@@ -221,7 +301,7 @@ public final class TpaRequests {
         long now = clock.getAsLong();
         List<TpaRequest> lapsed = new ArrayList<>();
         for (TpaRequest request : List.copyOf(outgoing.values())) {
-            if (request.isExpired(now) && outgoing.remove(request.from(), request)) {
+            if (request.isExpired(now) && outgoing.remove(new Key(request.from(), request.to()), request)) {
                 lapsed.add(request);
             }
         }
@@ -231,36 +311,21 @@ public final class TpaRequests {
     /**
      * Everything involving this player, removed and handed back. Called when they log out.
      *
-     * <p>Both directions. Their own request goes because there is nobody left to travel; the ones asked
+     * <p>Both directions. Their own requests go because there is nobody left to travel; the ones asked
      * of them go because otherwise those people wait out a full minute for an answer from somebody who
-     * is not there.
+     * is not there. Reported whether or not they had just expired: the other side is still standing
+     * there holding a request that is now gone, and "they left" is the true and useful thing to say.
      */
     public List<TpaRequest> forget(UUID player) {
         if (player == null) {
             return List.of();
         }
         List<TpaRequest> ended = new ArrayList<>();
-        long now = clock.getAsLong();
         for (TpaRequest request : List.copyOf(outgoing.values())) {
             boolean theirs = request.from().equals(player) || request.to().equals(player);
-            if (!outgoing.remove(request.from(), request)) {
-                continue;
+            if (theirs && outgoing.remove(new Key(request.from(), request.to()), request)) {
+                ended.add(request);
             }
-            if (!theirs) {
-                // Somebody else's, and expired — swept along the way because we are already walking
-                // the map. Nobody here to tell about it: expire() is what reports those, and it will
-                // simply find one fewer.
-                if (!request.isExpired(now)) {
-                    // Not expired and not theirs: put it straight back. Only reachable if another
-                    // thread is mid-change, and taking it would end a request nobody asked to end.
-                    outgoing.putIfAbsent(request.from(), request);
-                }
-                continue;
-            }
-            // Reported whether or not it had just expired. The other side is still standing there
-            // holding a request that is now gone, and "they left" is the true and useful thing to say
-            // — where saying nothing leaves them waiting to answer something that no longer exists.
-            ended.add(request);
         }
         return List.copyOf(ended);
     }

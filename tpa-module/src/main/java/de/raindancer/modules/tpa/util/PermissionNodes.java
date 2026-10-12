@@ -45,6 +45,15 @@ public final class PermissionNodes {
      */
     public static final String BYPASS_TOGGLE = "tpa.bypass.toggle";
 
+    /**
+     * {@code /tpahere @a}: asking everybody online to come to you at once.
+     *
+     * <p>Operators only by default, and not covered by {@code operators-bypass}'s waits: it is not a way
+     * past a wait, it is a different command. Everybody still has to accept — unless they chose
+     * auto-accept for themselves.
+     */
+    public static final String HERE_ALL = "tpa.here.all";
+
     private PermissionNodes() {
     }
 
@@ -56,6 +65,9 @@ public final class PermissionNodes {
                 new Permission(BACK,
                         "Go back to where you were, or where you died",
                         PermissionDefault.TRUE),
+                new Permission(HERE_ALL,
+                        "Ask everybody online to teleport to you with /tpahere @a",
+                        PermissionDefault.OP),
                 new Permission(BYPASS_WARMUP,
                         "Teleport without standing still first",
                         PermissionDefault.FALSE),

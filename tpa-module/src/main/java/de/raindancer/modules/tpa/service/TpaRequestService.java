@@ -183,23 +183,100 @@ public final class TpaRequestService implements ITpaService {
         messages.send(from, "tpa.asked",
                 "player", to.getName(),
                 "seconds", now.requestStanding());
-        // To chat, never the action bar: this has to still be there when they come back to the
-        // keyboard, and an action bar is gone in three seconds.
+        if (announce(from, to, kind)) {
+            tellThePrice(from, to, kind);
+        }
+        sweepAfter(from, made.get());
+        return true;
+    }
+
+    /**
+     * Puts a made request in front of the person asked: the words with [Accept] [Deny] under them — or, for
+     * somebody who switched auto-accept on, straight into answering it.
+     *
+     * <p>To chat, never the action bar: this has to still be there when they come back to the keyboard, and
+     * an action bar is gone in three seconds. The buttons are bound to this request alone: a click after
+     * somebody has asked again, or after this one has lapsed, answers whatever request stands at that moment
+     * through accept()/deny() themselves — both already read from the store fresh, exactly as bare /tpaccept
+     * does.
+     *
+     * @return false when it was accepted on the spot, so there is nothing left to quote a price for
+     */
+    private boolean announce(Player from, Player to, TpaKind kind) {
+        TpaSettings now = settings;
+        if (prefs.of(to.getUniqueId()).autoAccept()) {
+            messages.send(to, "tpa.auto-accepted", "player", from.getName());
+            accept(to, from.getUniqueId());
+            return false;
+        }
         Component asked = messages.prefixed(kind == TpaKind.TO ? "tpa.asked-you-to" : "tpa.asked-you-here",
                 "player", from.getName(),
                 "seconds", now.requestStanding());
-        // [Accept] [Deny] under the words, so answering is one click rather than remembering a command.
-        // Bound to this request alone: a click after somebody has asked again, or after this one has
-        // lapsed, answers whatever request stands at that moment through accept()/deny() themselves —
-        // both already read from the store fresh, exactly as bare /tpaccept does.
         Component question = buttons.ask(to.getUniqueId(), Duration.ofSeconds(now.requestStanding()),
                 clicker -> onlineOf(clicker).ifPresent(answerer -> accept(answerer, from.getUniqueId())),
                 clicker -> onlineOf(clicker).ifPresent(answerer -> deny(answerer, from.getUniqueId())));
         to.sendMessage(asked.appendNewline().append(question));
-        tellThePrice(from, to, kind);
-
-        sweepAfter(from, made.get());
         return true;
+    }
+
+    /**
+     * {@code /tpahere @a}: asks everybody who could be asked to come to the asker, with one wait between
+     * requests for the lot. Whoever could not be asked one by one — switched off, blocked, another world,
+     * somebody the asker cannot see — is passed over without a word to them, and counted for the asker.
+     *
+     * @return how many were asked
+     */
+    public int askEveryone(Player from) {
+        if (!isReadyToAsk(from)) {
+            messages.send(from, TpaAskingRule.Verdict.TOO_SOON.messageKey(), "player", "", "time", waitLeft(from.getUniqueId()));
+            return 0;
+        }
+        TpaSettings now = settings;
+        java.util.List<Player> askable = new java.util.ArrayList<>();
+        int passedOver = 0;
+        for (Player to : from.getServer().getOnlinePlayers()) {
+            if (to.equals(from)) {
+                continue;
+            }
+            if (!vanish.canSee(from.getUniqueId(), to.getUniqueId())) {
+                continue;
+            }
+            boolean reachable = now.allowCrossWorld() || from.getWorld().equals(to.getWorld());
+            TpaAskingRule.Verdict verdict = asking.check(from.getUniqueId(), to.getUniqueId(),
+                    prefs.of(to.getUniqueId()), reachable, from.hasPermission(PermissionNodes.BYPASS_TOGGLE),
+                    requests.has(from.getUniqueId(), to.getUniqueId()), false);
+            if (verdict.isFine()) {
+                askable.add(to);
+            } else {
+                passedOver++;
+            }
+        }
+        if (askable.isEmpty()) {
+            messages.send(from, "tpa.nobody-to-ask");
+            return 0;
+        }
+        TpaRequests.Batch batch = requests.askAll(from.getUniqueId(),
+                askable.stream().map(Player::getUniqueId).toList(), TpaKind.HERE);
+        batch.displaced().forEach(displaced -> onlineOf(displaced.to()).ifPresent(bumped ->
+                messages.send(bumped, "tpa.withdrawn-by-asker", "player", from.getName())));
+        if (batch.made().isEmpty()) {
+            messages.send(from, "tpa.nobody-to-ask");
+            return 0;
+        }
+        waits.start(from.getUniqueId());
+        prefs.seen(from);
+        messages.send(from, "tpa.asked-everyone",
+                "count", batch.made().size(),
+                "passed", passedOver,
+                "seconds", now.requestStanding());
+        for (TpaRequest made : batch.made()) {
+            onlineOf(made.to()).ifPresent(to -> {
+                prefs.seen(to);
+                announce(from, to, TpaKind.HERE);
+            });
+        }
+        sweepAfter(from, batch.made().get(0));
+        return batch.made().size();
     }
 
     /**
@@ -302,14 +379,20 @@ public final class TpaRequestService implements ITpaService {
             messages.send(who, "tpa.called-it-off");
             return true;
         }
-        Optional<TpaRequest> withdrawn = requests.withdraw(who.getUniqueId());
+        java.util.List<TpaRequest> withdrawn = requests.withdrawAll(who.getUniqueId());
         if (withdrawn.isEmpty()) {
             messages.send(who, "tpa.nothing-to-take-back");
             return false;
         }
-        messages.send(who, "tpa.took-it-back", "player", prefs.nameOf(withdrawn.get().to()));
-        onlineOf(withdrawn.get().to()).ifPresent(asked ->
-                messages.send(asked, "tpa.withdrawn-by-asker", "player", who.getName()));
+        if (withdrawn.size() == 1) {
+            messages.send(who, "tpa.took-it-back", "player", prefs.nameOf(withdrawn.get(0).to()));
+        } else {
+            messages.send(who, "tpa.took-them-back", "count", withdrawn.size());
+        }
+        for (TpaRequest each : withdrawn) {
+            onlineOf(each.to()).ifPresent(asked ->
+                    messages.send(asked, "tpa.withdrawn-by-asker", "player", who.getName()));
+        }
         return true;
     }
 

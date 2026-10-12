@@ -77,6 +77,13 @@ tpa:
   # ---------------------------------------------------------------- being left alone
   now-accepting: "<green>Teleport requests are on — people may ask again."
   now-refusing: "<yellow>Teleport requests are off — nobody can ask you. Hermit mode on."
+  now-auto-accepting: "<green>Teleport requests to you are now accepted automatically. <gray>/tpauto off<green> to be asked first again."
+  now-asking-first: "<yellow>You will be asked before anybody teleports to you or you to them."
+  auto-accepted: "<gray>Auto-accepted <white><player></white>'s request."
+  asked-everyone: "<green>Asked <white><count></white> player(s). It stands for <white><seconds></white>s. <gray>(<passed> passed over: requests off, blocked or another world)"
+  nobody-to-ask: "<yellow>There is nobody online who can be asked right now."
+  no-permission-everyone: "<red>You may not ask everybody at once."
+  took-them-back: "<green>Took back your requests to <white><count></white> players."
   blocked: "<green><white><player></white> can no longer ask to teleport to you."
   unblocked: "<green><white><player></white> may ask again."
   already-blocked: "<gray><player></gray> is already blocked."
@@ -101,6 +108,7 @@ tpa:
   only-a-player: "<red>A teleport request belongs to a player — this needs to be run in game."
   usage:
     ask-here: "<gray>/tpahere <somebody who is online>"
+    auto: "<gray>/tpauto <white>on<gray> or <white>off<gray>, or nothing at all to flip it."
     toggle: "<gray>/tptoggle <white>on<gray> or <white>off<gray>, or nothing at all to flip it."
 
   # ---------------------------------------------------------------- the book on the hub

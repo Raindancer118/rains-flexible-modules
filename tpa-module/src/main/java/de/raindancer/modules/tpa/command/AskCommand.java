@@ -53,6 +53,15 @@ public final class AskCommand implements ITpaCommand {
             return;
         }
 
+        if (kind == TpaKind.HERE && args[0].equalsIgnoreCase("@a")) {
+            if (!player.hasPermission(PermissionNodes.HERE_ALL)) {
+                live.messages().send(player, "tpa.no-permission-everyone");
+                return;
+            }
+            live.asking().askEveryone(player);
+            return;
+        }
+
         // Never getOfflinePlayer(String), which blocks on a lookup against Mojang from what on Folia may be a
         // region thread. Somebody offline is found by the server's cache and told apart from a typo.
         Player them = Who.online(live.server(), live.messages(), player, args[0]).orElse(null);
@@ -69,9 +78,15 @@ public final class AskCommand implements ITpaCommand {
             return List.of();
         }
         TpaServices live = services.get();
-        return Who.suggest(live.server(), player, args.length == 0 ? "" : args[0],
+        String typed = args.length == 0 ? "" : args[0];
+        List<String> names = new java.util.ArrayList<>(Who.suggest(live.server(), player, typed,
                 other -> !other.equals(player)
-                        && live.core().vanish().canSee(player.getUniqueId(), other.getUniqueId()));
+                        && live.core().vanish().canSee(player.getUniqueId(), other.getUniqueId())));
+        if (kind == TpaKind.HERE && player.hasPermission(PermissionNodes.HERE_ALL)
+                && "@a".startsWith(typed.toLowerCase(Locale.ROOT))) {
+            names.add("@a");
+        }
+        return names;
     }
 
     @Override

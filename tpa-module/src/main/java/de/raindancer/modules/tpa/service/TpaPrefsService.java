@@ -74,6 +74,20 @@ public final class TpaPrefsService implements ITpaService {
         return accepting;
     }
 
+    // ------------------------------------------------------------------------ auto-accept
+
+    /** Flips it, and says which way it went. */
+    public boolean toggleAutoAccept(Player who) {
+        return setAutoAccept(who, !prefs.of(who.getUniqueId()).autoAccept());
+    }
+
+    /** Sets it outright — what {@code /tpauto on} means. */
+    public boolean setAutoAccept(Player who, boolean on) {
+        prefs.set(who.getUniqueId(), who.getName(), prefs.of(who.getUniqueId()).autoAccepting(on));
+        messages.send(who, on ? "tpa.now-auto-accepting" : "tpa.now-asking-first");
+        return on;
+    }
+
     // ------------------------------------------------------------------------ the block list
 
     /**
@@ -93,9 +107,7 @@ public final class TpaPrefsService implements ITpaService {
 
         // The request they made a moment ago would otherwise still be sitting there, waiting to be
         // accepted, and the block would look like it had done nothing.
-        requests.from(them.getUniqueId())
-                .filter(request -> request.to().equals(who.getUniqueId()))
-                .ifPresent(request -> requests.withdraw(them.getUniqueId()));
+        requests.withdraw(them.getUniqueId(), who.getUniqueId());
 
         messages.send(who, "tpa.blocked", "player", nameOf(them));
         return true;

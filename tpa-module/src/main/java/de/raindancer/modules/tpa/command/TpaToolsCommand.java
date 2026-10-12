@@ -35,6 +35,7 @@ public final class TpaToolsCommand implements ITpaCommand {
 
         /** The blanket switch: whether anybody may ask. */
         TOGGLE,
+        AUTO,
 
         BLOCK,
 
@@ -61,6 +62,7 @@ public final class TpaToolsCommand implements ITpaCommand {
         switch (what) {
             case CANCEL -> live.asking().cancel(player);
             case TOGGLE -> toggle(live, player, args);
+            case AUTO -> auto(live, player, args);
             case BLOCK -> block(live, player, args, true);
             case UNBLOCK -> block(live, player, args, false);
         }
@@ -85,6 +87,24 @@ public final class TpaToolsCommand implements ITpaCommand {
             return;
         }
         live.prefs().set(player, wanted);
+    }
+
+    /** {@code /tpauto}: requests to you are accepted the moment they arrive. Flips, or is set outright. */
+    private void auto(TpaServices live, Player player, String[] args) {
+        if (args.length == 0) {
+            live.prefs().toggleAutoAccept(player);
+            return;
+        }
+        Boolean wanted = switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "on", "true", "yes" -> Boolean.TRUE;
+            case "off", "false", "no" -> Boolean.FALSE;
+            default -> null;
+        };
+        if (wanted == null) {
+            live.messages().send(player, "tpa.usage.auto");
+            return;
+        }
+        live.prefs().setAutoAccept(player, wanted);
     }
 
     /** With no argument the list opens; with one it acts on that person. */
@@ -150,7 +170,7 @@ public final class TpaToolsCommand implements ITpaCommand {
         TpaServices live = services.get();
         String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
         List<String> options = switch (what) {
-            case TOGGLE -> List.of("on", "off");
+            case TOGGLE, AUTO -> List.of("on", "off");
             case BLOCK -> Who.suggest(live.server(), player, typed, other -> !other.equals(player));
             // Only who they have actually blocked. Completing everybody would suggest names that
             // cannot be unblocked because they never were.
@@ -176,6 +196,7 @@ public final class TpaToolsCommand implements ITpaCommand {
     public String describe() {
         return switch (what) {
             case CANCEL -> "give up on a teleport, or take back your request";
+            case AUTO -> "accept teleport requests to you automatically";
             case TOGGLE -> "whether people may ask to teleport to you";
             case BLOCK -> "stop one person asking you";
             case UNBLOCK -> "let them ask again";

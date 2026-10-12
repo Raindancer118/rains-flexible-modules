@@ -100,6 +100,7 @@ class MessagesTest {
         keys.add(PermissionNodes.BYPASS_COOLDOWN);
         keys.add(PermissionNodes.BYPASS_TOGGLE);
         keys.add(PermissionNodes.BYPASS_FEE);
+        keys.add(PermissionNodes.HERE_ALL);
         // The economy's names for what a fee is for — spelled like keys, sent to no player.
         keys.add(TpaFees.TRIP);
         keys.add(TpaFees.BACK);

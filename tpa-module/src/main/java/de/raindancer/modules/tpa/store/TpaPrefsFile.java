@@ -119,7 +119,8 @@ public final class TpaPrefsFile {
                     }
                 }
             }
-            TpaPrefs read = new TpaPrefs(theirs.getBoolean("accepting", true), blocked);
+            TpaPrefs read = new TpaPrefs(theirs.getBoolean("accepting", true), blocked,
+                    theirs.getBoolean("auto-accept", false));
             if (read.isWorthKeeping()) {
                 prefs.put(who, read);
             }
@@ -190,6 +191,9 @@ public final class TpaPrefsFile {
             String base = "players." + who;
             nameOf(who).ifPresent(name -> yaml.set(base + ".name", name));
             yaml.set(base + ".accepting", theirs.accepting());
+            if (theirs.autoAccept()) {
+                yaml.set(base + ".auto-accept", true);
+            }
             if (theirs.blocked().isEmpty()) {
                 return;
             }

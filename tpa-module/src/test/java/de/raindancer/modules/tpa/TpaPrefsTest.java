@@ -164,4 +164,29 @@ class TpaPrefsTest {
             assertThat(blocked).isUnmodifiable();
         }
     }
+
+    @Nested
+    @DisplayName("auto-accept")
+    class AutoAccepting {
+
+        @Test
+        @DisplayName("is off to begin with, and turning it on is worth writing down")
+        void offByDefault() {
+            assertThat(TpaPrefs.untouched().autoAccept()).isFalse();
+            TpaPrefs on = TpaPrefs.untouched().autoAccepting(true);
+            assertThat(on.autoAccept()).isTrue();
+            assertThat(on.isWorthKeeping()).isTrue();
+            assertThat(on.autoAccepting(false).isWorthKeeping()).isFalse();
+        }
+
+        @Test
+        @DisplayName("survives the other switches and the block list")
+        void keptAcrossChanges() {
+            TpaPrefs on = TpaPrefs.untouched().autoAccepting(true);
+            assertThat(on.refusingEverybody().autoAccept()).isTrue();
+            assertThat(on.blocking(ALICE).autoAccept()).isTrue();
+            assertThat(on.blocking(ALICE).unblocking(ALICE).autoAccept()).isTrue();
+            assertThat(on.refusingEverybody().acceptingEverybody().autoAccept()).isTrue();
+        }
+    }
 }

@@ -70,6 +70,12 @@ public final class TpaCommands {
                                 new TpaToolsCommand(TpaCommands::require,
                                         TpaToolsCommand.What.TOGGLE))
                         .aliased("tpatoggle"),
+                ModuleCommand.of("tpauto",
+                                "Accept teleport requests to you automatically",
+                                new TpaToolsCommand(TpaCommands::require,
+                                        TpaToolsCommand.What.AUTO))
+                        .aliased("tpaauto")
+                        .taking("[on|off]"),
                 ModuleCommand.of("tpablock",
                                 "Stop one person asking you",
                                 new TpaToolsCommand(TpaCommands::require,

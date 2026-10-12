@@ -18,10 +18,14 @@ import java.util.UUID;
  * under a reader is a block list that is briefly empty while somebody is asking, which is a bug nobody
  * would ever reproduce on purpose.
  */
-public record TpaPrefs(boolean accepting, Set<UUID> blocked) {
+public record TpaPrefs(boolean accepting, Set<UUID> blocked, boolean autoAccept) {
 
     public TpaPrefs {
         blocked = blocked == null ? Set.of() : Set.copyOf(blocked);
+    }
+
+    public TpaPrefs(boolean accepting, Set<UUID> blocked) {
+        this(accepting, blocked, false);
     }
 
     /**
@@ -31,7 +35,7 @@ public record TpaPrefs(boolean accepting, Set<UUID> blocked) {
      * of its components, and {@code accepting} is one.
      */
     public static TpaPrefs untouched() {
-        return new TpaPrefs(true, Set.of());
+        return new TpaPrefs(true, Set.of(), false);
     }
 
     /**
@@ -52,11 +56,16 @@ public record TpaPrefs(boolean accepting, Set<UUID> blocked) {
     // ------------------------------------------------------------------------ changing
 
     public TpaPrefs acceptingEverybody() {
-        return new TpaPrefs(true, blocked);
+        return new TpaPrefs(true, blocked, autoAccept);
     }
 
     public TpaPrefs refusingEverybody() {
-        return new TpaPrefs(false, blocked);
+        return new TpaPrefs(false, blocked, autoAccept);
+    }
+
+    /** Whether requests to this player are accepted the moment they arrive. */
+    public TpaPrefs autoAccepting(boolean on) {
+        return new TpaPrefs(accepting, blocked, on);
     }
 
     public TpaPrefs blocking(UUID who) {
@@ -65,7 +74,7 @@ public record TpaPrefs(boolean accepting, Set<UUID> blocked) {
         }
         Set<UUID> now = new LinkedHashSet<>(blocked);
         now.add(who);
-        return new TpaPrefs(accepting, now);
+        return new TpaPrefs(accepting, now, autoAccept);
     }
 
     public TpaPrefs unblocking(UUID who) {
@@ -74,7 +83,7 @@ public record TpaPrefs(boolean accepting, Set<UUID> blocked) {
         }
         Set<UUID> now = new LinkedHashSet<>(blocked);
         now.remove(who);
-        return new TpaPrefs(accepting, now);
+        return new TpaPrefs(accepting, now, autoAccept);
     }
 
     /**
@@ -85,6 +94,6 @@ public record TpaPrefs(boolean accepting, Set<UUID> blocked) {
      * pruned these on write for the same reason.
      */
     public boolean isWorthKeeping() {
-        return !accepting || !blocked.isEmpty();
+        return !accepting || !blocked.isEmpty() || autoAccept;
     }
 }
