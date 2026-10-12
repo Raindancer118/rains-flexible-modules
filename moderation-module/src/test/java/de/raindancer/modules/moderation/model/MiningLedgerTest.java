@@ -14,10 +14,10 @@ class MiningLedgerTest {
     @DisplayName("finds survive digging in another world — the counts they explain do too")
     void findsSurviveAWorldChange() {
         MiningLedger ledger = new MiningLedger(0);
-        ledger.dug("world", 1, -50, 1, OreKind.DIAMOND.ordinal());
-        ledger.dug("world", 2, -50, 2, MiningLedger.BAIT);
+        ledger.dug("world", 1, -50, 1, OreKind.DIAMOND.ordinal(), 0);
+        ledger.dug("world", 2, -50, 2, MiningLedger.BAIT, 0);
 
-        ledger.dug("lobby", 0, 64, 0, MiningLedger.ROCK);
+        ledger.dug("lobby", 0, 64, 0, MiningLedger.ROCK, 0);
 
         assertThat(ledger.finds()).extracting(MiningLedger.Find::world, MiningLedger.Find::kind)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple("world", OreKind.DIAMOND.ordinal()),
@@ -28,9 +28,9 @@ class MiningLedgerTest {
     @DisplayName("finds survive thousands of plain rock blocks dug after them")
     void findsSurviveLongDigging() {
         MiningLedger ledger = new MiningLedger(0);
-        ledger.dug("world", 1, -50, 1, OreKind.DIAMOND.ordinal());
+        ledger.dug("world", 1, -50, 1, OreKind.DIAMOND.ordinal(), 0);
         for (int i = 0; i < MiningLedger.TRAIL * 2; i++) {
-            ledger.dug("world", i, -50, 0, MiningLedger.ROCK);
+            ledger.dug("world", i, -50, 0, MiningLedger.ROCK, 0);
         }
 
         assertThat(ledger.finds()).hasSize(1);
@@ -42,7 +42,7 @@ class MiningLedgerTest {
     void findsAreCapped() {
         MiningLedger ledger = new MiningLedger(0);
         for (int i = 0; i < MiningLedger.FINDS + 5; i++) {
-            ledger.dug("world", i, -50, 0, MiningLedger.BAIT);
+            ledger.dug("world", i, -50, 0, MiningLedger.BAIT, 0);
         }
 
         assertThat(ledger.finds()).hasSize(MiningLedger.FINDS);
@@ -56,6 +56,17 @@ class MiningLedgerTest {
         ledger.restore(Map.of(), Map.of(), 0, 0, 0, 0, 0, "world",
                 List.of(new int[]{1, 2, 3, MiningLedger.ROCK}, new int[]{4, 5, 6, MiningLedger.BAIT}), null);
 
-        assertThat(ledger.finds()).containsExactly(new MiningLedger.Find("world", 4, 5, 6, MiningLedger.BAIT));
+        assertThat(ledger.finds()).containsExactly(new MiningLedger.Find("world", 4, 5, 6, MiningLedger.BAIT, 0));
+    }
+
+    @Test
+    @DisplayName("a find keeps the moment it was made, so staff can match it to a clip")
+    void findsKeepTheirTime() {
+        MiningLedger ledger = new MiningLedger(0);
+        ledger.dug("world_nether", 7, 30, 7, MiningLedger.BAIT, 1_760_000_000_000L);
+        ledger.dug("world_nether", 8, 30, 7, MiningLedger.ROCK, 1_760_000_000_050L);
+
+        assertThat(ledger.finds()).containsExactly(
+                new MiningLedger.Find("world_nether", 7, 30, 7, MiningLedger.BAIT, 1_760_000_000_000L));
     }
 }

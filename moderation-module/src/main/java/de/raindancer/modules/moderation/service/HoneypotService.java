@@ -5,15 +5,23 @@ import de.raindancer.modules.moderation.util.WorldGrid;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.moderation.ModerationSettings;
 import de.raindancer.modules.moderation.model.OreKind;
-import de.raindancer.modules.moderation.rules.RevealRule;
+import de.raindancer.modules.moderation.rules.BaitSightRule;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,13 +38,15 @@ import java.util.concurrent.ThreadLocalRandom;
  * Bait ores: fake diamonds and debris sent to one player's client only, sealed inside solid rock
  * where no honest eye can see them. An x-ray client renders them like any other ore.
  *
- * <p>The server never changes a block. Baits are placed only in fully enclosed host rock, and the
- * moment a tunnel comes next to one — the dig starts, or anything else opens a neighbour — the real
- * block is sent back, so an honest player never sees a diamond that is not there.
+ * <p>The server never changes a block. Baits are placed only in host rock at least a sight distance
+ * away from open space, and the moment a tunnel comes within that distance the real block is sent
+ * back, so an honest player never sees a diamond that is not there. The distance is one block for a
+ * slow pickaxe; an instant one breaks blocks faster than the server can answer, so it grows with
+ * dig speed and ping ({@link BaitSightRule}).
  *
- * <p>Because baits are scattered uniformly over the enclosed rock around a miner, the chance that
- * any block their digging reveals is a bait is known exactly: baits ÷ enclosed rock. That makes
- * "reached N baits" a test with a calculable expectation, not a hunch.
+ * <p>Because baits are scattered uniformly over that rock around a miner, the chance that a dig
+ * brings a bait within the distance is known exactly: baits ÷ eligible rock, for every block the dig
+ * newly brings that near. That makes "reached N baits" a test with a calculable expectation, not a hunch.
  */
 public final class HoneypotService implements IModerationService {
 
@@ -44,7 +54,9 @@ public final class HoneypotService implements IModerationService {
     private static final int ATTEMPTS_PER_BAIT = 40;
     /** Extra probes every cycle, only to measure how much enclosed rock is around the miner right now. */
     private static final int PROBES = 64;
-    private static final int[][] SIDES = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+    /** How often baits near the miner are checked against open space something else made. */
+    private static final int GUARD_TICKS = 4;
+    private static final BaitSightRule SIGHT = new BaitSightRule();
 
     /** A position in one world. */
     public record Key(UUID world, int x, int y, int z) {
@@ -53,12 +65,14 @@ public final class HoneypotService implements IModerationService {
     /** One player's baits. */
     private static final class Baits {
         final Map<Key, Material> fakes = new HashMap<>();
-        /** Baits already turned back because a dig started next to them; counted when that dig reveals them. */
+        /** Baits already turned back because a dig started near them; counted when that dig finishes. */
         final java.util.Set<Key> pending = new java.util.HashSet<>();
         Location center;
         double tries;
         double eligible;
         int radius;
+        /** How close open space may come before a bait goes; what placement and the expectation assume. */
+        int distance = 1;
     }
 
     /** What one break's revealed blocks meant for the bait test. */
@@ -85,6 +99,13 @@ public final class HoneypotService implements IModerationService {
             }
             maintain(player);
         }, () -> { });
+        Scheduling.entityTimer(plugin, player, 100 + GUARD_TICKS, GUARD_TICKS, task -> {
+            if (!player.isOnline()) {
+                task.cancel();
+                return;
+            }
+            guard(player);
+        }, () -> { });
     }
 
     void maintain(Player player) {
@@ -103,6 +124,8 @@ public final class HoneypotService implements IModerationService {
             }
             baits.center = here.clone();
             World world = here.getWorld();
+            baits.distance = sightDistance(player, here.getBlock().getRelative(0, -1, 0));
+            int sight = baits.distance;
             // Measured afresh around where they are now: an estimate kept from hours of solid rock
             // would overstate the rock in a cave system and understate the chance of hitting bait.
             baits.tries = 0;
@@ -115,7 +138,7 @@ public final class HoneypotService implements IModerationService {
                     continue;
                 }
                 baits.tries++;
-                if (spot.isPresent() && eligibleRock(world, spot.get())) {
+                if (spot.isPresent() && eligibleRock(world, spot.get(), sight)) {
                     baits.eligible++;
                 }
             }
@@ -129,13 +152,14 @@ public final class HoneypotService implements IModerationService {
                     restore(player, bait.getKey());
                 }
             }
+            baits.pending.removeIf(key -> distance(here, key) > radius + 8);
             int missing = now.xrayHoneypotCount() - baits.fakes.size();
             ThreadLocalRandom random = ThreadLocalRandom.current();
             for (int attempt = 0; attempt < missing * ATTEMPTS_PER_BAIT && baits.fakes.size() < now.xrayHoneypotCount(); attempt++) {
                 Optional<int[]> found = spotInShell(random, here.getBlockX(), here.getBlockY(), here.getBlockZ(), radius,
                         world.getMinHeight(), world.getMaxHeight());
                 if (found.isEmpty() || !Bukkit.isOwnedByCurrentRegion(world, found.get()[0] >> 4, found.get()[2] >> 4)
-                        || !eligibleRock(world, found.get())) {
+                        || !eligibleRock(world, found.get(), sight)) {
                     continue;
                 }
                 Key spot = new Key(world.getUID(), found.get()[0], found.get()[1], found.get()[2]);
@@ -152,35 +176,51 @@ public final class HoneypotService implements IModerationService {
     }
 
     /**
-     * Which of the blocks a dig just revealed were this player's baits, and how many chance alone
-     * would have made baits. Every bait reached is turned back into its real block at once.
+     * What a finished dig meant for the bait test: the baits it brought within sight distance, and how
+     * many chance alone would have — one bait's worth for every eligible block it newly brought that
+     * near. Called while the dug block still stands. Every bait reached is turned back at once.
      */
-    public Reach revealed(Player player, World world, List<int[]> revealedRock) {
+    public Reach dug(Player player, Block block) {
         Baits baits = byPlayer.get(player.getUniqueId());
         if (baits == null) {
             return Reach.NONE;
         }
+        World world = block.getWorld();
         synchronized (baits) {
             if (baits.center == null || baits.fakes.isEmpty() && baits.pending.isEmpty() || !world.equals(baits.center.getWorld())
                     || baits.tries < 10) {
                 return Reach.NONE;
             }
+            int distance = Math.max(baits.distance, sightDistance(player, block));
+            if (!ownedAround(world, block.getX(), block.getZ(), 2 * distance + 1)) {
+                return Reach.NONE;
+            }
             double shell = 4.0 / 3 * Math.PI * (Math.pow(baits.radius, 3) - Math.pow(INNER, 3));
-            double enclosedRock = Math.max(1, baits.eligible / baits.tries * shell);
-            double perBlock = (baits.fakes.size() + baits.pending.size()) / enclosedRock;
+            double eligibleRock = Math.max(1, baits.eligible / baits.tries * shell);
+            double perBlock = (baits.fakes.size() + baits.pending.size()) / eligibleRock;
             int inZone = 0;
-            List<Key> reached = new ArrayList<>();
-            for (int[] block : revealedRock) {
-                Key key = new Key(world.getUID(), block[0], block[1], block[2]);
-                double distance = distance(baits.center, key);
-                if (distance >= INNER && distance <= baits.radius) {
+            for (int[] near : SIGHT.newlyNear(new WorldGrid(world), block.getX(), block.getY(), block.getZ(), distance)) {
+                Key key = new Key(world.getUID(), near[0], near[1], near[2]);
+                double fromCenter = distance(baits.center, key);
+                if (fromCenter >= INNER && fromCenter <= baits.radius
+                        && OreKind.isHostRock(world.getBlockAt(near[0], near[1], near[2]).getType())) {
                     inZone++;
                 }
-                if (baits.fakes.remove(key) != null) {
-                    reached.add(key);
+            }
+            List<Key> reached = new ArrayList<>();
+            for (Iterator<Key> it = baits.fakes.keySet().iterator(); it.hasNext(); ) {
+                Key key = it.next();
+                if (steps(key, block) <= distance) {
+                    it.remove();
                     unown(key, player.getUniqueId());
                     restore(player, key);
-                } else if (baits.pending.remove(key)) {
+                    reached.add(key);
+                }
+            }
+            for (Iterator<Key> it = baits.pending.iterator(); it.hasNext(); ) {
+                Key key = it.next();
+                if (steps(key, block) <= distance) {
+                    it.remove();
                     reached.add(key);
                 }
             }
@@ -188,16 +228,21 @@ public final class HoneypotService implements IModerationService {
         }
     }
 
-    /** A dig is starting next to these blocks: any bait among them goes back to rock before it can be seen. */
+    /**
+     * A dig is starting: every bait it could bring within sight distance goes back to rock now,
+     * before the client has broken anything next to it. Counted when the dig finishes.
+     */
     public void digStarted(Player player, Block block) {
         Baits baits = byPlayer.get(player.getUniqueId());
         if (baits == null) {
             return;
         }
         synchronized (baits) {
-            for (int[] side : SIDES) {
-                Key key = new Key(block.getWorld().getUID(), block.getX() + side[0], block.getY() + side[1], block.getZ() + side[2]);
-                if (baits.fakes.remove(key) != null) {
+            int distance = Math.max(baits.distance, sightDistance(player, block));
+            for (Iterator<Key> it = baits.fakes.keySet().iterator(); it.hasNext(); ) {
+                Key key = it.next();
+                if (key.world().equals(block.getWorld().getUID()) && steps(key, block) <= distance) {
+                    it.remove();
                     unown(key, player.getUniqueId());
                     restore(player, key);
                     baits.pending.add(key);
@@ -205,6 +250,53 @@ public final class HoneypotService implements IModerationService {
             }
             if (baits.pending.size() > 64) {
                 baits.pending.clear();
+            }
+        }
+    }
+
+    /**
+     * Open space something else made — another player's tunnel, water, a faster pickaxe picked up —
+     * can put a bait within sight distance without this player digging. Such a bait goes back
+     * uncounted, before the miner gets close enough to break next to it.
+     */
+    void guard(Player player) {
+        Baits baits = byPlayer.get(player.getUniqueId());
+        if (baits == null) {
+            return;
+        }
+        synchronized (baits) {
+            if (baits.fakes.isEmpty()) {
+                return;
+            }
+            Location eye = player.getEyeLocation();
+            World world = eye.getWorld();
+            AttributeInstance range = player.getAttribute(Attribute.BLOCK_INTERACTION_RANGE);
+            double reach = range == null ? 4.5 : range.getValue();
+            WorldGrid grid = new WorldGrid(world);
+            Map<Material, Integer> byRock = new HashMap<>();
+            for (Iterator<Map.Entry<Key, Material>> it = baits.fakes.entrySet().iterator(); it.hasNext(); ) {
+                Key key = it.next().getKey();
+                if (!key.world().equals(world.getUID())) {
+                    continue;
+                }
+                Block host = null;
+                int distance = baits.distance;
+                boolean owned = ownedAround(world, key.x(), key.z(), BaitSightRule.MAX_DISTANCE);
+                if (owned) {
+                    host = world.getBlockAt(key.x(), key.y(), key.z());
+                    Block rock = host;
+                    distance = Math.max(distance, byRock.computeIfAbsent(host.getType(), ignored -> sightDistance(player, rock)));
+                }
+                // Out of reach even after the blocks they could break before the server hears of it.
+                if (distance(eye, key) > reach + distance + 3) {
+                    continue;
+                }
+                if (owned && BaitSightRule.openDistance(grid, key.x(), key.y(), key.z(), distance) > distance) {
+                    continue;
+                }
+                it.remove();
+                unown(key, player.getUniqueId());
+                restore(player, key);
             }
         }
     }
@@ -382,12 +474,57 @@ public final class HoneypotService implements IModerationService {
         }
     }
 
-    private static boolean eligibleRock(World world, int[] spot) {
-        if (!world.isChunkLoaded(spot[0] >> 4, spot[2] >> 4)) {
+    /** Host rock with no open space within the sight distance — the only rock a bait may sit in. */
+    private static boolean eligibleRock(World world, int[] spot, int distance) {
+        if (!world.isChunkLoaded(spot[0] >> 4, spot[2] >> 4) || !ownedAround(world, spot[0], spot[2], distance)) {
             return false;
         }
+        WorldGrid grid = new WorldGrid(world);
         return OreKind.isHostRock(world.getBlockAt(spot[0], spot[1], spot[2]).getType())
-                && RevealRule.enclosed(new WorldGrid(world), spot[0], spot[1], spot[2]);
+                && BaitSightRule.openDistance(grid, spot[0], spot[1], spot[2], distance) > distance;
+    }
+
+    /** Folia: every chunk a read around a spot may touch must be this thread's. */
+    private static boolean ownedAround(World world, int x, int z, int reach) {
+        return Bukkit.isOwnedByCurrentRegion(world, (x - reach) >> 4, (z - reach) >> 4)
+                && Bukkit.isOwnedByCurrentRegion(world, (x + reach) >> 4, (z + reach) >> 4)
+                && Bukkit.isOwnedByCurrentRegion(world, (x - reach) >> 4, (z + reach) >> 4)
+                && Bukkit.isOwnedByCurrentRegion(world, (x + reach) >> 4, (z - reach) >> 4);
+    }
+
+    private static int steps(Key key, Block block) {
+        return Math.abs(key.x() - block.getX()) + Math.abs(key.y() - block.getY()) + Math.abs(key.z() - block.getZ());
+    }
+
+    /**
+     * The sight distance for this player digging this kind of block, with the fastest tool in their
+     * hotbar or off hand: swapping to it is instant, and the server would hear of it too late.
+     */
+    static int sightDistance(Player player, Block block) {
+        BlockData data = block.getBlockData();
+        float hardness = block.getType().getHardness();
+        PotionEffect haste = player.getPotionEffect(PotionEffectType.HASTE);
+        PotionEffect conduit = player.getPotionEffect(PotionEffectType.CONDUIT_POWER);
+        int hasteLevel = Math.max(haste == null ? 0 : haste.getAmplifier() + 1, conduit == null ? 0 : conduit.getAmplifier() + 1);
+        AttributeInstance breakSpeed = player.getAttribute(Attribute.BLOCK_BREAK_SPEED);
+        double attribute = breakSpeed == null ? 1 : breakSpeed.getValue();
+        PlayerInventory inventory = player.getInventory();
+        double best = 0;
+        for (int slot = 0; slot <= 9; slot++) {
+            ItemStack item = slot == 9 ? inventory.getItemInOffHand() : inventory.getItem(slot);
+            if (item == null) {
+                item = ItemStack.empty();
+            }
+            float base = block.getDestroySpeed(item, false);
+            // Efficiency only helps a tool that suits the block, as in vanilla; taken the larger way in
+            // case the API already counts it.
+            double tool = Math.max(block.getDestroySpeed(item, true),
+                    base > 1 && item.getEnchantmentLevel(Enchantment.EFFICIENCY) > 0
+                            ? base + Math.pow(item.getEnchantmentLevel(Enchantment.EFFICIENCY), 2) + 1 : base);
+            boolean canHarvest = !data.requiresCorrectToolForDrops() || data.isPreferredTool(item);
+            best = Math.max(best, BaitSightRule.progress(tool, hasteLevel, attribute, hardness, canHarvest));
+        }
+        return SIGHT.distance(best, player.getPing());
     }
 
     private static double distance(Location center, Key key) {

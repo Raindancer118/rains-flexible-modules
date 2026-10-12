@@ -91,7 +91,8 @@ public final class XrayEvidenceService implements IModerationService {
         World world = block.getWorld();
         String environment = world.getEnvironment().name();
         MiningLedger ledger = ledgers.of(id, player.getName());
-        ledger.decay(clock.getAsLong(), now.xrayHalfLifeDays() * 86_400_000.0);
+        long nowMillis = clock.getAsLong();
+        ledger.decay(nowMillis, now.xrayHalfLifeDays() * 86_400_000.0);
         SeenOres theirs = seen.computeIfAbsent(id, ignored -> new SeenOres());
         if (dugKind != null) {
             theirs.add(block.getX(), block.getY(), block.getZ());
@@ -100,7 +101,6 @@ public final class XrayEvidenceService implements IModerationService {
         WorldGrid grid = new WorldGrid(world);
         boolean changed = false;
         List<RevealRule.Revealed> shown = reveals.revealedBy(grid, block.getX(), block.getY(), block.getZ());
-        List<int[]> rock = new ArrayList<>();
         for (RevealRule.Revealed revealed : shown) {
             RockBand band = RockBand.of(environment, revealed.y());
             ledger.revealed(band, 1);
@@ -109,22 +109,20 @@ public final class XrayEvidenceService implements IModerationService {
                 if (!theirs.touches(revealed.x(), revealed.y(), revealed.z())) {
                     ledger.vein(band, kind);
                     changed |= watched.contains(kind);
-                    ledger.dug(world.getName(), revealed.x(), revealed.y(), revealed.z(), kind.ordinal());
+                    ledger.dug(world.getName(), revealed.x(), revealed.y(), revealed.z(), kind.ordinal(), nowMillis);
                 }
                 theirs.add(revealed.x(), revealed.y(), revealed.z());
-            } else if (OreKind.isHostRock(revealed.type())) {
-                rock.add(new int[]{revealed.x(), revealed.y(), revealed.z()});
             }
         }
-        HoneypotService.Reach reach = honeypots.revealed(player, world, rock);
+        HoneypotService.Reach reach = honeypots.dug(player, block);
         if (reach.expected() > 0 || reach.reached() > 0) {
             ledger.bait(reach.expected(), reach.reached());
             changed |= reach.reached() > 0;
             for (HoneypotService.Key key : reach.positions()) {
-                ledger.dug(world.getName(), key.x(), key.y(), key.z(), MiningLedger.BAIT);
+                ledger.dug(world.getName(), key.x(), key.y(), key.z(), MiningLedger.BAIT, nowMillis);
             }
         }
-        ledger.dug(world.getName(), block.getX(), block.getY(), block.getZ(), dugKind == null ? MiningLedger.ROCK : dugKind.ordinal());
+        ledger.dug(world.getName(), block.getX(), block.getY(), block.getZ(), dugKind == null ? MiningLedger.ROCK : dugKind.ordinal(), nowMillis);
 
         if (dugKind == null) {
             changed |= steer(player, world, block, theirs, ledger);
@@ -216,8 +214,8 @@ public final class XrayEvidenceService implements IModerationService {
         return player == null ? 0 : verdictFor(player).percent();
     }
 
-    /** One thing their digging turned up: a new ore vein (its kind), or a bait ore (kind null). */
-    public record Find(String world, int x, int y, int z, OreKind kind) {
+    /** One thing their digging turned up: a new ore vein (its kind), or a bait ore (kind null); when, 0 if not known. */
+    public record Find(String world, int x, int y, int z, OreKind kind, long atMillis) {
     }
 
     /** Veins revealed and baits reached, newest first. */
@@ -230,9 +228,9 @@ public final class XrayEvidenceService implements IModerationService {
         OreKind[] kinds = OreKind.values();
         for (MiningLedger.Find step : ledger.finds()) {
             if (step.kind() == MiningLedger.BAIT) {
-                finds.add(new Find(step.world(), step.x(), step.y(), step.z(), null));
+                finds.add(new Find(step.world(), step.x(), step.y(), step.z(), null, step.atMillis()));
             } else if (step.kind() >= 0 && step.kind() < kinds.length) {
-                finds.add(new Find(step.world(), step.x(), step.y(), step.z(), kinds[step.kind()]));
+                finds.add(new Find(step.world(), step.x(), step.y(), step.z(), kinds[step.kind()], step.atMillis()));
             }
         }
         java.util.Collections.reverse(finds);

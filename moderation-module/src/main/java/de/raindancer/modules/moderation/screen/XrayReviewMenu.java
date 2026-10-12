@@ -4,6 +4,7 @@ import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.OreKind;
+import de.raindancer.modules.moderation.service.LogSearchService;
 import de.raindancer.modules.moderation.service.XrayEvidenceService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -15,6 +16,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -27,6 +30,7 @@ import java.util.UUID;
 public final class XrayReviewMenu extends ModerationList<XrayEvidenceService.Find> {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
+    private static final DateTimeFormatter TO_THE_SECOND = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z", Locale.ROOT);
 
     private final String subjectName;
     private final UUID subject;
@@ -66,6 +70,10 @@ public final class XrayReviewMenu extends ModerationList<XrayEvidenceService.Fin
     protected ItemStack icon(XrayEvidenceService.Find find) {
         List<String> lore = new ArrayList<>();
         lore.add("<gray>" + find.world() + " " + find.x() + ", " + find.y() + ", " + find.z());
+        if (find.atMillis() > 0) {
+            // To the second, so it can be found in a player's recording.
+            lore.add("<gray>At <white>" + TO_THE_SECOND.format(Instant.ofEpochMilli(find.atMillis()).atZone(LogSearchService.ZONE)));
+        }
         lore.add("");
         if (find.kind() == null) {
             lore.add("<red>A bait ore — fake, sealed in rock, visible only to an x-ray.");

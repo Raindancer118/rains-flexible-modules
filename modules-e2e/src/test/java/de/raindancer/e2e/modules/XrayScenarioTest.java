@@ -18,6 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Bait ores on a real server. One bot behaves like an x-ray client: it reads the ores the server
  * shows only to it — fake ones sealed in rock — and tunnels straight for them. Another digs a plain
  * straight tunnel through the same kind of rock. Only the first is reported.
+ *
+ * <p>Both dig with a pickaxe that breaks stone at once, and a real client shows the block behind a
+ * broken one before the server can answer. So neither may ever dig next to a bait it is still shown —
+ * that would flash a fake ore at an honest player.
  */
 @Tag("e2e")
 class XrayScenarioTest {
@@ -44,11 +48,80 @@ class XrayScenarioTest {
         }
     }
 
+    /** A dig next to a bait the client was still shown; {@code since} is how many block updates it had then. */
+    private record Flash(Bot bot, int x, int y, int z, String bait, int state, int since) {
+        /**
+         * Only a dig the server carried out breaks the block; a refused one (the bot is not where it
+         * thinks) is answered with the block put back, and never showed anything.
+         */
+        boolean happened() {
+            List<int[]> updates = bot.blockUpdates();
+            if (!exposed(updates)) {
+                return false;
+            }
+            for (int i = since; i < updates.size(); i++) {
+                int[] u = updates.get(i);
+                if (u[0] == x && u[1] == y && u[2] == z) {
+                    return u[3] == 0;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * A real client can only dig a block it can see: one next to open space. The bot is not held to
+         * that — when the server refuses its moves it digs blind into solid rock — and such a dig is
+         * not something an honest player can do.
+         */
+        private boolean exposed(List<int[]> updates) {
+            java.util.Set<String> open = new java.util.HashSet<>(START_AIR);
+            for (int i = 0; i < since && i < updates.size(); i++) {
+                int[] u = updates.get(i);
+                if (u[3] == 0) {
+                    open.add(u[0] + "," + u[1] + "," + u[2]);
+                }
+            }
+            for (int[] side : new int[][]{{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}) {
+                if (open.contains((x + side[0]) + "," + (y + side[1]) + "," + (z + side[2]))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public String toString() {
+            return bot.name() + " dug " + x + "," + y + "," + z + " next to bait " + bait + " (state " + state + ")";
+        }
+    }
+
+    private static final java.util.Set<String> START_AIR = java.util.Set.of(
+            "20," + FLOOR + ",20", "20," + (FLOOR + 1) + ",20", "96," + FLOOR + ",10", "96," + (FLOOR + 1) + ",10");
+
+    private static final List<Flash> FLASHES = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Digs a block, noting any bait this client still shows right next to it. */
+    private static void dig(Bot bot, int x, int y, int z) {
+        Map<String, int[]> seen = baitSeen(bot);
+        int since = bot.blockUpdates().size();
+        for (int[] side : new int[][]{{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}) {
+            String key = (x + side[0]) + "," + (y + side[1]) + "," + (z + side[2]);
+            if (seen.containsKey(key)) {
+                FLASHES.add(new Flash(bot, x, y, z, key, seen.get(key)[3], since));
+            }
+        }
+        DUG.add(bot.name() + ":" + x + "," + y + "," + z);
+        bot.dig(x, y, z);
+    }
+
+    private static final java.util.Set<String> DUG = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /** One step of a two-high tunnel: dig the next feet and head block, then stand there. */
     private static int[] step(Bot bot, int[] at, int[] next) {
-        bot.dig(next[0], next[1], next[2]).dig(next[0], next[1] + 1, next[2]);
+        dig(bot, next[0], next[1], next[2]);
+        dig(bot, next[0], next[1] + 1, next[2]);
         if (next[1] < at[1]) {
-            bot.dig(at[0], at[1] + 1, at[2]);
+            dig(bot, at[0], at[1] + 1, at[2]);
         }
         sleep(60);
         bot.moveTo(next[0] + 0.5, next[1], next[2] + 0.5, true).tickEnd();
@@ -67,7 +140,8 @@ class XrayScenarioTest {
                 live.remove(key);
             } else if (live.containsKey(key)) {
                 live.remove(key);   // a second update for the same spot is the real block coming back
-            } else if (update[1] < FLOOR + 20) {
+            } else if (update[1] < FLOOR + 20 && !DUG.contains(bot.name() + ":" + key)) {
+                // A spot it dug itself is the server putting a refused dig back, never a bait.
                 live.put(key, update);
             }
         }
@@ -153,6 +227,8 @@ class XrayScenarioTest {
                 }
             }
             assertThat(reached).as("the x-ray bot reached its baits").isGreaterThanOrEqualTo(8);
+            sleep(500);
+            assertThat(FLASHES.stream().filter(Flash::happened).toList()).as("a bait shown next to a block being dug").isEmpty();
 
             Await.until("staff hear about the x-ray", Duration.ofSeconds(20), () ->
                     ada.chatText().stream().anyMatch(line -> line.contains("Xray") && line.contains("x-ray")));

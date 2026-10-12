@@ -100,14 +100,24 @@ public final class XrayLedgers {
                     }
                 }
                 List<MiningLedger.Find> finds = null;
-                if (row.isList("finds")) {
+                if (row.isList("found")) {
+                    finds = new ArrayList<>();
+                    for (String find : row.getStringList("found")) {
+                        String[] parts = find.split(",", 6);
+                        if (parts.length == 6) {
+                            finds.add(new MiningLedger.Find(parts[5], Integer.parseInt(parts[0]), Integer.parseInt(parts[1]),
+                                    Integer.parseInt(parts[2]), Integer.parseInt(parts[3]), Long.parseLong(parts[4])));
+                        }
+                    }
+                } else if (row.isList("finds")) {
+                    // Saved before finds kept their time.
                     finds = new ArrayList<>();
                     for (String find : row.getStringList("finds")) {
                         // World last, so a comma in a world name stays in the name.
                         String[] parts = find.split(",", 5);
                         if (parts.length == 5) {
                             finds.add(new MiningLedger.Find(parts[4], Integer.parseInt(parts[0]), Integer.parseInt(parts[1]),
-                                    Integer.parseInt(parts[2]), Integer.parseInt(parts[3])));
+                                    Integer.parseInt(parts[2]), Integer.parseInt(parts[3]), 0));
                         }
                     }
                 }
@@ -146,9 +156,10 @@ public final class XrayLedgers {
             yaml.set(key + ".trail", trail);
             List<String> finds = new ArrayList<>();
             for (MiningLedger.Find find : ledger.finds()) {
-                finds.add(find.x() + "," + find.y() + "," + find.z() + "," + find.kind() + "," + find.world());
+                finds.add(find.x() + "," + find.y() + "," + find.z() + "," + find.kind() + "," + find.atMillis() + "," + find.world());
             }
-            yaml.set(key + ".finds", finds);
+            yaml.set(key + ".finds", null);
+            yaml.set(key + ".found", finds);
         }));
     }
 }

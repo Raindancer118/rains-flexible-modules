@@ -24,8 +24,8 @@ public final class MiningLedger {
     public static final int ROCK = -1;
     public static final int BAIT = -2;
 
-    /** A vein (ore ordinal) or a bait ({@link #BAIT}) their digging reached. */
-    public record Find(String world, int x, int y, int z, int kind) {
+    /** A vein (ore ordinal) or a bait ({@link #BAIT}) their digging reached, and when (epoch millis, 0 when not known). */
+    public record Find(String world, int x, int y, int z, int kind, long atMillis) {
     }
 
     private final Map<String, Double> revealed = new HashMap<>();
@@ -88,7 +88,7 @@ public final class MiningLedger {
         }
     }
 
-    public synchronized void dug(String world, int x, int y, int z, int kind) {
+    public synchronized void dug(String world, int x, int y, int z, int kind, long atMillis) {
         if (!world.equals(trailWorld)) {
             trail.clear();
             trailWorld = world;
@@ -98,7 +98,7 @@ public final class MiningLedger {
             trail.removeFirst();
         }
         if (kind != ROCK) {
-            finds.addLast(new Find(world, x, y, z, kind));
+            finds.addLast(new Find(world, x, y, z, kind, atMillis));
             while (finds.size() > FINDS) {
                 finds.removeFirst();
             }
@@ -183,7 +183,7 @@ public final class MiningLedger {
         } else {
             for (int[] step : savedTrail) {
                 if (step[3] != ROCK) {
-                    finds.addLast(new Find(trailWorld, step[0], step[1], step[2], step[3]));
+                    finds.addLast(new Find(trailWorld, step[0], step[1], step[2], step[3], 0));
                 }
             }
         }
