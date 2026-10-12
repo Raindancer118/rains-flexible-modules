@@ -54,6 +54,9 @@ class OpenQueueRuleTest {
         assertThat(OpenQueueRule.fingerprint(MatchSpec.duel("archer"))).isEqualTo(duel);
         assertThat(OpenQueueRule.fingerprint(DUEL.withStake(1_000))).isNotEqualTo(duel);
         assertThat(OpenQueueRule.fingerprint(DUEL.withKit("gladiator"))).isNotEqualTo(duel);
-        assertThat(duel).matches("[0-9a-f]{8}");
+        assertThat(duel).matches("[0-9a-f]{16}");
+        assertThat(java.util.stream.LongStream.range(1, 20_000)
+                .mapToObj(stake -> OpenQueueRule.fingerprint(DUEL.withStake(stake))))
+                .as("no stake in a long run wears the free fight's fingerprint").doesNotContain(duel);
     }
 }

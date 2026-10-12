@@ -36,7 +36,15 @@ public final class OpenQueueRule implements IArenaRule {
      * the line said and not whatever that player switched to since.
      */
     public static String fingerprint(MatchSpec spec) {
-        return String.format("%08x", spec.queueKey().hashCode());
+        // SHA-256, not hashCode: the stake is the waiting player's free choice, and 32 bits of String.hashCode
+        // let them pick a stake whose fight wears the fingerprint of the cheap one the button announced.
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(spec.queueKey().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest, 0, 8);
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("every Java has SHA-256", impossible);
+        }
     }
 
     /** The open queues somebody could join — not the one they are waiting in. */

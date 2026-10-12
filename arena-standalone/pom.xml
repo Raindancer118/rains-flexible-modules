@@ -59,7 +59,8 @@
              its economy's own rules. Needs RainsCore 1.120.1. -->
         <!-- 0.5.0: [Rematch] after a fight; fights waiting for more people are announced in the hub (and on arrival) with [Join] (/pvp join); the lanista challenges a player directly, here or on survival. -->
         <!-- 0.5.1: [Join] carries the fight it showed; a player who switched queues since is not joined into a fight (or stake) the clicker never saw. -->
-        <plugin.version>0.5.1</plugin.version>
+        <!-- 0.5.2: the [Join] fingerprint is SHA-256 (64 bits), not String.hashCode — a chosen stake cannot forge it. -->
+        <plugin.version>0.5.2</plugin.version>
     </properties>
 
     <dependencies>
