@@ -197,7 +197,9 @@ public final class OrderService {
         if (!book.putNow(player, next)) {
             return Answer.no("jobs.order.not-saved", asked);
         }
-        double difficulty = rule.difficulty(asked, Fees.amount(live.easyUpTo()), most);
+        Money easy = Fees.amount(live.easyUpTo());
+        double difficulty = rule.steepen(rule.difficulty(asked, easy, most),
+                rule.difficulty(Fees.amount(live.steepFrom()), easy, most), live.steepSlope());
         double pace = rule.pressure(difficulty, live.paceEasiest(), live.paceHardest());
         java.util.List<Offer> offers = new java.util.ArrayList<>();
         if (chosen == null) {

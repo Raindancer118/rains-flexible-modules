@@ -133,7 +133,7 @@ class OrderServiceTest {
     void refusals() {
         assertThat(service.ask(ana, coins("5")).refusal()).isEqualTo("jobs.order.too-little");
         assertThat(service.ask(ana, coins("200000000000")).refusal()).isEqualTo("jobs.order.too-much");
-        service.settings(new OrderSettings(false, 3, 4, 5, "100", "1000", "100000000000", 0.15, 750));
+        service.settings(new OrderSettings(false, 3, 4, 5, "100", "1000", "100000000000", "1000000", 1.4, 0.15, 750));
         assertThat(service.ask(ana, coins("1000")).refusal()).isEqualTo("jobs.order.switched-off");
     }
 

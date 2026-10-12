@@ -69,6 +69,28 @@ class OrderRuleTest {
     }
 
     @Test
+    @DisplayName("past the knee the work gets harder faster; below it nothing changes; the top stays 1")
+    void steepen() {
+        double knee = rule.difficulty(Money.of(1_000_000), easy, hardest);
+        assertThat(rule.steepen(0.2, knee, 1.4)).isEqualTo(0.2);
+        assertThat(rule.steepen(knee, knee, 1.4)).isEqualTo(knee);
+        assertThat(rule.steepen(0.625, knee, 1.4)).isCloseTo(knee + (0.625 - knee) * 1.4, org.assertj.core.data.Offset.offset(1e-9));
+        assertThat(rule.steepen(0.625, knee, 1.4)).isGreaterThan(0.625);
+        assertThat(rule.steepen(1.0, knee, 1.4)).isEqualTo(1.0);
+        assertThat(rule.steepen(0.625, knee, 1.0)).isEqualTo(0.625);
+    }
+
+    @Test
+    @DisplayName("a hundred million asks for fewer, harder units on a tighter clock once steepened")
+    void steeperHundredMillion() {
+        Money asked = Money.of(100_000_000);
+        double plain = rule.difficulty(asked, easy, hardest);
+        double hard = rule.steepen(plain, rule.difficulty(Money.of(1_000_000), easy, hardest), 1.4);
+        assertThat(rule.pressure(hard, 0.15, 750)).isGreaterThan(rule.pressure(plain, 0.15, 750) * 2);
+        assertThat(rule.perUnit(Money.of(50), hard).minor()).isGreaterThan(rule.perUnit(Money.of(50), plain).minor() * 2);
+    }
+
+    @Test
     @DisplayName("more asked never means less work, and the clock gets tighter for every unit")
     void monotonic() {
         Money value = Money.of(50);

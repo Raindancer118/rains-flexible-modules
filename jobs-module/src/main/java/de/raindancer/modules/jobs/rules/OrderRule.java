@@ -37,6 +37,14 @@ public final class OrderRule implements IJobsRule {
         return Math.clamp(d, 0.0, 1.0);
     }
 
+    /** Past {@code knee} the difficulty climbs {@code slope} times as fast, up to 1; below it, unchanged. */
+    public double steepen(double difficulty, double knee, double slope) {
+        if (difficulty <= knee || slope <= 1.0) {
+            return difficulty;
+        }
+        return Math.min(1.0, knee + (difficulty - knee) * slope);
+    }
+
     /** How many times a skilled player's pace the clock asks for. */
     public double pressure(double difficulty, double easiest, double hardest) {
         return easiest * Math.pow(hardest / easiest, Math.clamp(difficulty, 0.0, 1.0));

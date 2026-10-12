@@ -43,6 +43,14 @@ public record OrderSettings(
         @Describe("At this the work is the hardest there is and the time a joke. Also the most anybody may ask for.")
         @Key("orders.hardest-at") String hardestAt,
 
+        @In("orders") @Title("Gets harder from")
+        @Describe("From this amount on the work gets harder and the clock tighter faster than before.")
+        @Key("orders.steep-from") String steepFrom,
+
+        @In("orders") @Title("How much faster it gets harder") @Range(min = 1, max = 5)
+        @Describe("1 leaves the curve as it was; 1.4 makes every step past the amount above count 1.4 times.")
+        @Key("orders.steep-slope") double steepSlope,
+
         @In("orders") @Title("Pace asked for at the easy end")
         @Describe("Of a skilled player's pace: 0.15 leaves plenty of time.")
         @Key("orders.pace.easiest") double paceEasiest,
@@ -51,5 +59,5 @@ public record OrderSettings(
         @Describe("Of a skilled player's pace: 750 is seven hundred and fifty times faster than anybody can.")
         @Key("orders.pace.hardest") double paceHardest) {
 
-    public static final OrderSettings DEFAULTS = new OrderSettings(true, 3, 4, 5, "100", "1000", "100000000000", 0.15, 750);
+    public static final OrderSettings DEFAULTS = new OrderSettings(true, 3, 4, 5, "100", "1000", "100000000000", "1000000", 1.4, 0.15, 750);
 }
