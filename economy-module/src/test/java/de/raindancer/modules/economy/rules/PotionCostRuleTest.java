@@ -84,4 +84,16 @@ class PotionCostRuleTest {
         assertThat(rule.lingering(67, PRICES::get, 0)).contains(67L + 100);
         assertThat(rule.splash(57, name -> null, 0)).isEmpty();
     }
+
+    @Test
+    @DisplayName("a tipped arrow: eight arrows and one lingering potion make eight — an arrow and an eighth, and the markup")
+    void tipped() {
+        java.util.function.Function<String, Long> arrows = name -> name.equals("ARROW") ? 10L : null;
+        assertThat(rule.tipped(160, arrows, 0)).contains(10L + 20);
+        assertThat(rule.tipped(160, arrows, 0.5)).contains(Math.round((10 + 20) * 1.5));
+        assertThat(rule.tipped(160, name -> null, 0)).as("no arrow price").isEmpty();
+        assertThat(PotionCostRule.hasArrow("healing")).isTrue();
+        assertThat(PotionCostRule.hasArrow("water")).as("an arrow of splashing does nothing").isFalse();
+        assertThat(PotionCostRule.hasArrow("awkward")).isFalse();
+    }
 }

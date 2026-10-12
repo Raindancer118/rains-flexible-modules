@@ -218,9 +218,13 @@ public final class PriceBook {
                 Optional<Long> splash = potion.flatMap(value -> values.containsKey(splashKey(type))
                         ? Optional.of(values.get(splashKey(type)).minor()) : potionCost.splash(value, priceOf, markup));
                 splash.ifPresent(value -> values.putIfAbsent(splashKey(type), Money.of(Math.min(MOST, value))));
-                splash.flatMap(value -> values.containsKey(lingeringKey(type))
-                        ? Optional.of(values.get(lingeringKey(type)).minor()) : potionCost.lingering(value, priceOf, markup))
-                        .ifPresent(value -> values.putIfAbsent(lingeringKey(type), Money.of(Math.min(MOST, value))));
+                Optional<Long> lingering = splash.flatMap(value -> values.containsKey(lingeringKey(type))
+                        ? Optional.of(values.get(lingeringKey(type)).minor()) : potionCost.lingering(value, priceOf, markup));
+                lingering.ifPresent(value -> values.putIfAbsent(lingeringKey(type), Money.of(Math.min(MOST, value))));
+                if (PotionCostRule.hasArrow(type)) {
+                    lingering.flatMap(value -> potionCost.tipped(value, priceOf, markup))
+                            .ifPresent(value -> values.putIfAbsent(arrowKey(type), Money.of(Math.min(MOST, value))));
+                }
             }
         }
         Money ominous = settings.ominousBottleValueMoney();
@@ -237,6 +241,10 @@ public final class PriceBook {
 
     private static String lingeringKey(String type) {
         return new PotionKey(PotionKey.LINGERING, type).name();
+    }
+
+    private static String arrowKey(String type) {
+        return new PotionKey(PotionKey.TIPPED, type).name();
     }
 
     private static Set<String> names(List<String> list) {
@@ -436,6 +444,9 @@ public final class PriceBook {
     public int stackSizeOf(String material) {
         Optional<PotionKey> potion = PotionKey.parse(material);
         if (potion.isPresent()) {
+            if (potion.get().isArrow()) {
+                return Math.max(1, stackSize.applyAsInt(PotionKey.TIPPED));
+            }
             return potion.get().isOminous() ? Math.max(1, stackSize.applyAsInt(PotionKey.OMINOUS)) : 1;
         }
         return EnchantKey.isKey(material) ? 1 : Math.max(1, stackSize.applyAsInt(material));
@@ -475,6 +486,9 @@ public final class PriceBook {
             keys.add(new PotionKey(PotionKey.POTION, type).name());
             keys.add(splashKey(type));
             keys.add(lingeringKey(type));
+            if (PotionCostRule.hasArrow(type)) {
+                keys.add(arrowKey(type));
+            }
         }
         for (int level = 1; level <= PotionKey.MOST_OMINOUS; level++) {
             keys.add(PotionKey.ominous(level).name());

@@ -33,6 +33,9 @@ public final class PotionMenu extends PaginatedMenu<ShopService.PotionOffer> imp
 
     /** What shift click buys: a handful, since a potion does not stack. */
     private static final int HANDFUL = 5;
+    /** Arrows come by the eight a crafting makes, and by the stack. */
+    private static final int ARROWS = 8;
+    private static final int ARROW_STACK = 64;
 
     private final EconomyServices services;
     private final List<ShopService.PotionOffer> offers;
@@ -91,8 +94,8 @@ public final class PotionMenu extends PaginatedMenu<ShopService.PotionOffer> imp
         }
         lore.add("");
         if (buy.isPresent()) {
-            lore.add("<yellow>Click<gray> to buy one");
-            lore.add("<yellow>Shift click<gray> to buy " + HANDFUL);
+            lore.add(key.isArrow() ? "<yellow>Click<gray> to buy " + ARROWS : "<yellow>Click<gray> to buy one");
+            lore.add("<yellow>Shift click<gray> to buy " + (key.isArrow() ? ARROW_STACK : HANDFUL));
         }
         if (viewer.hasPermission(PermissionNodes.ADMIN)) {
             lore.add("<yellow>Right click<gray> to change its prices");
@@ -117,7 +120,8 @@ public final class PotionMenu extends PaginatedMenu<ShopService.PotionOffer> imp
         if (price == null) {
             return;
         }
-        services.shop().buyPotion(viewer, key, event.isShiftClick() ? HANDFUL : 1, price);
+        int count = key.isArrow() ? (event.isShiftClick() ? ARROW_STACK : ARROWS) : (event.isShiftClick() ? HANDFUL : 1);
+        services.shop().buyPotion(viewer, key, count, price);
         refresh();
     }
 

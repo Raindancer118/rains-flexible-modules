@@ -130,6 +130,25 @@ public final class PotionCostRule implements IEconomyRule {
         return breath == null ? Optional.empty() : Optional.of(splash + share(breath, craftMarkup));
     }
 
+    public static final String ARROW = "ARROW";
+    /** Eight arrows round one lingering potion make eight tipped arrows. */
+    public static final int ARROWS_PER_POTION = 8;
+
+    /** One tipped arrow: an arrow and an eighth of the lingering potion, with the crafting markup on it. */
+    public Optional<Long> tipped(long lingering, Function<String, Long> priceOf, double craftMarkup) {
+        Long arrow = priceOf.apply(ARROW);
+        if (arrow == null) {
+            return Optional.empty();
+        }
+        return Optional.of(Math.round((arrow + lingering / (double) ARROWS_PER_POTION) * (1 + Math.max(0, craftMarkup))));
+    }
+
+    /** Whether a tipped arrow of this type does anything — water and the base potions give arrows that do not. */
+    public static boolean hasArrow(String type) {
+        String id = type == null ? "" : type.toLowerCase(Locale.ROOT).replace("minecraft:", "");
+        return !(id.equals(WATER) || id.equals(AWKWARD) || id.equals("mundane") || id.equals("thick"));
+    }
+
     private static long share(long ingredients, double craftMarkup) {
         return Math.round(ingredients / (double) BOTTLES_PER_INGREDIENT * (1 + Math.max(0, craftMarkup)));
     }

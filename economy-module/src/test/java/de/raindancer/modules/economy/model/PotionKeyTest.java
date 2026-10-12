@@ -60,4 +60,13 @@ class PotionKeyTest {
         assertThat(new PotionKey("POTION", "mypack:foo_bar").readable()).isEqualTo("Potion of Foo Bar");
         assertThat(PotionKey.ominous(3).readable()).isEqualTo("Ominous Bottle (Bad Omen III)");
     }
+
+    @Test
+    @DisplayName("a tipped arrow is a potion key too: parsed, named and read like the rest")
+    void tippedArrow() {
+        assertThat(PotionKey.parse("tipped_arrow:strong_harming")).contains(new PotionKey("TIPPED_ARROW", "strong_harming"));
+        assertThat(new PotionKey("TIPPED_ARROW", "strong_harming").readable()).isEqualTo("Arrow of Harming II");
+        assertThat(new PotionKey("TIPPED_ARROW", "long_slowness").readable()).isEqualTo("Arrow of Slowness (long)");
+        assertThat(new PotionKey("TIPPED_ARROW", "healing").isArrow()).isTrue();
+    }
 }

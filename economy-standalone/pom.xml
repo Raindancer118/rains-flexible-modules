@@ -52,7 +52,8 @@
         <!-- 0.34.0: the three froglights are priced, so the shop sells and buys them like any block. -->
         <!-- 0.35.0: the heavy core is priced, so the mace is sold; firefly bushes too. -->
         <!-- 0.36.0: the sidebar carries other plugins' sections (a guild) under the balance, the richest fill what room is left (RainsCore 1.129.0). -->
-        <plugin.version>0.36.0</plugin.version>
+        <!-- 0.37.0: tipped arrows in the shop (Potions drawer; 8 arrows + 1 lingering potion make 8, the craft markup on that; click buys 8, shift 64). -->
+        <plugin.version>0.37.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -22,8 +22,10 @@ public record PotionKey(String item, String type) {
     public static final String SPLASH = "SPLASH_POTION";
     public static final String LINGERING = "LINGERING_POTION";
     public static final String OMINOUS = "OMINOUS_BOTTLE";
+    /** An arrow tipped in a lingering potion — the same potion data on an arrow. */
+    public static final String TIPPED = "TIPPED_ARROW";
 
-    public static final Set<String> ITEMS = Set.of(POTION, SPLASH, LINGERING, OMINOUS);
+    public static final Set<String> ITEMS = Set.of(POTION, SPLASH, LINGERING, OMINOUS, TIPPED);
 
     public static final int MOST_OMINOUS = 5;
 
@@ -50,6 +52,10 @@ public record PotionKey(String item, String type) {
 
     public boolean isOminous() {
         return item.equals(OMINOUS);
+    }
+
+    public boolean isArrow() {
+        return item.equals(TIPPED);
     }
 
     /** An ominous bottle's level, 1 to 5; zero for any other bottle. */
@@ -97,6 +103,9 @@ public record PotionKey(String item, String type) {
             return "Ominous Bottle (Bad Omen " + roman(level()) + ")";
         }
         String prefix = item.equals(SPLASH) ? "Splash " : item.equals(LINGERING) ? "Lingering " : "";
+        if (isArrow()) {
+            return new PotionKey(POTION, type).readable().replaceFirst("^Potion of ", "Arrow of ");
+        }
         String path = type.substring(type.lastIndexOf(':') + 1);
         if (path.equals("water")) {
             return prefix + "Water Bottle";
