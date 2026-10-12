@@ -43,6 +43,7 @@ class ArenaNetworkScenarioTest {
     @DisplayName("through the proxy to the arena and back, chat across both servers, a map built into a hub")
     void network() throws Exception {
         int linkPort = freePort();
+        int hubLinkPort = freePort();
         String paperGlobal = VelocityProxy.paperGlobal(FORWARDING_SECRET);
 
         PaperServer lobby = PaperServer.forRun().seed(1).in(E2e.serverFolder("arena-net-lobby"))
@@ -54,7 +55,8 @@ class ArenaNetworkScenarioTest {
                 .plugin(jar("cosmetics-standalone", "RainsCosmetics-.*"))
                 .file("config/paper-global.yml", paperGlobal)
                 .file("plugins/RainsCore/link.yml", "role: guest\nhost-url: http://127.0.0.1:" + linkPort
-                        + "\nsecret: " + LINK_SECRET + "\n")
+                        + "\nsecret: " + LINK_SECRET + "\nserver-name: SMP\npeers:\n  hub:\n    role: guest\n"
+                        + "    host-url: http://127.0.0.1:" + hubLinkPort + "\n    secret: " + LINK_SECRET + "\n")
                 .file("plugins/RainsChat/config.yml", "network:\n  enabled: true\n  tag: SMP\n")
                 .file("plugins/RainsArenaGate/config.yml", "arena-server: arena\nwarmup-seconds: 0\n")
                 .file("plugins/RainsEconomy/config.yml", "pay:\n  cooldown-seconds: 60\n")
@@ -71,6 +73,13 @@ class ArenaNetworkScenarioTest {
                 .file("plugins/RainsChat/config.yml", "network:\n  enabled: true\n  tag: Arena\n")
                 .file("plugins/RainsArena/config.yml", "lobby-server: lobby\n")
                 .build();
+        PaperServer hub = PaperServer.forRun().seed(1).in(E2e.serverFolder("arena-net-hub"))
+                .plugin(Path.of(System.getProperty("e2e.rainscore")))
+                .plugin(jar("cosmetics-standalone", "RainsCosmetics-.*"))
+                .file("config/paper-global.yml", paperGlobal)
+                .file("plugins/RainsCore/link.yml", "role: host\nlisten-address: 127.0.0.1\nlisten-port: " + hubLinkPort
+                        + "\nsecret: " + LINK_SECRET + "\nserver-name: Hub\nfollows: true\n")
+                .build();
         Path maps = arena.folder().resolve("plugins").resolve("RainsArena").resolve("maps");
         Files.createDirectories(maps);
         Files.write(maps.resolve("floor.schem"), floorSchematic(21, 21));
@@ -78,8 +87,11 @@ class ArenaNetworkScenarioTest {
         Map<String, Integer> servers = new LinkedHashMap<>();
         servers.put("lobby", lobby.port());
         servers.put("arena", arena.port());
+        servers.put("hub", hub.port());
         try (VelocityProxy proxy = VelocityProxy.in(E2e.serverFolder("arena-net-proxy"), servers, FORWARDING_SECRET);
-             lobby; arena) {
+             lobby; arena; hub) {
+            hub.start();
+            hub.awaitLog("Server link: listening", WAIT);
             arena.start();
             arena.awaitLog("Arena is up", WAIT);
             arena.awaitLog("Server link: listening", WAIT);
@@ -131,6 +143,9 @@ class ArenaNetworkScenarioTest {
             proxy.command("send Ada arena");
             Await.until("Ada's flame came with her to the arena", WAIT, () -> arena.console(
                     "data get entity Ada BukkitValues").toLowerCase(java.util.Locale.ROOT).contains("flame"));
+            proxy.command("send Ada hub");
+            Await.until("Ada's flame came with her to the hub too, over the second link", WAIT, () -> hub.console(
+                    "data get entity Ada BukkitValues").toLowerCase(java.util.Locale.ROOT).contains("flame"));
             proxy.command("send Ada lobby");
             Await.until("Ada is back on survival", WAIT, () -> lobby.console("list").contains("Ada"));
 
@@ -169,6 +184,7 @@ class ArenaNetworkScenarioTest {
         } finally {
             lobby.keepLogsIn(E2e.logsFolder("arena-net-lobby"));
             arena.keepLogsIn(E2e.logsFolder("arena-net-arena"));
+            hub.keepLogsIn(E2e.logsFolder("arena-net-hub"));
         }
     }
 
