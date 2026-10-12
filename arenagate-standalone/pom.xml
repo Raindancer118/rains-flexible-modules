@@ -26,7 +26,12 @@
 
         <!-- 0.1.0: /arena sends a player to the arena server through the proxy after a short stand-still
              (moving or being hurt calls it off). Nothing they own leaves this server. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.2.0: /pvp invite|accept|deny|queue and /arena wave|queue — invites between players here, and across
+             to the arena and back; stakes held in escrow here (SQLite, settled once, never more than the pot, a house
+             cut setting, stale stakes go back after two hours); copies of gear for own-gear fights, from the live
+             inventory or the saved player file; "went to the arena" / "is back from the arena" instead of quit and
+             join. -->
+        <plugin.version>0.2.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -107,7 +107,10 @@ public final class InviteService {
 
     /** An invite from somebody on survival to somebody here. @return the answer for the link */
     public Map<String, String> fromAcross(Map<String, String> data) {
-        Player target = server.getPlayer(UUID.fromString(data.get("to")));
+        // From survival only the name comes: this server knows its own players by it.
+        String to = data.get("to");
+        Player target = to != null && !to.isBlank() ? server.getPlayer(UUID.fromString(to))
+                : server.getPlayerExact(data.getOrDefault("toName", ""));
         if (target == null) {
             return Map.of("ok", "false", "reason", "offline");
         }

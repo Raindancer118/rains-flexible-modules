@@ -1,8 +1,5 @@
-package de.raindancer.modules.arena.command;
+package de.raindancer.modules.arena.api;
 
-import de.raindancer.modules.arena.api.MatchSpec;
-import de.raindancer.modules.arena.api.Mode;
-import de.raindancer.modules.arena.api.WaveSpec;
 
 import java.util.Optional;
 

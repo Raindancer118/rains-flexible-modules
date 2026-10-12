@@ -24,9 +24,15 @@ public record GateSettings(
         @Describe("Seconds somebody stands still after /arena before they are sent. Moving or being hurt calls "
                 + "it off, so nobody leaves a fight with it.")
         @Key("warmup-seconds")
-        int warmupSeconds) {
+        int warmupSeconds,
 
-    public static final GateSettings DEFAULTS = new GateSettings("arena", 3);
+        @In("arenagate") @Title("House cut of a pot") @Range(min = 0, max = 100)
+        @Describe("Percent of what a winner takes out of a stake pot that leaves the economy instead. Zero is "
+                + "the winner takes it all.")
+        @Key("house-cut-percent")
+        int houseCutPercent) {
+
+    public static final GateSettings DEFAULTS = new GateSettings("arena", 3, 0);
 
     public String arenaOrDefault() {
         return arenaServer == null || arenaServer.isBlank() ? "arena" : arenaServer.strip();
@@ -37,10 +43,14 @@ public record GateSettings(
     }
 
     public GateSettings withArenaServer(String value) {
-        return new GateSettings(value, warmupSeconds);
+        return new GateSettings(value, warmupSeconds, houseCutPercent);
     }
 
     public GateSettings withWarmupSeconds(int value) {
-        return new GateSettings(arenaServer, value);
+        return new GateSettings(arenaServer, value, houseCutPercent);
+    }
+
+    public GateSettings withHouseCutPercent(int value) {
+        return new GateSettings(arenaServer, warmupSeconds, value);
     }
 }

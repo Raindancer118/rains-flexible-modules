@@ -14,8 +14,14 @@ public final class GateCommands {
     }
 
     public static List<ModuleCommand> declared() {
-        return List.of(ModuleCommand.of("arena", "Go to the arena server — PvP, kits, mob waves",
-                new ArenaGateCommand(GateCommands::require)));
+        return List.of(
+                ModuleCommand.of("arena", "Go to the arena server — PvP, kits, mob waves",
+                                new ArenaGateCommand(GateCommands::require))
+                        .taking("wave [preset] [kit]", "queue [mode] [kit] [stake]"),
+                ModuleCommand.of("pvp", "Ask somebody to an arena fight, answer, or queue for one",
+                                new de.raindancer.modules.arenagate.command.PvpGateCommand(GateCommands::require))
+                        .taking("invite <player> [duel|sumo|waves] [kit|own] [stake] [bo3]", "accept [id]", "deny [id]",
+                                "queue [mode] [kit] [stake]"));
     }
 
     static void ready(GateServices live) {

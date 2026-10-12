@@ -29,9 +29,13 @@ public final class GateService implements IGateService {
     private final Messages messages;
     private final Travel travel;
     private final GoRule rule = new GoRule();
+    private final de.raindancer.core.platform.link.ServerLink link;
+    private final java.util.Set<java.util.UUID> leaving = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private volatile GateSettings settings;
 
-    public GateService(Plugin plugin, Messages messages, Travel travel, GateSettings settings) {
+    public GateService(Plugin plugin, Messages messages, Travel travel, GateSettings settings,
+                       de.raindancer.core.platform.link.ServerLink link) {
+        this.link = link;
         this.plugin = plugin;
         this.messages = messages;
         this.travel = travel;
@@ -44,6 +48,35 @@ public final class GateService implements IGateService {
     }
 
     public void go(Player player) {
+        go(player, null);
+    }
+
+    /**
+     * Off to the arena, and what for once there: the arena is told first (the queue, a mob run, an agreed fight), then
+     * the countdown, then the proxy. Told nothing, they simply arrive in the hub.
+     */
+    public void go(Player player, java.util.Map<String, String> intent) {
+        if (intent != null) {
+            if (link == null || !link.isConnected()) {
+                messages.send(player, "arenagate.unreachable");
+                return;
+            }
+            java.util.Map<String, String> data = new java.util.HashMap<>(intent);
+            data.put("player", player.getUniqueId().toString());
+            link.request(de.raindancer.modules.arena.api.ArenaProtocol.INTENT, data, java.time.Duration.ofSeconds(8)).whenComplete((answer, failure) ->
+                    de.raindancer.core.platform.util.Scheduling.entity(plugin, player, () -> {
+                        if (failure != null || !"true".equals(answer.get("ok"))) {
+                            messages.send(player, "arenagate.unreachable");
+                        } else {
+                            countdown(player);
+                        }
+                    }));
+            return;
+        }
+        countdown(player);
+    }
+
+    private void countdown(Player player) {
         Optional<String> refusal = rule.refusal(player.hasPermission(PermissionNodes.USE),
                 travel.isTravelling(player.getUniqueId()));
         if (refusal.isPresent()) {
@@ -83,6 +116,17 @@ public final class GateService implements IGateService {
 
     private void send(Player player, GateSettings now) {
         messages.send(player, "arenagate.sending");
+        leaving.add(player.getUniqueId());
         ProxyTransfer.send(plugin, player, now.arenaOrDefault());
+    }
+
+    /** Whether this player is leaving for the arena — their quit is "went to the arena", not "left the game". */
+    public boolean isLeavingForTheArena(java.util.UUID player) {
+        return leaving.remove(player);
+    }
+
+    /** Straight to the proxy, no countdown — for somebody already agreed to a fight and waited for over there. */
+    public void sendNow(Player player) {
+        send(player, settings);
     }
 }

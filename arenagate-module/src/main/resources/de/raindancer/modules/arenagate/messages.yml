@@ -6,5 +6,26 @@ arenagate:
   counting: "<gray>Off to the arena in <white><seconds></white>… <dark_gray>(stand still)"
   cancelled-moved: "<yellow>You moved, so you are staying here."
   cancelled-hurt: "<yellow>You were hurt, so you are staying here. Finish the fight first."
-  unreachable: "<red>The way to the arena is closed right now. Try again in a moment."
+  unreachable: "<red>The arena cannot be reached right now. Try again in a moment."
   sending: "<gold>To the arena!</gold> <gray>Everything you own stays safely here."
+  summoned: "<gold>Your fight in the arena is ready — taking you there."
+  went: "<gray><white><player></white> went to the arena."
+  back: "<gray><white><player></white> is back from the arena."
+
+  pvp:
+    usage: "<gray>/pvp invite <player> [duel|sumo|waves] [kit|own] [stake] [bo3]  ·  /pvp accept  ·  /pvp deny  ·  /pvp queue [mode] [kit] [stake]"
+    only-duels: "<red>An invite is for a duel, sumo or a mob run together. Teams and free for all come from the queue."
+
+  invite:
+    self: "<red>You cannot fight yourself."
+    already: "<yellow>You have already asked <white><player></white>."
+    unknown: "<red>Nobody called <white><player></white> is online, here or in the arena."
+    sent: "<green>Asked <white><player></white>. They have a minute to answer."
+    sent-arena: "<green>Asked <white><player></white> in the arena. If they say yes, you are taken there."
+    received: "<gold><white><player></white> (<where>) asks you to a <white><mode></white> with <white><kit></white>, best of <white><rounds></white>, stake <white><stake></white>. <click:run_command:'/pvp accept <id>'><green>[Accept]</green></click> <click:run_command:'/pvp deny <id>'><red>[Decline]</red></click>"
+    received-waves: "<gold><white><player></white> (<where>) asks you to fight mob waves together with <white><kit></white>. <click:run_command:'/pvp accept <id>'><green>[Accept]</green></click> <click:run_command:'/pvp deny <id>'><red>[Decline]</red></click>"
+    accepted: "<green><white><player></white> said yes! Off to the arena."
+    declined: "<yellow><white><player></white> said no."
+    you-declined: "<gray>You said no to <white><player></white>."
+    gone: "<red>That invite is no longer there."
+    none: "<gray>Nobody has asked you to a fight."

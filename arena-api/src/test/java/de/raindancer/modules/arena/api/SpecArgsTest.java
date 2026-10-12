@@ -1,7 +1,5 @@
-package de.raindancer.modules.arena.command;
+package de.raindancer.modules.arena.api;
 
-import de.raindancer.modules.arena.api.MatchSpec;
-import de.raindancer.modules.arena.api.Mode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

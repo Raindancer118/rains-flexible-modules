@@ -15,6 +15,8 @@ class GateTest {
     void settings() {
         assertThat(GateSettings.DEFAULTS.arenaServer()).isEqualTo("arena");
         assertThat(GateSettings.DEFAULTS.warmupSeconds()).isEqualTo(3);
+        assertThat(GateSettings.DEFAULTS.houseCutPercent()).isZero();
+        assertThat(GateSettings.DEFAULTS.withHouseCutPercent(10).warmupSeconds()).isEqualTo(3);
         assertThat(GateSettings.DEFAULTS.withWarmupSeconds(-1).warmupClamped()).isZero();
         assertThat(GateSettings.DEFAULTS.withWarmupSeconds(99).warmupClamped()).isEqualTo(30);
         assertThat(GateSettings.DEFAULTS.withArenaServer(" ").arenaOrDefault()).isEqualTo("arena");
@@ -36,8 +38,10 @@ class GateTest {
     void commands() {
         GateCommands.stopped();
 
-        assertThat(GateCommands.declared()).extracting(ModuleCommand::name).containsExactly("arena");
-        assertThatThrownBy(() -> GateCommands.declared().getFirst().handler().execute(null, new String[0]))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("not running");
+        assertThat(GateCommands.declared()).extracting(ModuleCommand::name).containsExactly("arena", "pvp");
+        for (ModuleCommand command : GateCommands.declared()) {
+            assertThatThrownBy(() -> command.handler().execute(null, new String[0]))
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("not running");
+        }
     }
 }

@@ -1,9 +1,14 @@
 package de.raindancer.modules.arenagate;
 
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.modules.arenagate.service.GateNetwork;
 import de.raindancer.modules.arenagate.service.GateService;
 import org.bukkit.plugin.Plugin;
 
-/** Everything this module has built, in one place. */
-public record GateServices(Plugin plugin, Messages messages, GateService gate) {
+/**
+ * Everything this module has built, in one place.
+ *
+ * @param network null without a server link — then only {@code /arena} works, and everything else says so
+ */
+public record GateServices(Plugin plugin, Messages messages, GateService gate, GateNetwork network) {
 }

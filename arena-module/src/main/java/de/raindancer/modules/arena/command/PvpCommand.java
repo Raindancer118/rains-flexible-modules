@@ -1,5 +1,6 @@
 package de.raindancer.modules.arena.command;
 
+import de.raindancer.modules.arena.api.SpecArgs;
 import de.raindancer.modules.arena.ArenaServices;
 import de.raindancer.modules.arena.api.MatchSpec;
 import de.raindancer.modules.arena.api.Mode;
