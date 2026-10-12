@@ -32,21 +32,21 @@ public final class ChallengeMenu extends Menu implements IArenaScreen {
 
     @Override
     protected void render() {
-        band(0, 2, Icons.of(Material.IRON_SWORD, "<gold>Duel", "<gray>One against one."),
+        band(1, 1, Icons.of(Material.IRON_SWORD, "<gold>Duel", "<gray>One against one."),
                 click -> pickKit(new MatchSpec(Mode.DUEL, null, 1, 0, 1, null)));
-        band(0, 4, Icons.of(Material.STICK, "<yellow>Sumo", "<gray>No damage. Push them out of the ring."),
+        band(1, 3, Icons.of(Material.STICK, "<yellow>Sumo", "<gray>No damage. Push them out of the ring."),
                 click -> new FightOptionsMenu(services, viewer, this, new MatchSpec(Mode.SUMO, null, 1, 0, 1, null),
                         target).open());
-        band(0, 5, Icons.of(Material.OAK_BOAT, "<aqua>Naval battle", "<gray>The pit floods; boats and tridents."),
+        band(1, 5, Icons.of(Material.OAK_BOAT, "<aqua>Naval battle", "<gray>The pit floods; boats and tridents."),
                 click -> new FightOptionsMenu(services, viewer, this, new MatchSpec(Mode.NAVAL, null, 1, 0, 1, null),
                         target).open());
-        band(1, 6, Icons.of(Material.SADDLE, "<gold>Horseback combat", "<gray>On horses, spear and shield."),
+        band(2, 5, Icons.of(Material.SADDLE, "<gold>Horseback combat", "<gray>On horses, spear and shield."),
                 click -> new FightOptionsMenu(services, viewer, this, new MatchSpec(Mode.HORSEBACK, null, 1, 0, 1, null),
                         target).open());
-        band(1, 4, Icons.of(Material.CARROT_ON_A_STICK, "<light_purple>Mounted combat", "<gray>On pigs, with spears."),
+        band(2, 3, Icons.of(Material.CARROT_ON_A_STICK, "<light_purple>Mounted combat", "<gray>On pigs, with spears."),
                 click -> new FightOptionsMenu(services, viewer, this, new MatchSpec(Mode.MOUNTED, null, 1, 0, 1, null),
                         target).open());
-        band(0, 6, Icons.of(Material.ZOMBIE_HEAD, "<dark_green>Mob waves together", "<gray>The two of you against the waves."),
+        band(1, 7, Icons.of(Material.ZOMBIE_HEAD, "<dark_green>Mob waves together", "<gray>The two of you against the waves."),
                 click -> pickKit(MatchSpec.waves(WaveSpec.PRESETS.get("warmup"), null)));
     }
 

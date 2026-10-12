@@ -27,21 +27,21 @@ public final class ArenaMenu extends Menu implements IArenaScreen {
     protected void render() {
         boolean queued = services.queue().entryOf(viewer.getUniqueId()).isPresent();
         boolean fighting = services.matches().inFight(viewer.getUniqueId());
-        band(0, 0, !fighting, Icons.of(Material.IRON_SWORD, "<gold>Fight players",
+        band(1, 1, !fighting, Icons.of(Material.IRON_SWORD, "<gold>Fight players",
                 "<gray>Duel, sumo, teams or everybody against everybody.",
                 "<gray>Find an opponent or ask somebody."), "You are in a fight.",
                 click -> new ModeMenu(services, viewer, this).open());
-        band(0, 1, !fighting, Icons.of(Material.ZOMBIE_HEAD, "<red>Fight waves",
+        band(1, 3, !fighting, Icons.of(Material.ZOMBIE_HEAD, "<red>Fight waves",
                 "<gray>Mobs, wave after wave — alone or with a friend.",
                 "<gray>Six quick presets, or set it up yourself."), "You are in a fight.",
                 click -> new WavesMenu(services, viewer, this).open());
-        band(0, 2, Icons.of(Material.ARMOR_STAND, "<aqua>Kits", "<gray>See what every kit holds."),
+        band(1, 4, Icons.of(Material.ARMOR_STAND, "<aqua>Kits", "<gray>See what every kit holds."),
                 click -> new KitPickMenu(services, viewer, this, false, kit -> {
                     services.kits().get(kit).ifPresent(found -> new KitPreviewMenu(services, viewer, this, found).open());
                 }).open());
-        band(0, 3, Icons.of(Material.GOLDEN_HELMET, "<yellow>The best", "<gray>Most wins, best waves, your own."),
+        band(1, 5, Icons.of(Material.GOLDEN_HELMET, "<yellow>The best", "<gray>Most wins, best waves, your own."),
                 click -> StatsMenu.open(services, viewer, this));
-        band(0, 4, !services.matches().fights().isEmpty(), Icons.of(Material.ENDER_EYE, "<light_purple>Watch a fight",
+        band(1, 7, !services.matches().fights().isEmpty(), Icons.of(Material.ENDER_EYE, "<light_purple>Watch a fight",
                 "<gray>" + services.matches().fights().size() + " running."), "Nobody is fighting right now.",
                 click -> new SpectateMenu(services, viewer, this).open());
         if (queued) {

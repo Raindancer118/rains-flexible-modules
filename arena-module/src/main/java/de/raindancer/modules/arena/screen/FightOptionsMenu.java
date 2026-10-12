@@ -42,14 +42,14 @@ public final class FightOptionsMenu extends Menu implements IArenaScreen {
     @Override
     protected void render() {
         boolean rounds = spec.mode() == Mode.DUEL || spec.mode() == Mode.SUMO || spec.mode() == Mode.TEAMS;
-        band(0, 0, rounds, Icons.of(Material.CLOCK, "<yellow>Best of " + spec.bestOf(),
+        band(1, 2, rounds, Icons.of(Material.CLOCK, "<yellow>Best of " + spec.bestOf(),
                 "<gray>Click for more rounds, right click for fewer."), "A free for all is one round.", click -> {
                     int next = click.isRightClick() ? spec.bestOf() - 2 : spec.bestOf() + 2;
                     spec = spec.withBestOf(next < 1 ? MatchSpec.MOST_ROUNDS : next > MatchSpec.MOST_ROUNDS ? 1 : next);
                     refresh();
                 });
         if (spec.mode().isGuild()) {
-            band(0, 2, Icons.of(Material.WHITE_BANNER, "<gold>" + spec.teamSize() + " a side",
+            band(1, 6, Icons.of(Material.WHITE_BANNER, "<gold>" + spec.teamSize() + " a side",
                     "<gray>Click for more, right click for fewer."), click -> {
                         int next = spec.teamSize() + (click.isRightClick() ? -1 : 1);
                         spec = spec.withTeamSize(next > 5 ? 2 : next < 2 ? 5 : next);
@@ -58,7 +58,7 @@ public final class FightOptionsMenu extends Menu implements IArenaScreen {
         }
         boolean money = services.link().isUp();
         int most = services.config().mostStake() > 0 ? services.config().mostStake() : 1_000_000;
-        band(0, 1, money, Icons.of(Material.GOLD_INGOT, spec.stake() > 0 ? "<gold>Stake: " + spec.stake() : "<gold>No stake",
+        band(1, 4, money, Icons.of(Material.GOLD_INGOT, spec.stake() > 0 ? "<gold>Stake: " + spec.stake() : "<gold>No stake",
                         "<gray>What each player puts in. The winner takes it all;",
                         "<gray>a draw gives everybody theirs back.", "<gray>Click to set."),
                 "Stakes need the survival server, which cannot be reached right now.",

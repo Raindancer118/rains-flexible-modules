@@ -33,17 +33,17 @@ public final class WavesMenu extends Menu implements IArenaScreen {
 
     @Override
     protected void render() {
-        int column = 0;
+        int column = 1;
         for (String name : java.util.List.of("warmup", "undead", "nether", "illagers", "bossrush", "endless")) {
             WaveSpec preset = WaveSpec.PRESETS.get(name);
-            band(0, column++, Icons.of(ICONS.get(name), "<red>" + Character.toUpperCase(name.charAt(0)) + name.substring(1),
+            band(1, column++, Icons.of(ICONS.get(name), "<red>" + Character.toUpperCase(name.charAt(0)) + name.substring(1),
                     "<gray>" + (preset.isEndless() ? "Endless" : preset.waves() + " waves") + " of "
                             + String.join(", ", preset.mobs()).toLowerCase(java.util.Locale.ROOT).replace('_', ' '),
                     "<gray>Click to choose a kit and start."), click -> new KitPickMenu(services, viewer, this,
                     services.link().isUp(), kit -> new WaveBuilderMenu(services, viewer, this,
                     MatchSpec.waves(preset, kit)).open()).open());
         }
-        band(1, 0, Icons.of(Material.CRAFTING_TABLE, "<yellow>Set it up yourself",
+        band(2, 4, Icons.of(Material.CRAFTING_TABLE, "<yellow>Set it up yourself",
                         "<gray>How many waves, which mobs, how big, which kit."),
                 click -> new WaveBuilderMenu(services, viewer, this,
                         MatchSpec.waves(WaveSpec.PRESETS.get("warmup").withWaves(5), "gladiator")).open());
