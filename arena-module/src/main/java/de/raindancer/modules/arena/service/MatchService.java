@@ -301,9 +301,19 @@ public final class MatchService implements IArenaService {
                 return;
             }
             List<Place> spawns = fight.pit().spawns();
+            List<Place> starts = spawns;
+            Box ring = fight.pit().floor();
+            if (fight.spec().mode() == Mode.SUMO && ring != null) {
+                // Inside the ring, either side of its middle: the pit's own spawns are far outside any sumo ring.
+                Place a = spawns.getFirst();
+                Place b = spawns.get(spawns.size() > 1 ? 1 : 0);
+                starts = new de.raindancer.modules.arena.rules.SumoRule().starts(ring.centreX(), ring.centreZ(), a.x(), a.z(),
+                        b.x(), b.z(), settings.sumoRadiusClamped()).stream()
+                        .map(start -> new Place(a.world(), start.x(), a.y(), start.z(), start.yaw(), 0)).toList();
+            }
             int side = 0;
             for (Set<UUID> members : fight.sides()) {
-                Place base = spawns.get(side % spawns.size());
+                Place base = starts.get(side % starts.size());
                 int index = 0;
                 for (UUID member : members) {
                     if (!fight.has(member)) {
@@ -441,6 +451,26 @@ public final class MatchService implements IArenaService {
         }
     }
 
+    /** The sumo ring's edge in red dust, so everybody can see where out begins. */
+    private void drawRing(Fight fight) {
+        Box floor = fight.pit().floor();
+        if (floor == null || fight.pit().spawns().isEmpty()) {
+            return;
+        }
+        double radius = settings.sumoRadiusClamped();
+        double y = fight.pit().spawns().getFirst().y() + 0.15;
+        Places.location(server, new Place(floor.world(), floor.centreX(), y, floor.centreZ(), 0, 0)).ifPresent(centre ->
+                Scheduling.region(plugin, centre, () -> {
+                    org.bukkit.Particle.DustOptions red = new org.bukkit.Particle.DustOptions(org.bukkit.Color.RED, 1.4f);
+                    int points = (int) Math.max(24, radius * 10);
+                    for (int index = 0; index < points; index++) {
+                        double angle = 2 * Math.PI * index / points;
+                        centre.getWorld().spawnParticle(org.bukkit.Particle.DUST, centre.getX() + Math.cos(angle) * radius,
+                                y, centre.getZ() + Math.sin(angle) * radius, 1, 0, 0, 0, 0, red);
+                    }
+                }));
+    }
+
     private void callOff(Fight fight) {
         tellAll(fight, "arena.naval.no-water");
         if (fight.spec().stake() > 0) {
@@ -528,6 +558,9 @@ public final class MatchService implements IArenaService {
     }
 
     private void tick(Fight fight) {
+        if (fight.spec().mode() == Mode.SUMO && fight.state() != Fight.State.OVER) {
+            drawRing(fight);
+        }
         Integer counting = countdowns.get(fight.id());
         if (counting != null) {
             if (counting > 0) {

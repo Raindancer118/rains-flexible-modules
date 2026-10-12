@@ -346,4 +346,20 @@ class MatchRulesTest {
         assertThat(rule.groups(java.util.List.of(waiting(war, 1, null), waiting(war, 2, null),
                 waiting(war, 3, "guild:b"), waiting(war, 4, "guild:b")), 10, 30_000)).isEmpty();
     }
+
+    @Test
+    @DisplayName("sumo starts both inside the ring, either side of its middle along the pit's spawns, facing each other")
+    void sumoStarts() {
+        SumoRule rule = new SumoRule();
+        // The colosseum: spawns 87 blocks apart, the ring 6 round its middle.
+        java.util.List<SumoRule.Start> starts = rule.starts(5, -1, -38.5, 0.5, 48.5, 0.5, 6);
+        assertThat(starts).hasSize(2);
+        for (SumoRule.Start start : starts) {
+            assertThat(rule.isOut(start.x() - 5, start.z() + 1, 0, 6)).as("inside the ring").isFalse();
+        }
+        assertThat(starts.get(0).x()).isLessThan(5).isGreaterThan(5 - 6);
+        assertThat(starts.get(1).x()).isGreaterThan(5).isLessThan(5 + 6);
+        assertThat(starts.get(0).yaw()).as("west one looks east").isCloseTo(-90f, org.assertj.core.data.Offset.offset(15f));
+        assertThat(starts.get(1).yaw()).as("east one looks west").isCloseTo(90f, org.assertj.core.data.Offset.offset(15f));
+    }
 }

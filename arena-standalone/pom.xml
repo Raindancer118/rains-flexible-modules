@@ -67,7 +67,8 @@
         <!-- 0.9.0: horseback combat: tamed, saddled, armoured horses that cannot be hurt, spear with lunge and shield (rider kit), nobody leaves their horse while in the fight. -->
         <!-- 0.10.0: pig combat: lancer kit gains a bow (Power I, Infinity) and a trident (Loyalty II), pigs run at 0.6 (a farm pig 0.25); built-in kits nobody edited follow newer versions (shipped-kits.yml). -->
         <!-- 0.10.1: every arena menu places its buttons in real bands and columns: Duel, Sumo, Teams of three, Horseback, Fight players, rounds and more were hidden under others (MenuPlacementTest). -->
-        <plugin.version>0.10.1</plugin.version>
+        <!-- 0.10.2: sumo works: fighters start inside the ring (either side of its middle, facing each other) instead of on the pit spawns far outside it, and the ring edge is drawn in red dust. -->
+        <plugin.version>0.10.2</plugin.version>
     </properties>
 
     <dependencies>
