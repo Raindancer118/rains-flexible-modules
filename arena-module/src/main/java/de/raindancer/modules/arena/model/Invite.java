@@ -1,5 +1,6 @@
 package de.raindancer.modules.arena.model;
 
+import de.raindancer.modules.arena.api.MatchSpec;
 import java.util.UUID;
 
 /**

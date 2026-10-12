@@ -1,7 +1,7 @@
 package de.raindancer.modules.arena.rules;
 
-import de.raindancer.modules.arena.model.MatchSpec;
-import de.raindancer.modules.arena.model.Mode;
+import de.raindancer.modules.arena.api.MatchSpec;
+import de.raindancer.modules.arena.api.Mode;
 import de.raindancer.modules.arena.model.QueueEntry;
 
 import java.util.ArrayList;

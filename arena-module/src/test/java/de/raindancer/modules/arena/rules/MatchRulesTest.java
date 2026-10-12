@@ -1,12 +1,12 @@
 package de.raindancer.modules.arena.rules;
 
 import de.raindancer.modules.arena.model.Box;
-import de.raindancer.modules.arena.model.MatchSpec;
-import de.raindancer.modules.arena.model.Mode;
+import de.raindancer.modules.arena.api.MatchSpec;
+import de.raindancer.modules.arena.api.Mode;
 import de.raindancer.modules.arena.model.Pit;
 import de.raindancer.modules.arena.model.Place;
 import de.raindancer.modules.arena.model.QueueEntry;
-import de.raindancer.modules.arena.model.WaveSpec;
+import de.raindancer.modules.arena.api.WaveSpec;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -202,6 +202,19 @@ class MatchRulesTest {
         assertThat(shared.values().stream().mapToLong(Long::longValue).sum()).isEqualTo(303);
         assertThat(rule.payouts(100, 2, List.of(), 0)).as("a draw pays nobody; it is refunded").isEmpty();
         assertThat(rule.payouts(0, 2, List.of(ada), 0)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("no stake can overflow the arithmetic: it is capped, and the cut is computed without overflowing")
+    void hugeStakes() {
+        StakeRule rule = new StakeRule();
+        UUID ada = UUID.randomUUID();
+        long stake = MatchSpec.duel("x").withStake(Long.MAX_VALUE).stake();
+
+        assertThat(stake).isEqualTo(MatchSpec.MOST_STAKE);
+        Map<UUID, Long> paid = rule.payouts(stake, 8, List.of(ada), 33);
+        long pot = stake * 8;
+        assertThat(paid.get(ada)).isEqualTo(pot - pot * 33 / 100).isPositive();
     }
 
     // ── sumo ───────────────────────────────────────────────────────────────────────────────────────

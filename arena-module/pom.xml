@@ -28,6 +28,10 @@
         </dependency>
         <dependency>
             <groupId>de.raindancer.modules</groupId>
+            <artifactId>arena-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.raindancer.modules</groupId>
             <artifactId>modules-api</artifactId>
             <type>test-jar</type>
             <version>${modules-api.version}</version>

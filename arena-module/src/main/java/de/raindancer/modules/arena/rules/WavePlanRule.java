@@ -1,6 +1,6 @@
 package de.raindancer.modules.arena.rules;
 
-import de.raindancer.modules.arena.model.WaveSpec;
+import de.raindancer.modules.arena.api.WaveSpec;
 
 import java.util.ArrayList;
 import java.util.List;

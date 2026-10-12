@@ -1,5 +1,8 @@
 package de.raindancer.modules.arena.model;
 
+import de.raindancer.modules.arena.api.Mode;
+import de.raindancer.modules.arena.api.WaveSpec;
+import de.raindancer.modules.arena.api.MatchSpec;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

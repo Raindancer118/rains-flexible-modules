@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.raindancer.modules</groupId>
+        <artifactId>rains-flexible-modules</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>arena-api</artifactId>
+    <!-- Own version, independent of the reactor's (arena-api-vX.Y.Z). Shaded into both RainsArena and RainsArenaGate. -->
+    <version>${arena-api.version}</version>
+    <packaging>jar</packaging>
+
+    <name>Rain's Flexible Modules — Arena API</name>
+    <description>
+        What the arena server and the survival server's gate both have to understand: what a fight is (mode, kit,
+        rounds, stake, waves) and the words they say to each other over RainsCore's server link. No module in it,
+        so shading it into a plugin adds nothing that runs.
+    </description>
+</project>

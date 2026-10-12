@@ -1,4 +1,4 @@
-package de.raindancer.modules.arena.model;
+package de.raindancer.modules.arena.api;
 
 import java.util.Locale;
 
@@ -13,12 +13,14 @@ public record MatchSpec(Mode mode, String kit, int bestOf, long stake, int teamS
 
     public static final String OWN_GEAR = "own";
     public static final int MOST_ROUNDS = 7;
+    /** No stake above this — far beyond any real balance, and far below where a pot of eight could overflow. */
+    public static final long MOST_STAKE = 1_000_000_000_000L;
 
     public MatchSpec {
         mode = mode == null ? Mode.DUEL : mode;
         kit = kit == null || kit.isBlank() ? (mode == Mode.SUMO ? "sumo" : "gladiator") : kit.toLowerCase(Locale.ROOT);
         bestOf = Math.max(1, Math.min(MOST_ROUNDS, bestOf | 1));
-        stake = Math.max(0, stake);
+        stake = Math.max(0, Math.min(MOST_STAKE, stake));
         teamSize = mode == Mode.TEAMS ? Math.max(2, Math.min(3, teamSize)) : 1;
         if (mode == Mode.SUMO) {
             kit = "sumo";

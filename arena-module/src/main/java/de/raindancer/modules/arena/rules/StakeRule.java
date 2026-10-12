@@ -22,7 +22,9 @@ public final class StakeRule implements IArenaRule {
             return paid;
         }
         long pot = pot(stake, players);
-        long cut = pot * Math.max(0, Math.min(100, houseCutPercent)) / 100;
+        int percent = Math.max(0, Math.min(100, houseCutPercent));
+        // Split so no step can overflow, however large the pot: whole hundreds first, then the rest.
+        long cut = (pot / 100) * percent + (pot % 100) * percent / 100;
         long left = pot - cut;
         long each = left / winners.size();
         long remainder = left - each * winners.size();

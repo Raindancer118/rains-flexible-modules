@@ -1,4 +1,4 @@
-package de.raindancer.modules.arena.model;
+package de.raindancer.modules.arena.api;
 
 import java.util.LinkedHashMap;
 import java.util.List;

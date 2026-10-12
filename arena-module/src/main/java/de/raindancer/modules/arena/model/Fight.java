@@ -1,5 +1,7 @@
 package de.raindancer.modules.arena.model;
 
+import de.raindancer.modules.arena.api.Mode;
+import de.raindancer.modules.arena.api.MatchSpec;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
