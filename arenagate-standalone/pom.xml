@@ -37,7 +37,9 @@
              told what somebody wants only after the countdown. -->
         <!-- 0.2.2: once this server has finished starting, the arena is told, so whoever waited in its hub through
              the restart comes back by themselves. -->
-        <plugin.version>0.2.2</plugin.version>
+        <!-- 0.3.0: [Cancel] on a sent invite (here and across), names on the arena tab-complete, an expired invite no
+             longer blocks asking again. Needs RainsCore 1.118.0. -->
+        <plugin.version>0.3.0</plugin.version>
     </properties>
 
     <dependencies>

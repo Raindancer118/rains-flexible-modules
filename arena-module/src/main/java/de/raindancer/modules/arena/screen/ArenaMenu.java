@@ -40,7 +40,7 @@ public final class ArenaMenu extends Menu implements IArenaScreen {
                     services.kits().get(kit).ifPresent(found -> new KitPreviewMenu(services, viewer, this, found).open());
                 }).open());
         band(0, 3, Icons.of(Material.GOLDEN_HELMET, "<yellow>The best", "<gray>Most wins, best waves, your own."),
-                click -> new StatsMenu(services, viewer, this).open());
+                click -> StatsMenu.open(services, viewer, this));
         band(0, 4, !services.matches().fights().isEmpty(), Icons.of(Material.ENDER_EYE, "<light_purple>Watch a fight",
                 "<gray>" + services.matches().fights().size() + " running."), "Nobody is fighting right now.",
                 click -> new SpectateMenu(services, viewer, this).open());

@@ -15,6 +15,9 @@ public final class ArenaProtocol {
     /** Survival → arena: the answer to an invite from the arena, given on survival. */
     public static final String INVITE_ANSWER = "arena.invite.answer";
 
+    /** Either way: the one who asked takes an invite back ({@code id}, {@code from}). Answer: {@code ok}. */
+    public static final String INVITE_CANCEL = "arena.invite.cancel";
+
     /** Arena → survival: is somebody of this name online over there? Answer: {@code player}, {@code name}. */
     public static final String WHERE = "arena.where";
 

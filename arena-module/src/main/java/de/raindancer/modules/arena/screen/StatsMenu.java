@@ -1,5 +1,6 @@
 package de.raindancer.modules.arena.screen;
 
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.modules.arena.ArenaServices;
@@ -14,11 +15,25 @@ import java.util.List;
 /** Your own record, the ten with most wins, and the ten who got furthest in mob waves. */
 public final class StatsMenu extends Menu implements IArenaScreen {
 
-    private final ArenaServices services;
+    private final Stats mine;
+    private final List<Stats> wins;
+    private final List<Stats> waves;
 
-    public StatsMenu(ArenaServices services, Player viewer, Menu parent) {
+    private StatsMenu(ArenaServices services, Player viewer, Menu parent, Stats mine, List<Stats> wins, List<Stats> waves) {
         super(viewer, services.brand(), parent);
-        this.services = services;
+        this.mine = mine;
+        this.wins = wins;
+        this.waves = waves;
+    }
+
+    /** Reads the records off the server thread, then opens on the viewer's. */
+    public static void open(ArenaServices services, Player viewer, Menu parent) {
+        Scheduling.async(services.plugin(), () -> {
+            Stats mine = services.stats().of(viewer.getUniqueId()).orElse(Stats.none(viewer.getUniqueId(), viewer.getName()));
+            List<Stats> wins = services.stats().top(false, 9);
+            List<Stats> waves = services.stats().top(true, 9);
+            Scheduling.entity(services.plugin(), viewer, () -> new StatsMenu(services, viewer, parent, mine, wins, waves).open());
+        });
     }
 
     @Override
@@ -28,17 +43,14 @@ public final class StatsMenu extends Menu implements IArenaScreen {
 
     @Override
     protected void render() {
-        Stats mine = services.stats().of(viewer.getUniqueId()).orElse(Stats.none(viewer.getUniqueId(), viewer.getName()));
         set(4, Icons.head(viewer, "<gold>You", "<gray>Wins: <white>" + mine.wins() + "  <gray>Losses: <white>" + mine.losses()
                 + "  <gray>Draws: <white>" + mine.draws(), "<gray>Kills: <white>" + mine.kills() + "  <gray>Defeats: <white>"
                 + mine.deaths(), "<gray>Best wave: <white>" + mine.bestWave()));
-        List<Stats> wins = services.stats().top(false, 9);
         for (int index = 0; index < wins.size(); index++) {
             Stats each = wins.get(index);
             set(9 + index, Icons.head(each.player(), "<yellow>#" + (index + 1) + " " + each.name(),
                     "<gray>" + each.wins() + " wins, " + each.kills() + " kills"));
         }
-        List<Stats> waves = services.stats().top(true, 9);
         for (int index = 0; index < waves.size(); index++) {
             Stats each = waves.get(index);
             set(27 + index, Icons.head(each.player(), "<red>#" + (index + 1) + " " + each.name(),

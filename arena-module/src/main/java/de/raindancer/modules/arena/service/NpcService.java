@@ -81,6 +81,7 @@ public final class NpcService {
             case ARMORER -> Material.IRON_AXE;
             case HERALD -> Material.GOAT_HORN;
             case GATEKEEPER -> Material.SPYGLASS;
+            case WATCHER -> Material.ENDER_EYE;
         }));
         equipment.setItemInOffHand(new ItemStack(role == NpcRole.HERALD ? Material.WRITABLE_BOOK : Material.SHIELD));
     }

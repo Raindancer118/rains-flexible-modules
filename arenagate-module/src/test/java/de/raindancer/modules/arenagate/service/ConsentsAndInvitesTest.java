@@ -66,4 +66,23 @@ class ConsentsAndInvitesTest {
         assertThat(invites.madeBy("x9", ada)).isTrue();
         assertThat(invites.madeBy("x9", ada)).as("once").isFalse();
     }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("an expired invite no longer counts as asked, and the one who sent it can take it back")
+    void expiredAndCancelled() {
+        java.util.concurrent.atomic.AtomicLong clock = new java.util.concurrent.atomic.AtomicLong(1_000);
+        java.util.UUID ada = java.util.UUID.randomUUID();
+        java.util.UUID bo = java.util.UUID.randomUUID();
+        GateInvites invites = new GateInvites(clock::get);
+        invites.add("a1", ada, "Ada", bo, MatchSpec.duel("knight"), false);
+        assertThat(invites.asked(ada, bo)).isTrue();
+        clock.addAndGet(60_001);
+        assertThat(invites.asked(ada, bo)).as("five minutes later it is long gone").isFalse();
+
+        invites.add("a2", ada, "Ada", bo, MatchSpec.duel("knight"), false);
+        assertThat(invites.cancel(bo, "a2")).as("only the one who asked").isEmpty();
+        assertThat(invites.cancel(ada, "a2")).isPresent();
+        assertThat(invites.forPlayer(bo)).isEmpty();
+        assertThat(invites.cancel(ada, "a2")).isEmpty();
+    }
 }

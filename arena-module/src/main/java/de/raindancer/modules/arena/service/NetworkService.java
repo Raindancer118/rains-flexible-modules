@@ -34,6 +34,7 @@ public final class NetworkService {
         link.on(ArenaProtocol.INTENT, this::intent);
         link.on(ArenaProtocol.INVITE, invites::fromAcross);
         link.on(ArenaProtocol.INVITE_ANSWER, invites::answeredAcross);
+        link.on(ArenaProtocol.INVITE_CANCEL, invites::cancelledAcross);
     }
 
     /**

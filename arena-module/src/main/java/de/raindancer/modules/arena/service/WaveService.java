@@ -45,6 +45,7 @@ public final class WaveService {
     private final Server server;
     private final MatchService matches;
     private final WavePlanRule plan = new WavePlanRule();
+    private final de.raindancer.modules.arena.rules.WaveMobRule kinds = new de.raindancer.modules.arena.rules.WaveMobRule();
     private final NamespacedKey mark;
     private ScheduledTask herding;
 
@@ -114,7 +115,19 @@ public final class WaveService {
             if (spawned instanceof LivingEntity living) {
                 living.setRemoveWhenFarAway(false);
                 living.setCanPickupItems(false);
+                // In the overworld a piglin starts turning; the arena cancels the turning, which leaves it shaking
+                // and never attacking. Immune, it fights.
+                if (living instanceof org.bukkit.entity.PiglinAbstract piglin) {
+                    piglin.setImmuneToZombification(true);
+                }
+                if (living instanceof org.bukkit.entity.Hoglin hoglin) {
+                    hoglin.setImmuneToZombification(true);
+                }
                 if (living.getEquipment() != null) {
+                    if (living.getEquipment().getItemInMainHand().getType().isAir()) {
+                        kinds.weaponFor(kind.name()).map(org.bukkit.Material::matchMaterial)
+                                .ifPresent(weapon -> living.getEquipment().setItemInMainHand(new org.bukkit.inventory.ItemStack(weapon)));
+                    }
                     living.getEquipment().setHelmetDropChance(0f);
                     living.getEquipment().setChestplateDropChance(0f);
                     living.getEquipment().setLeggingsDropChance(0f);
@@ -151,8 +164,16 @@ public final class WaveService {
 
     /** A vex an evoker conjured, a slime half: hostile, in the pit, belonging to no fight — gone with the fight. */
     private static boolean summoned(Entity entity, Box floor) {
-        return entity instanceof Mob && !(entity instanceof Player)
-                && floor.contains(entity.getWorld().getName(), entity.getX(), entity.getY(), entity.getZ());
+        if (!(entity instanceof Mob) || entity instanceof Player) {
+            return false;
+        }
+        if (entity instanceof org.bukkit.entity.Vex) {
+            // Vexes fly through walls and over the pit; anywhere near it, they were the fight's.
+            return Box.of(floor.world(), floor.minX() - 16, floor.minY() - 8, floor.minZ() - 16,
+                    floor.maxX() + 16, floor.maxY() + 24, floor.maxZ() + 16)
+                    .contains(entity.getWorld().getName(), entity.getX(), entity.getY(), entity.getZ());
+        }
+        return floor.contains(entity.getWorld().getName(), entity.getX(), entity.getY(), entity.getZ());
     }
 
     /** Once a second: every fight's mobs back inside their pit, after the nearest fighter still standing. */

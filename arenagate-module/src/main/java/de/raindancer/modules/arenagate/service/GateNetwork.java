@@ -76,6 +76,21 @@ public final class GateNetwork {
         link.on(ArenaProtocol.WHERE, this::where);
         link.on(ArenaProtocol.INVITE, this::inviteFromArena);
         link.on(ArenaProtocol.SUMMON, this::summon);
+        link.on(ArenaProtocol.INVITE_CANCEL, data -> {
+            java.util.Optional<GateInvites.Pending> taken;
+            try {
+                taken = invites.cancel(UUID.fromString(data.get("from")), data.get("id"));
+            } catch (RuntimeException garbled) {
+                return Map.of("ok", "false");
+            }
+            taken.ifPresent(pending -> {
+                Player target = server.getPlayer(pending.to());
+                if (target != null) {
+                    messages.send(target, "arenagate.invite.cancelled", "player", pending.fromName());
+                }
+            });
+            return Map.of("ok", String.valueOf(taken.isPresent()));
+        });
         link.on(ArenaProtocol.RETURNING, data -> {
             try {
                 returning.add(UUID.fromString(data.get("player")));
@@ -89,7 +104,7 @@ public final class GateNetwork {
     public void stop() {
         for (String topic : List.of(ArenaProtocol.STAKE_HOLD, ArenaProtocol.STAKE_PAY, ArenaProtocol.STAKE_REFUND,
                 ArenaProtocol.GEAR, ArenaProtocol.WHERE, ArenaProtocol.INVITE, ArenaProtocol.SUMMON,
-                ArenaProtocol.RETURNING, ArenaProtocol.CONSENT)) {
+                ArenaProtocol.RETURNING, ArenaProtocol.CONSENT, ArenaProtocol.INVITE_CANCEL)) {
             link.off(topic);
         }
     }
@@ -202,6 +217,29 @@ public final class GateNetwork {
         }, () -> messages.send(player, "arenagate.invite.none"));
     }
 
+    /** The one who asked takes it back: one to somebody here here, one to somebody in the arena over there. */
+    public void cancel(Player player, String id) {
+        if (id == null) {
+            messages.send(player, "arenagate.invite.nothing-to-cancel");
+            return;
+        }
+        java.util.Optional<GateInvites.Pending> here = invites.cancel(player.getUniqueId(), id);
+        if (here.isPresent()) {
+            messages.send(player, "arenagate.invite.you-cancelled");
+            Player target = server.getPlayer(here.get().to());
+            if (target != null) {
+                messages.send(target, "arenagate.invite.cancelled", "player", player.getName());
+            }
+            return;
+        }
+        if (!invites.madeBy(id, player.getUniqueId())) {
+            messages.send(player, "arenagate.invite.nothing-to-cancel");
+            return;
+        }
+        link.send(ArenaProtocol.INVITE_CANCEL, Map.of("id", id, "from", player.getUniqueId().toString()));
+        messages.send(player, "arenagate.invite.you-cancelled");
+    }
+
     public void deny(Player player, String id) {
         invites.take(player.getUniqueId(), id).ifPresentOrElse(pending -> {
             messages.send(player, "arenagate.invite.you-declined", "player", pending.fromName());
@@ -231,7 +269,7 @@ public final class GateNetwork {
             }
             GateInvites.Pending pending = invites.add(UUID.randomUUID().toString().substring(0, 6), from.getUniqueId(),
                     from.getName(), target.getUniqueId(), spec, false);
-            messages.send(from, "arenagate.invite.sent", "player", target.getName());
+            messages.send(from, "arenagate.invite.sent", "player", target.getName(), "id", pending.id());
             offer(target, pending);
             return;
         }
@@ -250,7 +288,7 @@ public final class GateNetwork {
         link.request(ArenaProtocol.INVITE, data, java.time.Duration.ofSeconds(8))
                 .whenComplete((answer, failure) -> Scheduling.entity(plugin, from, () -> messages.send(from,
                         failure == null && "true".equals(answer.get("ok")) ? "arenagate.invite.sent-arena"
-                                : "arenagate.invite.unknown", "player", targetName)));
+                                : "arenagate.invite.unknown", "player", targetName, "id", id)));
     }
 
     private Map<String, String> agreed(GateInvites.Pending pending) {

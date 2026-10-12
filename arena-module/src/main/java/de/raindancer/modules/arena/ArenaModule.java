@@ -21,6 +21,7 @@ import de.raindancer.modules.arena.screen.ArenaMenu;
 import de.raindancer.modules.arena.screen.KitPickMenu;
 import de.raindancer.modules.arena.screen.KitPreviewMenu;
 import de.raindancer.modules.arena.screen.ModeMenu;
+import de.raindancer.modules.arena.screen.SpectateMenu;
 import de.raindancer.modules.arena.screen.StatsMenu;
 import de.raindancer.modules.arena.screen.WavesMenu;
 import de.raindancer.modules.arena.service.AgreedFights;
@@ -63,7 +64,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.2.6")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.3.0")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -180,7 +181,8 @@ public final class ArenaModule implements FlexModule {
                     case ARMORER -> new KitPickMenu(live, viewer, new ArenaMenu(live, viewer), false, kit ->
                             live.kits().get(kit).ifPresent(found ->
                                     new KitPreviewMenu(live, viewer, null, found).open())).open();
-                    case HERALD -> new StatsMenu(live, viewer, new ArenaMenu(live, viewer)).open();
+                    case HERALD -> StatsMenu.open(live, viewer, new ArenaMenu(live, viewer));
+                    case WATCHER -> new SpectateMenu(live, viewer, new ArenaMenu(live, viewer)).open();
                     case GATEKEEPER -> {
                         live.matches().left(viewer.getUniqueId());
                         live.queue().leave(viewer.getUniqueId());

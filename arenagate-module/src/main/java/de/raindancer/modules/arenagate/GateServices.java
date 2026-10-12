@@ -12,5 +12,6 @@ import org.bukkit.plugin.Plugin;
  * @param consents null without a server link, like the network
  */
 public record GateServices(Plugin plugin, Messages messages, GateService gate, GateNetwork network,
-                           de.raindancer.modules.arenagate.service.GateConsents consents) {
+                           de.raindancer.modules.arenagate.service.GateConsents consents,
+                           java.util.function.Supplier<java.util.Set<String>> elsewhere) {
 }

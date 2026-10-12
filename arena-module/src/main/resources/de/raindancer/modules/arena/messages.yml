@@ -23,6 +23,7 @@ arena:
     in-fight: "<red>Finish your fight first."
     no-pits: "<red>No pit is set up yet. An admin has to mark one."
     no-survival: "<red>Stakes and own gear need the survival server, which cannot be reached right now."
+    bar-agreed: "<gold><mode></gold> <gray>·</gray> <white><kit></white> <gray>· with <white><others></white> · waiting for a free pit"
     bar: "<gold><mode></gold> <gray>·</gray> <white><kit></white> <gray>· place <white><place></white> of <white><waiting></white>, <white><needed></white> make a fight"
 
   fight:
@@ -59,8 +60,8 @@ arena:
     only-duels: "<red>An invite is for a duel, sumo or a mob run together. Teams and free for all come from the queue."
 
   invite:
-    sent: "<green>Asked <white><player></white>. They have a minute to answer."
-    sent-across: "<green>Asked <white><player></white> on survival. If they say yes, they are brought here."
+    sent: "<green>Asked <white><player></white>. They have a minute to answer. <click:run_command:'/pvp cancel <id>'><red>[Cancel]</red></click>"
+    sent-across: "<green>Asked <white><player></white> on survival. If they say yes, they are brought here. <click:run_command:'/pvp cancel <id>'><red>[Cancel]</red></click>"
     received: "<gold><white><player></white> asks you to a <white><mode></white> with <white><kit></white>, best of <white><rounds></white>, stake <white><stake></white>. <click:run_command:'/pvp accept <id>'><green>[Accept]</green></click> <click:run_command:'/pvp deny <id>'><red>[Decline]</red></click>"
     received-waves: "<gold><white><player></white> asks you to fight mob waves together with <white><kit></white>. <click:run_command:'/pvp accept <id>'><green>[Accept]</green></click> <click:run_command:'/pvp deny <id>'><red>[Decline]</red></click>"
     accepted: "<green><white><player></white> said yes! The fight starts as soon as a pit is free."
@@ -70,6 +71,12 @@ arena:
     declined: "<yellow><white><player></white> said no."
     you-declined: "<gray>You said no to <white><player></white>."
     gone: "<red>That invite is no longer there."
+    you-cancelled: "<gray>You took back your invite to <white><player></white>."
+    cancelled: "<yellow><white><player></white> took their invite back."
+    nothing-to-cancel: "<gray>You have no open invite to take back."
+    you-accepted: "<green>You said yes to <white><player></white>! The fight starts as soon as a pit is free."
+    already: "<gray>You already said yes to that one — the fight starts as soon as a pit is free."
+    pit-wait: "<yellow>Every pit is in use right now. Your fight is next and starts the moment one is free."
     none: "<gray>Nobody has asked you to a fight."
     which: "<yellow>More than one invite is open — click the one you mean, or type /pvp accept <id>."
     refuse:
@@ -105,7 +112,7 @@ arena:
     kit-reserved: "<red>'own' means fighting in one's own gear; it cannot be a kit."
     held: "<green><white><count></white> player(s) wait here for survival to come back."
     returned: "<green><white><count></white> player(s) sent back to survival."
-    npc-usage: "<gray>/arena admin npc place <lanista|beastmaster|armorer|herald|gatekeeper> [world x y z yaw]  ·  /arena admin npc remove"
+    npc-usage: "<gray>/arena admin npc place <lanista|beastmaster|armorer|herald|gatekeeper|watcher> [world x y z yaw]  ·  /arena admin npc remove"
     npc-placed: "<green>The <white><role></white> stands where you stand."
     npc-removed: "<green>The <white><role></white> is gone."
     npc-none: "<red>No gladiator within five blocks."

@@ -43,6 +43,7 @@ public final class InviteService {
     private final LongSupplier clock;
     private final InviteRule rule = new InviteRule();
     private final Map<String, Invite> open = new ConcurrentHashMap<>();
+    private final AnsweredInvites answered = new AnsweredInvites();
     private volatile long mostStake;
 
     public InviteService(Server server, Messages messages, ArenaLink link, QueueService queue, AgreedFights agreedFights,
@@ -70,7 +71,7 @@ public final class InviteService {
             }
             Invite invite = create(from, here.getUniqueId(), here.getName(), spec);
             queue.agreed(from.getUniqueId(), spec);
-            messages.send(from, "arena.invite.sent", "player", here.getName());
+            messages.send(from, "arena.invite.sent", "player", here.getName(), "id", invite.id());
             offer(here, invite);
             return;
         }
@@ -101,7 +102,7 @@ public final class InviteService {
                     open.remove(invite.id());
                     messages.send(from, "arena.invite.refuse.unknown", "player", name);
                 } else {
-                    messages.send(from, "arena.invite.sent-across", "player", name);
+                    messages.send(from, "arena.invite.sent-across", "player", name, "id", invite.id());
                 }
             });
         });
@@ -157,6 +158,7 @@ public final class InviteService {
         }
         Invite invite = found.get();
         open.remove(invite.id());
+        answered.remember(invite.id(), player.getUniqueId(), clock.getAsLong());
         queue.agreed(player.getUniqueId(), invite.spec());
         if (busy.test(player.getUniqueId())) {
             messages.send(player, "arena.invite.refuse.you-busy");
@@ -165,6 +167,7 @@ public final class InviteService {
         Player inviter = server.getPlayer(invite.from());
         if (inviter != null) {
             messages.send(inviter, "arena.invite.accepted", "player", player.getName());
+            messages.send(player, "arena.invite.you-accepted", "player", invite.fromName());
             queue.reserve(new PairingRule.Group(invite.spec(), sides(invite)));
             return;
         }
@@ -179,6 +182,46 @@ public final class InviteService {
                         messages.send(player, "arena.invite.coming", "player", invite.fromName());
                     }
                 });
+    }
+
+    /** The one who asked takes it back: {@code /pvp cancel [id]}, or the [Cancel] button. */
+    public void cancel(Player player, String id) {
+        List<Invite> mine = madeBy(player.getUniqueId());
+        Optional<Invite> found = id == null ? (mine.size() == 1 ? Optional.of(mine.getFirst()) : Optional.empty())
+                : mine.stream().filter(invite -> invite.id().equalsIgnoreCase(id)).findFirst();
+        if (found.isEmpty()) {
+            messages.send(player, mine.isEmpty() || id != null ? "arena.invite.nothing-to-cancel" : "arena.invite.which");
+            return;
+        }
+        Invite invite = found.get();
+        open.remove(invite.id());
+        messages.send(player, "arena.invite.you-cancelled", "player", invite.toName());
+        Player target = server.getPlayer(invite.to());
+        if (target != null) {
+            messages.send(target, "arena.invite.cancelled", "player", invite.fromName());
+        } else {
+            link.tell(ArenaProtocol.INVITE_CANCEL, Map.of("id", invite.id(), "from", invite.from().toString()));
+        }
+    }
+
+    /** Somebody on survival took back an invite they made to somebody here. */
+    public Map<String, String> cancelledAcross(Map<String, String> data) {
+        Invite invite = open.get(data.getOrDefault("id", ""));
+        if (invite == null || !invite.from().toString().equals(data.get("from"))) {
+            return Map.of("ok", "false");
+        }
+        open.remove(invite.id());
+        Player target = server.getPlayer(invite.to());
+        if (target != null) {
+            messages.send(target, "arena.invite.cancelled", "player", invite.fromName());
+        }
+        return Map.of("ok", "true");
+    }
+
+    public List<Invite> madeBy(UUID player) {
+        long now = clock.getAsLong();
+        open.values().removeIf(invite -> invite.isExpired(now));
+        return open.values().stream().filter(invite -> invite.from().equals(player)).toList();
     }
 
     public void deny(Player player, String id) {
@@ -208,7 +251,8 @@ public final class InviteService {
         if (id != null) {
             Optional<Invite> named = mine.stream().filter(invite -> invite.id().equalsIgnoreCase(id)).findFirst();
             if (named.isEmpty()) {
-                messages.send(player, "arena.invite.gone");
+                messages.send(player, answered.answeredBy(id, player.getUniqueId(), clock.getAsLong())
+                        ? "arena.invite.already" : "arena.invite.gone");
             }
             return named;
         }
@@ -240,6 +284,8 @@ public final class InviteService {
     }
 
     private boolean refused(Player from, UUID target, String name, MatchSpec spec, boolean known) {
+        long now = clock.getAsLong();
+        open.values().removeIf(invite -> invite.isExpired(now));
         boolean asked = target != null && open.values().stream()
                 .anyMatch(invite -> invite.from().equals(from.getUniqueId()) && invite.to().equals(target));
         Optional<String> refusal = rule.refusal(new InviteRule.Facts(target != null && target.equals(from.getUniqueId()),

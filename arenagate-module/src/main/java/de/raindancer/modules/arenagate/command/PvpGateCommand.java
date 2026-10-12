@@ -24,7 +24,7 @@ import java.util.stream.Stream;
  */
 public final class PvpGateCommand implements IGateCommand {
 
-    private static final List<String> SUBCOMMANDS = List.of("invite", "accept", "deny", "queue");
+    private static final List<String> SUBCOMMANDS = List.of("invite", "accept", "deny", "cancel", "queue");
 
     private final Supplier<GateServices> services;
 
@@ -59,6 +59,7 @@ public final class PvpGateCommand implements IGateCommand {
             }
             case "accept" -> live.network().accept(player, args.length > 1 ? args[1] : null);
             case "deny" -> live.network().deny(player, args.length > 1 ? args[1] : null);
+            case "cancel" -> live.network().cancel(player, args.length > 1 ? args[1] : null);
             case "queue" -> {
                 MatchSpec queued = SpecArgs.parse(args, 1, Mode.DUEL);
                 if (live.consents() != null) {
@@ -79,8 +80,9 @@ public final class PvpGateCommand implements IGateCommand {
             return SUBCOMMANDS.stream().filter(option -> option.startsWith(last)).toList();
         }
         if (args[0].equalsIgnoreCase("invite") && args.length == 2) {
-            return services.get().plugin().getServer().getOnlinePlayers().stream().map(Player::getName)
-                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(last)).toList();
+            return Stream.concat(services.get().plugin().getServer().getOnlinePlayers().stream().map(Player::getName),
+                            services.get().elsewhere().get().stream()).distinct()
+                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(last)).sorted().toList();
         }
         return Stream.of("duel", "sumo", "waves", "2v2", "3v3", "ffa", "own", "bo3", "gladiator", "knight", "netherite",
                 "archer", "axe", "mace", "potion", "uhc").filter(option -> option.startsWith(last)).toList();

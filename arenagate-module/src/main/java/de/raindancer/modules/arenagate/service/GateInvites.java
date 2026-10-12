@@ -73,6 +73,18 @@ public final class GateInvites {
     }
 
     public boolean asked(UUID from, UUID to) {
+        long now = clock.getAsLong();
+        open.values().removeIf(pending -> pending.expires() < now);
         return open.values().stream().anyMatch(pending -> pending.from().equals(from) && pending.to().equals(to));
+    }
+
+    /** Taken back by the one who made it. */
+    public Optional<Pending> cancel(UUID from, String id) {
+        Pending pending = open.get(id == null ? "" : id);
+        if (pending == null || !pending.from().equals(from) || pending.expires() < clock.getAsLong()) {
+            return Optional.empty();
+        }
+        open.remove(id);
+        return Optional.of(pending);
     }
 }

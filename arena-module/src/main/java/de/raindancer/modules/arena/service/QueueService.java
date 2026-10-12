@@ -140,11 +140,23 @@ public final class QueueService implements IArenaService {
                 return;
             }
         }
+        boolean pitFree;
         synchronized (this) {
             group.players().forEach(player -> waiting.removeIf(entry -> entry.player().equals(player)));
-            agreed.add(group);
+            replaceOverlapping(agreed, group);
+            pitFree = pits.free(arena.layout().pits(), matches.busyPits()).isPresent();
+        }
+        if (!pitFree) {
+            group.players().stream().map(server::getPlayer).filter(java.util.Objects::nonNull)
+                    .forEach(player -> messages.send(player, "arena.invite.pit-wait"));
         }
         Scheduling.global(plugin, this::tick);
+    }
+
+    /** A newer agreement wins: whoever is in it is taken out of any older one still waiting for a pit. */
+    static void replaceOverlapping(Deque<PairingRule.Group> agreed, PairingRule.Group newer) {
+        agreed.removeIf(older -> !java.util.Collections.disjoint(older.players(), newer.players()));
+        agreed.add(newer);
     }
 
     /** Starts every fight there is a free pit for. Global thread. */
@@ -188,8 +200,20 @@ public final class QueueService implements IArenaService {
 
     private void showPlaces() {
         List<QueueEntry> snapshot;
+        List<PairingRule.Group> agreedNow;
         synchronized (this) {
             snapshot = List.copyOf(waiting);
+            agreedNow = List.copyOf(agreed);
+        }
+        for (PairingRule.Group group : agreedNow) {
+            for (UUID member : group.players()) {
+                String others = group.players().stream().filter(other -> !other.equals(member))
+                        .map(server::getPlayer).filter(java.util.Objects::nonNull).map(Player::getName)
+                        .collect(java.util.stream.Collectors.joining(", "));
+                bars.show(member, BAR, messages.get("arena.queue.bar-agreed", "mode", group.spec().mode().title(),
+                                "kit", kitName(group.spec()), "others", others),
+                        Duration.ofSeconds(3), ActionBarPriority.LOW);
+            }
         }
         for (QueueEntry entry : snapshot) {
             List<QueueEntry> same = snapshot.stream()

@@ -50,7 +50,10 @@
              themselves when survival says it is up (or /arena admin return), a fighter after their fight. -->
         <!-- 0.2.6: the maps are kept as built by RainsCore's locked worlds (1.117.0) — the same protection, now
              shared with the hub; the arena adds only no item entities and no portals. -->
-        <plugin.version>0.2.6</plugin.version>
+        <!-- 0.3.0: a Watcher gladiator opens the fights going on to watch; whoever accepts an invite is told so, a second
+             click on [Accept] too, and both are told when every pit is busy; a newer agreed fight replaces an older one
+             of the same players; stats are read off the server thread. -->
+        <plugin.version>0.3.0</plugin.version>
     </properties>
 
     <dependencies>

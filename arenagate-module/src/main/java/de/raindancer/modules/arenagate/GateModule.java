@@ -31,7 +31,7 @@ import java.util.List;
  */
 public final class GateModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arenagate", "Arena Gate", "0.2.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("arenagate", "Arena Gate", "0.3.0")
             .describedAs("/arena and /pvp: off to the arena server, invites across both servers, stakes held here.")
             .by("Raindancer118");
 
@@ -84,7 +84,8 @@ public final class GateModule implements FlexModule {
         }
         settings.onChange(gate::settings);
 
-        GateServices services = new GateServices(context.plugin(), context.core().messages(), gate, network, consents);
+        GateServices services = new GateServices(context.plugin(), context.core().messages(), gate, network, consents,
+                context.core()::playersElsewhere);
         context.listener(new ArrivalListener(services));
         GateCommands.ready(services);
         context.log().info("Arena gate is up: /arena goes to '{}', link {}.", settings.current().arenaOrDefault(),

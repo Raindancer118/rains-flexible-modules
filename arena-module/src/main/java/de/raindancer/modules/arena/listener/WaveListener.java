@@ -23,6 +23,7 @@ import java.util.UUID;
 public final class WaveListener implements IArenaListener {
 
     private final ArenaServices services;
+    private final de.raindancer.modules.arena.rules.WaveMobRule burning = new de.raindancer.modules.arena.rules.WaveMobRule();
 
     public WaveListener(ArenaServices services) {
         this.services = services;
@@ -34,7 +35,10 @@ public final class WaveListener implements IArenaListener {
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onBurn(EntityCombustEvent event) {
-        if (!(event.getEntity() instanceof Player) && arena(event.getEntity().getWorld())) {
+        // Fire aspect, flame and lava come as the ByEntity/ByBlock subclasses; only the plain event is the sun.
+        boolean caused = event instanceof org.bukkit.event.entity.EntityCombustByEntityEvent
+                || event instanceof org.bukkit.event.entity.EntityCombustByBlockEvent;
+        if (burning.stopsBurning(event.getEntity() instanceof Player, arena(event.getEntity().getWorld()), caused)) {
             event.setCancelled(true);
         }
     }
@@ -57,6 +61,15 @@ public final class WaveListener implements IArenaListener {
     public void onTransform(EntityTransformEvent event) {
         if (arena(event.getEntity().getWorld())) {
             event.setCancelled(true);
+        }
+    }
+
+    /** An evoker's vexes wither away after half a minute, as the game's own do, and never outlive a fight. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onConjured(org.bukkit.event.entity.CreatureSpawnEvent event) {
+        if (event.getEntity() instanceof org.bukkit.entity.Vex vex && arena(vex.getWorld())) {
+            vex.setLimitedLifetime(true);
+            vex.setLimitedLifetimeTicks(600);
         }
     }
 

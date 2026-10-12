@@ -21,7 +21,7 @@ import java.util.stream.Stream;
  */
 public final class PvpCommand implements IArenaCommand {
 
-    private static final List<String> SUBCOMMANDS = List.of("invite", "accept", "deny", "queue", "leave");
+    private static final List<String> SUBCOMMANDS = List.of("invite", "accept", "deny", "cancel", "queue", "leave");
 
     private final Supplier<ArenaServices> services;
 
@@ -52,6 +52,7 @@ public final class PvpCommand implements IArenaCommand {
             }
             case "accept" -> live.invites().accept(player, args.length > 1 ? args[1] : null);
             case "deny" -> live.invites().deny(player, args.length > 1 ? args[1] : null);
+            case "cancel" -> live.invites().cancel(player, args.length > 1 ? args[1] : null);
             case "queue" -> live.queue().join(player, SpecArgs.parse(args, 1, Mode.DUEL));
             case "leave" -> live.messages().send(player, live.queue().leave(player.getUniqueId())
                     ? "arena.queue.left" : "arena.queue.not-in");
@@ -67,8 +68,12 @@ public final class PvpCommand implements IArenaCommand {
         }
         ArenaServices live = services.get();
         if (args[0].equalsIgnoreCase("invite") && args.length == 2) {
-            return live.server().getOnlinePlayers().stream().map(Player::getName)
-                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(last)).toList();
+            return Stream.concat(live.server().getOnlinePlayers().stream().map(Player::getName),
+                            live.core().playersElsewhere().stream()).distinct()
+                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(last)).sorted().toList();
+        }
+        if (args[0].equalsIgnoreCase("cancel") && source.getSender() instanceof Player player) {
+            return live.invites().madeBy(player.getUniqueId()).stream().map(invite -> invite.id()).toList();
         }
         if (args[0].equalsIgnoreCase("accept") || args[0].equalsIgnoreCase("deny")) {
             if (source.getSender() instanceof Player player) {

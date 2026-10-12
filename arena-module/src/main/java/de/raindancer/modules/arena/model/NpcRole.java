@@ -9,7 +9,8 @@ public enum NpcRole {
     BEASTMASTER("Beast Master", "Waves of mobs"),
     ARMORER("Armorer", "The kits"),
     HERALD("Herald", "Who is the best"),
-    GATEKEEPER("Gatekeeper", "Back to survival");
+    GATEKEEPER("Gatekeeper", "Back to survival"),
+    WATCHER("Watcher", "Watch the fights going on");
 
     private final String title;
     private final String purpose;

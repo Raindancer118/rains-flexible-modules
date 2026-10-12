@@ -96,8 +96,15 @@ public final class ArenaCommand implements IArenaCommand {
     private static void stats(ArenaServices live, Player player, String name) {
         org.bukkit.OfflinePlayer whose = live.server().getOfflinePlayerIfCached(name);
         java.util.UUID id = whose == null ? null : whose.getUniqueId();
-        java.util.Optional<de.raindancer.modules.arena.model.Stats> stats = id == null ? java.util.Optional.empty()
-                : live.stats().of(id);
+        if (id == null) {
+            live.messages().send(player, "arena.stats.none", "player", name);
+            return;
+        }
+        de.raindancer.core.platform.util.Scheduling.async(live.plugin(), () -> tell(live, player, name, live.stats().of(id)));
+    }
+
+    private static void tell(ArenaServices live, Player player, String name,
+                             java.util.Optional<de.raindancer.modules.arena.model.Stats> stats) {
         if (stats.isEmpty()) {
             live.messages().send(player, "arena.stats.none", "player", name);
             return;
