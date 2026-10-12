@@ -4,8 +4,6 @@ import de.raindancer.core.RainsCore;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.chat.Brand;
 import de.raindancer.core.ui.messages.Messages;
-import de.raindancer.modules.arena.rules.ItemUseRule;
-import de.raindancer.modules.arena.rules.ProtectionRule;
 import de.raindancer.modules.arena.service.ArenaLink;
 import de.raindancer.modules.arena.service.ArenaService;
 import de.raindancer.modules.arena.service.IntentBook;
@@ -41,8 +39,6 @@ public record ArenaServices(
         StatsStore stats,
         ArenaLink link,
         IntentBook intents,
-        ProtectionRule protection,
-        ItemUseRule itemUse,
         IArenaScreensOpener screens) {
 
     public ArenaSettings config() {

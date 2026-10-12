@@ -48,7 +48,9 @@
         <!-- 0.2.4: a wither or an ender dragon is never let into an arena world, /summon included. -->
         <!-- 0.2.5: the hub holds survival's players through an update — /arena admin hold <names|all>, sent back by
              themselves when survival says it is up (or /arena admin return), a fighter after their fight. -->
-        <plugin.version>0.2.5</plugin.version>
+        <!-- 0.2.6: the maps are kept as built by RainsCore's locked worlds (1.117.0) — the same protection, now
+             shared with the hub; the arena adds only no item entities and no portals. -->
+        <plugin.version>0.2.6</plugin.version>
     </properties>
 
     <dependencies>

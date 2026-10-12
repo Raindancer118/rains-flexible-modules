@@ -1,6 +1,5 @@
 package de.raindancer.modules.arena.rules;
 
-import de.raindancer.modules.arena.model.ArenaAction;
 import de.raindancer.core.world.combat.Attack;
 import de.raindancer.core.world.combat.Verdict;
 import de.raindancer.modules.arena.model.ArenaWorld;
@@ -37,39 +36,6 @@ class RulesTest {
         assertThat(new BorderRule().border(world, -20).size()).isEqualTo(100);
     }
 
-    // ── what may be touched ────────────────────────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("somebody building may do anything; anybody else changes nothing and opens nothing")
-    void protection() {
-        ProtectionRule rule = new ProtectionRule();
-
-        for (ArenaAction action : ArenaAction.values()) {
-            assertThat(rule.allows(action, true)).as("a builder: " + action).isTrue();
-            assertThat(rule.allows(action, false)).as("a fighter: " + action).isFalse();
-        }
-    }
-
-    @Test
-    @DisplayName("a wither or an ender dragon may never exist in an arena world; everything else is not this rule's business")
-    void noBosses() {
-        ProtectionRule rule = new ProtectionRule();
-
-        assertThat(rule.mayExist("WITHER")).isFalse();
-        assertThat(rule.mayExist("ender_dragon")).isFalse();
-        assertThat(rule.mayExist("ZOMBIE")).isTrue();
-        assertThat(rule.mayExist("WITHER_SKELETON")).as("a wither skeleton is a fair wave mob").isTrue();
-    }
-
-    @Test
-    @DisplayName("the actions cover the ways an item gets out of the arena, not only the ways a block changes")
-    void protectionCoversItemEscapes() {
-        assertThat(Set.of(ArenaAction.values())).contains(ArenaAction.ENDER_CHEST, ArenaAction.CONTAINER,
-                ArenaAction.DROP, ArenaAction.PICK_UP, ArenaAction.FRAME, ArenaAction.ARMOUR_STAND);
-    }
-
-    // ── who may hurt whom ──────────────────────────────────────────────────────────────────────────
-
     private static Attack attack(Attack.Fighter attacker, Attack.Fighter victim, String world) {
         Attack.At at = new Attack.At(0, 64, 0);
         return new Attack(attacker, UUID.randomUUID(), victim, UUID.randomUUID(), world, false, at, at);
@@ -102,31 +68,4 @@ class RulesTest {
     }
 
     // ── what may be used while aiming at a block ───────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("fighting gear and food work whatever the crosshair is on; anything that changes or makes things does not")
-    void itemsAgainstBlocks() {
-        ItemUseRule rule = new ItemUseRule();
-
-        for (String fighting : java.util.List.of("BOW", "CROSSBOW", "TRIDENT",
-                "MACE", "SHIELD", "COOKED_BEEF", "GOLDEN_APPLE", "ENCHANTED_GOLDEN_APPLE", "POTION", "SPLASH_POTION",
-                "LINGERING_POTION", "ENDER_PEARL", "SNOWBALL", "WIND_CHARGE", "TOTEM_OF_UNDYING", "MILK_BUCKET",
-                "FISHING_ROD", "AIR")) {
-            assertThat(rule.usableAgainstBlocks(fighting)).as(fighting).isTrue();
-        }
-        for (String changing : java.util.List.of("FLINT_AND_STEEL", "FIRE_CHARGE", "BONE_MEAL", "WATER_BUCKET",
-                "LAVA_BUCKET", "BUCKET", "ZOMBIE_SPAWN_EGG", "OAK_BOAT", "MINECART", "ARMOR_STAND", "ITEM_FRAME",
-                "PAINTING", "END_CRYSTAL", "STONE", "TNT", "IRON_HOE", "IRON_SHOVEL", "SHEARS", "EGG", "LEAD",
-                "BRUSH", "INK_SAC", "HONEYCOMB", "WRITABLE_BOOK")) {
-            assertThat(rule.usableAgainstBlocks(changing)).as(changing).isFalse();
-        }
-    }
-
-    @Test
-    @DisplayName("a right click with an axe or a sword does nothing in a fight, so neither works on a block — no stripping")
-    void axesAndSwordsDoNotWorkOnBlocks() {
-        assertThat(new ItemUseRule().usableAgainstBlocks("IRON_AXE")).isFalse();
-        assertThat(new ItemUseRule().usableAgainstBlocks("DIAMOND_SWORD")).isFalse();
-        assertThat(new ItemUseRule().usableAgainstBlocks("IRON_CHESTPLATE")).as("armour still goes on").isTrue();
-    }
 }

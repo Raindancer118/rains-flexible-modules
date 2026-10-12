@@ -17,8 +17,6 @@ import de.raindancer.modules.arena.listener.SafetyListener;
 import de.raindancer.modules.arena.listener.WaveListener;
 import de.raindancer.modules.arena.model.NpcRole;
 import de.raindancer.modules.arena.rules.FightRule;
-import de.raindancer.modules.arena.rules.ItemUseRule;
-import de.raindancer.modules.arena.rules.ProtectionRule;
 import de.raindancer.modules.arena.screen.ArenaMenu;
 import de.raindancer.modules.arena.screen.KitPickMenu;
 import de.raindancer.modules.arena.screen.KitPreviewMenu;
@@ -65,7 +63,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.2.5")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.2.6")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -74,6 +72,7 @@ public final class ArenaModule implements FlexModule {
     private QueueService queue;
     private WaveService waves;
     private ArenaLink link;
+    private ArenaWorldService worlds;
 
     @Override
     public ModuleInfo info() {
@@ -104,7 +103,7 @@ public final class ArenaModule implements FlexModule {
         }
 
         LayoutBook layout = new LayoutBook(new LayoutStore(context.dataFolder().resolve("layout.yml")));
-        ArenaWorldService worlds = new ArenaWorldService(context.plugin(), log, maps, settings.current());
+        worlds = new ArenaWorldService(context.plugin(), log, maps, settings.current());
         ArenaService arena = new ArenaService(context.plugin(), server, context.core().messages(),
                 context.core().effects(), worlds, layout, settings.current());
 
@@ -192,7 +191,7 @@ public final class ArenaModule implements FlexModule {
         };
         ArenaServices services = new ArenaServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core(), settings::current, arena, matches, queue, invites, kits, waves,
-                npcs, stats, link, intents, new ProtectionRule(), new ItemUseRule(), screens);
+                npcs, stats, link, intents, screens);
         built[0] = services;
 
         FightRule fights = new FightRule();
@@ -237,6 +236,9 @@ public final class ArenaModule implements FlexModule {
     @Override
     public void disable() {
         ArenaCommands.stopped();
+        if (worlds != null) {
+            worlds.unlockAll();
+        }
         if (queue != null) {
             queue.stop();
         }

@@ -43,6 +43,7 @@ public final class ArenaWorldService implements IArenaService {
     private final LogChannel log;
     private final Path maps;
     private final BorderRule borders = new BorderRule();
+    private final java.util.Set<String> locked = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private volatile ArenaSettings settings;
 
     public ArenaWorldService(Plugin plugin, LogChannel log, Path maps, ArenaSettings settings) {
@@ -92,6 +93,10 @@ public final class ArenaWorldService implements IArenaService {
 
     /** Rules, time, weather and border — re-applied at every start, so a hand-changed rule does not stick. */
     public void prepare(World world, ArenaWorld arena) {
+        // Every block and entity of the map stays as built: RainsCore enforces it; an admin in creative builds.
+        de.raindancer.core.world.protection.LockedWorlds.lock(plugin, world.getName(),
+                de.raindancer.modules.arena.util.Builders::isBuilding);
+        locked.add(world.getName());
         world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
         world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
         world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
@@ -176,6 +181,12 @@ public final class ArenaWorldService implements IArenaService {
                 });
             });
         });
+    }
+
+    /** When the module stops: the worlds it locked are let go, so a stopped arena holds no lock it cannot answer for. */
+    public void unlockAll() {
+        locked.forEach(de.raindancer.core.world.protection.LockedWorlds::unlock);
+        locked.clear();
     }
 
     public Optional<World> world(String name) {
