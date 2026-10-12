@@ -45,7 +45,7 @@
 | `/claimadmin` | Claims: overview, delete, transfer, bypass |
 | `/worldgate lock\|open\|evacuate <nether\|end>` | Close dimensions |
 | `/perf` | Lag: what and where |
-| `/orevein [ore] [size]` | Fake ore vein where you look (x-ray bait) |
+| `/orevein [ore] [size]` | Bury ore where you look |
 
 ## Anti-cheat (`/ac` = `/anticheat`)
 | Command | What |
