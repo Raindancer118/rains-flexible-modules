@@ -65,6 +65,11 @@ class ReportsScenarioTest {
             expect(bo, "Bo's report is filed", "Reported.");
             expect(ada, "staff hear of it with a link to open it", "[Open]");
 
+            // Nobody without the right to read reports gets a card, even typing its id.
+            cy.run("mod report R1");
+            Await.ticks(20);
+            assertThat(cy.window()).as("no report card for a player").isEmpty();
+
             // The hub says how many wait and how bad the worst is.
             ada.run("mod reports");
             ada.awaitWindow("Reports");

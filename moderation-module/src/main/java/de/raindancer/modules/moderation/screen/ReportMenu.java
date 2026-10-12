@@ -60,6 +60,16 @@ public final class ReportMenu extends ModerationScreen {
         this.reportId = reportId;
     }
 
+    /** Asked here, not only by the door that led here: a report link in chat or a typed id reaches this too. */
+    @Override
+    public void open() {
+        if (!may(ModerationPermission.REPORTS)) {
+            tell("moderation.no-permission");
+            return;
+        }
+        super.open();
+    }
+
     @Override
     protected Component title() {
         return MINI.deserialize("<white>Report " + reportId);

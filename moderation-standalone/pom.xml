@@ -140,7 +140,7 @@
                     shows one; finds keep their time.
              2.39.0: reports: 27 reasons in five groups for players, a severity colour, a hub (queue, archive, find),
                     a report card with the chat around it and where both stood; /mod is a hub with three rooms. -->
-        <plugin.version>2.39.0</plugin.version>
+        <plugin.version>2.39.1</plugin.version>
     </properties>
 
     <dependencies>
