@@ -24,7 +24,8 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsRanks</plugin.name>
         <!-- 0.1.0: /rank — [OWNER], [DEV], [ADMIN]… in front of names in chat, above heads and in the tablist (Core's NameBadges), switchable per place for the server and by every player; staff give and take. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.2.0: ranks made, changed, styled and deleted in game (/rank create, edit, delete; custom-ranks.yml); team ranks and a [TEAM] rank, the team listed on its own at the top of the tablist (RainsCore 1.127.0). -->
+        <plugin.version>0.2.0</plugin.version>
     </properties>
 
     <dependencies>
