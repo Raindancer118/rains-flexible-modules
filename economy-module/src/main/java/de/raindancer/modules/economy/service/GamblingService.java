@@ -641,7 +641,42 @@ public final class GamblingService implements IEconomyService {
             return false;
         }
         refuse(player, "economy.gamble.dealers-only", "dealer", game.dealer());
+        offerTheCasino(player);
         return true;
+    }
+
+    /** The warp a refused player is offered a trip to. */
+    private static final String CASINO_WARP = "casino";
+
+    private static final java.time.Duration OFFER_LIFETIME = java.time.Duration.ofSeconds(30);
+
+    private volatile java.util.function.Predicate<String> warpExists = name -> false;
+
+    /** How the service knows a warp is there to be offered; without it nothing is ever offered. */
+    public void offersWarp(java.util.function.Predicate<String> exists) {
+        this.warpExists = exists == null ? name -> false : exists;
+    }
+
+    /**
+     * Right after "that is played in person": asks whether to go to the casino instead, with [Accept] [Deny]
+     * under it. Yes is {@code /warp casino} as the player — so the warp's own waiting, price and permission
+     * apply, as if they had typed it.
+     */
+    private void offerTheCasino(Player player) {
+        if (!warpExists.test(CASINO_WARP)) {
+            return;
+        }
+        net.kyori.adventure.text.Component question = messages.prefixed("economy.gamble.go-to-casino");
+        net.kyori.adventure.text.Component answer = buttons.ask(player.getUniqueId(), OFFER_LIFETIME,
+                who -> {
+                    Player asked = server.getPlayer(who);
+                    if (asked != null) {
+                        asked.performCommand("warp " + CASINO_WARP);
+                    }
+                },
+                who -> {
+                });
+        player.sendMessage(question.appendNewline().append(answer));
     }
 
     private void refuse(Player player, String key, Object... values) {

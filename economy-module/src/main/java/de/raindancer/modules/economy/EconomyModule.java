@@ -173,6 +173,8 @@ public final class EconomyModule implements FlexModule {
                 leaderboard, settings, now);
         GamblingService gambling = new GamblingService(context.plugin(), server, economy, messages, effects, buttons,
                 Clock.systemDefaultZone(), sounds, now);
+        gambling.offersWarp(name -> context.core().places().ofKind("warp").stream()
+                .anyMatch(place -> place.name().equalsIgnoreCase(name)));
         LotteryService lottery = new LotteryService(context.plugin(), server, economy, messages, effects,
                 System::currentTimeMillis, now);
         var tables = new de.raindancer.modules.economy.service.TableService(server, gambling, now);

@@ -2,6 +2,7 @@
 economy:
   gamble:
     dealers-only: "<red>This game is played in person. <gray>Please go to the <white><dealer></white>."
+    go-to-casino: "<gray>Go to the casino instead? This uses /warp casino."
     duel-at-table: "<red>Duels are played at a coin flip table. <gray>Please stand by a <white><dealer></white> first."
     duel-won: "<green>You won the coin flip: <amount><green>."
     duel-lost: "<red><player> won the coin flip. You lost <amount><red>."

@@ -47,7 +47,7 @@
                     shop.ominous-bottle-value; /eco price potion:healing.
              0.31.1: a bottle's item closes every potion of its form: "potion" or "splash_potion" in not-sold or
                     not-bought, or the item's drawer shut, as for any item. -->
-        <plugin.version>0.31.1</plugin.version>
+        <plugin.version>0.32.0</plugin.version>
     </properties>
 
     <dependencies>
