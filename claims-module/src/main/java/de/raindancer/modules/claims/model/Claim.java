@@ -38,6 +38,10 @@ public final class Claim {
     // reads as. There are never more than a handful, and they change almost never, which is
     // exactly the shape copy-on-write is for.
     private final Set<UUID> owners = new java.util.concurrent.CopyOnWriteArraySet<>();
+    /** The group (a guild) this claim belongs to as well — {@code guild:<id>} — or null. */
+    private volatile String group;
+    /** What every member of that group may do here; officers also manage. */
+    private final EnumSet<LandAction> groupPermissions = defaultGroupPermissions();
     private final Map<UUID, ClaimMember> members = new ConcurrentHashMap<>();
     private final Map<UUID, ClaimBan> bans = new ConcurrentHashMap<>();
 
@@ -272,7 +276,45 @@ public final class Claim {
     }
 
     public boolean isOwner(UUID uuid) {
-        return uuid != null && owners.contains(uuid);
+        if (uuid == null) {
+            return false;
+        }
+        if (owners.contains(uuid)) {
+            return true;
+        }
+        // A guild's claim is its leader's too — whoever leads it now, asked every time.
+        return groupNow().map(found -> uuid.equals(found.leader())).orElse(false);
+    }
+
+    // ------------------------------------------------------------------ belonging to a group
+
+    /** Everything a trusted friend usually gets — not fire, not hurting the animals. */
+    public static EnumSet<LandAction> defaultGroupPermissions() {
+        EnumSet<LandAction> all = EnumSet.allOf(LandAction.class);
+        all.remove(LandAction.IGNITE);
+        all.remove(LandAction.DAMAGE_ANIMALS);
+        return all;
+    }
+
+    public Optional<String> group() {
+        return Optional.ofNullable(group);
+    }
+
+    /** Gives the claim to a group as well (null takes it away again); its owners keep it. */
+    public void setGroup(String id) {
+        this.group = id == null || id.isBlank() ? null : id;
+        markDirty();
+    }
+
+    /** What every member of the group may do here — changed in place. */
+    public EnumSet<LandAction> groupPermissions() {
+        markDirty();
+        return groupPermissions;
+    }
+
+    private Optional<de.raindancer.core.social.team.Groups.Group> groupNow() {
+        String id = group;
+        return id == null ? Optional.empty() : de.raindancer.core.social.team.Groups.group(id);
     }
 
     public boolean addOwner(UUID uuid) {
@@ -335,8 +377,20 @@ public final class Claim {
         return Collections.unmodifiableMap(members);
     }
 
+    /**
+     * Who is trusted here: somebody trusted by name, else — on a group's claim — a member of the group with the
+     * group's permissions, and a manager of it (an officer) with every right to change the claim. Group members are
+     * never written into {@link #members()}: leaving the group ends their rights at once.
+     */
     public Optional<ClaimMember> member(UUID uuid) {
-        return Optional.ofNullable(members.get(uuid));
+        ClaimMember named = uuid == null ? null : members.get(uuid);
+        if (named != null) {
+            return Optional.of(named);
+        }
+        return groupNow().filter(found -> found.isMember(uuid)).map(found -> new ClaimMember(uuid,
+                EnumSet.copyOf(groupPermissions),
+                found.isManager(uuid) ? EnumSet.allOf(ClaimAdminPermission.class) : EnumSet.noneOf(ClaimAdminPermission.class),
+                found.isManager(uuid) ? EnumSet.copyOf(groupPermissions) : EnumSet.noneOf(LandAction.class), 0L));
     }
 
     public ClaimMember memberOrCreate(UUID uuid) {

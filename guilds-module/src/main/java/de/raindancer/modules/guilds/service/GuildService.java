@@ -784,6 +784,41 @@ public final class GuildService implements IGuildsService {
         return changed;
     }
 
+    /** The guild as a Core group, so land and other things can belong to it. */
+    public Optional<de.raindancer.core.social.team.Groups.Group> groupOf(Guild guild) {
+        java.util.Set<UUID> managers = new java.util.HashSet<>();
+        for (UUID member : guild.members().keySet()) {
+            if (guild.may(member, GuildPermission.EDIT_INFO)) {
+                managers.add(member);
+            }
+        }
+        managers.add(guild.leader());
+        return Optional.of(new de.raindancer.core.social.team.Groups.Group("guild:" + guild.id().value(), guild.name(),
+                guild.tag(), guild.leader(), managers, guild.members().keySet()));
+    }
+
+    public Optional<de.raindancer.core.social.team.Groups.Group> groupById(String id) {
+        if (id == null || !id.startsWith("guild:")) {
+            return Optional.empty();
+        }
+        return book.guild(id.substring("guild:".length())).flatMap(this::groupOf);
+    }
+
+    /** As a source for Core's Groups. */
+    public de.raindancer.core.social.team.Groups.Source groups() {
+        return new de.raindancer.core.social.team.Groups.Source() {
+            @Override
+            public Optional<de.raindancer.core.social.team.Groups.Group> group(String id) {
+                return groupById(id);
+            }
+
+            @Override
+            public java.util.List<de.raindancer.core.social.team.Groups.Group> of(UUID player) {
+                return book.guildOf(player).flatMap(GuildService.this::groupOf).map(java.util.List::of).orElse(java.util.List.of());
+            }
+        };
+    }
+
     /** A guild's members by its tag, any case — for {@code @TAG} in commands. */
     public Optional<java.util.List<UUID>> membersByTag(String tag) {
         return book.all().stream().filter(guild -> guild.tag().equalsIgnoreCase(tag == null ? "" : tag.strip()))

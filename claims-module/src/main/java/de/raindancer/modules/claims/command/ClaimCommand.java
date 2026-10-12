@@ -106,6 +106,7 @@ public final class ClaimCommand implements IClaimCommand {
             case "timeout", "mute" -> timeout(claims, player, args);
             case "owner" -> owner(claims, player, args);
             case "transfer" -> transfer(claims, player, args);
+            case "guild", "group" -> group(claims, player, args);
             case "warp", "setwarp", "door" -> warp(claims, player, args);
             case "home", "sethome" -> home(claims, player, args);
             case "cancel" -> claims.selectionFlow().cancel(player);
@@ -266,6 +267,48 @@ public final class ClaimCommand implements IClaimCommand {
             claims.claimService().rename(claim, wanted);
             claims.messages().send(player, "claim.renamed", "old", was, "claim", claim.name());
         });
+    }
+
+    /**
+     * {@code /claim guild [tag]} gives the claim underfoot to a guild the owner manages — its leader owns it too, its
+     * officers manage it, its members are trusted, all for as long as they are in it; {@code /claim guild off} takes
+     * it back. The owners keep the claim either way.
+     */
+    private void group(ClaimServices claims, Player player, String[] args) {
+        Optional<Claim> maybe = ownedHere(claims, player);
+        if (maybe.isEmpty()) {
+            return;
+        }
+        Claim claim = maybe.get();
+        if (args.length > 1 && args[1].equalsIgnoreCase("off")) {
+            if (claim.group().isEmpty()) {
+                claims.messages().send(player, "claim.group.none-set");
+                return;
+            }
+            claim.setGroup(null);
+            claims.claimService().saveAsync(claim);
+            claims.messages().send(player, "claim.group.taken", "claim", claim.name());
+            return;
+        }
+        java.util.List<de.raindancer.core.social.team.Groups.Group> managed =
+                de.raindancer.core.social.team.Groups.managedBy(player.getUniqueId());
+        if (args.length > 1) {
+            managed = managed.stream().filter(group -> group.tag().equalsIgnoreCase(args[1])
+                    || group.name().equalsIgnoreCase(args[1])).toList();
+        }
+        if (managed.isEmpty()) {
+            claims.messages().send(player, "claim.group.none");
+            return;
+        }
+        if (managed.size() > 1) {
+            claims.messages().send(player, "claim.group.which", "groups",
+                    String.join(", ", managed.stream().map(de.raindancer.core.social.team.Groups.Group::tag).toList()));
+            return;
+        }
+        de.raindancer.core.social.team.Groups.Group group = managed.getFirst();
+        claim.setGroup(group.id());
+        claims.claimService().saveAsync(claim);
+        claims.messages().send(player, "claim.group.given", "claim", claim.name(), "group", group.name(), "tag", group.tag());
     }
 
     /**
@@ -691,7 +734,7 @@ public final class ClaimCommand implements IClaimCommand {
         if (args.length <= 1) {
             List<String> words = new ArrayList<>(List.of(
                     "new", "create", "list", "here", "info", "show", "border", "hide", "delete",
-                    "rename", "trust", "untrust", "kick", "ban", "unban", "timeout", "owner", "transfer",
+                    "rename", "trust", "untrust", "kick", "ban", "unban", "timeout", "owner", "transfer", "guild",
                     "cancel", "accept", "decline", "manual", "stick", "select", "help", "warp", "home", "upkeep",
                     "buyslot"));
             if (args.length == 1) {

@@ -166,6 +166,14 @@ public final class ClaimStorage {
             claim.addOwner(UUID.fromString(ownerList.get(index)));
         }
         claim.createdAt(yaml.getLong("created-at", System.currentTimeMillis()));
+        // A guild's claim — absent on every file written before groups existed, which is "no group".
+        claim.setGroup(yaml.getString("group", null));
+        if (yaml.isList("group-permissions")) {
+            claim.groupPermissions().clear();
+            for (String raw : yaml.getStringList("group-permissions")) {
+                LandAction.byKey(raw).ifPresent(claim.groupPermissions()::add);
+            }
+        }
         // Absent on every file written before this existed — Optional.empty() is exactly the right
         // default, and containsColumn is trivially true for a point already inside a loaded shape.
         String entranceRaw = yaml.getString("entrance.point");
@@ -437,6 +445,10 @@ public final class ClaimStorage {
         List<String> publicPermissions = new ArrayList<>();
         claim.publicPermissions().forEach(permission -> publicPermissions.add(permission.key()));
         yaml.set("public-permissions", publicPermissions);
+        yaml.set("group", claim.group().orElse(null));
+        List<String> groupPermissions = new ArrayList<>();
+        claim.groupPermissions().forEach(permission -> groupPermissions.add(permission.key()));
+        yaml.set("group-permissions", claim.group().isPresent() ? groupPermissions : null);
 
         for (ClaimMember member : claim.members().values()) {
             String base = "members." + member.uuid();

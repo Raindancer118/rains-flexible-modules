@@ -706,6 +706,21 @@ class ServicesTest {
     }
 
     @Test
+    @DisplayName("a guild is a Core group: leader, officers (who may edit its info) as managers, every member")
+    void asGroup() {
+        Guild elves = found(ALICE, "Elves", "ELF");
+        join(elves, BOB);
+        de.raindancer.core.social.team.Groups.Group group = guilds.groupOf(guild(ALICE)).orElseThrow();
+        assertThat(group.id()).isEqualTo("guild:" + elves.id().value());
+        assertThat(group.leader()).isEqualTo(ALICE);
+        assertThat(group.isManager(ALICE)).isTrue();
+        assertThat(group.isManager(BOB)).as("a recruit does not manage").isFalse();
+        assertThat(group.isMember(BOB)).isTrue();
+        assertThat(guilds.groupById(group.id())).contains(group);
+        assertThat(guilds.groupById("guild:nothing")).isEmpty();
+    }
+
+    @Test
     @DisplayName("a guild's tag names its members as a player group — @ELF — whatever the case typed")
     void tagAsGroup() {
         Guild elves = found(ALICE, "Elves", "ELF");

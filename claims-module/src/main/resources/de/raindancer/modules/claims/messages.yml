@@ -34,6 +34,12 @@ claim:
   stick-given: "<green>There is your marking-out tool. <gray>Left click one corner, right click the other."
   border-hidden: "<gray>Borders hidden. Out of sight, still yours."
   rename-needs-a-name: "<red>Give it a name: <gray>/claim rename <new name>"
+  group:
+    given: "<green><white><claim></white> belongs to <white><group></white> <gray>[<tag>]</gray> now as well: its leader owns it, its officers manage it, its members may build. <gray>/claim guild off takes it back."
+    taken: "<gray><white><claim></white> is yours alone again."
+    none: "<red>You lead or manage no guild that could have it. <gray>Officers and leaders can hand a claim to their guild."
+    none-set: "<gray>This claim belongs to no guild."
+    which: "<yellow>You manage more than one: <white><groups></white>. <gray>Name one: /claim guild TAG"
   none-here: "<gray>You are not standing in a claim."
   gone: "<red>That claim no longer exists."
   belongs-to: "<gray>This is <white><claim></white>."

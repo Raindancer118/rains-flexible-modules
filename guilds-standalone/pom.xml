@@ -29,7 +29,8 @@
         <!-- 0.3.0: the guild in the sidebar under the balance: tag and name, level with the experience to the next, bank (setting sidebar; RainsCore 1.129.0 SidebarSections). -->
         <!-- 0.4.0: more ways to level up — ores, fish, breeding, trades, crops, enchanting, raids, rivals, deposits; together bonus; weekly contracts; staff boost; level page. -->
         <!-- 0.5.0: a guild tag is a player group in every command: @DAWN (RainsCore 1.130.0 PlayerGroups). -->
-        <plugin.version>0.5.0</plugin.version>
+        <!-- 0.6.0: a guild is a Core group (leader, officers who may edit its info, members), so a claim can belong to it. -->
+        <plugin.version>0.6.0</plugin.version>
     </properties>
 
     <dependencies>
