@@ -279,14 +279,19 @@ public final class Claim {
         if (uuid == null) {
             return false;
         }
-        if (owners.contains(uuid)) {
-            return true;
-        }
-        // A guild's claim is its leader's too — whoever leads it now, asked every time.
-        return groupNow().map(found -> uuid.equals(found.leader())).orElse(false);
+        // Only the named owners: a guild's leader manages its claims (see member()), but deleting, transferring
+        // or handing a claim on stays with whoever owns it — or the leader of any guild it was given to could.
+        return owners.contains(uuid);
     }
 
     // ------------------------------------------------------------------ belonging to a group
+
+    /** What a guild's leader and officers may change about its claim: everything but making claim admins. */
+    private static EnumSet<ClaimAdminPermission> managerRights() {
+        EnumSet<ClaimAdminPermission> rights = EnumSet.allOf(ClaimAdminPermission.class);
+        rights.remove(ClaimAdminPermission.MANAGE_ADMINS);
+        return rights;
+    }
 
     /** Everything a trusted friend usually gets — not fire, not hurting the animals. */
     public static EnumSet<LandAction> defaultGroupPermissions() {
@@ -389,7 +394,7 @@ public final class Claim {
         }
         return groupNow().filter(found -> found.isMember(uuid)).map(found -> new ClaimMember(uuid,
                 EnumSet.copyOf(groupPermissions),
-                found.isManager(uuid) ? EnumSet.allOf(ClaimAdminPermission.class) : EnumSet.noneOf(ClaimAdminPermission.class),
+                found.isManager(uuid) ? managerRights() : EnumSet.noneOf(ClaimAdminPermission.class),
                 found.isManager(uuid) ? EnumSet.copyOf(groupPermissions) : EnumSet.noneOf(LandAction.class), 0L));
     }
 

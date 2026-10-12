@@ -61,15 +61,18 @@ class GroupClaimTest {
     }
 
     @Test
-    @DisplayName("given to a guild: the leader owns it, officers manage it, members build in it, strangers do not")
+    @DisplayName("given to a guild: leader and officers manage it, members build in it, strangers do not — the owners stay the owners")
     void guild() {
         claim.setGroup("guild:elves");
-        assertThat(claim.isOwner(LEADER)).isTrue();
-        assertThat(claim.isOwner(FOUNDER)).as("the founder still owns it too").isTrue();
-        assertThat(claim.member(OFFICER)).hasValueSatisfying(officer -> {
-            assertThat(officer.has(ClaimAdminPermission.MANAGE_MEMBERS)).isTrue();
-            assertThat(officer.permissions()).contains(LandAction.BUILD, LandAction.CONTAINERS);
-        });
+        assertThat(claim.isOwner(LEADER)).as("managing is not owning: no deleting, no transferring, no handing it on").isFalse();
+        assertThat(claim.isOwner(FOUNDER)).isTrue();
+        for (UUID manager : List.of(LEADER, OFFICER)) {
+            assertThat(claim.member(manager)).hasValueSatisfying(officer -> {
+                assertThat(officer.has(ClaimAdminPermission.MANAGE_MEMBERS)).isTrue();
+                assertThat(officer.has(ClaimAdminPermission.MANAGE_ADMINS)).as("making claim admins stays the owners'").isFalse();
+                assertThat(officer.permissions()).contains(LandAction.BUILD, LandAction.CONTAINERS);
+            });
+        }
         assertThat(claim.member(MEMBER)).hasValueSatisfying(member -> {
             assertThat(member.permissions()).contains(LandAction.BUILD, LandAction.BREAK, LandAction.DOORS);
             assertThat(member.has(ClaimAdminPermission.MANAGE_MEMBERS)).isFalse();
@@ -96,7 +99,7 @@ class GroupClaimTest {
         claim.groupPermissions().add(LandAction.DOORS);
         assertThat(claim.member(MEMBER).orElseThrow().permissions()).containsExactly(LandAction.DOORS);
         Groups.clear();
-        assertThat(claim.isOwner(LEADER)).isFalse();
+        assertThat(claim.member(LEADER)).isEmpty();
         assertThat(claim.member(MEMBER)).isEmpty();
         assertThat(claim.isOwner(FOUNDER)).isTrue();
     }

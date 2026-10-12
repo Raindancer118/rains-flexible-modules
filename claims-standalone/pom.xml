@@ -56,7 +56,8 @@
           FeatureRules' defaults on every enable(), so a change made there never survived a restart.
              2.9.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
         <!-- 2.11.0: a claim can belong to a group (a guild) as well — /claim guild [tag|off]: its leader owns it, its officers manage it, its members build, asked live so leaving ends it (RainsCore 1.131 Groups). -->
-        <plugin.version>2.11.0</plugin.version>
+        <!-- 2.11.1: a guild leader manages a guild claim but does not own it (no delete/transfer/hand-on); guild managers cannot make claim admins (security review). -->
+        <plugin.version>2.11.1</plugin.version>
     </properties>
 
     <dependencies>

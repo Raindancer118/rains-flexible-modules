@@ -793,7 +793,9 @@ public final class GuildService implements IGuildsService {
             }
         }
         managers.add(guild.leader());
-        return Optional.of(new de.raindancer.core.social.team.Groups.Group("guild:" + guild.id().value(), guild.name(),
+        // The founding time is part of the id: a guild founded again under a disbanded one's name has the same
+        // team id, and must not inherit what was given to the old one.
+        return Optional.of(new de.raindancer.core.social.team.Groups.Group(groupId(guild), guild.name(),
                 guild.tag(), guild.leader(), managers, guild.members().keySet()));
     }
 
@@ -801,7 +803,16 @@ public final class GuildService implements IGuildsService {
         if (id == null || !id.startsWith("guild:")) {
             return Optional.empty();
         }
-        return book.guild(id.substring("guild:".length())).flatMap(this::groupOf);
+        int at = id.lastIndexOf(':');
+        if (at <= "guild:".length() - 1) {
+            return Optional.empty();
+        }
+        return book.guild(id.substring("guild:".length(), at)).filter(guild -> groupId(guild).equals(id))
+                .flatMap(this::groupOf);
+    }
+
+    private static String groupId(Guild guild) {
+        return "guild:" + guild.id().value() + ":" + guild.founded();
     }
 
     /** As a source for Core's Groups. */

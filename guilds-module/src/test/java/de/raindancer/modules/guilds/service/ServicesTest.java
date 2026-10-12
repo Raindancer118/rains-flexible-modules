@@ -711,13 +711,26 @@ class ServicesTest {
         Guild elves = found(ALICE, "Elves", "ELF");
         join(elves, BOB);
         de.raindancer.core.social.team.Groups.Group group = guilds.groupOf(guild(ALICE)).orElseThrow();
-        assertThat(group.id()).isEqualTo("guild:" + elves.id().value());
+        assertThat(group.id()).isEqualTo("guild:" + elves.id().value() + ":" + elves.founded());
         assertThat(group.leader()).isEqualTo(ALICE);
         assertThat(group.isManager(ALICE)).isTrue();
         assertThat(group.isManager(BOB)).as("a recruit does not manage").isFalse();
         assertThat(group.isMember(BOB)).isTrue();
         assertThat(guilds.groupById(group.id())).contains(group);
         assertThat(guilds.groupById("guild:nothing")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a guild founded again under a disbanded guild's name is a different group — it inherits no claims")
+    void refoundedIsANewGroup() {
+        Guild first = found(ALICE, "Elves", "ELF");
+        String before = guilds.groupOf(first).orElseThrow().id();
+        assertThat(guilds.disband(ALICE, first.id(), false, bank)).isEqualTo(GuildOutcome.SUCCESS);
+        clock.addAndGet(1_000);
+        Guild again = found(ALICE, "Elves", "ELF");
+        assertThat(again.id()).isEqualTo(first.id());
+        assertThat(guilds.groupOf(again).orElseThrow().id()).isNotEqualTo(before);
+        assertThat(guilds.groupById(before)).as("the old group is gone for good").isEmpty();
     }
 
     @Test

@@ -30,7 +30,8 @@
         <!-- 0.4.0: more ways to level up — ores, fish, breeding, trades, crops, enchanting, raids, rivals, deposits; together bonus; weekly contracts; staff boost; level page. -->
         <!-- 0.5.0: a guild tag is a player group in every command: @DAWN (RainsCore 1.130.0 PlayerGroups). -->
         <!-- 0.6.0: a guild is a Core group (leader, officers who may edit its info, members), so a claim can belong to it. -->
-        <plugin.version>0.6.0</plugin.version>
+        <!-- 0.6.1: a guild's group id carries its founding time, so a guild founded again under a disbanded one's name inherits nothing (security review). -->
+        <plugin.version>0.6.1</plugin.version>
     </properties>
 
     <dependencies>
