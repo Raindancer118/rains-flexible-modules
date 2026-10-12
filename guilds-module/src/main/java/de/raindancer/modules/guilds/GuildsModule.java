@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class GuildsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.7.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.7.2")
             .describedAs("Guilds founded by players: a ladder of ranks with their own permissions, a bank with daily "
                     + "limits, levels earned by playing that unlock members, allies and a guild home, alliances and "
                     + "rivals, guild, officer and ally chat, and the guild's tag in front of every member's name")
@@ -157,7 +157,14 @@ public final class GuildsModule implements FlexModule {
         guilds.extraMembers(perks::extraMembers);
         relations.extraAllies(perks::extraAllies);
         homes.travelPercent(perks::homeTravelPercent);
-        guilds.disbandGuard(perks::sealForDisband, perks::unseal);
+        guilds.disbandGuard(guild -> {
+            GuildOutcome sealed = perks.sealForDisband(guild);
+            if (sealed == GuildOutcome.VAULT_UNREADABLE) {
+                context.log().error("The vault of the guild {} could not be read (plugins/…/vaults). It is held as it is: "
+                        + "nothing goes in and the guild cannot be disbanded until the file is fixed.", guild.name());
+            }
+            return sealed;
+        }, perks::unseal);
         book.onDisband(perks::forgetVault);
         // Prestige stars and the weekly crown, after the tag — its own badge, so whoever paints the tag need not know.
         de.raindancer.core.ui.identity.NameBadges.register("guild-honours", player -> settings.current().tagInNames()

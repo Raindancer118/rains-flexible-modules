@@ -1,9 +1,6 @@
 package de.raindancer.modules.guilds.service;
 
-import de.raindancer.core.data.nbt.ItemBytes;
-import de.raindancer.core.data.nbt.ItemText;
 import de.raindancer.core.data.sql.Database;
-import de.raindancer.core.data.stash.StashStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.guilds.GuildProgressSettings;
@@ -55,24 +52,6 @@ class VaultTest {
     private BankService bank;
     private final AtomicLong clock = new AtomicLong(1_000_000_000L);
 
-    /** A codec that never runs: these tests never write the vault to disk. */
-    private static final ItemBytes NO_BYTES = new ItemBytes() {
-        @Override
-        public int dataVersion() {
-            return 0;
-        }
-
-        @Override
-        public byte[] toBytes(ItemStack item) {
-            return new byte[0];
-        }
-
-        @Override
-        public Optional<ItemStack> fromBytes(byte[] bytes) {
-            return Optional.empty();
-        }
-    };
-
     private static ItemStack dirt(int amount) {
         ItemStack item = mock(ItemStack.class);
         when(item.getType()).thenReturn(Material.DIRT);
@@ -99,7 +78,7 @@ class VaultTest {
             return player;
         });
         GuildNotifier notify = new GuildNotifier(server, new Messages(folder.resolve("messages.yml")));
-        perks = new PerkService(book, progress, notify, new StashStore(folder.resolve("vaults"), new ItemText(NO_BYTES)),
+        perks = new PerkService(book, progress, notify, TestVaults.in(folder),
                 clock::get, GuildsSettings.DEFAULTS, GuildProgressSettings.DEFAULTS);
         guilds = new GuildService(book, notify, Log.of("test"), clock::get, who -> OptionalLong.empty(), GuildsSettings.DEFAULTS);
         bank = new BankService(book, notify, Log.of("test"), clock::get, Optional::empty, GuildsSettings.DEFAULTS);
@@ -155,6 +134,20 @@ class VaultTest {
         assertThat(perks.take(drawn, MEMBER, 0, perks.vaultItems(elves()).getFirst())).as("with the old copy").isNull();
         book.update(drawn.id(), guild -> guild.withoutMember(MEMBER));
         assertThat(perks.take(drawn, MEMBER, 0, perks.vaultItems(elves()).getFirst())).as("no longer a member").isNull();
+    }
+
+    @Test
+    @DisplayName("a vault whose file cannot be read is never taken for empty: no disband, no deposits")
+    void unreadableFailsClosed() throws Exception {
+        Path file = folder.resolve("vaults").resolve(PerkService.vaultOwner(elves()) + ".yml");
+        java.nio.file.Files.createDirectories(file.getParent());
+        java.nio.file.Files.writeString(file, "items: [unclosed\n  : : :\n");
+        assertThat(perks.vaultItems(elves())).as("it loads empty").isEmpty();
+        assertThat(perks.vaultEmpty(elves())).isFalse();
+        assertThat(perks.sealForDisband(elves())).isEqualTo(GuildOutcome.VAULT_UNREADABLE);
+        assertThat(perks.deposit(elves(), dirt(4))).as("would live only until the next restart").isZero();
+        assertThat(guilds.disband(LEADER, elves().id(), false, bank)).isEqualTo(GuildOutcome.VAULT_UNREADABLE);
+        assertThat(book.guildOf(LEADER)).isPresent();
     }
 
     @Test

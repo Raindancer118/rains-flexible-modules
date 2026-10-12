@@ -162,3 +162,4 @@ guilds:
     not-top-level: "<red>Prestige is for a guild at the top level. Not there yet."
     vault-not-empty: "<red>Empty the guild vault first — disbanding would destroy what is in it."
     vault-full: "<red>The vault is full."
+    vault-unreadable: "<red>The guild vault's file could not be read, so nothing goes in and the guild cannot be disbanded until staff have looked at it."

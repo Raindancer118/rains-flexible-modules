@@ -106,7 +106,7 @@ class ServicesTest {
         book.onDisband(progress::forget);
         xp = new XpService(book, progress, notify, mock(Effects.class), clock::get, settings,
                 GuildProgressSettings.DEFAULTS, (player, guild) -> near.getOrDefault(player, 0));
-        perks = new PerkService(book, progress, notify, null, clock::get, settings, GuildProgressSettings.DEFAULTS);
+        perks = new PerkService(book, progress, notify, TestVaults.in(folder), clock::get, settings, GuildProgressSettings.DEFAULTS);
         xp.perks(perks);
         guilds.extraMembers(perks::extraMembers);
         relations.extraAllies(perks::extraAllies);

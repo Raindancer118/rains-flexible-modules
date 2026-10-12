@@ -33,7 +33,8 @@
         <!-- 0.6.1: a guild's group id carries its founding time, so a guild founded again under a disbanded one's name inherits nothing (security review). -->
         <!-- 0.7.0: reasons to grind — perk points and a perk tree (vault, haste, luck, scholar, prosperous, recruiter, diplomat, pathfinder), prestige past the top level, the weekly crown. -->
         <!-- 0.7.1: the vault is sealed from the empty check to the end of a disband; vault keyed by founding time; taking asks the guild as it is now (security review). -->
-        <plugin.version>0.7.1</plugin.version>
+        <!-- 0.7.2: a vault whose file cannot be read is never taken for empty — no disband, no deposits (RainsCore 1.132.0 StashStore.isReadable; security review). -->
+        <plugin.version>0.7.2</plugin.version>
     </properties>
 
     <dependencies>

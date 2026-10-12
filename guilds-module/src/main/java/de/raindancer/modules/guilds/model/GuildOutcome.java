@@ -63,7 +63,8 @@ public enum GuildOutcome {
     ON_COOLDOWN,
     NOT_TOP_LEVEL,
     VAULT_NOT_EMPTY,
-    VAULT_FULL;
+    VAULT_FULL,
+    VAULT_UNREADABLE;
 
     public boolean isSuccess() {
         return this == SUCCESS || this == ASKED;
