@@ -1,0 +1,20 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+guilds:
+  only-a-player: "<red>Only a player can use guilds."
+  rival:
+    declared-on-us: "<red><guild><red> declared your guild their rival."
+  home:
+    wait: "<red>You can use the guild home again in <white><time></white>."
+  outcome:
+    already-in-guild: "<red>You are already in a guild."
+    not-allowed: "<red>Your rank does not allow that."
+    outranked: "<red>They rank as high as you, or higher."
+    yourself: "<red>You cannot do that to yourself."
+    name-too-short: "<red>That name is too short."
+    name-too-long: "<red>That name is too long."
+    name-banned: "<red>That name is not allowed."
+    tag-banned: "<red>That tag is not allowed."
+    already-invited: "<red>They have already been invited."
+    already-applied: "<red>You have already applied."
+    leader-must-hand-over: "<red>Hand the guild to another member before leaving: <white>/guild leader</white> and a name."
+    already-rivals: "<red>They are already your rivals."

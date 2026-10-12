@@ -1,0 +1,25 @@
+# Same shape as every other standalone here — see rtp-standalone's copy for why each line matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '26.3'
+description: 'Guilds: ranks, a bank, levels, alliances and rivals, a guild home, guild chat and a tag before every name.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+folia-supported: true
+
+# Money goes through RainsCore's Economies, so this loads without RainsEconomy — the bank and the
+# founding fee are simply closed until an economy is there.
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
