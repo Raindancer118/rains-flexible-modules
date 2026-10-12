@@ -17,7 +17,13 @@ import de.raindancer.modules.guilds.model.JoinMode;
 import de.raindancer.modules.guilds.model.Rank;
 import de.raindancer.modules.guilds.model.Relation;
 import de.raindancer.modules.guilds.rules.ShareRule;
+import de.raindancer.modules.guilds.GuildProgressSettings;
+import de.raindancer.modules.guilds.model.Activity;
+import de.raindancer.modules.guilds.model.Contract;
+import de.raindancer.modules.guilds.model.XpSource;
 import de.raindancer.modules.guilds.store.GuildBook;
+import de.raindancer.modules.guilds.store.ProgressBook;
+import de.raindancer.modules.guilds.store.SqliteProgressStorage;
 import de.raindancer.modules.guilds.store.GuildsDatabase;
 import de.raindancer.modules.guilds.store.SqliteGuildStorage;
 import org.bukkit.OfflinePlayer;
@@ -68,6 +74,8 @@ class ServicesTest {
     private BankService bank;
     private RelationService relations;
     private XpService xp;
+    private ProgressBook progress;
+    private final Map<UUID, Integer> near = new HashMap<>();
     private GuildsSettings settings;
 
     @BeforeEach
@@ -91,7 +99,11 @@ class ServicesTest {
                 who -> seen.containsKey(who) ? OptionalLong.of(seen.get(who)) : OptionalLong.empty(), settings);
         bank = new BankService(book, notify, Log.of("guilds-test"), clock::get, BankService.current(), settings);
         relations = new RelationService(book, notify, clock::get, settings);
-        xp = new XpService(book, notify, mock(Effects.class), clock::get, settings);
+        progress = new ProgressBook(new SqliteProgressStorage(database));
+        progress.load();
+        book.onDisband(progress::forget);
+        xp = new XpService(book, progress, notify, mock(Effects.class), clock::get, settings,
+                GuildProgressSettings.DEFAULTS, (player, guild) -> near.getOrDefault(player, 0));
     }
 
     @AfterEach
@@ -488,13 +500,12 @@ class ServicesTest {
         void levels() {
             Guild elves = found(ALICE, "Elves", "ELF");
             assertThat(guilds.memberCap(elves)).isEqualTo(3);
-            assertThat(xp.earn(ALICE, 999)).isEqualTo(999);
-            assertThat(guilds.level(guild(ALICE))).isEqualTo(1);
-            xp.earn(ALICE, 1);
+            assertThat(xp.activity(ALICE, new Activity(XpSource.BOSS, "wither", 4))).as("4 bosses, 250 each, no cap").isEqualTo(1000);
             assertThat(guilds.level(guild(ALICE))).isEqualTo(2);
             assertThat(guilds.memberCap(guild(ALICE))).isEqualTo(4);
             assertThat(guild(ALICE).member(ALICE).orElseThrow().xp()).isEqualTo(1000);
-            assertThat(xp.earn(BOB, 50)).as("no guild, nothing counted").isZero();
+            assertThat(xp.activity(BOB, Activity.of(XpSource.BOSS, "wither"))).as("no guild, nothing counted").isZero();
+            assertThat(progress.totals(elves.id().value())).containsEntry(XpSource.BOSS, 1000L);
             book.flush();
             assertThat(book.events(elves.id(), Set.of(GuildEvent.Kind.LEVEL_UP), 5, 0)).hasSize(1);
         }
@@ -512,7 +523,7 @@ class ServicesTest {
         void fromLevelTwo() {
             found(ALICE, "Elves", "ELF");
             assertThat(guilds.style(ALICE, true, gold)).isEqualTo(GuildOutcome.STYLE_LOCKED);
-            xp.earn(ALICE, 1000);
+            xp.activity(ALICE, new Activity(XpSource.BOSS, "wither", 4));
             assertThat(guilds.level(guild(ALICE))).isEqualTo(2);
             assertThat(guilds.style(ALICE, true, gold)).isEqualTo(GuildOutcome.SUCCESS);
             assertThat(guilds.style(ALICE, false, gold)).isEqualTo(GuildOutcome.SUCCESS);
@@ -525,7 +536,7 @@ class ServicesTest {
         void permissionAndReset() {
             Guild elves = found(ALICE, "Elves", "ELF");
             join(elves, BOB);
-            xp.earn(ALICE, 1000);
+            xp.activity(ALICE, new Activity(XpSource.BOSS, "wither", 4));
             assertThat(guilds.style(BOB, true, gold)).isEqualTo(GuildOutcome.NOT_ALLOWED);
             guilds.style(ALICE, true, gold);
             assertThat(guilds.style(ALICE, true, de.raindancer.core.ui.text.NameStyle.NONE)).isEqualTo(GuildOutcome.SUCCESS);
@@ -537,7 +548,7 @@ class ServicesTest {
         void drawn() {
             found(ALICE, "Elves", "ELF");
             assertThat(de.raindancer.core.ui.text.Text.plain(GuildNotifier.tag(guild(ALICE)))).isEqualTo("[ELF]");
-            xp.earn(ALICE, 1000);
+            xp.activity(ALICE, new Activity(XpSource.BOSS, "wither", 4));
             guilds.style(ALICE, true, gold);
             net.kyori.adventure.text.Component tag = GuildNotifier.tag(guild(ALICE));
             assertThat(de.raindancer.core.ui.text.Text.plain(tag)).isEqualTo("[ELF]");
@@ -548,7 +559,7 @@ class ServicesTest {
         @DisplayName("a style survives being read back from guilds.db")
         void persisted() {
             found(ALICE, "Elves", "ELF");
-            xp.earn(ALICE, 1000);
+            xp.activity(ALICE, new Activity(XpSource.BOSS, "wither", 4));
             guilds.style(ALICE, false, gold);
             assertThat(book.flush()).isTrue();
             GuildBook again = new GuildBook(new SqliteGuildStorage(database, problem -> { }));
@@ -567,7 +578,7 @@ class ServicesTest {
             GuildSidebar sidebar = new GuildSidebar(book, guilds, bank::format, () -> settings);
             assertThat(sidebar.lines(ALICE)).as("no guild, no lines").isEmpty();
             found(ALICE, "Elves", "ELF");
-            xp.earn(ALICE, 250);
+            xp.activity(ALICE, Activity.of(XpSource.BOSS, "wither"));
             economy.give(ALICE, 100);
             bank.deposit(ALICE, Money.of(100));
             List<String> lines = sidebar.lines(ALICE).stream().map(de.raindancer.core.ui.text.Text::plain).toList();
@@ -585,6 +596,112 @@ class ServicesTest {
                     1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 0, 2, 250, 25, 1,
                     true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2, false);
             assertThat(new GuildSidebar(book, guilds, bank::format, () -> off).lines(ALICE)).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("more ways to level up")
+    class MoreWays {
+
+        @Test
+        @DisplayName("mining counts by rarity, a boost and guildmates nearby add their percent")
+        void bonuses() {
+            found(ALICE, "Elves", "ELF");
+            assertThat(xp.activity(ALICE, Activity.of(XpSource.MINE, "diamond"))).isEqualTo(8);
+            near.put(ALICE, 2);
+            assertThat(xp.activity(ALICE, new Activity(XpSource.MINE, "diamond", 10))).as("+20% together").isEqualTo(96);
+            xp.boost(50, Duration.ofHours(1), BOB);
+            assertThat(xp.activity(ALICE, new Activity(XpSource.MINE, "diamond", 10))).as("+50% boost +20%").isEqualTo(136);
+            clock.addAndGet(Duration.ofHours(2).toMillis());
+            near.clear();
+            assertThat(xp.activity(ALICE, new Activity(XpSource.MINE, "diamond", 10))).as("the boost ran out").isEqualTo(80);
+            assertThat(progress.totals(guild(ALICE).id().value()).get(XpSource.MINE)).isEqualTo(8 + 96 + 136 + 80);
+        }
+
+        @Test
+        @DisplayName("a rival's defeat counts once an hour per victim, and only between rivals")
+        void rivals() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            Guild orcs = found(BOB, "Orcs", "ORC");
+            assertThat(xp.rivalDefeated(ALICE, BOB)).as("not rivals").isZero();
+            relations.declareRival(BOB, elves.id());
+            assertThat(xp.rivalDefeated(ALICE, BOB)).as("rivals either way round").isEqualTo(50);
+            assertThat(xp.rivalDefeated(ALICE, BOB)).as("the same victim again").isZero();
+            clock.addAndGet(Duration.ofMinutes(61).toMillis());
+            assertThat(xp.rivalDefeated(ALICE, BOB)).isEqualTo(50);
+            assertThat(xp.rivalDefeated(ALICE, CAROL)).as("guildless").isZero();
+            assertThat(orcs).isNotNull();
+        }
+
+        @Test
+        @DisplayName("contracts are dealt once a week, count what they ask for, and pay their reward once")
+        void contracts() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            List<Contract> week = xp.contracts(guild(ALICE));
+            assertThat(week).hasSize(3);
+            assertThat(xp.contracts(guild(ALICE))).isEqualTo(week);
+            Contract first = week.getFirst();
+            long before = guild(ALICE).xp();
+            xp.activity(ALICE, new Activity(first.source(), first.what().isEmpty() ? "zombie" : first.what(), first.goal() - 1));
+            assertThat(xp.contracts(guild(ALICE)).getFirst().done()).isFalse();
+            xp.activity(ALICE, new Activity(first.source(), first.what().isEmpty() ? "zombie" : first.what(), 5));
+            Contract done = xp.contracts(guild(ALICE)).getFirst();
+            assertThat(done.done()).isTrue();
+            assertThat(progress.totals(elves.id().value())).containsEntry(XpSource.CONTRACT, first.reward());
+            xp.activity(ALICE, new Activity(first.source(), first.what().isEmpty() ? "zombie" : first.what(), 5));
+            assertThat(progress.totals(elves.id().value())).as("paid once").containsEntry(XpSource.CONTRACT, first.reward());
+            assertThat(guild(ALICE).xp()).isGreaterThanOrEqualTo(before + first.reward());
+            clock.addAndGet(Duration.ofDays(7).toMillis());
+            assertThat(xp.contracts(guild(ALICE))).as("a new week, new contracts").allMatch(each -> !each.done() && each.progress() == 0);
+        }
+
+        @Test
+        @DisplayName("eight members finishing the same contract at once collect its reward once")
+        void contractRace() throws InterruptedException {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            for (UUID member : List.of(BOB, CAROL)) {
+                join(elves, member);
+            }
+            Contract first = xp.contracts(guild(ALICE)).getFirst();
+            String what = first.what().isEmpty() ? "zombie" : first.what();
+            ExecutorService pool = Executors.newFixedThreadPool(8);
+            List<UUID> who = List.of(ALICE, BOB, CAROL);
+            for (int thread = 0; thread < 8; thread++) {
+                UUID member = who.get(thread % who.size());
+                pool.submit(() -> {
+                    for (int round = 0; round < 200; round++) {
+                        xp.activity(member, new Activity(first.source(), what, 1));
+                    }
+                });
+            }
+            pool.shutdown();
+            assertThat(pool.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(progress.totals(elves.id().value()).getOrDefault(XpSource.CONTRACT, 0L))
+                    .isEqualTo(first.goal() <= 1600 ? first.reward() : 0L);
+        }
+
+        @Test
+        @DisplayName("deposits earn nothing by default, a disbanded guild's progress goes with it, and it all survives a restart")
+        void depositsAndPersistence() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            xp.activity(ALICE, Activity.of(XpSource.DEPOSIT, 5));
+            assertThat(progress.totals(elves.id().value())).doesNotContainKey(XpSource.DEPOSIT);
+            xp.activity(ALICE, Activity.of(XpSource.FISH, 4));
+            xp.contracts(guild(ALICE));
+            xp.boost(25, Duration.ofHours(3), ALICE);
+            assertThat(progress.flush()).isTrue();
+            ProgressBook again = new ProgressBook(new SqliteProgressStorage(database));
+            again.load();
+            assertThat(again.totals(elves.id().value())).containsEntry(XpSource.FISH, 12L);
+            assertThat(again.boost().percent()).isEqualTo(25);
+            long week = de.raindancer.modules.guilds.rules.ContractRule.weekOf(clock.get());
+            assertThat(again.contracts(elves.id().value(), week, List::of)).hasSize(3);
+            guilds.disband(ALICE, elves.id(), false, bank);
+            assertThat(progress.totals(elves.id().value())).isEmpty();
+            progress.flush();
+            ProgressBook third = new ProgressBook(new SqliteProgressStorage(database));
+            third.load();
+            assertThat(third.totals(elves.id().value())).isEmpty();
         }
     }
 

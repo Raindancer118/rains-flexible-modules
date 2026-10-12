@@ -30,7 +30,7 @@ public final class RecruitMenu extends PaginatedMenu<Invitation> implements IGui
 
     @Override
     protected Component title() {
-        return Component.text("Invite and applications", NamedTextColor.DARK_GRAY);
+        return Component.text("Recruiting", NamedTextColor.DARK_GRAY);
     }
 
     @Override

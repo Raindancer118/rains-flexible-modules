@@ -118,11 +118,15 @@ public final class GuildMenu extends Menu implements IGuildsScreen {
                         "<gray>Everything that happened, newest first.", "", "<gray>Click to read it."),
                 "Your rank cannot read the log.", click -> new LogMenu(services, viewer, this, guild.id(), false).open());
 
-        band(MenuLayout.LAND, 3, Icons.of(Material.COMPARATOR, "<white>The guild's own choices",
+        band(MenuLayout.LAND, 2, Icons.of(Material.COMPARATOR, "<white>The guild's own choices",
                         "<gray>Name, tag, colour, emblem, message of", "<gray>the day, who may join, friendly fire.",
                         "", "<gray>Click to see them; those your rank", "<gray>may change can be changed there."),
                 click -> new GuildSettingsMenu(services, viewer, this).open());
-        band(MenuLayout.LAND, 5, Icons.of(Material.OAK_DOOR, "<white>Leave the guild",
+        band(MenuLayout.LAND, 4, Icons.of(Material.EXPERIENCE_BOTTLE, "<white>Level and contracts",
+                        "<gray>Level <white>" + level + "<gray>, what earns experience,", "<gray>where it came from, and this week's contracts.",
+                        "", "<gray>Click to see it all."),
+                click -> new LevelMenu(services, viewer, this).open());
+        band(MenuLayout.LAND, 6, Icons.of(Material.OAK_DOOR, "<white>Leave the guild",
                         guild.leader().equals(me) && guild.size() > 1
                                 ? "<gray>Hand the guild to somebody else first." : "<gray>You can be invited back.",
                         "", "<gray>You will be asked first."),

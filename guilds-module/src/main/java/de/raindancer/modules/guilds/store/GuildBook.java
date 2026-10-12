@@ -52,6 +52,7 @@ public final class GuildBook {
     private final Set<String> deleted = new LinkedHashSet<>();
     private final List<GuildEvent> pendingEvents = new ArrayList<>();
     private boolean invitationsDirty;
+    private final List<java.util.function.Consumer<String>> onDisband = new java.util.concurrent.CopyOnWriteArrayList<>();
     private volatile boolean readable = true;
     private final Object flushing = new Object();
 
@@ -288,6 +289,11 @@ public final class GuildBook {
         return GuildOutcome.SUCCESS;
     }
 
+    /** Told the id of every guild that is disbanded, after it is gone — for what other stores keep about it. */
+    public void onDisband(java.util.function.Consumer<String> whenGone) {
+        onDisband.add(whenGone);
+    }
+
     /** Takes a guild away, with every relation to it and every open question about it. */
     public synchronized Optional<Guild> disband(TeamId id) {
         if (!readable) {
@@ -310,6 +316,7 @@ public final class GuildBook {
         }
         dirty.remove(id.value());
         deleted.add(id.value());
+        onDisband.forEach(each -> each.accept(id.value()));
         return Optional.of(gone);
     }
 

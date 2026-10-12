@@ -93,6 +93,37 @@ public final class GuildsDatabase {
             """,
             """
             ALTER TABLE guild ADD COLUMN name_style TEXT NOT NULL DEFAULT ''
+            """,
+            """
+            CREATE TABLE guild_xp_source (
+                guild TEXT NOT NULL,
+                source TEXT NOT NULL,
+                xp INTEGER NOT NULL,
+                PRIMARY KEY (guild, source)
+            )
+            """,
+            """
+            CREATE TABLE contract (
+                guild TEXT NOT NULL,
+                week INTEGER NOT NULL,
+                slot INTEGER NOT NULL,
+                source TEXT NOT NULL,
+                what TEXT NOT NULL,
+                title TEXT NOT NULL,
+                goal INTEGER NOT NULL,
+                progress INTEGER NOT NULL,
+                reward INTEGER NOT NULL,
+                done INTEGER NOT NULL,
+                PRIMARY KEY (guild, week, slot)
+            )
+            """,
+            """
+            CREATE TABLE boost (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                percent INTEGER NOT NULL,
+                until INTEGER NOT NULL,
+                started_by TEXT
+            )
             """);
 
     private GuildsDatabase() {

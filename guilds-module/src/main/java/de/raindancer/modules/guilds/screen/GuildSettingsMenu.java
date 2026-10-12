@@ -31,7 +31,7 @@ public final class GuildSettingsMenu extends Menu implements IGuildsScreen {
 
     @Override
     protected Component title() {
-        return Component.text("The guild's choices", NamedTextColor.DARK_GRAY);
+        return Component.text("Choices", NamedTextColor.DARK_GRAY);
     }
 
     @Override

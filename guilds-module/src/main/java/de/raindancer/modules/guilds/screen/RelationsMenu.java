@@ -41,7 +41,7 @@ public final class RelationsMenu extends PaginatedMenu<Guild> implements IGuilds
 
     @Override
     protected Component title() {
-        return Component.text("Allies and rivals", NamedTextColor.DARK_GRAY);
+        return Component.text("Allies & rivals", NamedTextColor.DARK_GRAY);
     }
 
     @Override

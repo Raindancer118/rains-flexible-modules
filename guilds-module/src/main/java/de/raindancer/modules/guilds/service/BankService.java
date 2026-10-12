@@ -46,6 +46,7 @@ public final class BankService implements IGuildsService {
     private final WithdrawRule limits = new WithdrawRule();
     private final ShareRule sharing = new ShareRule();
     private volatile GuildsSettings settings;
+    private volatile java.util.function.BiConsumer<UUID, Money> onDeposit = (player, amount) -> { };
 
     public BankService(GuildBook book, GuildNotifier notify, LogChannel log, LongSupplier clock,
                        Supplier<Optional<Economy>> economy, GuildsSettings settings) {
@@ -65,6 +66,11 @@ public final class BankService implements IGuildsService {
     @Override
     public void settings(GuildsSettings settings) {
         this.settings = settings;
+    }
+
+    /** Told of every deposit that went through — what experience a deposit earns is not the bank's business. */
+    public void onDeposit(java.util.function.BiConsumer<UUID, Money> told) {
+        this.onDeposit = told == null ? (player, amount) -> { } : told;
     }
 
     public boolean isOpen() {
@@ -146,6 +152,7 @@ public final class BankService implements IGuildsService {
             return outcome;
         }
         book.log(GuildEvent.of(guild.id().value(), clock.getAsLong(), GuildEvent.Kind.DEPOSIT, player, null, amount.minor(), ""));
+        onDeposit.accept(player, amount);
         notify.holding(guild, GuildPermission.VIEW_LOG, "guilds.bank.deposited-told", "player", notify.name(player),
                 "amount", format(amount.minor()));
         return GuildOutcome.SUCCESS;

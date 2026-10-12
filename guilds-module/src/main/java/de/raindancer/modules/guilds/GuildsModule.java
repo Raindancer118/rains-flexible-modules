@@ -22,6 +22,14 @@ import de.raindancer.modules.guilds.service.XpService;
 import de.raindancer.modules.guilds.store.GuildBook;
 import de.raindancer.modules.guilds.store.GuildsDatabase;
 import de.raindancer.modules.guilds.store.SqliteGuildStorage;
+import de.raindancer.modules.guilds.store.ProgressBook;
+import de.raindancer.modules.guilds.store.SqliteProgressStorage;
+import de.raindancer.modules.guilds.service.PositionService;
+import de.raindancer.modules.guilds.model.Activity;
+import de.raindancer.modules.guilds.model.XpSource;
+import de.raindancer.modules.guilds.rules.ActivityRule;
+import de.raindancer.core.social.economy.Fees;
+import de.raindancer.core.world.blocks.PlacedBlocks;
 import de.raindancer.modules.guilds.util.PermissionNodes;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
@@ -39,13 +47,21 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class GuildsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.4.0")
             .describedAs("Guilds founded by players: a ladder of ranks with their own permissions, a bank with daily "
                     + "limits, levels earned by playing that unlock members, allies and a guild home, alliances and "
                     + "rivals, guild, officer and ally chat, and the guild's tag in front of every member's name")
             .by("Raindancer118");
 
     private GuildBook book;
+    private ProgressBook progress;
+
+    /** Blocks whose "did a player put this here?" matters: ores and the melons and pumpkins the world grows. */
+    private static java.util.Set<org.bukkit.Material> placedMatters() {
+        java.util.Set<org.bukkit.Material> watched = java.util.EnumSet.copyOf(ActivityRule.ores());
+        watched.addAll(ActivityRule.GROWN_BLOCKS);
+        return watched;
+    }
 
     @Override
     public ModuleInfo info() {
@@ -73,13 +89,32 @@ public final class GuildsModule implements FlexModule {
                     + "until it is fixed — saving now would replace everybody's guilds with nobody's.");
         }
 
+        SettingsStore<GuildProgressSettings> progressSettings = context.settings(GuildProgressSettings.class,
+                GuildProgressSettings.DEFAULTS);
+        progress = new ProgressBook(new SqliteProgressStorage(database));
+        ProgressBook loadingProgress = progress;
+        offTheServerThread("load", loadingProgress::load);
+        if (!progress.readable()) {
+            context.log().error("The experience tables of guilds.db could not be read; contracts and the breakdown "
+                    + "by source are held as they are until it is fixed.");
+        }
+        book.onDisband(loadingProgress::forget);
+
         GuildsSettings now = settings.current();
         GuildNotifier notifier = new GuildNotifier(server, context.core().messages(), () -> context.core().buttons());
         GuildService guilds = new GuildService(book, notifier, context.log(), System::currentTimeMillis,
                 player -> lastSeen(server, player), now);
         BankService bank = new BankService(book, notifier, context.log(), System::currentTimeMillis, BankService.current(), now);
         RelationService relations = new RelationService(book, notifier, System::currentTimeMillis, now);
-        XpService xp = new XpService(book, notifier, context.core().effects(), System::currentTimeMillis, now);
+        PositionService positions = new PositionService(progressSettings.current());
+        XpService xp = new XpService(book, progress, notifier, context.core().effects(), System::currentTimeMillis, now,
+                progressSettings.current(), positions::guildmatesNear);
+        progressSettings.onChange(xp::progressSettings);
+        progressSettings.onChange(positions::progressSettings);
+        long thousand = Math.max(1, Fees.amount("1000").minor());
+        bank.onDeposit((player, amount) -> xp.activity(player, Activity.of(XpSource.DEPOSIT, amount.minor() / thousand)));
+        Object watched = PlacedBlocks.watch(context.plugin(), placedMatters());
+        context.closeWith(() -> PlacedBlocks.unwatch(watched));
         Travel travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         context.closeWith(travel::clear);
         HomeService homes = new HomeService(book, notifier, server, travel, System::currentTimeMillis, now);
@@ -102,23 +137,32 @@ public final class GuildsModule implements FlexModule {
 
         GuildsServices services = new GuildsServices(context.plugin(), server, context.core(), context.log(),
                 context.core().messages(), context.chat().brand(), settings::current, book, notifier, guilds, bank,
-                relations, xp, homes, chat);
+                relations, xp, homes, chat, positions);
         ProgressListener progress = new ProgressListener(services);
         context.listener(progress);
         context.listener(new PresenceListener(services, List.<IGuildsListener>of(progress)));
 
-        var flush = Scheduling.asyncTimer(context.plugin(), 2, 2, task -> book.flush());
+        var flush = Scheduling.asyncTimer(context.plugin(), 2, 2, task -> {
+            book.flush();
+            loadingProgress.flush();
+        });
+        var looking = Scheduling.globalTimer(context.plugin(), 100L, 100L, task -> {
+            for (Player online : server.getOnlinePlayers()) {
+                Scheduling.entity(context.plugin(), online, () -> positions.saw(online.getUniqueId(),
+                        online.getWorld().getName(), online.getLocation().getX(), online.getLocation().getZ()));
+            }
+        });
+        if (looking != null) {
+            context.closeWith(looking::cancel);
+        }
         if (flush != null) {
             context.closeWith(flush::cancel);
         }
         AtomicInteger minutes = new AtomicInteger();
         var minute = Scheduling.globalTimer(context.plugin(), 20L * 60, 20L * 60, task -> {
-            int perMinute = settings.current().xpPerMinute();
-            if (perMinute > 0) {
-                for (Player online : server.getOnlinePlayers()) {
-                    if (!Away.isAway(online.getUniqueId())) {
-                        xp.earn(online.getUniqueId(), perMinute);
-                    }
+            for (Player online : server.getOnlinePlayers()) {
+                if (!Away.isAway(online.getUniqueId())) {
+                    xp.activity(online.getUniqueId(), Activity.of(XpSource.PLAY, 1));
                 }
             }
             book.expire(System.currentTimeMillis());
@@ -129,7 +173,10 @@ public final class GuildsModule implements FlexModule {
         if (minute != null) {
             context.closeWith(minute::cancel);
         }
-        context.closeWith(() -> offTheServerThread("save", loading::flush));
+        context.closeWith(() -> offTheServerThread("save", () -> {
+            loading.flush();
+            loadingProgress.flush();
+        }));
         GuildsCommands.ready(services);
         context.log().info("Guilds are up: {} guild(s).", book.count());
     }
@@ -153,9 +200,15 @@ public final class GuildsModule implements FlexModule {
     public void disable() {
         GuildsCommands.stopped();
         GuildBook closing = book;
-        if (closing != null) {
-            offTheServerThread("save", closing::flush);
-        }
+        ProgressBook closingProgress = progress;
+        offTheServerThread("save", () -> {
+            if (closing != null) {
+                closing.flush();
+            }
+            if (closingProgress != null) {
+                closingProgress.flush();
+            }
+        });
     }
 
     /**

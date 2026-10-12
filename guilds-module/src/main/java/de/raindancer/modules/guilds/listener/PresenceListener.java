@@ -32,6 +32,7 @@ public final class PresenceListener implements IGuildsListener {
     @Override
     public void forget(UUID player) {
         services.homes().forget(player);
+        services.positions().forget(player);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

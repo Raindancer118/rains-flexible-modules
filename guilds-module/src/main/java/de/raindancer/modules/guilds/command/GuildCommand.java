@@ -10,6 +10,8 @@ import de.raindancer.modules.guilds.model.JoinMode;
 import de.raindancer.modules.guilds.model.Rank;
 import de.raindancer.modules.guilds.model.Relation;
 import de.raindancer.modules.guilds.screen.BrowseMenu;
+import de.raindancer.modules.guilds.screen.ContractsMenu;
+import de.raindancer.modules.guilds.screen.LevelMenu;
 import de.raindancer.modules.guilds.screen.GuildMenu;
 import de.raindancer.modules.guilds.service.GuildChatService;
 import de.raindancer.modules.guilds.service.GuildNotifier;
@@ -37,7 +39,7 @@ public final class GuildCommand implements IGuildsCommand {
     static final List<String> SUBCOMMANDS = List.of("create", "info", "list", "invite", "accept", "decline", "join",
             "leave", "kick", "promote", "demote", "rank", "leader", "chat", "c", "officer", "oc", "ally-chat", "ac",
             "home", "sethome", "deposit", "withdraw", "ally", "unally", "rival", "unrival", "rename", "tag", "style",
-            "motd", "joining", "disband");
+            "motd", "joining", "disband", "level", "contracts");
     static final List<String> STAFF = List.of("admin");
 
     private final Supplier<GuildsServices> services;
@@ -75,6 +77,20 @@ public final class GuildCommand implements IGuildsCommand {
             }
             case "info" -> info(live, player, rest);
             case "list", "top" -> new BrowseMenu(live, player, null).open();
+            case "level", "xp" -> {
+                if (live.guilds().guildOf(me).isEmpty()) {
+                    say(live, player, GuildOutcome.NO_GUILD);
+                } else {
+                    new LevelMenu(live, player, null).open();
+                }
+            }
+            case "contracts" -> {
+                if (live.guilds().guildOf(me).isEmpty()) {
+                    say(live, player, GuildOutcome.NO_GUILD);
+                } else {
+                    new ContractsMenu(live, player, null).open();
+                }
+            }
             case "invite" -> withPlayer(live, player, rest, target -> say(live, player, live.guilds().invite(me, target)));
             case "accept" -> withInvitation(live, player, rest, true);
             case "decline", "deny" -> withInvitation(live, player, rest, false);
@@ -247,6 +263,10 @@ public final class GuildCommand implements IGuildsCommand {
         }
         UUID staff = sender instanceof Player player ? player.getUniqueId() : new UUID(0, 0);
         String what = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
+        if (what.equals("boost")) {
+            boost(live, sender, staff, args);
+            return;
+        }
         if (args.length < 2) {
             live.messages().send(sender, "guilds.usage.admin");
             return;
@@ -265,6 +285,18 @@ public final class GuildCommand implements IGuildsCommand {
                     say(live, sender, live.guilds().disband(staff, id, true, live.bank()));
                 }
             }
+            case "give" -> {
+                try {
+                    long amount = Long.parseLong(args[2]);
+                    if (amount <= 0) {
+                        throw new NumberFormatException("not positive");
+                    }
+                    live.xp().grant(id, amount, staff);
+                    say(live, sender, GuildOutcome.SUCCESS);
+                } catch (RuntimeException notANumber) {
+                    say(live, sender, GuildOutcome.INVALID_AMOUNT);
+                }
+            }
             case "rename" -> say(live, sender, args.length < 3 ? GuildOutcome.NAME_TOO_SHORT
                     : live.guilds().staffRename(staff, id, String.join(" ", Arrays.copyOfRange(args, 2, args.length))));
             case "xp" -> {
@@ -281,6 +313,29 @@ public final class GuildCommand implements IGuildsCommand {
             }
             default -> live.messages().send(sender, "guilds.usage.admin");
         }
+    }
+
+    /** {@code /guild admin boost <percent> <time>} — or {@code off}. */
+    private static void boost(GuildsServices live, CommandSender sender, UUID staff, String[] args) {
+        if (args.length >= 2 && args[1].equalsIgnoreCase("off")) {
+            live.xp().boost(0, java.time.Duration.ZERO, staff);
+            say(live, sender, GuildOutcome.SUCCESS);
+            return;
+        }
+        Optional<java.time.Duration> lasting = args.length >= 3
+                ? de.raindancer.core.platform.util.Times.parseLenient(args[2]) : Optional.empty();
+        int percent;
+        try {
+            percent = args.length >= 2 ? Integer.parseInt(args[1].replace("%", "")) : -1;
+        } catch (NumberFormatException notANumber) {
+            percent = -1;
+        }
+        if (percent <= 0 || percent > 1000 || lasting.isEmpty() || lasting.get().isZero() || lasting.get().isNegative()) {
+            live.messages().send(sender, "guilds.usage.boost");
+            return;
+        }
+        live.xp().boost(percent, lasting.get(), staff);
+        say(live, sender, GuildOutcome.SUCCESS);
     }
 
     @Override
@@ -306,10 +361,14 @@ public final class GuildCommand implements IGuildsCommand {
                 case "join", "apply", "info", "ally", "unally", "rival", "unrival", "accept", "decline" ->
                         live.book().all().forEach(guild -> options.add(guild.tag()));
                 case "joining" -> Arrays.stream(JoinMode.values()).forEach(mode -> options.add(mode.key()));
-                case "admin" -> options.addAll(List.of("disband", "rename", "xp", "leader"));
+                case "admin" -> options.addAll(List.of("disband", "rename", "xp", "give", "leader", "boost"));
                 default -> {
                 }
             }
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("admin") && args[1].equalsIgnoreCase("boost")) {
+            options.addAll(List.of("25", "50", "100", "off"));
+        } else if (args.length == 4 && args[0].equalsIgnoreCase("admin") && args[1].equalsIgnoreCase("boost")) {
+            options.addAll(List.of("1h", "2h", "1d", "3d"));
         } else if (args.length == 3 && args[0].equalsIgnoreCase("admin")) {
             live.book().all().forEach(guild -> options.add(guild.tag()));
         } else if (args.length == 3 && args[0].equalsIgnoreCase("rank") && sender instanceof Player player) {

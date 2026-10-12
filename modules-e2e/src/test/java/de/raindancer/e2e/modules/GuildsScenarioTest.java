@@ -27,7 +27,7 @@ class GuildsScenarioTest {
     }
 
     @Test
-    @DisplayName("found, invite by button, chat, tag, friendly fire, bank, ranks, menu, restart")
+    @DisplayName("found, invite by button, chat, tag, friendly fire, bank, ranks, menu, mining, boost, contracts, restart")
     void guilds() {
         try (Server server = Server.start("guilds",
                 List.of("guilds-standalone:RainsGuilds-.*", "economy-standalone:RainsEconomy-.*", "chat-standalone:RainsChat-.*"),
@@ -110,6 +110,31 @@ class GuildsScenarioTest {
             ada.awaitWindow("Log");
             Await.until("the log is read from guilds.db and shown", WAIT,
                     () -> ada.window().flatMap(window -> window.slotNamed("Founded")).isPresent());
+            ada.closeWindow();
+
+            // ---- more ways to level up: a mined ore counts, staff boost, the week's contracts
+            server.console("gamemode creative Ada");
+            server.console("tp Ada 0.5 150 0.5");
+            Await.ticks(10);
+            server.console("setblock 1 150 0 minecraft:diamond_ore");
+            Await.ticks(5);
+            ada.dig(1, 150, 0);
+            Await.until("the ore is gone", WAIT, () -> server.console("execute if block 1 150 0 minecraft:air").contains("passed"));
+            ada.run("guild level");
+            ada.awaitWindow("Guild level");
+            Await.until("mining shows where the experience came from", WAIT, () -> ada.window()
+                    .map(window -> window.top().values().stream().anyMatch(item -> item.name().contains("Where the experience came from")
+                            && item.lore().stream().anyMatch(line -> line.contains("Mining"))))
+                    .orElse(false));
+            ada.closeWindow();
+            bo.forgetChat();
+            server.console("guild admin boost 50 1h");
+            Await.until("everybody hears about the boost", WAIT, () -> told(bo, "Guild experience boost"));
+            ada.run("guild contracts");
+            ada.awaitWindow("Contracts");
+            Await.until("three contracts for the week", WAIT, () -> ada.window()
+                    .map(window -> window.top().values().stream().filter(item -> item.lore().stream()
+                            .anyMatch(line -> line.contains("Pays"))).count() == 3).orElse(false));
             ada.closeWindow();
 
             // ---- everything is still there after a restart

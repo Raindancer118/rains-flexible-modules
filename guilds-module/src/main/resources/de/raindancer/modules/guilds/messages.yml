@@ -67,10 +67,17 @@ guilds:
     limit: "<aqua>Type the daily limit in chat, or <white>none</white>. <gray>Or <white>cancel</white>."
     deposit: "<aqua>Type how much to pay in. <gray>Or <white>cancel</white>."
     withdraw: "<aqua>Type how much to take out. <gray>Or <white>cancel</white>."
+  contract:
+    done: "<gold>Contract done: <white><contract></white>! <gray>The guild earns <white><reward></white> experience."
+    status: "<gray><white><player></white> on <white><contract></white>: <white><progress></white>/<white><goal></white>."
+    shared: "<gray>Told the guild."
+  boost:
+    started: "<gold>Guild experience boost: <white>+<percent>%</white> for <white><time></white>! <gray>Go and earn it."
+    ended: "<gray>The guild experience boost is over."
   log:
     line: "<gray><white><what></white> <dark_gray>(<when>)</dark_gray> <detail>"
   usage:
-    all: "<gray>/guild <dark_gray>— the guild page · <gray>/guild create <name> <tag> · info · list · invite · join · leave · c <message> · home · deposit · ally"
+    all: "<gray>/guild <dark_gray>— the guild page · <gray>/guild create <name> <tag> · info · list · level · contracts · invite · join · leave · c <message> · home · deposit · ally"
     found: "<gray>/guild create <name> <tag> <dark_gray>— e.g. /guild create The Elves ELF"
     player: "<gray>Name a player."
     rank: "<gray>/guild rank <player> <rank>"
@@ -78,7 +85,8 @@ guilds:
     joining: "<gray>/guild joining <invite|apply|open>"
     which-invitation: "<gray>You have <white><count></white> invitations — say which guild: /guild accept <guild>"
     style: "<gray>/guild style tag|name <colours…> [bold] [animated] <dark_gray>— e.g. /guild style tag gold #ff5500 bold · /guild style name reset. From guild level <level>."
-    admin: "<gray>/guild admin disband <guild> confirm · rename <guild> <name> · xp <guild> <amount> · leader <guild> <player>"
+    admin: "<gray>/guild admin disband <guild> confirm · rename <guild> <name> · xp <guild> <amount> · give <guild> <amount> · leader <guild> <player> · boost <percent> <time>|off"
+    boost: "<gray>/guild admin boost <percent> <time> <dark_gray>— e.g. 50 2h · or <gray>/guild admin boost off"
   style-unreadable: "<red><problem> <gray>Colours are chat colours (gold, aqua…) or #hex codes."
   style-locked: "<red>Your guild paints its tag and name from level <white><level></white>. Earn it first — fame is not free."
   outcome:

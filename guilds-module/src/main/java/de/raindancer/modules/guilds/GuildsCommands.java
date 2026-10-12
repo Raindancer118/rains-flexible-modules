@@ -21,13 +21,13 @@ public final class GuildsCommands {
                 ModuleCommand.of("guild", "Your guild: members, ranks, bank, home, allies and chat",
                                 new GuildCommand(GuildsCommands::require))
                         .aliased("g", "guilds", "clan")
-                        .taking("(nothing) — the guild page", "create <name> <tag> · info [guild] · list",
+                        .taking("(nothing) — the guild page", "create <name> <tag> · info [guild] · list · level · contracts",
                                 "invite · accept · decline · join · leave · kick · promote · demote · rank · leader",
                                 "c · oc · ac <message> — guild, officer and ally chat",
                                 "home · sethome · deposit · withdraw <amount>",
                                 "ally · unally · rival · unrival <guild>",
                                 "rename · tag · motd · joining · disband",
-                                "admin disband|rename|xp|leader <guild> … — staff")
+                                "admin disband|rename|xp|give|leader <guild> … · admin boost <percent> <time>|off — staff")
                         .needing("rainsguilds.use"));
     }
 
