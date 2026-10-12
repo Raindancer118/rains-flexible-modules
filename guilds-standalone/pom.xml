@@ -26,7 +26,8 @@
         <!-- 0.1.0: guilds — ranks, bank, levels, alliances, home, chat channels, name badges.
              0.1.1: names, tags and ids one namespace; rank names unique. -->
         <!-- 0.2.0: from guild level 2 (levels.style-from) a guild paints its tag and name — colour, gradient, bold (/guild style); needs RainsCore 1.126.0. -->
-        <plugin.version>0.2.0</plugin.version>
+        <!-- 0.3.0: the guild in the sidebar under the balance: tag and name, level with the experience to the next, bank (setting sidebar; RainsCore 1.129.0 SidebarSections). -->
+        <plugin.version>0.3.0</plugin.version>
     </properties>
 
     <dependencies>

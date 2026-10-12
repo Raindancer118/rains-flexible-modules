@@ -142,11 +142,15 @@ public record GuildsSettings(
         @In("guilds/levels") @Title("Colours for tag and name from level") @Range(min = 1, max = 100)
         @Describe("From this guild level on, a guild paints its tag and its name: a colour, a gradient, bold. "
                 + "Below it, they wear the guild's plain colour.")
-        @Key("levels.style-from") int styleFromLevel) {
+        @Key("levels.style-from") int styleFromLevel,
+
+        @In("guilds") @Title("Guild in the sidebar")
+        @Describe("Under the balance in the sidebar: your guild, its level and the experience to the next, and its bank.")
+        @Key("sidebar") boolean sidebar) {
 
     public static final GuildsSettings DEFAULTS = new GuildsSettings(
             "0", 3, 24, 2, 5, List.of(), 8, 48, 7, 30, true, true,
             1000, 1.6, 25, 8, 2, 50, 1, 5, 3, 600, 0.35, 2, 250, 25, 1,
             true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100",
-            5, 60, 2);
+            5, 60, 2, true);
 }

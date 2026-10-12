@@ -86,7 +86,7 @@ class ServicesTest {
         GuildNotifier notify = new GuildNotifier(server, new Messages(folder.resolve("messages.yml")));
         settings = new GuildsSettings("0", 3, 24, 2, 5, List.of(), 6, 48, 7, 30, true, false,
                 1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 0, 2, 250, 25, 1,
-                true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2);
+                true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2, true);
         guilds = new GuildService(book, notify, Log.of("guilds-test"), clock::get,
                 who -> seen.containsKey(who) ? OptionalLong.of(seen.get(who)) : OptionalLong.empty(), settings);
         bank = new BankService(book, notify, Log.of("guilds-test"), clock::get, BankService.current(), settings);
@@ -146,7 +146,7 @@ class ServicesTest {
         private GuildsSettings withPrice(String price) {
             return new GuildsSettings(price, 3, 24, 2, 5, List.of(), 6, 48, 7, 30, true, false,
                     1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 0, 2, 250, 25, 1,
-                    true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2);
+                    true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2, true);
         }
     }
 
@@ -554,6 +554,37 @@ class ServicesTest {
             GuildBook again = new GuildBook(new SqliteGuildStorage(database, problem -> { }));
             again.load();
             assertThat(again.guildOf(ALICE).orElseThrow().nameStyle()).isEqualTo(gold);
+        }
+    }
+
+    @Nested
+    @DisplayName("the sidebar")
+    class SidebarLines {
+
+        @Test
+        @DisplayName("a member sees the guild, its level with the experience to the next, and the bank")
+        void lines() {
+            GuildSidebar sidebar = new GuildSidebar(book, guilds, bank::format, () -> settings);
+            assertThat(sidebar.lines(ALICE)).as("no guild, no lines").isEmpty();
+            found(ALICE, "Elves", "ELF");
+            xp.earn(ALICE, 250);
+            economy.give(ALICE, 100);
+            bank.deposit(ALICE, Money.of(100));
+            List<String> lines = sidebar.lines(ALICE).stream().map(de.raindancer.core.ui.text.Text::plain).toList();
+            assertThat(lines).hasSize(3);
+            assertThat(lines.get(0)).contains("[ELF]").contains("Elves");
+            assertThat(lines.get(1)).contains("Level 1").contains("250").contains("1,000");
+            assertThat(lines.get(2)).contains("Bank").contains(bank.format(100));
+        }
+
+        @Test
+        @DisplayName("switched off by the server, nobody gets the lines")
+        void off() {
+            found(ALICE, "Elves", "ELF");
+            GuildsSettings off = new GuildsSettings("0", 3, 24, 2, 5, List.of(), 6, 48, 7, 30, true, false,
+                    1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 0, 2, 250, 25, 1,
+                    true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2, false);
+            assertThat(new GuildSidebar(book, guilds, bank::format, () -> off).lines(ALICE)).isEmpty();
         }
     }
 

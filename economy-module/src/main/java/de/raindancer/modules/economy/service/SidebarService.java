@@ -71,16 +71,20 @@ public final class SidebarService implements IEconomyService {
         if (place > 0) {
             lines.add(Component.text(" #" + place + " on the server", NamedTextColor.DARK_GRAY));
         }
+        // Other plugins' lines (a guild's level and bank) come right under the balance; the richest fill what is left.
+        lines.addAll(de.raindancer.core.ui.scoreboard.SidebarSections.linesFor(player,
+                de.raindancer.core.ui.scoreboard.Sidebar.MAX_LINES - lines.size()));
         var jackpot = live.gameOpen(live.lotteryEnabled()) ? pot.get() : null;
-        if (jackpot != null) {
+        if (jackpot != null && lines.size() + 3 <= de.raindancer.core.ui.scoreboard.Sidebar.MAX_LINES) {
             lines.add(Component.empty());
             lines.add(Component.text("Lottery pot", NamedTextColor.GRAY));
             lines.add(Component.text(" ").append(currency.render(jackpot)));
         }
-        if (!top.isEmpty()) {
+        int room = de.raindancer.core.ui.scoreboard.Sidebar.MAX_LINES - lines.size() - 2;
+        if (!top.isEmpty() && room > 0) {
             lines.add(Component.empty());
             lines.add(Component.text("Richest", NamedTextColor.GRAY));
-            for (int i = 0; i < top.size(); i++) {
+            for (int i = 0; i < Math.min(room, top.size()); i++) {
                 Account account = top.get(i);
                 lines.add(MINI.deserialize(rule.colourOf(i + 1) + (i + 1) + ". <white>"
                                 + MINI.escapeTags(rule.shortName(account.name(), 12)) + " ")

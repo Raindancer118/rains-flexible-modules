@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class GuildsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.3.0")
             .describedAs("Guilds founded by players: a ladder of ranks with their own permissions, a bank with daily "
                     + "limits, levels earned by playing that unlock members, allies and a guild home, alliances and "
                     + "rivals, guild, officer and ally chat, and the guild's tag in front of every member's name")
@@ -91,6 +91,12 @@ public final class GuildsModule implements FlexModule {
 
         chat.open();
         context.closeWith(chat::close);
+        de.raindancer.modules.guilds.service.GuildSidebar sidebar =
+                new de.raindancer.modules.guilds.service.GuildSidebar(book, guilds, bank::format, settings::current);
+        de.raindancer.core.ui.scoreboard.SidebarSections.register(
+                de.raindancer.modules.guilds.service.GuildSidebar.OWNER, sidebar::lines);
+        context.closeWith(() -> de.raindancer.core.ui.scoreboard.SidebarSections.unregister(
+                de.raindancer.modules.guilds.service.GuildSidebar.OWNER));
         fire.open(context.core().combat(), context.plugin().getName());
         context.closeWith(() -> fire.close(context.core().combat()));
 
