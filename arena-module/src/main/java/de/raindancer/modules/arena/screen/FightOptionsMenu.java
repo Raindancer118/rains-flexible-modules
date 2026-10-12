@@ -81,7 +81,8 @@ public final class FightOptionsMenu extends Menu implements IArenaScreen {
                     viewer.closeInventory();
                     services.queue().join(viewer, spec);
                 });
-        boolean invitable = spec.mode() == Mode.DUEL || spec.mode() == Mode.SUMO || spec.mode() == Mode.NAVAL;
+        boolean invitable = spec.mode() == Mode.DUEL || spec.mode() == Mode.SUMO || spec.mode() == Mode.NAVAL
+                || spec.mode() == Mode.MOUNTED;
         toolbar(5, invitable, Icons.of(Material.PAPER, "<aqua>Ask somebody",
                         "<gray>Somebody here in the arena, or on survival."),
                 "Teams and free for all come together in the queue.",

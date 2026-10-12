@@ -49,6 +49,9 @@ import java.util.function.Supplier;
  */
 public final class FloodService implements IArenaService {
 
+    /** Water blocks placed per tick while a layer rises. */
+    private static final int PER_TICK = 800;
+
     private static final Title.Times SLOW = Title.Times.times(Duration.ofMillis(400), Duration.ofMillis(2400),
             Duration.ofMillis(600));
 
@@ -136,6 +139,30 @@ public final class FloodService implements IArenaService {
         return planned;
     }
 
+    /** The open floor at the feet layer, reachable from the spawns — where riders can start. Nothing is changed. */
+    public CompletableFuture<Optional<BasinRule.Basin>> planFloor(Pit pit) {
+        CompletableFuture<Optional<BasinRule.Basin>> planned = new CompletableFuture<>();
+        Box floor = pit.floor();
+        World world = floor == null ? null : server.getWorld(floor.world());
+        if (world == null || pit.spawns().isEmpty()) {
+            planned.complete(Optional.empty());
+            return planned;
+        }
+        Scheduling.region(plugin, new Location(world, floor.centreX(), floor.minY(), floor.centreZ()), () -> {
+            try {
+                int from = feetY(pit);
+                List<int[]> starts = pit.spawns().stream()
+                        .map(spawn -> new int[]{(int) Math.floor(spawn.x()), (int) Math.floor(spawn.z())}).toList();
+                BasinRule.Basin basin = rule.plan(floor, from, from, starts,
+                        (x, y, z) -> open(world.getBlockAt(x, y, z)) && open(world.getBlockAt(x, y + 1, z)), 80_000);
+                planned.complete(basin.layers().isEmpty() ? Optional.empty() : Optional.of(basin));
+            } catch (RuntimeException failed) {
+                planned.complete(Optional.empty());
+            }
+        });
+        return planned;
+    }
+
     private static boolean open(Block block) {
         Material type = block.getType();
         return type.isAir() || (!type.isSolid() && !block.isLiquid() && type != Material.BARRIER
@@ -217,7 +244,7 @@ public final class FloodService implements IArenaService {
         long every = Math.max(10, settings.navalFloodTicks() / Math.max(1, layers));
         // Waterfalls down the walls the whole time the water rises.
         long pouring = lead + every * layers;
-        for (long tick = 0; tick < pouring; tick += 5) {
+        for (long tick = 0; tick < pouring; tick += 10) {
             Scheduling.regionLater(plugin, centre, tick, () -> waterfalls(world, rim));
         }
         for (int index = 0; index < layers; index++) {
@@ -227,14 +254,31 @@ public final class FloodService implements IArenaService {
                 if (!rising.contains(pit.id())) {
                     return;
                 }
+                // The seals at once, so no water can ever stand next to an open gap; the water spread over a few ticks
+                // — thousands of block changes in one tick are a stutter on every client watching.
                 layer.seals().forEach(cell -> world.getBlockAt(cell.x(), cell.y(), cell.z()).setType(Material.BARRIER, false));
-                layer.water().forEach(cell -> world.getBlockAt(cell.x(), cell.y(), cell.z()).setType(Material.WATER, false));
+                List<BasinRule.Cell> cells = layer.water();
+                int batches = Math.max(1, (cells.size() + PER_TICK - 1) / PER_TICK);
+                for (int batch = 0; batch < batches; batch++) {
+                    List<BasinRule.Cell> part = cells.subList(batch * PER_TICK, Math.min(cells.size(), (batch + 1) * PER_TICK));
+                    boolean lastBatch = batch == batches - 1;
+                    Scheduling.regionLater(plugin, centre, batch + 1L, () -> {
+                        if (!rising.contains(pit.id())) {
+                            return;
+                        }
+                        part.forEach(cell -> world.getBlockAt(cell.x(), cell.y(), cell.z()).setType(Material.WATER, false));
+                        if (lastBatch) {
+                            risen.accept(layer.y());
+                            if (last) {
+                                rising.remove(pit.id());
+                            }
+                        }
+                    });
+                }
                 splash(world, layer);
-                risen.accept(layer.y());
                 Collection<Player> now = audience.get();
                 playAll(now, LAYER);
                 if (last) {
-                    rising.remove(pit.id());
                     playAll(now, RISEN);
                     now.forEach(player -> Scheduling.entity(plugin, player, () -> player.showTitle(Title.title(
                             messages.get("arena.naval.risen-title"), messages.get("arena.naval.risen-subtitle"), SLOW))));
@@ -262,7 +306,7 @@ public final class FloodService implements IArenaService {
     }
 
     private static void waterfalls(World world, List<BasinRule.Cell> rim) {
-        for (int index = 0; index < Math.min(24, rim.size()); index++) {
+        for (int index = 0; index < Math.min(12, rim.size()); index++) {
             BasinRule.Cell at = rim.get(ThreadLocalRandom.current().nextInt(rim.size()));
             world.spawnParticle(Particle.FALLING_WATER, at.x() + 0.5, at.y() + 7, at.z() + 0.5, 12, 0.3, 3.0, 0.3, 0);
         }
@@ -270,7 +314,7 @@ public final class FloodService implements IArenaService {
 
     private static void splash(World world, BasinRule.Layer layer) {
         List<BasinRule.Cell> cells = layer.water();
-        for (int index = 0; index < Math.min(80, cells.size()); index++) {
+        for (int index = 0; index < Math.min(40, cells.size()); index++) {
             BasinRule.Cell at = cells.get(ThreadLocalRandom.current().nextInt(cells.size()));
             world.spawnParticle(Particle.SPLASH, at.x() + 0.5, at.y() + 1.0, at.z() + 0.5, 10, 0.4, 0.1, 0.4, 0.1);
             world.spawnParticle(Particle.BUBBLE_POP, at.x() + 0.5, at.y() + 0.9, at.z() + 0.5, 3, 0.3, 0.1, 0.3, 0.02);

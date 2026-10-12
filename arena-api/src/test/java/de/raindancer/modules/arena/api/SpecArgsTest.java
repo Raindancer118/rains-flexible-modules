@@ -61,4 +61,19 @@ class SpecArgsTest {
         org.assertj.core.api.Assertions.assertThat(SpecArgs.parse(new String[]{"gw", "3v3"}, 0, Mode.DUEL).mode()).isEqualTo(Mode.GUILD_WAR);
         org.assertj.core.api.Assertions.assertThat(SpecArgs.parse(new String[]{"sparring"}, 0, Mode.DUEL).mode()).isEqualTo(Mode.GUILD_TRAINING);
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("mounted, joust, pigs and cavalry mean mounted combat: the lancer kit, one round, two to eight")
+    void mounted() {
+        for (String word : java.util.List.of("mounted", "joust", "pigs", "cavalry")) {
+            MatchSpec spec = SpecArgs.parse(new String[]{word}, 0, Mode.DUEL);
+            org.assertj.core.api.Assertions.assertThat(spec.mode()).as(word).isEqualTo(Mode.MOUNTED);
+            org.assertj.core.api.Assertions.assertThat(spec.kit()).isEqualTo("lancer");
+            org.assertj.core.api.Assertions.assertThat(spec.bestOf()).isEqualTo(1);
+        }
+        org.assertj.core.api.Assertions.assertThat(Mode.MOUNTED.isFreeForAll()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(Mode.MOUNTED.isRidden()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(Mode.NAVAL.isRidden()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(Mode.DUEL.isRidden()).isFalse();
+    }
 }

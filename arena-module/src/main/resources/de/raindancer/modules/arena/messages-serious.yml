@@ -10,7 +10,7 @@ arena:
     join-yourself: "<gray>You are already waiting in that queue."
     join-changed: "<red><white><player></white> is now waiting for a different fight, so you were not added."
   rematch:
-    asked: "<gold><white><player></white> wants a rematch. <click:run_command:'/pvp rematch'><gold>[Rematch]</gold></click>"
+    asked: "<gold><white><player></white> wants a rematch. <click:run_command:'/rematch'><gold>[Rematch]</gold></click>"
     none: "<gray>There is no recent fight to repeat."
     expired: "<gray>The rematch offer has expired. <white>/pvp invite</white> asks again."
     left: "<gray>Your opponent left, so there is no rematch."

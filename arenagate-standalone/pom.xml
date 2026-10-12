@@ -42,7 +42,8 @@
         <!-- 0.3.1: a vanished player is not online as far as the arena is told (invites, payments). -->
         <!-- 0.4.0: naval battles can be asked for from survival (/pvp invite <player> naval); arena-api 0.2.0. -->
         <!-- 0.5.0: answers the arena which guild a player fights for (Core Groups), for guild wars. -->
-        <plugin.version>0.5.0</plugin.version>
+        <!-- 0.6.0: mounted combat can be asked for from survival; arena-api 0.4.0. -->
+        <plugin.version>0.6.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -63,7 +63,8 @@
         <!-- 0.6.0: naval battles — the pit floods as a scene (horn, thunder, rain, waterfalls, rising water), everybody in a boat on a ring, tridents; sealed so no water leaves the pit, every block put back after (and after a crash, from floods/); the naval kit. -->
         <!-- 0.6.1: /arena admin flood|drain <pit>: the naval flood without a fight, to watch it or check a pit holds water. -->
         <!-- 0.7.0: naval: boats are lifted onto each new layer of the flood (a sunken boat throws its rider out), anybody boatless is seated on the surface when the water is up, spare boats can be placed on water (adventure mode cannot); guild wars (guild vs guild) and guild training (one guild in two sides), 2-5 a side, sides from the guilds survival reports. -->
-        <plugin.version>0.7.0</plugin.version>
+        <!-- 0.8.0: mounted combat on saddled pigs (spear with lunge, carrot on a stick to steer, no dismounting while in the fight, pigs unhurtable); /rematch; no countdown freeze for riders (it fought the boats — the laggy start); the flood placed over ticks. -->
+        <plugin.version>0.8.0</plugin.version>
     </properties>
 
     <dependencies>

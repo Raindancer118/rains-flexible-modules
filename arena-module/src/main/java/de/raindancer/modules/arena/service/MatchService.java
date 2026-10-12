@@ -213,10 +213,13 @@ public final class MatchService implements IArenaService {
         }
     }
 
-    /** Frozen on their spawn through a countdown. */
+    /**
+     * Frozen on their spawn through a countdown. Never in a naval battle: holding a rider still fights the boat under
+     * them, and the whole start stutters — and nobody can be hurt before the fight starts anyway.
+     */
     public boolean isFrozen(UUID player) {
         Fight fight = byPlayer.get(player);
-        return fight != null && countdowns.containsKey(fight.id());
+        return fight != null && countdowns.containsKey(fight.id()) && !fight.spec().mode().isRidden();
     }
 
     public boolean isHarmless(UUID player) {
@@ -290,6 +293,10 @@ public final class MatchService implements IArenaService {
             }
             if (fight.spec().mode() == Mode.NAVAL && floods != null) {
                 floods.plan(fight.pit()).thenAccept(basin -> Scheduling.global(plugin, () -> launch(fight, basin)));
+                return;
+            }
+            if (fight.spec().mode() == Mode.MOUNTED && floods != null) {
+                floods.planFloor(fight.pit()).thenAccept(floor -> Scheduling.global(plugin, () -> mount(fight, floor)));
                 return;
             }
             List<Place> spawns = fight.pit().spawns();
@@ -402,6 +409,37 @@ public final class MatchService implements IArenaService {
         }
     }
 
+    /** Mounted combat: everybody on a saddled pig round a ring on the floor, then the countdown. */
+    private void mount(Fight fight, Optional<de.raindancer.modules.arena.rules.BasinRule.Basin> floorPlan) {
+        synchronized (fight) {
+            if (fight.state() == Fight.State.OVER) {
+                return;
+            }
+            Pit pit = fight.pit();
+            List<UUID> riders = fight.players().stream().filter(fight::has).toList();
+            List<de.raindancer.modules.arena.rules.NavalSpotsRule.Spot> spots = floorPlan.map(plan -> {
+                Place a = pit.spawns().getFirst();
+                Place b = pit.spawns().get(pit.spawns().size() > 1 ? 1 : 0);
+                Box floor = pit.floor();
+                return navalSpots.spots(riders.size(), a.x(), a.z(), b.x(), b.z(),
+                        new HashSet<>(plan.layers().getFirst().water()), floor.minX(), floor.maxX(), floor.minZ(), floor.maxZ());
+            }).orElse(List.of());
+            if (spots.size() < riders.size()) {
+                callOff(fight);
+                return;
+            }
+            for (int index = 0; index < riders.size(); index++) {
+                Player player = server.getPlayer(riders.get(index));
+                de.raindancer.modules.arena.rules.NavalSpotsRule.Spot spot = spots.get(index);
+                if (player != null) {
+                    Places.location(server, FloodService.spot(pit, spot.x(), spot.z(), spot.yaw())).ifPresent(at ->
+                            Scheduling.entity(plugin, player, () -> equip(fight, player, at, Ride.PIG)));
+                }
+            }
+            countdowns.put(fight.id(), settings.countdownClamped());
+        }
+    }
+
     private void callOff(Fight fight) {
         tellAll(fight, "arena.naval.no-water");
         if (fight.spec().stake() > 0) {
@@ -421,11 +459,18 @@ public final class MatchService implements IArenaService {
         }
     }
 
+    /** What a fighter starts the round sitting on. */
+    private enum Ride { NONE, BOAT, PIG }
+
     private void equip(Fight fight, Player player, Location spawn) {
-        equip(fight, player, spawn, false);
+        equip(fight, player, spawn, Ride.NONE);
     }
 
     private void equip(Fight fight, Player player, Location spawn, boolean boat) {
+        equip(fight, player, spawn, boat ? Ride.BOAT : Ride.NONE);
+    }
+
+    private void equip(Fight fight, Player player, Location spawn, Ride ride) {
         HubState.apply(player, settings);
         player.setGameMode(GameMode.ADVENTURE);
         player.teleportAsync(spawn).thenAccept(moved -> Scheduling.entity(plugin, player, () -> {
@@ -437,9 +482,18 @@ public final class MatchService implements IArenaService {
                 kits.get(spec.kit()).ifPresent(kit -> kits.give(player, kit));
             }
             messages.send(player, "arena.fight.round", "round", fight.round(), "mode", spec.mode().title());
-            if (boat) {
-                org.bukkit.entity.boat.OakBoat ride = spawn.getWorld().spawn(spawn, org.bukkit.entity.boat.OakBoat.class);
-                ride.addPassenger(player);
+            if (ride == Ride.BOAT) {
+                org.bukkit.entity.boat.OakBoat boat = spawn.getWorld().spawn(spawn, org.bukkit.entity.boat.OakBoat.class);
+                boat.addPassenger(player);
+            } else if (ride == Ride.PIG) {
+                // The mount cannot be hurt: the fight is rider against rider, not a race to kill the pig.
+                org.bukkit.entity.Pig pig = spawn.getWorld().spawn(spawn, org.bukkit.entity.Pig.class, made -> {
+                    made.setSaddle(true);
+                    made.setInvulnerable(true);
+                    made.setAdult();
+                    made.setRemoveWhenFarAway(false);
+                });
+                pig.addPassenger(player);
             }
         }));
     }

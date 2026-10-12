@@ -30,6 +30,9 @@ public final class ArenaCommands {
                                 new de.raindancer.modules.arena.command.PvpCommand(ArenaCommands::require))
                         .taking("invite <player> [mode] [kit] [stake]", "accept [id]", "deny [id]", "cancel [id]",
                                 "queue [mode] [kit]", "leave"),
+                ModuleCommand.of("rematch", "The fight you just had, again — once everybody in it asks",
+                                new de.raindancer.modules.arena.command.RematchCommand(ArenaCommands::require))
+                        .aliased("again"),
                 ModuleCommand.of("balance", "Your balance — the same money as on survival",
                                 new de.raindancer.modules.arena.command.WalletCommand(ArenaCommands::require, false))
                         .aliased("bal", "money"),

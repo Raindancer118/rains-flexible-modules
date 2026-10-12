@@ -27,7 +27,7 @@ public final class KitDefaults {
     }
 
     public List<Kit> all() {
-        return List.of(gladiator(), knight(), netherite(), archer(), axe(), mace(), potion(), uhc(), sumo(), naval());
+        return List.of(gladiator(), knight(), netherite(), archer(), axe(), mace(), potion(), uhc(), sumo(), naval(), lancer());
     }
 
     private Kit gladiator() {
@@ -147,6 +147,19 @@ public final class KitDefaults {
         slots.hotbar(3, item(Material.OAK_BOAT, 2));
         slots.offHand(item(Material.SHIELD, 1));
         return kit("naval", "Naval", Material.TRIDENT, slots, false);
+    }
+
+    /** For mounted combat: a spear that lunges, the only way to steer a pig, and armour for the hits that land. */
+    private Kit lancer() {
+        Slots slots = new Slots().armour(Material.IRON_HELMET, Material.IRON_CHESTPLATE, Material.IRON_LEGGINGS,
+                Material.IRON_BOOTS, 1);
+        slots.hotbar(0, enchanted(Material.IRON_SPEAR, Enchantment.LUNGE, 2));
+        ItemStack stick = item(Material.CARROT_ON_A_STICK, 1);
+        stick.editMeta(meta -> meta.setUnbreakable(true));
+        // In the off hand: a pig obeys it from either hand, so the spear stays ready while steering.
+        slots.offHand(stick);
+        slots.hotbar(1, item(Material.COOKED_PORKCHOP, 8));
+        return kit("lancer", "Lancer", Material.IRON_SPEAR, slots, false);
     }
 
     // ── making items ───────────────────────────────────────────────────────────────────────────────

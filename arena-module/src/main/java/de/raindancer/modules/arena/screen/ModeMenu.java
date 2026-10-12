@@ -38,6 +38,10 @@ public final class ModeMenu extends Menu implements IArenaScreen {
         band(0, 4, Icons.of(Material.NETHERITE_SWORD, "<red>Free for all",
                 "<gray>Three to eight, everybody against everybody.", "<gray>The last one standing wins."),
                 click -> pickKit(new MatchSpec(Mode.FFA, null, 1, 0, 1, null)));
+        band(1, 4, Icons.of(Material.CARROT_ON_A_STICK, "<light_purple>Mounted combat",
+                        "<gray>Everybody on a pig, spear in hand.", "<gray>Steer with the carrot on a stick —",
+                        "<gray>nobody gets off. Two to eight."),
+                click -> new FightOptionsMenu(services, viewer, this, new MatchSpec(Mode.MOUNTED, null, 1, 0, 1, null)).open());
         band(1, 2, Icons.of(Material.WHITE_BANNER, "<gold>Guild war",
                         "<gray>Your guild against another guild,", "<gray>a side each — from two to five a side."),
                 click -> pickKit(new MatchSpec(Mode.GUILD_WAR, null, 1, 0, 2, null)));

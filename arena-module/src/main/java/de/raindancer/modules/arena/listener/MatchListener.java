@@ -190,4 +190,23 @@ public final class MatchListener implements IArenaListener {
             held.setAmount(held.getAmount() - 1);
         }
     }
+
+    /** A rider in mounted combat stays on the pig until they are out or the fight is over. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDismount(org.bukkit.event.entity.EntityDismountEvent event) {
+        if (!(event.getEntity() instanceof Player player) || !(event.getDismounted() instanceof org.bukkit.entity.Pig)) {
+            return;
+        }
+        Optional<Fight> fight = services.matches().fightOf(player.getUniqueId());
+        if (fight.isEmpty() || fight.get().spec().mode() != Mode.MOUNTED) {
+            return;
+        }
+        boolean still;
+        synchronized (fight.get()) {
+            still = fight.get().state() != Fight.State.OVER && fight.get().isStanding(player.getUniqueId());
+        }
+        if (still && event.isCancellable()) {
+            event.setCancelled(true);
+        }
+    }
 }

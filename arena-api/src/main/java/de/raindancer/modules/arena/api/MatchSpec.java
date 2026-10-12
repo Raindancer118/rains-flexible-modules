@@ -18,7 +18,8 @@ public record MatchSpec(Mode mode, String kit, int bestOf, long stake, int teamS
 
     public MatchSpec {
         mode = mode == null ? Mode.DUEL : mode;
-        kit = kit == null || kit.isBlank() ? (mode == Mode.SUMO ? "sumo" : mode == Mode.NAVAL ? "naval" : "gladiator")
+        kit = kit == null || kit.isBlank() ? (mode == Mode.SUMO ? "sumo" : mode == Mode.NAVAL ? "naval"
+                : mode == Mode.MOUNTED ? "lancer" : "gladiator")
                 : kit.toLowerCase(Locale.ROOT);
         bestOf = Math.max(1, Math.min(MOST_ROUNDS, bestOf | 1));
         stake = Math.max(0, Math.min(MOST_STAKE, stake));
@@ -54,7 +55,7 @@ public record MatchSpec(Mode mode, String kit, int bestOf, long stake, int teamS
         return switch (mode) {
             case DUEL, SUMO -> 2;
             case TEAMS, GUILD_WAR, GUILD_TRAINING -> teamSize * 2;
-            case FFA, NAVAL -> mode.fewest();
+            case FFA, NAVAL, MOUNTED -> mode.fewest();
             case WAVES -> 1;
         };
     }
