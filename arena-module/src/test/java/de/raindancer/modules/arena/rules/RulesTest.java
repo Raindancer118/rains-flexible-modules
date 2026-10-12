@@ -51,6 +51,17 @@ class RulesTest {
     }
 
     @Test
+    @DisplayName("a wither or an ender dragon may never exist in an arena world; everything else is not this rule's business")
+    void noBosses() {
+        ProtectionRule rule = new ProtectionRule();
+
+        assertThat(rule.mayExist("WITHER")).isFalse();
+        assertThat(rule.mayExist("ender_dragon")).isFalse();
+        assertThat(rule.mayExist("ZOMBIE")).isTrue();
+        assertThat(rule.mayExist("WITHER_SKELETON")).as("a wither skeleton is a fair wave mob").isTrue();
+    }
+
+    @Test
     @DisplayName("the actions cover the ways an item gets out of the arena, not only the ways a block changes")
     void protectionCoversItemEscapes() {
         assertThat(Set.of(ArenaAction.values())).contains(ArenaAction.ENDER_CHEST, ArenaAction.CONTAINER,

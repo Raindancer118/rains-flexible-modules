@@ -13,6 +13,13 @@ public final class ProtectionRule implements IArenaRule {
         return builder;
     }
 
+    /** What can tear a map apart and has no place in any fight: never let into an arena world, not even by /summon. */
+    private static final java.util.Set<String> NEVER = java.util.Set.of("WITHER", "ENDER_DRAGON");
+
+    public boolean mayExist(String entityType) {
+        return entityType == null || !NEVER.contains(entityType.toUpperCase(java.util.Locale.ROOT));
+    }
+
     @Override
     public String describe() {
         return "nothing in an arena world is changed or taken except by somebody building";

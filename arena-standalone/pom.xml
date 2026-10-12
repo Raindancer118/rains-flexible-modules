@@ -45,7 +45,8 @@
              /pvp accept with several invites open picks none; every pit is swept of what a fight leaves (arrows,
              tridents, clouds, experience, fireworks, fangs, stray mobs) before each round, after each fight and once
              a minute while empty, and fighters come home without arrows stuck in them. -->
-        <plugin.version>0.2.3</plugin.version>
+        <!-- 0.2.4: a wither or an ender dragon is never let into an arena world, /summon included. -->
+        <plugin.version>0.2.4</plugin.version>
     </properties>
 
     <dependencies>

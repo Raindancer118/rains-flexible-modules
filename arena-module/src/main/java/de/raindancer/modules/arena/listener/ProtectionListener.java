@@ -339,6 +339,14 @@ public final class ProtectionListener implements IArenaListener {
         }
     }
 
+    /** A wither or a dragon is not let in, however it was made — /summon included. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onEntitySpawn(org.bukkit.event.entity.EntitySpawnEvent event) {
+        if (arena(event.getLocation().getWorld()) && !services.protection().mayExist(event.getEntityType().name())) {
+            event.setCancelled(true);
+        }
+    }
+
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onItemSpawn(ItemSpawnEvent event) {
         if (arena(event.getLocation().getWorld())) {
