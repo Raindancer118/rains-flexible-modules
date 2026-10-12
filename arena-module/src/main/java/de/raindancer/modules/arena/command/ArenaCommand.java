@@ -30,7 +30,7 @@ import java.util.function.Supplier;
 public final class ArenaCommand implements IArenaCommand {
 
     private static final List<String> PLAYER = List.of("hub", "leave", "queue", "wave", "spectate", "stats", "menu");
-    private static final List<String> ADMIN = List.of("build", "sethub", "pit", "info", "kit", "npc");
+    private static final List<String> ADMIN = List.of("build", "sethub", "pit", "info", "kit", "npc", "hold", "return");
     private static final List<String> PIT_ACTIONS = List.of("floor", "spawn", "clearspawns", "remove");
 
     private final Supplier<ArenaServices> services;
@@ -121,10 +121,36 @@ public final class ArenaCommand implements IArenaCommand {
             case "sethub" -> place(live, sender, args, 1).ifPresent(hub -> live.arena().setHub(sender, hub));
             case "pit" -> pit(live, sender, args);
             case "info" -> info(live, sender);
+            case "hold" -> {
+                // Everybody named (or everybody here not fighting) waits for survival to come back from an update.
+                int count = 0;
+                for (Player player : targets(live, args)) {
+                    live.arena().hold(player);
+                    count++;
+                }
+                live.messages().send(sender, "arena.admin.held", "count", count);
+            }
+            case "return" -> live.messages().send(sender, "arena.admin.returned", "count", live.arena().returnHeld());
             case "kit" -> kit(live, sender, args);
             case "npc" -> npc(live, sender, args);
             default -> live.messages().send(sender, "arena.admin.usage");
         }
+    }
+
+    /** The players named after the subcommand, or — with {@code all} or none named — everybody here not fighting. */
+    private static List<Player> targets(ArenaServices live, String[] args) {
+        if (args.length < 2 || args[1].equalsIgnoreCase("all")) {
+            return live.server().getOnlinePlayers().stream()
+                    .filter(player -> !live.matches().inFight(player.getUniqueId())).map(player -> (Player) player).toList();
+        }
+        List<Player> named = new java.util.ArrayList<>();
+        for (int index = 1; index < args.length; index++) {
+            Player player = live.server().getPlayerExact(args[index]);
+            if (player != null) {
+                named.add(player);
+            }
+        }
+        return named;
     }
 
     /** {@code kit save <id> [name…]} from what the admin holds, {@code kit remove <id>}. */

@@ -111,6 +111,17 @@ class ArenaNetworkScenarioTest {
             bo.run("arena leave");
             Await.until("Bo is back on the survival server", WAIT, () -> lobby.console("list").contains("Bo")
                     && !arena.console("list").contains("Bo"));
+
+            // ── an update: everybody waits in the arena's hub through the restart and comes back by themselves ─────
+            proxy.command("send Ada arena");
+            Await.until("Ada waits in the arena", WAIT, () -> arena.console("list").contains("Ada"));
+            assertThat(arena.console("arena admin hold Ada")).contains("1");
+            Await.until("Ada was told why", WAIT, () -> ada.chatText().stream()
+                    .anyMatch(line -> line.contains("restarting for an update")));
+            lobby.restartKeepingBots();
+            lobby.awaitLog("Arena gate is up", WAIT);
+            Await.until("Ada is back on survival without doing anything", WAIT, () -> lobby.console("list").contains("Ada")
+                    && !arena.console("list").contains("Ada"));
         } finally {
             lobby.keepLogsIn(E2e.logsFolder("arena-net-lobby"));
             arena.keepLogsIn(E2e.logsFolder("arena-net-arena"));

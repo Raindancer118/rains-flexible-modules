@@ -64,9 +64,9 @@
         <xpbottle-module.version>1.3.0</xpbottle-module.version>
         <sends-module.version>0.1.0</sends-module.version>
         <!-- 0.x until duels, mob waves, stakes, own gear and the gladiators are all in. -->
-        <arena-api.version>0.1.1</arena-api.version>
-        <arena-module.version>0.2.4</arena-module.version>
-        <arenagate-module.version>0.2.1</arenagate-module.version>
+        <arena-api.version>0.1.2</arena-api.version>
+        <arena-module.version>0.2.5</arena-module.version>
+        <arenagate-module.version>0.2.2</arenagate-module.version>
         <veintoggle-module.version>0.4.0</veintoggle-module.version>
         <performance-module.version>0.1.0</performance-module.version>
         <economy-module.version>0.31.1</economy-module.version>

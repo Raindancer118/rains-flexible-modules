@@ -55,6 +55,7 @@ public final class PresenceListener implements IArenaListener {
         UUID id = event.getPlayer().getUniqueId();
         services.queue().forget(id);
         services.invites().forget(id);
+        services.arena().release(id);
     }
 
     @Override

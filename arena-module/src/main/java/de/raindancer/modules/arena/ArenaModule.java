@@ -65,7 +65,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.2.4")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.2.5")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -144,6 +144,17 @@ public final class ArenaModule implements FlexModule {
                 matches::inFight, id -> kits.get(id).isPresent(), System::currentTimeMillis,
                 settings.current().mostStake());
         new NetworkService(link, intents, invites, agreed).listen();
+        arena.fighting(matches::inFight);
+        link.on(de.raindancer.modules.arena.api.ArenaProtocol.SMP_READY, data -> {
+            // A breath first: survival takes logins the moment it says so, but the proxy may not have noticed yet.
+            Scheduling.globalLater(context.plugin(), 60L, () -> {
+                int sent = arena.returnHeld();
+                if (sent > 0) {
+                    log.info("Survival is back: {} player(s) who waited in the hub are on their way.", sent);
+                }
+            });
+            return java.util.Map.of("ok", "true");
+        });
 
         settings.onChange(fresh -> {
             worlds.settings(fresh);

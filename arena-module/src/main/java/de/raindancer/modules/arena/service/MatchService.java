@@ -499,6 +499,7 @@ public final class MatchService implements IArenaService {
                     Scheduling.entity(plugin, player, () -> {
                         HubState.apply(player, settings);
                         arena.toHub(player);
+                        arena.fightOver(member);
                     });
                 }
             }

@@ -242,6 +242,19 @@ public final class PaperServer implements AutoCloseable {
             bot.leave();
         }
         bots.clear();
+        shutDown();
+    }
+
+    /**
+     * Stops and starts the server while its bots stay connected — for bots that are on another server of a network at
+     * the time, behind a proxy, and must not notice this one going away.
+     */
+    public PaperServer restartKeepingBots() {
+        shutDown();
+        return start();
+    }
+
+    private void shutDown() {
         if (process == null || !process.isAlive()) {
             return;
         }

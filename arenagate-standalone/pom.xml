@@ -35,7 +35,9 @@
              announced by the arena as they queued or accepted there), payouts only to those who staked, a summon only
              for an invite really made from here, a bare /pvp accept only with exactly one invite open, and the arena is
              told what somebody wants only after the countdown. -->
-        <plugin.version>0.2.1</plugin.version>
+        <!-- 0.2.2: once this server has finished starting, the arena is told, so whoever waited in its hub through
+             the restart comes back by themselves. -->
+        <plugin.version>0.2.2</plugin.version>
     </properties>
 
     <dependencies>

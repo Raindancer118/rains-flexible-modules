@@ -42,6 +42,12 @@ public final class ArenaProtocol {
      */
     public static final String CONSENT = "arena.consent";
 
+    /**
+     * Survival → arena: survival has finished starting and takes players again — whoever waited in the hub through its
+     * restart is sent back. Answer: {@code ok}.
+     */
+    public static final String SMP_READY = "smp.ready";
+
     private ArenaProtocol() {
     }
 }

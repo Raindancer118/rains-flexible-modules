@@ -8,6 +8,10 @@ arena:
   only-a-player: "<red>Only a player can do that."
   not-allowed: "<red>You may not do that."
 
+  update:
+    held: "<gold>Survival is restarting for an update.</gold> <gray>Wait here — fight, if you like. You are sent back automatically as soon as it is up, usually in a minute or two."
+    back: "<green>Survival is back — taking you there."
+
   welcome: "<gold>Welcome to the arena!</gold> <gray>Nothing you own on the survival server is at stake here. <click:run_command:'/arena leave'><yellow>[Back to survival]</yellow></click>"
   not-set-up: "<yellow>The arena is still being built. <click:run_command:'/arena leave'><yellow>[Back to survival]</yellow></click>"
   leaving: "<gray>Back to <white><server></white>…"
@@ -99,6 +103,8 @@ arena:
     kit-saved: "<green>Kit <white><kit></white> is saved from what you hold."
     kit-removed: "<green>Kit <white><kit></white> is gone."
     kit-reserved: "<red>'own' means fighting in one's own gear; it cannot be a kit."
+    held: "<green><white><count></white> player(s) wait here for survival to come back."
+    returned: "<green><white><count></white> player(s) sent back to survival."
     npc-usage: "<gray>/arena admin npc place <lanista|beastmaster|armorer|herald|gatekeeper> [world x y z yaw]  ·  /arena admin npc remove"
     npc-placed: "<green>The <white><role></white> stands where you stand."
     npc-removed: "<green>The <white><role></white> is gone."

@@ -41,6 +41,8 @@ public final class ArenaService implements IArenaService {
     private volatile ArenaSettings settings;
     private volatile java.util.function.Consumer<java.util.UUID> returning = player -> {
     };
+    private final HoldBook held = new HoldBook();
+    private volatile java.util.function.Predicate<java.util.UUID> fighting = player -> false;
 
     public ArenaService(Plugin plugin, Server server, Messages messages, Effects effects, ArenaWorldService worlds,
                         LayoutBook layout, ArenaSettings settings) {
@@ -61,6 +63,64 @@ public final class ArenaService implements IArenaService {
     /** Told before somebody is sent back, so the survival server can welcome them back rather than announce a join. */
     public void returning(java.util.function.Consumer<java.util.UUID> announce) {
         this.returning = announce;
+    }
+
+    /** Who is in a running fight — not sent back in the middle of it. */
+    public void fighting(java.util.function.Predicate<java.util.UUID> inFight) {
+        this.fighting = inFight;
+    }
+
+    // ── survival restarting ────────────────────────────────────────────────────────────────────────
+
+    /** Somebody waits here while survival restarts for an update, to be sent back when it is up. */
+    public void hold(Player player) {
+        held.hold(player.getUniqueId());
+        messages.send(player, "arena.update.held");
+    }
+
+    public boolean isHeld(java.util.UUID player) {
+        return held.isHeld(player);
+    }
+
+    public void release(java.util.UUID player) {
+        held.release(player);
+    }
+
+    /**
+     * Survival is back: everybody held goes back to it, a moment apart so the proxy is not asked for all of them at
+     * once. Somebody in a fight stays held and goes when the fight is over.
+     *
+     * @return how many were sent
+     */
+    public int returnHeld() {
+        List<java.util.UUID> leaving = held.takeAllBut(fighting);
+        int sent = 0;
+        for (java.util.UUID id : leaving) {
+            Player player = server.getPlayer(id);
+            if (player == null) {
+                continue;
+            }
+            long delay = 5L + 5L * sent++;
+            de.raindancer.core.platform.util.Scheduling.entityLater(plugin, player, delay, () -> {
+                messages.send(player, "arena.update.back");
+                returning.accept(player.getUniqueId());
+                ProxyTransfer.send(plugin, player, settings.lobbyOrDefault());
+            });
+        }
+        return sent;
+    }
+
+    /** After a fight: somebody held through it goes back now. */
+    public void fightOver(java.util.UUID player) {
+        if (held.isHeld(player) && !fighting.test(player)) {
+            held.release(player);
+            Player online = server.getPlayer(player);
+            if (online != null) {
+                messages.send(online, "arena.update.back");
+                returning.accept(player);
+                ProxyTransfer.send(plugin, online, settings.lobbyOrDefault());
+            }
+        }
     }
 
     public ArenaSettings config() {

@@ -84,6 +84,17 @@ public final class VelocityProxy implements AutoCloseable {
         }
     }
 
+    /** A command typed into the proxy's console — {@code send Ada arena}. */
+    public void command(String line) {
+        try {
+            var in = process.getOutputStream();
+            in.write((line + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            in.flush();
+        } catch (IOException failed) {
+            throw new UncheckedIOException(failed);
+        }
+    }
+
     public String log() {
         try {
             Path stdout = folder.resolve("stdout.log");

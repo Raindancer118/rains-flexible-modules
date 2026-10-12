@@ -46,7 +46,9 @@
              tridents, clouds, experience, fireworks, fangs, stray mobs) before each round, after each fight and once
              a minute while empty, and fighters come home without arrows stuck in them. -->
         <!-- 0.2.4: a wither or an ender dragon is never let into an arena world, /summon included. -->
-        <plugin.version>0.2.4</plugin.version>
+        <!-- 0.2.5: the hub holds survival's players through an update — /arena admin hold <names|all>, sent back by
+             themselves when survival says it is up (or /arena admin return), a fighter after their fight. -->
+        <plugin.version>0.2.5</plugin.version>
     </properties>
 
     <dependencies>
