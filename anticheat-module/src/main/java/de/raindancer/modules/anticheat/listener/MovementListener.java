@@ -84,7 +84,34 @@ public final class MovementListener implements IAntiCheatListener {
         PlayerTrack track = services.tracks().of(event.getPlayer());
         Vector v = event.getVelocity();
         synchronized (track) {
-            track.movement.velocities.addLast(new double[]{v.getX(), v.getY(), v.getZ(), track.now(), -100, 0, 0, 0});
+            // {x, y, z, at, best rise, blocked, ping id, confirmed at, best sideways along the push, speed before}
+            double before = Double.isNaN(track.movement.lastHd) ? 0 : track.movement.lastHd;
+            track.movement.velocities.addLast(new double[]{v.getX(), v.getY(), v.getZ(), track.now(), -100, 0, 0, 0, -100, before});
+            while (track.movement.velocities.size() > 6) {
+                track.movement.velocities.removeFirst();
+            }
+        }
+    }
+
+    /**
+     * Knockback Paper does not send as a velocity event — a wind charge's or a creeper's blast, a push. Without
+     * it, a player thrown by a wind charge reads as flying. Expected, never judged: whether a blast was taken
+     * depends on cover and distance, and the hits that matter for anti-knockback come as velocity events.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onKnockback(io.papermc.paper.event.entity.EntityKnockbackEvent event) {
+        if (!(event.getEntity() instanceof org.bukkit.entity.Player player)) {
+            return;
+        }
+        PlayerTrack track = services.tracks().of(player);
+        // The speed they had adds to a blast, but is never taken off it: standing, the server's small downward
+        // speed would only make the expected rise lower than what a client on the ground really does.
+        Vector now = player.getVelocity();
+        Vector knock = event.getKnockback();
+        Vector push = new Vector(knock.getX() + now.getX(), knock.getY() + Math.max(0, now.getY()), knock.getZ() + now.getZ());
+        synchronized (track) {
+            track.movement.velocities.addLast(new double[]{push.getX(), push.getY(), push.getZ(), track.now(), -100, 1, 0, 0,
+                    -100, 0});
             while (track.movement.velocities.size() > 6) {
                 track.movement.velocities.removeFirst();
             }

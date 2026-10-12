@@ -22,6 +22,31 @@ public final class MotionRule implements IAntiCheatRule {
         return Judgement.PASS;
     }
 
+    /** The most one tick of a player's own input can do against a push: a sprinting step on the ground. */
+    static final double INPUT_AGAINST = 0.13;
+    /** And what is too little a push to tell apart from walking at all. */
+    static final double SMALLEST_JUDGED = 0.05;
+
+    /**
+     * Whether the sideways part of knockback was taken. Vanilla halves the speed they had and adds the
+     * push, then their input works against it for at most a tick before the push has carried them.
+     *
+     * @param sent        the sideways push sent
+     * @param bestAlong   the furthest they moved along its direction in one tick while it could apply
+     * @param speedBefore how fast they moved the tick before it
+     */
+    public Judgement knockbackTakenSideways(double sent, double bestAlong, double speedBefore) {
+        double least = sent - speedBefore * 0.5 - INPUT_AGAINST;
+        if (least < SMALLEST_JUDGED) {
+            return Judgement.PASS;
+        }
+        if (bestAlong < least - 0.02) {
+            return Judgement.fail(least - bestAlong, String.format(java.util.Locale.ROOT,
+                    "took no sideways knockback (moved %.3f along a push of %.3f, at least %.3f)", bestAlong, sent, least));
+        }
+        return Judgement.PASS;
+    }
+
     /**
      * A critical hit needs a real fall. Hopping a few hundredths of a block is how criticals cheats
      * fake one: the player never left the ground by more than a whisker and never jumped.

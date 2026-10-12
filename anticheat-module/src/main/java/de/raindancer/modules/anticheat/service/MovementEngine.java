@@ -357,11 +357,21 @@ public final class MovementEngine implements IAntiCheatService {
             }
         }
 
-        // Knockback is judged on the rise it caused.
+        // Knockback is judged on the rise it caused, and on how far it carried them along its direction.
+        double stepX = (sample.x() - m.x) / ticks;
+        double stepZ = (sample.z() - m.z) / ticks;
         for (double[] velocity : m.velocities) {
             velocity[4] = Math.max(velocity[4], dy);
             if (here.ceiling() || here.special() || here.web()) {
                 velocity[5] = 1;
+            }
+            double push = Math.hypot(velocity[0], velocity[2]);
+            if (velocity.length > 9 && push > 0) {
+                velocity[8] = Math.max(velocity[8], (stepX * velocity[0] + stepZ * velocity[2]) / push);
+                // A wall stops a push for honest players too.
+                if (sample.horizontalCollision()) {
+                    velocity[5] = 1;
+                }
             }
         }
 
@@ -667,6 +677,9 @@ public final class MovementEngine implements IAntiCheatService {
                 continue;
             }
             Judgement taken = motion.knockbackTaken(v[1], v[4]);
+            if (taken.passed() && v.length > 9) {
+                taken = motion.knockbackTakenSideways(Math.hypot(v[0], v[2]), v[8], v[9]);
+            }
             if (taken.failed()) {
                 report(player, track, CheckType.VELOCITY, 1, 1, 0.1, taken.reason());
             } else {

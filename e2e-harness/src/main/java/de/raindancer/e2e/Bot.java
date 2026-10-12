@@ -413,6 +413,13 @@ public final class Bot {
                 Vector3i at = update.getEntry().getPosition();
                 blockUpdates.add(new int[]{at.getX(), at.getY(), at.getZ(), update.getEntry().getBlock()});
             }
+            case org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.level.ClientboundExplodePacket explode -> {
+                // An explosion's push to this client rides on the explosion itself, not on a motion packet.
+                if (explode.getPlayerKnockback() != null) {
+                    var push = explode.getPlayerKnockback();
+                    pushes.add(new double[]{push.getX(), push.getY(), push.getZ()});
+                }
+            }
             case ClientboundSectionBlocksUpdatePacket section -> {
                 for (var entry : section.getEntries()) {
                     Vector3i at = entry.getPosition();
@@ -908,7 +915,7 @@ public final class Bot {
         return List.copyOf(unlisted);
     }
 
-    /** Knockback sent to this client itself, oldest first: {vx, vy, vz}. */
+    /** Knockback sent to this client itself — by a motion packet or with an explosion — oldest first: {vx, vy, vz}. */
     public List<double[]> pushes() {
         return List.copyOf(pushes);
     }
