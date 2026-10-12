@@ -84,7 +84,7 @@ public final class FormatService implements IChatService {
      * mentioned player's own name style, or the familiar bold yellow when they have none. Offline and
      * hidden players look exactly the same as online ones: the hover never says which.
      */
-    public Component renderLine(Player sender, String plainText, List<Mention> mentions) {
+    public Component renderLine(org.bukkit.OfflinePlayer sender, String plainText, List<Mention> mentions) {
         ChatStyle style = styles == null ? ChatStyle.DEFAULT : styles.styleOf(sender.getUniqueId());
         Component message = mentionsOf(plainText, mentions).style(style.asStyle())
                 .colorIfAbsent(settings.defaultMessageColor());
@@ -129,7 +129,7 @@ public final class FormatService implements IChatService {
         return painted.hoverEvent(HoverEvent.showText(Component.text(mention.name())));
     }
 
-    private Component nameOf(Player sender) {
+    private Component nameOf(org.bukkit.OfflinePlayer sender) {
         Component name = identities.chatName(sender.getUniqueId(), sender.getName())
                 .colorIfAbsent(settings.defaultNameColor());
         if (settings.bracketsAroundName()) {

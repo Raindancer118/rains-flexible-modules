@@ -11,6 +11,8 @@ package de.raindancer.modules.anticheat.rules;
 public final class VerticalRule implements IAntiCheatRule {
 
     public static final double TOLERANCE = 0.02;
+    /** The most a flagged rise carries on past the limit; an unexpected honest jump on Lilly was 0.087. */
+    public static final double MOST_CARRIED_EXCESS = 0.12;
 
     /**
      * @param lastDy       the previous move's height change, or NaN when unknown
@@ -38,8 +40,12 @@ public final class VerticalRule implements IAntiCheatRule {
         if (bounds == null || Double.isNaN(dy) || Double.isNaN(bounds.lowest()) || Double.isNaN(bounds.highest())) {
             return dy;
         }
-        // Past the tolerance it was flagged already: the arc goes on from where it really is.
-        if (dy > bounds.highest() + TOLERANCE || dy < bounds.lowest() - TOLERANCE * 1.5) {
+        // Past the tolerance it was flagged already: the arc goes on from where it really is — but a rise only
+        // so far past the limit, or one huge jump bought a free arc.
+        if (dy > bounds.highest() + TOLERANCE) {
+            return Math.min(dy, bounds.highest() + MOST_CARRIED_EXCESS);
+        }
+        if (dy < bounds.lowest() - TOLERANCE * 1.5) {
             return dy;
         }
         return Math.max(bounds.lowest(), Math.min(bounds.highest(), dy));

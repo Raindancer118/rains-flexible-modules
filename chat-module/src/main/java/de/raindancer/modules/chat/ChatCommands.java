@@ -35,7 +35,8 @@ public final class ChatCommands {
                                 "clear — sends a wall of blank lines",
                                 "freeze — toggles whether anybody but staff may talk",
                                 "slowmode <seconds|off> — a cooldown for everybody, on top of any "
-                                        + "per-player one"),
+                                        + "per-player one",
+                                "say <player> <message> — the console only: a public line in that player's name"),
 
                 ModuleCommand.of("announce", "Broadcasts a banner every online player sees and hears",
                                 new AnnounceCommand(ChatCommands::require))

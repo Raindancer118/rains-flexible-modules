@@ -79,7 +79,7 @@ public final class MentionService implements IChatService {
      * Every {@code @name} or {@code @nickname} in the line that means somebody other than the sender,
      * online or not, where it stands.
      */
-    public List<Mention> find(Player sender, String plainText) {
+    public List<Mention> find(org.bukkit.OfflinePlayer sender, String plainText) {
         return found(sender, plainText).stream().map(Found::mention).toList();
     }
 
@@ -87,7 +87,7 @@ public final class MentionService implements IChatService {
     private record Found(Mention mention, OfflinePlayer who) {
     }
 
-    private List<Found> found(Player sender, String plainText) {
+    private List<Found> found(org.bukkit.OfflinePlayer sender, String plainText) {
         List<Found> found = new ArrayList<>();
         if (!settings.mentionsEnabled() || sender == null || plainText == null || plainText.isBlank()) {
             return found;
@@ -115,7 +115,7 @@ public final class MentionService implements IChatService {
      * Pings everybody reachable once, and leaves a note for everybody who is not — offline or hidden,
      * which have to look the same.
      */
-    public void notify(Player sender, String plainText, List<Mention> found) {
+    public void notify(org.bukkit.OfflinePlayer sender, String plainText, List<Mention> found) {
         Set<UUID> done = new LinkedHashSet<>();
         for (Mention mention : found) {
             if (!done.add(mention.player())) {

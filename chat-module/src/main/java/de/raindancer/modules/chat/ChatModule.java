@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.13.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.14.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -51,6 +51,10 @@ public final class ChatModule implements FlexModule {
     private de.raindancer.modules.chat.store.MentionInbox inbox;
     private ChatStyleStore styles;
     private ChatServices services;
+    private de.raindancer.modules.chat.store.PanelFeed feed;
+
+    /** What the Pelican panel's chat page shows. */
+    private static final int PANEL_FEED_LINES = 100;
     private java.util.function.BiConsumer<java.util.UUID, String> channelWatcher;
 
     @Override
@@ -107,10 +111,23 @@ public final class ChatModule implements FlexModule {
         de.raindancer.modules.chat.service.AdService ads = new de.raindancer.modules.chat.service.AdService(
                 quality, freeze, settings.current(), System::currentTimeMillis);
 
+        feed = new de.raindancer.modules.chat.store.PanelFeed(context.dataFolder(), PANEL_FEED_LINES);
+        feed.load();
+        var feedWriting = de.raindancer.core.platform.util.Scheduling.asyncTimer(context.plugin(), 1, 1,
+                task -> feed.flush());
+        if (feedWriting != null) {
+            context.closeWith(feedWriting::cancel);
+        }
+        var core = context.core();
+        de.raindancer.modules.chat.service.SayAsService sayAs = new de.raindancer.modules.chat.service.SayAsService(
+                server, format, mentions, chatHistory, feed,
+                who -> core.punishments().isActive(who, de.raindancer.core.moderation.punishment.PunishmentKind.MUTE),
+                core.chatLog(), core.audit(), System::currentTimeMillis);
+
         services = new ChatServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, format, mentions, quality, freeze, chatHistory, styleService,
-                privateChat, polls, ads);
+                privateChat, polls, ads, sayAs, feed);
 
         // @Name suggestions in the chat box — only while mentions are actually drawn.
         context.core().mentionCompletions().enable(settings.current().mentionsEnabled());
@@ -159,6 +176,9 @@ public final class ChatModule implements FlexModule {
         }
         if (inbox != null) {
             inbox.save();
+        }
+        if (feed != null) {
+            feed.flush();
         }
         if (de.raindancer.core.RainsCore.isAvailable()) {
             de.raindancer.core.RainsCore.get().mentionCompletions().enable(false);

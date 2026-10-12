@@ -90,6 +90,22 @@ public final class ChatListener implements IChatListener {
     }
 
     /**
+     * The line as everybody was shown it, for the panel's chat page — once nothing can cancel it any more, and
+     * from the renderer itself, so whatever drew it is what the panel shows.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onSaid(AsyncChatEvent event) {
+        if (services.feed() == null) {
+            return;
+        }
+        Player sender = event.getPlayer();
+        Component shown = event.renderer().render(sender, sender.displayName(), event.message(),
+                services.server().getConsoleSender());
+        services.feed().add(System.currentTimeMillis(), sender.getUniqueId(), sender.getName(),
+                PLAIN.serialize(event.message()), shown, false);
+    }
+
+    /**
      * A line said in a private chat, put in front of its members and nobody else.
      *
      * <h2>Why cancelling is the whole trick</h2>

@@ -45,7 +45,9 @@ public record ChatServices(
         ChatStyleService styles,
         PrivateChatService privateChat,
         de.raindancer.modules.chat.service.PollService polls,
-        de.raindancer.modules.chat.service.AdService ads) {
+        de.raindancer.modules.chat.service.AdService ads,
+        de.raindancer.modules.chat.service.SayAsService sayAs,
+        de.raindancer.modules.chat.store.PanelFeed feed) {
 
     /** Without paid ads, for a test that never places one. */
     public ChatServices(Plugin plugin, Server server, RainsCore core, LogChannel log, Messages messages,
@@ -55,6 +57,16 @@ public record ChatServices(
                         de.raindancer.modules.chat.service.PollService polls) {
         this(plugin, server, core, log, messages, chat, brand, settings, format, mentions, quality, freeze,
                 history, styles, privateChat, polls, null);
+    }
+
+    public ChatServices(Plugin plugin, Server server, RainsCore core, LogChannel log, Messages messages,
+                        Chat chat, Brand brand, Supplier<ChatSettings> settings, FormatService format,
+                        MentionService mentions, ChatQualityService quality, FreezeService freeze,
+                        ChatHistoryService history, ChatStyleService styles, PrivateChatService privateChat,
+                        de.raindancer.modules.chat.service.PollService polls,
+                        de.raindancer.modules.chat.service.AdService ads) {
+        this(plugin, server, core, log, messages, chat, brand, settings, format, mentions, quality, freeze,
+                history, styles, privateChat, polls, ads, null, null);
     }
 
     /** Who sees the doors to Core's /settings pages. */

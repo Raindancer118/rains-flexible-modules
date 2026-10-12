@@ -37,8 +37,10 @@
                     seconds is NoSlow; the wall sweep also covers far clips and moves with any tick count; a faked bad ping devalues
                     flags towards a report instead of exempting them.
              0.21.1: one move past the speed or height limit is one flag again: only moves within the tolerance are held to
-                    the limit for the next tick (Lilly: one jump was Fly x13, Speed x16). -->
-        <plugin.version>0.21.1</plugin.version>
+                    the limit for the next tick (Lilly: one jump was Fly x13, Speed x16).
+             0.21.2: what a flagged move carries on with is capped (0.2 sideways, 0.12 up past the limit), so one huge
+                    move buys no free glide. -->
+        <plugin.version>0.21.2</plugin.version>
     </properties>
 
     <dependencies>

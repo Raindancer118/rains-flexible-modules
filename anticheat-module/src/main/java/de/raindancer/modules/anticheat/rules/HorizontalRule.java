@@ -70,11 +70,18 @@ public final class HorizontalRule implements IAntiCheatRule {
     /**
      * What the next tick builds on: a move within the tolerance counts as no more than was allowed, so a
      * client just under it every tick cannot pile the excess up. A move past it was flagged already and
-     * goes on as it was: capped, every tick of an honest slowdown after one odd move flagged again.
+     * goes on as it was — held to the limit, every tick of an honest slowdown after one odd move was flagged
+     * again — but no more than {@link #MOST_CARRIED_EXCESS} past it, or one huge move bought a free glide.
      */
     public static double carry(double hd, double limit) {
-        return Double.isNaN(limit) || hd > limit + TOLERANCE ? hd : Math.min(hd, limit);
+        if (Double.isNaN(limit)) {
+            return hd;
+        }
+        return hd > limit + TOLERANCE ? Math.min(hd, limit + MOST_CARRIED_EXCESS) : Math.min(hd, limit);
     }
+
+    /** The most a flagged move carries on past the limit; an unexpected honest move on Lilly was 0.133. */
+    public static final double MOST_CARRIED_EXCESS = 0.2;
 
     /** The farthest {@code ticks} ticks can go, assuming the best input every tick. */
     public double limit(Move move, double slowdown, boolean maySprint) {

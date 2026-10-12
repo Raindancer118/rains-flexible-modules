@@ -206,4 +206,18 @@ class HorizontalRuleTest {
             carry = HorizontalRule.carry(0.5, rule.limit(move, 1, true));
         }
     }
+
+    @Test
+    @DisplayName("one huge move buys no free glide: what it carries on with is capped")
+    void hugeMoveIsNoFreeGlide() {
+        HorizontalRule.Move first = new HorizontalRule.Move(0.2, 0, 1, true, true, 0.6, 0.6, 0.1,
+                false, true, 1, false, Double.NaN, 0);
+        double limit = rule.limit(first, 1, true);
+        double carry = HorizontalRule.carry(3.0, limit);
+        HorizontalRule.Move real = new HorizontalRule.Move(3.0, 0, 1, true, true, 0.6, 0.6, 0.1,
+                false, true, 1, false, Double.NaN, 0);
+        double glide = rule.limit(real, 1, true);
+        assertThat(rule.judge(new HorizontalRule.Move(carry, glide, 1, true, true, 0.6, 0.6, 0.1,
+                false, true, 1, false, Double.NaN, 0)).passed()).as("gliding on from a 3-block move").isFalse();
+    }
 }

@@ -5,6 +5,13 @@ chat:
   usage: "<gray>Usage: <white><usage>"
   only-a-player: "<red>Only a player can do that."
 
+  # ── /chat say, from the console ──────────────────────────────────────────
+  say:
+    console-only: "<red>Only the console can speak in somebody's name."
+    unknown: "<red>Nobody called <white><player></white> has played here."
+    muted: "<red><player> is muted, so nothing was said."
+    empty: "<red>There is nothing to say."
+
   # ── /announce ─────────────────────────────────────────────────────────────
   poll:
     asked: "<gold><bold>Poll</bold> <gray>by <white><player></white>: <yellow><question>"

@@ -205,4 +205,14 @@ class VerticalRuleTest {
             carry = VerticalRule.carry(0, bounds);
         }
     }
+
+    @Test
+    @DisplayName("one huge rise buys no free arc: what it carries on with is capped")
+    void hugeRiseIsNoFreeArc() {
+        double dy = 1.5;
+        VerticalRule.Bounds bounds = rule.bounds(air(0.42, dy));
+        double carry = VerticalRule.carry(dy, bounds);
+        double arc = (dy - 0.08) * 0.98;
+        assertThat(rule.judge(air(carry, arc)).failed()).as("rising on from a 1.5-block jump").isTrue();
+    }
 }

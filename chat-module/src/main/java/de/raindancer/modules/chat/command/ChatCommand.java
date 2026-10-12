@@ -29,7 +29,7 @@ public final class ChatCommand implements IChatCommand {
 
     private static final List<String> STAFF = List.of("clear", "freeze", "slowmode");
     private static final List<String> EVERYBODY = List.of("private", "public");
-    private static final String USAGE = "/chat team|all|private|public|clear|freeze|slowmode <seconds|off>";
+    private static final String USAGE = "/chat team|all|private|public|clear|freeze|slowmode <seconds|off>|say <player> <message>";
 
     /** Opens the channel picker — a seam, because a real menu needs a running server. */
     private java.util.function.BiConsumer<ChatServices, Player> channelMenu =
@@ -63,6 +63,10 @@ public final class ChatCommand implements IChatCommand {
             return;
         }
         String subcommand = args[0].toLowerCase(Locale.ROOT);
+        if (subcommand.equals("say")) {
+            say(live, sender, args);
+            return;
+        }
         if (subcommand.equals(ChatChannels.ALL) || ChatChannels.byId(subcommand).isPresent()
                 || subcommand.equals("team")) {
             if (!(sender instanceof Player player)) {
@@ -121,6 +125,40 @@ public final class ChatCommand implements IChatCommand {
         }
         ChatChannels.select(player.getUniqueId(), channel.get().id());
         live.messages().send(player, "chat.channel.now", "channel", channel.get().label());
+    }
+
+    /**
+     * {@code /chat say <player> <message>}: what the Pelican panel's chat page sends. The console's alone — a
+     * player speaking in somebody else's name would be impersonation, whatever their rank.
+     */
+    private void say(ChatServices live, CommandSender sender, String[] args) {
+        if (!isConsole(sender)) {
+            live.messages().send(sender, "chat.say.console-only");
+            return;
+        }
+        if (args.length < 3) {
+            live.messages().send(sender, "chat.usage", "usage", "/chat say <player> <message>");
+            return;
+        }
+        java.util.Optional<org.bukkit.OfflinePlayer> who =
+                de.raindancer.core.platform.command.PlayerTargets.byRealName(live.server(), args[1])
+                        .filter(found -> found.getName() != null && (found.isOnline() || found.hasPlayedBefore()));
+        if (who.isEmpty()) {
+            live.messages().send(sender, "chat.say.unknown", "player", args[1]);
+            return;
+        }
+        String text = String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length));
+        switch (live.sayAs().say(who.get(), text)) {
+            case MUTED -> live.messages().send(sender, "chat.say.muted", "player", who.get().getName());
+            case EMPTY -> live.messages().send(sender, "chat.say.empty");
+            case SAID -> {
+            }
+        }
+    }
+
+    private static boolean isConsole(CommandSender sender) {
+        return sender instanceof org.bukkit.command.ConsoleCommandSender
+                || sender instanceof org.bukkit.command.RemoteConsoleCommandSender;
     }
 
     private void clear(ChatServices live, CommandSender sender) {
@@ -194,6 +232,9 @@ public final class ChatCommand implements IChatCommand {
             }
             if (staff) {
                 offered.addAll(STAFF);
+            }
+            if (isConsole(sender)) {
+                offered.add("say");
             }
             return offered.stream().filter(name -> name.startsWith(typed)).toList();
         }
