@@ -38,11 +38,14 @@ public final class GateNetwork {
     private final GateInvites invites;
     private final GateService gate;
     private final GateConsents consents;
+    private final java.util.function.Predicate<UUID> hidden;
     private final Set<UUID> returning = ConcurrentHashMap.newKeySet();
 
     public GateNetwork(Plugin plugin, Server server, Messages messages, ServerLink link, EscrowService escrow,
-                       GearService gear, GateInvites invites, GateService gate, GateConsents consents) {
+                       GearService gear, GateInvites invites, GateService gate, GateConsents consents,
+                       java.util.function.Predicate<UUID> hidden) {
         this.consents = consents;
+        this.hidden = hidden;
         this.plugin = plugin;
         this.server = server;
         this.messages = messages;
@@ -143,7 +146,8 @@ public final class GateNetwork {
 
     private Map<String, String> where(Map<String, String> data) {
         Player online = server.getPlayerExact(data.getOrDefault("name", ""));
-        return online == null ? Map.of("online", "false")
+        // A vanished player is not online as far as the arena is told — no invite, no payment gives them away.
+        return online == null || hidden.test(online.getUniqueId()) ? Map.of("online", "false")
                 : Map.of("online", "true", "player", online.getUniqueId().toString(), "name", online.getName());
     }
 

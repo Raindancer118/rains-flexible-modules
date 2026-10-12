@@ -16,7 +16,14 @@ public final class Outcomes {
     /** @param other who was on the other side, for "they cannot hold that much" — may be empty */
     public static void tell(Messages messages, Effects effects, Player player, EconomyResult result,
                             Currency currency, String other) {
-        String key = switch (result.outcome()) {
+        messages.send(player, keyOf(result), "amount", currency.render(result.amount()),
+                "balance", currency.render(result.balance()), "player", other == null ? "" : other);
+        effects.play(player.getUniqueId(), Cues.NO);
+    }
+
+    /** The message for an outcome that is not done. */
+    public static String keyOf(EconomyResult result) {
+        return switch (result.outcome()) {
             case NOT_ENOUGH -> "economy.not-enough";
             case TOO_MUCH -> "economy.too-much";
             case NO_ACCOUNT -> "economy.no-account";
@@ -26,8 +33,5 @@ public final class Outcomes {
             case TREASURY_EMPTY -> "economy.treasury-empty";
             case REFUSED, DONE -> "economy.refused";
         };
-        messages.send(player, key, "amount", currency.render(result.amount()),
-                "balance", currency.render(result.balance()), "player", other == null ? "" : other);
-        effects.play(player.getUniqueId(), Cues.NO);
     }
 }

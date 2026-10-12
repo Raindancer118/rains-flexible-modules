@@ -39,7 +39,8 @@ public record ArenaServices(
         StatsStore stats,
         ArenaLink link,
         IntentBook intents,
-        IArenaScreensOpener screens) {
+        IArenaScreensOpener screens,
+        de.raindancer.modules.arena.service.BoardService boards) {
 
     public ArenaSettings config() {
         return settings.get();

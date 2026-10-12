@@ -153,6 +153,32 @@ public final class EconomyModule implements FlexModule {
         var buttons = context.core().buttons();
 
         PaymentService payments = new PaymentService(context.plugin(), economy, messages, effects, buttons, now);
+        if (!context.core().linkFollows()) {
+            // A /pay made in the arena: run here, under every rule a /pay here has.
+            context.core().link().ifPresent(link -> {
+                link.on(de.raindancer.core.social.economy.LinkedEconomy.PAY, data -> {
+                    java.util.concurrent.CompletableFuture<java.util.Map<String, String>> done =
+                            new java.util.concurrent.CompletableFuture<>();
+                    de.raindancer.core.platform.util.Scheduling.global(context.plugin(), () -> {
+                        try {
+                            done.complete(payments.payAcross(java.util.UUID.fromString(data.get("payer")),
+                                    data.getOrDefault("payerName", "?"),
+                                    server.getOfflinePlayer(java.util.UUID.fromString(data.get("target"))),
+                                    de.raindancer.core.social.economy.Money.of(Long.parseLong(data.get("amount"))),
+                                    "true".equals(data.get("confirmed"))));
+                        } catch (RuntimeException garbled) {
+                            done.complete(java.util.Map.of());
+                        }
+                    });
+                    try {
+                        return done.get(5, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (Exception slow) {
+                        return java.util.Map.of();
+                    }
+                });
+                context.closeWith(() -> link.off(de.raindancer.core.social.economy.LinkedEconomy.PAY));
+            });
+        }
         BillService bills = new BillService(context.plugin(), server, economy, messages, effects, buttons,
                 System::currentTimeMillis, now);
         CashService cash = new CashService(server, economy, messages, effects, context.core().audit(),

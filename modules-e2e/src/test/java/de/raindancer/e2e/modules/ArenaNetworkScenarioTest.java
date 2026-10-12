@@ -57,6 +57,7 @@ class ArenaNetworkScenarioTest {
                         + "\nsecret: " + LINK_SECRET + "\n")
                 .file("plugins/RainsChat/config.yml", "network:\n  enabled: true\n  tag: SMP\n")
                 .file("plugins/RainsArenaGate/config.yml", "arena-server: arena\nwarmup-seconds: 0\n")
+                .file("plugins/RainsEconomy/config.yml", "pay:\n  cooldown-seconds: 60\n")
                 .build();
         PaperServer arena = PaperServer.forRun().seed(1).in(E2e.serverFolder("arena-net-arena"))
                 .plugin(Path.of(System.getProperty("e2e.rainscore")))
@@ -146,6 +147,9 @@ class ArenaNetworkScenarioTest {
             ada.run("balance");
             Await.until("the money arrived on survival", WAIT, () -> ada.chatText().stream()
                     .anyMatch(line -> line.contains("1,120")));
+            bo.run("pay Ada 5");
+            Await.until("survival's own rule holds for a payment from the arena: the wait between payments", WAIT,
+                    () -> bo.chatText().stream().anyMatch(line -> line.contains("before paying again")));
 
             // ── and back ────────────────────────────────────────────────────────────────────────────
             bo.run("arena leave");

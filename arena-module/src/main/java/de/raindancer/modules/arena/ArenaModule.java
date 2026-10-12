@@ -72,6 +72,7 @@ public final class ArenaModule implements FlexModule {
     private MatchService matches;
     private QueueService queue;
     private WaveService waves;
+    private de.raindancer.modules.arena.service.BoardService boards;
     private ArenaLink link;
     private ArenaWorldService worlds;
 
@@ -113,6 +114,8 @@ public final class ArenaModule implements FlexModule {
 
         var database = context.core().databases().of(StatsDatabase.NAME, StatsDatabase.SCHEMA);
         StatsStore stats = new StatsStore(database);
+        boards = new de.raindancer.modules.arena.service.BoardService(context.plugin(), server, stats,
+                context.dataFolder().resolve("boards.yml"));
 
         NpcService npcs = new NpcService(context.plugin(), role -> settings.current().npcSkin());
         link = new ArenaLink(context.core()::link);
@@ -193,7 +196,7 @@ public final class ArenaModule implements FlexModule {
         };
         ArenaServices services = new ArenaServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core(), settings::current, arena, matches, queue, invites, kits, waves,
-                npcs, stats, link, intents, screens);
+                npcs, stats, link, intents, screens, boards);
         built[0] = services;
 
         FightRule fights = new FightRule();
@@ -208,6 +211,7 @@ public final class ArenaModule implements FlexModule {
         });
         matches.start();
         waves.start();
+        boards.start();
         queue.start();
         var housekeeping = Scheduling.globalTimer(context.plugin(), 1200L, 1200L, task -> {
             stakes.retry();
@@ -246,6 +250,9 @@ public final class ArenaModule implements FlexModule {
         }
         if (waves != null) {
             waves.stop();
+        }
+        if (boards != null) {
+            boards.stop();
         }
         if (matches != null) {
             matches.stop();

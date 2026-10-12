@@ -3,7 +3,6 @@ package de.raindancer.modules.arena.command;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.social.economy.Economies;
 import de.raindancer.core.social.economy.Economy;
-import de.raindancer.core.social.economy.EconomyResult;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.arena.ArenaServices;
 import de.raindancer.modules.arena.api.ArenaProtocol;
@@ -63,27 +62,49 @@ public final class WalletCommand implements IArenaCommand {
             live.messages().send(player, "arena.wallet.bad-amount", "typed", args[1]);
             return;
         }
-        whom(live, args[0]).thenAccept(target -> {
-            if (target.isEmpty() || target.get().id().equals(player.getUniqueId())) {
-                live.messages().send(player, target.isEmpty() ? "arena.wallet.nobody" : "arena.wallet.not-yourself",
-                        "player", args[0]);
-                return;
+        boolean confirmed = args.length > 2 && args[2].equalsIgnoreCase("confirm");
+        Optional<de.raindancer.core.platform.link.ServerLink> link = live.core().link();
+        if (link.isEmpty()) {
+            live.messages().send(player, "arena.wallet.unavailable");
+            return;
+        }
+        whom(live, player, args[0]).thenCompose(target -> {
+            if (target.isEmpty()) {
+                live.messages().send(player, "arena.wallet.nobody", "player", args[0]);
+                return CompletableFuture.completedFuture(null);
             }
             Who to = target.get();
-            EconomyResult result = money.transfer(player.getUniqueId(), to.id(), amount.get(), "paid in the arena");
-            if (result.outcome() != EconomyResult.Outcome.DONE) {
-                live.messages().send(player, result.outcome() == EconomyResult.Outcome.NOT_ENOUGH
-                        ? "arena.wallet.not-enough" : "arena.wallet.failed", "amount", money.format(amount.get()));
-                return;
-            }
-            live.messages().send(player, "arena.wallet.paid", "player", to.name(), "amount", money.format(amount.get()));
-            Player here = live.server().getPlayer(to.id());
-            if (here != null) {
-                live.messages().send(here, "arena.wallet.got", "player", player.getName(),
-                        "amount", money.format(amount.get()));
-            }
+            // Run on survival by its economy, under every rule a /pay there has — never a raw transfer from here.
+            return link.get().request(de.raindancer.core.social.economy.LinkedEconomy.PAY, Map.of(
+                            "payer", player.getUniqueId().toString(), "payerName", player.getName(),
+                            "target", to.id().toString(), "amount", String.valueOf(amount.get().minor()),
+                            "confirmed", String.valueOf(confirmed)), java.time.Duration.ofSeconds(6))
+                    .thenAccept(answer -> {
+                        if (!answer.containsKey("lines")) {
+                            live.messages().send(player, "arena.wallet.failed");
+                            return;
+                        }
+                        net.kyori.adventure.text.serializer.gson.GsonComponentSerializer json =
+                                net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson();
+                        for (String line : answer.get("lines").split("\n")) {
+                            if (!line.isBlank()) {
+                                player.sendMessage(json.deserialize(line));
+                            }
+                        }
+                        if ("true".equals(answer.get("confirm"))) {
+                            live.messages().send(player, "arena.wallet.confirm", "player", to.name(),
+                                    "amount", money.format(amount.get()), "typed", java.math.BigDecimal.valueOf(
+                                            amount.get().minor(), money.currency().decimals()).toPlainString());
+                            return;
+                        }
+                        Player here = live.server().getPlayer(to.id());
+                        if (here != null && "true".equals(answer.get("paid"))) {
+                            live.messages().send(here, "arena.wallet.got", "player", player.getName(),
+                                    "amount", money.format(amount.get()));
+                        }
+                    });
         }).exceptionally(failure -> {
-            live.messages().send(player, "arena.wallet.failed", "amount", args[1]);
+            live.messages().send(player, "arena.wallet.failed");
             return null;
         });
     }
@@ -92,9 +113,9 @@ public final class WalletCommand implements IArenaCommand {
     }
 
     /** Somebody here, or somebody on survival — asked over the link by name. */
-    private static CompletableFuture<Optional<Who>> whom(ArenaServices live, String name) {
+    private static CompletableFuture<Optional<Who>> whom(ArenaServices live, Player asking, String name) {
         Player here = live.server().getPlayerExact(name);
-        if (here != null) {
+        if (here != null && live.core().vanish().canSee(asking.getUniqueId(), here.getUniqueId())) {
             return CompletableFuture.completedFuture(Optional.of(new Who(here.getUniqueId(), here.getName())));
         }
         if (!live.link().isUp()) {

@@ -55,7 +55,8 @@
              of the same players; stats are read off the server thread. -->
         <!-- 0.4.0: /balance and /pay with the survival server's money (RainsCore's linked economy); a fall is a flash of
              lightning, soul fire and thunder, a win a title and a burst; congratulations in many wordings; 64 wind
-             charges in the mace kit. Needs RainsCore 1.120.0. -->
+             charges in the mace kit; a leaderboard over the hub (/arena admin board place). /pay runs on survival under
+             its economy's own rules. Needs RainsCore 1.120.1. -->
         <plugin.version>0.4.0</plugin.version>
     </properties>
 

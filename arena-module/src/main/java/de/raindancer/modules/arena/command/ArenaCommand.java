@@ -30,7 +30,7 @@ import java.util.function.Supplier;
 public final class ArenaCommand implements IArenaCommand {
 
     private static final List<String> PLAYER = List.of("hub", "leave", "queue", "wave", "spectate", "stats", "menu");
-    private static final List<String> ADMIN = List.of("build", "sethub", "pit", "info", "kit", "npc", "hold", "return");
+    private static final List<String> ADMIN = List.of("build", "sethub", "pit", "info", "kit", "npc", "board", "hold", "return");
     private static final List<String> PIT_ACTIONS = List.of("floor", "spawn", "clearspawns", "remove");
 
     private final Supplier<ArenaServices> services;
@@ -140,6 +140,22 @@ public final class ArenaCommand implements IArenaCommand {
             case "return" -> live.messages().send(sender, "arena.admin.returned", "count", live.arena().returnHeld());
             case "kit" -> kit(live, sender, args);
             case "npc" -> npc(live, sender, args);
+            case "board" -> {
+                if (!(sender instanceof Player admin)) {
+                    live.messages().send(sender, "arena.only-a-player");
+                    return;
+                }
+                String action = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+                if (action.equals("place")) {
+                    live.boards().place(admin.getLocation());
+                    live.messages().send(admin, "arena.admin.board-placed");
+                } else if (action.equals("remove")) {
+                    live.messages().send(admin, live.boards().removeNearest(admin) ? "arena.admin.board-removed"
+                            : "arena.admin.board-none");
+                } else {
+                    live.messages().send(admin, "arena.admin.board-usage");
+                }
+            }
             default -> live.messages().send(sender, "arena.admin.usage");
         }
     }
@@ -337,6 +353,9 @@ public final class ArenaCommand implements IArenaCommand {
         }
         if (what.equals("kit") && args.length == 3) {
             return java.util.stream.Stream.of("save", "remove").filter(option -> option.startsWith(last)).toList();
+        }
+        if (what.equals("board") && args.length == 3) {
+            return java.util.stream.Stream.of("place", "remove").filter(option -> option.startsWith(last)).toList();
         }
         if (what.equals("npc") && args.length == 3) {
             return java.util.stream.Stream.of("place", "remove").filter(option -> option.startsWith(last)).toList();
