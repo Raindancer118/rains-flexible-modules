@@ -49,7 +49,8 @@
                     not-bought, or the item's drawer shut, as for any item. -->
         <!-- 0.33.0: every armour trim smithing template is priced (by how rare it is to find), so the shop sells
              them. -->
-        <plugin.version>0.33.0</plugin.version>
+        <!-- 0.34.0: the three froglights are priced, so the shop sells and buys them like any block. -->
+        <plugin.version>0.34.0</plugin.version>
     </properties>
 
     <dependencies>
