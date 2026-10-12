@@ -32,6 +32,7 @@ public final class AlertService implements IAntiCheatService {
     private final LogChannel log;
     private final LongSupplier clock;
     private final AlertDigest digest;
+    private volatile de.raindancer.modules.anticheat.store.AlertMutes mutes;
     /** Whether each staff member wants alerts, read from their profile on join so no thread touches it later. */
     private final Map<UUID, Boolean> wants = new ConcurrentHashMap<>();
     private final Set<UUID> verbose = ConcurrentHashMap.newKeySet();
@@ -48,7 +49,7 @@ public final class AlertService implements IAntiCheatService {
     public void alert(Player subject, CheckType check, double level, String detail, int ping) {
         log.info("{} failed {} (level {}): {} [{} ms]", subject.getName(), check.title(),
                 String.format(Locale.ROOT, "%.1f", level), detail, ping);
-        digest.offer(subject.getUniqueId(), subject.getName(), check, level, detail, ping).ifPresent(line -> toStaff(
+        digest.offer(subject.getUniqueId(), subject.getName(), check, level, detail, ping).ifPresent(line -> toStaff(check,
                 messages.get(check.experimental() ? "anticheat.alert-experimental" : "anticheat.alert",
                         "player", subject.getName(), "check", check.title(), "level", String.format(Locale.ROOT, "%.1f", level),
                         "count", "", "detail", detail, "ping", ping,
@@ -59,12 +60,23 @@ public final class AlertService implements IAntiCheatService {
     /** What gathered since a player's first line: one line each. Called about once a second, from any thread. */
     public void flushDigests() {
         for (AlertDigest.Line line : digest.due()) {
-            StringBuilder checks = new StringBuilder();
-            line.counts().forEach((check, count) -> checks.append(checks.isEmpty() ? "" : ", ").append(check.title())
-                    .append(count > 1 ? " ×" + count : ""));
-            toStaff(messages.get("anticheat.alert-digest", "player", line.name(), "checks", checks.toString(),
-                    "level", String.format(Locale.ROOT, "%.1f", line.level()), "detail", line.detail() == null ? "" : line.detail(),
-                    "ping", line.ping()));
+            for (Player staff : server.getOnlinePlayers()) {
+                if (!listens(staff)) {
+                    continue;
+                }
+                // Built for each reader: what they muted is left out, and nothing is sent if that was all of it.
+                de.raindancer.modules.anticheat.store.AlertMutes muted = mutes;
+                java.util.Map<CheckType, Integer> counts = muted == null ? line.counts() : muted.visible(staff.getUniqueId(), line.counts());
+                if (counts.isEmpty()) {
+                    continue;
+                }
+                StringBuilder checks = new StringBuilder();
+                counts.forEach((check, count) -> checks.append(checks.isEmpty() ? "" : ", ").append(check.title())
+                        .append(count > 1 ? " ×" + count : ""));
+                staff.sendMessage(messages.get("anticheat.alert-digest", "player", line.name(), "checks", checks.toString(),
+                        "level", String.format(Locale.ROOT, "%.1f", line.level()), "detail", line.detail() == null ? "" : line.detail(),
+                        "ping", line.ping()));
+            }
         }
     }
 
@@ -92,10 +104,33 @@ public final class AlertService implements IAntiCheatService {
 
     private void toStaff(Component line) {
         for (Player staff : server.getOnlinePlayers()) {
-            if (wants.getOrDefault(staff.getUniqueId(), false) && staff.hasPermission(PermissionNodes.ALERTS)) {
+            if (listens(staff)) {
                 staff.sendMessage(line);
             }
         }
+    }
+
+    /** An alert about one check: only to staff who have not muted it, for themselves or for everybody. */
+    private void toStaff(CheckType check, Component line) {
+        de.raindancer.modules.anticheat.store.AlertMutes muted = mutes;
+        for (Player staff : server.getOnlinePlayers()) {
+            if (listens(staff) && (muted == null || !muted.isMuted(staff.getUniqueId(), check))) {
+                staff.sendMessage(line);
+            }
+        }
+    }
+
+    private boolean listens(Player staff) {
+        return wants.getOrDefault(staff.getUniqueId(), false) && staff.hasPermission(PermissionNodes.ALERTS);
+    }
+
+    /** Where per-check mutes are kept; without one, nothing is muted. */
+    public void mutesFrom(de.raindancer.modules.anticheat.store.AlertMutes store) {
+        this.mutes = store;
+    }
+
+    public de.raindancer.modules.anticheat.store.AlertMutes mutes() {
+        return mutes;
     }
 
     /** Read on join, on the player's own thread. */

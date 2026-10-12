@@ -30,7 +30,7 @@ import java.util.function.Supplier;
 public final class AntiCheatCommand implements BasicCommand {
 
     private static final int LOG_PAGE = 10;
-    private static final List<String> SUBCOMMANDS = List.of("alerts", "verbose", "info", "log", "replay", "go", "back",
+    private static final List<String> SUBCOMMANDS = List.of("alerts", "alert", "verbose", "info", "log", "replay", "go", "back",
             "exempt", "unexempt", "fresh", "reset", "checks", "status");
 
     /** Where and how a staff member was before watching replays. */
@@ -68,6 +68,7 @@ public final class AntiCheatCommand implements BasicCommand {
                 }
                 live.messages().send(sender, live.alerts().toggle(player) ? "anticheat.alerts-on" : "anticheat.alerts-off");
             }
+            case "alert" -> alert(live, sender, args);
             case "verbose" -> {
                 if (!(sender instanceof Player player)) {
                     live.messages().send(sender, "anticheat.only-a-player");
@@ -179,6 +180,65 @@ public final class AntiCheatCommand implements BasicCommand {
             return;
         }
         viewer.teleportAsync(where).thenRun(() -> live.messages().send(viewer, "anticheat.back"));
+    }
+
+    /**
+     * {@code /anticheat alert off|on <check> [global]} and {@code /anticheat alert list}: one check quietened in chat
+     * for whoever asks, or — for an operator or the console — for every member of staff. Evidence, replays and
+     * reports are not affected.
+     */
+    private static void alert(AntiCheatServices live, CommandSender sender, String[] args) {
+        de.raindancer.modules.anticheat.store.AlertMutes mutes = live.alerts().mutes();
+        String what = args.length < 2 ? "" : args[1].toLowerCase(Locale.ROOT);
+        if (mutes == null || what.isEmpty()) {
+            live.messages().send(sender, "anticheat.usage");
+            return;
+        }
+        UUID self = sender instanceof Player player ? player.getUniqueId() : null;
+        if (what.equals("list")) {
+            String own = self == null ? "" : String.join(", ", mutes.mutedBy(self).stream().map(CheckType::title).toList());
+            String all = String.join(", ", mutes.mutedForEveryone().stream().map(CheckType::title).toList());
+            live.messages().send(sender, "anticheat.alert-mutes", "own", own.isEmpty() ? "none" : own,
+                    "everyone", all.isEmpty() ? "none" : all);
+            return;
+        }
+        boolean off = what.equals("off");
+        if (!off && !what.equals("on") || args.length < 3) {
+            live.messages().send(sender, "anticheat.usage");
+            return;
+        }
+        java.util.Optional<CheckType> check = CheckType.find(args[2]);
+        if (check.isEmpty()) {
+            live.messages().send(sender, "anticheat.no-such-check", "check", args[2]);
+            return;
+        }
+        boolean global = args.length >= 4 && args[3].equalsIgnoreCase("global");
+        if (global) {
+            if (!sender.isOp() && self != null) {
+                live.messages().send(sender, "anticheat.alert-global-op-only");
+                return;
+            }
+            if (off) {
+                mutes.muteForEveryone(check.get());
+            } else {
+                mutes.unmuteForEveryone(check.get());
+            }
+            live.messages().send(sender, off ? "anticheat.alert-muted-global" : "anticheat.alert-unmuted-global",
+                    "check", check.get().title());
+            return;
+        }
+        if (self == null) {
+            live.messages().send(sender, "anticheat.only-a-player");
+            return;
+        }
+        if (off) {
+            mutes.mute(self, check.get());
+        } else {
+            mutes.unmute(self, check.get());
+        }
+        boolean stillGlobal = !off && mutes.mutedForEveryone().contains(check.get());
+        live.messages().send(sender, off ? "anticheat.alert-muted" : stillGlobal ? "anticheat.alert-unmuted-but-global"
+                : "anticheat.alert-unmuted", "check", check.get().title());
     }
 
     private static void info(AntiCheatServices live, CommandSender sender, Player target) {
@@ -428,7 +488,7 @@ public final class AntiCheatCommand implements BasicCommand {
         if (args.length <= 1) {
             options.addAll(SUBCOMMANDS);
             services.get().server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
-        } else if (args.length == 2 && !List.of("alerts", "verbose", "checks", "status", "back").contains(args[0].toLowerCase(Locale.ROOT))) {
+        } else if (args.length == 2 && !List.of("alerts", "alert", "verbose", "checks", "status", "back").contains(args[0].toLowerCase(Locale.ROOT))) {
             AntiCheatServices live = services.get();
             live.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
             if (List.of("log", "replay", "reset", "fresh").contains(args[0].toLowerCase(Locale.ROOT))) {
@@ -436,6 +496,15 @@ public final class AntiCheatCommand implements BasicCommand {
                 live.evidence().everybody().stream().map(live.evidence()::nameOf)
                         .filter(name -> name != null && !options.contains(name)).forEach(options::add);
             }
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("alert")) {
+            options.addAll(List.of("off", "on", "list"));
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("alert") && !args[1].equalsIgnoreCase("list")) {
+            for (CheckType check : CheckType.values()) {
+                options.add(check.key());
+            }
+        } else if (args.length == 4 && args[0].equalsIgnoreCase("alert")
+                && source.getSender() instanceof org.bukkit.command.CommandSender who && (who.isOp() || !(who instanceof Player))) {
+            options.add("global");
         } else if (args.length == 3 && args[0].equalsIgnoreCase("exempt")) {
             options.addAll(List.of("30", "60", "300", "3600"));
         }

@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class AntiCheatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.20.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.21.0")
             .describedAs("Server-side anti-cheat: movement, combat, world, inventory and packet checks")
             .by("Raindancer118");
 
@@ -65,6 +65,9 @@ public final class AntiCheatModule implements FlexModule {
 
         Tracks tracks = new Tracks(System::currentTimeMillis);
         AlertService alerts = new AlertService(context.plugin().getServer(), messages, context.log(), System::currentTimeMillis);
+        de.raindancer.modules.anticheat.store.AlertMutes mutes = new de.raindancer.modules.anticheat.store.AlertMutes(context.dataFolder());
+        mutes.load();
+        alerts.mutesFrom(mutes);
         evidence = new EvidenceLog(context.dataFolder(), settings.current().evidencePerPlayer());
         evidence.load();
         replays = new de.raindancer.modules.anticheat.store.ReplayStore(context.dataFolder(),
@@ -115,11 +118,13 @@ public final class AntiCheatModule implements FlexModule {
         var digests = Scheduling.asyncTimer(context.plugin(), 20, 20, task -> alerts.flushDigests());
         context.closeWith(digests::cancel);
         var writing = Scheduling.asyncTimer(context.plugin(), 60, 60, task -> {
+            mutes.flush();
             evidence.flush();
             replays.flush();
         });
         context.closeWith(writing::cancel);
         context.closeWith(evidence::flush);
+        context.closeWith(mutes::flush);
         context.closeWith(replays::flush);
         context.closeWith(() -> context.plugin().getServer().getOnlinePlayers().forEach(tap::eject));
 
