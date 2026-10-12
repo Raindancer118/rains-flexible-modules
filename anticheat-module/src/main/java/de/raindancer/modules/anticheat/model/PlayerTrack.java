@@ -48,6 +48,10 @@ public final class PlayerTrack {
     public final TimerBalance timer = new TimerBalance(1000);
     /** The last five seconds of movement, frozen into a replay whenever a check alerts. */
     public final ReplayRecorder recorder = new ReplayRecorder(100);
+    /** Ticks without a move, for Blink. */
+    public final BlinkWatch blink = new BlinkWatch();
+    /** On the respawn screen: a dead client sends no moves, and is no blink. */
+    public volatile boolean dead;
 
     /** Refreshed once a second on the player's own thread, so packet threads never ask permissions. */
     public volatile boolean bypassAll;

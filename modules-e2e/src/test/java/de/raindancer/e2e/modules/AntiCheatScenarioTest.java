@@ -255,6 +255,24 @@ class AntiCheatScenarioTest {
             assertThat(chat).anyMatch(line -> line.contains("Strafer") && line.contains("Strafe"));
             assertThat(faller.health()).as("NoFall still costs the fall damage").isLessThan(20);
 
+            // Blink: ticking on without a single move, again and again, the way a blink module holds them back.
+            Bot blinker = server.player("Blinker");
+            place(server, "Blinker", -6.5, 6.5);
+            Await.ticks(40);
+            for (int hold = 0; hold < 3; hold++) {
+                // A real step between the holds: the same position again would not be sent at all.
+                blinker.moveTo(-6.5 + hold * 0.2, FLOOR, 6.5, true).tickEnd();
+                sleep(50);
+                for (int t = 0; t < 40; t++) {
+                    blinker.tickEnd();
+                    sleep(50);
+                }
+            }
+            // And lets go of what it held, as a blink does.
+            blinker.moveTo(-6.0, FLOOR, 6.5, true).tickEnd();
+            Await.until("staff hear about Blinker", Duration.ofSeconds(15), () -> ada.chatText().stream()
+                    .anyMatch(line -> line.contains("Blinker") && line.contains("Blink")));
+
             // A cheater who keeps at it is one gathered line every few seconds, not a line per check per second.
             Await.until("staff get Hover's gathered line", Duration.ofSeconds(15), () -> ada.chatText().stream()
                     .anyMatch(line -> line.contains("Hover") && line.contains("still at it") && line.contains("Fly")));

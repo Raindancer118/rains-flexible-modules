@@ -384,6 +384,7 @@ public final class PacketTap implements IAntiCheatService {
             synchronized (track.wire) {
                 switch (reader.kind()) {
                     case MOVE -> {
+                        track.blink.moved();
                         boolean hasPos = (boolean) g[0].invoke(msg);
                         boolean hasRot = (boolean) g[1].invoke(msg);
                         float yaw = (float) g[5].invoke(msg, Float.NaN);
@@ -422,6 +423,9 @@ public final class PacketTap implements IAntiCheatService {
                                 (boolean) g[7].invoke(input));
                     }
                     case TICK_END -> {
+                        // Riding sends its rotation every tick anyway; dead or just moved by the server, no moves are owed.
+                        track.blink.excused(p.riding || track.dead || track.exemption() != null);
+                        track.blink.tickEnd().ifPresent(said -> track.pendingFlags.add(Flag.of(CheckType.BLINK, 1, said)));
                         p.sendsTickEnd = true;
                         p.ticksSinceTickEnd++;
                         track.timer.tick(nanos);

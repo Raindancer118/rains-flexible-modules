@@ -105,9 +105,16 @@ public final class ConnectionListener implements IAntiCheatListener {
         track.exempt(PlayerTrack.Exemption.TELEPORTED, 200);
     }
 
+    /** A dead client sends no moves until it respawns: nothing it holds back then is a blink. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onDeath(org.bukkit.event.entity.PlayerDeathEvent event) {
+        services.tracks().of(event.getPlayer()).dead = true;
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onRespawn(PlayerRespawnEvent event) {
         PlayerTrack track = services.tracks().of(event.getPlayer());
+        track.dead = false;
         track.entityId = event.getPlayer().getEntityId();
         synchronized (track) {
             track.movement.forget();
