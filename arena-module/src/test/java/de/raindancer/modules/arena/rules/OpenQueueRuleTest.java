@@ -46,4 +46,14 @@ class OpenQueueRuleTest {
         assertThat(rule.forViewer(open, ADA)).isEmpty();
         assertThat(rule.forViewer(open, BO)).hasSize(1);
     }
+
+    @Test
+    @DisplayName("a [Join] button names the exact fight: a changed kit, stake or mode is a different fingerprint")
+    void fingerprint() {
+        String duel = OpenQueueRule.fingerprint(DUEL);
+        assertThat(OpenQueueRule.fingerprint(MatchSpec.duel("archer"))).isEqualTo(duel);
+        assertThat(OpenQueueRule.fingerprint(DUEL.withStake(1_000))).isNotEqualTo(duel);
+        assertThat(OpenQueueRule.fingerprint(DUEL.withKit("gladiator"))).isNotEqualTo(duel);
+        assertThat(duel).matches("[0-9a-f]{8}");
+    }
 }

@@ -31,6 +31,14 @@ public final class OpenQueueRule implements IArenaRule {
         return open;
     }
 
+    /**
+     * Names one exact fight — mode, kit, rounds, stake, team size, waves — for a [Join] button, so a click joins what
+     * the line said and not whatever that player switched to since.
+     */
+    public static String fingerprint(MatchSpec spec) {
+        return String.format("%08x", spec.queueKey().hashCode());
+    }
+
     /** The open queues somebody could join — not the one they are waiting in. */
     public List<Open> forViewer(List<Open> open, UUID viewer) {
         return open.stream().filter(each -> !each.waiting().contains(viewer)).toList();

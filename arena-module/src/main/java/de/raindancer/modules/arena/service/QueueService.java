@@ -146,11 +146,17 @@ public final class QueueService implements IArenaService {
         MatchSpec spec = open.spec();
         messages.send(viewer, spec.stake() > 0 ? "arena.queue.open-stake" : "arena.queue.open",
                 "player", first.getName(), "mode", spec.mode().title(), "kit", kitName(spec), "stake", spec.stake(),
-                "waiting", open.waiting().size(), "needed", open.needed());
+                "waiting", open.waiting().size(), "needed", open.needed(), "fight", OpenQueueRule.fingerprint(spec));
     }
 
-    /** Joins the same fight somebody is waiting for — the [Join] button. @return false when they are not waiting */
-    public boolean joinLike(Player player, String name) {
+    /**
+     * Joins the same fight somebody is waiting for — the [Join] button.
+     *
+     * @param fight the {@link OpenQueueRule#fingerprint} the button showed; when they now wait for something else
+     *              (another kit, a stake), nobody is put into a fight they were never shown
+     * @return false when they are not waiting for that fight
+     */
+    public boolean joinLike(Player player, String name, String fight) {
         Player other = name == null ? null : server.getPlayerExact(name);
         Optional<QueueEntry> theirs = other == null ? Optional.empty() : entryOf(other.getUniqueId());
         if (theirs.isEmpty()) {
@@ -159,6 +165,10 @@ public final class QueueService implements IArenaService {
         }
         if (other.getUniqueId().equals(player.getUniqueId())) {
             messages.send(player, "arena.queue.join-yourself");
+            return false;
+        }
+        if (fight == null || !fight.equals(OpenQueueRule.fingerprint(theirs.get().spec()))) {
+            messages.send(player, "arena.queue.join-changed", "player", other.getName());
             return false;
         }
         join(player, theirs.get().spec());

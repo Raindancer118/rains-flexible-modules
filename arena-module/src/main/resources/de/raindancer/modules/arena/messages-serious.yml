@@ -5,9 +5,10 @@
 arena:
   welcome: "<gold>Arena.</gold> <gray>Your survival inventory is not affected here. <click:run_command:'/arena leave'><yellow>[Back to survival]</yellow></click>"
   queue:
-    open: "<gold><white><player></white> is waiting for a <white><mode></white> fight with <white><kit></white> <gray>(<white><waiting></white>/<white><needed></white>)</gray>. <click:run_command:'/pvp join <player>'><green>[Join]</green></click>"
+    open: "<gold><white><player></white> is waiting for a <white><mode></white> fight with <white><kit></white> <gray>(<white><waiting></white>/<white><needed></white>)</gray>. <click:run_command:'/pvp join <player> <fight>'><green>[Join]</green></click>"
     join-gone: "<red><white><player></white> is no longer waiting."
     join-yourself: "<gray>You are already waiting in that queue."
+    join-changed: "<red><white><player></white> is now waiting for a different fight, so you were not added."
   rematch:
     asked: "<gold><white><player></white> wants a rematch. <click:run_command:'/pvp rematch'><gold>[Rematch]</gold></click>"
     none: "<gray>There is no recent fight to repeat."

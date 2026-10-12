@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 
 /**
  * {@code /pvp invite <player> [mode] [kit|own] [stake] [bo3]}, {@code accept [id]}, {@code deny [id]},
- * {@code queue [mode] [kit]}, {@code join <player>} (the fight they wait for), {@code leave}, {@code rematch}. An invite works for somebody here and for somebody on survival.
+ * {@code queue [mode] [kit]}, {@code join <player> <fight>} (the fight a [Join] button showed), {@code leave}, {@code rematch}. An invite works for somebody here and for somebody on survival.
  */
 public final class PvpCommand implements IArenaCommand {
 
@@ -62,7 +62,7 @@ public final class PvpCommand implements IArenaCommand {
                     live.messages().send(player, "arena.pvp.usage");
                     return;
                 }
-                live.queue().joinLike(player, args[1]);
+                live.queue().joinLike(player, args[1], args.length > 2 ? args[2] : null);
             }
             case "rematch" -> live.rematches().ask(player);
             default -> live.messages().send(player, "arena.pvp.usage");
