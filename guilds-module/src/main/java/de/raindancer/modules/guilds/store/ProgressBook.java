@@ -3,6 +3,7 @@ package de.raindancer.modules.guilds.store;
 import de.raindancer.modules.guilds.model.Activity;
 import de.raindancer.modules.guilds.model.Boost;
 import de.raindancer.modules.guilds.model.Contract;
+import de.raindancer.modules.guilds.model.Standing;
 import de.raindancer.modules.guilds.model.XpSource;
 
 import java.util.ArrayList;
@@ -34,6 +35,13 @@ public final class ProgressBook {
     private final Set<String> contractsDirty = new LinkedHashSet<>();
     private final Set<String> forgotten = new LinkedHashSet<>();
     private boolean boostDirty;
+    private final Map<String, Standing> standings = new HashMap<>();
+    private final Map<String, Map<Long, Long>> weekXp = new HashMap<>();
+    private ProgressStorage.CrownState crown = ProgressStorage.CrownState.NONE;
+    private final Set<String> standingsDirty = new LinkedHashSet<>();
+    private final Set<String> weeksDirty = new LinkedHashSet<>();
+    private final Set<String> honoursForgotten = new LinkedHashSet<>();
+    private boolean crownDirty;
     private volatile boolean readable = true;
     private final Object flushing = new Object();
 
@@ -64,6 +72,9 @@ public final class ProgressBook {
             return kept;
         });
         boost = loaded.get().boost();
+        standings.putAll(loaded.get().standings());
+        loaded.get().weekXp().forEach((guild, weeks) -> weekXp.put(guild, new HashMap<>(weeks)));
+        crown = loaded.get().crown();
     }
 
     public boolean readable() {
@@ -73,12 +84,74 @@ public final class ProgressBook {
     // ------------------------------------------------------------------ experience by source
 
     public synchronized void add(String guild, XpSource source, long xp) {
+        add(guild, source, xp, Long.MIN_VALUE);
+    }
+
+    /** Counts experience by source, and towards the guild's total for {@code week} — the crown's race. */
+    public synchronized void add(String guild, XpSource source, long xp, long week) {
         if (xp <= 0) {
             return;
         }
         totals.computeIfAbsent(guild, key -> new EnumMap<>(XpSource.class))
                 .merge(source, xp, (a, b) -> a > Long.MAX_VALUE - b ? Long.MAX_VALUE : a + b);
         totalsDirty.add(guild);
+        if (week != Long.MIN_VALUE && source != XpSource.STAFF) {
+            Map<Long, Long> weeks = weekXp.computeIfAbsent(guild, key -> new HashMap<>());
+            weeks.merge(week, xp, (a, b) -> a > Long.MAX_VALUE - b ? Long.MAX_VALUE : a + b);
+            // Two weeks are all the crown ever looks at: this one and the one being settled.
+            weeks.keySet().removeIf(each -> each < week - 1);
+            weeksDirty.add(guild);
+        }
+    }
+
+    /** What each guild earned in {@code week}. */
+    public synchronized Map<String, Long> weekXp(long week) {
+        Map<String, Long> found = new HashMap<>();
+        weekXp.forEach((guild, weeks) -> {
+            Long xp = weeks.get(week);
+            if (xp != null) {
+                found.put(guild, xp);
+            }
+        });
+        return found;
+    }
+
+    // ------------------------------------------------------------------ standing: perks, prestige, crowns
+
+    /**
+     * The guild's standing; one never written is made from {@code levelPointsSoFar} — a guild that levelled before
+     * perks existed starts with a point for every level it already has.
+     */
+    public synchronized Standing standing(String guild, java.util.function.IntSupplier levelPointsSoFar) {
+        Standing found = standings.get(guild);
+        if (found == null) {
+            found = new Standing(levelPointsSoFar.getAsInt(), 0, 0, Map.of(), 0);
+            standings.put(guild, found);
+            standingsDirty.add(guild);
+        }
+        return found;
+    }
+
+    /** Changes a standing in one step; {@code change} may answer the same standing to change nothing. */
+    public synchronized Standing standing(String guild, java.util.function.IntSupplier levelPointsSoFar,
+                                          java.util.function.UnaryOperator<Standing> change) {
+        Standing before = standing(guild, levelPointsSoFar);
+        Standing after = change.apply(before);
+        if (after != null && !after.equals(before)) {
+            standings.put(guild, after);
+            standingsDirty.add(guild);
+            return after;
+        }
+        return before;
+    }
+
+    public synchronized ProgressStorage.CrownState crown() {
+        return crown;
+    }
+
+    public synchronized void crown(ProgressStorage.CrownState next) {
+        crown = next == null ? ProgressStorage.CrownState.NONE : next;
+        crownDirty = true;
     }
 
     public synchronized Map<XpSource, Long> totals(String guild) {
@@ -137,12 +210,22 @@ public final class ProgressBook {
         totalsDirty.remove(guild);
         contractsDirty.remove(guild);
         forgotten.add(guild);
+        standings.remove(guild);
+        weekXp.remove(guild);
+        standingsDirty.remove(guild);
+        weeksDirty.remove(guild);
+        honoursForgotten.add(guild);
+        if (crown.guild().equals(guild)) {
+            crown = new ProgressStorage.CrownState("", crown.week(), crown.settledWeek());
+            crownDirty = true;
+        }
     }
 
     // ------------------------------------------------------------------ writing
 
     public synchronized boolean hasUnwritten() {
-        return !totalsDirty.isEmpty() || !contractsDirty.isEmpty() || !forgotten.isEmpty() || boostDirty;
+        return !totalsDirty.isEmpty() || !contractsDirty.isEmpty() || !forgotten.isEmpty() || boostDirty
+                || !standingsDirty.isEmpty() || !weeksDirty.isEmpty() || !honoursForgotten.isEmpty() || crownDirty;
     }
 
     public boolean flush() {
@@ -167,16 +250,42 @@ public final class ProgressBook {
                 forgotten.clear();
                 boostDirty = false;
             }
+            Map<String, Standing> writeStandings = new HashMap<>();
+            Map<String, Map<Long, Long>> writeWeeks = new HashMap<>();
+            Set<String> writeHonoursForgotten;
+            Optional<ProgressStorage.CrownState> writeCrown;
+            synchronized (this) {
+                standingsDirty.forEach(guild -> {
+                    Standing standing = standings.get(guild);
+                    if (standing != null) {
+                        writeStandings.put(guild, standing);
+                    }
+                });
+                weeksDirty.forEach(guild -> writeWeeks.put(guild, Map.copyOf(weekXp.getOrDefault(guild, Map.of()))));
+                writeHonoursForgotten = Set.copyOf(honoursForgotten);
+                writeCrown = crownDirty ? Optional.of(crown) : Optional.empty();
+                standingsDirty.clear();
+                weeksDirty.clear();
+                honoursForgotten.clear();
+                crownDirty = false;
+            }
             boolean written = storage.write(writeTotals, writeContracts, writeForgotten, writeBoost);
-            if (!written) {
-                synchronized (this) {
+            boolean honoured = storage.writeHonours(writeStandings, writeWeeks, writeHonoursForgotten, writeCrown);
+            synchronized (this) {
+                if (!written) {
                     writeTotals.keySet().stream().filter(totals::containsKey).forEach(totalsDirty::add);
                     writeContracts.keySet().stream().filter(contracts::containsKey).forEach(contractsDirty::add);
                     writeForgotten.stream().filter(guild -> !totals.containsKey(guild)).forEach(forgotten::add);
                     boostDirty |= writeBoost.isPresent();
                 }
+                if (!honoured) {
+                    writeStandings.keySet().stream().filter(standings::containsKey).forEach(standingsDirty::add);
+                    writeWeeks.keySet().stream().filter(weekXp::containsKey).forEach(weeksDirty::add);
+                    writeHonoursForgotten.stream().filter(guild -> !standings.containsKey(guild)).forEach(honoursForgotten::add);
+                    crownDirty |= writeCrown.isPresent();
+                }
             }
-            return written;
+            return written && honoured;
         }
     }
 }

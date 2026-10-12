@@ -3,6 +3,8 @@ package de.raindancer.modules.guilds.store;
 import de.raindancer.core.data.sql.Database;
 import de.raindancer.modules.guilds.model.Boost;
 import de.raindancer.modules.guilds.model.Contract;
+import de.raindancer.modules.guilds.model.Perk;
+import de.raindancer.modules.guilds.model.Standing;
 import de.raindancer.modules.guilds.model.XpSource;
 
 import java.sql.Connection;
@@ -67,7 +69,37 @@ public final class SqliteProgressStorage implements ProgressStorage {
                     boost = new Boost(rows.getInt("percent"), rows.getLong("until"), who);
                 }
             }
-            return new Loaded(totals, contracts, boost);
+            Map<String, Map<Perk, Integer>> perks = new HashMap<>();
+            try (var rows = connection.createStatement().executeQuery("SELECT * FROM guild_perk")) {
+                while (rows.next()) {
+                    String guild = rows.getString("guild");
+                    int rank = rows.getInt("rank");
+                    Perk.named(rows.getString("perk")).ifPresent(perk ->
+                            perks.computeIfAbsent(guild, key -> new EnumMap<>(Perk.class)).put(perk, rank));
+                }
+            }
+            Map<String, Standing> standings = new HashMap<>();
+            try (var rows = connection.createStatement().executeQuery("SELECT * FROM guild_standing")) {
+                while (rows.next()) {
+                    String guild = rows.getString("guild");
+                    standings.put(guild, new Standing(rows.getInt("level_points"), rows.getInt("prestige"),
+                            rows.getInt("crowns"), perks.getOrDefault(guild, Map.of()), rows.getLong("respec_at")));
+                }
+            }
+            Map<String, Map<Long, Long>> weekXp = new HashMap<>();
+            try (var rows = connection.createStatement().executeQuery("SELECT * FROM week_xp")) {
+                while (rows.next()) {
+                    weekXp.computeIfAbsent(rows.getString("guild"), key -> new HashMap<>())
+                            .put(rows.getLong("week"), rows.getLong("xp"));
+                }
+            }
+            CrownState crown = CrownState.NONE;
+            try (var rows = connection.createStatement().executeQuery("SELECT * FROM crown WHERE id = 1")) {
+                if (rows.next()) {
+                    crown = new CrownState(rows.getString("guild"), rows.getLong("week"), rows.getLong("settled_week"));
+                }
+            }
+            return new Loaded(totals, contracts, boost, standings, weekXp, crown);
         });
     }
 
@@ -122,6 +154,64 @@ public final class SqliteProgressStorage implements ProgressStorage {
                     } else {
                         upsert.setNull(3, Types.VARCHAR);
                     }
+                    upsert.executeUpdate();
+                }
+            }
+        });
+    }
+
+    @Override
+    public boolean writeHonours(Map<String, Standing> standings, Map<String, Map<Long, Long>> weekXp,
+                                Set<String> forgotten, Optional<CrownState> crown) {
+        return database.write(connection -> {
+            for (String guild : forgotten) {
+                delete(connection, "guild_standing", guild);
+                delete(connection, "guild_perk", guild);
+                delete(connection, "week_xp", guild);
+            }
+            for (Map.Entry<String, Standing> each : standings.entrySet()) {
+                delete(connection, "guild_standing", each.getKey());
+                delete(connection, "guild_perk", each.getKey());
+                Standing standing = each.getValue();
+                try (PreparedStatement insert = connection.prepareStatement("INSERT INTO guild_standing (guild, "
+                        + "level_points, prestige, crowns, respec_at) VALUES (?,?,?,?,?)")) {
+                    insert.setString(1, each.getKey());
+                    insert.setInt(2, standing.levelPoints());
+                    insert.setInt(3, standing.prestige());
+                    insert.setInt(4, standing.crowns());
+                    insert.setLong(5, standing.respecAt());
+                    insert.executeUpdate();
+                }
+                try (PreparedStatement insert = connection.prepareStatement(
+                        "INSERT INTO guild_perk (guild, perk, rank) VALUES (?,?,?)")) {
+                    for (Map.Entry<Perk, Integer> perk : standing.perks().entrySet()) {
+                        insert.setString(1, each.getKey());
+                        insert.setString(2, perk.getKey().key());
+                        insert.setInt(3, perk.getValue());
+                        insert.addBatch();
+                    }
+                    insert.executeBatch();
+                }
+            }
+            for (Map.Entry<String, Map<Long, Long>> each : weekXp.entrySet()) {
+                delete(connection, "week_xp", each.getKey());
+                try (PreparedStatement insert = connection.prepareStatement(
+                        "INSERT INTO week_xp (guild, week, xp) VALUES (?,?,?)")) {
+                    for (Map.Entry<Long, Long> week : each.getValue().entrySet()) {
+                        insert.setString(1, each.getKey());
+                        insert.setLong(2, week.getKey());
+                        insert.setLong(3, week.getValue());
+                        insert.addBatch();
+                    }
+                    insert.executeBatch();
+                }
+            }
+            if (crown.isPresent()) {
+                try (PreparedStatement upsert = connection.prepareStatement(
+                        "INSERT OR REPLACE INTO crown (id, guild, week, settled_week) VALUES (1,?,?,?)")) {
+                    upsert.setString(1, crown.get().guild());
+                    upsert.setLong(2, crown.get().week());
+                    upsert.setLong(3, crown.get().settledWeek());
                     upsert.executeUpdate();
                 }
             }

@@ -20,7 +20,9 @@ public enum GuildPermission {
     MANAGE_RANKS("Manage ranks", Material.LADDER, "Create, rename and change ranks below their own."),
     RELATIONS("Alliances and rivals", Material.WHITE_BANNER, "Ask for or end alliances, declare and end rivalries."),
     OFFICER_CHAT("Officer chat", Material.BELL, "Read and write the officers' channel."),
-    VIEW_LOG("Read the log", Material.BOOK, "Read the guild's log and the bank's statement.");
+    VIEW_LOG("Read the log", Material.BOOK, "Read the guild's log and the bank's statement."),
+    VAULT("Take from the vault", Material.ENDER_CHEST, "Take items out of the guild vault. Anybody may put things in."),
+    PERKS("Spend perk points", Material.NETHER_STAR, "Buy perks with the guild's points and take them back.");
 
     private final String title;
     private final Material icon;

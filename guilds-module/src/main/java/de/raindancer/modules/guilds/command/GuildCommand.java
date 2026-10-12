@@ -11,6 +11,8 @@ import de.raindancer.modules.guilds.model.Rank;
 import de.raindancer.modules.guilds.model.Relation;
 import de.raindancer.modules.guilds.screen.BrowseMenu;
 import de.raindancer.modules.guilds.screen.ContractsMenu;
+import de.raindancer.modules.guilds.screen.GuildVaultMenu;
+import de.raindancer.modules.guilds.screen.PerksMenu;
 import de.raindancer.modules.guilds.screen.LevelMenu;
 import de.raindancer.modules.guilds.screen.GuildMenu;
 import de.raindancer.modules.guilds.service.GuildChatService;
@@ -39,7 +41,7 @@ public final class GuildCommand implements IGuildsCommand {
     static final List<String> SUBCOMMANDS = List.of("create", "info", "list", "invite", "accept", "decline", "join",
             "leave", "kick", "promote", "demote", "rank", "leader", "chat", "c", "officer", "oc", "ally-chat", "ac",
             "home", "sethome", "deposit", "withdraw", "ally", "unally", "rival", "unrival", "rename", "tag", "style",
-            "motd", "joining", "disband", "level", "contracts");
+            "motd", "joining", "disband", "level", "contracts", "perks", "vault", "prestige", "crown");
     static final List<String> STAFF = List.of("admin");
 
     private final Supplier<GuildsServices> services;
@@ -82,6 +84,47 @@ public final class GuildCommand implements IGuildsCommand {
                     say(live, player, GuildOutcome.NO_GUILD);
                 } else {
                     new LevelMenu(live, player, null).open();
+                }
+            }
+            case "perks" -> {
+                if (live.guilds().guildOf(me).isEmpty()) {
+                    say(live, player, GuildOutcome.NO_GUILD);
+                } else {
+                    new PerksMenu(live, player, null).open();
+                }
+            }
+            case "vault" -> {
+                Optional<Guild> own = live.guilds().guildOf(me);
+                if (own.isEmpty()) {
+                    say(live, player, GuildOutcome.NO_GUILD);
+                } else if (!live.perks().hasVault(own.get())) {
+                    live.messages().send(player, "guilds.vault.none");
+                } else {
+                    new GuildVaultMenu(live, player, null).open();
+                }
+            }
+            case "prestige" -> {
+                Optional<Guild> own = live.guilds().guildOf(me);
+                if (own.isEmpty()) {
+                    say(live, player, GuildOutcome.NO_GUILD);
+                } else if (!rest.equalsIgnoreCase("confirm")) {
+                    live.messages().send(player, "guilds.usage.prestige");
+                } else {
+                    say(live, player, live.perks().prestige(me));
+                }
+            }
+            case "crown", "race" -> {
+                long week = de.raindancer.modules.guilds.rules.ContractRule.weekOf(System.currentTimeMillis());
+                var podium = live.perks().podium(week);
+                live.messages().send(player, "guilds.crown.race-head");
+                for (int place = 0; place < podium.size(); place++) {
+                    var each = podium.get(place);
+                    int shown = place + 1;
+                    live.book().guild(each.guild()).ifPresent(guild -> live.messages().send(player, "guilds.crown.race-line",
+                            "place", shown, "guild", GuildNotifier.title(guild), "xp", each.xp()));
+                }
+                if (podium.isEmpty()) {
+                    live.messages().send(player, "guilds.crown.race-empty");
                 }
             }
             case "contracts" -> {

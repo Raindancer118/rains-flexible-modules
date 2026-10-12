@@ -39,7 +39,10 @@ public record GuildEvent(String guild, long at, Kind kind, Optional<UUID> actor,
         RIVALRY_ENDED(Material.WHITE_BANNER),
         STAFF(Material.COMMAND_BLOCK),
         CONTRACT_DONE(Material.FILLED_MAP),
-        BOOST(Material.BLAZE_POWDER);
+        BOOST(Material.BLAZE_POWDER),
+        PERK(Material.NETHER_STAR),
+        PRESTIGE(Material.BEACON),
+        CROWN(Material.GOLDEN_HELMET);
 
         private final Material icon;
 

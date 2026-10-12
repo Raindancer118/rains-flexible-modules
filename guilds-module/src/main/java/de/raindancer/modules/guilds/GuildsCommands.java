@@ -21,7 +21,7 @@ public final class GuildsCommands {
                 ModuleCommand.of("guild", "Your guild: members, ranks, bank, home, allies and chat",
                                 new GuildCommand(GuildsCommands::require))
                         .aliased("g", "guilds", "clan")
-                        .taking("(nothing) — the guild page", "create <name> <tag> · info [guild] · list · level · contracts",
+                        .taking("(nothing) — the guild page", "create <name> <tag> · info [guild] · list · level · contracts · perks · vault · crown · prestige confirm",
                                 "invite · accept · decline · join · leave · kick · promote · demote · rank · leader",
                                 "c · oc · ac <message> — guild, officer and ally chat",
                                 "home · sethome · deposit · withdraw <amount>",

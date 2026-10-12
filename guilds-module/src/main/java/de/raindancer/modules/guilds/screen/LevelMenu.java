@@ -125,6 +125,24 @@ public final class LevelMenu extends Menu implements IGuildsScreen {
                 boost.isOnAt(now) ? "<gray>For another <white>" + Times.describe(Duration.ofMillis(boost.until() - now))
                         : "<gray>Staff start boosts for events."));
 
+        band(MenuLayout.LAND, 6, Icons.of(Material.NETHER_STAR, "<white>Perks and prestige",
+                        "<gray><white>" + services.perks().unspent(guild) + "<gray> point(s) to spend.", "", "<gray>Click to see them."),
+                click -> new PerksMenu(services, viewer, this).open());
+        long week = de.raindancer.modules.guilds.rules.ContractRule.weekOf(now);
+        List<String> race = new ArrayList<>();
+        var podium = services.perks().podium(week);
+        for (int place = 0; place < podium.size(); place++) {
+            var each = podium.get(place);
+            String name = services.book().guild(each.guild()).map(Guild::name).orElse(each.guild());
+            race.add("<gray>" + (place + 1) + ". <white>" + GuildMenu.escaped(name) + " <dark_gray>" + each.xp());
+        }
+        if (race.isEmpty()) {
+            race.add("<gray>Nobody has earned anything yet this week.");
+        }
+        race.add("");
+        race.add("<dark_gray>The week's most experience wins the crown ♛");
+        race.add("<dark_gray>for next week, and a perk point.");
+        band(MenuLayout.LAND, 2, Icons.of(Material.GOLDEN_HELMET, "<gold>This week's race", race));
         band(MenuLayout.LAND, 4, more.contracts(), Icons.of(Material.FILLED_MAP, "<white>This week's contracts",
                         "<gray>Goals for the whole guild that pay", "<gray>a lump of experience.", "", "<gray>Click to see them."),
                 "Contracts are switched off on this server.", click -> new ContractsMenu(services, viewer, this).open());

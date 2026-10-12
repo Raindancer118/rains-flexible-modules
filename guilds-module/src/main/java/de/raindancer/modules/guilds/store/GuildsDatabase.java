@@ -124,6 +124,39 @@ public final class GuildsDatabase {
                 until INTEGER NOT NULL,
                 started_by TEXT
             )
+            """,
+            """
+            CREATE TABLE guild_standing (
+                guild TEXT PRIMARY KEY,
+                level_points INTEGER NOT NULL,
+                prestige INTEGER NOT NULL,
+                crowns INTEGER NOT NULL,
+                respec_at INTEGER NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE guild_perk (
+                guild TEXT NOT NULL,
+                perk TEXT NOT NULL,
+                rank INTEGER NOT NULL,
+                PRIMARY KEY (guild, perk)
+            )
+            """,
+            """
+            CREATE TABLE week_xp (
+                guild TEXT NOT NULL,
+                week INTEGER NOT NULL,
+                xp INTEGER NOT NULL,
+                PRIMARY KEY (guild, week)
+            )
+            """,
+            """
+            CREATE TABLE crown (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                guild TEXT NOT NULL,
+                week INTEGER NOT NULL,
+                settled_week INTEGER NOT NULL
+            )
             """);
 
     private GuildsDatabase() {

@@ -58,6 +58,12 @@ public final class XpService implements IGuildsService {
     private volatile XpRule rule;
     private volatile LevelRule levels;
     private volatile TogetherRule together;
+    private volatile PerkService perks;
+
+    /** The perks: their experience bonus, and the point every level up brings. Set once the module has them. */
+    public void perks(PerkService perks) {
+        this.perks = perks;
+    }
 
     /** @param nearby how many guildmates are near that member right now */
     public XpService(GuildBook book, ProgressBook progress, GuildNotifier notify, Effects effects, LongSupplier clock,
@@ -132,7 +138,9 @@ public final class XpService implements IGuildsService {
 
     /** The bonus this member gets right now, in percent: the boost and their guildmates nearby. */
     public int bonusPercent(UUID player, Guild guild) {
-        return progress.boost().percentAt(now()) + together.bonusPercent(nearby.applyAsInt(player, guild));
+        PerkService honours = perks;
+        return progress.boost().percentAt(now()) + together.bonusPercent(nearby.applyAsInt(player, guild))
+                + (honours == null ? 0 : honours.guildXpPercent(guild));
     }
 
     private long earn(UUID player, Guild guild, XpSource source, long base) {
@@ -163,6 +171,12 @@ public final class XpService implements IGuildsService {
 
     /** Adds experience to a guild — and to the member, when one earned it — and tells everybody of a new level. */
     private void credit(TeamId id, UUID member, XpSource source, long counted) {
+        PerkService honours = perks;
+        Optional<Guild> was = book.guild(id);
+        if (honours != null && was.isPresent()) {
+            // Made from the level before this experience, so the level up below is counted exactly once.
+            honours.standing(was.get());
+        }
         AtomicInteger before = new AtomicInteger();
         AtomicInteger after = new AtomicInteger();
         book.update(id, guild -> {
@@ -173,7 +187,10 @@ public final class XpService implements IGuildsService {
             return member == null ? changed
                     : changed.member(member).map(each -> changed.withMember(each.earning(counted))).orElse(changed);
         });
-        progress.add(id.value(), source, counted);
+        progress.add(id.value(), source, counted, ContractRule.weekOf(now()));
+        if (after.get() > before.get() && honours != null && was.isPresent()) {
+            honours.levelledUp(was.get(), after.get() - before.get());
+        }
         if (after.get() > before.get()) {
             Guild guild = book.guild(id).orElse(null);
             if (guild == null) {

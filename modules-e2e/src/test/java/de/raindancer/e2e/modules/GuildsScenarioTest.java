@@ -22,6 +22,15 @@ class GuildsScenarioTest {
 
     private static final Duration WAIT = Duration.ofSeconds(15);
 
+    private static int count(Server server, String player, String item) {
+        String answer = server.console("clear " + player + " minecraft:" + item + " 0");
+        if (answer.contains("No items")) {
+            return 0;
+        }
+        java.util.regex.Matcher found = java.util.regex.Pattern.compile("Found (\\d+)").matcher(answer);
+        return found.find() ? Integer.parseInt(found.group(1)) : -1;
+    }
+
     private static boolean told(Bot bot, String text) {
         return bot.chatText().stream().anyMatch(line -> line.contains(text));
     }
@@ -137,6 +146,24 @@ class GuildsScenarioTest {
                             .anyMatch(line -> line.contains("Pays"))).count() == 3).orElse(false));
             ada.closeWindow();
 
+            // ---- perks: experience given by staff, the vault bought by a click, diamonds shift-clicked in
+            server.console("guild admin give ELF 200000");
+            Await.ticks(10);
+            ada.run("guild perks");
+            ada.awaitWindow("Perks");
+            ada.click("Guild vault");
+            Await.until("the vault perk is bought", WAIT, () -> told(ada, "bought Guild vault"));
+            ada.closeWindow();
+            server.console("item replace entity Ada hotbar.0 with minecraft:diamond 5");
+            Await.ticks(5);
+            ada.run("guild vault");
+            ada.awaitWindow("Guild vault");
+            ada.shiftClickSlot(81);
+            Await.until("the diamonds left Ada", WAIT, () -> count(server, "Ada", "diamond") == 0);
+            Await.until("and are in the vault", WAIT, () -> ada.window().map(window -> window.top().values().stream()
+                    .anyMatch(item -> item.is("diamond"))).orElse(false));
+            ada.closeWindow();
+
             // ---- everything is still there after a restart
             server.paper.restartKeepingBots();
             server.paper.awaitLog("Guilds are up: 1 guild", Duration.ofSeconds(60));
@@ -146,6 +173,26 @@ class GuildsScenarioTest {
             cy.run("guild info ELF");
             Await.until("the guild is back, with both members and the bank", WAIT,
                     () -> told(cy, "The Elves") && told(cy, "2/"));
+
+            // ---- the vault survived the restart; a member takes the diamonds out, once
+            bo.rejoin();
+            ada.rejoin();
+            Await.ticks(40);
+            bo.run("guild vault");
+            bo.awaitWindow("Guild vault");
+            Await.until("the diamonds are still in the vault", WAIT, () -> bo.window().map(window -> window.top().values().stream()
+                    .anyMatch(item -> item.is("diamond"))).orElse(false));
+            int diamonds = bo.window().flatMap(window -> window.top().entrySet().stream()
+                    .filter(entry -> entry.getValue().is("diamond")).map(java.util.Map.Entry::getKey).findFirst()).orElseThrow();
+            bo.clickSlot(diamonds);
+            Await.until("Bo has them", WAIT, () -> count(server, "Bo", "diamond") == 5);
+            bo.closeWindow();
+            assertThat(count(server, "Ada", "diamond")).as("never doubled").isZero();
+
+            // ---- prestige at the top level, announced to everybody
+            cy.forgetChat();
+            ada.run("guild prestige confirm");
+            Await.until("everybody hears of the prestige", WAIT, () -> told(cy, "starts again"));
 
             assertThat(server.paper.errorsFrom("RainsGuilds")).as("errors from the guilds plugin").isEmpty();
             assertThat(server.paper.logLines(line -> line.contains("modules.guilds") && line.contains("ran on the thread running the world")))

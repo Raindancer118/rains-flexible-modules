@@ -111,7 +111,20 @@ public final class GuildService implements IGuildsService {
     }
 
     public int memberCap(Guild guild) {
-        return levels.memberCap(level(guild));
+        return levels.memberCap(level(guild)) + Math.max(0, extraMembers.applyAsInt(guild));
+    }
+
+    private volatile java.util.function.ToIntFunction<Guild> extraMembers = guild -> 0;
+    private volatile java.util.function.Function<Guild, GuildOutcome> disbandGuard = guild -> GuildOutcome.SUCCESS;
+
+    /** Members a guild may have beyond what its level gives — the Recruiter perk. */
+    public void extraMembers(java.util.function.ToIntFunction<Guild> extra) {
+        this.extraMembers = extra == null ? guild -> 0 : extra;
+    }
+
+    /** Asked before a guild is disbanded; anything but success refuses it — a vault with items in it. */
+    public void disbandGuard(java.util.function.Function<Guild, GuildOutcome> guard) {
+        this.disbandGuard = guard == null ? guild -> GuildOutcome.SUCCESS : guard;
     }
 
     public Optional<Guild> guildOf(UUID player) {
@@ -193,6 +206,10 @@ public final class GuildService implements IGuildsService {
         Guild guild = found.get();
         if (!staff && !guild.leader().equals(actor)) {
             return guild.isMember(actor) ? GuildOutcome.NOT_ALLOWED : GuildOutcome.NOT_A_MEMBER;
+        }
+        GuildOutcome guarded = disbandGuard.apply(guild);
+        if (!guarded.isSuccess()) {
+            return guarded;
         }
         GuildOutcome paidOut = bank.shareOut(guild);
         if (!paidOut.isSuccess()) {

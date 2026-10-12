@@ -25,6 +25,9 @@ import de.raindancer.modules.guilds.store.SqliteGuildStorage;
 import de.raindancer.modules.guilds.store.ProgressBook;
 import de.raindancer.modules.guilds.store.SqliteProgressStorage;
 import de.raindancer.modules.guilds.service.PositionService;
+import de.raindancer.modules.guilds.service.PerkService;
+import de.raindancer.modules.guilds.listener.PerkListener;
+import de.raindancer.modules.guilds.model.GuildOutcome;
 import de.raindancer.modules.guilds.model.Activity;
 import de.raindancer.modules.guilds.model.XpSource;
 import de.raindancer.modules.guilds.rules.ActivityRule;
@@ -47,7 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class GuildsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.6.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.7.0")
             .describedAs("Guilds founded by players: a ladder of ranks with their own permissions, a bank with daily "
                     + "limits, levels earned by playing that unlock members, allies and a guild home, alliances and "
                     + "rivals, guild, officer and ally chat, and the guild's tag in front of every member's name")
@@ -111,6 +114,13 @@ public final class GuildsModule implements FlexModule {
                 progressSettings.current(), positions::guildmatesNear);
         progressSettings.onChange(xp::progressSettings);
         progressSettings.onChange(positions::progressSettings);
+        PerkService perks = new PerkService(book, progress, notifier,
+                new de.raindancer.core.data.stash.StashStore(context.dataFolder().resolve("vaults"),
+                        de.raindancer.core.data.nbt.ItemText.ofTheServer()),
+                System::currentTimeMillis, now, progressSettings.current());
+        settings.onChange(perks::settings);
+        progressSettings.onChange(perks::progressSettings);
+        xp.perks(perks);
         long thousand = Math.max(1, Fees.amount("1000").minor());
         bank.onDeposit((player, amount) -> xp.activity(player, Activity.of(XpSource.DEPOSIT, amount.minor() / thousand)));
         Object watched = PlacedBlocks.watch(context.plugin(), placedMatters());
@@ -143,7 +153,18 @@ public final class GuildsModule implements FlexModule {
 
         GuildsServices services = new GuildsServices(context.plugin(), server, context.core(), context.log(),
                 context.core().messages(), context.chat().brand(), settings::current, book, notifier, guilds, bank,
-                relations, xp, homes, chat, positions);
+                relations, xp, homes, chat, positions, perks);
+        guilds.extraMembers(perks::extraMembers);
+        relations.extraAllies(perks::extraAllies);
+        homes.travelPercent(perks::homeTravelPercent);
+        guilds.disbandGuard(guild -> perks.vaultEmpty(guild) ? GuildOutcome.SUCCESS : GuildOutcome.VAULT_NOT_EMPTY);
+        // Prestige stars and the weekly crown, after the tag — its own badge, so whoever paints the tag need not know.
+        de.raindancer.core.ui.identity.NameBadges.register("guild-honours", player -> settings.current().tagInNames()
+                ? book.guildOf(player).flatMap(perks::honours).map(text -> net.kyori.adventure.text.Component.text(text,
+                        net.kyori.adventure.text.format.NamedTextColor.GOLD))
+                : java.util.Optional.empty());
+        context.closeWith(() -> de.raindancer.core.ui.identity.NameBadges.unregister("guild-honours"));
+        context.listener(new PerkListener(services));
         ProgressListener progress = new ProgressListener(services);
         context.listener(progress);
         context.listener(new PresenceListener(services, List.<IGuildsListener>of(progress)));
@@ -151,7 +172,16 @@ public final class GuildsModule implements FlexModule {
         var flush = Scheduling.asyncTimer(context.plugin(), 2, 2, task -> {
             book.flush();
             loadingProgress.flush();
+            perks.flushVaults();
         });
+        var perkEffects = Scheduling.globalTimer(context.plugin(), 200L, 200L, task -> {
+            for (Player online : server.getOnlinePlayers()) {
+                Scheduling.entity(context.plugin(), online, () -> perks.refreshEffects(online));
+            }
+        });
+        if (perkEffects != null) {
+            context.closeWith(perkEffects::cancel);
+        }
         var looking = Scheduling.globalTimer(context.plugin(), 100L, 100L, task -> {
             for (Player online : server.getOnlinePlayers()) {
                 Scheduling.entity(context.plugin(), online, () -> positions.saw(online.getUniqueId(),
@@ -172,6 +202,7 @@ public final class GuildsModule implements FlexModule {
                 }
             }
             book.expire(System.currentTimeMillis());
+            perks.settle();
             if (minutes.incrementAndGet() % 60 == 0) {
                 guilds.succeed();
             }
@@ -182,6 +213,7 @@ public final class GuildsModule implements FlexModule {
         context.closeWith(() -> offTheServerThread("save", () -> {
             loading.flush();
             loadingProgress.flush();
+            perks.flushVaults();
         }));
         GuildsCommands.ready(services);
         context.log().info("Guilds are up: {} guild(s).", book.count());

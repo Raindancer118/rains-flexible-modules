@@ -67,6 +67,22 @@ guilds:
     limit: "<aqua>Type the daily limit in chat, or <white>none</white>. <gray>Or <white>cancel</white>."
     deposit: "<aqua>Type how much to pay in. <gray>Or <white>cancel</white>."
     withdraw: "<aqua>Type how much to take out. <gray>Or <white>cancel</white>."
+  perk:
+    bought: "<gold><white><player></white> bought <white><perk></white> <white><rank></white> for the guild."
+    respecced: "<gray><white><player></white> took every perk back. The points are there to spend again."
+  prestige:
+    announced: "<gold><guild><gold> went past the top and starts again — prestige <white><stars></white>! <gray>Their members earn <white>+<bonus>%</white> for good."
+  crown:
+    place: "<gold>Last week's guild race — <white>#<place></white>: <guild> <gray>(<xp> experience)"
+    won: "<gold>♛ Your guild earned the most experience last week and wears the crown this week! <gray>+<points> perk point(s)."
+    race-head: "<gold>This week's guild race:"
+    race-line: "<gray><white>#<place></white> <guild> <dark_gray>— <xp> experience"
+    race-empty: "<gray>Nobody has earned anything yet this week. Be first."
+  vault:
+    none: "<red>Your guild has no vault. <gray>Buy the Guild vault perk on <white>/guild perks</white>."
+    full: "<red>The vault is full — what did not fit stays with you. <gray>More rows with the Guild vault perk."
+    inventory-full: "<yellow>Your inventory is full; what did not fit went back into the vault."
+    no-taking: "<red>Your rank cannot take things out of the vault. Putting things in is fine."
   contract:
     done: "<gold>Contract done: <white><contract></white>! <gray>The guild earns <white><reward></white> experience."
     status: "<gray><white><player></white> on <white><contract></white>: <white><progress></white>/<white><goal></white>."
@@ -77,7 +93,7 @@ guilds:
   log:
     line: "<gray><white><what></white> <dark_gray>(<when>)</dark_gray> <detail>"
   usage:
-    all: "<gray>/guild <dark_gray>— the guild page · <gray>/guild create <name> <tag> · info · list · level · contracts · invite · join · leave · c <message> · home · deposit · ally"
+    all: "<gray>/guild <dark_gray>— the guild page · <gray>/guild create <name> <tag> · info · list · level · contracts · perks · vault · crown · invite · join · leave · c <message> · home · deposit · ally"
     found: "<gray>/guild create <name> <tag> <dark_gray>— e.g. /guild create The Elves ELF"
     player: "<gray>Name a player."
     rank: "<gray>/guild rank <player> <rank>"
@@ -86,6 +102,7 @@ guilds:
     which-invitation: "<gray>You have <white><count></white> invitations — say which guild: /guild accept <guild>"
     style: "<gray>/guild style tag|name <colours…> [bold] [animated] <dark_gray>— e.g. /guild style tag gold #ff5500 bold · /guild style name reset. From guild level <level>."
     admin: "<gray>/guild admin disband <guild> confirm · rename <guild> <name> · xp <guild> <amount> · give <guild> <amount> · leader <guild> <player> · boost <percent> <time>|off"
+    prestige: "<yellow>Prestige takes the guild back to level 1 for a star, perk points and a lasting bonus — perks and points stay. <gray>Type <white>/guild prestige confirm</white>."
     boost: "<gray>/guild admin boost <percent> <time> <dark_gray>— e.g. 50 2h · or <gray>/guild admin boost off"
   style-unreadable: "<red><problem> <gray>Colours are chat colours (gold, aqua…) or #hex codes."
   style-locked: "<red>Your guild paints its tag and name from level <white><level></white>. Earn it first — fame is not free."
@@ -137,3 +154,11 @@ guilds:
     leader-rank: "<red>The leader's rank is not for changing or handing out."
     permission-not-held: "<red>You cannot hand out what you do not have."
     not-saved: "<red>That could not be saved, so nothing changed. Staff: guilds.db cannot be written."
+    perk-maxed: "<red>That perk is as high as it goes."
+    level-too-low: "<red>The guild's level is too low for that rank yet. Grind on."
+    no-perk-points: "<red>No perk points left. <gray>Level up, prestige or win the weekly crown for more."
+    nothing-to-respec: "<red>Nothing is bought yet, so there is nothing to take back."
+    on-cooldown: "<red>Not again so soon."
+    not-top-level: "<red>Prestige is for a guild at the top level. Not there yet."
+    vault-not-empty: "<red>Empty the guild vault first — disbanding would destroy what is in it."
+    vault-full: "<red>The vault is full."

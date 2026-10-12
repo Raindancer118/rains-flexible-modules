@@ -58,6 +58,13 @@ public final class HomeService implements IGuildsService {
         waits.every(Duration.ofSeconds(settings.homeCooldown()));
     }
 
+    private volatile java.util.function.ToIntFunction<Guild> travelPercent = guild -> 100;
+
+    /** What is left of the warm-up and the wait, in percent — the Pathfinder perk. */
+    public void travelPercent(java.util.function.ToIntFunction<Guild> percent) {
+        this.travelPercent = percent == null ? guild -> 100 : percent;
+    }
+
     public boolean unlocked(Guild guild) {
         return levels.hasHome(levels.levelOf(guild.xp()));
     }
@@ -107,7 +114,11 @@ public final class HomeService implements IGuildsService {
         if (guild.home().isEmpty()) {
             return GuildOutcome.NO_HOME;
         }
-        Optional<Duration> left = waits.remaining(player.getUniqueId());
+        int share = Math.max(0, Math.min(100, travelPercent.applyAsInt(guild)));
+        // The Pathfinder perk shortens the wait: only the part of it that is left beyond the shortened one counts.
+        Optional<Duration> left = waits.remaining(player.getUniqueId())
+                .map(remaining -> remaining.minus(Duration.ofSeconds(settings.homeCooldown()).multipliedBy(100 - share).dividedBy(100)))
+                .filter(remaining -> !remaining.isNegative() && !remaining.isZero());
         if (left.isPresent() && !player.hasPermission("rainsguilds.home.nowait")) {
             notify.tell(player.getUniqueId(), "guilds.home.wait", "time", Times.describe(left.get()));
             return GuildOutcome.SUCCESS;
@@ -118,7 +129,7 @@ public final class HomeService implements IGuildsService {
             return GuildOutcome.NO_HOME;
         }
         Location destination = new Location(world, home.x(), home.y(), home.z(), home.yaw(), home.pitch());
-        Trip trip = Trip.to(guild.name()).after(settings.homeWarmup()).bringing(Companions.WHAT_YOU_LEAD);
+        Trip trip = Trip.to(guild.name()).after(settings.homeWarmup() * share / 100).bringing(Companions.WHAT_YOU_LEAD);
         travel.go(player, destination, trip, new Arriving(guild));
         return GuildOutcome.SUCCESS;
     }

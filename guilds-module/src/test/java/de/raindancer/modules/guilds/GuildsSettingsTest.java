@@ -82,5 +82,9 @@ class GuildsSettingsTest {
         assertThat(more.contractsPerWeek()).isEqualTo(3);
         assertThat(more.contractRewardPercent()).isEqualTo(25);
         assertThat(more.contractSizePercent()).isEqualTo(100);
+        assertThat(more.pointsPerPrestige()).isEqualTo(2);
+        assertThat(more.pointsPerCrown()).isEqualTo(1);
+        assertThat(more.respecDays()).isEqualTo(7);
+        assertThat(more.percentPerPrestige()).isEqualTo(5);
     }
 }

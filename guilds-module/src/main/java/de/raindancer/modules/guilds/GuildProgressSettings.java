@@ -17,6 +17,7 @@ import org.bukkit.Material;
         @Topic(path = "guilds-progress", title = "Guild experience", icon = Material.EXPERIENCE_BOTTLE),
         @Topic(path = "guilds-progress/together", title = "Playing together", icon = Material.CAMPFIRE),
         @Topic(path = "guilds-progress/contracts", title = "Weekly contracts", icon = Material.FILLED_MAP),
+        @Topic(path = "guilds-progress/honours", title = "Perks, prestige and the crown", icon = Material.NETHER_STAR),
 })
 public record GuildProgressSettings(
 
@@ -76,10 +77,24 @@ public record GuildProgressSettings(
 
         @In("guilds-progress/contracts") @Title("Size (percent)") @Range(min = 10, max = 1000)
         @Describe("Scales how much each contract asks for. Contracts already grow with the guild's member count.")
-        @Key("contracts.size-percent") int contractSizePercent) {
+        @Key("contracts.size-percent") int contractSizePercent,
+
+        @In("guilds-progress/honours") @Title("Perk points per prestige") @Range(min = 0, max = 100)
+        @Describe("On top of the point every level up brings — which a prestige keeps.")
+        @Key("honours.points-per-prestige") int pointsPerPrestige,
+
+        @In("guilds-progress/honours") @Title("Perk points per weekly crown") @Range(min = 0, max = 100)
+        @Key("honours.points-per-crown") int pointsPerCrown,
+
+        @In("guilds-progress/honours") @Title("Days between taking perk points back") @Range(min = 0, max = 365)
+        @Key("honours.respec-days") int respecDays,
+
+        @In("guilds-progress/honours") @Title("Guild experience bonus per prestige (percent)") @Range(min = 0, max = 100)
+        @Key("honours.percent-per-prestige") int percentPerPrestige) {
 
     public static final GuildProgressSettings DEFAULTS = new GuildProgressSettings(
             1, 3, 2, 2, 1, 5, 200, 50, 0,
             10, 50, 48,
-            true, 3, 25, 100);
+            true, 3, 25, 100,
+            2, 1, 7, 5);
 }

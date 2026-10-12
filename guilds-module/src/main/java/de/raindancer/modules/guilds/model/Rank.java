@@ -84,9 +84,9 @@ public record Rank(String id, String name, int weight, Set<GuildPermission> perm
                 new Rank(OFFICER, "Officer", 300, EnumSet.of(GuildPermission.INVITE, GuildPermission.KICK,
                         GuildPermission.PROMOTE, GuildPermission.WITHDRAW, GuildPermission.SET_HOME,
                         GuildPermission.USE_HOME, GuildPermission.EDIT_INFO, GuildPermission.RELATIONS,
-                        GuildPermission.OFFICER_CHAT, GuildPermission.VIEW_LOG), officerLimit),
+                        GuildPermission.OFFICER_CHAT, GuildPermission.VIEW_LOG, GuildPermission.VAULT), officerLimit),
                 new Rank(MEMBER, "Member", 200, EnumSet.of(GuildPermission.USE_HOME, GuildPermission.VIEW_LOG,
-                        GuildPermission.WITHDRAW), memberLimit),
+                        GuildPermission.WITHDRAW, GuildPermission.VAULT), memberLimit),
                 new Rank(RECRUIT, "Recruit", 100, EnumSet.of(GuildPermission.USE_HOME), 0));
     }
 }

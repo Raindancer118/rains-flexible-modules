@@ -49,7 +49,14 @@ public final class RelationService implements IGuildsService {
     }
 
     public int allySlots(Guild guild) {
-        return levels.allySlots(levels.levelOf(guild.xp()));
+        return levels.allySlots(levels.levelOf(guild.xp())) + Math.max(0, extraAllies.applyAsInt(guild));
+    }
+
+    private volatile java.util.function.ToIntFunction<Guild> extraAllies = guild -> 0;
+
+    /** Ally slots beyond what the level gives — the Diplomat perk. */
+    public void extraAllies(java.util.function.ToIntFunction<Guild> extra) {
+        this.extraAllies = extra == null ? guild -> 0 : extra;
     }
 
     private void log(Guild guild, GuildEvent.Kind kind, UUID actor, String detail) {

@@ -23,6 +23,7 @@ import de.raindancer.modules.guilds.model.Contract;
 import de.raindancer.modules.guilds.model.XpSource;
 import de.raindancer.modules.guilds.store.GuildBook;
 import de.raindancer.modules.guilds.store.ProgressBook;
+import de.raindancer.modules.guilds.model.Perk;
 import de.raindancer.modules.guilds.store.SqliteProgressStorage;
 import de.raindancer.modules.guilds.store.GuildsDatabase;
 import de.raindancer.modules.guilds.store.SqliteGuildStorage;
@@ -76,6 +77,7 @@ class ServicesTest {
     private XpService xp;
     private ProgressBook progress;
     private final Map<UUID, Integer> near = new HashMap<>();
+    private PerkService perks;
     private GuildsSettings settings;
 
     @BeforeEach
@@ -104,6 +106,11 @@ class ServicesTest {
         book.onDisband(progress::forget);
         xp = new XpService(book, progress, notify, mock(Effects.class), clock::get, settings,
                 GuildProgressSettings.DEFAULTS, (player, guild) -> near.getOrDefault(player, 0));
+        perks = new PerkService(book, progress, notify, null, clock::get, settings, GuildProgressSettings.DEFAULTS);
+        xp.perks(perks);
+        guilds.extraMembers(perks::extraMembers);
+        relations.extraAllies(perks::extraAllies);
+        guilds.disbandGuard(guild -> perks.vaultEmpty(guild) ? GuildOutcome.SUCCESS : GuildOutcome.VAULT_NOT_EMPTY);
     }
 
     @AfterEach
@@ -741,6 +748,136 @@ class ServicesTest {
         assertThat(guilds.membersByTag("elf")).hasValueSatisfying(members -> assertThat(members).containsExactlyInAnyOrder(ALICE, BOB));
         assertThat(guilds.membersByTag("NOPE")).isEmpty();
         assertThat(guilds.tags()).containsExactly("ELF");
+    }
+
+    @Nested
+    @DisplayName("reasons to grind: perks, prestige, the crown")
+    class Honours {
+
+        /** Straight to a level: experience by staff, which counts for points like any other. */
+        private void reach(Guild guild, int level) {
+            long needed = xp.levels().toReach(level) - guild(guild.leader()).xp();
+            if (needed > 0) {
+                xp.grant(guild.id(), needed, null);
+            }
+        }
+
+        @Test
+        @DisplayName("every level up brings a point, counted once; a guild from before perks is backfilled")
+        void points() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            assertThat(perks.standing(guild(ALICE)).levelPoints()).isZero();
+            reach(elves, 4);
+            assertThat(perks.standing(guild(ALICE)).levelPoints()).isEqualTo(3);
+            reach(elves, 5);
+            assertThat(perks.standing(guild(ALICE)).levelPoints()).isEqualTo(4);
+
+            Guild old = found(BOB, "Dwarves", "DWF");
+            book.update(old.id(), guild -> guild.withXp(xp.levels().toReach(6)));
+            assertThat(perks.standing(guild(BOB)).levelPoints()).as("a guild that levelled before perks existed").isEqualTo(5);
+        }
+
+        @Test
+        @DisplayName("perks are bought with points at their level, by a rank that may, and change what they say")
+        void buying() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            join(elves, BOB);
+            assertThat(perks.raise(ALICE, Perk.RECRUITER)).as("level 1: neither the level nor a point").isEqualTo(GuildOutcome.LEVEL_TOO_LOW);
+            reach(elves, 4);
+            assertThat(perks.raise(BOB, Perk.RECRUITER)).as("a recruit may not spend").isEqualTo(GuildOutcome.NOT_ALLOWED);
+            int before = guilds.memberCap(guild(ALICE));
+            assertThat(perks.raise(ALICE, Perk.RECRUITER)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(guilds.memberCap(guild(ALICE))).isEqualTo(before + 2);
+            assertThat(perks.raise(ALICE, Perk.RECRUITER)).as("rank II needs level 8").isEqualTo(GuildOutcome.LEVEL_TOO_LOW);
+            assertThat(perks.raise(ALICE, Perk.DIPLOMAT)).as("needs level 7").isEqualTo(GuildOutcome.LEVEL_TOO_LOW);
+            reach(elves, 7);
+            int allies = relations.allySlots(guild(ALICE));
+            assertThat(perks.raise(ALICE, Perk.DIPLOMAT)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(relations.allySlots(guild(ALICE))).isEqualTo(allies + 1);
+            long beforeXp = guild(ALICE).xp();
+            perks.raise(ALICE, Perk.PROSPEROUS);
+            xp.activity(ALICE, Activity.of(XpSource.BOSS, "wither"));
+            assertThat(guild(ALICE).xp() - beforeXp).as("+5% guild experience").isEqualTo(262);
+        }
+
+        @Test
+        @DisplayName("points come back once a week")
+        void respec() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            reach(elves, 5);
+            perks.raise(ALICE, Perk.SCHOLAR);
+            int unspent = perks.unspent(guild(ALICE));
+            assertThat(perks.respec(ALICE)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(perks.unspent(guild(ALICE))).isEqualTo(unspent + 1);
+            perks.raise(ALICE, Perk.SCHOLAR);
+            assertThat(perks.respec(ALICE)).isEqualTo(GuildOutcome.ON_COOLDOWN);
+            clock.addAndGet(Duration.ofDays(7).toMillis());
+            assertThat(perks.respec(ALICE)).isEqualTo(GuildOutcome.SUCCESS);
+        }
+
+        @Test
+        @DisplayName("prestige: only at the top, only the leader; level 1 again, perks and points kept, a star and a bonus")
+        void prestige() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            join(elves, BOB);
+            assertThat(perks.prestige(ALICE)).isEqualTo(GuildOutcome.NOT_TOP_LEVEL);
+            reach(elves, xp.levels().topLevel());
+            perks.raise(ALICE, Perk.VAULT);
+            int earned = perks.rule().earned(perks.standing(guild(ALICE)));
+            assertThat(perks.prestige(BOB)).isEqualTo(GuildOutcome.NOT_ALLOWED);
+            assertThat(perks.prestige(ALICE)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(guilds.level(guild(ALICE))).isEqualTo(1);
+            assertThat(perks.standing(guild(ALICE)).rank(Perk.VAULT)).isEqualTo(1);
+            assertThat(perks.rule().earned(perks.standing(guild(ALICE)))).isEqualTo(earned + 2);
+            assertThat(perks.honours(guild(ALICE))).contains("★");
+            assertThat(perks.guildXpPercent(guild(ALICE))).isEqualTo(5);
+            reach(guild(ALICE), 3);
+            assertThat(perks.standing(guild(ALICE)).levelPoints()).as("climbing back still earns points")
+                    .isEqualTo(xp.levels().topLevel() - 1 + 2);
+        }
+
+        @Test
+        @DisplayName("the crown goes to last week's most experience, once, with a point and a badge for a week")
+        void crown() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            Guild dwarves = found(BOB, "Dwarves", "DWF");
+            xp.activity(ALICE, Activity.of(XpSource.BOSS, "wither"));
+            xp.activity(BOB, new Activity(XpSource.MONSTER, "zombie", 10));
+            assertThat(perks.settle()).as("nothing to settle mid-week, the first time the week before is settled")
+                    .isTrue();
+            assertThat(perks.settle()).isFalse();
+            clock.addAndGet(Duration.ofDays(7).toMillis());
+            assertThat(perks.settle()).isTrue();
+            assertThat(perks.settle()).as("once").isFalse();
+            assertThat(perks.isCrowned(guild(ALICE))).isTrue();
+            assertThat(perks.isCrowned(guild(BOB))).isFalse();
+            assertThat(perks.standing(guild(ALICE)).crowns()).isEqualTo(1);
+            assertThat(perks.honours(guild(ALICE))).contains("♛");
+            clock.addAndGet(Duration.ofDays(7).toMillis());
+            perks.settle();
+            assertThat(perks.isCrowned(guild(ALICE))).as("nobody earned anything: no crown").isFalse();
+            assertThat(elves).isNotNull();
+            assertThat(dwarves).isNotNull();
+        }
+
+        @Test
+        @DisplayName("perks, prestige and the crown survive a restart")
+        void persisted() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            reach(elves, 6);
+            perks.raise(ALICE, Perk.HASTE);
+            xp.activity(ALICE, Activity.of(XpSource.BOSS, "wither"));
+            clock.addAndGet(Duration.ofDays(7).toMillis());
+            perks.settle();
+            assertThat(progress.flush()).isTrue();
+            ProgressBook again = new ProgressBook(new SqliteProgressStorage(database));
+            again.load();
+            var standing = again.standing(elves.id().value(), () -> 0);
+            assertThat(standing.rank(Perk.HASTE)).isEqualTo(1);
+            assertThat(standing.levelPoints()).isEqualTo(5);
+            assertThat(standing.crowns()).isEqualTo(1);
+            assertThat(again.crown().guild()).isEqualTo(elves.id().value());
+        }
     }
 
     @Test

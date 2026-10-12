@@ -55,7 +55,15 @@ public enum GuildOutcome {
     PERMISSION_NOT_HELD,
     /** Painting the tag or the name needs a higher guild level. */
     STYLE_LOCKED,
-    NOT_SAVED;
+    NOT_SAVED,
+    PERK_MAXED,
+    LEVEL_TOO_LOW,
+    NO_PERK_POINTS,
+    NOTHING_TO_RESPEC,
+    ON_COOLDOWN,
+    NOT_TOP_LEVEL,
+    VAULT_NOT_EMPTY,
+    VAULT_FULL;
 
     public boolean isSuccess() {
         return this == SUCCESS || this == ASKED;
