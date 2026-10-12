@@ -66,7 +66,7 @@ public final class ViolationService implements IAntiCheatService {
         alerts.verbose(player, check, level, flag.detail());
         if (decision.alert()) {
             alerts.alert(player, check, level, flag.detail(), track.ping);
-            freeze(track, check, flag.detail());
+            freeze(player, track, check, flag.detail());
         }
         if (decision.ban()) {
             punishments.atBanLevel(player, track, check, level);
@@ -151,7 +151,7 @@ public final class ViolationService implements IAntiCheatService {
     }
 
     /** The movement leading up to an alert, kept at most once per check every ten seconds. */
-    private void freeze(PlayerTrack track, CheckType check, String detail) {
+    private void freeze(Player player, PlayerTrack track, CheckType check, String detail) {
         de.raindancer.modules.anticheat.store.ReplayStore store = replays;
         if (store == null) {
             return;
@@ -164,7 +164,7 @@ public final class ViolationService implements IAntiCheatService {
         }
         lastReplay.put(key, now);
         store.add(track.id(), new de.raindancer.modules.anticheat.model.Replays.Replay(System.currentTimeMillis(), check.key(),
-                detail, track.recorder.frames()));
+                detail, track.recorder.frames(), de.raindancer.modules.anticheat.visual.Loadouts.of(player)));
     }
 
     public AntiCheatSettings settings() {

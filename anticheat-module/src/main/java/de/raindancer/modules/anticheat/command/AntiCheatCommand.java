@@ -33,6 +33,12 @@ public final class AntiCheatCommand implements BasicCommand {
     private static final List<String> SUBCOMMANDS = List.of("alerts", "verbose", "info", "log", "replay", "go", "back",
             "exempt", "unexempt", "reset", "checks", "status");
 
+    /** Where and how a staff member was before watching replays. */
+    private record Watcher(org.bukkit.Location where, org.bukkit.GameMode mode) {
+    }
+
+    private final Map<UUID, Watcher> watchers = new java.util.concurrent.ConcurrentHashMap<>();
+
     /** Where each staff member stood before {@code /anticheat go}, for {@code /anticheat back}. */
     private final Map<UUID, org.bukkit.Location> before = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -241,6 +247,11 @@ public final class AntiCheatCommand implements BasicCommand {
             live.messages().send(sender, "anticheat.usage");
             return;
         }
+        if (args[1].equalsIgnoreCase("stop")) {
+            live.messages().send(sender, de.raindancer.modules.anticheat.visual.ReplayActor.stop(viewer)
+                    ? "anticheat.replay-stopped" : "anticheat.replay-nothing-playing");
+            return;
+        }
         UUID who = resolve(live, args[1]);
         List<de.raindancer.modules.anticheat.model.Replays.Replay> all = who == null ? List.of() : live.replays().replays().of(who);
         if (all.isEmpty()) {
@@ -261,19 +272,30 @@ public final class AntiCheatCommand implements BasicCommand {
             return;
         }
         org.bukkit.Location start = new org.bukkit.Location(world, first.x(), first.y(), first.z());
+        // Watched from where it happened, as a spectator — and put back as and where they were afterwards.
+        // One replay after another goes back to where the first began, not to the last scene.
+        Watcher original = watchers.computeIfAbsent(viewer.getUniqueId(),
+                ignored -> new Watcher(viewer.getLocation(), viewer.getGameMode()));
+        Runnable putBack = () -> de.raindancer.core.platform.util.Scheduling.entity(live.plugin(), viewer, () -> {
+            watchers.remove(viewer.getUniqueId(), original);
+            if (viewer.isOnline()) {
+                viewer.setGameMode(original.mode());
+                viewer.teleportAsync(original.where());
+            }
+        });
         Runnable draw = () -> {
+            viewer.setGameMode(org.bukkit.GameMode.SPECTATOR);
             de.raindancer.modules.anticheat.visual.ReplayView.show(live.plugin(), viewer, chosen);
             String title = CheckType.find(chosen.check()).map(CheckType::title).orElse(chosen.check());
+            String name = live.evidence().nameOf(who);
+            de.raindancer.modules.anticheat.visual.ReplayActor.play(live.plugin(), viewer, who, name == null ? args[1] : name,
+                    title, frames, chosen.loadout(), putBack);
             live.messages().send(viewer, "anticheat.replay-shown", "player", args[1], "check", title, "detail", chosen.detail(),
                     "index", index, "count", all.size());
         };
-        if (!viewer.getWorld().equals(world) || viewer.getLocation().distanceSquared(start) > 48 * 48) {
-            org.bukkit.Location there = start.clone().add(4, 2, 4);
-            there.setDirection(start.toVector().subtract(there.toVector()));
-            viewer.teleportAsync(there).thenRun(() -> de.raindancer.core.platform.util.Scheduling.entity(live.plugin(), viewer, draw));
-        } else {
-            draw.run();
-        }
+        org.bukkit.Location there = start.clone().add(4, 2, 4);
+        there.setDirection(start.toVector().subtract(there.toVector()));
+        viewer.teleportAsync(there).thenRun(() -> de.raindancer.core.platform.util.Scheduling.entity(live.plugin(), viewer, draw));
     }
 
     private static void checks(AntiCheatServices live, CommandSender sender) {

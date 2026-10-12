@@ -39,7 +39,7 @@ import java.util.List;
  */
 public final class AntiCheatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.12.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.13.0")
             .describedAs("Server-side anti-cheat: movement, combat, world, inventory and packet checks")
             .by("Raindancer118");
 
@@ -136,5 +136,7 @@ public final class AntiCheatModule implements FlexModule {
     @Override
     public void disable() {
         AntiCheatCommands.stopped();
+        // Replay figures are nobody's to keep: none may outlive the plugin that moves them.
+        de.raindancer.modules.anticheat.visual.ReplayActor.stopAll();
     }
 }

@@ -38,4 +38,30 @@ class ReplayTest {
         }
         assertThat(replays.of(who)).extracting(Replays.Replay::detail).containsExactly("detail 2", "detail 1");
     }
+
+    @Test
+    @DisplayName("a frame keeps the hotbar slot held and whether they sneaked or glided")
+    void stance() {
+        ReplayFrame frame = new ReplayFrame(1234L, "world", 1, 2, 3, 4, 5, false, 6, true, false);
+        assertThat(ReplayFrame.decode(frame.encode())).contains(frame);
+    }
+
+    @Test
+    @DisplayName("frames written before stances were kept still read, holding nothing known")
+    void oldFrames() {
+        assertThat(ReplayFrame.decode("1234;world;1.000;2.000;3.000;4.00;5.00;true")).hasValueSatisfying(frame -> {
+            assertThat(frame.slot()).isEqualTo(-1);
+            assertThat(frame.sneaking()).isFalse();
+        });
+    }
+
+    @Test
+    @DisplayName("a replay keeps the loadout they had at the alert")
+    void loadout() {
+        ReplayLoadout gear = new ReplayLoadout(java.util.Arrays.asList("helmet", null, "legs", "boots"), "shield",
+                java.util.Arrays.asList("sword", null, null, null, null, null, null, null, "pearls"));
+        Replays.Replay replay = new Replays.Replay(1, "fly", "detail", List.of(), gear);
+        assertThat(replay.loadout().hotbar()).hasSize(9);
+        assertThat(new Replays.Replay(1, "fly", "detail", List.of()).loadout()).isNull();
+    }
 }

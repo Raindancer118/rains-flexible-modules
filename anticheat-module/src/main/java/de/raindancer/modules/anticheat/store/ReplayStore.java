@@ -56,13 +56,33 @@ public final class ReplayStore {
                         }
                     }
                     saved.add(new Replays.Replay(((Number) row.get("at")).longValue(), String.valueOf(row.get("check")),
-                            String.valueOf(row.get("detail")), List.copyOf(frames)));
+                            String.valueOf(row.get("detail")), List.copyOf(frames), loadout(row.get("loadout"))));
                 }
                 replays.restore(who, saved);
             } catch (RuntimeException malformed) {
                 // One player's broken replays cost that player's replays only.
             }
         }
+    }
+
+    /** Empty slots as "" — a YAML list keeps its length that way. */
+    private static Map<String, Object> written(de.raindancer.modules.anticheat.model.ReplayLoadout loadout) {
+        java.util.function.Function<String, String> slot = item -> item == null ? "" : item;
+        return Map.of("armour", loadout.armour().stream().map(slot).toList(),
+                "off-hand", slot.apply(loadout.offHand()),
+                "hotbar", loadout.hotbar().stream().map(slot).toList());
+    }
+
+    private static de.raindancer.modules.anticheat.model.ReplayLoadout loadout(Object raw) {
+        if (!(raw instanceof Map<?, ?> map)) {
+            return null;
+        }
+        java.util.function.Function<Object, List<String>> slots = list -> list instanceof List<?> items
+                ? items.stream().map(item -> item == null || String.valueOf(item).isEmpty() ? null : String.valueOf(item)).toList()
+                : List.of();
+        Object offHand = map.get("off-hand");
+        return new de.raindancer.modules.anticheat.model.ReplayLoadout(slots.apply(map.get("armour")),
+                offHand == null || String.valueOf(offHand).isEmpty() ? null : String.valueOf(offHand), slots.apply(map.get("hotbar")));
     }
 
     public boolean flush() {
@@ -74,7 +94,12 @@ public final class ReplayStore {
                 List<Map<String, Object>> rows = new ArrayList<>();
                 for (Replays.Replay replay : replays.of(who)) {
                     List<String> frames = replay.frames().stream().map(ReplayFrame::encode).toList();
-                    rows.add(Map.of("at", replay.atMillis(), "check", replay.check(), "detail", replay.detail(), "frames", frames));
+                    Map<String, Object> row = new java.util.LinkedHashMap<>(Map.of("at", replay.atMillis(), "check", replay.check(),
+                            "detail", replay.detail(), "frames", frames));
+                    if (replay.loadout() != null) {
+                        row.put("loadout", written(replay.loadout()));
+                    }
+                    rows.add(row);
                 }
                 yaml.set("players." + who, rows);
             }

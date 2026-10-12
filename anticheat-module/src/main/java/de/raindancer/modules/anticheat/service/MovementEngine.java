@@ -207,7 +207,8 @@ public final class MovementEngine implements IAntiCheatService {
         long now = track.now();
         track.recorder.record(new de.raindancer.modules.anticheat.model.ReplayFrame(now, player.getWorld().getName(),
                 sample.x(), sample.y(), sample.z(), sample.hasRotation() ? sample.yaw() : m.yaw,
-                sample.hasRotation() ? sample.pitch() : m.pitch, sample.onGround()));
+                sample.hasRotation() ? sample.pitch() : m.pitch, sample.onGround(), player.getInventory().getHeldItemSlot(),
+                player.isSneaking(), player.isGliding()));
         if (m.teleportTarget != null) {
             Location target = m.teleportTarget;
             boolean arrived = target.getWorld() != null && target.getWorld().equals(player.getWorld())

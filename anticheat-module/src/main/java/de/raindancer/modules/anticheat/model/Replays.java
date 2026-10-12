@@ -13,7 +13,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class Replays {
 
     /** What happened in the seconds before an alert. */
-    public record Replay(long atMillis, String check, String detail, List<ReplayFrame> frames) {
+    /** @param loadout what they wore and carried at the alert; null for replays kept before loadouts were */
+    public record Replay(long atMillis, String check, String detail, List<ReplayFrame> frames, ReplayLoadout loadout) {
+
+        public Replay(long atMillis, String check, String detail, List<ReplayFrame> frames) {
+            this(atMillis, check, detail, frames, null);
+        }
     }
 
     private final int perPlayer;
