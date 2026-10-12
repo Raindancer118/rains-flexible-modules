@@ -79,20 +79,21 @@ public final class ViolationService implements IAntiCheatService {
             judgeImprobable(player, track);
         }
         AutoReportService toReport = reports;
-        if (toReport != null && de.raindancer.modules.anticheat.rules.ConfidenceRule.counts(check)) {
+        var kind = de.raindancer.modules.anticheat.model.ReportKind.of(check);
+        if (toReport != null && kind.isPresent()) {
             Location at = player.getLocation();
-            toReport.flagged(player.getUniqueId(), player.getName(), check, flag.weight(), flag.detail(), movementLevel(track),
+            toReport.flagged(player.getUniqueId(), player.getName(), check, flag.weight(), flag.detail(), levelOf(track, kind.get()),
                     track.ping, Bukkit.getTPS()[0], (at.getWorld() == null ? "?" : at.getWorld().getName())
                             + " " + at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ());
         }
         return decision;
     }
 
-    /** What the movement checks hold against them together, after decay. */
-    private static double movementLevel(PlayerTrack track) {
+    /** What the checks of one kind hold against them together, after decay. */
+    private static double levelOf(PlayerTrack track, de.raindancer.modules.anticheat.model.ReportKind kind) {
         double sum = 0;
         for (java.util.Map.Entry<CheckType, Double> entry : track.violations().snapshot().entrySet()) {
-            if (de.raindancer.modules.anticheat.rules.ConfidenceRule.counts(entry.getKey())) {
+            if (de.raindancer.modules.anticheat.model.ReportKind.of(entry.getKey()).orElse(null) == kind) {
                 sum += entry.getValue();
             }
         }

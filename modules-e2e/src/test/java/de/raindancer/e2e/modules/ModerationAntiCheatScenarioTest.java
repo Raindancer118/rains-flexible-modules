@@ -64,4 +64,36 @@ class ModerationAntiCheatScenarioTest {
             assertThat(server.paper.errorsFrom("RainsCore", "RainsModeration", "RainsAntiCheat")).isEmpty();
         }
     }
+
+    @Test
+    @DisplayName("hitting two players in one tick, three times, files a combat report straight into the queue")
+    void combatReport() {
+        try (Server server = Server.start("moderation-anticheat-combat",
+                List.of("moderation-standalone:RainsModeration-.*", "anticheat-standalone:RainsAntiCheat-.*"),
+                List.of("Moderation is up", "Anti-cheat is up"))) {
+            server.console("forceload add -16 -16 16 16");
+            server.console("fill -12 100 -12 12 100 12 minecraft:stone");
+            server.console("fill -12 101 -12 12 125 12 minecraft:air");
+            Bot ada = server.admin("Ada");
+            Bot multi = server.player("Multi");
+            Bot bo = server.player("Bo");
+            Bot cy = server.player("Cy");
+            server.console("tp Multi 0.5 " + FLOOR + " 0.5 0 0");
+            server.console("tp Bo 0.5 " + FLOOR + " 2.0 0 0");
+            server.console("tp Cy 1.5 " + FLOOR + " 2.0 0 0");
+            Await.ticks(40);
+            for (int round = 0; round < 3; round++) {
+                for (int t = 0; t < 5; t++) {
+                    multi.tickEnd();
+                    sleep(50);
+                }
+                multi.attack(bo.id()).attack(cy.id()).swing();
+                multi.tickEnd();
+                sleep(600);
+            }
+            Await.until("a combat report is waiting", Duration.ofSeconds(20),
+                    () -> server.console("reports list").contains("combat"));
+            assertThat(server.paper.errorsFrom("RainsCore", "RainsModeration", "RainsAntiCheat")).isEmpty();
+        }
+    }
 }

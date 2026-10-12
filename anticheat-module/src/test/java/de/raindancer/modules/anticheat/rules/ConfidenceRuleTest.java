@@ -1,5 +1,7 @@
 package de.raindancer.modules.anticheat.rules;
 
+import de.raindancer.modules.anticheat.model.ReportKind;
+
 import de.raindancer.modules.anticheat.model.CheckType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -134,5 +136,46 @@ class ConfidenceRuleTest {
     void policy() {
         ConfidenceRule.Policy strict = new ConfidenceRule.Policy(120 * SECOND, 100, 15, 300, 17, 3, 5 * SECOND);
         assertThat(rule.judge(spread(CheckType.FLY, 40, 60, 0), 40, 60 * SECOND, strict).confident()).isFalse();
+    }
+
+    @Test
+    @DisplayName("combat: reach and hitbox flags over half a minute, in separate fights, are a report of their own kind")
+    void combat() {
+        List<ConfidenceRule.Hit> hits = new ArrayList<>(spread(CheckType.REACH, 6, 30, 0));
+        hits.addAll(spread(CheckType.HITBOX, 4, 30, 2 * SECOND));
+        ConfidenceRule.Policy combat = ReportKind.COMBAT.policy(policy);
+        ConfidenceRule.Verdict verdict = rule.judge(ReportKind.COMBAT, hits, 12, 32 * SECOND, combat);
+        assertThat(verdict.confident()).isTrue();
+        assertThat(verdict.summary()).contains("reach").contains("hitbox");
+        assertThat(rule.judge(ReportKind.MOVEMENT, hits, 12, 32 * SECOND, policy).confident())
+                .as("combat flags do not make a movement report").isFalse();
+    }
+
+    @Test
+    @DisplayName("combat: one fight's burst of reach is not enough")
+    void combatBurst() {
+        List<ConfidenceRule.Hit> hits = spread(CheckType.REACH, 12, 3, 0);
+        assertThat(rule.judge(ReportKind.COMBAT, hits, 12, 4 * SECOND, ReportKind.COMBAT.policy(policy)).confident()).isFalse();
+    }
+
+    @Test
+    @DisplayName("three things no vanilla client can do are enough on their own")
+    void impossible() {
+        List<ConfidenceRule.Hit> hits = List.of(hit(0, CheckType.MULTI_AURA), hit(400, CheckType.MULTI_AURA),
+                hit(900, CheckType.MULTI_AURA));
+        assertThat(rule.judge(ReportKind.COMBAT, hits, 3, SECOND, ReportKind.COMBAT.policy(policy)).confident()).isTrue();
+        assertThat(rule.judge(ReportKind.COMBAT, hits.subList(0, 2), 2, SECOND, ReportKind.COMBAT.policy(policy)).confident())
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("world: nuker and fast break over two stretches are a report; inventory and client flags are nobody's kind")
+    void world() {
+        List<ConfidenceRule.Hit> hits = new ArrayList<>(spread(CheckType.NUKER, 6, 40, 0));
+        hits.addAll(spread(CheckType.FAST_BREAK, 6, 40, SECOND));
+        assertThat(rule.judge(ReportKind.WORLD, hits, 12, 42 * SECOND, ReportKind.WORLD.policy(policy)).confident()).isTrue();
+        assertThat(ReportKind.of(CheckType.FAST_CLICK)).isEmpty();
+        assertThat(ReportKind.of(CheckType.CLIENT)).isEmpty();
+        assertThat(ReportKind.of(CheckType.SPRINT)).isEmpty();
     }
 }

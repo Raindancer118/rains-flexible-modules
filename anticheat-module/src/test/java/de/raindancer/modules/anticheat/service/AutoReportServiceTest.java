@@ -109,11 +109,25 @@ class AutoReportServiceTest {
     }
 
     @Test
-    @DisplayName("checks that are not movement never count")
-    void notMovement() {
+    @DisplayName("a sustained combat hack is a report of its own kind, beside any movement report")
+    void combatIsItsOwnKind() {
         for (int i = 0; i < 200; i++) {
             clock.addAndGet(1000);
             service.flagged(cheater, "Cheater", CheckType.AUTOCLICKER, 1, "cps 40", 90, 40, 19.5, "world 1 2 3");
+        }
+        assertThat(filed).hasSize(1);
+        assertThat(filed.getFirst()).contains("|combat|").contains("autoclicker");
+        flyFor(120, 48, 19.8);
+        assertThat(filed).hasSize(2).anyMatch(line -> line.contains("|movement|"));
+    }
+
+    @Test
+    @DisplayName("inventory and client checks are no kind of report")
+    void notReported() {
+        for (int i = 0; i < 200; i++) {
+            clock.addAndGet(1000);
+            service.flagged(cheater, "Cheater", CheckType.FAST_CLICK, 1, "fast", 90, 40, 19.5, "world 1 2 3");
+            service.flagged(cheater, "Cheater", CheckType.CLIENT, 1, "wurst", 90, 40, 19.5, "world 1 2 3");
         }
         assertThat(filed).isEmpty();
     }

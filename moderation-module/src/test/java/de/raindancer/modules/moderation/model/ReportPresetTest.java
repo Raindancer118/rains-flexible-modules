@@ -47,5 +47,7 @@ class ReportPresetTest {
         assertThat(ReportPreset.of(report("x-ray: mining this pattern honestly is about one in 10^7", null)))
                 .isEqualTo(ReportPreset.XRAY);
         assertThat(ReportPreset.of(report("movement: fly x40, speed x12", null))).isEqualTo(ReportPreset.MOVEMENT_HACKS);
+        assertThat(ReportPreset.of(report("combat: reach x9, hitbox x4", null))).isEqualTo(ReportPreset.COMBAT_HACKS);
+        assertThat(ReportPreset.of(report("world: nuker x6, fastbreak x6", null))).isEqualTo(ReportPreset.CHEATING);
     }
 }

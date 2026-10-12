@@ -1,5 +1,7 @@
 package de.raindancer.modules.anticheat.rules;
 
+import de.raindancer.modules.anticheat.model.ReportKind;
+
 import de.raindancer.modules.anticheat.model.CheckType;
 
 import java.util.ArrayList;
@@ -11,7 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Whether the movement flags of one player add up to somebody who is using a movement hack, sure enough
+ * Whether the flags of one kind — movement, combat, world — of one player add up to somebody using a hack, sure enough
  * to ask staff to look. One honest hiccup (a lag spike, a block the client was told about late, a
  * quirk nobody modelled) produces a burst of flags and then nothing; a hack produces flags for as long
  * as it is on. So the rule wants all of:
@@ -27,8 +29,11 @@ public final class ConfidenceRule implements IAntiCheatRule {
 
     /** Movement checks that mean a hack when they keep failing. Sprint (starving) is a food state, not a hack. */
     public static boolean counts(CheckType check) {
-        return check.category() == de.raindancer.modules.anticheat.model.Category.MOVEMENT && check != CheckType.SPRINT;
+        return ReportKind.of(check).orElse(null) == ReportKind.MOVEMENT;
     }
+
+    /** Three flags of something no vanilla client can send are proof enough, whatever else the window holds. */
+    static final int IMPOSSIBLE_ENOUGH = 3;
 
     /** One counted flag. */
     public record Hit(long millis, CheckType check, double weight, int ping, double tps, String detail) {
@@ -70,17 +75,29 @@ public final class ConfidenceRule implements IAntiCheatRule {
     public static final double LAGGED_WORTH = 0.25;
 
     public Verdict judge(List<Hit> hits, double level, long now, Policy policy) {
+        return judge(ReportKind.MOVEMENT, hits, level, now, policy);
+    }
+
+    /** The same for one kind of hack: only that kind's flags count, and only that kind's level. */
+    public Verdict judge(ReportKind kind, List<Hit> hits, double level, long now, Policy policy) {
+        long from = now - policy.windowMillis();
+        List<Hit> impossible = hits.stream().filter(hit -> hit.millis() >= from && hit.check().impossible()
+                && ReportKind.of(hit.check()).orElse(null) == kind).toList();
+        if (impossible.size() >= IMPOSSIBLE_ENOUGH) {
+            Hit last = impossible.getLast();
+            return new Verdict(true, String.format(Locale.ROOT, "%s x%d — no vanilla client can do that · last: %s",
+                    last.check().key(), impossible.size(), last.detail()));
+        }
         if (level < policy.minLevel()) {
             return Verdict.NOT_SURE;
         }
-        long from = now - policy.windowMillis();
         Map<CheckType, Double> perCheck = new EnumMap<>(CheckType.class);
         Map<CheckType, Integer> raw = new EnumMap<>(CheckType.class);
         Set<Long> stretches = new HashSet<>();
         List<Hit> counted = new ArrayList<>();
         double weighed = 0;
         for (Hit hit : hits) {
-            if (hit.millis() < from || !counts(hit.check())) {
+            if (hit.millis() < from || ReportKind.of(hit.check()).orElse(null) != kind) {
                 continue;
             }
             // A client can fake any ping by holding back its answers, so a bad ping never exempts: it only makes

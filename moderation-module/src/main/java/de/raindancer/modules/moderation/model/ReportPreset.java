@@ -109,6 +109,12 @@ public enum ReportPreset {
         if (text.startsWith("movement")) {
             return MOVEMENT_HACKS;
         }
+        if (text.startsWith("combat")) {
+            return COMBAT_HACKS;
+        }
+        if (text.startsWith("world")) {
+            return CHEATING;
+        }
         for (ReportPreset preset : values()) {
             if (text.startsWith(preset.title.toLowerCase(Locale.ROOT))) {
                 return preset;

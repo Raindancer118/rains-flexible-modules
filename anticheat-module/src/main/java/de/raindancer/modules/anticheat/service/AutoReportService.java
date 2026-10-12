@@ -1,5 +1,7 @@
 package de.raindancer.modules.anticheat.service;
 
+import de.raindancer.modules.anticheat.model.ReportKind;
+
 import de.raindancer.core.moderation.reports.AutoReports;
 import de.raindancer.modules.anticheat.AntiCheatSettings;
 import de.raindancer.modules.anticheat.model.CheckType;
@@ -20,8 +22,8 @@ import java.util.function.LongSupplier;
  */
 public final class AutoReportService implements IAntiCheatService {
 
-    /** Kind of report: its text starts with this, and the queue keeps one open per player and kind. */
-    public static final String KIND = "movement";
+    /** The movement kind, whose report text starts with this word; combat and world have their own. */
+    public static final String KIND = ReportKind.MOVEMENT.key();
 
     private static final int MOST_HITS = 600;
     private static final long CHECK_EVERY_MILLIS = 1000;
@@ -32,7 +34,8 @@ public final class AutoReportService implements IAntiCheatService {
 
     private final LongSupplier clock;
     private final ConfidenceRule rule = new ConfidenceRule();
-    private final Map<UUID, Ledger> ledgers = new ConcurrentHashMap<>();
+    /** Per player and kind: movement, combat and world are judged and reported apart. */
+    private final Map<String, Ledger> ledgers = new ConcurrentHashMap<>();
     private volatile AntiCheatSettings settings = AntiCheatSettings.DEFAULTS;
 
     public AutoReportService(LongSupplier clock) {
@@ -46,20 +49,21 @@ public final class AutoReportService implements IAntiCheatService {
     }
 
     /**
-     * A movement flag that was counted. Cheap for everything that is not movement.
+     * A flag that was counted. Cheap for everything that is no kind of hack report.
      *
-     * @param movementLevel the violation level of all movement checks together, after decay
+     * @param movementLevel the violation level of all checks of the same kind together, after decay
      * @param where         "world x y z", for the report
      */
     public void flagged(UUID id, String name, CheckType check, double weight, String detail, double movementLevel,
                         int ping, double tps, String where) {
         AntiCheatSettings now = settings;
-        if (!now.autoReport() || !ConfidenceRule.counts(check)) {
+        ReportKind kind = ReportKind.of(check).orElse(null);
+        if (!now.autoReport() || kind == null) {
             return;
         }
         long at = clock.getAsLong();
-        ConfidenceRule.Policy policy = now.reportPolicy();
-        Ledger ledger = ledgers.computeIfAbsent(id, ignored -> new Ledger());
+        ConfidenceRule.Policy policy = kind.policy(now.reportPolicy());
+        Ledger ledger = ledgers.computeIfAbsent(id + ":" + kind.key(), ignored -> new Ledger());
         String text;
         synchronized (ledger) {
             ledger.hits.addLast(new ConfidenceRule.Hit(at, check, weight, ping, tps, detail));
@@ -70,14 +74,14 @@ public final class AutoReportService implements IAntiCheatService {
                 return;
             }
             ledger.checkedAt = at;
-            ConfidenceRule.Verdict verdict = rule.judge(java.util.List.copyOf(ledger.hits), movementLevel, at, policy);
+            ConfidenceRule.Verdict verdict = rule.judge(kind, java.util.List.copyOf(ledger.hits), movementLevel, at, policy);
             if (!verdict.confident()) {
                 return;
             }
             text = String.format(Locale.ROOT, "%s · ping %d ms, %.1f tps · at %s · /anticheat log %s",
                     verdict.summary(), ping, tps, where, name);
         }
-        AutoReports.Result result = AutoReports.file(id, name, KIND, text);
+        AutoReports.Result result = AutoReports.file(id, name, kind.key(), text);
         synchronized (ledger) {
             ledger.quietUntil = at + (result == AutoReports.Result.FILED || result == AutoReports.Result.DUPLICATE
                     ? AFTER_FILED_MILLIS : AFTER_UNFILED_MILLIS);
@@ -85,7 +89,7 @@ public final class AutoReportService implements IAntiCheatService {
     }
 
     public void forget(UUID player) {
-        ledgers.remove(player);
+        ledgers.keySet().removeIf(key -> key.startsWith(player.toString()));
     }
 
     @Override
@@ -95,6 +99,6 @@ public final class AutoReportService implements IAntiCheatService {
 
     @Override
     public String describe() {
-        return "asking staff to look at somebody whose movement checks keep failing";
+        return "asking staff to look at somebody whose movement, combat or world checks keep failing";
     }
 }
