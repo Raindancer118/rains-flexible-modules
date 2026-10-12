@@ -116,8 +116,8 @@ public final class PlayerTrack {
     /** How long a window the budget of a client-triggered exemption is counted over, and how much of it may be excused. */
     static final long BUDGET_WINDOW = 10_000;
     static final long BUDGET = 4_000;
-    /** Per budgeted kind: {granted at, millis newly covered} in the current window. */
-    private final Map<Exemption, java.util.ArrayDeque<long[]>> granted = new java.util.EnumMap<>(Exemption.class);
+    /** {granted at, millis newly covered} in the current window — one budget for every kind, so taking turns gains nothing. */
+    private final java.util.ArrayDeque<long[]> granted = new java.util.ArrayDeque<>();
 
     /**
      * Exemptions the client can set off as often as it likes. Each is real once; repeated, they would
@@ -136,7 +136,15 @@ public final class PlayerTrack {
         if (budgeted(why)) {
             long already = Math.max(now, exemptUntil.getOrDefault(why, 0L));
             long fresh = Math.max(0, until - already);
-            java.util.ArrayDeque<long[]> spent = granted.computeIfAbsent(why, ignored -> new java.util.ArrayDeque<>());
+            // New cover counts only beyond what any budgeted kind already gives.
+            long coveredByAny = already;
+            for (Exemption other : Exemption.values()) {
+                if (budgeted(other)) {
+                    coveredByAny = Math.max(coveredByAny, exemptUntil.getOrDefault(other, 0L));
+                }
+            }
+            fresh = Math.max(0, until - coveredByAny);
+            java.util.ArrayDeque<long[]> spent = granted;
             while (!spent.isEmpty() && now - spent.peekFirst()[0] > BUDGET_WINDOW) {
                 spent.removeFirst();
             }
@@ -155,11 +163,14 @@ public final class PlayerTrack {
         exemptUntil.remove(why);
     }
 
-    /** The first reason that still holds, or null. */
+    /**
+     * The first reason that still holds, or null. A firework boost is not among them: it excuses the elytra
+     * check alone, and fireworks are cheap enough to keep one burning.
+     */
     public synchronized Exemption exemption() {
         long now = now();
         for (Map.Entry<Exemption, Long> entry : exemptUntil.entrySet()) {
-            if (entry.getValue() > now) {
+            if (entry.getKey() != Exemption.ELYTRA_BOOST && entry.getValue() > now) {
                 return entry.getKey();
             }
         }

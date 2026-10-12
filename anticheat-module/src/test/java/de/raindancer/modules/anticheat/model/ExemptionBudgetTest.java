@@ -57,4 +57,32 @@ class ExemptionBudgetTest {
     void serverSide() {
         assertThat(coveredWhileSpamming(PlayerTrack.Exemption.TELEPORTED, 1000, 500, 10_000)).isEqualTo(1.0);
     }
+
+    @Test
+    @DisplayName("taking turns between elytra, boat, piston and riptide shares one budget")
+    void rotatingKinds() {
+        PlayerTrack.Exemption[] kinds = {PlayerTrack.Exemption.ELYTRA, PlayerTrack.Exemption.VEHICLE,
+                PlayerTrack.Exemption.PISTON, PlayerTrack.Exemption.RIPTIDE, PlayerTrack.Exemption.BOUNCE};
+        long covered = 0;
+        long start = now;
+        int turn = 0;
+        while (now - start < 30_000) {
+            if ((now - start) % 500 == 0) {
+                track.exempt(kinds[turn++ % kinds.length], 1500);
+            }
+            if (track.exemption() != null) {
+                covered += 50;
+            }
+            now += 50;
+        }
+        assertThat((double) covered / 30_000).isLessThan(0.45);
+    }
+
+    @Test
+    @DisplayName("a firework boost excuses the elytra check only, not every other check")
+    void boostIsOnlyForTheElytra() {
+        track.exempt(PlayerTrack.Exemption.ELYTRA_BOOST, 3500);
+        assertThat(track.isExempt(PlayerTrack.Exemption.ELYTRA_BOOST)).isTrue();
+        assertThat(track.exemption()).isNull();
+    }
 }
