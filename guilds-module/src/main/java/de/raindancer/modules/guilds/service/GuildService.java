@@ -148,7 +148,7 @@ public final class GuildService implements IGuildsService {
         if (wrong.isPresent()) {
             return wrong.get();
         }
-        if (book.find(name).isPresent()) {
+        if (book.claimed(name, null)) {
             return GuildOutcome.NAME_TAKEN;
         }
         if (book.tagTaken(tag, null)) {
@@ -545,6 +545,9 @@ public final class GuildService implements IGuildsService {
         if (wrong.isPresent()) {
             return wrong.get();
         }
+        if (rankNameTaken(guild, name, null)) {
+            return GuildOutcome.NAME_TAKEN;
+        }
         String id = uniqueRankId(guild, Rank.idFrom(name));
         // A new rank goes just above the lowest, so it starts with as little say as possible.
         int lowest = guild.lowestRank().weight();
@@ -558,6 +561,12 @@ public final class GuildService implements IGuildsService {
             log(guild, GuildEvent.Kind.RANKS_CHANGED, actor, null, 0, "+ " + name);
         }
         return changed;
+    }
+
+    /** Rank names are unique in a guild, and never another rank's id — "/guild rank Bo officer" means one rank. */
+    private static boolean rankNameTaken(Guild guild, String name, String except) {
+        return guild.ranks().stream().filter(rank -> !rank.id().equals(except))
+                .anyMatch(rank -> rank.name().equalsIgnoreCase(name) || rank.id().equalsIgnoreCase(Rank.idFrom(name)));
     }
 
     private static String uniqueRankId(Guild guild, String wanted) {
@@ -618,6 +627,9 @@ public final class GuildService implements IGuildsService {
         Optional<GuildOutcome> wrong = names.rankName(name);
         if (wrong.isPresent()) {
             return wrong.get();
+        }
+        if (own(actor).filter(guild -> rankNameTaken(guild, name, rankId)).isPresent()) {
+            return GuildOutcome.NAME_TAKEN;
         }
         return editRank(actor, rankId, each -> each.withName(name), "renamed to " + name);
     }
@@ -725,9 +737,8 @@ public final class GuildService implements IGuildsService {
         if (wrong.isPresent()) {
             return wrong.get();
         }
-        Optional<Guild> taken = book.find(name);
         Optional<Guild> own = own(actor);
-        if (taken.isPresent() && (own.isEmpty() || !taken.get().id().equals(own.get().id()))) {
+        if (book.claimed(name, own.map(Guild::id).orElse(null))) {
             return GuildOutcome.NAME_TAKEN;
         }
         GuildOutcome changed = edit(actor, GuildPermission.EDIT_INFO, guild -> guild.withName(name), GuildEvent.Kind.RENAMED, name);

@@ -118,19 +118,28 @@ public final class GuildBook {
         return id == null ? Optional.empty() : Optional.ofNullable(guilds.get(id));
     }
 
-    /** A guild by its name, its tag or its id, ignoring case. */
+    /**
+     * A guild by its name, its tag or its id, ignoring case — in that order, though {@link #claimed} keeps the three
+     * one namespace, so a typed word can only ever match one guild.
+     */
     public synchronized Optional<Guild> find(String typed) {
         if (typed == null || typed.isBlank()) {
             return Optional.empty();
         }
-        String wanted = typed.strip().toLowerCase(Locale.ROOT);
-        for (Guild guild : guilds.values()) {
-            if (guild.name().toLowerCase(Locale.ROOT).equals(wanted) || guild.tag().toLowerCase(Locale.ROOT).equals(wanted)
-                    || guild.id().value().equals(wanted.replaceAll("\\s+", "-"))) {
-                return Optional.of(guild);
-            }
-        }
-        return Optional.empty();
+        String wanted = typed.strip();
+        String asId = wanted.toLowerCase(Locale.ROOT).replaceAll("\\s+", "-");
+        return guilds.values().stream().filter(guild -> guild.name().equalsIgnoreCase(wanted)).findFirst()
+                .or(() -> guilds.values().stream().filter(guild -> guild.tag().equalsIgnoreCase(wanted)).findFirst())
+                .or(() -> guilds.values().stream().filter(guild -> guild.id().value().equals(asId)).findFirst());
+    }
+
+    /** Whether {@code word} is already some other guild's name, tag or id. */
+    public synchronized boolean claimed(String word, TeamId except) {
+        String wanted = word.strip();
+        String asId = wanted.toLowerCase(Locale.ROOT).replaceAll("\\s+", "-");
+        return guilds.values().stream().filter(guild -> !guild.id().equals(except)).anyMatch(guild ->
+                guild.name().equalsIgnoreCase(wanted) || guild.tag().equalsIgnoreCase(wanted)
+                        || guild.id().value().equals(asId));
     }
 
     public synchronized List<Guild> all() {
@@ -147,8 +156,7 @@ public final class GuildBook {
     }
 
     public synchronized boolean tagTaken(String tag, TeamId except) {
-        return guilds.values().stream().anyMatch(guild -> !guild.id().equals(except)
-                && guild.tag().equalsIgnoreCase(tag.strip()));
+        return claimed(tag, except);
     }
 
     // ------------------------------------------------------------------ changing
@@ -160,6 +168,9 @@ public final class GuildBook {
         }
         if (memberOf.containsKey(guild.leader())) {
             return GuildOutcome.ALREADY_IN_GUILD;
+        }
+        if (claimed(guild.name(), null)) {
+            return GuildOutcome.NAME_TAKEN;
         }
         if (tagTaken(guild.tag(), null)) {
             return GuildOutcome.TAG_TAKEN;
@@ -211,6 +222,9 @@ public final class GuildBook {
         }
         if (!after.tag().equalsIgnoreCase(before.tag()) && tagTaken(after.tag(), id)) {
             return GuildOutcome.TAG_TAKEN;
+        }
+        if (!after.name().equalsIgnoreCase(before.name()) && claimed(after.name(), id)) {
+            return GuildOutcome.NAME_TAKEN;
         }
         Set<UUID> joining = new LinkedHashSet<>(after.members().keySet());
         joining.removeAll(before.members().keySet());

@@ -118,6 +118,24 @@ class GuildBookTest {
     }
 
     @Test
+    @DisplayName("names, tags and ids are one namespace, so a typed word never means two guilds")
+    void oneNamespace() {
+        Guild orcs = Fixtures.solo("Orcs", Fixtures.player("a")).withTag("GRR");
+        assertThat(book.create(orcs)).isEqualTo(GuildOutcome.SUCCESS);
+        assertThat(book.create(Fixtures.solo("Wolves", Fixtures.player("b")).withTag("ORCS")))
+                .as("a tag that is another guild's name").isEqualTo(GuildOutcome.TAG_TAKEN);
+        assertThat(book.create(Fixtures.solo("grr", Fixtures.player("c")).withTag("XX")))
+                .as("a name that is another guild's tag").isEqualTo(GuildOutcome.NAME_TAKEN);
+        Guild wolves = Fixtures.solo("Wolves", Fixtures.player("d")).withTag("WLF");
+        book.create(wolves);
+        book.update(orcs.id(), g -> g.withName("Uruks"));
+        assertThat(book.update(wolves.id(), g -> g.withTag("ORCS"))).as("the id the orcs were founded with").isEqualTo(GuildOutcome.TAG_TAKEN);
+        assertThat(book.update(wolves.id(), g -> g.withName("Uruks"))).isEqualTo(GuildOutcome.NAME_TAKEN);
+        assertThat(book.find("uruks")).map(Guild::id).contains(orcs.id());
+        assertThat(book.find("wlf")).map(Guild::id).contains(wolves.id());
+    }
+
+    @Test
     @DisplayName("a rename keeps the id and every member; find works by name, tag and id")
     void rename() {
         Guild elves = Fixtures.guild("Elves");

@@ -283,6 +283,8 @@ class ServicesTest {
             assertThat(guilds.deleteRank(ALICE, "elder")).isEqualTo(GuildOutcome.RANK_IN_USE);
             assertThat(guilds.renameRank(ALICE, "elder", "Old <red>One")).isEqualTo(GuildOutcome.NAME_CHARACTERS);
             assertThat(guilds.renameRank(ALICE, "elder", "Old One")).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(guilds.renameRank(ALICE, "elder", "officer")).as("another rank's name, any case").isEqualTo(GuildOutcome.NAME_TAKEN);
+            assertThat(guilds.createRank(ALICE, "MEMBER")).isEqualTo(GuildOutcome.NAME_TAKEN);
             assertThat(guilds.editRank(ALICE, Rank.LEADER, rank -> rank, "")).isEqualTo(GuildOutcome.LEADER_RANK);
             for (int each = 0; each < 3; each++) {
                 guilds.createRank(ALICE, "Extra " + each);

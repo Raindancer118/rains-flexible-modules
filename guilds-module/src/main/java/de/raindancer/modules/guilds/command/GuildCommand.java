@@ -141,8 +141,8 @@ public final class GuildCommand implements IGuildsCommand {
     }
 
     private static Optional<Rank> rankNamed(Guild guild, String typed) {
-        return guild.rank(typed.toLowerCase(Locale.ROOT))
-                .or(() -> guild.ranks().stream().filter(rank -> rank.name().equalsIgnoreCase(typed.strip())).findFirst());
+        return guild.ranks().stream().filter(rank -> rank.name().equalsIgnoreCase(typed.strip())).findFirst()
+                .or(() -> guild.rank(typed.strip().toLowerCase(Locale.ROOT)));
     }
 
     private static void withPlayer(GuildsServices live, Player player, String typed, java.util.function.Consumer<UUID> then) {

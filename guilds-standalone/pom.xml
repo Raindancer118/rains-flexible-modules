@@ -23,8 +23,9 @@
         <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsGuilds</plugin.name>
-        <!-- 0.1.0: guilds — ranks, bank, levels, alliances, home, chat channels, name badges. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.1.0: guilds — ranks, bank, levels, alliances, home, chat channels, name badges.
+             0.1.1: names, tags and ids one namespace; rank names unique. -->
+        <plugin.version>0.1.1</plugin.version>
     </properties>
 
     <dependencies>
