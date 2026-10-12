@@ -78,6 +78,22 @@ class AdminModeServiceTest {
     }
 
     @Test
+    @DisplayName("going in and coming out is told to other plugins through Core's AdminModes")
+    void announced() {
+        java.util.List<String> heard = new java.util.ArrayList<>();
+        de.raindancer.core.moderation.players.AdminModes.Listener listener = (who, on) -> heard.add(who + "=" + on);
+        de.raindancer.core.moderation.players.AdminModes.listen(listener);
+        try {
+            when(loadouts.capture(player)).thenReturn(SURVIVAL, ADMIN_NOW);
+            service.toggle(player);
+            service.toggle(player);
+            assertThat(heard).containsExactly(id + "=true", id + "=false");
+        } finally {
+            de.raindancer.core.moderation.players.AdminModes.unlisten(listener);
+        }
+    }
+
+    @Test
     @DisplayName("admin mode is survival with flight and god mode — every time, whatever the admin side was left in")
     void survivalFlyGod() {
         when(loadouts.capture(player)).thenReturn(SURVIVAL, ADMIN_NOW, SURVIVAL);

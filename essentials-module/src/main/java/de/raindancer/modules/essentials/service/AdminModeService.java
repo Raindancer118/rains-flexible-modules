@@ -157,6 +157,7 @@ public final class AdminModeService implements IEssentialsService {
         player.saveData();
         powersOn(player);
         showBar(id);
+        de.raindancer.core.moderation.players.AdminModes.switched(id, true);
         messages.send(player, "essentials.admin.entered");
         return true;
     }
@@ -189,6 +190,7 @@ public final class AdminModeService implements IEssentialsService {
         inAdminMode.remove(id);
         player.saveData();
         powersOff(id);
+        de.raindancer.core.moderation.players.AdminModes.switched(id, false);
         actionBars.clear(id, BAR);
         if (settings.adminReturnToPlace() && survival.place() != null) {
             moveTo.accept(player, survival.place());
@@ -216,6 +218,7 @@ public final class AdminModeService implements IEssentialsService {
         }
         powersOn(player);
         showBar(id);
+        de.raindancer.core.moderation.players.AdminModes.switched(id, true);
         messages.send(player, "essentials.admin.still-in");
     }
 

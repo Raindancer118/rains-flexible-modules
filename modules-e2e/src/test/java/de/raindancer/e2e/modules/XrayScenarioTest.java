@@ -131,6 +131,11 @@ class XrayScenarioTest {
         return new int[]{(int) Math.floor(actual.getX()), (int) Math.floor(actual.getY()), (int) Math.floor(actual.getZ())};
     }
 
+    /** Inside the stone this test lays down; outside, natural caves send water and lava updates too. */
+    private static boolean inRock(int[] at) {
+        return at[0] >= 0 && at[0] < 144 && at[2] >= 0 && at[2] < 96;
+    }
+
     /** What an x-ray client sees: blocks the server sent this client alone, still not taken back. */
     private static Map<String, int[]> baitSeen(Bot bot) {
         Map<String, int[]> live = new HashMap<>();
@@ -140,7 +145,7 @@ class XrayScenarioTest {
                 live.remove(key);
             } else if (live.containsKey(key)) {
                 live.remove(key);   // a second update for the same spot is the real block coming back
-            } else if (update[1] < FLOOR + 20 && !DUG.contains(bot.name() + ":" + key)) {
+            } else if (update[1] < FLOOR + 20 && inRock(update) && !DUG.contains(bot.name() + ":" + key)) {
                 // A spot it dug itself is the server putting a refused dig back, never a bait.
                 live.put(key, update);
             }

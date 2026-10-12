@@ -77,71 +77,166 @@ public final class BaitSightRule implements IModerationRule {
      * The closed blocks that come within {@code distance} of open space because {@code (x, y, z)} opens,
      * and were not that near before. At distance 1 these are exactly the blocks the dig reveals.
      * Called while the block still stands.
-     *
-     * <p>Runs on every dig, and a player can push the distance to its maximum by faking ping, so the
-     * work is bounded whatever the cave looks like: every block within twice the distance is read
-     * once, then one breadth-first pass from the open ones gives each block its distance to open space.
      */
     public List<int[]> newlyNear(BlockGrid grid, int x, int y, int z, int distance) {
-        int reach = 2 * distance;
-        int side = 2 * reach + 1;
-        int[] steps = new int[side * side * side];
-        java.util.Arrays.fill(steps, Integer.MAX_VALUE);
-        int[] queue = new int[steps.length];
-        int head = 0;
-        int tail = 0;
-        for (int dx = -reach; dx <= reach; dx++) {
-            int restY = reach - Math.abs(dx);
-            for (int dy = -restY; dy <= restY; dy++) {
-                int restZ = restY - Math.abs(dy);
-                for (int dz = -restZ; dz <= restZ; dz++) {
-                    if ((dx != 0 || dy != 0 || dz != 0) && grid.open(x + dx, y + dy, z + dz)) {
-                        int index = ((dx + reach) * side + dy + reach) * side + dz + reach;
-                        steps[index] = 0;
-                        queue[tail++] = index;
+        return field(grid, x, y, z, distance, 0).newlyNear();
+    }
+
+    /**
+     * How far from open space every block around a dig is, before the dig — enough to judge shapes
+     * reaching up to {@code extent} steps beyond the sight distance.
+     *
+     * <p>Runs on every dig, and a player can push the distance to its maximum by faking ping, so the
+     * work is bounded whatever the cave looks like: every block within reach is read once, then one
+     * breadth-first pass from the open ones gives each block its distance to open space.
+     */
+    public Field field(BlockGrid grid, int x, int y, int z, int distance, int extent) {
+        return new Field(grid, x, y, z, distance, extent);
+    }
+
+    /** Distances to open space around one dig, as they were before it. */
+    public static final class Field {
+
+        private final BlockGrid grid;
+        private final int x;
+        private final int y;
+        private final int z;
+        private final int distance;
+        private final int reach;
+        private final int side;
+        /** Steps to open space, up to the distance; above it means "farther". 0 is open. */
+        private final int[] steps;
+        private final org.bukkit.Material[] types;
+
+        private Field(BlockGrid grid, int x, int y, int z, int distance, int extent) {
+            this.grid = grid;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.distance = distance;
+            this.reach = 2 * distance + 2 * extent;
+            this.side = 2 * reach + 1;
+            this.steps = new int[side * side * side];
+            this.types = new org.bukkit.Material[steps.length];
+            java.util.Arrays.fill(steps, Integer.MAX_VALUE);
+            int[] queue = new int[steps.length];
+            int head = 0;
+            int tail = 0;
+            for (int dx = -reach; dx <= reach; dx++) {
+                int restY = reach - Math.abs(dx);
+                for (int dy = -restY; dy <= restY; dy++) {
+                    int restZ = restY - Math.abs(dy);
+                    for (int dz = -restZ; dz <= restZ; dz++) {
+                        if ((dx != 0 || dy != 0 || dz != 0) && grid.open(x + dx, y + dy, z + dz)) {
+                            int index = index(dx, dy, dz);
+                            steps[index] = 0;
+                            queue[tail++] = index;
+                        }
                     }
                 }
             }
-        }
-        // Distances along the axes from the open blocks, as far as the given distance: no farther is needed.
-        while (head < tail) {
-            int index = queue[head++];
-            int d = steps[index];
-            if (d >= distance) {
-                continue;
-            }
-            int ix = index / (side * side);
-            int iy = index / side % side;
-            int iz = index % side;
-            for (int[] step : AXES) {
-                int nx = ix + step[0];
-                int ny = iy + step[1];
-                int nz = iz + step[2];
-                if (nx < 0 || ny < 0 || nz < 0 || nx >= side || ny >= side || nz >= side) {
+            // Distances along the axes from the open blocks, as far as the sight distance: no farther is needed.
+            while (head < tail) {
+                int index = queue[head++];
+                int d = steps[index];
+                if (d >= distance) {
                     continue;
                 }
-                int next = (nx * side + ny) * side + nz;
-                if (steps[next] > d + 1) {
-                    steps[next] = d + 1;
-                    queue[tail++] = next;
-                }
-            }
-        }
-        List<int[]> near = new ArrayList<>();
-        for (int dx = -distance; dx <= distance; dx++) {
-            int restY = distance - Math.abs(dx);
-            for (int dy = -restY; dy <= restY; dy++) {
-                int restZ = restY - Math.abs(dy);
-                for (int dz = -restZ; dz <= restZ; dz++) {
-                    int index = ((dx + reach) * side + dy + reach) * side + dz + reach;
-                    // Open blocks have 0; the dug block itself was never a source, so skip it by position.
-                    if ((dx != 0 || dy != 0 || dz != 0) && steps[index] > distance) {
-                        near.add(new int[]{x + dx, y + dy, z + dz});
+                int ix = index / (side * side);
+                int iy = index / side % side;
+                int iz = index % side;
+                for (int[] step : AXES) {
+                    int nx = ix + step[0];
+                    int ny = iy + step[1];
+                    int nz = iz + step[2];
+                    if (nx < 0 || ny < 0 || nz < 0 || nx >= side || ny >= side || nz >= side) {
+                        continue;
+                    }
+                    int next = (nx * side + ny) * side + nz;
+                    if (steps[next] > d + 1) {
+                        steps[next] = d + 1;
+                        queue[tail++] = next;
                     }
                 }
             }
         }
-        return near;
+
+        private int index(int dx, int dy, int dz) {
+            return ((dx + reach) * side + dy + reach) * side + dz + reach;
+        }
+
+        /** The closed blocks newly within the distance, not counting the dug block itself. */
+        public List<int[]> newlyNear() {
+            List<int[]> near = new ArrayList<>();
+            hits(false, (dx, dy, dz) -> near.add(new int[]{x + dx, y + dy, z + dz}));
+            return near;
+        }
+
+        private interface Cell {
+            void at(int dx, int dy, int dz);
+        }
+
+        /** Closed blocks within the distance of the dig that were farther than it from open space before. */
+        private void hits(boolean withDug, Cell cell) {
+            for (int dx = -distance; dx <= distance; dx++) {
+                int restY = distance - Math.abs(dx);
+                for (int dy = -restY; dy <= restY; dy++) {
+                    int restZ = restY - Math.abs(dy);
+                    for (int dz = -restZ; dz <= restZ; dz++) {
+                        boolean dug = dx == 0 && dy == 0 && dz == 0;
+                        // Open blocks have 0; the dug block was never a source, so it is told apart by position.
+                        if ((withDug || !dug) && steps[index(dx, dy, dz)] > distance) {
+                            cell.at(dx, dy, dz);
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Every position a vein of this shape (offsets from its anchor, each at most the field's extent
+         * away) could have had, all of it in rock that {@code fits} and farther than the distance from
+         * open space, so that this dig is the one that first comes near it. Hands over each anchor's height.
+         */
+        public void anchors(int[][] shape, java.util.function.Predicate<org.bukkit.Material> fits,
+                            java.util.function.IntConsumer anchorY) {
+            java.util.BitSet tried = new java.util.BitSet(steps.length);
+            hits(true, (hx, hy, hz) -> {
+                for (int[] offset : shape) {
+                    int ax = hx - offset[0];
+                    int ay = hy - offset[1];
+                    int az = hz - offset[2];
+                    int anchor = index(ax, ay, az);
+                    if (tried.get(anchor)) {
+                        continue;
+                    }
+                    tried.set(anchor);
+                    boolean whole = true;
+                    for (int[] block : shape) {
+                        int bx = ax + block[0];
+                        int by = ay + block[1];
+                        int bz = az + block[2];
+                        int at = index(bx, by, bz);
+                        if (steps[at] <= distance || !fits.test(type(at, bx, by, bz))) {
+                            whole = false;
+                            break;
+                        }
+                    }
+                    if (whole) {
+                        anchorY.accept(y + ay);
+                    }
+                }
+            });
+        }
+
+        private org.bukkit.Material type(int index, int dx, int dy, int dz) {
+            org.bukkit.Material type = types[index];
+            if (type == null) {
+                type = grid.at(x + dx, y + dy, z + dz);
+                types[index] = type;
+            }
+            return type;
+        }
     }
 
     @Override

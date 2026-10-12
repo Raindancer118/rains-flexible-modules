@@ -79,7 +79,9 @@ public final class XrayEvidenceService implements IModerationService {
             return;
         }
         GameMode mode = player.getGameMode();
-        if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR) {
+        // Staff in admin mode are checking, not mining — and are shown the baits as redstone.
+        if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR
+                || de.raindancer.core.moderation.players.AdminModes.isOn(player.getUniqueId())) {
             return;
         }
         Material type = block.getType();

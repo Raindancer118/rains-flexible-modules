@@ -2,6 +2,7 @@ package de.raindancer.modules.moderation.listener;
 
 import de.raindancer.modules.moderation.service.HoneypotService;
 import de.raindancer.modules.moderation.service.OreDensitySampler;
+import io.papermc.paper.event.packet.PlayerChunkLoadEvent;
 import io.papermc.paper.event.packet.PlayerChunkUnloadEvent;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
@@ -44,7 +45,7 @@ public final class XrayBaitListener implements IModerationListener {
         honeypots.forget(event.getPlayer().getUniqueId());
     }
 
-    /** A dig next to a bait turns it back before the client can show it. */
+    /** A dig near a bait vein turns it back before the client can show it. */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDigStart(BlockDamageEvent event) {
         honeypots.digStarted(event.getPlayer(), event.getBlock());
@@ -86,6 +87,12 @@ public final class XrayBaitListener implements IModerationListener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBurn(BlockBurnEvent event) {
         honeypots.changed(event.getBlock());
+    }
+
+    /** The veins of a chunk arrive with it, so an x-ray never sees one appear on its own. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onChunkSent(PlayerChunkLoadEvent event) {
+        honeypots.chunkSent(event.getPlayer(), event.getChunk().getWorld(), event.getChunk().getX(), event.getChunk().getZ());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

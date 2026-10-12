@@ -1,12 +1,16 @@
 package de.raindancer.modules.moderation.service;
 
-import de.raindancer.modules.moderation.util.WorldGrid;
-
+import de.raindancer.core.moderation.players.AdminModes;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.moderation.ModerationSettings;
 import de.raindancer.modules.moderation.model.OreKind;
+import de.raindancer.modules.moderation.rules.BaitVeinRule;
 import de.raindancer.modules.moderation.rules.BaitSightRule;
+import de.raindancer.modules.moderation.store.BaitSeed;
+import de.raindancer.modules.moderation.util.LoadedGrid;
+import io.papermc.paper.math.Position;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -26,80 +30,73 @@ import org.bukkit.potion.PotionEffectType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Bait ores: fake diamonds and debris sent to one player's client only, sealed inside solid rock
- * where no honest eye can see them. An x-ray client renders them like any other ore.
+ * Bait ores: a hidden layer of fake ore veins ({@link BaitVeinRule}) sent to each player's client along
+ * with the chunk, sealed in rock where no honest eye can see them. An x-ray client renders them like
+ * any other ore — the same veins in the same places for everyone, there whenever the chunk is.
  *
- * <p>The server never changes a block. Baits are placed only in host rock at least a sight distance
- * away from open space, and the moment a tunnel comes within that distance the real block is sent
- * back, so an honest player never sees a diamond that is not there. The distance is one block for a
- * slow pickaxe; an instant one breaks blocks faster than the server can answer, so it grows with
- * dig speed and ping ({@link BaitSightRule}).
+ * <p>The server never changes a block. A vein is shown only in rock farther than a sight distance from
+ * open space, and the moment a tunnel comes within that distance its real blocks are sent back, so an
+ * honest player never sees a diamond that is not there. The distance is one block for a slow pickaxe;
+ * an instant one breaks blocks faster than the server can answer, so it grows with dig speed and ping
+ * ({@link BaitSightRule}).
  *
- * <p>Because baits are scattered uniformly over that rock around a miner, the chance that a dig
- * brings a bait within the distance is known exactly: baits ÷ eligible rock, for every block the dig
- * newly brings that near. That makes "reached N baits" a test with a calculable expectation, not a hunch.
+ * <p>Because the layer's density is known, the chance that a dig brings a vein within the distance is
+ * known too ({@link BaitVeinRule#expected}). That makes "reached N baits" a test with a calculable
+ * expectation, not a hunch.
  */
 public final class HoneypotService implements IModerationService {
 
-    private static final int INNER = 6;
-    private static final int ATTEMPTS_PER_BAIT = 40;
-    /** Extra probes every cycle, only to measure how much enclosed rock is around the miner right now. */
-    private static final int PROBES = 64;
-    /** How often baits near the miner are checked against open space something else made. */
+    /** How often veins near the miner are checked against open space something else made. */
     private static final int GUARD_TICKS = 4;
     private static final BaitSightRule SIGHT = new BaitSightRule();
+    private static final BaitVeinRule LAYER = new BaitVeinRule();
 
     /** A position in one world. */
     public record Key(UUID world, int x, int y, int z) {
     }
 
-    /** One player's baits. */
+    /** A vein one client is shown: its blocks and the fake each one shows. */
+    private record Shown(Key anchor, Map<Key, Material> blocks) {
+    }
+
+    /** One player's veins. */
     private static final class Baits {
-        final Map<Key, Material> fakes = new HashMap<>();
-        /** Baits already turned back because a dig started near them; counted when that dig finishes. */
-        final java.util.Set<Key> pending = new java.util.HashSet<>();
-        Location center;
-        double tries;
-        double eligible;
-        int radius;
-        /** How close open space may come before a bait goes; what placement and the expectation assume. */
+        final Map<Key, Shown> veins = new HashMap<>();
+        final Map<Key, Shown> byBlock = new HashMap<>();
+        /** Veins already turned back because a dig started near them; counted when that dig finishes. */
+        final Map<Key, Shown> pending = new LinkedHashMap<>();
+        /** How close open space may come before a vein goes; what showing veins and the expectation assume. */
         int distance = 1;
     }
 
-    /** What one break's revealed blocks meant for the bait test. */
+    /** What one finished dig meant for the bait test. */
     public record Reach(int reached, double expected, List<Key> positions) {
         public static final Reach NONE = new Reach(0, 0, List.of());
     }
 
     private final Plugin plugin;
+    private final long seed;
     private final Map<UUID, Baits> byPlayer = new ConcurrentHashMap<>();
     private final Map<Key, Set<UUID>> owners = new ConcurrentHashMap<>();
     private volatile ModerationSettings settings;
 
     public HoneypotService(Plugin plugin, ModerationSettings settings) {
         this.plugin = plugin;
+        this.seed = BaitSeed.load(plugin.getDataFolder().toPath());
         settings(settings);
     }
 
-    /** Keeps a player's baits topped up around them; runs on their own thread every few seconds. */
+    /** Keeps a joining player's veins honest on their own thread; the veins themselves come with each chunk. */
     public void start(Player player) {
-        Scheduling.entityTimer(plugin, player, 100, 100, task -> {
-            if (!player.isOnline()) {
-                task.cancel();
-                return;
-            }
-            maintain(player);
-        }, () -> { });
-        Scheduling.entityTimer(plugin, player, 100 + GUARD_TICKS, GUARD_TICKS, task -> {
+        Scheduling.entityTimer(plugin, player, GUARD_TICKS, GUARD_TICKS, task -> {
             if (!player.isOnline()) {
                 task.cancel();
                 return;
@@ -108,128 +105,177 @@ public final class HoneypotService implements IModerationService {
         }, () -> { });
     }
 
-    void maintain(Player player) {
-        ModerationSettings now = settings;
-        Baits baits = byPlayer.computeIfAbsent(player.getUniqueId(), ignored -> new Baits());
-        synchronized (baits) {
-            if (!now.xrayDetectionEnabled() || !now.xrayHoneypots() || !eligible(player)) {
-                clear(player, baits, true);
-                return;
-            }
-            Location here = player.getLocation();
-            int radius = now.xrayHoneypotRadius();
-            baits.radius = radius;
-            if (baits.center == null || !here.getWorld().equals(baits.center.getWorld())) {
-                clear(player, baits, true);
-            }
-            baits.center = here.clone();
-            World world = here.getWorld();
-            baits.distance = sightDistance(player, here.getBlock().getRelative(0, -1, 0));
-            int sight = baits.distance;
-            // Measured afresh around where they are now: an estimate kept from hours of solid rock
-            // would overstate the rock in a cave system and understate the chance of hitting bait.
-            baits.tries = 0;
-            baits.eligible = 0;
-            ThreadLocalRandom probes = ThreadLocalRandom.current();
-            for (int probe = 0; probe < PROBES; probe++) {
-                Optional<int[]> spot = spotInShell(probes, here.getBlockX(), here.getBlockY(), here.getBlockZ(), radius,
-                        world.getMinHeight(), world.getMaxHeight());
-                if (spot.isPresent() && !Bukkit.isOwnedByCurrentRegion(world, spot.get()[0] >> 4, spot.get()[2] >> 4)) {
-                    continue;
-                }
-                baits.tries++;
-                if (spot.isPresent() && eligibleRock(world, spot.get(), sight)) {
-                    baits.eligible++;
-                }
-            }
-            for (Iterator<Map.Entry<Key, Material>> it = baits.fakes.entrySet().iterator(); it.hasNext(); ) {
-                Map.Entry<Key, Material> bait = it.next();
-                double distance = distance(here, bait.getKey());
-                // Only ever dropped for being far away: a bait the miner is closing in on is the evidence.
-                if (distance > radius + 8) {
-                    it.remove();
-                    unown(bait.getKey(), player.getUniqueId());
-                    restore(player, bait.getKey());
-                }
-            }
-            baits.pending.removeIf(key -> distance(here, key) > radius + 8);
-            int missing = now.xrayHoneypotCount() - baits.fakes.size();
-            ThreadLocalRandom random = ThreadLocalRandom.current();
-            for (int attempt = 0; attempt < missing * ATTEMPTS_PER_BAIT && baits.fakes.size() < now.xrayHoneypotCount(); attempt++) {
-                Optional<int[]> found = spotInShell(random, here.getBlockX(), here.getBlockY(), here.getBlockZ(), radius,
-                        world.getMinHeight(), world.getMaxHeight());
-                if (found.isEmpty() || !Bukkit.isOwnedByCurrentRegion(world, found.get()[0] >> 4, found.get()[2] >> 4)
-                        || !eligibleRock(world, found.get(), sight)) {
-                    continue;
-                }
-                Key spot = new Key(world.getUID(), found.get()[0], found.get()[1], found.get()[2]);
-                Block block = world.getBlockAt(spot.x(), spot.y(), spot.z());
-                Material fake = fakeFor(world, block);
-                if (fake == null || nearOre(world, spot) || nearBait(baits, spot)) {
-                    continue;
-                }
-                baits.fakes.put(spot, fake);
-                owners.computeIfAbsent(spot, ignored -> ConcurrentHashMap.newKeySet()).add(player.getUniqueId());
-                player.sendBlockChange(new Location(world, spot.x(), spot.y(), spot.z()), fake.createBlockData());
-            }
+    /**
+     * For players already online when the module starts: their chunks arrived before it did. Not at
+     * join — Paper has no chunk loader for the player yet and throws from {@code getSentChunkKeys}.
+     */
+    public void startPlaying(Player player) {
+        start(player);
+        World world = player.getWorld();
+        for (long key : player.getSentChunkKeys()) {
+            chunkSent(player, world, (int) key, (int) (key >> 32));
         }
     }
 
     /**
-     * What a finished dig meant for the bait test: the baits it brought within sight distance, and how
-     * many chance alone would have — one bait's worth for every eligible block it newly brought that
-     * near. Called while the dug block still stands. Every bait reached is turned back at once.
+     * Somebody went into admin mode or came out: every vein they are shown is sent again, as redstone
+     * or as ore. Runs on their own thread.
+     */
+    public void adminModeSwitched(Player player) {
+        Baits baits = byPlayer.get(player.getUniqueId());
+        // Nothing shown yet — and at join Paper has no chunk loader for them to ask about.
+        if (baits == null) {
+            return;
+        }
+        synchronized (baits) {
+            {
+                for (Shown shown : List.copyOf(baits.veins.values())) {
+                    takeBack(player, baits, shown);
+                }
+                baits.pending.clear();
+            }
+        }
+        World world = player.getWorld();
+        for (long key : player.getSentChunkKeys()) {
+            chunkSent(player, world, (int) key, (int) (key >> 32));
+        }
+    }
+
+    private boolean active() {
+        ModerationSettings now = settings;
+        return now.xrayDetectionEnabled() && now.xrayHoneypots() && now.xrayBaitVeins() > 0;
+    }
+
+    /**
+     * A chunk just reached the client: show the veins in it — and those of its neighbours reaching into
+     * it, once every chunk such a vein touches has arrived, so no vein is ever shown in part.
+     */
+    public void chunkSent(Player player, World world, int chunkX, int chunkZ) {
+        boolean staff = AdminModes.isOn(player.getUniqueId());
+        if (!active() || !staff && (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR)) {
+            return;
+        }
+        String environment = world.getEnvironment().name();
+        if (BaitVeinRule.band(environment, world.getMinHeight()) == null) {
+            return;
+        }
+        Baits baits = byPlayer.computeIfAbsent(player.getUniqueId(), ignored -> new Baits());
+        LoadedGrid grid = new LoadedGrid(world);
+        Map<Position, BlockData> send = new HashMap<>();
+        synchronized (baits) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    for (BaitVeinRule.Vein vein : LAYER.veinsIn(seed, world.getUID(), environment, world.getMinHeight(),
+                            chunkX + dx, chunkZ + dz, settings.xrayBaitVeins())) {
+                        Shown shown = show(player, world, grid, baits, vein, chunkX, chunkZ, staff);
+                        if (shown != null) {
+                            shown.blocks().forEach((key, fake) -> send.put(Position.block(key.x(), key.y(), key.z()),
+                                    fake.createBlockData()));
+                        }
+                    }
+                }
+            }
+        }
+        if (!send.isEmpty()) {
+            player.sendMultiBlockChange(send);
+        }
+    }
+
+    private Shown show(Player player, World world, LoadedGrid grid, Baits baits, BaitVeinRule.Vein vein, int chunkX, int chunkZ,
+                       boolean staff) {
+        Key anchor = new Key(world.getUID(), vein.x(), vein.y(), vein.z());
+        if (baits.veins.containsKey(anchor) || baits.pending.containsKey(anchor)) {
+            return null;
+        }
+        boolean inThisChunk = false;
+        for (int[] block : vein.blocks()) {
+            inThisChunk |= block[0] >> 4 == chunkX && block[2] >> 4 == chunkZ;
+            if (!player.isChunkSent(Chunk.getChunkKey(block[0] >> 4, block[2] >> 4))) {
+                return null;
+            }
+        }
+        if (!inThisChunk || !LAYER.fits(grid, vein, baits.distance, type -> OreKind.of(type).isPresent())) {
+            return null;
+        }
+        Map<Key, Material> blocks = new LinkedHashMap<>();
+        for (int[] block : vein.blocks()) {
+            Key key = new Key(world.getUID(), block[0], block[1], block[2]);
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        // Two veins touching would read as one odd-shaped one.
+                        if (baits.byBlock.containsKey(new Key(key.world(), key.x() + dx, key.y() + dy, key.z() + dz))) {
+                            return null;
+                        }
+                    }
+                }
+            }
+            // Staff in admin mode checking with an x-ray of their own see baits for what they are.
+            blocks.put(key, staff ? Material.REDSTONE_BLOCK : BaitVeinRule.fakeFor(vein.kind(), grid.at(block[0], block[1], block[2])));
+        }
+        Shown shown = new Shown(anchor, blocks);
+        baits.veins.put(anchor, shown);
+        for (Key key : blocks.keySet()) {
+            baits.byBlock.put(key, shown);
+            owners.computeIfAbsent(key, ignored -> ConcurrentHashMap.newKeySet()).add(player.getUniqueId());
+        }
+        return shown;
+    }
+
+    /** Takes a vein off this client: its real blocks go back. Call with the player's baits locked. */
+    private void takeBack(Player player, Baits baits, Shown shown) {
+        baits.veins.remove(shown.anchor());
+        for (Key key : shown.blocks().keySet()) {
+            baits.byBlock.remove(key);
+            unown(key, player.getUniqueId());
+            restore(player, key);
+        }
+    }
+
+    /**
+     * What a finished dig meant for the bait test: the veins it brought within sight distance, and how
+     * many chance alone would have. Called while the dug block still stands. Every vein reached is
+     * turned back at once and counts once, however many of its blocks came near.
      */
     public Reach dug(Player player, Block block) {
         Baits baits = byPlayer.get(player.getUniqueId());
-        if (baits == null) {
+        if (baits == null || !active() || AdminModes.isOn(player.getUniqueId())) {
             return Reach.NONE;
         }
         World world = block.getWorld();
         synchronized (baits) {
-            if (baits.center == null || baits.fakes.isEmpty() && baits.pending.isEmpty() || !world.equals(baits.center.getWorld())
-                    || baits.tries < 10) {
-                return Reach.NONE;
-            }
             int distance = Math.max(baits.distance, sightDistance(player, block));
-            if (!ownedAround(world, block.getX(), block.getZ(), 2 * distance + 1)) {
+            if (!ownedAround(world, block.getX(), block.getZ(), 2 * distance + 2 * BaitVeinRule.EXTENT + 1)) {
                 return Reach.NONE;
             }
-            double shell = 4.0 / 3 * Math.PI * (Math.pow(baits.radius, 3) - Math.pow(INNER, 3));
-            double eligibleRock = Math.max(1, baits.eligible / baits.tries * shell);
-            double perBlock = (baits.fakes.size() + baits.pending.size()) / eligibleRock;
-            int inZone = 0;
-            for (int[] near : SIGHT.newlyNear(new WorldGrid(world), block.getX(), block.getY(), block.getZ(), distance)) {
-                Key key = new Key(world.getUID(), near[0], near[1], near[2]);
-                double fromCenter = distance(baits.center, key);
-                if (fromCenter >= INNER && fromCenter <= baits.radius
-                        && OreKind.isHostRock(world.getBlockAt(near[0], near[1], near[2]).getType())) {
-                    inZone++;
-                }
-            }
+            double expected = LAYER.expected(new LoadedGrid(world), world.getEnvironment().name(), world.getMinHeight(),
+                    settings.xrayBaitVeins(), block.getX(), block.getY(), block.getZ(), distance);
             List<Key> reached = new ArrayList<>();
-            for (Iterator<Key> it = baits.fakes.keySet().iterator(); it.hasNext(); ) {
-                Key key = it.next();
-                if (steps(key, block) <= distance) {
+            for (Iterator<Shown> it = baits.veins.values().iterator(); it.hasNext(); ) {
+                Shown shown = it.next();
+                if (near(shown, block, distance)) {
                     it.remove();
-                    unown(key, player.getUniqueId());
-                    restore(player, key);
-                    reached.add(key);
+                    for (Key key : shown.blocks().keySet()) {
+                        baits.byBlock.remove(key);
+                        unown(key, player.getUniqueId());
+                        restore(player, key);
+                    }
+                    reached.add(shown.anchor());
                 }
             }
-            for (Iterator<Key> it = baits.pending.iterator(); it.hasNext(); ) {
-                Key key = it.next();
-                if (steps(key, block) <= distance) {
+            for (Iterator<Shown> it = baits.pending.values().iterator(); it.hasNext(); ) {
+                Shown shown = it.next();
+                if (near(shown, block, distance)) {
                     it.remove();
-                    reached.add(key);
+                    reached.add(shown.anchor());
                 }
             }
-            return new Reach(reached.size(), inZone * perBlock, List.copyOf(reached));
+            return new Reach(reached.size(), expected, List.copyOf(reached));
         }
     }
 
     /**
-     * A dig is starting: every bait it could bring within sight distance goes back to rock now,
+     * A dig is starting: every vein it could bring within sight distance goes back to rock now,
      * before the client has broken anything next to it. Counted when the dig finishes.
      */
     public void digStarted(Player player, Block block) {
@@ -239,25 +285,31 @@ public final class HoneypotService implements IModerationService {
         }
         synchronized (baits) {
             int distance = Math.max(baits.distance, sightDistance(player, block));
-            for (Iterator<Key> it = baits.fakes.keySet().iterator(); it.hasNext(); ) {
-                Key key = it.next();
-                if (key.world().equals(block.getWorld().getUID()) && steps(key, block) <= distance) {
-                    it.remove();
-                    unown(key, player.getUniqueId());
-                    restore(player, key);
-                    baits.pending.add(key);
+            for (Shown shown : List.copyOf(baits.veins.values())) {
+                if (near(shown, block, distance)) {
+                    takeBack(player, baits, shown);
+                    baits.pending.put(shown.anchor(), shown);
                 }
             }
-            if (baits.pending.size() > 64) {
-                baits.pending.clear();
+            while (baits.pending.size() > 64) {
+                baits.pending.remove(baits.pending.keySet().iterator().next());
             }
         }
     }
 
+    private static boolean near(Shown shown, Block block, int distance) {
+        for (Key key : shown.blocks().keySet()) {
+            if (key.world().equals(block.getWorld().getUID()) && steps(key, block) <= distance) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
-     * Open space something else made — another player's tunnel, water, a faster pickaxe picked up —
-     * can put a bait within sight distance without this player digging. Such a bait goes back
-     * uncounted, before the miner gets close enough to break next to it.
+     * Keeps the sight distance up to date with the player's tools and ping, and takes back, uncounted,
+     * any vein that open space from elsewhere — another player's tunnel, water, a faster pickaxe picked
+     * up — has come near, before the miner gets close enough to break next to it.
      */
     void guard(Player player) {
         Baits baits = byPlayer.get(player.getUniqueId());
@@ -265,38 +317,49 @@ public final class HoneypotService implements IModerationService {
             return;
         }
         synchronized (baits) {
-            if (baits.fakes.isEmpty()) {
+            if (!active()) {
+                for (Shown shown : List.copyOf(baits.veins.values())) {
+                    takeBack(player, baits, shown);
+                }
                 return;
             }
             Location eye = player.getEyeLocation();
             World world = eye.getWorld();
+            Block underfoot = player.getLocation().getBlock().getRelative(0, -1, 0);
+            if (Bukkit.isOwnedByCurrentRegion(underfoot.getLocation())) {
+                baits.distance = sightDistance(player, underfoot);
+            }
+            if (baits.veins.isEmpty()) {
+                return;
+            }
             AttributeInstance range = player.getAttribute(Attribute.BLOCK_INTERACTION_RANGE);
             double reach = range == null ? 4.5 : range.getValue();
-            WorldGrid grid = new WorldGrid(world);
+            LoadedGrid grid = new LoadedGrid(world);
             Map<Material, Integer> byRock = new HashMap<>();
-            for (Iterator<Map.Entry<Key, Material>> it = baits.fakes.entrySet().iterator(); it.hasNext(); ) {
-                Key key = it.next().getKey();
-                if (!key.world().equals(world.getUID())) {
+            for (Shown shown : List.copyOf(baits.veins.values())) {
+                if (!shown.anchor().world().equals(world.getUID())) {
                     continue;
                 }
-                Block host = null;
+                Key anchor = shown.anchor();
                 int distance = baits.distance;
-                boolean owned = ownedAround(world, key.x(), key.z(), BaitSightRule.MAX_DISTANCE);
-                if (owned) {
-                    host = world.getBlockAt(key.x(), key.y(), key.z());
-                    Block rock = host;
-                    distance = Math.max(distance, byRock.computeIfAbsent(host.getType(), ignored -> sightDistance(player, rock)));
+                if (Bukkit.isOwnedByCurrentRegion(world, anchor.x() >> 4, anchor.z() >> 4)) {
+                    Block host = world.getBlockAt(anchor.x(), anchor.y(), anchor.z());
+                    distance = Math.max(distance, byRock.computeIfAbsent(host.getType(), ignored -> sightDistance(player, host)));
                 }
                 // Out of reach even after the blocks they could break before the server hears of it.
-                if (distance(eye, key) > reach + distance + 3) {
+                if (distance(eye, anchor) > reach + distance + BaitVeinRule.EXTENT + 3) {
                     continue;
                 }
-                if (owned && BaitSightRule.openDistance(grid, key.x(), key.y(), key.z(), distance) > distance) {
-                    continue;
+                boolean clear = true;
+                for (Key key : shown.blocks().keySet()) {
+                    if (BaitSightRule.openDistance(grid, key.x(), key.y(), key.z(), distance) <= distance) {
+                        clear = false;
+                        break;
+                    }
                 }
-                it.remove();
-                unown(key, player.getUniqueId());
-                restore(player, key);
+                if (!clear) {
+                    takeBack(player, baits, shown);
+                }
             }
         }
     }
@@ -305,39 +368,53 @@ public final class HoneypotService implements IModerationService {
     public void changed(Block block) {
         for (int[] side : new int[][]{{0, 0, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}) {
             Key key = new Key(block.getWorld().getUID(), block.getX() + side[0], block.getY() + side[1], block.getZ() + side[2]);
-            Set<UUID> holders = owners.remove(key);
+            Set<UUID> holders = owners.get(key);
             if (holders == null) {
                 continue;
             }
-            for (UUID holder : holders) {
+            for (UUID holder : Set.copyOf(holders)) {
                 Baits baits = byPlayer.get(holder);
                 Player player = Bukkit.getPlayer(holder);
-                if (baits != null) {
+                if (baits == null || player == null) {
+                    unown(key, holder);
+                    continue;
+                }
+                Scheduling.entity(plugin, player, () -> {
                     synchronized (baits) {
-                        baits.fakes.remove(key);
+                        Shown shown = baits.byBlock.get(key);
+                        if (shown != null) {
+                            takeBack(player, baits, shown);
+                        }
                     }
-                }
-                if (player != null) {
-                    Scheduling.entity(plugin, player, () -> restore(player, key));
-                }
+                });
             }
         }
     }
 
-    /** The client dropped a chunk; its baits went with it. */
+    /** The client dropped a chunk: its veins went with it, and any part of them in other chunks goes back. */
     public void chunkGone(Player player, World world, int chunkX, int chunkZ) {
         Baits baits = byPlayer.get(player.getUniqueId());
         if (baits == null) {
             return;
         }
         synchronized (baits) {
-            baits.fakes.keySet().removeIf(key -> {
-                boolean gone = key.world().equals(world.getUID()) && key.x() >> 4 == chunkX && key.z() >> 4 == chunkZ;
-                if (gone) {
-                    unown(key, player.getUniqueId());
+            for (Shown shown : List.copyOf(baits.veins.values())) {
+                boolean touches = false;
+                for (Key key : shown.blocks().keySet()) {
+                    touches |= key.world().equals(world.getUID()) && key.x() >> 4 == chunkX && key.z() >> 4 == chunkZ;
                 }
-                return gone;
-            });
+                if (!touches) {
+                    continue;
+                }
+                baits.veins.remove(shown.anchor());
+                for (Key key : shown.blocks().keySet()) {
+                    baits.byBlock.remove(key);
+                    unown(key, player.getUniqueId());
+                    if (key.x() >> 4 != chunkX || key.z() >> 4 != chunkZ) {
+                        restore(player, key);
+                    }
+                }
+            }
         }
     }
 
@@ -348,17 +425,19 @@ public final class HoneypotService implements IModerationService {
             return null;
         }
         synchronized (baits) {
-            return baits.fakes.get(new Key(world, x, y, z));
+            Shown shown = baits.byBlock.get(new Key(world, x, y, z));
+            return shown == null ? null : shown.blocks().get(new Key(world, x, y, z));
         }
     }
 
+    /** Fake blocks this player is shown right now. */
     public int count(UUID player) {
         Baits baits = byPlayer.get(player);
         if (baits == null) {
             return 0;
         }
         synchronized (baits) {
-            return baits.fakes.size();
+            return baits.byBlock.size();
         }
     }
 
@@ -366,19 +445,9 @@ public final class HoneypotService implements IModerationService {
         Baits baits = byPlayer.remove(player);
         if (baits != null) {
             synchronized (baits) {
-                baits.fakes.keySet().forEach(key -> unown(key, player));
+                baits.byBlock.keySet().forEach(key -> unown(key, player));
             }
         }
-    }
-
-    private void clear(Player player, Baits baits, boolean tellClient) {
-        for (Key key : baits.fakes.keySet()) {
-            unown(key, player.getUniqueId());
-            if (tellClient) {
-                restore(player, key);
-            }
-        }
-        baits.fakes.clear();
     }
 
     private void unown(Key key, UUID player) {
@@ -402,88 +471,6 @@ public final class HoneypotService implements IModerationService {
         }
     }
 
-    /** Under cover in the overworld below sea level, anywhere in the nether — where x-ray pays. */
-    private static boolean eligible(Player player) {
-        GameMode mode = player.getGameMode();
-        if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR) {
-            return false;
-        }
-        World world = player.getWorld();
-        return switch (world.getEnvironment()) {
-            case NORMAL -> player.getLocation().getY() < 50 && player.getLocation().getBlock().getLightFromSky() < 4;
-            case NETHER -> player.getLocation().getY() < 120;
-            default -> false;
-        };
-    }
-
-    /** What would tempt an x-ray here: diamonds deep down, gold higher up, debris in the nether. */
-    static Material fakeFor(World world, Block host) {
-        int y = host.getY();
-        boolean deepslate = host.getType() == Material.DEEPSLATE || host.getType() == Material.TUFF
-                || host.getType() == Material.COBBLED_DEEPSLATE;
-        return switch (world.getEnvironment()) {
-            case NORMAL -> y < 16 ? (deepslate ? Material.DEEPSLATE_DIAMOND_ORE : Material.DIAMOND_ORE)
-                    : y < 40 ? (deepslate ? Material.DEEPSLATE_GOLD_ORE : Material.GOLD_ORE) : null;
-            case NETHER -> y >= 8 && y <= 119 && (host.getType() == Material.NETHERRACK || host.getType() == Material.BASALT
-                    || host.getType() == Material.BLACKSTONE) ? Material.ANCIENT_DEBRIS : null;
-            default -> null;
-        };
-    }
-
-    private static boolean nearOre(World world, Key spot) {
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dy = -2; dy <= 2; dy++) {
-                for (int dz = -2; dz <= 2; dz++) {
-                    if (OreKind.of(world.getBlockAt(spot.x() + dx, spot.y() + dy, spot.z() + dz).getType()).isPresent()) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private static boolean nearBait(Baits baits, Key spot) {
-        for (Key other : baits.fakes.keySet()) {
-            if (Math.abs(other.x() - spot.x()) <= 3 && Math.abs(other.y() - spot.y()) <= 3 && Math.abs(other.z() - spot.z()) <= 3) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * A spot uniform over the shell between {@link #INNER} and {@code radius} — or nothing, when it
-     * falls outside the world. Never moved to the edge: that would pile bait into the bottom layers,
-     * where honest players dig for diamonds, and break the uniform spread the expectation relies on.
-     */
-    static Optional<int[]> spotInShell(java.util.Random random, int x, int y, int z, int radius, int minY, int maxY) {
-        while (true) {
-            int dx = random.nextInt(2 * radius + 1) - radius;
-            int dy = random.nextInt(2 * radius + 1) - radius;
-            int dz = random.nextInt(2 * radius + 1) - radius;
-            double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (distance < INNER || distance > radius) {
-                continue;
-            }
-            int at = y + dy;
-            if (at <= minY || at >= maxY - 1) {
-                return Optional.empty();
-            }
-            return Optional.of(new int[]{x + dx, at, z + dz});
-        }
-    }
-
-    /** Host rock with no open space within the sight distance — the only rock a bait may sit in. */
-    private static boolean eligibleRock(World world, int[] spot, int distance) {
-        if (!world.isChunkLoaded(spot[0] >> 4, spot[2] >> 4) || !ownedAround(world, spot[0], spot[2], distance)) {
-            return false;
-        }
-        WorldGrid grid = new WorldGrid(world);
-        return OreKind.isHostRock(world.getBlockAt(spot[0], spot[1], spot[2]).getType())
-                && BaitSightRule.openDistance(grid, spot[0], spot[1], spot[2], distance) > distance;
-    }
-
     /** Folia: every chunk a read around a spot may touch must be this thread's. */
     private static boolean ownedAround(World world, int x, int z, int reach) {
         return Bukkit.isOwnedByCurrentRegion(world, (x - reach) >> 4, (z - reach) >> 4)
@@ -494,6 +481,13 @@ public final class HoneypotService implements IModerationService {
 
     private static int steps(Key key, Block block) {
         return Math.abs(key.x() - block.getX()) + Math.abs(key.y() - block.getY()) + Math.abs(key.z() - block.getZ());
+    }
+
+    private static double distance(Location center, Key key) {
+        double dx = key.x() + 0.5 - center.getX();
+        double dy = key.y() + 0.5 - center.getY();
+        double dz = key.z() + 0.5 - center.getZ();
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     /**
@@ -527,13 +521,6 @@ public final class HoneypotService implements IModerationService {
         return SIGHT.distance(best, player.getPing());
     }
 
-    private static double distance(Location center, Key key) {
-        double dx = key.x() + 0.5 - center.getX();
-        double dy = key.y() + 0.5 - center.getY();
-        double dz = key.z() + 0.5 - center.getZ();
-        return Math.sqrt(dx * dx + dy * dy + dz * dz);
-    }
-
     @Override
     public void settings(ModerationSettings fresh) {
         this.settings = fresh == null ? ModerationSettings.DEFAULTS : fresh;
@@ -541,6 +528,6 @@ public final class HoneypotService implements IModerationService {
 
     @Override
     public String describe() {
-        return "showing each miner fake ores only an x-ray can see";
+        return "laying a layer of fake ore veins only an x-ray can see";
     }
 }

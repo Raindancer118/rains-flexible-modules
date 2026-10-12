@@ -317,23 +317,19 @@ public record ModerationSettings(
         // ───────────────────────────────────────────────────────────── x-ray, the second generation
 
         @In("moderation/xray") @Title("Bait ores")
-        @Describe("Shows every miner a handful of fake ores sealed inside solid stone, visible to "
-                + "nobody but an x-ray. Nobody honest can see them, so nobody honest steers for them; "
-                + "the moment a tunnel reaches one it turns back into stone. How often somebody "
-                + "reaches them, against how often chance alone would, is the strongest evidence there is.")
+        @Describe("Lays a hidden layer of fake ore veins into the rock — diamonds and gold deep down, "
+                + "debris in the nether — that only an x-ray can see. Nobody honest can see them, so "
+                + "nobody honest steers for them; a vein turns back into stone before a tunnel gets close "
+                + "enough to show it. How often somebody comes near them, against how often chance alone "
+                + "would, is the strongest evidence there is.")
         @Key("xray.honeypots")
         boolean xrayHoneypots,
 
-        @In("moderation/xray") @Title("Bait ores per miner") @Range(min = 0, max = 200)
-        @Describe("How many fake ores each underground miner has around them at once.")
-        @Key("xray.honeypot-count")
-        int xrayHoneypotCount,
-
-        @In("moderation/xray") @Title("Bait distance") @Range(min = 8, max = 48)
-        @Describe("How far away, in blocks, the fake ores are scattered — far enough not to be "
-                + "stumbled into, near enough to tempt an x-ray.")
-        @Key("xray.honeypot-radius")
-        int xrayHoneypotRadius,
+        @In("moderation/xray") @Title("Bait veins per ten chunks") @Range(min = 0, max = 100)
+        @Describe("How many fake veins lie in every ten chunks. 15 puts about as much fake diamond in "
+                + "the deep layers as there is real diamond, so an x-ray finds a fake for every real one.")
+        @Key("xray.bait-veins-per-ten-chunks")
+        int xrayBaitVeins,
 
         @In("moderation/xray") @Title("Report at one in ten to the …") @Range(min = 2, max = 30)
         @Describe("A report is filed once a player's mining is this unlikely for an honest miner: 6 is "
@@ -438,7 +434,7 @@ public record ModerationSettings(
             900,
             true, true, "<dark_aqua>[Staff]</dark_aqua>", false, true, true, false, true,
             true, 0, 300, false, true,
-            true, 24, 20, 6, 14,
+            true, 15, 6, 14,
             "", 0, "0", "0", "0", true, 0, "0", 24, true, 10);
 
     /** The report cooldown as the rule wants it. */
@@ -495,7 +491,7 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -511,7 +507,7 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -527,7 +523,7 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -543,7 +539,7 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -559,7 +555,7 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -575,7 +571,7 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -591,7 +587,7 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, opped,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -607,7 +603,7 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix, vanishOnJoinForStaff, mayPromoteBelow,
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -623,7 +619,7 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, allowed, mayDemoteBelow, adminsAreOp, flightWhileVanished,
                 auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -639,7 +635,7 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, allowed, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -655,7 +651,7 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -671,7 +667,7 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -687,7 +683,7 @@ public record ModerationSettings(
                 xrayDetectionEnabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -703,7 +699,7 @@ public record ModerationSettings(
                 enabled, xrayOres, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -719,7 +715,7 @@ public record ModerationSettings(
                 xrayDetectionEnabled, ores, xrayCooldownSeconds, openReportsOnJoin, notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 
@@ -739,7 +735,7 @@ public record ModerationSettings(
                 notesShownOnJoin, staffChatPrefix,
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
-                xrayHoneypots, xrayHoneypotCount, xrayHoneypotRadius, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
+                xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
                 victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
     }
 

@@ -134,8 +134,11 @@
              2.31.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
              2.33.0: hands out a rule's next punishment for other plugins (the anti-cheat) through Core's RuleBreaches.
              2.37.0: files reports other plugins make on their own (the anti-cheat's movement hacks) through Core's AutoReports,
-                    one open per player and kind. -->
-        <plugin.version>2.37.0</plugin.version>
+                    one open per player and kind.
+             2.38.0: bait ores are a fixed layer of fake veins sent with each chunk (xray.bait-veins-per-ten-chunks
+                    replaces honeypot-count and honeypot-radius), taken back early enough that instant mining never
+                    shows one; finds keep their time. -->
+        <plugin.version>2.38.0</plugin.version>
     </properties>
 
     <dependencies>

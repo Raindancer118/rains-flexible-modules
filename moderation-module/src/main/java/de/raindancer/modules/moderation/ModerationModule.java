@@ -68,7 +68,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.37.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.38.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -378,8 +378,16 @@ public final class ModerationModule implements FlexModule {
         context.listener(xrayWatch);
         context.listener(xrayBait);
         for (org.bukkit.entity.Player online : server.getOnlinePlayers()) {
-            Scheduling.entity(context.plugin(), online, () -> honeypots.start(online));
+            Scheduling.entity(context.plugin(), online, () -> honeypots.startPlaying(online));
         }
+        de.raindancer.core.moderation.players.AdminModes.Listener baitsForStaff = (who, on) -> {
+            org.bukkit.entity.Player switching = server.getPlayer(who);
+            if (switching != null) {
+                Scheduling.entity(context.plugin(), switching, () -> honeypots.adminModeSwitched(switching));
+            }
+        };
+        de.raindancer.core.moderation.players.AdminModes.listen(baitsForStaff);
+        context.closeWith(() -> de.raindancer.core.moderation.players.AdminModes.unlisten(baitsForStaff));
         warnIfPaperAntiXrayIsOff(server, log);
         context.listener(new de.raindancer.modules.moderation.listener.BanhammerListener(services));
         context.listener(new de.raindancer.modules.moderation.listener.VaultListener());
