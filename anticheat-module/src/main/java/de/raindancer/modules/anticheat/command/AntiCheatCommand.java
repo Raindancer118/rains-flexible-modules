@@ -137,10 +137,18 @@ public final class AntiCheatCommand implements BasicCommand {
         return false;
     }
 
+    /** Vanilla's own nodes: going somewhere and becoming a spectator are those commands' powers, not this one's. */
+    static final String TELEPORT = "minecraft.command.teleport";
+    static final String GAME_MODE = "minecraft.command.gamemode";
+
     /** {@code /anticheat go <player>}: to where they are, remembering where the staff member was. */
     private void go(AntiCheatServices live, CommandSender sender, String[] args) {
         if (!(sender instanceof Player viewer)) {
             live.messages().send(sender, "anticheat.only-a-player");
+            return;
+        }
+        if (!viewer.hasPermission(TELEPORT)) {
+            live.messages().send(sender, "anticheat.no-permission");
             return;
         }
         withPlayer(live, sender, args, target -> {
@@ -274,17 +282,29 @@ public final class AntiCheatCommand implements BasicCommand {
         org.bukkit.Location start = new org.bukkit.Location(world, first.x(), first.y(), first.z());
         // Watched from where it happened, as a spectator — and put back as and where they were afterwards.
         // One replay after another goes back to where the first began, not to the last scene.
+        // Only for whoever may teleport and switch game mode anyway: a replay is not a way round those rights.
+        boolean travel = viewer.hasPermission(TELEPORT);
+        boolean spectate = travel && viewer.hasPermission(GAME_MODE);
         Watcher original = watchers.computeIfAbsent(viewer.getUniqueId(),
                 ignored -> new Watcher(viewer.getLocation(), viewer.getGameMode()));
         Runnable putBack = () -> de.raindancer.core.platform.util.Scheduling.entity(live.plugin(), viewer, () -> {
             watchers.remove(viewer.getUniqueId(), original);
-            if (viewer.isOnline()) {
+            if (!viewer.isOnline()) {
+                return;
+            }
+            // Only undone if still as the replay left them: a game mode changed since — leaving admin mode,
+            // say — is not overwritten with one they no longer have the right to.
+            if (spectate && viewer.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
                 viewer.setGameMode(original.mode());
+            }
+            if (travel) {
                 viewer.teleportAsync(original.where());
             }
         });
         Runnable draw = () -> {
-            viewer.setGameMode(org.bukkit.GameMode.SPECTATOR);
+            if (spectate) {
+                viewer.setGameMode(org.bukkit.GameMode.SPECTATOR);
+            }
             de.raindancer.modules.anticheat.visual.ReplayView.show(live.plugin(), viewer, chosen);
             String title = CheckType.find(chosen.check()).map(CheckType::title).orElse(chosen.check());
             String name = live.evidence().nameOf(who);
@@ -293,6 +313,10 @@ public final class AntiCheatCommand implements BasicCommand {
             live.messages().send(viewer, "anticheat.replay-shown", "player", args[1], "check", title, "detail", chosen.detail(),
                     "index", index, "count", all.size());
         };
+        if (!travel) {
+            draw.run();
+            return;
+        }
         org.bukkit.Location there = start.clone().add(4, 2, 4);
         there.setDirection(start.toVector().subtract(there.toVector()));
         viewer.teleportAsync(there).thenRun(() -> de.raindancer.core.platform.util.Scheduling.entity(live.plugin(), viewer, draw));
